@@ -1,0 +1,115 @@
+{
+  "dashboard": {
+    "title": "CIB7 Healthcare Workers - Revenue Cycle",
+    "uid": "cib7-workers-overview",
+    "tags": ["cib7", "healthcare", "revenue-cycle"],
+    "timezone": "America/Sao_Paulo",
+    "templating": {
+      "list": [
+        {
+          "name": "worker",
+          "type": "query",
+          "query": "label_values(cib7_task_total, worker)",
+          "multi": true,
+          "includeAll": true
+        },
+        {
+          "name": "tenant_id",
+          "type": "query",
+          "query": "label_values(cib7_task_total, tenant_id)",
+          "multi": true,
+          "includeAll": true
+        }
+      ]
+    },
+    "panels": [
+      {
+        "title": "Task Throughput (tasks/s)",
+        "type": "timeseries",
+        "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+        "targets": [
+          {
+            "expr": "sum(rate(cib7_task_total{worker=~\"$worker\", tenant_id=~\"$tenant_id\"}[5m])) by (worker, status)",
+            "legendFormat": "{{ worker }} - {{ status }}"
+          }
+        ]
+      },
+      {
+        "title": "Task Duration (p50 / p95 / p99)",
+        "type": "timeseries",
+        "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.50, sum(rate(cib7_task_duration_seconds_bucket{worker=~\"$worker\"}[5m])) by (le, worker))",
+            "legendFormat": "{{ worker }} p50"
+          },
+          {
+            "expr": "histogram_quantile(0.95, sum(rate(cib7_task_duration_seconds_bucket{worker=~\"$worker\"}[5m])) by (le, worker))",
+            "legendFormat": "{{ worker }} p95"
+          },
+          {
+            "expr": "histogram_quantile(0.99, sum(rate(cib7_task_duration_seconds_bucket{worker=~\"$worker\"}[5m])) by (le, worker))",
+            "legendFormat": "{{ worker }} p99"
+          }
+        ]
+      },
+      {
+        "title": "Error Rate by Worker",
+        "type": "timeseries",
+        "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
+        "targets": [
+          {
+            "expr": "sum(rate(cib7_task_errors_total{worker=~\"$worker\"}[5m])) by (worker, error_type)",
+            "legendFormat": "{{ worker }} - {{ error_type }}"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "custom": { "drawStyle": "bars" }
+          }
+        }
+      },
+      {
+        "title": "Tasks In Progress",
+        "type": "gauge",
+        "gridPos": { "h": 8, "w": 6, "x": 12, "y": 8 },
+        "targets": [
+          {
+            "expr": "sum(cib7_tasks_in_progress) by (worker)",
+            "legendFormat": "{{ worker }}"
+          }
+        ]
+      },
+      {
+        "title": "API Call Latency by Service",
+        "type": "timeseries",
+        "gridPos": { "h": 8, "w": 6, "x": 18, "y": 8 },
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.95, sum(rate(cib7_api_call_duration_seconds_bucket[5m])) by (le, service))",
+            "legendFormat": "{{ service }} p95"
+          }
+        ]
+      },
+      {
+        "title": "Health Check Status",
+        "type": "stat",
+        "gridPos": { "h": 4, "w": 24, "x": 0, "y": 16 },
+        "targets": [
+          {
+            "expr": "cib7_health_status",
+            "legendFormat": "{{ check_name }} ({{ probe_type }})"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "mappings": [
+              { "type": "value", "options": { "0": { "text": "UNHEALTHY", "color": "red" } } },
+              { "type": "value", "options": { "1": { "text": "HEALTHY", "color": "green" } } }
+            ]
+          }
+        }
+      }
+    ]
+  }
+}

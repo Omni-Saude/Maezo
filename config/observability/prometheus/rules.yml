@@ -1,0 +1,85 @@
+groups:
+  - name: cib7_task_alerts
+    rules:
+      # High task error rate
+      - alert: CIB7TaskErrorRateHigh
+        expr: |
+          (
+            sum(rate(cib7_task_errors_total[5m])) by (worker, tenant_id)
+            /
+            sum(rate(cib7_task_total[5m])) by (worker, tenant_id)
+          ) > 0.10
+        for: 5m
+        labels:
+          severity: warning
+          team: revenue-cycle
+        annotations:
+          summary: "High task error rate for {{ $labels.worker }}"
+          description: "Worker {{ $labels.worker }} (tenant={{ $labels.tenant_id }}) has >10% error rate: {{ $value | humanizePercentage }}"
+
+      # Task execution too slow (p95 > 30s)
+      - alert: CIB7TaskLatencyHigh
+        expr: |
+          histogram_quantile(0.95, sum(rate(cib7_task_duration_seconds_bucket[5m])) by (le, worker))
+          > 30
+        for: 10m
+        labels:
+          severity: warning
+          team: revenue-cycle
+        annotations:
+          summary: "High task latency for {{ $labels.worker }}"
+          description: "p95 latency is {{ $value | humanizeDuration }} for worker {{ $labels.worker }}"
+
+      # Tasks stuck in progress
+      - alert: CIB7TasksStuck
+        expr: cib7_tasks_in_progress > 0
+        for: 15m
+        labels:
+          severity: critical
+          team: revenue-cycle
+        annotations:
+          summary: "Tasks stuck in progress for {{ $labels.worker }}"
+          description: "{{ $value }} tasks have been in progress for >15m on {{ $labels.worker }}"
+
+  - name: cib7_api_alerts
+    rules:
+      # External API high error rate
+      - alert: CIB7APIErrorRateHigh
+        expr: |
+          (
+            sum(rate(cib7_api_call_total{status_code=~"5..|error"}[5m])) by (service)
+            /
+            sum(rate(cib7_api_call_total[5m])) by (service)
+          ) > 0.05
+        for: 5m
+        labels:
+          severity: critical
+          team: revenue-cycle
+        annotations:
+          summary: "High API error rate for {{ $labels.service }}"
+          description: "{{ $labels.service }} API has >5% error rate: {{ $value | humanizePercentage }}"
+
+      # External API slow responses (p95 > 5s)
+      - alert: CIB7APILatencyHigh
+        expr: |
+          histogram_quantile(0.95, sum(rate(cib7_api_call_duration_seconds_bucket[5m])) by (le, service))
+          > 5
+        for: 5m
+        labels:
+          severity: warning
+          team: revenue-cycle
+        annotations:
+          summary: "Slow API responses from {{ $labels.service }}"
+          description: "p95 latency is {{ $value | humanizeDuration }}"
+
+  - name: cib7_health_alerts
+    rules:
+      - alert: CIB7HealthCheckFailing
+        expr: cib7_health_status == 0
+        for: 2m
+        labels:
+          severity: critical
+          team: platform
+        annotations:
+          summary: "Health check {{ $labels.check_name }} is failing"
+          description: "Probe {{ $labels.probe_type }} check {{ $labels.check_name }} has been unhealthy for >2m"
