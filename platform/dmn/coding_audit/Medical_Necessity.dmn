@@ -1,0 +1,367 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/"
+             xmlns:dc="http://www.omg.org/spec/DMN/20180521/DC/"
+             xmlns:camunda="http://camunda.org/schema/1.0/dmn"
+             id="Medical_Necessity_DMN"
+             name="Medical Necessity Decision"
+             namespace="http://camunda.org/schema/1.0/dmn">
+
+  <decision id="medical_necessity_decision" name="Validação de Necessidade Médica">
+    <decisionTable id="medical_necessity_table" hitPolicy="FIRST">
+      <input id="input_diagnosisCode" label="Código de Diagnóstico" camunda:inputVariable="diagnosisCode">
+        <inputExpression id="inputExpr_diagnosisCode" typeRef="string">
+          <text>diagnosisCode</text>
+        </inputExpression>
+      </input>
+      <input id="input_procedureCode" label="Código de Procedimento" camunda:inputVariable="procedureCode">
+        <inputExpression id="inputExpr_procedureCode" typeRef="string">
+          <text>procedureCode</text>
+        </inputExpression>
+      </input>
+      <input id="input_clinicalJustification" label="Justificativa Clínica Presente" camunda:inputVariable="clinicalJustification">
+        <inputExpression id="inputExpr_clinicalJustification" typeRef="boolean">
+          <text>clinicalJustification</text>
+        </inputExpression>
+      </input>
+      <input id="input_priorAuthStatus" label="Status de Autorização Prévia" camunda:inputVariable="priorAuthStatus">
+        <inputExpression id="inputExpr_priorAuthStatus" typeRef="string">
+          <text>priorAuthStatus</text>
+        </inputExpression>
+        <inputValues id="inputValues_priorAuthStatus">
+          <text>"APPROVED","PENDING","DENIED","NOT_REQUIRED"</text>
+        </inputValues>
+      </input>
+      <input id="input_tenantId" label="Tenant ID" camunda:inputVariable="tenantId">
+        <inputExpression id="inputExpr_tenantId" typeRef="string">
+          <text>tenantId</text>
+        </inputExpression>
+      </input>
+
+      <output id="output_medicallyNecessary" label="Medicamente Necessário" name="medicallyNecessary" typeRef="boolean" />
+      <output id="output_evidenceLevel" label="Nível de Evidência" name="evidenceLevel" typeRef="string" />
+      <output id="output_requiresAdditionalDoc" label="Requer Documentação Adicional" name="requiresAdditionalDoc" typeRef="boolean" />
+      <output id="output_appealRecommended" label="Recurso Recomendado" name="appealRecommended" typeRef="boolean" />
+
+      <!-- Regra 1: Sem justificativa clínica - necessidade não estabelecida -->
+      <rule id="rule_necessity_001">
+        <inputEntry id="inputEntry_necessity_001_1">
+          <text></text>
+        </inputEntry>
+        <inputEntry id="inputEntry_necessity_001_2">
+          <text></text>
+        </inputEntry>
+        <inputEntry id="inputEntry_necessity_001_3">
+          <text>false</text>
+        </inputEntry>
+        <inputEntry id="inputEntry_necessity_001_4">
+          <text></text>
+        </inputEntry>
+        <inputEntry id="inputEntry_necessity_001_5">
+          <text></text>
+        </inputEntry>
+        <outputEntry id="outputEntry_necessity_001_1">
+          <text>false</text>
+        </outputEntry>
+        <outputEntry id="outputEntry_necessity_001_2">
+          <text>"INSUFICIENTE"</text>
+        </outputEntry>
+        <outputEntry id="outputEntry_necessity_001_3">
+          <text>true</text>
+        </outputEntry>
+        <outputEntry id="outputEntry_necessity_001_4">
+          <text>false</text>
+        </outputEntry>
+      </rule>
+
+      <!-- Regra 2: Autorização prévia negada - sem recurso -->
+      <rule id="rule_necessity_002">
+        <inputEntry id="inputEntry_necessity_002_1">
+          <text></text>
+        </inputEntry>
+        <inputEntry id="inputEntry_necessity_002_2">
+          <text></text>
+        </inputEntry>
+        <inputEntry id="inputEntry_necessity_002_3">
+          <text></text>
+        </inputEntry>
+        <inputEntry id="inputEntry_necessity_002_4">
+          <text>"DENIED"</text>
+        </inputEntry>
+        <inputEntry id="inputEntry_necessity_002_5">
+          <text></text>
+        </inputEntry>
+        <outputEntry id="outputEntry_necessity_002_1">
+          <text>false</text>
+        </outputEntry>
+        <outputEntry id="outputEntry_necessity_002_2">
+          <text>"NEGADO"</text>
+        </outputEntry>
+        <outputEntry id="outputEntry_necessity_002_3">
+          <text>false</text>
+        </outputEntry>
+        <outputEntry id="outputEntry_necessity_002_4">
+          <text>true</text>
+        </outputEntry>
+      </rule>
+
+      <!-- Regra 3: Cirurgia cardíaca com diagnóstico cardíaco - alta evidência -->
+      <rule id="rule_necessity_003">
+        <inputEntry id="inputEntry_necessity_003_1">
+          <text>starts with(diagnosisCode, "I2") or starts with(diagnosisCode, "I5")</text>
+        </inputEntry>
+        <inputEntry id="inputEntry_necessity_003_2">
+          <text>starts with(procedureCode, "311")</text>
+        </inputEntry>
+        <inputEntry id="inputEntry_necessity_003_3">
+          <text>true</text>
+        </inputEntry>
+        <inputEntry id="inputEntry_necessity_003_4">
+          <text>"APPROVED","NOT_REQUIRED"</text>
+        </inputEntry>
+        <inputEntry id="inputEntry_necessity_003_5">
+          <text></text>
+        </inputEntry>
+        <outputEntry id="outputEntry_necessity_003_1">
+          <text>true</text>
+        </outputEntry>
+        <outputEntry id="outputEntry_necessity_003_2">
+          <text>"ALTA"</text>
+        </outputEntry>
+        <outputEntry id="outputEntry_necessity_003_3">
+          <text>false</text>
+        </outputEntry>
+        <outputEntry id="outputEntry_necessity_003_4">
+          <text>false</text>
+        </outputEntry>
+      </rule>
+
+      <!-- Regra 4: Cesariana de emergência - necessidade médica estabelecida -->
+      <rule id="rule_necessity_004">
+        <inputEntry id="inputEntry_necessity_004_1">
+          <text>starts with(diagnosisCode, "O")</text>
+        </inputEntry>
+        <inputEntry id="inputEntry_necessity_004_2">
+          <text>"31309166"</text>
+        </inputEntry>
+        <inputEntry id="inputEntry_necessity_004_3">
+          <text>true</text>
+        </inputEntry>
+        <inputEntry id="inputEntry_necessity_004_4">
+          <text>"NOT_REQUIRED"</text>
+        </inputEntry>
+        <inputEntry id="inputEntry_necessity_004_5">
+          <text></text>
+        </inputEntry>
+        <outputEntry id="outputEntry_necessity_004_1">
+          <text>true</text>
+        </outputEntry>
+        <outputEntry id="outputEntry_necessity_004_2">
+          <text>"ALTA"</text>
+        </outputEntry>
+        <outputEntry id="outputEntry_necessity_004_3">
+          <text>false</text>
+        </outputEntry>
+        <outputEntry id="outputEntry_necessity_004_4">
+          <text>false</text>
+        </outputEntry>
+      </rule>
+
+      <!-- Regra 5: OPME com autorização aprovada - necessário -->
+      <rule id="rule_necessity_005">
+        <inputEntry id="inputEntry_necessity_005_1">
+          <text></text>
+        </inputEntry>
+        <inputEntry id="inputEntry_necessity_005_2">
+          <text>starts with(procedureCode, "8")</text>
+        </inputEntry>
+        <inputEntry id="inputEntry_necessity_005_3">
+          <text>true</text>
+        </inputEntry>
+        <inputEntry id="inputEntry_necessity_005_4">
+          <text>"APPROVED"</text>
+        </inputEntry>
+        <inputEntry id="inputEntry_necessity_005_5">
+          <text></text>
+        </inputEntry>
+        <outputEntry id="outputEntry_necessity_005_1">
+          <text>true</text>
+        </outputEntry>
+        <outputEntry id="outputEntry_necessity_005_2">
+          <text>"ALTA"</text>
+        </outputEntry>
+        <outputEntry id="outputEntry_necessity_005_3">
+          <text>false</text>
+        </outputEntry>
+        <outputEntry id="outputEntry_necessity_005_4">
+          <text>false</text>
+        </outputEntry>
+      </rule>
+
+      <!-- Regra 6: Procedimento ortopédico com diagnóstico musculoesquelético -->
+      <rule id="rule_necessity_006">
+        <inputEntry id="inputEntry_necessity_006_1">
+          <text>starts with(diagnosisCode, "M") or starts with(diagnosisCode, "S")</text>
+        </inputEntry>
+        <inputEntry id="inputEntry_necessity_006_2">
+          <text>starts with(procedureCode, "313")</text>
+        </inputEntry>
+        <inputEntry id="inputEntry_necessity_006_3">
+          <text>true</text>
+        </inputEntry>
+        <inputEntry id="inputEntry_necessity_006_4">
+          <text>"APPROVED","NOT_REQUIRED"</text>
+        </inputEntry>
+        <inputEntry id="inputEntry_necessity_006_5">
+          <text></text>
+        </inputEntry>
+        <outputEntry id="outputEntry_necessity_006_1">
+          <text>true</text>
+        </outputEntry>
+        <outputEntry id="outputEntry_necessity_006_2">
+          <text>"MODERADA"</text>
+        </outputEntry>
+        <outputEntry id="outputEntry_necessity_006_3">
+          <text>false</text>
+        </outputEntry>
+        <outputEntry id="outputEntry_necessity_006_4">
+          <text>false</text>
+        </outputEntry>
+      </rule>
+
+      <!-- Regra 7: Exames diagnósticos com sintomas compatíveis -->
+      <rule id="rule_necessity_007">
+        <inputEntry id="inputEntry_necessity_007_1">
+          <text></text>
+        </inputEntry>
+        <inputEntry id="inputEntry_necessity_007_2">
+          <text>starts with(procedureCode, "2")</text>
+        </inputEntry>
+        <inputEntry id="inputEntry_necessity_007_3">
+          <text>true</text>
+        </inputEntry>
+        <inputEntry id="inputEntry_necessity_007_4">
+          <text>"NOT_REQUIRED"</text>
+        </inputEntry>
+        <inputEntry id="inputEntry_necessity_007_5">
+          <text></text>
+        </inputEntry>
+        <outputEntry id="outputEntry_necessity_007_1">
+          <text>true</text>
+        </outputEntry>
+        <outputEntry id="outputEntry_necessity_007_2">
+          <text>"MODERADA"</text>
+        </outputEntry>
+        <outputEntry id="outputEntry_necessity_007_3">
+          <text>false</text>
+        </outputEntry>
+        <outputEntry id="outputEntry_necessity_007_4">
+          <text>false</text>
+        </outputEntry>
+      </rule>
+
+      <!-- Regra 8: Procedimento eletivo com autorização pendente -->
+      <rule id="rule_necessity_008">
+        <inputEntry id="inputEntry_necessity_008_1">
+          <text></text>
+        </inputEntry>
+        <inputEntry id="inputEntry_necessity_008_2">
+          <text>starts with(procedureCode, "3")</text>
+        </inputEntry>
+        <inputEntry id="inputEntry_necessity_008_3">
+          <text>true</text>
+        </inputEntry>
+        <inputEntry id="inputEntry_necessity_008_4">
+          <text>"PENDING"</text>
+        </inputEntry>
+        <inputEntry id="inputEntry_necessity_008_5">
+          <text></text>
+        </inputEntry>
+        <outputEntry id="outputEntry_necessity_008_1">
+          <text>false</text>
+        </outputEntry>
+        <outputEntry id="outputEntry_necessity_008_2">
+          <text>"PENDENTE"</text>
+        </outputEntry>
+        <outputEntry id="outputEntry_necessity_008_3">
+          <text>true</text>
+        </outputEntry>
+        <outputEntry id="outputEntry_necessity_008_4">
+          <text>false</text>
+        </outputEntry>
+      </rule>
+
+      <!-- Regra 9: Procedimento experimental ou cosmético - baixa evidência -->
+      <rule id="rule_necessity_009">
+        <inputEntry id="inputEntry_necessity_009_1">
+          <text>starts with(diagnosisCode, "Z")</text>
+        </inputEntry>
+        <inputEntry id="inputEntry_necessity_009_2">
+          <text></text>
+        </inputEntry>
+        <inputEntry id="inputEntry_necessity_009_3">
+          <text>true</text>
+        </inputEntry>
+        <inputEntry id="inputEntry_necessity_009_4">
+          <text>"DENIED"</text>
+        </inputEntry>
+        <inputEntry id="inputEntry_necessity_009_5">
+          <text></text>
+        </inputEntry>
+        <outputEntry id="outputEntry_necessity_009_1">
+          <text>false</text>
+        </outputEntry>
+        <outputEntry id="outputEntry_necessity_009_2">
+          <text>"BAIXA"</text>
+        </outputEntry>
+        <outputEntry id="outputEntry_necessity_009_3">
+          <text>true</text>
+        </outputEntry>
+        <outputEntry id="outputEntry_necessity_009_4">
+          <text>true</text>
+        </outputEntry>
+      </rule>
+
+      <!-- Regra 10: Fallback - necessita avaliação adicional -->
+      <rule id="rule_necessity_010">
+        <inputEntry id="inputEntry_necessity_010_1">
+          <text></text>
+        </inputEntry>
+        <inputEntry id="inputEntry_necessity_010_2">
+          <text></text>
+        </inputEntry>
+        <inputEntry id="inputEntry_necessity_010_3">
+          <text></text>
+        </inputEntry>
+        <inputEntry id="inputEntry_necessity_010_4">
+          <text></text>
+        </inputEntry>
+        <inputEntry id="inputEntry_necessity_010_5">
+          <text></text>
+        </inputEntry>
+        <outputEntry id="outputEntry_necessity_010_1">
+          <text>false</text>
+        </outputEntry>
+        <outputEntry id="outputEntry_necessity_010_2">
+          <text>"INDETERMINADA"</text>
+        </outputEntry>
+        <outputEntry id="outputEntry_necessity_010_3">
+          <text>true</text>
+        </outputEntry>
+        <outputEntry id="outputEntry_necessity_010_4">
+          <text>false</text>
+        </outputEntry>
+      </rule>
+
+    </decisionTable>
+  </decision>
+
+  <dmndi:DMNDI>
+    <dmndi:DMNDiagram id="DMNDiagram_Medical_Necessity">
+      <dmndi:DMNShape id="DMNShape_medical_necessity_decision" dmnElementRef="medical_necessity_decision">
+        <dc:Bounds height="80" width="180" x="100" y="100" />
+      </dmndi:DMNShape>
+    </dmndi:DMNDiagram>
+  </dmndi:DMNDI>
+
+</definitions>

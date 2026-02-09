@@ -1,0 +1,380 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             xmlns:camunda="http://camunda.org/schema/1.0/dmn"
+             xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/"
+             xmlns:dc="http://www.omg.org/spec/DMN/20180521/DC/"
+             id="Definitions_Data_Access_Policy"
+             name="Data Access Policy"
+             namespace="http://cib7.healthcare/dmn/access_control">
+
+  <decision id="Decision_Data_Access_Policy" name="Política de Acesso a Dados LGPD">
+    <informationRequirement>
+      <requiredInput href="#InputData_dataCategory"/>
+    </informationRequirement>
+    <informationRequirement>
+      <requiredInput href="#InputData_requesterRole"/>
+    </informationRequirement>
+    <informationRequirement>
+      <requiredInput href="#InputData_purpose"/>
+    </informationRequirement>
+    <informationRequirement>
+      <requiredInput href="#InputData_hasConsent"/>
+    </informationRequirement>
+    <informationRequirement>
+      <requiredInput href="#InputData_tenantId"/>
+    </informationRequirement>
+
+    <decisionTable id="DecisionTable_Data_Access_Policy" hitPolicy="FIRST">
+      <input id="Input_dataCategory" label="Categoria de Dados" camunda:inputVariable="dataCategory">
+        <inputExpression id="InputExpression_dataCategory" typeRef="string">
+          <text>dataCategory</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_requesterRole" label="Papel do Solicitante" camunda:inputVariable="requesterRole">
+        <inputExpression id="InputExpression_requesterRole" typeRef="string">
+          <text>requesterRole</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_purpose" label="Finalidade" camunda:inputVariable="purpose">
+        <inputExpression id="InputExpression_purpose" typeRef="string">
+          <text>purpose</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_hasConsent" label="Possui Consentimento" camunda:inputVariable="hasConsent">
+        <inputExpression id="InputExpression_hasConsent" typeRef="boolean">
+          <text>hasConsent</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_tenantId" label="ID do Tenant" camunda:inputVariable="tenantId">
+        <inputExpression id="InputExpression_tenantId" typeRef="string">
+          <text>tenantId</text>
+        </inputExpression>
+      </input>
+
+      <output id="Output_accessGranted" label="Acesso Concedido" name="accessGranted" typeRef="boolean"/>
+      <output id="Output_anonymizationRequired" label="Requer Anonimização" name="anonymizationRequired" typeRef="boolean"/>
+      <output id="Output_retentionDays" label="Dias de Retenção" name="retentionDays" typeRef="integer"/>
+      <output id="Output_auditLevel" label="Nível de Auditoria" name="auditLevel" typeRef="string"/>
+
+      <!-- Rule 1: Health Data for Treatment - Always Allowed -->
+      <rule id="Rule_Health_Treatment">
+        <inputEntry id="InputEntry_Health_Category">
+          <text>"HEALTH_DATA"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_Health_Role">
+          <text>"PHYSICIAN","NURSE"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_Health_Purpose">
+          <text>"TREATMENT"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_Health_Consent">
+          <text></text>
+        </inputEntry>
+        <inputEntry id="InputEntry_Health_Tenant">
+          <text></text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_Health_Granted">
+          <text>true</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_Health_Anon">
+          <text>false</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_Health_Retention">
+          <text>7300</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_Health_Audit">
+          <text>"DETAILED"</text>
+        </outputEntry>
+      </rule>
+
+      <!-- Rule 2: Financial Data for Billing with Consent -->
+      <rule id="Rule_Financial_Billing">
+        <inputEntry id="InputEntry_Financial_Category">
+          <text>"FINANCIAL"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_Financial_Role">
+          <text>"BILLING_ANALYST","ADMIN"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_Financial_Purpose">
+          <text>"BILLING"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_Financial_Consent">
+          <text>true</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_Financial_Tenant">
+          <text></text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_Financial_Granted">
+          <text>true</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_Financial_Anon">
+          <text>false</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_Financial_Retention">
+          <text>1825</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_Financial_Audit">
+          <text>"STANDARD"</text>
+        </outputEntry>
+      </rule>
+
+      <!-- Rule 3: Personal Data for Research - Requires Anonymization -->
+      <rule id="Rule_Personal_Research">
+        <inputEntry id="InputEntry_Personal_Category">
+          <text>"PERSONAL","HEALTH_DATA"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_Personal_Role">
+          <text></text>
+        </inputEntry>
+        <inputEntry id="InputEntry_Personal_Purpose">
+          <text>"RESEARCH"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_Personal_Consent">
+          <text>true</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_Personal_Tenant">
+          <text></text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_Personal_Granted">
+          <text>true</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_Personal_Anon">
+          <text>true</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_Personal_Retention">
+          <text>365</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_Personal_Audit">
+          <text>"DETAILED"</text>
+        </outputEntry>
+      </rule>
+
+      <!-- Rule 4: Anonymous Data - Always Allowed -->
+      <rule id="Rule_Anonymous_All">
+        <inputEntry id="InputEntry_Anonymous_Category">
+          <text>"ANONYMOUS","AGGREGATED"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_Anonymous_Role">
+          <text></text>
+        </inputEntry>
+        <inputEntry id="InputEntry_Anonymous_Purpose">
+          <text></text>
+        </inputEntry>
+        <inputEntry id="InputEntry_Anonymous_Consent">
+          <text></text>
+        </inputEntry>
+        <inputEntry id="InputEntry_Anonymous_Tenant">
+          <text></text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_Anonymous_Granted">
+          <text>true</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_Anonymous_Anon">
+          <text>false</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_Anonymous_Retention">
+          <text>1095</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_Anonymous_Audit">
+          <text>"MINIMAL"</text>
+        </outputEntry>
+      </rule>
+
+      <!-- Rule 5: Audit Purpose - Always Allowed for Auditors -->
+      <rule id="Rule_Audit_Auditor">
+        <inputEntry id="InputEntry_Audit_Category">
+          <text></text>
+        </inputEntry>
+        <inputEntry id="InputEntry_Audit_Role">
+          <text>"AUDITOR","ADMIN"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_Audit_Purpose">
+          <text>"AUDIT"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_Audit_Consent">
+          <text></text>
+        </inputEntry>
+        <inputEntry id="InputEntry_Audit_Tenant">
+          <text></text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_Audit_Granted">
+          <text>true</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_Audit_Anon">
+          <text>false</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_Audit_Retention">
+          <text>2555</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_Audit_Audit">
+          <text>"DETAILED"</text>
+        </outputEntry>
+      </rule>
+
+      <!-- Rule 6: Legal Purpose - Allowed with Documentation -->
+      <rule id="Rule_Legal_Purpose">
+        <inputEntry id="InputEntry_Legal_Category">
+          <text></text>
+        </inputEntry>
+        <inputEntry id="InputEntry_Legal_Role">
+          <text>"ADMIN","MANAGER"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_Legal_Purpose">
+          <text>"LEGAL"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_Legal_Consent">
+          <text></text>
+        </inputEntry>
+        <inputEntry id="InputEntry_Legal_Tenant">
+          <text></text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_Legal_Granted">
+          <text>true</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_Legal_Anon">
+          <text>false</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_Legal_Retention">
+          <text>3650</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_Legal_Audit">
+          <text>"DETAILED"</text>
+        </outputEntry>
+      </rule>
+
+      <!-- Rule 7: No Consent for Personal Data - Denied -->
+      <rule id="Rule_No_Consent_Personal">
+        <inputEntry id="InputEntry_NoConsent_Category">
+          <text>"PERSONAL","HEALTH_DATA","FINANCIAL"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_NoConsent_Role">
+          <text></text>
+        </inputEntry>
+        <inputEntry id="InputEntry_NoConsent_Purpose">
+          <text>"RESEARCH"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_NoConsent_Consent">
+          <text>false</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_NoConsent_Tenant">
+          <text></text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_NoConsent_Granted">
+          <text>false</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_NoConsent_Anon">
+          <text>false</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_NoConsent_Retention">
+          <text>0</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_NoConsent_Audit">
+          <text>"DETAILED"</text>
+        </outputEntry>
+      </rule>
+
+      <!-- Rule 8: Health Data for Billing - Partial Access -->
+      <rule id="Rule_Health_Billing">
+        <inputEntry id="InputEntry_HealthBill_Category">
+          <text>"HEALTH_DATA"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_HealthBill_Role">
+          <text>"BILLING_ANALYST"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_HealthBill_Purpose">
+          <text>"BILLING"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_HealthBill_Consent">
+          <text></text>
+        </inputEntry>
+        <inputEntry id="InputEntry_HealthBill_Tenant">
+          <text></text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_HealthBill_Granted">
+          <text>true</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_HealthBill_Anon">
+          <text>true</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_HealthBill_Retention">
+          <text>1825</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_HealthBill_Audit">
+          <text>"STANDARD"</text>
+        </outputEntry>
+      </rule>
+
+      <!-- Rule 9: Aggregated Data for Reports -->
+      <rule id="Rule_Aggregated_Reports">
+        <inputEntry id="InputEntry_Aggregated_Category">
+          <text>"AGGREGATED"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_Aggregated_Role">
+          <text>"MANAGER","ADMIN"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_Aggregated_Purpose">
+          <text></text>
+        </inputEntry>
+        <inputEntry id="InputEntry_Aggregated_Consent">
+          <text></text>
+        </inputEntry>
+        <inputEntry id="InputEntry_Aggregated_Tenant">
+          <text></text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_Aggregated_Granted">
+          <text>true</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_Aggregated_Anon">
+          <text>false</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_Aggregated_Retention">
+          <text>730</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_Aggregated_Audit">
+          <text>"MINIMAL"</text>
+        </outputEntry>
+      </rule>
+
+      <!-- Rule 10: Default Deny -->
+      <rule id="Rule_Default_Deny">
+        <inputEntry id="InputEntry_Default_Category">
+          <text></text>
+        </inputEntry>
+        <inputEntry id="InputEntry_Default_Role">
+          <text></text>
+        </inputEntry>
+        <inputEntry id="InputEntry_Default_Purpose">
+          <text></text>
+        </inputEntry>
+        <inputEntry id="InputEntry_Default_Consent">
+          <text></text>
+        </inputEntry>
+        <inputEntry id="InputEntry_Default_Tenant">
+          <text></text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_Default_Granted">
+          <text>false</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_Default_Anon">
+          <text>false</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_Default_Retention">
+          <text>0</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_Default_Audit">
+          <text>"DETAILED"</text>
+        </outputEntry>
+      </rule>
+    </decisionTable>
+  </decision>
+
+  <inputData id="InputData_dataCategory" name="Categoria de Dados"/>
+  <inputData id="InputData_requesterRole" name="Papel do Solicitante"/>
+  <inputData id="InputData_purpose" name="Finalidade"/>
+  <inputData id="InputData_hasConsent" name="Possui Consentimento"/>
+  <inputData id="InputData_tenantId" name="ID do Tenant"/>
+</definitions>

@@ -1,0 +1,309 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             xmlns:camunda="http://camunda.org/schema/1.0/dmn"
+             xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/"
+             xmlns:dc="http://www.omg.org/spec/DMN/20180521/DC/"
+             id="Definitions_PHI_Masking"
+             name="PHI Masking Rules"
+             namespace="http://cib7.healthcare/dmn/access_control">
+
+  <decision id="Decision_PHI_Masking" name="Regras de Mascaramento de Dados Protegidos">
+    <informationRequirement>
+      <requiredInput href="#InputData_fieldType"/>
+    </informationRequirement>
+    <informationRequirement>
+      <requiredInput href="#InputData_viewerRole"/>
+    </informationRequirement>
+    <informationRequirement>
+      <requiredInput href="#InputData_context"/>
+    </informationRequirement>
+    <informationRequirement>
+      <requiredInput href="#InputData_tenantId"/>
+    </informationRequirement>
+
+    <decisionTable id="DecisionTable_PHI_Masking" hitPolicy="FIRST">
+      <input id="Input_fieldType" label="Tipo de Campo" camunda:inputVariable="fieldType">
+        <inputExpression id="InputExpression_fieldType" typeRef="string">
+          <text>fieldType</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_viewerRole" label="Papel do Visualizador" camunda:inputVariable="viewerRole">
+        <inputExpression id="InputExpression_viewerRole" typeRef="string">
+          <text>viewerRole</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_context" label="Contexto" camunda:inputVariable="context">
+        <inputExpression id="InputExpression_context" typeRef="string">
+          <text>context</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_tenantId" label="ID do Tenant" camunda:inputVariable="tenantId">
+        <inputExpression id="InputExpression_tenantId" typeRef="string">
+          <text>tenantId</text>
+        </inputExpression>
+      </input>
+
+      <output id="Output_maskingLevel" label="Nível de Mascaramento" name="maskingLevel" typeRef="string"/>
+      <output id="Output_maskedFormat" label="Formato Mascarado" name="maskedFormat" typeRef="string"/>
+      <output id="Output_logAccess" label="Registrar Acesso" name="logAccess" typeRef="boolean"/>
+
+      <!-- Rule 1: Clinical Context - No Masking for Healthcare Providers -->
+      <rule id="Rule_Clinical_NoMask">
+        <inputEntry id="InputEntry_Clinical_Field">
+          <text>"NAME","CPF","DOB","ADDRESS","PHONE","DIAGNOSIS","PROCEDURE"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_Clinical_Role">
+          <text>"PHYSICIAN","NURSE"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_Clinical_Context">
+          <text>"CLINICAL"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_Clinical_Tenant">
+          <text></text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_Clinical_Level">
+          <text>"NONE"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_Clinical_Format">
+          <text>"ORIGINAL"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_Clinical_Log">
+          <text>true</text>
+        </outputEntry>
+      </rule>
+
+      <!-- Rule 2: Billing Context - Partial Masking for Names -->
+      <rule id="Rule_Billing_Name">
+        <inputEntry id="InputEntry_Billing_Field">
+          <text>"NAME"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_Billing_Role">
+          <text>"BILLING_ANALYST"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_Billing_Context">
+          <text>"BILLING"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_Billing_Tenant">
+          <text></text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_Billing_Level">
+          <text>"PARTIAL"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_Billing_Format">
+          <text>"FIRST_LAST_INITIAL"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_Billing_Log">
+          <text>true</text>
+        </outputEntry>
+      </rule>
+
+      <!-- Rule 3: Billing Context - Partial CPF Masking -->
+      <rule id="Rule_Billing_CPF">
+        <inputEntry id="InputEntry_BillingCPF_Field">
+          <text>"CPF"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_BillingCPF_Role">
+          <text>"BILLING_ANALYST"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_BillingCPF_Context">
+          <text>"BILLING"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_BillingCPF_Tenant">
+          <text></text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_BillingCPF_Level">
+          <text>"PARTIAL"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_BillingCPF_Format">
+          <text>"XXX.XXX.XXX-##"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_BillingCPF_Log">
+          <text>true</text>
+        </outputEntry>
+      </rule>
+
+      <!-- Rule 4: Research Context - Full Masking of All PII -->
+      <rule id="Rule_Research_FullMask">
+        <inputEntry id="InputEntry_Research_Field">
+          <text>"NAME","CPF","ADDRESS","PHONE"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_Research_Role">
+          <text></text>
+        </inputEntry>
+        <inputEntry id="InputEntry_Research_Context">
+          <text>"RESEARCH"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_Research_Tenant">
+          <text></text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_Research_Level">
+          <text>"FULL"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_Research_Format">
+          <text>"ANONYMIZED_ID"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_Research_Log">
+          <text>true</text>
+        </outputEntry>
+      </rule>
+
+      <!-- Rule 5: Research Context - Age Range for DOB -->
+      <rule id="Rule_Research_DOB">
+        <inputEntry id="InputEntry_ResearchDOB_Field">
+          <text>"DOB"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_ResearchDOB_Role">
+          <text></text>
+        </inputEntry>
+        <inputEntry id="InputEntry_ResearchDOB_Context">
+          <text>"RESEARCH"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_ResearchDOB_Tenant">
+          <text></text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_ResearchDOB_Level">
+          <text>"PARTIAL"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_ResearchDOB_Format">
+          <text>"AGE_RANGE_5YR"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_ResearchDOB_Log">
+          <text>true</text>
+        </outputEntry>
+      </rule>
+
+      <!-- Rule 6: Admin Context - Address Partial Masking -->
+      <rule id="Rule_Admin_Address">
+        <inputEntry id="InputEntry_Admin_Field">
+          <text>"ADDRESS"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_Admin_Role">
+          <text>"ADMIN","MANAGER"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_Admin_Context">
+          <text>"ADMIN"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_Admin_Tenant">
+          <text></text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_Admin_Level">
+          <text>"PARTIAL"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_Admin_Format">
+          <text>"CITY_STATE_ONLY"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_Admin_Log">
+          <text>false</text>
+        </outputEntry>
+      </rule>
+
+      <!-- Rule 7: Admin Context - Phone Partial Masking -->
+      <rule id="Rule_Admin_Phone">
+        <inputEntry id="InputEntry_AdminPhone_Field">
+          <text>"PHONE"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_AdminPhone_Role">
+          <text>"ADMIN","MANAGER","RECEPTION"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_AdminPhone_Context">
+          <text>"ADMIN"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_AdminPhone_Tenant">
+          <text></text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_AdminPhone_Level">
+          <text>"PARTIAL"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_AdminPhone_Format">
+          <text>"(##) ####-####"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_AdminPhone_Log">
+          <text>false</text>
+        </outputEntry>
+      </rule>
+
+      <!-- Rule 8: Billing Diagnosis - Masked for Non-Clinical -->
+      <rule id="Rule_Billing_Diagnosis">
+        <inputEntry id="InputEntry_BillDiag_Field">
+          <text>"DIAGNOSIS","PROCEDURE"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_BillDiag_Role">
+          <text>"BILLING_ANALYST"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_BillDiag_Context">
+          <text>"BILLING"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_BillDiag_Tenant">
+          <text></text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_BillDiag_Level">
+          <text>"PARTIAL"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_BillDiag_Format">
+          <text>"CODE_ONLY"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_BillDiag_Log">
+          <text>true</text>
+        </outputEntry>
+      </rule>
+
+      <!-- Rule 9: Reception - Limited PII Access -->
+      <rule id="Rule_Reception_Limited">
+        <inputEntry id="InputEntry_Reception_Field">
+          <text>"DIAGNOSIS","PROCEDURE"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_Reception_Role">
+          <text>"RECEPTION"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_Reception_Context">
+          <text></text>
+        </inputEntry>
+        <inputEntry id="InputEntry_Reception_Tenant">
+          <text></text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_Reception_Level">
+          <text>"FULL"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_Reception_Format">
+          <text>"HIDDEN"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_Reception_Log">
+          <text>true</text>
+        </outputEntry>
+      </rule>
+
+      <!-- Rule 10: Default - Full Masking -->
+      <rule id="Rule_Default_FullMask">
+        <inputEntry id="InputEntry_Default_Field">
+          <text></text>
+        </inputEntry>
+        <inputEntry id="InputEntry_Default_Role">
+          <text></text>
+        </inputEntry>
+        <inputEntry id="InputEntry_Default_Context">
+          <text></text>
+        </inputEntry>
+        <inputEntry id="InputEntry_Default_Tenant">
+          <text></text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_Default_Level">
+          <text>"FULL"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_Default_Format">
+          <text>"***"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_Default_Log">
+          <text>true</text>
+        </outputEntry>
+      </rule>
+    </decisionTable>
+  </decision>
+
+  <inputData id="InputData_fieldType" name="Tipo de Campo"/>
+  <inputData id="InputData_viewerRole" name="Papel do Visualizador"/>
+  <inputData id="InputData_context" name="Contexto"/>
+  <inputData id="InputData_tenantId" name="ID do Tenant"/>
+</definitions>

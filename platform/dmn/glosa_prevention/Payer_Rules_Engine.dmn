@@ -1,0 +1,264 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             xmlns:camunda="http://camunda.org/schema/1.0/dmn"
+             xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/"
+             xmlns:dc="http://www.omg.org/spec/DMN/20180521/DC/"
+             id="Definitions_payer_rules_engine"
+             name="Payer Rules Engine"
+             namespace="http://camunda.org/schema/1.0/dmn"
+             exporter="Camunda Modeler"
+             exporterVersion="5.0.0">
+  <decision id="Decision_PayerRulesEngine" name="Motor de Regras por Operadora">
+    <description>Aplica regras específicas de cada operadora para prevenir glosas</description>
+    <decisionTable id="DecisionTable_PayerRulesEngine" hitPolicy="FIRST">
+      <input id="Input_tenantId" label="Tenant ID" camunda:inputVariable="tenantId">
+        <inputExpression id="InputExpression_tenantId" typeRef="string">
+          <text>tenantId</text>
+        </inputExpression>
+      </input>
+      <input id="Input_payerCode" label="Código Operadora" camunda:inputVariable="payerCode">
+        <inputExpression id="InputExpression_payerCode" typeRef="string">
+          <text>payerCode</text>
+        </inputExpression>
+      </input>
+      <input id="Input_rejectionCode" label="Código de Rejeição" camunda:inputVariable="rejectionCode">
+        <inputExpression id="InputExpression_rejectionCode" typeRef="string">
+          <text>rejectionCode</text>
+        </inputExpression>
+      </input>
+      <input id="Input_procedureCategory" label="Categoria Procedimento" camunda:inputVariable="procedureCategory">
+        <inputExpression id="InputExpression_procedureCategory" typeRef="string">
+          <text>procedureCategory</text>
+        </inputExpression>
+      </input>
+      <output id="Output_commonGlosaReason" label="Motivo Comum de Glosa" name="commonGlosaReason" typeRef="string" />
+      <output id="Output_preventionAction" label="Ação Preventiva" name="preventionAction" typeRef="string" />
+      <output id="Output_automatedFixAvailable" label="Correção Automática Disponível" name="automatedFixAvailable" typeRef="boolean" />
+      <output id="Output_escalationRequired" label="Requer Escalação" name="escalationRequired" typeRef="boolean" />
+
+      <rule id="Rule_Unimed_OPME">
+        <description>Unimed: glosa frequente em OPME por falta de cotação</description>
+        <inputEntry id="InputEntry_Unimed_OPME_tenantId">
+          <text></text>
+        </inputEntry>
+        <inputEntry id="InputEntry_Unimed_OPME_payer">
+          <text>"UNIMED","UNIMED_BH","UNIMED_SP"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_Unimed_OPME_rejection">
+          <text>"31","32","MISSING_QUOTE"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_Unimed_OPME_category">
+          <text>"OPME","ORTOPEDIA","CIRURGIA"</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_Unimed_OPME_reason">
+          <text>"Falta de cotação prévia de OPME conforme manual Unimed"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_Unimed_OPME_action">
+          <text>"Sempre incluir 3 cotações de fornecedores distintos com CNPJ e validade. Aguardar aprovação antes de usar material."</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_Unimed_OPME_automated">
+          <text>false</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_Unimed_OPME_escalation">
+          <text>true</text>
+        </outputEntry>
+      </rule>
+
+      <rule id="Rule_Bradesco_UTI">
+        <description>Bradesco: glosa em diárias de UTI sem escala de gravidade</description>
+        <inputEntry id="InputEntry_Bradesco_UTI_tenantId">
+          <text></text>
+        </inputEntry>
+        <inputEntry id="InputEntry_Bradesco_UTI_payer">
+          <text>"BRADESCO","BRADESCO_SAUDE"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_Bradesco_UTI_rejection">
+          <text>"15","16","CLINICAL_JUSTIFICATION"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_Bradesco_UTI_category">
+          <text>"UTI","CTI","ICU"</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_Bradesco_UTI_reason">
+          <text>"Falta de pontuação APACHE II ou SAPS II diária"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_Bradesco_UTI_action">
+          <text>"Incluir escala de gravidade (APACHE II ou SAPS II) na evolução médica diária. Pontuação mínima 10 para permanência."</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_Bradesco_UTI_automated">
+          <text>false</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_Bradesco_UTI_escalation">
+          <text>false</text>
+        </outputEntry>
+      </rule>
+
+      <rule id="Rule_Amil_PreAuth">
+        <description>Amil: glosa por autorização prévia expirada</description>
+        <inputEntry id="InputEntry_Amil_PreAuth_tenantId">
+          <text></text>
+        </inputEntry>
+        <inputEntry id="InputEntry_Amil_PreAuth_payer">
+          <text>"AMIL","AMIL_ONE"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_Amil_PreAuth_rejection">
+          <text>"08","09","EXPIRED_AUTH"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_Amil_PreAuth_category">
+          <text></text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_Amil_PreAuth_reason">
+          <text>"Autorização prévia vencida. Validade de 7 dias para cirurgias eletivas."</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_Amil_PreAuth_action">
+          <text>"Verificar validade da autorização antes de agendar. Renovar se necessário. Sistema deve alertar 48h antes do vencimento."</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_Amil_PreAuth_automated">
+          <text>true</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_Amil_PreAuth_escalation">
+          <text>false</text>
+        </outputEntry>
+      </rule>
+
+      <rule id="Rule_SulAmerica_Coding">
+        <description>SulAmérica: glosa por incompatibilidade CID x procedimento</description>
+        <inputEntry id="InputEntry_SulAmerica_Coding_tenantId">
+          <text></text>
+        </inputEntry>
+        <inputEntry id="InputEntry_SulAmerica_Coding_payer">
+          <text>"SULAMERICA","SUL_AMERICA"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_SulAmerica_Coding_rejection">
+          <text>"25","26","CODE_MISMATCH"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_SulAmerica_Coding_category">
+          <text></text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_SulAmerica_Coding_reason">
+          <text>"CID-10 não justifica o procedimento realizado conforme tabela de compatibilidade SulAmérica"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_SulAmerica_Coding_action">
+          <text>"Validar CID x TUSS antes de submeter. Usar tabela de compatibilidade específica. Incluir CIDs secundários se necessário."</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_SulAmerica_Coding_automated">
+          <text>true</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_SulAmerica_Coding_escalation">
+          <text>false</text>
+        </outputEntry>
+      </rule>
+
+      <rule id="Rule_NotreDame_Documentation">
+        <description>NotreDame Intermédica: glosa por documentação incompleta</description>
+        <inputEntry id="InputEntry_NotreDame_Documentation_tenantId">
+          <text></text>
+        </inputEntry>
+        <inputEntry id="InputEntry_NotreDame_Documentation_payer">
+          <text>"NOTREDAME","INTERMIDICA","NDI"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_NotreDame_Documentation_rejection">
+          <text>"40","41","INCOMPLETE_DOCS"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_NotreDame_Documentation_category">
+          <text>"CIRURGIA","INTERNACAO"</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_NotreDame_Documentation_reason">
+          <text>"Falta de termo de consentimento ou relatório cirúrgico detalhado"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_NotreDame_Documentation_action">
+          <text>"Sempre anexar: Termo de consentimento assinado, Relatório cirúrgico com descrição técnica completa, Protocolo operatório, Fotos intraoperatórias se aplicável."</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_NotreDame_Documentation_automated">
+          <text>false</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_NotreDame_Documentation_escalation">
+          <text>false</text>
+        </outputEntry>
+      </rule>
+
+      <rule id="Rule_GoldenCross_Deadline">
+        <description>GoldenCross: glosa por envio fora do prazo</description>
+        <inputEntry id="InputEntry_GoldenCross_Deadline_tenantId">
+          <text></text>
+        </inputEntry>
+        <inputEntry id="InputEntry_GoldenCross_Deadline_payer">
+          <text>"GOLDEN_CROSS","GOLDENCROSS"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_GoldenCross_Deadline_rejection">
+          <text>"05","LATE_SUBMISSION"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_GoldenCross_Deadline_category">
+          <text></text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_GoldenCross_Deadline_reason">
+          <text>"Conta enviada após prazo contratual de 30 dias da alta"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_GoldenCross_Deadline_action">
+          <text>"Enviar conta em até 20 dias da alta. Sistema deve alertar contas pendentes com 15 dias. Urgência máxima para contas com 25+ dias."</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_GoldenCross_Deadline_automated">
+          <text>true</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_GoldenCross_Deadline_escalation">
+          <text>false</text>
+        </outputEntry>
+      </rule>
+
+      <rule id="Rule_Porto_Seguro_Quantity">
+        <description>Porto Seguro: glosa por quantidade de procedimentos incompatível</description>
+        <inputEntry id="InputEntry_Porto_Seguro_Quantity_tenantId">
+          <text></text>
+        </inputEntry>
+        <inputEntry id="InputEntry_Porto_Seguro_Quantity_payer">
+          <text>"PORTO_SEGURO","PORTO"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_Porto_Seguro_Quantity_rejection">
+          <text>"22","23","QUANTITY_MISMATCH"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_Porto_Seguro_Quantity_category">
+          <text>"MATERIAIS","MEDICAMENTOS"</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_Porto_Seguro_Quantity_reason">
+          <text>"Quantidade de materiais/medicamentos acima do padrão sem justificativa"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_Porto_Seguro_Quantity_action">
+          <text>"Justificar quantidade se acima de 120% do protocolo. Anexar justificativa médica detalhada. Usar tabela de referência Porto Seguro."</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_Porto_Seguro_Quantity_automated">
+          <text>false</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_Porto_Seguro_Quantity_escalation">
+          <text>false</text>
+        </outputEntry>
+      </rule>
+
+      <rule id="Rule_Default">
+        <description>Regra padrão para operadoras não mapeadas</description>
+        <inputEntry id="InputEntry_Default_tenantId">
+          <text></text>
+        </inputEntry>
+        <inputEntry id="InputEntry_Default_payer">
+          <text></text>
+        </inputEntry>
+        <inputEntry id="InputEntry_Default_rejection">
+          <text></text>
+        </inputEntry>
+        <inputEntry id="InputEntry_Default_category">
+          <text></text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_Default_reason">
+          <text>"Motivo de glosa não mapeado para esta operadora"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_Default_action">
+          <text>"Revisar manual da operadora. Consultar histórico de glosas. Contatar operadora para esclarecimento."</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_Default_automated">
+          <text>false</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_Default_escalation">
+          <text>true</text>
+        </outputEntry>
+      </rule>
+    </decisionTable>
+  </decision>
+</definitions>

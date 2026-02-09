@@ -1,0 +1,238 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             xmlns:camunda="http://camunda.org/schema/1.0/dmn"
+             xmlns:biodi="http://bpmn.io/schema/dmn/biodi/2.0"
+             id="Contract_Rules_Bradesco_Definitions"
+             name="CIB7 Bradesco Saude Contract Rules"
+             namespace="http://cib7.healthcare.br/dmn/billing/bradesco"
+             exporter="CIB7 Healthcare Orchestrator"
+             exporterVersion="1.0">
+  <decision id="contract_rules_bradesco" name="Regras de Contrato Bradesco Saúde">
+    <description>Regras específicas de cobertura e autorização para convênio Bradesco Saúde. Inclui percentuais de cobertura, requisitos de autorização prévia e limites de reembolso por tipo de plano.</description>
+    <decisionTable id="contract_bradesco_table" hitPolicy="FIRST">
+      <input id="input_bradesco_procedure_code" label="Código do Procedimento" camunda:inputVariable="procedureCode">
+        <inputExpression id="input_bradesco_procedure_code_exp" typeRef="string">
+          <text>procedureCode</text>
+        </inputExpression>
+      </input>
+      <input id="input_bradesco_plan_type" label="Tipo de Plano" camunda:inputVariable="planType">
+        <inputExpression id="input_bradesco_plan_type_exp" typeRef="string">
+          <text>planType</text>
+        </inputExpression>
+        <inputValues id="input_bradesco_plan_type_values">
+          <text>"TOP","PLUS","BASICO","EMPRESARIAL","PME"</text>
+        </inputValues>
+      </input>
+      <input id="input_bradesco_tenant_id" label="ID do Tenant" camunda:inputVariable="tenantId">
+        <inputExpression id="input_bradesco_tenant_id_exp" typeRef="string">
+          <text>tenantId</text>
+        </inputExpression>
+      </input>
+
+      <output id="output_bradesco_coverage_percentage" label="Percentual de Cobertura" name="coveragePercentage" typeRef="integer"/>
+      <output id="output_bradesco_requires_pre_auth" label="Requer Autorização Prévia" name="requiresPreAuth" typeRef="boolean"/>
+      <output id="output_bradesco_max_reimbursement" label="Reembolso Máximo" name="maxReimbursement" typeRef="double"/>
+      <output id="output_bradesco_special_rules" label="Regras Especiais" name="specialRules" typeRef="string"/>
+
+      <!-- Rule 1: TOP plan - surgical procedures -->
+      <rule id="bradesco_rule_1">
+        <inputEntry id="bradesco_rule_1_input_1">
+          <text>starts with(procedureCode, "3")</text>
+        </inputEntry>
+        <inputEntry id="bradesco_rule_1_input_2">
+          <text>"TOP"</text>
+        </inputEntry>
+        <inputEntry id="bradesco_rule_1_input_3">
+          <text>-</text>
+        </inputEntry>
+        <outputEntry id="bradesco_rule_1_output_1">
+          <text>100</text>
+        </outputEntry>
+        <outputEntry id="bradesco_rule_1_output_2">
+          <text>true</text>
+        </outputEntry>
+        <outputEntry id="bradesco_rule_1_output_3">
+          <text>50000</text>
+        </outputEntry>
+        <outputEntry id="bradesco_rule_1_output_4">
+          <text>"Cobertura integral para cirurgias, autorização prévia obrigatória"</text>
+        </outputEntry>
+      </rule>
+
+      <!-- Rule 2: PLUS plan - high complexity -->
+      <rule id="bradesco_rule_2">
+        <inputEntry id="bradesco_rule_2_input_1">
+          <text>starts with(procedureCode, "4")</text>
+        </inputEntry>
+        <inputEntry id="bradesco_rule_2_input_2">
+          <text>"PLUS"</text>
+        </inputEntry>
+        <inputEntry id="bradesco_rule_2_input_3">
+          <text>-</text>
+        </inputEntry>
+        <outputEntry id="bradesco_rule_2_output_1">
+          <text>90</text>
+        </outputEntry>
+        <outputEntry id="bradesco_rule_2_output_2">
+          <text>true</text>
+        </outputEntry>
+        <outputEntry id="bradesco_rule_2_output_3">
+          <text>30000</text>
+        </outputEntry>
+        <outputEntry id="bradesco_rule_2_output_4">
+          <text>"Cobertura 90% para alta complexidade, coparticipação 10%"</text>
+        </outputEntry>
+      </rule>
+
+      <!-- Rule 3: BASICO plan - consultations -->
+      <rule id="bradesco_rule_3">
+        <inputEntry id="bradesco_rule_3_input_1">
+          <text>starts with(procedureCode, "10101012")</text>
+        </inputEntry>
+        <inputEntry id="bradesco_rule_3_input_2">
+          <text>"BASICO"</text>
+        </inputEntry>
+        <inputEntry id="bradesco_rule_3_input_3">
+          <text>-</text>
+        </inputEntry>
+        <outputEntry id="bradesco_rule_3_output_1">
+          <text>70</text>
+        </outputEntry>
+        <outputEntry id="bradesco_rule_3_output_2">
+          <text>false</text>
+        </outputEntry>
+        <outputEntry id="bradesco_rule_3_output_3">
+          <text>500</text>
+        </outputEntry>
+        <outputEntry id="bradesco_rule_3_output_4">
+          <text>"Cobertura parcial para consultas, sem necessidade de autorização"</text>
+        </outputEntry>
+      </rule>
+
+      <!-- Rule 4: EMPRESARIAL plan - diagnostic exams -->
+      <rule id="bradesco_rule_4">
+        <inputEntry id="bradesco_rule_4_input_1">
+          <text>starts with(procedureCode, "2")</text>
+        </inputEntry>
+        <inputEntry id="bradesco_rule_4_input_2">
+          <text>"EMPRESARIAL"</text>
+        </inputEntry>
+        <inputEntry id="bradesco_rule_4_input_3">
+          <text>-</text>
+        </inputEntry>
+        <outputEntry id="bradesco_rule_4_output_1">
+          <text>85</text>
+        </outputEntry>
+        <outputEntry id="bradesco_rule_4_output_2">
+          <text>false</text>
+        </outputEntry>
+        <outputEntry id="bradesco_rule_4_output_3">
+          <text>5000</text>
+        </outputEntry>
+        <outputEntry id="bradesco_rule_4_output_4">
+          <text>"Cobertura 85% para exames diagnósticos, liberação automática"</text>
+        </outputEntry>
+      </rule>
+
+      <!-- Rule 5: PME plan - therapies -->
+      <rule id="bradesco_rule_5">
+        <inputEntry id="bradesco_rule_5_input_1">
+          <text>starts with(procedureCode, "5")</text>
+        </inputEntry>
+        <inputEntry id="bradesco_rule_5_input_2">
+          <text>"PME"</text>
+        </inputEntry>
+        <inputEntry id="bradesco_rule_5_input_3">
+          <text>-</text>
+        </inputEntry>
+        <outputEntry id="bradesco_rule_5_output_1">
+          <text>75</text>
+        </outputEntry>
+        <outputEntry id="bradesco_rule_5_output_2">
+          <text>true</text>
+        </outputEntry>
+        <outputEntry id="bradesco_rule_5_output_3">
+          <text>3000</text>
+        </outputEntry>
+        <outputEntry id="bradesco_rule_5_output_4">
+          <text>"Cobertura 75% para terapias, autorização prévia necessária"</text>
+        </outputEntry>
+      </rule>
+
+      <!-- Rule 6: OPME procedures - all plans require pre-auth -->
+      <rule id="bradesco_rule_6">
+        <inputEntry id="bradesco_rule_6_input_1">
+          <text>contains(procedureCode, "OPME")</text>
+        </inputEntry>
+        <inputEntry id="bradesco_rule_6_input_2">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="bradesco_rule_6_input_3">
+          <text>-</text>
+        </inputEntry>
+        <outputEntry id="bradesco_rule_6_output_1">
+          <text>80</text>
+        </outputEntry>
+        <outputEntry id="bradesco_rule_6_output_2">
+          <text>true</text>
+        </outputEntry>
+        <outputEntry id="bradesco_rule_6_output_3">
+          <text>100000</text>
+        </outputEntry>
+        <outputEntry id="bradesco_rule_6_output_4">
+          <text>"OPME requer autorização prévia obrigatória e orçamento em 3 vias"</text>
+        </outputEntry>
+      </rule>
+
+      <!-- Rule 7: Emergency procedures - no pre-auth -->
+      <rule id="bradesco_rule_7">
+        <inputEntry id="bradesco_rule_7_input_1">
+          <text>starts with(procedureCode, "EMERG")</text>
+        </inputEntry>
+        <inputEntry id="bradesco_rule_7_input_2">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="bradesco_rule_7_input_3">
+          <text>-</text>
+        </inputEntry>
+        <outputEntry id="bradesco_rule_7_output_1">
+          <text>100</text>
+        </outputEntry>
+        <outputEntry id="bradesco_rule_7_output_2">
+          <text>false</text>
+        </outputEntry>
+        <outputEntry id="bradesco_rule_7_output_3">
+          <text>0</text>
+        </outputEntry>
+        <outputEntry id="bradesco_rule_7_output_4">
+          <text>"Emergências isentas de autorização prévia, cobertura integral"</text>
+        </outputEntry>
+      </rule>
+
+      <!-- Rule 8: Default fallback -->
+      <rule id="bradesco_rule_8">
+        <inputEntry id="bradesco_rule_8_input_1">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="bradesco_rule_8_input_2">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="bradesco_rule_8_input_3">
+          <text>-</text>
+        </inputEntry>
+        <outputEntry id="bradesco_rule_8_output_1">
+          <text>60</text>
+        </outputEntry>
+        <outputEntry id="bradesco_rule_8_output_2">
+          <text>true</text>
+        </outputEntry>
+        <outputEntry id="bradesco_rule_8_output_3">
+          <text>10000</text>
+        </outputEntry>
+        <outputEntry id="bradesco_rule_8_output_4">
+          <text>"Cobertura padrão 60%, verificar contrato específico"</text>
+        </outputEntry>
+      </rule>
+    </decisionTable>
+  </decision>
+</definitions>

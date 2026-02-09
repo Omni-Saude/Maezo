@@ -1,0 +1,295 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             xmlns:camunda="http://camunda.org/schema/1.0/dmn"
+             xmlns:biodi="http://bpmn.io/schema/dmn/biodi/2.0"
+             id="SUS_Table_Lookup_Definitions"
+             name="CIB7 SUS Table Lookup"
+             namespace="http://cib7.healthcare.br/dmn/billing/sus"
+             exporter="CIB7 Healthcare Orchestrator"
+             exporterVersion="1.0">
+  <decision id="sus_table_lookup" name="Consulta Tabela SUS">
+    <description>Lookup de valores da tabela SUS (Sistema Único de Saúde). Inclui valores por complexidade, região e tipo de teto financeiro com cofinanciamento federal/estadual/municipal.</description>
+    <decisionTable id="sus_table_lookup_table" hitPolicy="FIRST">
+      <input id="input_sus_code" label="Código SUS" camunda:inputVariable="susCode">
+        <inputExpression id="input_sus_code_exp" typeRef="string">
+          <text>susCode</text>
+        </inputExpression>
+      </input>
+      <input id="input_complexity" label="Complexidade" camunda:inputVariable="complexity">
+        <inputExpression id="input_complexity_exp" typeRef="string">
+          <text>complexity</text>
+        </inputExpression>
+        <inputValues id="input_complexity_values">
+          <text>"LOW","MED","HIGH"</text>
+        </inputValues>
+      </input>
+      <input id="input_region" label="Região" camunda:inputVariable="region">
+        <inputExpression id="input_region_exp" typeRef="string">
+          <text>region</text>
+        </inputExpression>
+        <inputValues id="input_region_values">
+          <text>"NORTE","NORDESTE","CENTRO_OESTE","SUDESTE","SUL"</text>
+        </inputValues>
+      </input>
+      <input id="input_sus_tenant_id" label="ID do Tenant" camunda:inputVariable="tenantId">
+        <inputExpression id="input_sus_tenant_id_exp" typeRef="string">
+          <text>tenantId</text>
+        </inputExpression>
+      </input>
+
+      <output id="output_sus_value" label="Valor SUS" name="susValue" typeRef="double"/>
+      <output id="output_cofinancing" label="Cofinanciamento" name="cofinancing" typeRef="double"/>
+      <output id="output_ceiling_type" label="Tipo de Teto" name="ceilingType" typeRef="string"/>
+
+      <!-- Rule 1: HIGH complexity - SUDESTE -->
+      <rule id="sus_rule_1">
+        <inputEntry id="sus_rule_1_input_1">
+          <text>starts with(susCode, "03")</text>
+        </inputEntry>
+        <inputEntry id="sus_rule_1_input_2">
+          <text>"HIGH"</text>
+        </inputEntry>
+        <inputEntry id="sus_rule_1_input_3">
+          <text>"SUDESTE"</text>
+        </inputEntry>
+        <inputEntry id="sus_rule_1_input_4">
+          <text>-</text>
+        </inputEntry>
+        <outputEntry id="sus_rule_1_output_1">
+          <text>4500</text>
+        </outputEntry>
+        <outputEntry id="sus_rule_1_output_2">
+          <text>2250</text>
+        </outputEntry>
+        <outputEntry id="sus_rule_1_output_3">
+          <text>"MAC_ALTA_COMPLEXIDADE_FEDERAL"</text>
+        </outputEntry>
+      </rule>
+
+      <!-- Rule 2: HIGH complexity - SUL -->
+      <rule id="sus_rule_2">
+        <inputEntry id="sus_rule_2_input_1">
+          <text>starts with(susCode, "03")</text>
+        </inputEntry>
+        <inputEntry id="sus_rule_2_input_2">
+          <text>"HIGH"</text>
+        </inputEntry>
+        <inputEntry id="sus_rule_2_input_3">
+          <text>"SUL"</text>
+        </inputEntry>
+        <inputEntry id="sus_rule_2_input_4">
+          <text>-</text>
+        </inputEntry>
+        <outputEntry id="sus_rule_2_output_1">
+          <text>4200</text>
+        </outputEntry>
+        <outputEntry id="sus_rule_2_output_2">
+          <text>2100</text>
+        </outputEntry>
+        <outputEntry id="sus_rule_2_output_3">
+          <text>"MAC_ALTA_COMPLEXIDADE_FEDERAL"</text>
+        </outputEntry>
+      </rule>
+
+      <!-- Rule 3: HIGH complexity - NORDESTE (incentivo regional) -->
+      <rule id="sus_rule_3">
+        <inputEntry id="sus_rule_3_input_1">
+          <text>starts with(susCode, "03")</text>
+        </inputEntry>
+        <inputEntry id="sus_rule_3_input_2">
+          <text>"HIGH"</text>
+        </inputEntry>
+        <inputEntry id="sus_rule_3_input_3">
+          <text>"NORDESTE"</text>
+        </inputEntry>
+        <inputEntry id="sus_rule_3_input_4">
+          <text>-</text>
+        </inputEntry>
+        <outputEntry id="sus_rule_3_output_1">
+          <text>4800</text>
+        </outputEntry>
+        <outputEntry id="sus_rule_3_output_2">
+          <text>2880</text>
+        </outputEntry>
+        <outputEntry id="sus_rule_3_output_3">
+          <text>"MAC_ALTA_COMPLEXIDADE_FEDERAL_INCENTIVADO"</text>
+        </outputEntry>
+      </rule>
+
+      <!-- Rule 4: MED complexity - SUDESTE -->
+      <rule id="sus_rule_4">
+        <inputEntry id="sus_rule_4_input_1">
+          <text>starts with(susCode, "02")</text>
+        </inputEntry>
+        <inputEntry id="sus_rule_4_input_2">
+          <text>"MED"</text>
+        </inputEntry>
+        <inputEntry id="sus_rule_4_input_3">
+          <text>"SUDESTE"</text>
+        </inputEntry>
+        <inputEntry id="sus_rule_4_input_4">
+          <text>-</text>
+        </inputEntry>
+        <outputEntry id="sus_rule_4_output_1">
+          <text>850</text>
+        </outputEntry>
+        <outputEntry id="sus_rule_4_output_2">
+          <text>425</text>
+        </outputEntry>
+        <outputEntry id="sus_rule_4_output_3">
+          <text>"MAC_MEDIA_COMPLEXIDADE_ESTADUAL"</text>
+        </outputEntry>
+      </rule>
+
+      <!-- Rule 5: MED complexity - NORTE (incentivo amazônia) -->
+      <rule id="sus_rule_5">
+        <inputEntry id="sus_rule_5_input_1">
+          <text>starts with(susCode, "02")</text>
+        </inputEntry>
+        <inputEntry id="sus_rule_5_input_2">
+          <text>"MED"</text>
+        </inputEntry>
+        <inputEntry id="sus_rule_5_input_3">
+          <text>"NORTE"</text>
+        </inputEntry>
+        <inputEntry id="sus_rule_5_input_4">
+          <text>-</text>
+        </inputEntry>
+        <outputEntry id="sus_rule_5_output_1">
+          <text>1020</text>
+        </outputEntry>
+        <outputEntry id="sus_rule_5_output_2">
+          <text>612</text>
+        </outputEntry>
+        <outputEntry id="sus_rule_5_output_3">
+          <text>"MAC_MEDIA_COMPLEXIDADE_ESTADUAL_AMAZONIA"</text>
+        </outputEntry>
+      </rule>
+
+      <!-- Rule 6: LOW complexity - all regions -->
+      <rule id="sus_rule_6">
+        <inputEntry id="sus_rule_6_input_1">
+          <text>starts with(susCode, "010101")</text>
+        </inputEntry>
+        <inputEntry id="sus_rule_6_input_2">
+          <text>"LOW"</text>
+        </inputEntry>
+        <inputEntry id="sus_rule_6_input_3">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="sus_rule_6_input_4">
+          <text>-</text>
+        </inputEntry>
+        <outputEntry id="sus_rule_6_output_1">
+          <text>35</text>
+        </outputEntry>
+        <outputEntry id="sus_rule_6_output_2">
+          <text>17.5</text>
+        </outputEntry>
+        <outputEntry id="sus_rule_6_output_3">
+          <text>"PAB_ATENCAO_BASICA_MUNICIPAL"</text>
+        </outputEntry>
+      </rule>
+
+      <!-- Rule 7: Oncology procedures - special financing -->
+      <rule id="sus_rule_7">
+        <inputEntry id="sus_rule_7_input_1">
+          <text>contains(susCode, "0304")</text>
+        </inputEntry>
+        <inputEntry id="sus_rule_7_input_2">
+          <text>"HIGH"</text>
+        </inputEntry>
+        <inputEntry id="sus_rule_7_input_3">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="sus_rule_7_input_4">
+          <text>-</text>
+        </inputEntry>
+        <outputEntry id="sus_rule_7_output_1">
+          <text>8500</text>
+        </outputEntry>
+        <outputEntry id="sus_rule_7_output_2">
+          <text>5100</text>
+        </outputEntry>
+        <outputEntry id="sus_rule_7_output_3">
+          <text>"FAEC_ONCOLOGIA_FEDERAL_PRIORITARIO"</text>
+        </outputEntry>
+      </rule>
+
+      <!-- Rule 8: Transplants - full federal financing -->
+      <rule id="sus_rule_8">
+        <inputEntry id="sus_rule_8_input_1">
+          <text>contains(susCode, "0505")</text>
+        </inputEntry>
+        <inputEntry id="sus_rule_8_input_2">
+          <text>"HIGH"</text>
+        </inputEntry>
+        <inputEntry id="sus_rule_8_input_3">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="sus_rule_8_input_4">
+          <text>-</text>
+        </inputEntry>
+        <outputEntry id="sus_rule_8_output_1">
+          <text>95000</text>
+        </outputEntry>
+        <outputEntry id="sus_rule_8_output_2">
+          <text>95000</text>
+        </outputEntry>
+        <outputEntry id="sus_rule_8_output_3">
+          <text>"FAEC_TRANSPLANTE_FEDERAL_INTEGRAL"</text>
+        </outputEntry>
+      </rule>
+
+      <!-- Rule 9: Emergency care - MAC urgency -->
+      <rule id="sus_rule_9">
+        <inputEntry id="sus_rule_9_input_1">
+          <text>starts with(susCode, "0201")</text>
+        </inputEntry>
+        <inputEntry id="sus_rule_9_input_2">
+          <text>"MED"</text>
+        </inputEntry>
+        <inputEntry id="sus_rule_9_input_3">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="sus_rule_9_input_4">
+          <text>-</text>
+        </inputEntry>
+        <outputEntry id="sus_rule_9_output_1">
+          <text>650</text>
+        </outputEntry>
+        <outputEntry id="sus_rule_9_output_2">
+          <text>390</text>
+        </outputEntry>
+        <outputEntry id="sus_rule_9_output_3">
+          <text>"MAC_URGENCIA_ESTADUAL_MUNICIPAL"</text>
+        </outputEntry>
+      </rule>
+
+      <!-- Rule 10: Default fallback -->
+      <rule id="sus_rule_10">
+        <inputEntry id="sus_rule_10_input_1">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="sus_rule_10_input_2">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="sus_rule_10_input_3">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="sus_rule_10_input_4">
+          <text>-</text>
+        </inputEntry>
+        <outputEntry id="sus_rule_10_output_1">
+          <text>100</text>
+        </outputEntry>
+        <outputEntry id="sus_rule_10_output_2">
+          <text>50</text>
+        </outputEntry>
+        <outputEntry id="sus_rule_10_output_3">
+          <text>"VALOR_MINIMO_VERIFICAR_TABELA"</text>
+        </outputEntry>
+      </rule>
+    </decisionTable>
+  </decision>
+</definitions>
