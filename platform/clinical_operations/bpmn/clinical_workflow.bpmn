@@ -1,0 +1,285 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+                   xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+                   xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+                   xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
+                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                   id="Definitions_clinical_workflow"
+                   targetNamespace="http://bpmn.io/schema/bpmn"
+                   exporter="CIB Seven 2.1.3"
+                   exporterVersion="1.0">
+
+  <bpmn:process id="ClinicalOperationsWorkflow" name="Clinical Operations Workflow" isExecutable="true">
+
+    <!-- Start Event -->
+    <bpmn:startEvent id="StartEvent_1" name="Patient Encounter Initiated">
+      <bpmn:outgoing>Flow_to_assessment</bpmn:outgoing>
+    </bpmn:startEvent>
+
+    <!-- Clinical Assessment (Anamnese) -->
+    <bpmn:serviceTask id="Task_ClinicalAssessment" name="Clinical Assessment" implementation="external">
+      <bpmn:extensionElements>
+        <externalTask topic="clinical.assessment"/>
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_to_assessment</bpmn:incoming>
+      <bpmn:outgoing>Flow_to_vital_signs</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Vital Signs Monitoring -->
+    <bpmn:serviceTask id="Task_VitalSigns" name="Vital Signs Monitoring" implementation="external">
+      <bpmn:extensionElements>
+        <externalTask topic="clinical.vital_signs"/>
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_to_vital_signs</bpmn:incoming>
+      <bpmn:outgoing>Flow_to_exams_gateway</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Gateway: Exams Required? -->
+    <bpmn:exclusiveGateway id="Gateway_ExamsRequired" name="Exams Required?">
+      <bpmn:incoming>Flow_to_exams_gateway</bpmn:incoming>
+      <bpmn:outgoing>Flow_exams_yes</bpmn:outgoing>
+      <bpmn:outgoing>Flow_exams_no</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+
+    <!-- Clinical Decision Support -->
+    <bpmn:serviceTask id="Task_DecisionSupport" name="Clinical Decision Support" implementation="external">
+      <bpmn:extensionElements>
+        <externalTask topic="clinical.decision_support"/>
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_exams_yes</bpmn:incoming>
+      <bpmn:outgoing>Flow_to_protocols</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Clinical Protocols -->
+    <bpmn:serviceTask id="Task_ClinicalProtocols" name="Apply Clinical Protocols" implementation="external">
+      <bpmn:extensionElements>
+        <externalTask topic="clinical.protocols"/>
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_to_protocols</bpmn:incoming>
+      <bpmn:outgoing>Flow_to_outcomes</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Clinical Outcomes Tracking -->
+    <bpmn:serviceTask id="Task_OutcomesTracking" name="Track Clinical Outcomes" implementation="external">
+      <bpmn:extensionElements>
+        <externalTask topic="clinical.outcomes"/>
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_to_outcomes</bpmn:incoming>
+      <bpmn:outgoing>Flow_to_diagnosis</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Merge Gateway -->
+    <bpmn:exclusiveGateway id="Gateway_MergeDiagnosis">
+      <bpmn:incoming>Flow_to_diagnosis</bpmn:incoming>
+      <bpmn:incoming>Flow_exams_no</bpmn:incoming>
+      <bpmn:outgoing>Flow_to_care_planning</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+
+    <!-- Care Planning -->
+    <bpmn:serviceTask id="Task_CarePlanning" name="Care Planning" implementation="external">
+      <bpmn:extensionElements>
+        <externalTask topic="clinical.care_planning"/>
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_to_care_planning</bpmn:incoming>
+      <bpmn:outgoing>Flow_to_pathways</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Clinical Pathways -->
+    <bpmn:serviceTask id="Task_ClinicalPathways" name="Clinical Pathways" implementation="external">
+      <bpmn:extensionElements>
+        <externalTask topic="clinical.pathways"/>
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_to_pathways</bpmn:incoming>
+      <bpmn:outgoing>Flow_to_treatment_gateway</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Gateway: Treatment Type? -->
+    <bpmn:exclusiveGateway id="Gateway_TreatmentType" name="Treatment Type?">
+      <bpmn:incoming>Flow_to_treatment_gateway</bpmn:incoming>
+      <bpmn:outgoing>Flow_medication</bpmn:outgoing>
+      <bpmn:outgoing>Flow_procedure</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+
+    <!-- Medication Management Branch -->
+    <bpmn:serviceTask id="Task_MedicationManagement" name="Medication Management" implementation="external">
+      <bpmn:extensionElements>
+        <externalTask topic="clinical.medication"/>
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_medication</bpmn:incoming>
+      <bpmn:outgoing>Flow_to_alerts</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Clinical Alerts -->
+    <bpmn:serviceTask id="Task_ClinicalAlerts" name="Clinical Alerts" implementation="external">
+      <bpmn:extensionElements>
+        <externalTask topic="clinical.alerts"/>
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_to_alerts</bpmn:incoming>
+      <bpmn:incoming>Flow_procedure</bpmn:incoming>
+      <bpmn:outgoing>Flow_to_documentation</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Clinical Documentation -->
+    <bpmn:serviceTask id="Task_ClinicalDocumentation" name="Clinical Documentation" implementation="external">
+      <bpmn:extensionElements>
+        <externalTask topic="clinical.documentation"/>
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_to_documentation</bpmn:incoming>
+      <bpmn:outgoing>Flow_to_care_team</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Care Team Coordination -->
+    <bpmn:serviceTask id="Task_CareTeamCoordination" name="Care Team Coordination" implementation="external">
+      <bpmn:extensionElements>
+        <externalTask topic="clinical.care_team"/>
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_to_care_team</bpmn:incoming>
+      <bpmn:outgoing>Flow_to_handoffs</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Clinical Handoffs -->
+    <bpmn:serviceTask id="Task_ClinicalHandoffs" name="Clinical Handoffs" implementation="external">
+      <bpmn:extensionElements>
+        <externalTask topic="clinical.handoffs"/>
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_to_handoffs</bpmn:incoming>
+      <bpmn:outgoing>Flow_to_quality</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Clinical Quality Indicators -->
+    <bpmn:serviceTask id="Task_QualityIndicators" name="Clinical Quality Indicators" implementation="external">
+      <bpmn:extensionElements>
+        <externalTask topic="clinical.quality_indicators"/>
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_to_quality</bpmn:incoming>
+      <bpmn:outgoing>Flow_to_auditing</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Clinical Auditing -->
+    <bpmn:serviceTask id="Task_ClinicalAuditing" name="Clinical Auditing" implementation="external">
+      <bpmn:extensionElements>
+        <externalTask topic="clinical.auditing"/>
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_to_auditing</bpmn:incoming>
+      <bpmn:outgoing>Flow_to_adverse_events</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Adverse Event Detection -->
+    <bpmn:serviceTask id="Task_AdverseEventDetection" name="Adverse Event Detection" implementation="external">
+      <bpmn:extensionElements>
+        <externalTask topic="clinical.adverse_events"/>
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_to_adverse_events</bpmn:incoming>
+      <bpmn:outgoing>Flow_to_compliance</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Clinical Compliance -->
+    <bpmn:serviceTask id="Task_ClinicalCompliance" name="Clinical Compliance" implementation="external">
+      <bpmn:extensionElements>
+        <externalTask topic="clinical.compliance"/>
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_to_compliance</bpmn:incoming>
+      <bpmn:outgoing>Flow_to_discharge_gateway</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Gateway: Discharge Ready? -->
+    <bpmn:exclusiveGateway id="Gateway_DischargeReady" name="Discharge Ready?">
+      <bpmn:incoming>Flow_to_discharge_gateway</bpmn:incoming>
+      <bpmn:outgoing>Flow_discharge_yes</bpmn:outgoing>
+      <bpmn:outgoing>Flow_discharge_no</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+
+    <!-- Discharge Planning -->
+    <bpmn:serviceTask id="Task_DischargePlanning" name="Discharge Planning" implementation="external">
+      <bpmn:extensionElements>
+        <externalTask topic="clinical.discharge_planning"/>
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_discharge_yes</bpmn:incoming>
+      <bpmn:outgoing>Flow_to_transitions</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Care Transitions -->
+    <bpmn:serviceTask id="Task_CareTransitions" name="Care Transitions" implementation="external">
+      <bpmn:extensionElements>
+        <externalTask topic="clinical.care_transitions"/>
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_to_transitions</bpmn:incoming>
+      <bpmn:outgoing>Flow_to_reporting</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Clinical Reporting -->
+    <bpmn:serviceTask id="Task_ClinicalReporting" name="Clinical Reporting" implementation="external">
+      <bpmn:extensionElements>
+        <externalTask topic="clinical.reporting"/>
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_to_reporting</bpmn:incoming>
+      <bpmn:incoming>Flow_discharge_no</bpmn:incoming>
+      <bpmn:outgoing>Flow_to_analytics</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Clinical Analytics -->
+    <bpmn:serviceTask id="Task_ClinicalAnalytics" name="Clinical Analytics" implementation="external">
+      <bpmn:extensionElements>
+        <externalTask topic="clinical.analytics"/>
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_to_analytics</bpmn:incoming>
+      <bpmn:outgoing>Flow_to_end</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- End Event -->
+    <bpmn:endEvent id="EndEvent_1" name="Clinical Encounter Completed">
+      <bpmn:incoming>Flow_to_end</bpmn:incoming>
+    </bpmn:endEvent>
+
+    <!-- Sequence Flows -->
+    <bpmn:sequenceFlow id="Flow_to_assessment" sourceRef="StartEvent_1" targetRef="Task_ClinicalAssessment"/>
+    <bpmn:sequenceFlow id="Flow_to_vital_signs" sourceRef="Task_ClinicalAssessment" targetRef="Task_VitalSigns"/>
+    <bpmn:sequenceFlow id="Flow_to_exams_gateway" sourceRef="Task_VitalSigns" targetRef="Gateway_ExamsRequired"/>
+    <bpmn:sequenceFlow id="Flow_exams_yes" name="Yes" sourceRef="Gateway_ExamsRequired" targetRef="Task_DecisionSupport">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${examsRequired == true}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_exams_no" name="No" sourceRef="Gateway_ExamsRequired" targetRef="Gateway_MergeDiagnosis">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${examsRequired == false}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_to_protocols" sourceRef="Task_DecisionSupport" targetRef="Task_ClinicalProtocols"/>
+    <bpmn:sequenceFlow id="Flow_to_outcomes" sourceRef="Task_ClinicalProtocols" targetRef="Task_OutcomesTracking"/>
+    <bpmn:sequenceFlow id="Flow_to_diagnosis" sourceRef="Task_OutcomesTracking" targetRef="Gateway_MergeDiagnosis"/>
+    <bpmn:sequenceFlow id="Flow_to_care_planning" sourceRef="Gateway_MergeDiagnosis" targetRef="Task_CarePlanning"/>
+    <bpmn:sequenceFlow id="Flow_to_pathways" sourceRef="Task_CarePlanning" targetRef="Task_ClinicalPathways"/>
+    <bpmn:sequenceFlow id="Flow_to_treatment_gateway" sourceRef="Task_ClinicalPathways" targetRef="Gateway_TreatmentType"/>
+    <bpmn:sequenceFlow id="Flow_medication" name="Medication" sourceRef="Gateway_TreatmentType" targetRef="Task_MedicationManagement">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${treatmentType == 'medication'}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_procedure" name="Procedure" sourceRef="Gateway_TreatmentType" targetRef="Task_ClinicalAlerts">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${treatmentType == 'procedure'}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_to_alerts" sourceRef="Task_MedicationManagement" targetRef="Task_ClinicalAlerts"/>
+    <bpmn:sequenceFlow id="Flow_to_documentation" sourceRef="Task_ClinicalAlerts" targetRef="Task_ClinicalDocumentation"/>
+    <bpmn:sequenceFlow id="Flow_to_care_team" sourceRef="Task_ClinicalDocumentation" targetRef="Task_CareTeamCoordination"/>
+    <bpmn:sequenceFlow id="Flow_to_handoffs" sourceRef="Task_CareTeamCoordination" targetRef="Task_ClinicalHandoffs"/>
+    <bpmn:sequenceFlow id="Flow_to_quality" sourceRef="Task_ClinicalHandoffs" targetRef="Task_QualityIndicators"/>
+    <bpmn:sequenceFlow id="Flow_to_auditing" sourceRef="Task_QualityIndicators" targetRef="Task_ClinicalAuditing"/>
+    <bpmn:sequenceFlow id="Flow_to_adverse_events" sourceRef="Task_ClinicalAuditing" targetRef="Task_AdverseEventDetection"/>
+    <bpmn:sequenceFlow id="Flow_to_compliance" sourceRef="Task_AdverseEventDetection" targetRef="Task_ClinicalCompliance"/>
+    <bpmn:sequenceFlow id="Flow_to_discharge_gateway" sourceRef="Task_ClinicalCompliance" targetRef="Gateway_DischargeReady"/>
+    <bpmn:sequenceFlow id="Flow_discharge_yes" name="Yes" sourceRef="Gateway_DischargeReady" targetRef="Task_DischargePlanning">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${dischargeReady == true}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_discharge_no" name="No" sourceRef="Gateway_DischargeReady" targetRef="Task_ClinicalReporting">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${dischargeReady == false}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_to_transitions" sourceRef="Task_DischargePlanning" targetRef="Task_CareTransitions"/>
+    <bpmn:sequenceFlow id="Flow_to_reporting" sourceRef="Task_CareTransitions" targetRef="Task_ClinicalReporting"/>
+    <bpmn:sequenceFlow id="Flow_to_analytics" sourceRef="Task_ClinicalReporting" targetRef="Task_ClinicalAnalytics"/>
+    <bpmn:sequenceFlow id="Flow_to_end" sourceRef="Task_ClinicalAnalytics" targetRef="EndEvent_1"/>
+
+  </bpmn:process>
+
+  <!-- BPMN Diagram -->
+  <bpmndi:BPMNDiagram id="BPMNDiagram_1">
+    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="ClinicalOperationsWorkflow">
+      <!-- Visual layout would be generated by BPMN modeler -->
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+
+</bpmn:definitions>
