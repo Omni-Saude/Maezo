@@ -1,0 +1,253 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/"
+             xmlns:dc="http://www.omg.org/spec/DD/20100524/DC/"
+             xmlns:di="http://www.omg.org/spec/DD/20100524/DI/"
+             id="Definitions_VAS_PAD_005"
+             name="Pe Diabetico - Abordagem Multidisciplinar"
+             namespace="http://camunda.org/schema/1.0/dmn"
+             exporter="Camunda Modeler"
+             exporterVersion="5.0.0">
+  <!--
+    VAS-PAD-005 - Pe Diabetico - Abordagem Multidisciplinar
+    Versao: 1.0.0 (2026-02-07)
+    Especialidade: Cirurgia Vascular / Endocrinologia / Infectologia
+    Categoria: Doenca Arterial Periferica / Diabetes
+    TUSS Relacionados: 30907109, 30907117, 20104050
+
+    Componentes do Pe Diabetico:
+    - Neuropatia: perda de sensibilidade protetora
+    - Isquemia: DAP associada a diabetes
+    - Infeccao: porta de entrada + imunodeficiencia
+    - Deformidade: alteracoes osteoarticulares
+
+    Classificacao SINBAD/PEDIS/Wagner:
+    - Avalia extensao, profundidade, infeccao e isquemia
+    - Guia abordagem terapeutica
+
+    Abordagem Multidisciplinar Obrigatoria:
+    - Cirurgiao vascular: avaliacao isquemica e revascularizacao
+    - Endocrinologista: controle glicemico
+    - Infectologista: antibioticoterapia
+    - Ortopedista: desbridamento, amputacoes menores
+    - Enfermagem especializada: curativos
+
+    Indicacoes de Revascularizacao:
+    - ITB menor 0.9 ou TcPO2 menor 40
+    - Ulcera que nao cicatriza com tratamento otimizado
+    - Infeccao recorrente
+    - Claudicacao limitante associada
+
+    Referencias Normativas:
+    - IWGDF Guidelines 2019
+    - ADA Diabetes Care 2024
+    - GVG CLTI 2019
+    - DUT ANS 2024
+  -->
+
+  <decision id="Decision_VAS_PAD_005" name="Criterios de Manejo - Pe Diabetico">
+    <decisionTable id="DecisionTable_VAS_PAD_005" hitPolicy="FIRST">
+
+      <!-- Input 1: Status Isquemico -->
+      <input id="Input_isquemia" label="Componente Isquemico (ITB/TcPO2)">
+        <inputExpression id="InputExpr_isquemia" typeRef="string">
+          <text>componenteIsquemico</text>
+        </inputExpression>
+        <inputValues id="InputValues_isquemia">
+          <text>"Sem_Isquemia_ITB_Normal","Isquemia_Leve","Isquemia_Moderada","Isquemia_Severa","Nao_Avaliado"</text>
+        </inputValues>
+      </input>
+
+      <!-- Input 2: Status de Infeccao -->
+      <input id="Input_infeccao" label="Classificacao da Infeccao (IDSA)">
+        <inputExpression id="InputExpr_infeccao" typeRef="string">
+          <text>classificacaoInfeccao</text>
+        </inputExpression>
+        <inputValues id="InputValues_infeccao">
+          <text>"Sem_Infeccao","Leve_Superficial","Moderada","Grave_Sistemica"</text>
+        </inputValues>
+      </input>
+
+      <!-- Input 3: Extensao da Ulcera -->
+      <input id="Input_ulcera" label="Extensao e Profundidade da Ulcera">
+        <inputExpression id="InputExpr_ulcera" typeRef="string">
+          <text>extensaoUlcera</text>
+        </inputExpression>
+        <inputValues id="InputValues_ulcera">
+          <text>"Superficial_Pequena","Profunda_Tendao","Profunda_Osso","Gangrena_Limitada","Gangrena_Extensa"</text>
+        </inputValues>
+      </input>
+
+      <!-- Input 4: Tratamento Multidisciplinar -->
+      <input id="Input_multidisciplinar" label="Manejo Multidisciplinar Realizado">
+        <inputExpression id="InputExpr_multidisciplinar" typeRef="string">
+          <text>manejoMultidisciplinar</text>
+        </inputExpression>
+        <inputValues id="InputValues_multidisciplinar">
+          <text>"Completo_Otimizado","Parcial","Nao_Realizado"</text>
+        </inputValues>
+      </input>
+
+      <!-- Input 5: Documentacao -->
+      <input id="Input_documentacao" label="Avaliacao Vascular + Controle Metabolico Documentados">
+        <inputExpression id="InputExpr_documentacao" typeRef="boolean">
+          <text>documentacaoCompleta</text>
+        </inputExpression>
+      </input>
+
+      <!-- Outputs -->
+      <output id="Output_resultado" label="Resultado" name="resultado" typeRef="string">
+        <outputValues id="OutputValues_resultado">
+          <text>"Aprovado","Reprovado","Pendente"</text>
+        </outputValues>
+      </output>
+      <output id="Output_observacao" label="Observacao Clinica" name="observacao" typeRef="string" />
+      <output id="Output_fundamentacao" label="Fundamentacao Legal/Tecnica" name="fundamentacao" typeRef="string" />
+
+      <output id="Output_alertasDesperdicio" name="alertasDesperdicio" typeRef="string">
+        <outputValues>
+          <text>"NENHUM","DUP","FREQ","ESC","DOC","PROT","MULTI"</text>
+        </outputValues>
+      </output>
+
+      <output id="Output_acaoRecomendada" name="acaoRecomendada" typeRef="string">
+        <outputValues>
+          <text>"APROVAR","NEGAR","SOLICITAR_INFO","AGUARDAR_PRAZO","SUGERIR_ALTERNATIVA"</text>
+        </outputValues>
+      </output>
+
+      <!-- ============================================== -->
+      <!-- REGRAS DE REPROVACAO                          -->
+      <!-- ============================================== -->
+
+      <rule id="Rule_VAS_PAD_005_Reprovacao_SemMultidisciplinar">
+        <description>Reprovacao - Manejo multidisciplinar nao realizado</description>
+        <inputEntry id="IE_Rep1_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_Rep1_2"><text>"Leve_Superficial","Moderada"</text></inputEntry>
+        <inputEntry id="IE_Rep1_3"><text>"Superficial_Pequena","Profunda_Tendao"</text></inputEntry>
+        <inputEntry id="IE_Rep1_4"><text>"Nao_Realizado"</text></inputEntry>
+        <inputEntry id="IE_Rep1_5"><text>-</text></inputEntry>
+        <outputEntry id="OE_Rep1_1"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OE_Rep1_2"><text>"Revascularizacao/Intervencao NAO aprovada - pe diabetico requer manejo multidisciplinar (controle glicemico, antibiotico, offloading, curativos) antes de procedimentos"</text></outputEntry>
+        <outputEntry id="OE_Rep1_3"><text>"IWGDF 2019 - Abordagem multidisciplinar eh padrao de cuidado para pe diabetico"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_VAS_PAD_005_Reprovacao_SemAvaliacaoVascular">
+        <description>Reprovacao - Componente isquemico nao avaliado</description>
+        <inputEntry id="IE_Rep2_1"><text>"Nao_Avaliado"</text></inputEntry>
+        <inputEntry id="IE_Rep2_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_Rep2_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_Rep2_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_Rep2_5"><text>-</text></inputEntry>
+        <outputEntry id="OE_Rep2_1"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OE_Rep2_2"><text>"Avaliacao vascular obrigatoria em pe diabetico - ITB, TcPO2 ou pressao de halux necessarios para guiar tratamento"</text></outputEntry>
+        <outputEntry id="OE_Rep2_3"><text>"IWGDF 2019 - Avaliacao vascular obrigatoria em todo pe diabetico com ulcera"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_VAS_PAD_005_Reprovacao_SemDoc">
+        <description>Reprovacao - Documentacao incompleta</description>
+        <inputEntry id="IE_Rep3_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_Rep3_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_Rep3_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_Rep3_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_Rep3_5"><text>false</text></inputEntry>
+        <outputEntry id="OE_Rep3_1"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OE_Rep3_2"><text>"Documentacao incompleta - avaliacao vascular e controle metabolico (HbA1c) devem estar documentados"</text></outputEntry>
+        <outputEntry id="OE_Rep3_3"><text>"RN 465/2021 - Documentacao minima obrigatoria"</text></outputEntry>
+      </rule>
+
+      <!-- ============================================== -->
+      <!-- REGRAS DE APROVACAO - EMERGENCIA              -->
+      <!-- ============================================== -->
+
+      <rule id="Rule_VAS_PAD_005_Aprovacao_InfeccaoGrave">
+        <description>Aprovacao Emergencia - Infeccao grave/sistemica</description>
+        <inputEntry id="IE_Apr1_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_Apr1_2"><text>"Grave_Sistemica"</text></inputEntry>
+        <inputEntry id="IE_Apr1_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_Apr1_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_Apr1_5"><text>true</text></inputEntry>
+        <outputEntry id="OE_Apr1_1"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OE_Apr1_2"><text>"Desbridamento/Amputacao EMERGENCIAL APROVADO - infeccao grave sistemica (sepse) requer controle de foco imediato + antibioticoterapia EV"</text></outputEntry>
+        <outputEntry id="OE_Apr1_3"><text>"IWGDF 2019 Classe I - Infeccao grave requer desbridamento emergencial"</text></outputEntry>
+      </rule>
+
+      <!-- ============================================== -->
+      <!-- REGRAS DE APROVACAO - REVASCULARIZACAO        -->
+      <!-- ============================================== -->
+
+      <rule id="Rule_VAS_PAD_005_Aprovacao_Revasc_Isquemia">
+        <description>Aprovacao Revascularizacao - Isquemia moderada/severa com ulcera refrataria</description>
+        <inputEntry id="IE_Apr2_1"><text>"Isquemia_Moderada","Isquemia_Severa"</text></inputEntry>
+        <inputEntry id="IE_Apr2_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_Apr2_3"><text>"Superficial_Pequena","Profunda_Tendao","Profunda_Osso"</text></inputEntry>
+        <inputEntry id="IE_Apr2_4"><text>"Completo_Otimizado"</text></inputEntry>
+        <inputEntry id="IE_Apr2_5"><text>true</text></inputEntry>
+        <outputEntry id="OE_Apr2_1"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OE_Apr2_2"><text>"Revascularizacao APROVADA - isquemia moderada/severa com ulcera que nao cicatriza apesar de manejo multidisciplinar otimizado"</text></outputEntry>
+        <outputEntry id="OE_Apr2_3"><text>"IWGDF 2019 Classe I - Revascularizacao indicada quando isquemia impede cicatrizacao"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_VAS_PAD_005_Aprovacao_Revasc_Gangrena">
+        <description>Aprovacao Revascularizacao - Gangrena com componente isquemico</description>
+        <inputEntry id="IE_Apr3_1"><text>"Isquemia_Leve","Isquemia_Moderada","Isquemia_Severa"</text></inputEntry>
+        <inputEntry id="IE_Apr3_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_Apr3_3"><text>"Gangrena_Limitada","Gangrena_Extensa"</text></inputEntry>
+        <inputEntry id="IE_Apr3_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_Apr3_5"><text>true</text></inputEntry>
+        <outputEntry id="OE_Apr3_1"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OE_Apr3_2"><text>"Revascularizacao APROVADA - gangrena com componente isquemico - revascularizacao necessaria para limitar extensao de perda tecidual"</text></outputEntry>
+        <outputEntry id="OE_Apr3_3"><text>"IWGDF 2019/GVG CLTI - Revascularizacao para salvar membro em gangrena isquemica"</text></outputEntry>
+      </rule>
+
+      <!-- ============================================== -->
+      <!-- REGRAS DE APROVACAO - DESBRIDAMENTO           -->
+      <!-- ============================================== -->
+
+      <rule id="Rule_VAS_PAD_005_Aprovacao_Desbridamento">
+        <description>Aprovacao Desbridamento - Infeccao moderada ou tecido desvitalizado</description>
+        <inputEntry id="IE_Apr4_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_Apr4_2"><text>"Moderada"</text></inputEntry>
+        <inputEntry id="IE_Apr4_3"><text>"Profunda_Tendao","Profunda_Osso"</text></inputEntry>
+        <inputEntry id="IE_Apr4_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_Apr4_5"><text>true</text></inputEntry>
+        <outputEntry id="OE_Apr4_1"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OE_Apr4_2"><text>"Desbridamento cirurgico APROVADO - infeccao moderada com comprometimento profundo requer remocao de tecido desvitalizado"</text></outputEntry>
+        <outputEntry id="OE_Apr4_3"><text>"IWGDF 2019 Classe I - Desbridamento indicado em infeccao moderada com tecido desvitalizado"</text></outputEntry>
+      </rule>
+
+      <!-- ============================================== -->
+      <!-- REGRAS DE PENDENCIA                           -->
+      <!-- ============================================== -->
+
+      <rule id="Rule_VAS_PAD_005_Pendente_OtimizarMultidisciplinar">
+        <description>Pendente - Manejo multidisciplinar parcial</description>
+        <inputEntry id="IE_Pend1_1"><text>"Isquemia_Leve"</text></inputEntry>
+        <inputEntry id="IE_Pend1_2"><text>"Leve_Superficial"</text></inputEntry>
+        <inputEntry id="IE_Pend1_3"><text>"Superficial_Pequena"</text></inputEntry>
+        <inputEntry id="IE_Pend1_4"><text>"Parcial"</text></inputEntry>
+        <inputEntry id="IE_Pend1_5"><text>true</text></inputEntry>
+        <outputEntry id="OE_Pend1_1"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OE_Pend1_2"><text>"Ulcera superficial com isquemia leve e manejo parcial - otimizar tratamento multidisciplinar antes de considerar intervencao cirurgica"</text></outputEntry>
+        <outputEntry id="OE_Pend1_3"><text>"IWGDF 2019 - Tratamento conservador otimizado deve preceder intervencao em casos leves"</text></outputEntry>
+      </rule>
+
+      <!-- ============================================== -->
+      <!-- REGRA FALLBACK                                -->
+      <!-- ============================================== -->
+
+      <rule id="Rule_Fallback_VAS_PAD_005">
+        <description>Fallback - Casos nao cobertos requerem analise manual</description>
+        <inputEntry id="IE_Fallback_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_Fallback_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_Fallback_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_Fallback_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_Fallback_5"><text>-</text></inputEntry>
+        <outputEntry id="OE_Fallback_1"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OE_Fallback_2"><text>"Caso requer analise por equipe multidisciplinar de pe diabetico"</text></outputEntry>
+        <outputEntry id="OE_Fallback_3"><text>"Auditoria especializada conforme RN 428/2017"</text></outputEntry>
+      </rule>
+
+    </decisionTable>
+  </decision>
+</definitions>

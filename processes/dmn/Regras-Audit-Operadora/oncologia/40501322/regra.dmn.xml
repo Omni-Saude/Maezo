@@ -1,0 +1,342 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  ONQ-IMG-007: Surveillance Mammography
+  TUSS: 40501322
+  Versao: 3.1.0-LEAN-TIER2 (2026-02-08)
+  Especialidade: Oncologia/Mastologia
+
+  ============================================================================
+  INDICACOES CLINICAS:
+  ============================================================================
+  - Sobreviventes de cancer de mama: mamografia anual mama contralateral
+  - BRCA+: mamografia + RNM alternadas cada 6 meses
+  - Alto risco familiar: iniciar 10 anos antes do caso indice
+
+  ============================================================================
+  FREQUENCIA DE VIGILANCIA:
+  ============================================================================
+  - Pos-cancer mama: mamografia anual + exame clinico cada 6 meses
+  - BRCA1/2: RNM cada 6 meses alternando com mamografia
+  - Populacao geral: rastreamento conforme INCA (50-69 anos)
+
+  ============================================================================
+  DOCUMENTACAO OBRIGATORIA:
+  ============================================================================
+  - Historico de cancer de mama (data, tipo, tratamento)
+  - Status genetico (BRCA1/2 se testado)
+  - Data do ultimo exame de imagem
+
+  ============================================================================
+  REFERENCIAS NORMATIVAS:
+  ============================================================================
+  - NCCN Breast Cancer Screening/Surveillance 2024
+  - INCA Diretrizes de Rastreamento do Cancer de Mama
+  - FEBRASGO Consenso de Imagem Mamaria
+-->
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/" xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/" xmlns:dc="http://www.omg.org/spec/DMN/20180521/DC/" xmlns:modeler="http://camunda.org/schema/modeler/1.0" id="Definitions_ONQ_IMG_007" name="DRD" namespace="http://camunda.org/schema/1.0/dmn" exporter="Camunda Modeler" exporterVersion="5.14.0" modeler:executionPlatform="Camunda Cloud" modeler:executionPlatformVersion="8.2.0">
+  <decision id="Decision_ONQ_IMG_007" name="ONQ-IMG-007: Surveillance Mammography [LEAN TIER-2]">
+    <decisionTable id="DecisionTable_ONQ_IMG_007" hitPolicy="FIRST">
+      <input id="Input_breast_cancer_history" label="Breast Cancer History">
+        <inputExpression id="InputExpression_breast_cancer_history" typeRef="boolean">
+          <text>breastCancerHistory</text>
+        </inputExpression>
+      </input>
+      <input id="Input_brca_status" label="BRCA Status">
+        <inputExpression id="InputExpression_brca_status" typeRef="string">
+          <text>brcaStatus</text>
+        </inputExpression>
+      </input>
+      <input id="Input_months_since_last" label="Months Since Last Mammogram">
+        <inputExpression id="InputExpression_months_since_last" typeRef="number">
+          <text>monthsSinceLastMammogram</text>
+        </inputExpression>
+      </input>
+      <input id="Input_modality_requested" label="Modality Requested">
+        <inputExpression id="InputExpression_modality_requested" typeRef="string">
+          <text>modalityRequested</text>
+        </inputExpression>
+      </input>
+      <!-- Input: Dias desde ultimo procedimento (DUP detection) -->
+      <input id="Input_ultimoProcedimentoDias" label="Dias Desde Ultimo Procedimento">
+        <inputExpression id="InputExpression_ultimoProcedimentoDias" typeRef="number">
+          <text>ultimoProcedimentoDias</text>
+        </inputExpression>
+      </input>
+
+      <output id="Output_resultado" label="Resultado" name="resultado" typeRef="string">
+        <outputValues id="UnaryTests_resultado">
+          <text>"Aprovado","Reprovado","Pendente"</text>
+        </outputValues>
+      </output>
+      <output id="Output_observacao" label="Observacao" name="observacao" typeRef="string" />
+      <output id="Output_fundamentacao" label="Fundamentacao" name="fundamentacao" typeRef="string" />
+      <!-- Output 4: Alertas de Desperdicio - Anti-Waste Intelligence -->
+      <output id="Output_alertasDesperdicio" label="Alertas de Desperdicio" name="alertasDesperdicio" typeRef="string">
+        <outputValues id="OutputValues_alertasDesperdicio">
+          <text>"NENHUM","DUP","FREQ","ESC","DOC","PROT","MULTI"</text>
+        </outputValues>
+      </output>
+      <!-- Output 5: Acao Recomendada -->
+      <output id="Output_acaoRecomendada" label="Acao Recomendada" name="acaoRecomendada" typeRef="string">
+        <outputValues id="OutputValues_acaoRecomendada">
+          <text>"APROVAR","NEGAR","SOLICITAR_INFO","AGUARDAR_PRAZO","SUGERIR_ALTERNATIVA"</text>
+        </outputValues>
+      </output>
+      <rule id="DecisionRule_reject_too_soon">
+        <description>Reject if mammogram done within 10 months</description>
+        <inputEntry id="InputEntry_breast_cancer_history_reject">
+          <text>true</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_brca_status_reject">
+          <text>"negative","not_tested"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_months_since_last_reject">
+          <text>&lt; 10</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_modality_requested_reject">
+          <text>"mammogram"</text>
+        </inputEntry>
+        <inputEntry id="IE_DecisionRule_reject_too_soon_ultimo"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_resultado_reject">
+          <text>"Reprovado"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_observacao_reject">
+          <text>"Mamografia realizada ha &lt;10 meses: intervalo anual nao atingido"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_fundamentacao_reject">
+          <text>"Vigilancia anual e padrao; antecipacao requer justificativa clinica (nodulo novo)"</text>
+        </outputEntry>
+        <outputEntry id="OE_DecisionRule_reject_too_soon_alertasDesperdicio">
+          <text>"FREQ"</text>
+        </outputEntry>
+        <outputEntry id="OE_DecisionRule_reject_too_soon_acaoRecomendada">
+          <text>"NEGAR"</text>
+        </outputEntry>
+      </rule>
+
+      <!-- WASTE DETECTION: DUP -->
+      <rule id="Rule_40501322_DUP">
+        <description>DUP - Mamografia vigilancia repetida em menos de 365 dias</description>
+        <inputEntry id="IE_DUP_40501322_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_DUP_40501322_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_DUP_40501322_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_DUP_40501322_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_DUP_40501322_ultimo"><text>&lt; 365</text></inputEntry>
+        <outputEntry id="OE_DUP_40501322_resultado"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OE_DUP_40501322_observacao"><text>"Mamografia vigilancia repetida em menos de 365 dias"</text></outputEntry>
+        <outputEntry id="OE_DUP_40501322_fundamentacao"><text>"NCCN Breast 2024: Mamografia vigilancia anual pos-tratamento"</text></outputEntry>
+        <outputEntry id="OE_DUP_40501322_alertasDesperdicio"><text>"DUP"</text></outputEntry>
+        <outputEntry id="OE_DUP_40501322_acaoRecomendada"><text>"AGUARDAR_PRAZO"</text></outputEntry>
+      </rule>
+
+      <!-- WASTE DETECTION: DOC -->
+      <rule id="Rule_40501322_DOC">
+        <description>DOC - Documentacao obrigatoria ausente (historico cancer, status BRCA, data ultimo exame)</description>
+        <inputEntry id="IE_DOC_40501322_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_DOC_40501322_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_DOC_40501322_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_DOC_40501322_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_DOC_40501322_ultimo"><text>-</text></inputEntry>
+        <outputEntry id="OE_DOC_40501322_resultado"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OE_DOC_40501322_observacao"><text>"Documentacao obrigatoria ausente: historico de cancer de mama, status genetico BRCA, data do ultimo exame"</text></outputEntry>
+        <outputEntry id="OE_DOC_40501322_fundamentacao"><text>"NCCN Breast Surveillance 2024: Documentacao completa necessaria para protocolo vigilancia"</text></outputEntry>
+        <outputEntry id="OE_DOC_40501322_alertasDesperdicio"><text>"DOC"</text></outputEntry>
+        <outputEntry id="OE_DOC_40501322_acaoRecomendada"><text>"SOLICITAR_INFO"</text></outputEntry>
+      </rule>
+
+      <rule id="DecisionRule_approve_survivor_annual">
+        <description>Approve annual mammogram for breast cancer survivors</description>
+        <inputEntry id="InputEntry_breast_cancer_history_annual">
+          <text>true</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_brca_status_annual">
+          <text>"negative","not_tested"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_months_since_last_annual">
+          <text>&gt;= 10</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_modality_requested_annual">
+          <text>"mammogram"</text>
+        </inputEntry>
+        <inputEntry id="IE_DecisionRule_approve_survivor_annual_ultimo"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_resultado_annual">
+          <text>"Aprovado"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_observacao_annual">
+          <text>"Mamografia anual aprovada para sobrevivente de cancer de mama"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_fundamentacao_annual">
+          <text>"NCCN: mamografia anual mama contralateral + exame clinico cada 6-12 meses por 5 anos"</text>
+        </outputEntry>
+        <outputEntry id="OE_DecisionRule_approve_survivor_annual_alertasDesperdicio">
+          <text>"NENHUM"</text>
+        </outputEntry>
+        <outputEntry id="OE_DecisionRule_approve_survivor_annual_acaoRecomendada">
+          <text>"APROVAR"</text>
+        </outputEntry>
+      </rule>
+      <rule id="DecisionRule_approve_brca_mammo">
+        <description>Approve mammogram for BRCA+ at 6-month interval (alternating)</description>
+        <inputEntry id="InputEntry_breast_cancer_history_brca">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_brca_status_brca">
+          <text>"BRCA1_positive","BRCA2_positive"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_months_since_last_brca">
+          <text>&gt;= 6</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_modality_requested_brca">
+          <text>"mammogram"</text>
+        </inputEntry>
+        <inputEntry id="IE_DecisionRule_approve_brca_mammo_ultimo"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_resultado_brca">
+          <text>"Aprovado"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_observacao_brca">
+          <text>"Mamografia aprovada para BRCA+: alternancia cada 6 meses com RNM"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_fundamentacao_brca">
+          <text>"NCCN High-Risk: BRCA+ requer mamografia + RNM alternadas cada 6 meses a partir dos 30 anos"</text>
+        </outputEntry>
+        <outputEntry id="OE_DecisionRule_approve_brca_mammo_alertasDesperdicio">
+          <text>"NENHUM"</text>
+        </outputEntry>
+        <outputEntry id="OE_DecisionRule_approve_brca_mammo_acaoRecomendada">
+          <text>"APROVAR"</text>
+        </outputEntry>
+      </rule>
+      <rule id="DecisionRule_approve_brca_mri">
+        <description>Approve breast MRI for BRCA+ at 6-month interval</description>
+        <inputEntry id="InputEntry_breast_cancer_history_mri">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_brca_status_mri">
+          <text>"BRCA1_positive","BRCA2_positive"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_months_since_last_mri">
+          <text>&gt;= 6</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_modality_requested_mri">
+          <text>"breast_MRI"</text>
+        </inputEntry>
+        <inputEntry id="IE_DecisionRule_approve_brca_mri_ultimo"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_resultado_mri">
+          <text>"Aprovado"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_observacao_mri">
+          <text>"RNM mamaria aprovada para BRCA+: complementa mamografia em mamas densas"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_fundamentacao_mri">
+          <text>"RNM detecta canceres ocultos em mamografia em BRCA+ (sensibilidade 77% vs 40%)"</text>
+        </outputEntry>
+        <outputEntry id="OE_DecisionRule_approve_brca_mri_alertasDesperdicio">
+          <text>"NENHUM"</text>
+        </outputEntry>
+        <outputEntry id="OE_DecisionRule_approve_brca_mri_acaoRecomendada">
+          <text>"APROVAR"</text>
+        </outputEntry>
+      </rule>
+      <rule id="DecisionRule_approve_survivor_mri">
+        <description>Approve breast MRI for survivors with dense breasts</description>
+        <inputEntry id="InputEntry_breast_cancer_history_dense">
+          <text>true</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_brca_status_dense">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_months_since_last_dense">
+          <text>&gt;= 10</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_modality_requested_dense">
+          <text>"breast_MRI"</text>
+        </inputEntry>
+        <inputEntry id="IE_DecisionRule_approve_survivor_mri_ultimo"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_resultado_dense">
+          <text>"Pendente"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_observacao_dense">
+          <text>"RNM mamaria em sobrevivente: avaliar densidade mamaria e risco acumulado"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_fundamentacao_dense">
+          <text>"RNM indicada se risco vitalicio &gt;20% ou mamas extremamente densas (categoria D BI-RADS)"</text>
+        </outputEntry>
+        <outputEntry id="OE_DecisionRule_approve_survivor_mri_alertasDesperdicio">
+          <text>"NENHUM"</text>
+        </outputEntry>
+        <outputEntry id="OE_DecisionRule_approve_survivor_mri_acaoRecomendada">
+          <text>"SOLICITAR_INFO"</text>
+        </outputEntry>
+      </rule>
+      <rule id="DecisionRule_pending_no_history">
+        <description>Pending if screening without cancer history</description>
+        <inputEntry id="InputEntry_breast_cancer_history_screen">
+          <text>false</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_brca_status_screen">
+          <text>"negative","not_tested"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_months_since_last_screen">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_modality_requested_screen">
+          <text>"mammogram"</text>
+        </inputEntry>
+        <inputEntry id="IE_DecisionRule_pending_no_history_ultimo"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_resultado_screen">
+          <text>"Pendente"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_observacao_screen">
+          <text>"Rastreamento populacional: verificar idade e criterios INCA (50-69 anos bienal)"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_fundamentacao_screen">
+          <text>"INCA: rastreamento mamografico bienal 50-69 anos; &lt;50 ou &gt;70 avaliar risco individual"</text>
+        </outputEntry>
+        <outputEntry id="OE_DecisionRule_pending_no_history_alertasDesperdicio">
+          <text>"NENHUM"</text>
+        </outputEntry>
+        <outputEntry id="OE_DecisionRule_pending_no_history_acaoRecomendada">
+          <text>"SOLICITAR_INFO"</text>
+        </outputEntry>
+      </rule>
+      <rule id="DecisionRule_fallback">
+        <description>Fallback rule for incomplete data</description>
+        <inputEntry id="InputEntry_breast_cancer_history_fallback">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_brca_status_fallback">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_months_since_last_fallback">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_modality_requested_fallback">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="IE_DecisionRule_fallback_ultimo"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_resultado_fallback">
+          <text>"Pendente"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_observacao_fallback">
+          <text>"Dados insuficientes para avaliar vigilancia mamaria"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_fundamentacao_fallback">
+          <text>"Necessario: historico oncologico, status BRCA, data ultimo exame"</text>
+        </outputEntry>
+        <outputEntry id="OE_DecisionRule_fallback_alertasDesperdicio">
+          <text>"NENHUM"</text>
+        </outputEntry>
+        <outputEntry id="OE_DecisionRule_fallback_acaoRecomendada">
+          <text>"SOLICITAR_INFO"</text>
+        </outputEntry>
+      </rule>
+    </decisionTable>
+  </decision>
+  <dmndi:DMNDI>
+    <dmndi:DMNDiagram>
+      <dmndi:DMNShape dmnElementRef="Decision_ONQ_IMG_007">
+        <dc:Bounds height="80" width="180" x="160" y="100" />
+      </dmndi:DMNShape>
+    </dmndi:DMNDiagram>
+  </dmndi:DMNDI>
+</definitions>

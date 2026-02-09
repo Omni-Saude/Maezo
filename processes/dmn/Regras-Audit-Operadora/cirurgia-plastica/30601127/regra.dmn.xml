@@ -1,0 +1,285 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/"
+             xmlns:dc="http://www.omg.org/spec/DD/20100524/DC/"
+             xmlns:di="http://www.omg.org/spec/DD/20100524/DI/"
+             id="Definitions_30601127"
+             name="Reconstrucao de Parede Abdominal"
+             namespace="http://camunda.org/schema/1.0/dmn"
+             exporter="Camunda Modeler"
+             exporterVersion="5.0.0">
+  <!--
+    TUSS 30601127 - Reconstrucao de parede abdominal
+    Versao: 3.0.0 (2026-02-07)
+    Especialidade: Cirurgia Plastica Reconstrutiva
+    Categoria: Reconstrucao de Parede
+
+    Indicacoes Clinicas (AHS 2024 / SBCP 2024):
+    - Grandes defeitos de parede abdominal pos-trauma
+    - Reconstrucao apos resseccao tumoral de parede abdominal
+    - Perda de domicilio abdominal
+    - Defeitos complexos pos-infeccao (fasciite necrosante)
+    - Reconstrucao pos-evisceracoes repetidas
+    - Hernias incisionais gigantes com perda de parede
+
+    Tecnicas de Reconstrucao:
+    - Separacao de componentes (component separation)
+    - TAR (Transversus Abdominis Release)
+    - Retalhos de avanco muscular
+    - Uso de telas (biologicas ou sinteticas)
+    - Retalhos pediculados ou livres para cobertura
+
+    Contraindicacoes:
+    - Infeccao ativa de parede abdominal
+    - Estado nutricional severamente comprometido (albumina menor que 2.5)
+    - Contaminacao intra-abdominal nao resolvida
+    - Comorbidades descompensadas
+
+    Documentacao Obrigatoria:
+    - Dimensoes do defeito (TC abdome)
+    - Etiologia do defeito
+    - Estado nutricional (albumina, pre-albumina)
+    - Fotografias clinicas
+    - Planejamento cirurgico
+
+    Referencias Normativas:
+    - AHS (Abdominal Wall Reconstruction) Guidelines (2024)
+    - SBCP 2024 - Reconstrucao de Parede Abdominal
+    - RN 465/2021 ANS
+  -->
+
+  <decision id="Decision_30601127" name="Criterios de Autorizacao - Reconstrucao Parede Abdominal">
+    <decisionTable id="DecisionTable_30601127" hitPolicy="FIRST">
+
+      <!-- Input 1: Condicao do Paciente -->
+      <input id="Input_condicaoPaciente" label="Tipo e Extensao do Defeito">
+        <inputExpression id="InputExpr_condicaoPaciente" typeRef="string">
+          <text>condicaoPaciente</text>
+        </inputExpression>
+        <inputValues id="InputValues_condicaoPaciente">
+          <text>"defeito_grande_maior_10cm","defeito_medio_5_10cm","perda_domicilio","infeccao_ativa","fasciite_necrosante_resolvida","hernia_gigante","contaminacao_abdominal","estado_nutricional_adequado","desnutricao_severa"</text>
+        </inputValues>
+      </input>
+
+      <!-- Input 2: Historico Clinico -->
+      <input id="Input_historicoClinico" label="Etiologia e Condicao Geral">
+        <inputExpression id="InputExpr_historicoClinico" typeRef="string">
+          <text>historicoClinico</text>
+        </inputExpression>
+        <inputValues id="InputValues_historicoClinico">
+          <text>"pos_trauma","pos_resseccao_tumoral","pos_infeccao_controlada","evisceracoes_previas","multiplas_cirurgias_abdominais","comorbidades_controladas","comorbidades_descompensadas","bom_estado_geral"</text>
+        </inputValues>
+      </input>
+
+      <!-- Input 3: Classe de Indicacao -->
+      <input id="Input_classeIndicacao" label="Classe de Indicacao Cirurgica">
+        <inputExpression id="InputExpr_classeIndicacao" typeRef="string">
+          <text>classeIndicacao</text>
+        </inputExpression>
+        <inputValues id="InputValues_classeIndicacao">
+          <text>"classe_I_indicacao_absoluta","classe_II_indicacao_relativa","classe_III_beneficio_incerto","classe_IV_contraindicado"</text>
+        </inputValues>
+      </input>
+
+      <!-- Input 4: Exames Comprobatorios -->
+      <input id="Input_examesComprobatorios" label="Documentacao Clinica Completa">
+        <inputExpression id="InputExpr_examesComprobatorios" typeRef="boolean">
+          <text>examesComprobatorios</text>
+        </inputExpression>
+      </input>
+
+      <!-- Input 5: Expectativa de Vida Superior a 1 Ano -->
+      <input id="Input_expectativaVida" label="Expectativa de Vida Superior a 1 Ano">
+        <inputExpression id="InputExpr_expectativaVida" typeRef="boolean">
+          <text>expectativaVidaSuperior1Ano</text>
+        </inputExpression>
+      </input>
+
+      <!-- Output 1: Resultado -->
+      <output id="Output_resultado" label="Resultado" name="resultado" typeRef="string">
+        <outputValues id="OutputValues_resultado">
+          <text>"Aprovado","Reprovado","Pendente"</text>
+        </outputValues>
+      </output>
+
+      <!-- Output 2: Observacao -->
+      <output id="Output_observacao" label="Observacao Clinica" name="observacao" typeRef="string" />
+
+      <!-- Output 3: Fundamentacao -->
+      <output id="Output_fundamentacao" label="Fundamentacao Legal/Tecnica" name="fundamentacao" typeRef="string" />
+
+      <output id="Output_alertasDesperdicio" name="alertasDesperdicio" typeRef="string">
+        <outputValues>
+          <text>"NENHUM","DUP","FREQ","ESC","DOC","PROT","MULTI"</text>
+        </outputValues>
+      </output>
+
+      <output id="Output_acaoRecomendada" name="acaoRecomendada" typeRef="string">
+        <outputValues>
+          <text>"APROVAR","NEGAR","SOLICITAR_INFO","AGUARDAR_PRAZO","SUGERIR_ALTERNATIVA"</text>
+        </outputValues>
+      </output>
+
+      <!-- ============================================== -->
+      <!-- REGRAS DE REPROVACAO (PRIORIDADE MAXIMA)      -->
+      <!-- ============================================== -->
+
+      <rule id="Rule_30601127_Reprovacao_InfeccaoAtiva">
+        <description>Reprovacao - Infeccao ativa de parede abdominal</description>
+        <inputEntry id="IE_Rep1_1"><text>"infeccao_ativa"</text></inputEntry>
+        <inputEntry id="IE_Rep1_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_Rep1_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_Rep1_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_Rep1_5"><text>-</text></inputEntry>
+        <outputEntry id="OE_Rep1_1"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OE_Rep1_2"><text>"Infeccao ativa de parede abdominal. Reconstrucao definitiva contraindicada. Controlar infeccao com drenagem, desbridamentos e antibioticoterapia. Reavaliar apos controle documentado."</text></outputEntry>
+        <outputEntry id="OE_Rep1_3"><text>"AHS 2024 - Infection Control Before Reconstruction"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_30601127_Reprovacao_ContaminacaoIntraAbdominal">
+        <description>Reprovacao - Contaminacao intra-abdominal nao resolvida</description>
+        <inputEntry id="IE_Rep2_1"><text>"contaminacao_abdominal"</text></inputEntry>
+        <inputEntry id="IE_Rep2_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_Rep2_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_Rep2_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_Rep2_5"><text>-</text></inputEntry>
+        <outputEntry id="OE_Rep2_1"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OE_Rep2_2"><text>"Contaminacao intra-abdominal nao resolvida. Resolver foco infeccioso antes de reconstrucao com tela. Considerar fechamento temporario (Bogota bag, VAC) ate controle."</text></outputEntry>
+        <outputEntry id="OE_Rep2_3"><text>"AHS 2024 - Open Abdomen Management"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_30601127_Reprovacao_DesnutricaoSevera">
+        <description>Reprovacao - Desnutricao severa compromete cicatrizacao</description>
+        <inputEntry id="IE_Rep3_1"><text>"desnutricao_severa"</text></inputEntry>
+        <inputEntry id="IE_Rep3_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_Rep3_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_Rep3_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_Rep3_5"><text>-</text></inputEntry>
+        <outputEntry id="OE_Rep3_1"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OE_Rep3_2"><text>"Desnutricao severa (albumina menor que 2.5 g/dL). Alto risco de deiscencia e complicacoes. Otimizar estado nutricional (suporte enteral/parenteral) antes da reconstrucao."</text></outputEntry>
+        <outputEntry id="OE_Rep3_3"><text>"AHS 2024 - Nutritional Optimization; Albumina Pre-operatoria"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_30601127_Reprovacao_ComorbidadesDescompensadas">
+        <description>Reprovacao - Comorbidades descompensadas</description>
+        <inputEntry id="IE_Rep4_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_Rep4_2"><text>"comorbidades_descompensadas"</text></inputEntry>
+        <inputEntry id="IE_Rep4_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_Rep4_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_Rep4_5"><text>-</text></inputEntry>
+        <outputEntry id="OE_Rep4_1"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OE_Rep4_2"><text>"Comorbidades descompensadas (diabetes, DPOC, ICC). Cirurgia de grande porte com risco proibitivo. Compensar clinicamente antes de reconstrucao eletiva."</text></outputEntry>
+        <outputEntry id="OE_Rep4_3"><text>"ASA Guidelines; Risco Cirurgico"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_30601127_Reprovacao_ExpectativaVida">
+        <description>Reprovacao - Expectativa de vida inferior a 1 ano</description>
+        <inputEntry id="IE_Rep5_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_Rep5_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_Rep5_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_Rep5_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_Rep5_5"><text>false</text></inputEntry>
+        <outputEntry id="OE_Rep5_1"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OE_Rep5_2"><text>"Expectativa de vida inferior a 12 meses. Reconstrucao de grande porte nao indicada. Considerar manejo conservador com cinta abdominal se hernia assintomatica."</text></outputEntry>
+        <outputEntry id="OE_Rep5_3"><text>"Principios de Proporcionalidade"</text></outputEntry>
+      </rule>
+
+      <!-- ============================================== -->
+      <!-- REGRAS DE APROVACAO                           -->
+      <!-- ============================================== -->
+
+      <rule id="Rule_30601127_Aprovacao_PerdaDomicilio">
+        <description>Aprovacao - Perda de domicilio abdominal</description>
+        <inputEntry id="IE_Aprov1_1"><text>"perda_domicilio","defeito_grande_maior_10cm"</text></inputEntry>
+        <inputEntry id="IE_Aprov1_2"><text>"pos_trauma","pos_resseccao_tumoral","bom_estado_geral"</text></inputEntry>
+        <inputEntry id="IE_Aprov1_3"><text>"classe_I_indicacao_absoluta"</text></inputEntry>
+        <inputEntry id="IE_Aprov1_4"><text>true</text></inputEntry>
+        <inputEntry id="IE_Aprov1_5"><text>true</text></inputEntry>
+        <outputEntry id="OE_Aprov1_1"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OE_Aprov1_2"><text>"Reconstrucao de parede abdominal aprovada para perda de domicilio. Tecnica de separacao de componentes + tela indicada. Considerar pneumoperitonio progressivo pre-operatorio se necessario."</text></outputEntry>
+        <outputEntry id="OE_Aprov1_3"><text>"AHS 2024 - Loss of Domain Management; RN 465/2021"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_30601127_Aprovacao_HerniaGigante">
+        <description>Aprovacao - Hernia incisional gigante</description>
+        <inputEntry id="IE_Aprov2_1"><text>"hernia_gigante","defeito_grande_maior_10cm"</text></inputEntry>
+        <inputEntry id="IE_Aprov2_2"><text>"multiplas_cirurgias_abdominais","comorbidades_controladas"</text></inputEntry>
+        <inputEntry id="IE_Aprov2_3"><text>"classe_I_indicacao_absoluta"</text></inputEntry>
+        <inputEntry id="IE_Aprov2_4"><text>true</text></inputEntry>
+        <inputEntry id="IE_Aprov2_5"><text>true</text></inputEntry>
+        <outputEntry id="OE_Aprov2_1"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OE_Aprov2_2"><text>"Reconstrucao aprovada para hernia incisional gigante. Separacao de componentes com TAR + tela sublay. Otimizacao pre-operatoria (peso, tabagismo, glicemia) recomendada."</text></outputEntry>
+        <outputEntry id="OE_Aprov2_3"><text>"AHS 2024 - Giant Incisional Hernia; EHS Guidelines"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_30601127_Aprovacao_PosFasciite">
+        <description>Aprovacao - Reconstrucao pos-fasciite necrosante resolvida</description>
+        <inputEntry id="IE_Aprov3_1"><text>"fasciite_necrosante_resolvida","estado_nutricional_adequado"</text></inputEntry>
+        <inputEntry id="IE_Aprov3_2"><text>"pos_infeccao_controlada","bom_estado_geral"</text></inputEntry>
+        <inputEntry id="IE_Aprov3_3"><text>"classe_I_indicacao_absoluta"</text></inputEntry>
+        <inputEntry id="IE_Aprov3_4"><text>true</text></inputEntry>
+        <inputEntry id="IE_Aprov3_5"><text>true</text></inputEntry>
+        <outputEntry id="OE_Aprov3_1"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OE_Aprov3_2"><text>"Reconstrucao aprovada apos fasciite necrosante resolvida. Infeccao controlada documentada. Usar tela biologica se risco de contaminacao residual. Estado nutricional otimizado."</text></outputEntry>
+        <outputEntry id="OE_Aprov3_3"><text>"AHS 2024 - Post-Necrotizing Fasciitis Reconstruction"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_30601127_Aprovacao_DefeitoMedio">
+        <description>Aprovacao - Defeito medio com tecnicas padrao</description>
+        <inputEntry id="IE_Aprov4_1"><text>"defeito_medio_5_10cm","estado_nutricional_adequado"</text></inputEntry>
+        <inputEntry id="IE_Aprov4_2"><text>"evisceracoes_previas","comorbidades_controladas"</text></inputEntry>
+        <inputEntry id="IE_Aprov4_3"><text>"classe_I_indicacao_absoluta","classe_II_indicacao_relativa"</text></inputEntry>
+        <inputEntry id="IE_Aprov4_4"><text>true</text></inputEntry>
+        <inputEntry id="IE_Aprov4_5"><text>true</text></inputEntry>
+        <outputEntry id="OE_Aprov4_1"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OE_Aprov4_2"><text>"Reconstrucao aprovada para defeito medio de parede. Retrorrafias com tela de reforco. Separacao de componentes se fechamento primario insuficiente."</text></outputEntry>
+        <outputEntry id="OE_Aprov4_3"><text>"EHS Guidelines 2024; SBCP 2024"</text></outputEntry>
+      </rule>
+
+      <!-- ============================================== -->
+      <!-- REGRAS DE PENDENCIA                           -->
+      <!-- ============================================== -->
+
+      <rule id="Rule_30601127_Pendente_OtimizacaoNutricional">
+        <description>Pendente - Requer otimizacao nutricional</description>
+        <inputEntry id="IE_Pend1_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_Pend1_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_Pend1_3"><text>"classe_II_indicacao_relativa"</text></inputEntry>
+        <inputEntry id="IE_Pend1_4"><text>true</text></inputEntry>
+        <inputEntry id="IE_Pend1_5"><text>true</text></inputEntry>
+        <outputEntry id="OE_Pend1_1"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OE_Pend1_2"><text>"Avaliar e otimizar estado nutricional. Albumina maior que 3.0 g/dL recomendada. Se albumina 2.5-3.0, iniciar suporte nutricional e reavaliar em 2-4 semanas."</text></outputEntry>
+        <outputEntry id="OE_Pend1_3"><text>"AHS 2024 - Prehabilitation"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_30601127_Pendente_SemDocumentacao">
+        <description>Pendente - Documentacao incompleta</description>
+        <inputEntry id="IE_Pend2_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_Pend2_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_Pend2_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_Pend2_4"><text>false</text></inputEntry>
+        <inputEntry id="IE_Pend2_5"><text>true</text></inputEntry>
+        <outputEntry id="OE_Pend2_1"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OE_Pend2_2"><text>"Documentacao incompleta. Anexar: TC abdome com dimensoes do defeito, albumina serica, fotografias, planejamento cirurgico, avaliacao risco cirurgico."</text></outputEntry>
+        <outputEntry id="OE_Pend2_3"><text>"RN 465/2021 Art. 5 - Documentacao"</text></outputEntry>
+      </rule>
+
+      <!-- ============================================== -->
+      <!-- REGRA FALLBACK                                -->
+      <!-- ============================================== -->
+
+      <rule id="Rule_Fallback_30601127">
+        <description>Regra padrao - Casos nao cobertos</description>
+        <inputEntry id="IE_Fallback_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_Fallback_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_Fallback_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_Fallback_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_Fallback_5"><text>-</text></inputEntry>
+        <outputEntry id="OE_Fallback_1"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OE_Fallback_2"><text>"Caso nao enquadrado nos criterios automaticos. Encaminhar para auditoria especializada em reconstrucao de parede abdominal."</text></outputEntry>
+        <outputEntry id="OE_Fallback_3"><text>"RN 428/2017 - Auditoria Especializada"</text></outputEntry>
+      </rule>
+
+    </decisionTable>
+  </decision>
+</definitions>

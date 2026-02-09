@@ -1,0 +1,222 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  TUSS: 40501301
+  Versao: 3.1.0-LEAN-TIER2 (2026-02-08)
+  Especialidade: Oncologia - Testes Moleculares
+-->
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/" xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/" xmlns:dc="http://www.omg.org/spec/DMN/20180521/DC/" xmlns:modeler="http://camunda.org/schema/modeler/1.0" id="Definitions_ONQ_BIO_007" name="DRD" namespace="http://camunda.org/schema/1.0/dmn" exporter="Camunda Modeler" exporterVersion="5.14.0" modeler:executionPlatform="Camunda Cloud" modeler:executionPlatformVersion="8.2.0">
+  <decision id="Decision_ONQ_BIO_007" name="ONQ-BIO-007: MSI/dMMR Testing for Immunotherapy [LEAN TIER-2]">
+    <decisionTable id="DecisionTable_ONQ_BIO_007" hitPolicy="FIRST">
+      <input id="Input_tumor_type" label="Tumor Type">
+        <inputExpression id="InputExpression_tumor_type" typeRef="string">
+          <text>tumorType</text>
+        </inputExpression>
+      </input>
+      <input id="Input_indication" label="Indication">
+        <inputExpression id="InputExpression_indication" typeRef="string">
+          <text>indication</text>
+        </inputExpression>
+      </input>
+      <input id="Input_testing_done" label="MSI/dMMR Testing Done">
+        <inputExpression id="InputExpression_testing_done" typeRef="boolean">
+          <text>msiTestingDone</text>
+        </inputExpression>
+      </input>
+      <!-- Input: Dias desde ultimo procedimento (DUP detection) -->
+      <input id="Input_ultimoProcedimentoDias" label="Dias Desde Ultimo Procedimento">
+        <inputExpression id="InputExpression_ultimoProcedimentoDias" typeRef="number">
+          <text>ultimoProcedimentoDias</text>
+        </inputExpression>
+      </input>
+
+      <output id="Output_resultado" label="Resultado" name="resultado" typeRef="string">
+        <outputValues id="UnaryTests_resultado">
+          <text>"Aprovado","Reprovado","Pendente"</text>
+        </outputValues>
+      </output>
+      <output id="Output_observacao" label="Observação" name="observacao" typeRef="string" />
+      <output id="Output_fundamentacao" label="Fundamentação" name="fundamentacao" typeRef="string" />
+      <output id="Output_alertasDesperdicio" label="Alertas de Desperdicio" name="alertasDesperdicio" typeRef="string">
+        <outputValues id="OutputValues_alertasDesperdicio">
+          <text>"NENHUM","DUP","FREQ","ESC","DOC","PROT","MULTI"</text>
+        </outputValues>
+      </output>
+      <output id="Output_acaoRecomendada" label="Acao Recomendada" name="acaoRecomendada" typeRef="string">
+        <outputValues id="OutputValues_acaoRecomendada">
+          <text>"APROVAR","NEGAR","SOLICITAR_INFO","AGUARDAR_PRAZO","SUGERIR_ALTERNATIVA"</text>
+        </outputValues>
+      </output>
+      <rule id="DecisionRule_reject_no_indication">
+        <inputEntry id="InputEntry_tumor_type_reject">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_indication_reject">
+          <text>not("colorectal","endometrial","gastric","other_solid_tumor")</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_testing_done_reject">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="IE_DecisionRule_reject_no_indication_ultimo"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_resultado_reject">
+          <text>"Reprovado"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_observacao_reject">
+          <text>"Tipo tumoral nao elegivel para teste MSI/dMMR conforme diretrizes CONITEC"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_fundamentacao_reject">
+          <text>"Teste MSI-High/dMMR recomendado apenas para colorretal, endometrial, gastrico e tumores solidos selecionados conforme NCCN 2024/SBOC 2024"</text>
+        </outputEntry>
+        <outputEntry id="OE_reject_alertasDesperdicio">
+          <text>"PROT"</text>
+        </outputEntry>
+        <outputEntry id="OE_reject_acaoRecomendada">
+          <text>"NEGAR"</text>
+        </outputEntry>
+      </rule>
+
+      <!-- WASTE DETECTION: DUP -->
+      <rule id="Rule_40501301_DUP">
+        <description>DUP - Reteste MSI/dMMR em menos de 90 dias</description>
+        <inputEntry id="IE_DUP_40501301_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_DUP_40501301_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_DUP_40501301_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_DUP_40501301_ultimo"><text>&lt; 90</text></inputEntry>
+        <outputEntry id="OE_DUP_40501301_resultado"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OE_DUP_40501301_observacao"><text>"Reteste MSI/dMMR em menos de 90 dias"</text></outputEntry>
+        <outputEntry id="OE_DUP_40501301_fundamentacao"><text>"NCCN 2024: MSI/dMMR resultado permanente exceto raro caso conversao"</text></outputEntry>
+        <outputEntry id="OE_DUP_40501301_alertasDesperdicio"><text>"DUP"</text></outputEntry>
+        <outputEntry id="OE_DUP_40501301_acaoRecomendada"><text>"AGUARDAR_PRAZO"</text></outputEntry>
+      </rule>
+
+      <!-- WASTE DETECTION: ESC -->
+      <rule id="Rule_40501301_ESC">
+        <description>ESC - Imunoterapia sem teste MSI/dMMR previo</description>
+        <inputEntry id="IE_ESC_40501301_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_ESC_40501301_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_ESC_40501301_3"><text>false</text></inputEntry>
+        <inputEntry id="IE_ESC_40501301_ultimo"><text>-</text></inputEntry>
+        <outputEntry id="OE_ESC_40501301_resultado"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OE_ESC_40501301_observacao"><text>"Imunoterapia requer teste MSI/dMMR previo - solicitar IHC ou PCR"</text></outputEntry>
+        <outputEntry id="OE_ESC_40501301_fundamentacao"><text>"NCCN/ESMO 2024: MSI-H/dMMR biomarker obrigatorio antes pembrolizumab/nivolumab"</text></outputEntry>
+        <outputEntry id="OE_ESC_40501301_alertasDesperdicio"><text>"ESC"</text></outputEntry>
+        <outputEntry id="OE_ESC_40501301_acaoRecomendada"><text>"SOLICITAR_INFO"</text></outputEntry>
+      </rule>
+
+      <rule id="DecisionRule_approve_colorectal">
+        <inputEntry id="InputEntry_tumor_type_colorectal">
+          <text>"colorectal"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_indication_colorectal">
+          <text>"metastatic","locally_advanced","adjuvant_consideration"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_testing_done_colorectal">
+          <text>true</text>
+        </inputEntry>
+        <inputEntry id="IE_DecisionRule_approve_colorectal_ultimo"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_resultado_colorectal">
+          <text>"Aprovado"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_observacao_colorectal">
+          <text>"Status MSI-H/dMMR confirmado. Elegivel para imunoterapia com pembrolizumab ou nivolumab conforme ANS RN 465/2021"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_fundamentacao_colorectal">
+          <text>"Cancer colorretal MSI-High apresenta 40-60% de resposta objetiva com terapia anti-PD-1 (CheckMate-142 2024, KEYNOTE-177 2024)"</text>
+        </outputEntry>
+        <outputEntry id="OE_colorectal_alertasDesperdicio">
+          <text>"NENHUM"</text>
+        </outputEntry>
+        <outputEntry id="OE_colorectal_acaoRecomendada">
+          <text>"APROVAR"</text>
+        </outputEntry>
+      </rule>
+      <rule id="DecisionRule_approve_endometrial">
+        <inputEntry id="InputEntry_tumor_type_endometrial">
+          <text>"endometrial"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_indication_endometrial">
+          <text>"recurrent","metastatic"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_testing_done_endometrial">
+          <text>true</text>
+        </inputEntry>
+        <inputEntry id="IE_DecisionRule_approve_endometrial_ultimo"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_resultado_endometrial">
+          <text>"Aprovado"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_observacao_endometrial">
+          <text>"Cancer endometrial MSI-H/dMMR elegivel para dostarlimab ou pembrolizumab conforme GARNET 2024/KEYNOTE-158 2024"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_fundamentacao_endometrial">
+          <text>"30% dos canceres endometriais sao MSI-H; dostarlimab demonstra 42,3% de resposta objetiva nesta populacao (GARNET 2024)"</text>
+        </outputEntry>
+        <outputEntry id="OE_endometrial_alertasDesperdicio">
+          <text>"NENHUM"</text>
+        </outputEntry>
+        <outputEntry id="OE_endometrial_acaoRecomendada">
+          <text>"APROVAR"</text>
+        </outputEntry>
+      </rule>
+      <rule id="DecisionRule_pending_no_test">
+        <inputEntry id="InputEntry_tumor_type_pending">
+          <text>"colorectal","endometrial","gastric","other_solid_tumor"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_indication_pending">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_testing_done_pending">
+          <text>false</text>
+        </inputEntry>
+        <inputEntry id="IE_DecisionRule_pending_no_test_ultimo"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_resultado_pending">
+          <text>"Pendente"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_observacao_pending">
+          <text>"Teste MSI/dMMR necessario. Solicitar IHC (MLH1/MSH2/MSH6/PMS2) ou painel MSI por PCR"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_fundamentacao_pending">
+          <text>"Status MSI-H/dMMR e biomarcador preditivo para resposta a imunoterapia (indicacao aprovada FDA/ANVISA 2024)"</text>
+        </outputEntry>
+        <outputEntry id="OE_pending_alertasDesperdicio">
+          <text>"DOC"</text>
+        </outputEntry>
+        <outputEntry id="OE_pending_acaoRecomendada">
+          <text>"SOLICITAR_INFO"</text>
+        </outputEntry>
+      </rule>
+      <rule id="DecisionRule_fallback">
+        <inputEntry id="InputEntry_tumor_type_fallback">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_indication_fallback">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_testing_done_fallback">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="IE_DecisionRule_fallback_ultimo"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_resultado_fallback">
+          <text>"Pendente"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_observacao_fallback">
+          <text>"Informacao clinica insuficiente. Tipo tumoral, estadiamento e status MSI/dMMR necessarios"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_fundamentacao_fallback">
+          <text>"Revisao caso a caso necessaria conforme junta multidisciplinar de tumores moleculares (CONITEC 2024)"</text>
+        </outputEntry>
+        <outputEntry id="OE_fallback_alertasDesperdicio">
+          <text>"NENHUM"</text>
+        </outputEntry>
+        <outputEntry id="OE_fallback_acaoRecomendada">
+          <text>"SOLICITAR_INFO"</text>
+        </outputEntry>
+      </rule>
+    </decisionTable>
+  </decision>
+  <dmndi:DMNDI>
+    <dmndi:DMNDiagram>
+      <dmndi:DMNShape dmnElementRef="Decision_ONQ_BIO_007">
+        <dc:Bounds height="80" width="180" x="160" y="100" />
+      </dmndi:DMNShape>
+    </dmndi:DMNDiagram>
+  </dmndi:DMNDI>
+</definitions>

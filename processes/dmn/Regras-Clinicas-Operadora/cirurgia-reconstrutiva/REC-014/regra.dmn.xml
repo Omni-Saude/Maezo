@@ -1,0 +1,278 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             xmlns:camunda="http://camunda.org/schema/1.0/dmn"
+             id="Definitions_REC014"
+             name="Reconstrucao Parede Abdominal"
+             namespace="http://camunda.org/schema/1.0/dmn">
+
+  <!--
+    ===============================================================================
+    TUSS: REC-014
+    Procedimento: Reconstrucao de Parede Abdominal Complexa
+    Especialidade: Cirurgia Reconstrutiva / Cirurgia Plastica / Cirurgia Geral
+    Versao: 3.0.0-TIER1
+    Data: 2026-02-07
+    ===============================================================================
+
+    INDICACOES CLINICAS (SBCP 2022, EHS 2020):
+    - Hernia incisional gigante
+    - Perdas de domicilio
+    - Fistulas enteroatmosfericas
+    - Reconstrucao pos-trauma
+    - Abdomen catastrofico
+
+    CLASSIFICACAO (EHS):
+    - M: Mediana (M1-M5 por localizacao)
+    - L: Lateral (L1-L4)
+    - W: Width (W1 <4cm, W2 4-10cm, W3 >10cm)
+
+    REFERENCIAS TECNICAS:
+    - SBCP 2022 - Parede Abdominal
+    - EHS (European Hernia Society) 2020
+    - ABCP 2023 - Brazilian Chapter
+    - AHSQC 2023 - Americas Hernia Society Quality Collaborative
+
+    ===============================================================================
+  -->
+
+  <decision id="Decision_REC014" name="Regra Clinica - Reconstrucao Parede Abdominal">
+    <decisionTable id="DecisionTable_REC014" hitPolicy="FIRST">
+
+      <!-- ========== INPUTS (5) ========== -->
+
+      <input id="Input_tipoDefeito" label="Tipo de Defeito" camunda:inputVariable="tipoDefeito">
+        <inputExpression id="InputExpression_tipoDefeito" typeRef="string">
+          <text>tipoDefeito</text>
+        </inputExpression>
+        <inputValues id="InputValues_tipoDefeito">
+          <text>"HerniaIncisionalGigante","PerdaDomicilio","FistulaEnteroatmosferica","AbdomenCatastrofico","TraumaAbdominal","RecidivaPosReparo"</text>
+        </inputValues>
+      </input>
+
+      <input id="Input_larguraDefeito" label="Largura do Defeito (EHS W)" camunda:inputVariable="larguraDefeito">
+        <inputExpression id="InputExpression_larguraDefeito" typeRef="string">
+          <text>larguraDefeito</text>
+        </inputExpression>
+        <inputValues id="InputValues_larguraDefeito">
+          <text>"W1menor4cm","W2entre4e10cm","W3maior10cm"</text>
+        </inputValues>
+      </input>
+
+      <input id="Input_contaminacao" label="Grau de Contaminacao" camunda:inputVariable="contaminacao">
+        <inputExpression id="InputExpression_contaminacao" typeRef="string">
+          <text>contaminacao</text>
+        </inputExpression>
+        <inputValues id="InputValues_contaminacao">
+          <text>"Limpa","PotencialmenteContaminada","Contaminada","Infectada"</text>
+        </inputValues>
+      </input>
+
+      <input id="Input_tecnicaProposta" label="Tecnica Proposta" camunda:inputVariable="tecnicaProposta">
+        <inputExpression id="InputExpression_tecnicaProposta" typeRef="string">
+          <text>tecnicaProposta</text>
+        </inputExpression>
+        <inputValues id="InputValues_tecnicaProposta">
+          <text>"SeparacaoComponentes","TARTransversusRelease","RetalhoALT","MalhaBiologica","MalhaSintetica","Bridging"</text>
+        </inputValues>
+      </input>
+
+      <input id="Input_comorbidades" label="Comorbidades Relevantes" camunda:inputVariable="comorbidades">
+        <inputExpression id="InputExpression_comorbidades" typeRef="string">
+          <text>comorbidades</text>
+        </inputExpression>
+        <inputValues id="InputValues_comorbidades">
+          <text>"Nenhuma","ObesidadeGrau3","DiabetesDescompensado","Tabagismo","DPOC","Imunossupressao"</text>
+        </inputValues>
+      </input>
+
+      <!-- ========== OUTPUTS (3 - Padrao TIER-1) ========== -->
+
+      <output id="Output_resultado" label="Resultado" name="resultado" typeRef="string">
+        <outputValues id="OutputValues_resultado">
+          <text>"Aprovado","Reprovado","Pendente"</text>
+        </outputValues>
+      </output>
+
+      <output id="Output_observacao" label="Observacao Clinica" name="observacao" typeRef="string" />
+
+      <output id="Output_fundamentacao" label="Fundamentacao Tecnica" name="fundamentacao" typeRef="string" />
+
+      <!-- Output 4: Alertas Desperdicio -->
+      <output id="Output_alertasDesperdicio" label="Alertas de Desperdicio" name="alertasDesperdicio" typeRef="string">
+        <outputValues id="OutputValues_alertasDesperdicio">
+          <text>"NENHUM","DUP","FREQ","ESC","DOC","PROT","MULTI"</text>
+        </outputValues>
+      </output>
+
+      <!-- Output 5: Acao Recomendada -->
+      <output id="Output_acaoRecomendada" label="Acao Recomendada" name="acaoRecomendada" typeRef="string">
+        <outputValues id="OutputValues_acaoRecomendada">
+          <text>"APROVAR","NEGAR","SOLICITAR_INFO","AGUARDAR_PRAZO","SUGERIR_ALTERNATIVA"</text>
+        </outputValues>
+      </output>
+
+      <!-- ========== RULES ========== -->
+
+      <!-- APROVACOES URGENTES -->
+      <rule id="Rule_Aprovado_AbdomenCatastrofico">
+        <description>Aprovado Urgente: Abdomen catastrofico/aberto</description>
+        <inputEntry id="InputEntry_AC_1"><text>"AbdomenCatastrofico"</text></inputEntry>
+        <inputEntry id="InputEntry_AC_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_AC_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_AC_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_AC_5"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_AC_resultado"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_AC_observacao"><text>"URGENTE - Abdomen catastrofico requer fechamento definitivo"</text></outputEntry>
+        <outputEntry id="OutputEntry_AC_fundamentacao"><text>"EHS 2020, SBCP 2022 - Peritoneostomia prolongada aumenta morbimortalidade"</text></outputEntry>
+      <outputEntry id="OE_Aprovado_AbdomenCatastrofico_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_Aprovado_AbdomenCatastrofico_5"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Aprovado_Fistula">
+        <description>Aprovado: Fistula enteroatmosferica controlada</description>
+        <inputEntry id="InputEntry_FEA_1"><text>"FistulaEnteroatmosferica"</text></inputEntry>
+        <inputEntry id="InputEntry_FEA_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_FEA_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_FEA_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_FEA_5"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_FEA_resultado"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_FEA_observacao"><text>"Reconstrucao de fistula enteroatmosferica com parede abdominal"</text></outputEntry>
+        <outputEntry id="OutputEntry_FEA_fundamentacao"><text>"SBCP 2022 - Fistulas requerem equipe multidisciplinar e timing adequado"</text></outputEntry>
+      <outputEntry id="OE_Aprovado_Fistula_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_Aprovado_Fistula_5"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <!-- APROVACOES ELETIVAS -->
+      <rule id="Rule_Aprovado_HerniaGigante">
+        <description>Aprovado: Hernia incisional gigante com preparacao</description>
+        <inputEntry id="InputEntry_HIG_1"><text>"HerniaIncisionalGigante"</text></inputEntry>
+        <inputEntry id="InputEntry_HIG_2"><text>"W3maior10cm"</text></inputEntry>
+        <inputEntry id="InputEntry_HIG_3"><text>"Limpa","PotencialmenteContaminada"</text></inputEntry>
+        <inputEntry id="InputEntry_HIG_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_HIG_5"><text>"Nenhuma"</text></inputEntry>
+        <outputEntry id="OutputEntry_HIG_resultado"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_HIG_observacao"><text>"Hernia incisional gigante - reconstrucao com separacao de componentes"</text></outputEntry>
+        <outputEntry id="OutputEntry_HIG_fundamentacao"><text>"EHS 2020, AHSQC 2023 - Hernias W3 requerem tecnicas avanãadas de reconstrucao"</text></outputEntry>
+      <outputEntry id="OE_Aprovado_HerniaGigante_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_Aprovado_HerniaGigante_5"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Aprovado_PerdaDomicilio">
+        <description>Aprovado: Perda de domicilio</description>
+        <inputEntry id="InputEntry_PD_1"><text>"PerdaDomicilio"</text></inputEntry>
+        <inputEntry id="InputEntry_PD_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_PD_3"><text>"Limpa","PotencialmenteContaminada"</text></inputEntry>
+        <inputEntry id="InputEntry_PD_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_PD_5"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_PD_resultado"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_PD_observacao"><text>"Perda de domicilio - pneumoperitoneo progressivo ou toxina botulinica pre-op"</text></outputEntry>
+        <outputEntry id="OutputEntry_PD_fundamentacao"><text>"SBCP 2022 - Perda de domicilio requer preparacao pre-operatoria"</text></outputEntry>
+      <outputEntry id="OE_Aprovado_PerdaDomicilio_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_Aprovado_PerdaDomicilio_5"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Aprovado_TAR">
+        <description>Aprovado: TAR para hernia complexa</description>
+        <inputEntry id="InputEntry_TAR_1"><text>"HerniaIncisionalGigante","RecidivaPosReparo"</text></inputEntry>
+        <inputEntry id="InputEntry_TAR_2"><text>"W2entre4e10cm","W3maior10cm"</text></inputEntry>
+        <inputEntry id="InputEntry_TAR_3"><text>"Limpa"</text></inputEntry>
+        <inputEntry id="InputEntry_TAR_4"><text>"TARTransversusRelease"</text></inputEntry>
+        <inputEntry id="InputEntry_TAR_5"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_TAR_resultado"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_TAR_observacao"><text>"Transversus Abdominis Release para defeito moderado a grande"</text></outputEntry>
+        <outputEntry id="OutputEntry_TAR_fundamentacao"><text>"EHS 2020 - TAR permite fechamento com menor tensao que separacao anterior"</text></outputEntry>
+      <outputEntry id="OE_Aprovado_TAR_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_Aprovado_TAR_5"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Aprovado_RecidivaComplexo">
+        <description>Aprovado: Recidiva apos reparo previo</description>
+        <inputEntry id="InputEntry_REC_1"><text>"RecidivaPosReparo"</text></inputEntry>
+        <inputEntry id="InputEntry_REC_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_REC_3"><text>"Limpa","PotencialmenteContaminada"</text></inputEntry>
+        <inputEntry id="InputEntry_REC_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_REC_5"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_REC_resultado"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_REC_observacao"><text>"Recidiva herniaria - reconstrucao com mudanca de plano da tela"</text></outputEntry>
+        <outputEntry id="OutputEntry_REC_fundamentacao"><text>"AHSQC 2023 - Recidiva requer tecnica diferente da falha anterior"</text></outputEntry>
+      <outputEntry id="OE_Aprovado_RecidivaComplexo_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_Aprovado_RecidivaComplexo_5"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <!-- APROVACOES - CONTAMINADO COM TELA BIOLOGICA -->
+      <rule id="Rule_Aprovado_ContaminadoBiologica">
+        <description>Aprovado: Campo contaminado com tela biologica</description>
+        <inputEntry id="InputEntry_CB_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_CB_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_CB_3"><text>"Contaminada"</text></inputEntry>
+        <inputEntry id="InputEntry_CB_4"><text>"MalhaBiologica"</text></inputEntry>
+        <inputEntry id="InputEntry_CB_5"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_CB_resultado"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_CB_observacao"><text>"Campo contaminado - uso de tela biologica (derme porcina/bovina)"</text></outputEntry>
+        <outputEntry id="OutputEntry_CB_fundamentacao"><text>"EHS 2020 - Tela biologica tolerada em campo contaminado, sintetica contraindicada"</text></outputEntry>
+      <outputEntry id="OE_Aprovado_ContaminadoBiologica_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_Aprovado_ContaminadoBiologica_5"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <!-- REPROVACOES -->
+      <rule id="Rule_Reprovado_InfectadaSintetica">
+        <description>Reprovado: Campo infectado com tela sintetica</description>
+        <inputEntry id="InputEntry_IS_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_IS_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_IS_3"><text>"Infectada"</text></inputEntry>
+        <inputEntry id="InputEntry_IS_4"><text>"MalhaSintetica"</text></inputEntry>
+        <inputEntry id="InputEntry_IS_5"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_IS_resultado"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_IS_observacao"><text>"Tela sintetica contraindicada em campo infectado - usar biologica ou sutura"</text></outputEntry>
+        <outputEntry id="OutputEntry_IS_fundamentacao"><text>"EHS 2020 - Tela sintetica em campo infectado tem 80%+ taxa de remocao"</text></outputEntry>
+      <outputEntry id="OE_Reprovado_InfectadaSintetica_4"><text>"PROT"</text></outputEntry>
+        <outputEntry id="OE_Reprovado_InfectadaSintetica_5"><text>"NEGAR"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Reprovado_Bridging">
+        <description>Reprovado: Bridging como tecnica isolada</description>
+        <inputEntry id="InputEntry_BR_1"><text>"HerniaIncisionalGigante"</text></inputEntry>
+        <inputEntry id="InputEntry_BR_2"><text>"W3maior10cm"</text></inputEntry>
+        <inputEntry id="InputEntry_BR_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_BR_4"><text>"Bridging"</text></inputEntry>
+        <inputEntry id="InputEntry_BR_5"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_BR_resultado"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_BR_observacao"><text>"Bridging isolado tem alta taxa de recidiva - associar separacao de componentes"</text></outputEntry>
+        <outputEntry id="OutputEntry_BR_fundamentacao"><text>"AHSQC 2023 - Bridging sem fechamento fascial tem recidiva de 30-50%"</text></outputEntry>
+      <outputEntry id="OE_Reprovado_Bridging_4"><text>"PROT"</text></outputEntry>
+        <outputEntry id="OE_Reprovado_Bridging_5"><text>"NEGAR"</text></outputEntry>
+      </rule>
+
+      <!-- PENDENTE -->
+      <rule id="Rule_Pendente_OtimizarComorbidades">
+        <description>Pendente: Otimizar comorbidades antes da cirurgia</description>
+        <inputEntry id="InputEntry_OC_1"><text>"HerniaIncisionalGigante"</text></inputEntry>
+        <inputEntry id="InputEntry_OC_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_OC_3"><text>"Limpa"</text></inputEntry>
+        <inputEntry id="InputEntry_OC_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_OC_5"><text>"ObesidadeGrau3","DiabetesDescompensado","Tabagismo"</text></inputEntry>
+        <outputEntry id="OutputEntry_OC_resultado"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OutputEntry_OC_observacao"><text>"Otimizar comorbidades: perda peso, HbA1c &lt;8%, cessacao tabagica 4 semanas"</text></outputEntry>
+        <outputEntry id="OutputEntry_OC_fundamentacao"><text>"EHS 2020 - Otimizacao pre-op reduz complicacoes de 40% para 15%"</text></outputEntry>
+      <outputEntry id="OE_Pendente_OtimizarComorbidades_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_Pendente_OtimizarComorbidades_5"><text>"SOLICITAR_INFO"</text></outputEntry>
+      </rule>
+
+      <!-- FALLBACK RULE -->
+      <rule id="Rule_Fallback_REC014">
+        <description>Regra padrao - Analise adicional necessaria</description>
+        <inputEntry id="InputEntry_Fallback_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Fallback_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Fallback_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Fallback_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Fallback_5"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_Fallback_resultado"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OutputEntry_Fallback_observacao"><text>"Avaliar com centro de referencia em parede abdominal"</text></outputEntry>
+        <outputEntry id="OutputEntry_Fallback_fundamentacao"><text>"EHS 2020, SBCP 2022 - Hernias complexas requerem planejamento especializado"</text></outputEntry>
+      <outputEntry id="OE_Fallback_REC014_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_Fallback_REC014_5"><text>"SOLICITAR_INFO"</text></outputEntry>
+      </rule>
+
+    </decisionTable>
+  </decision>
+</definitions>

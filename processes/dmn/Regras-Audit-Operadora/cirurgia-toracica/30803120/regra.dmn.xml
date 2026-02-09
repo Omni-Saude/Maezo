@@ -1,0 +1,357 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             xmlns:camunda="http://camunda.org/schema/1.0/dmn"
+             id="Definitions_30803120"
+             name="TOR-PLE-001 Pleurodese"
+             namespace="http://camunda.org/schema/1.0/dmn">
+
+  <!--
+    ===============================================================================
+    TUSS: 30803120
+    Procedimento: Pleurodese (Quimica ou Mecanica)
+    Especialidade: Cirurgia Toracica
+    Codigo Regra: TOR-PLE-001
+    Versao: 3.0.0-LEAN-TIER2
+    Data: 2026-02-07
+    ===============================================================================
+
+    INDICACOES CLINICAS:
+    - Derrame pleural recidivante sintomatico (dispneia, tosse)
+    - Derrame pleural maligno com expectativa de vida maior 30 dias
+    - Pneumotorax espontaneo recidivante (2+ episodios ipsilaterais)
+    - Pneumotorax espontaneo primario com fuga aerea persistente
+    - Pneumotorax bilateral ou contralateral
+    - Pulmao expansivel apos drenagem (trapped lung contraindica)
+
+    TIPOS DE PLEURODESE:
+    - Quimica: Talco (mais eficaz), doxiciclina, bleomicina
+    - Mecanica/Abrasiva: Por VATS com escovacao pleural
+    - Combinada: Talco + abrasao
+
+    CONTRAINDICACOES:
+    - Expectativa de vida menor 30 dias (derrame maligno)
+    - Pulmao encarcerado (trapped lung) - pulmao nao expande
+    - Derrame pleural quiloso (quilotorax) - tratar causa
+    - Infeccao pleural ativa (empiema - requer drenagem primeiro)
+    - Coagulopatia nao corrigida
+    - Insuficiencia respiratoria grave sem melhora pos-drenagem
+
+    REFERENCIAS TECNICAS:
+    - BTS Guidelines Pleural Disease 2023
+    - ACCP/ATS Statement Malignant Pleural Effusion
+    - SBPT/SBCT 2023 - Doencas Pleurais
+    - TIME2 Trial - Talc Pleurodesis
+    ===============================================================================
+  -->
+
+  <decision id="Decision_30803120" name="Regra Clinica - Pleurodese">
+    <decisionTable id="DecisionTable_30803120" hitPolicy="FIRST">
+
+      <!-- ========== INPUTS (5) - Padrao TIER-1 Cirurgia Toracica ========== -->
+
+      <input id="Input_diagnosticoPulmonar" label="Tipo de Derrame/Pneumotorax" camunda:inputVariable="diagnosticoPulmonar">
+        <inputExpression id="InputExpression_diagnosticoPulmonar" typeRef="string">
+          <text>diagnosticoPulmonar</text>
+        </inputExpression>
+        <inputValues id="InputValues_diagnosticoPulmonar">
+          <text>"DERRAME_MALIGNO_RECIDIVANTE","DERRAME_BENIGNO_RECIDIVANTE","PNEUMOTORAX_PRIMARIO_RECIDIVANTE","PNEUMOTORAX_SECUNDARIO","QUILOTORAX","EMPIEMA_ATIVO"</text>
+        </inputValues>
+      </input>
+
+      <input id="Input_estadiamentoTNM" label="Caracteristicas Clinicas e Prognostico" camunda:inputVariable="estadiamentoTNM">
+        <inputExpression id="InputExpression_estadiamentoTNM" typeRef="string">
+          <text>estadiamentoTNM</text>
+        </inputExpression>
+        <inputValues id="InputValues_estadiamentoTNM">
+          <text>"RECIDIVA_2_OU_MAIS","PRIMEIRO_EPISODIO_ALTO_RISCO","FUGA_AEREA_PERSISTENTE","BILATERAL_OU_CONTRALATERAL","EXPECTATIVA_VIDA_MAIOR_30D","EXPECTATIVA_VIDA_MENOR_30D"</text>
+        </inputValues>
+      </input>
+
+      <input id="Input_funcaoPulmonar" label="Expansibilidade Pulmonar" camunda:inputVariable="funcaoPulmonar">
+        <inputExpression id="InputExpression_funcaoPulmonar" typeRef="string">
+          <text>funcaoPulmonar</text>
+        </inputExpression>
+        <inputValues id="InputValues_funcaoPulmonar">
+          <text>"PULMAO_EXPANSIVEL","PULMAO_PARCIALMENTE_EXPANSIVEL","TRAPPED_LUNG","NAO_AVALIADA"</text>
+        </inputValues>
+      </input>
+
+      <input id="Input_comorbidades" label="Comorbidades e Contraindicacoes" camunda:inputVariable="comorbidades">
+        <inputExpression id="InputExpression_comorbidades" typeRef="string">
+          <text>comorbidades</text>
+        </inputExpression>
+        <inputValues id="InputValues_comorbidades">
+          <text>"SEM_CONTRAINDICACOES","COAGULOPATIA_CORRIGIVEL","COAGULOPATIA_NAO_CORRIGIVEL","INSUFICIENCIA_RESP_GRAVE","PERFORMANCE_RUIM"</text>
+        </inputValues>
+      </input>
+
+      <input id="Input_documentacaoClinica" label="Documentacao Clinica" camunda:inputVariable="documentacaoClinica">
+        <inputExpression id="InputExpression_documentacaoClinica" typeRef="string">
+          <text>documentacaoClinica</text>
+        </inputExpression>
+        <inputValues id="InputValues_documentacaoClinica">
+          <text>"COMPLETA_COM_IMAGEM","PARCIAL_SEM_TC","INCOMPLETA"</text>
+        </inputValues>
+      </input>
+
+      <!-- ========== OUTPUTS (3) - Padrao TIER-1 ========== -->
+
+      <output id="Output_resultado" label="Resultado" name="resultado" typeRef="string">
+        <outputValues id="OutputValues_resultado">
+          <text>"Aprovado","Reprovado","Pendente"</text>
+        </outputValues>
+      </output>
+
+      <output id="Output_observacao" label="Observacao Clinica" name="observacao" typeRef="string" />
+
+      <output id="Output_fundamentacao" label="Fundamentacao Tecnica" name="fundamentacao" typeRef="string" />
+
+      <output id="Output_alertasDesperdicio" name="alertasDesperdicio" typeRef="string">
+        <outputValues>
+          <text>"NENHUM","DUP","FREQ","ESC","DOC","PROT","MULTI"</text>
+        </outputValues>
+      </output>
+
+      <output id="Output_acaoRecomendada" name="acaoRecomendada" typeRef="string">
+        <outputValues>
+          <text>"APROVAR","NEGAR","SOLICITAR_INFO","AGUARDAR_PRAZO","SUGERIR_ALTERNATIVA"</text>
+        </outputValues>
+      </output>
+
+      <!-- ========== REGRAS - Ordem: Reprovado, Aprovado, Pendente, Fallback ========== -->
+
+      <!-- REPROVACOES -->
+
+      <rule id="Rule_Reprovado_TrappedLung">
+        <description>Reprovado: Pulmao encarcerado (trapped lung)</description>
+        <inputEntry id="InputEntry_Rep_Trap_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Rep_Trap_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Rep_Trap_3"><text>"TRAPPED_LUNG"</text></inputEntry>
+        <inputEntry id="InputEntry_Rep_Trap_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Rep_Trap_5"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_Rep_Trap_resultado"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_Rep_Trap_observacao"><text>"Pleurodese contraindicada - pulmao encarcerado (trapped lung). Pulmao nao expande apos drenagem. Considerar cateter pleural tunelizado."</text></outputEntry>
+        <outputEntry id="OutputEntry_Rep_Trap_fundamentacao"><text>"BTS 2023, ACCP: Pleurodese requer aposicao das pleuras. Trapped lung impede sinfise pleural. Cateter tunelizado e alternativa."</text></outputEntry>
+        <outputEntry id="OutputEntry_Reprovado_TrappedLung_alertasDesperdicio"><text>"PROT"</text></outputEntry>
+        <outputEntry id="OutputEntry_Reprovado_TrappedLung_acaoRecomendada"><text>"NEGAR"</text></outputEntry>
+        <outputEntry id="OutputEntry_Reprovado_TrappedLung_alertasDesperdicio"><text>"PROT"</text></outputEntry>
+        <outputEntry id="OutputEntry_Reprovado_TrappedLung_acaoRecomendada"><text>"NEGAR"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Reprovado_Empiema">
+        <description>Reprovado: Empiema ativo - tratar infeccao primeiro</description>
+        <inputEntry id="InputEntry_Rep_Emp_1"><text>"EMPIEMA_ATIVO"</text></inputEntry>
+        <inputEntry id="InputEntry_Rep_Emp_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Rep_Emp_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Rep_Emp_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Rep_Emp_5"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_Rep_Emp_resultado"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_Rep_Emp_observacao"><text>"Pleurodese contraindicada em empiema ativo. Necessario drenagem e antibioticoterapia. Considerar VATS para debridamento."</text></outputEntry>
+        <outputEntry id="OutputEntry_Rep_Emp_fundamentacao"><text>"BTS 2023: Empiema requer drenagem e tratamento infeccioso antes de qualquer procedimento eletivo. Pleurodese em infeccao e ineficaz."</text></outputEntry>
+        <outputEntry id="OutputEntry_Reprovado_Empiema_alertasDesperdicio"><text>"PROT"</text></outputEntry>
+        <outputEntry id="OutputEntry_Reprovado_Empiema_acaoRecomendada"><text>"NEGAR"</text></outputEntry>
+        <outputEntry id="OutputEntry_Reprovado_Empiema_alertasDesperdicio"><text>"PROT"</text></outputEntry>
+        <outputEntry id="OutputEntry_Reprovado_Empiema_acaoRecomendada"><text>"NEGAR"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Reprovado_ExpectativaVidaCurta">
+        <description>Reprovado: Expectativa de vida muito curta (menor 30 dias)</description>
+        <inputEntry id="InputEntry_Rep_Exp_1"><text>"DERRAME_MALIGNO_RECIDIVANTE"</text></inputEntry>
+        <inputEntry id="InputEntry_Rep_Exp_2"><text>"EXPECTATIVA_VIDA_MENOR_30D"</text></inputEntry>
+        <inputEntry id="InputEntry_Rep_Exp_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Rep_Exp_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Rep_Exp_5"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_Rep_Exp_resultado"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_Rep_Exp_observacao"><text>"Pleurodese nao indicada - expectativa de vida menor 30 dias. Pleurodese leva 2-4 semanas para efeito. Toracocentese de alivio ou cateter."</text></outputEntry>
+        <outputEntry id="OutputEntry_Rep_Exp_fundamentacao"><text>"ACCP, BTS: Beneficio de pleurodese requer tempo para sinfise. Expectativa muito curta favorece abordagem paliativa menos invasiva."</text></outputEntry>
+        <outputEntry id="OutputEntry_Reprovado_ExpectativaVidaCurta_alertasDesperdicio"><text>"PROT"</text></outputEntry>
+        <outputEntry id="OutputEntry_Reprovado_ExpectativaVidaCurta_acaoRecomendada"><text>"NEGAR"</text></outputEntry>
+        <outputEntry id="OutputEntry_Reprovado_ExpectativaVidaCurta_alertasDesperdicio"><text>"PROT"</text></outputEntry>
+        <outputEntry id="OutputEntry_Reprovado_ExpectativaVidaCurta_acaoRecomendada"><text>"NEGAR"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Reprovado_Coagulopatia">
+        <description>Reprovado: Coagulopatia nao corrigivel</description>
+        <inputEntry id="InputEntry_Rep_Coag_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Rep_Coag_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Rep_Coag_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Rep_Coag_4"><text>"COAGULOPATIA_NAO_CORRIGIVEL"</text></inputEntry>
+        <inputEntry id="InputEntry_Rep_Coag_5"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_Rep_Coag_resultado"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_Rep_Coag_observacao"><text>"Pleurodese contraindicada - coagulopatia nao corrigivel. Risco de hemotorax. Corrigir coagulacao antes de procedimento."</text></outputEntry>
+        <outputEntry id="OutputEntry_Rep_Coag_fundamentacao"><text>"BTS 2023: Procedimentos pleurais requerem hemostasia adequada. INR menor 1.5 e plaquetas maior 50.000 recomendados."</text></outputEntry>
+        <outputEntry id="OutputEntry_Reprovado_Coagulopatia_alertasDesperdicio"><text>"PROT"</text></outputEntry>
+        <outputEntry id="OutputEntry_Reprovado_Coagulopatia_acaoRecomendada"><text>"NEGAR"</text></outputEntry>
+        <outputEntry id="OutputEntry_Reprovado_Coagulopatia_alertasDesperdicio"><text>"PROT"</text></outputEntry>
+        <outputEntry id="OutputEntry_Reprovado_Coagulopatia_acaoRecomendada"><text>"NEGAR"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Reprovado_Quilotorax">
+        <description>Reprovado: Quilotorax - tratar causa base primeiro</description>
+        <inputEntry id="InputEntry_Rep_Quilo_1"><text>"QUILOTORAX"</text></inputEntry>
+        <inputEntry id="InputEntry_Rep_Quilo_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Rep_Quilo_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Rep_Quilo_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Rep_Quilo_5"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_Rep_Quilo_resultado"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_Rep_Quilo_observacao"><text>"Quilotorax - tratamento conservador (dieta, NPT) ou ligadura do ducto toracico. Pleurodese nao e primeira linha."</text></outputEntry>
+        <outputEntry id="OutputEntry_Rep_Quilo_fundamentacao"><text>"BTS: Quilotorax tem manejo especifico. Maioria resolve com tratamento conservador. Pleurodese pode ser considerada em casos refratarios."</text></outputEntry>
+        <outputEntry id="OutputEntry_Reprovado_Quilotorax_alertasDesperdicio"><text>"PROT"</text></outputEntry>
+        <outputEntry id="OutputEntry_Reprovado_Quilotorax_acaoRecomendada"><text>"NEGAR"</text></outputEntry>
+        <outputEntry id="OutputEntry_Reprovado_Quilotorax_alertasDesperdicio"><text>"PROT"</text></outputEntry>
+        <outputEntry id="OutputEntry_Reprovado_Quilotorax_acaoRecomendada"><text>"NEGAR"</text></outputEntry>
+      </rule>
+
+      <!-- APROVACOES -->
+
+      <rule id="Rule_Aprovado_DerrameM_Recidivante">
+        <description>Aprovado: Derrame pleural maligno recidivante sintomatico</description>
+        <inputEntry id="InputEntry_Apr_DerM_1"><text>"DERRAME_MALIGNO_RECIDIVANTE"</text></inputEntry>
+        <inputEntry id="InputEntry_Apr_DerM_2"><text>"RECIDIVA_2_OU_MAIS","EXPECTATIVA_VIDA_MAIOR_30D"</text></inputEntry>
+        <inputEntry id="InputEntry_Apr_DerM_3"><text>"PULMAO_EXPANSIVEL"</text></inputEntry>
+        <inputEntry id="InputEntry_Apr_DerM_4"><text>"SEM_CONTRAINDICACOES","COAGULOPATIA_CORRIGIVEL"</text></inputEntry>
+        <inputEntry id="InputEntry_Apr_DerM_5"><text>"COMPLETA_COM_IMAGEM"</text></inputEntry>
+        <outputEntry id="OutputEntry_Apr_DerM_resultado"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_Apr_DerM_observacao"><text>"Pleurodese aprovada para derrame pleural maligno recidivante. Talco e agente de escolha (eficacia maior 80%). Confirmar expansibilidade pulmonar."</text></outputEntry>
+        <outputEntry id="OutputEntry_Apr_DerM_fundamentacao"><text>"BTS 2023, TIME2 Trial: Pleurodese com talco e tratamento padrao para derrame maligno recidivante. VATS ou slurry igualmente eficazes."</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprovado_DerrameM_Recidivante_alertasDesperdicio"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprovado_DerrameM_Recidivante_acaoRecomendada"><text>"APROVAR"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprovado_DerrameM_Recidivante_alertasDesperdicio"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprovado_DerrameM_Recidivante_acaoRecomendada"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Aprovado_Pneumotorax_Recidivante">
+        <description>Aprovado: Pneumotorax espontaneo recidivante</description>
+        <inputEntry id="InputEntry_Apr_PNX_1"><text>"PNEUMOTORAX_PRIMARIO_RECIDIVANTE","PNEUMOTORAX_SECUNDARIO"</text></inputEntry>
+        <inputEntry id="InputEntry_Apr_PNX_2"><text>"RECIDIVA_2_OU_MAIS"</text></inputEntry>
+        <inputEntry id="InputEntry_Apr_PNX_3"><text>"PULMAO_EXPANSIVEL"</text></inputEntry>
+        <inputEntry id="InputEntry_Apr_PNX_4"><text>"SEM_CONTRAINDICACOES"</text></inputEntry>
+        <inputEntry id="InputEntry_Apr_PNX_5"><text>"COMPLETA_COM_IMAGEM"</text></inputEntry>
+        <outputEntry id="OutputEntry_Apr_PNX_resultado"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_Apr_PNX_observacao"><text>"Pleurodese aprovada para pneumotorax recidivante (2+ episodios). VATS com bulectomia e pleurodese mecanica e procedimento de escolha."</text></outputEntry>
+        <outputEntry id="OutputEntry_Apr_PNX_fundamentacao"><text>"BTS 2023, ACCP: Apos segundo episodio ipsilateral, risco de terceiro e maior 50%. Pleurodese cirurgica reduz recorrencia para menos 5%."</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprovado_Pneumotorax_Recidivante_alertasDesperdicio"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprovado_Pneumotorax_Recidivante_acaoRecomendada"><text>"APROVAR"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprovado_Pneumotorax_Recidivante_alertasDesperdicio"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprovado_Pneumotorax_Recidivante_acaoRecomendada"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Aprovado_FugaAerea">
+        <description>Aprovado: Pneumotorax com fuga aerea persistente</description>
+        <inputEntry id="InputEntry_Apr_Fuga_1"><text>"PNEUMOTORAX_PRIMARIO_RECIDIVANTE","PNEUMOTORAX_SECUNDARIO"</text></inputEntry>
+        <inputEntry id="InputEntry_Apr_Fuga_2"><text>"FUGA_AEREA_PERSISTENTE"</text></inputEntry>
+        <inputEntry id="InputEntry_Apr_Fuga_3"><text>"PULMAO_PARCIALMENTE_EXPANSIVEL","PULMAO_EXPANSIVEL"</text></inputEntry>
+        <inputEntry id="InputEntry_Apr_Fuga_4"><text>"SEM_CONTRAINDICACOES"</text></inputEntry>
+        <inputEntry id="InputEntry_Apr_Fuga_5"><text>"COMPLETA_COM_IMAGEM"</text></inputEntry>
+        <outputEntry id="OutputEntry_Apr_Fuga_resultado"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_Apr_Fuga_observacao"><text>"Pleurodese aprovada - fuga aerea persistente maior 5-7 dias. Intervencao cirurgica indicada para evitar hospitalizacao prolongada."</text></outputEntry>
+        <outputEntry id="OutputEntry_Apr_Fuga_fundamentacao"><text>"BTS 2023: Fuga aerea maior 5-7 dias e indicacao de VATS. Pleurodese mecanica acelera resolucao e previne recorrencia."</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprovado_FugaAerea_alertasDesperdicio"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprovado_FugaAerea_acaoRecomendada"><text>"APROVAR"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprovado_FugaAerea_alertasDesperdicio"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprovado_FugaAerea_acaoRecomendada"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Aprovado_Bilateral">
+        <description>Aprovado: Pneumotorax bilateral ou contralateral</description>
+        <inputEntry id="InputEntry_Apr_Bilat_1"><text>"PNEUMOTORAX_PRIMARIO_RECIDIVANTE","PNEUMOTORAX_SECUNDARIO"</text></inputEntry>
+        <inputEntry id="InputEntry_Apr_Bilat_2"><text>"BILATERAL_OU_CONTRALATERAL"</text></inputEntry>
+        <inputEntry id="InputEntry_Apr_Bilat_3"><text>"PULMAO_EXPANSIVEL"</text></inputEntry>
+        <inputEntry id="InputEntry_Apr_Bilat_4"><text>"SEM_CONTRAINDICACOES"</text></inputEntry>
+        <inputEntry id="InputEntry_Apr_Bilat_5"><text>"COMPLETA_COM_IMAGEM"</text></inputEntry>
+        <outputEntry id="OutputEntry_Apr_Bilat_resultado"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_Apr_Bilat_observacao"><text>"Pleurodese aprovada - pneumotorax bilateral ou contralateral e indicacao absoluta de intervencao preventiva."</text></outputEntry>
+        <outputEntry id="OutputEntry_Apr_Bilat_fundamentacao"><text>"BTS, ACCP: Pneumotorax bilateral simultâneo e potencialmente fatal. Pleurodese bilateral indicada para prevenir catastrofe."</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprovado_Bilateral_alertasDesperdicio"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprovado_Bilateral_acaoRecomendada"><text>"APROVAR"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprovado_Bilateral_alertasDesperdicio"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprovado_Bilateral_acaoRecomendada"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Aprovado_DerrameB_Recidivante">
+        <description>Aprovado: Derrame pleural benigno recidivante sintomatico</description>
+        <inputEntry id="InputEntry_Apr_DerB_1"><text>"DERRAME_BENIGNO_RECIDIVANTE"</text></inputEntry>
+        <inputEntry id="InputEntry_Apr_DerB_2"><text>"RECIDIVA_2_OU_MAIS"</text></inputEntry>
+        <inputEntry id="InputEntry_Apr_DerB_3"><text>"PULMAO_EXPANSIVEL"</text></inputEntry>
+        <inputEntry id="InputEntry_Apr_DerB_4"><text>"SEM_CONTRAINDICACOES"</text></inputEntry>
+        <inputEntry id="InputEntry_Apr_DerB_5"><text>"COMPLETA_COM_IMAGEM"</text></inputEntry>
+        <outputEntry id="OutputEntry_Apr_DerB_resultado"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_Apr_DerB_observacao"><text>"Pleurodese aprovada para derrame benigno recidivante (insuficiencia cardiaca refrataria, cirrose hepatica, etc) apos otimizacao clinica."</text></outputEntry>
+        <outputEntry id="OutputEntry_Apr_DerB_fundamentacao"><text>"BTS 2023: Pleurodese em derrame benigno e opcao apos falha de tratamento da causa base. Eficacia menor que em derrame maligno."</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprovado_DerrameB_Recidivante_alertasDesperdicio"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprovado_DerrameB_Recidivante_acaoRecomendada"><text>"APROVAR"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprovado_DerrameB_Recidivante_alertasDesperdicio"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprovado_DerrameB_Recidivante_acaoRecomendada"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <!-- PENDENCIAS -->
+
+      <rule id="Rule_Pendente_ExpansibilidadeNaoAvaliada">
+        <description>Pendente: Expansibilidade pulmonar nao avaliada</description>
+        <inputEntry id="InputEntry_Pend_Exp_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Pend_Exp_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Pend_Exp_3"><text>"NAO_AVALIADA"</text></inputEntry>
+        <inputEntry id="InputEntry_Pend_Exp_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Pend_Exp_5"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_Pend_Exp_resultado"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OutputEntry_Pend_Exp_observacao"><text>"Avaliar expansibilidade pulmonar antes de pleurodese. RX ou TC apos drenagem para confirmar que pulmao expande e encosta na parede."</text></outputEntry>
+        <outputEntry id="OutputEntry_Pend_Exp_fundamentacao"><text>"BTS 2023: Pleurodese so e eficaz se pleuras encostarem. Trapped lung requer alternativas (cateter tunelizado, decorticacao)."</text></outputEntry>
+        <outputEntry id="OutputEntry_Pendente_ExpansibilidadeNaoAvaliada_alertasDesperdicio"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_Pendente_ExpansibilidadeNaoAvaliada_acaoRecomendada"><text>"SOLICITAR_INFO"</text></outputEntry>
+        <outputEntry id="OutputEntry_Pendente_ExpansibilidadeNaoAvaliada_alertasDesperdicio"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_Pendente_ExpansibilidadeNaoAvaliada_acaoRecomendada"><text>"SOLICITAR_INFO"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Pendente_PrimeiroEpisodio">
+        <description>Pendente: Primeiro episodio de pneumotorax - avaliar indicacao</description>
+        <inputEntry id="InputEntry_Pend_1Ep_1"><text>"PNEUMOTORAX_PRIMARIO_RECIDIVANTE"</text></inputEntry>
+        <inputEntry id="InputEntry_Pend_1Ep_2"><text>"PRIMEIRO_EPISODIO_ALTO_RISCO"</text></inputEntry>
+        <inputEntry id="InputEntry_Pend_1Ep_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Pend_1Ep_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Pend_1Ep_5"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_Pend_1Ep_resultado"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OutputEntry_Pend_1Ep_observacao"><text>"Primeiro episodio de pneumotorax. Pleurodese pode ser considerada em alto risco (bolhas volumosas, profissao de risco). Discussao caso a caso."</text></outputEntry>
+        <outputEntry id="OutputEntry_Pend_1Ep_fundamentacao"><text>"BTS 2023: Pleurodese no primeiro episodio pode ser indicada em pilotos, mergulhadores ou pacientes com blebs volumosas bilaterais."</text></outputEntry>
+        <outputEntry id="OutputEntry_Pendente_PrimeiroEpisodio_alertasDesperdicio"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_Pendente_PrimeiroEpisodio_acaoRecomendada"><text>"SOLICITAR_INFO"</text></outputEntry>
+        <outputEntry id="OutputEntry_Pendente_PrimeiroEpisodio_alertasDesperdicio"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_Pendente_PrimeiroEpisodio_acaoRecomendada"><text>"SOLICITAR_INFO"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Pendente_DocumentacaoIncompleta">
+        <description>Pendente: Documentacao incompleta</description>
+        <inputEntry id="InputEntry_Pend_Doc_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Pend_Doc_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Pend_Doc_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Pend_Doc_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Pend_Doc_5"><text>"PARCIAL_SEM_TC","INCOMPLETA"</text></inputEntry>
+        <outputEntry id="OutputEntry_Pend_Doc_resultado"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OutputEntry_Pend_Doc_observacao"><text>"Documentacao incompleta. Anexar: TC de torax, historico de episodios previos, analise do liquido pleural se derrame."</text></outputEntry>
+        <outputEntry id="OutputEntry_Pend_Doc_fundamentacao"><text>"Avaliacao requer imagem para planejamento cirurgico e exclusao de trapped lung ou patologia pulmonar associada."</text></outputEntry>
+        <outputEntry id="OutputEntry_Pendente_DocumentacaoIncompleta_alertasDesperdicio"><text>"DOC"</text></outputEntry>
+        <outputEntry id="OutputEntry_Pendente_DocumentacaoIncompleta_acaoRecomendada"><text>"SOLICITAR_INFO"</text></outputEntry>
+        <outputEntry id="OutputEntry_Pendente_DocumentacaoIncompleta_alertasDesperdicio"><text>"DOC"</text></outputEntry>
+        <outputEntry id="OutputEntry_Pendente_DocumentacaoIncompleta_acaoRecomendada"><text>"SOLICITAR_INFO"</text></outputEntry>
+      </rule>
+
+      <!-- FALLBACK -->
+
+      <rule id="Rule_Fallback_30803120">
+        <description>Fallback: Caso requer avaliacao individualizada</description>
+        <inputEntry id="InputEntry_Fallback_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Fallback_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Fallback_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Fallback_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Fallback_5"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_Fallback_resultado"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OutputEntry_Fallback_observacao"><text>"Indicacao de pleurodese requer avaliacao individualizada pelo cirurgiao toracico considerando etiologia, prognostico e alternativas."</text></outputEntry>
+        <outputEntry id="OutputEntry_Fallback_fundamentacao"><text>"BTS 2023: Decisao de pleurodese deve ser compartilhada com paciente, considerando eficacia, riscos e alternativas disponiveis."</text></outputEntry>
+        <outputEntry id="OutputEntry_Fallback_30803120_alertasDesperdicio"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_Fallback_30803120_acaoRecomendada"><text>"SOLICITAR_INFO"</text></outputEntry>
+        <outputEntry id="OutputEntry_Fallback_30803120_alertasDesperdicio"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_Fallback_30803120_acaoRecomendada"><text>"SOLICITAR_INFO"</text></outputEntry>
+      </rule>
+
+    </decisionTable>
+  </decision>
+</definitions>

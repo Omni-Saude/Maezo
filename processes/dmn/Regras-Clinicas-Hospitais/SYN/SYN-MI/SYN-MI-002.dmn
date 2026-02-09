@@ -1,0 +1,295 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/"
+             xmlns:dc="http://www.omg.org/spec/DMN/20180521/DC/"
+             id="Definitions_SYN_MI_002"
+             name="Deteccao de NSTEMI - Troponina e ECG"
+             targetNamespace="http://camunda.org/schema/1.0/dmn">
+
+  <!--
+    SYN-MI-002 - Deteccao de NSTEMI via Troponina e ECG
+    Versao: 1.0.0 (2026-02-06)
+    Categoria: Alerta Clinico - Sindromes Criticas
+
+    CRITERIOS PARA NSTEMI (Fourth Universal Definition 2018):
+
+    TROPONINA ELEVADA:
+    - Valor acima do percentil 99 do limite superior de referencia
+    - Padrao de ascensao e/ou queda (dinamica)
+    - Troponina de alta sensibilidade permite deteccao precoce
+
+    ALGORITMO 0h/1h (hs-cTn):
+    - Exclusao: hs-cTn < 5 ng/L em 0h
+    - Rule-in: hs-cTn > 52 ng/L em 0h OU delta >= 5 ng/L em 1h
+    - Observacao: valores intermediarios
+
+    ECG NO NSTEMI:
+    - Infradesnivelamento ST >= 0.5mm em 2 derivacoes contiguas
+    - Inversao de onda T >= 1mm
+    - ECG pode ser normal em ate 30% dos casos
+
+    ESTRATIFICACAO DE RISCO - GRACE Score:
+    - Muito alto: GRACE > 140 ou instabilidade
+    - Alto: GRACE 109-140
+    - Intermediario: GRACE < 109
+
+    REFERENCIAS:
+    - Fourth Universal Definition of MI 2018
+    - ESC NSTE-ACS Guidelines 2020
+    - High-Sensitivity Troponin Algorithms
+  -->
+
+  <decision id="Decision_SYN_MI_002" name="Deteccao NSTEMI">
+    <decisionTable id="DecisionTable_SYN_MI_002" hitPolicy="FIRST">
+
+      <!-- INPUT 1: Troponina Atual -->
+      <input id="Input_1" label="Troponina hs (ng/L)">
+        <inputExpression id="InputExpression_1" typeRef="number">
+          <text>troponinaHs</text>
+        </inputExpression>
+      </input>
+
+      <!-- INPUT 2: Delta Troponina 1h -->
+      <input id="Input_2" label="Delta Troponina 1h (ng/L)">
+        <inputExpression id="InputExpression_2" typeRef="number">
+          <text>deltaTroponina1h</text>
+        </inputExpression>
+      </input>
+
+      <!-- INPUT 3: Infradesnivelamento ST -->
+      <input id="Input_3" label="Infra ST (mm)">
+        <inputExpression id="InputExpression_3" typeRef="number">
+          <text>infradesnivelamentoST</text>
+        </inputExpression>
+      </input>
+
+      <!-- INPUT 4: Instabilidade Hemodinamica -->
+      <input id="Input_4" label="Instabilidade Hemodinamica">
+        <inputExpression id="InputExpression_4" typeRef="boolean">
+          <text>instabilidadeHemodinamica</text>
+        </inputExpression>
+      </input>
+
+      <!-- OUTPUTS -->
+      <output id="Output_1" label="Nivel Alerta" name="nivelAlerta" typeRef="string">
+        <outputValues id="OutputValues_1">
+          <text>"Alerta", "Atencao", "OK", "Revisar"</text>
+        </outputValues>
+      </output>
+
+      <output id="Output_2" label="Classificacao Sindrome" name="classificacaoSindrome" typeRef="string"/>
+
+      <output id="Output_3" label="Protocolo Ativado" name="protocoloAtivado" typeRef="boolean"/>
+
+      <output id="Output_4" label="Acao Requerida" name="acaoRequerida" typeRef="string"/>
+
+      <output id="Output_5" label="Urgencia" name="urgencia" typeRef="string">
+        <outputValues id="OutputValues_5">
+          <text>"CRITICA", "ALTA", "MEDIA", "BAIXA"</text>
+        </outputValues>
+      </output>
+
+      <!-- RULE 1: NSTEMI muito alto risco - instabilidade -->
+      <rule id="Rule_NSTEMI_Muito_Alto_Risco">
+        <description>NSTEMI muito alto risco com instabilidade</description>
+        <inputEntry id="InputEntry_1_1">
+          <text>&gt; 52</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_1_2">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_1_3">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_1_4">
+          <text>true</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_1_1">
+          <text>"Alerta"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_1_2">
+          <text>"NSTEMI_MUITO_ALTO_RISCO"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_1_3">
+          <text>true</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_1_4">
+          <text>"NSTEMI MUITO ALTO RISCO - Instabilidade hemodinamica. ICP IMEDIATA (< 2h). Terapia antitrombotica intensiva. UTI coronariana. Suporte hemodinamico se necessario. Mesma urgencia que STEMI."</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_1_5">
+          <text>"CRITICA"</text>
+        </outputEntry>
+      </rule>
+
+      <!-- RULE 2: NSTEMI confirmado - alto risco -->
+      <rule id="Rule_NSTEMI_Alto_Risco">
+        <description>NSTEMI confirmado - estrategia invasiva precoce</description>
+        <inputEntry id="InputEntry_2_1">
+          <text>&gt; 52</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_2_2">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_2_3">
+          <text>&gt;= 1</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_2_4">
+          <text>false</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_2_1">
+          <text>"Alerta"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_2_2">
+          <text>"NSTEMI_ALTO_RISCO"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_2_3">
+          <text>true</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_2_4">
+          <text>"NSTEMI ALTO RISCO - Troponina elevada + alteracoes ECG. ICP PRECOCE (< 24h). AAS + P2Y12 inibidor + anticoagulacao. Calcular GRACE score. UCO para monitoramento."</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_2_5">
+          <text>"CRITICA"</text>
+        </outputEntry>
+      </rule>
+
+      <!-- RULE 3: Rule-in por delta troponina -->
+      <rule id="Rule_NSTEMI_Delta">
+        <description>NSTEMI por delta troponina positivo</description>
+        <inputEntry id="InputEntry_3_1">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_3_2">
+          <text>&gt;= 5</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_3_3">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_3_4">
+          <text>false</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_3_1">
+          <text>"Alerta"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_3_2">
+          <text>"NSTEMI_CONFIRMADO"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_3_3">
+          <text>true</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_3_4">
+          <text>"NSTEMI CONFIRMADO por dinamica de troponina (delta >= 5 ng/L em 1h). Estratificacao pelo GRACE. ICP em ate 72h para risco intermediario. Terapia antiisquemica otimizada."</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_3_5">
+          <text>"ALTA"</text>
+        </outputEntry>
+      </rule>
+
+      <!-- RULE 4: Zona de observacao -->
+      <rule id="Rule_Observacao">
+        <description>Troponina em zona de observacao</description>
+        <inputEntry id="InputEntry_4_1">
+          <text>[5..52]</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_4_2">
+          <text>&lt; 5</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_4_3">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_4_4">
+          <text>false</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_4_1">
+          <text>"Atencao"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_4_2">
+          <text>"SCA_OBSERVACAO"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_4_3">
+          <text>false</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_4_4">
+          <text>"Troponina em zona de observacao (5-52 ng/L). REPETIR TROPONINA em 1-3h. Se delta >= 5 ng/L = NSTEMI. Manter monitoramento. ECG seriado. Considerar causas nao isquemicas de elevacao de troponina."</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_4_5">
+          <text>"ALTA"</text>
+        </outputEntry>
+      </rule>
+
+      <!-- RULE 5: Rule-out IAM -->
+      <rule id="Rule_IAM_Excluido">
+        <description>IAM excluido por troponina normal</description>
+        <inputEntry id="InputEntry_5_1">
+          <text>&lt; 5</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_5_2">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_5_3">
+          <text>&lt; 0.5</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_5_4">
+          <text>false</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_5_1">
+          <text>"OK"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_5_2">
+          <text>"IAM_EXCLUIDO"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_5_3">
+          <text>false</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_5_4">
+          <text>"IAM excluido (hs-cTn < 5 ng/L). Se dor < 3h, considerar repetir troponina. Avaliar angina instavel se sintomas tipicos. Considerar teste funcional ambulatorial se risco intermediario."</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_5_5">
+          <text>"BAIXA"</text>
+        </outputEntry>
+      </rule>
+
+      <!-- FALLBACK -->
+      <rule id="Rule_Fallback_SYN_MI_002">
+        <description>Dados insuficientes para avaliacao</description>
+        <inputEntry id="InputEntry_F_1">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_F_2">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_F_3">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_F_4">
+          <text>-</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_F_1">
+          <text>"Revisar"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_F_2">
+          <text>"DADOS_INCOMPLETOS"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_F_3">
+          <text>false</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_F_4">
+          <text>"Dados insuficientes para avaliacao de NSTEMI. Verificar: troponina hs-cTn (0h e 1h), ECG 12 derivacoes, tempo desde inicio dos sintomas."</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_F_5">
+          <text>"MEDIA"</text>
+        </outputEntry>
+      </rule>
+
+    </decisionTable>
+  </decision>
+
+  <dmndi:DMNDI>
+    <dmndi:DMNDiagram id="DMNDiagram_SYN_MI_002">
+      <dmndi:DMNShape id="DMNShape_Decision_SYN_MI_002" dmnElementRef="Decision_SYN_MI_002">
+        <dc:Bounds height="80" width="180" x="160" y="100"/>
+      </dmndi:DMNShape>
+    </dmndi:DMNDiagram>
+  </dmndi:DMNDI>
+
+</definitions>

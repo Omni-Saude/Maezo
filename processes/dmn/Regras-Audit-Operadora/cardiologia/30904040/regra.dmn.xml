@@ -1,0 +1,290 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             xmlns:camunda="http://camunda.org/schema/1.0/dmn"
+             id="Definitions_30904040"
+             name="Plastia Valvar Mitral"
+             namespace="http://camunda.org/schema/1.0/dmn">
+
+  <!--
+    ===============================================================================
+    TUSS: 30904040
+    Procedimento: Plastia Valvar Mitral (Mitral Valve Repair)
+    Versao: 1.0.0-LEAN-TIER2
+    Data: 2026-02-07
+    ===============================================================================
+
+    INDICACOES CLINICAS (ACC/AHA Valve 2024):
+    - Insuficiencia mitral primaria grave sintomatica com valva reparavel (Classe I)
+    - IM primaria grave assintomatica FEVE menor 60% ou DSVE maior 40mm (Classe I)
+    - IM primaria grave assintomatica em centro referencia (taxa reparo maior 95%) (Classe IIa)
+    - IM secundaria quando CABG indicada (Classe IIa)
+    - Prolapso mitral com folheto posterior P2 (sucesso maior 95%)
+
+    NOTA: Plastia SEMPRE preferivel sobre troca - menor mortalidade, melhor
+    preservacao funcao VE, sem necessidade anticoagulacao permanente
+
+    CONTRAINDICACOES:
+    - Anatomia nao reparavel (calcificacao extensa, lesoes complexas multiplas)
+    - Endocardite ativa com destruicao tecidual extensa
+    - Doenca reumatica com rigidez/calcificacao valvar
+
+    REFERENCIAS TECNICAS:
+    - ACC/AHA Valvular Heart Disease Guidelines 2024
+    - ESC Valvular Heart Disease Guidelines 2023
+    - STS Database Repair Rates
+
+    ALERTAS DE DESPERDICIO (LEAN TIER-2):
+    - DUP: Duplicidade - cirurgia recente sem indicacao de reoperacao
+    - FREQ: Frequencia excessiva - avaliacoes repetidas sem mudanca clinica
+    - ESC: Escalonamento indevido - plastia sem avaliar tratamento clinico
+    - DOC: Documentacao insuficiente - ausencia de ETE, Heart Team
+    - PROT: Protocolo inadequado - fora das diretrizes vigentes
+    - MULTI: Multiplos alertas combinados
+
+    ===============================================================================
+  -->
+
+  <decision id="Decision_30904040" name="Regra Clinica - Plastia Valvar Mitral">
+    <decisionTable id="DecisionTable_30904040" hitPolicy="FIRST">
+
+      <!-- ========== INPUTS (6 - Padrao LEAN TIER-2) ========== -->
+
+      <input id="Input_condicaoPaciente" label="Condicao do Paciente" camunda:inputVariable="condicaoPaciente">
+        <inputExpression id="InputExpression_condicaoPaciente" typeRef="string">
+          <text>condicaoPaciente</text>
+        </inputExpression>
+        <inputValues id="InputValues_condicaoPaciente">
+          <text>"IM_Primaria_Degenerativa","IM_Primaria_Prolapso_P2","IM_Primaria_Flail","IM_Secundaria_CABG","IM_Reumatica","Endocardite_Mitral","AnatomiaDesfavoravel"</text>
+        </inputValues>
+      </input>
+
+      <input id="Input_historicoClinico" label="Historico Clinico" camunda:inputVariable="historicoClinico">
+        <inputExpression id="InputExpression_historicoClinico" typeRef="string">
+          <text>historicoClinico</text>
+        </inputExpression>
+        <inputValues id="InputValues_historicoClinico">
+          <text>"Adequado","Incompleto","NaoDocumentado"</text>
+        </inputValues>
+      </input>
+
+      <input id="Input_classeIndicacao" label="Classe de Indicacao (ACC/AHA)" camunda:inputVariable="classeIndicacao">
+        <inputExpression id="InputExpression_classeIndicacao" typeRef="string">
+          <text>classeIndicacao</text>
+        </inputExpression>
+        <inputValues id="InputValues_classeIndicacao">
+          <text>"Classe I","Classe IIa","Classe IIb","Classe III"</text>
+        </inputValues>
+      </input>
+
+      <input id="Input_ultimoProcedimentoDias" label="Dias desde Ultimo Procedimento Similar" camunda:inputVariable="ultimoProcedimentoDias">
+        <inputExpression id="InputExpression_ultimoProcedimentoDias" typeRef="integer">
+          <text>ultimoProcedimentoDias</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_ecoTERecente" label="Eco Transesofagico Recente" camunda:inputVariable="ecoTERecente">
+        <inputExpression id="InputExpression_ecoTERecente" typeRef="boolean">
+          <text>ecoTERecente</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_heartTeamDocumentado" label="Heart Team Documentado" camunda:inputVariable="heartTeamDocumentado">
+        <inputExpression id="InputExpression_heartTeamDocumentado" typeRef="boolean">
+          <text>heartTeamDocumentado</text>
+        </inputExpression>
+      </input>
+
+      <!-- ========== OUTPUTS (5 - Padrao LEAN TIER-2) ========== -->
+
+      <output id="Output_resultado" label="Resultado" name="resultado" typeRef="string">
+        <outputValues id="OutputValues_resultado">
+          <text>"Aprovado","Reprovado","Pendente"</text>
+        </outputValues>
+      </output>
+
+      <output id="Output_observacao" label="Observacao Clinica" name="observacao" typeRef="string" />
+
+      <output id="Output_fundamentacao" label="Fundamentacao Tecnica" name="fundamentacao" typeRef="string" />
+
+      <output id="Output_alertasDesperdicio" label="Alertas de Desperdicio" name="alertasDesperdicio" typeRef="string">
+        <outputValues id="OutputValues_alertasDesperdicio">
+          <text>"NENHUM","DUP","FREQ","ESC","DOC","PROT","MULTI"</text>
+        </outputValues>
+      </output>
+
+      <output id="Output_acaoRecomendada" label="Acao Recomendada" name="acaoRecomendada" typeRef="string">
+        <outputValues id="OutputValues_acaoRecomendada">
+          <text>"APROVAR","NEGAR","SOLICITAR_INFO","AGUARDAR_PRAZO","SUGERIR_ALTERNATIVA"</text>
+        </outputValues>
+      </output>
+
+      <!-- ========== REGRAS DE REPROVACAO (PRIORIDADE MAXIMA) ========== -->
+
+      <!-- PROT: Classe III - nao indicado -->
+      <rule id="Rule_Reprovado_ClasseIII">
+        <description>Reprovado: Procedimento Classe III - nao indicado conforme diretrizes</description>
+        <inputEntry id="InputEntry_ClasseIII_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_ClasseIII_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_ClasseIII_3"><text>"Classe III"</text></inputEntry>
+        <inputEntry id="InputEntry_ClasseIII_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_ClasseIII_5"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_ClasseIII_6"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_ClasseIII_resultado"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_ClasseIII_observacao"><text>"Indicacao Classe III - plastia mitral nao indicada conforme diretrizes vigentes"</text></outputEntry>
+        <outputEntry id="OutputEntry_ClasseIII_fundamentacao"><text>"ACC/AHA VHD 2024, ESC VHD 2023 - Classe III: Procedimento nao indicado, risco supera beneficio ou evidencia de ineficacia"</text></outputEntry>
+        <outputEntry id="OutputEntry_ClasseIII_alerta"><text>"PROT"</text></outputEntry>
+        <outputEntry id="OutputEntry_ClasseIII_acao"><text>"NEGAR"</text></outputEntry>
+      </rule>
+
+      <!-- PROT: Anatomia desfavoravel - troca valvar indicada -->
+      <rule id="Rule_Reprovado_AnatomiaDesfavoravel">
+        <description>Reprovado: Anatomia desfavoravel para plastia - considerar troca valvar</description>
+        <inputEntry id="InputEntry_Anat_1"><text>"AnatomiaDesfavoravel","IM_Reumatica"</text></inputEntry>
+        <inputEntry id="InputEntry_Anat_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Anat_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Anat_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Anat_5"><text>true</text></inputEntry>
+        <inputEntry id="InputEntry_Anat_6"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_Anat_resultado"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_Anat_observacao"><text>"Anatomia desfavoravel para plastia mitral conforme ETE. Calcificacao extensa ou doenca reumatica avancada"</text></outputEntry>
+        <outputEntry id="OutputEntry_Anat_fundamentacao"><text>"ACC/AHA VHD 2024: reparo mitral requer anatomia favoravel. Contraindicacoes: calcificacao anelar extensa, lesoes bilaterais complexas, doenca reumatica. Nesses casos, troca valvar preferivel"</text></outputEntry>
+        <outputEntry id="OutputEntry_Anat_alerta"><text>"ESC"</text></outputEntry>
+        <outputEntry id="OutputEntry_Anat_acao"><text>"SUGERIR_ALTERNATIVA"</text></outputEntry>
+      </rule>
+
+      <!-- DUP: Cirurgia cardiaca recente sem indicacao de reoperacao -->
+      <rule id="Rule_Reprovado_DupCirurgiaRecente">
+        <description>Reprovado: Cirurgia cardiaca ha menos de 365 dias sem complicacao documentada</description>
+        <inputEntry id="InputEntry_Dup_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Dup_2"><text>"Adequado"</text></inputEntry>
+        <inputEntry id="InputEntry_Dup_3"><text>"Classe IIb"</text></inputEntry>
+        <inputEntry id="InputEntry_Dup_4"><text>&lt; 365</text></inputEntry>
+        <inputEntry id="InputEntry_Dup_5"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Dup_6"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_Dup_resultado"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_Dup_observacao"><text>"Cirurgia valvar mitral realizada ha menos de 12 meses. Reoperacao precoce requer justificativa de falha ou complicacao"</text></outputEntry>
+        <outputEntry id="OutputEntry_Dup_fundamentacao"><text>"SBC 2023: Reoperacao valvar mitral precoce apenas em casos de falha estrutural, endocardite ou complicacao aguda documentada"</text></outputEntry>
+        <outputEntry id="OutputEntry_Dup_alerta"><text>"DUP"</text></outputEntry>
+        <outputEntry id="OutputEntry_Dup_acao"><text>"AGUARDAR_PRAZO"</text></outputEntry>
+      </rule>
+
+      <!-- DOC: Sem ETE - obrigatorio para planejamento -->
+      <rule id="Rule_Pendente_SemETE">
+        <description>Pendente: ETE nao realizado - obrigatorio para planejamento cirurgico</description>
+        <inputEntry id="InputEntry_NoETE_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_NoETE_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_NoETE_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_NoETE_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_NoETE_5"><text>false</text></inputEntry>
+        <inputEntry id="InputEntry_NoETE_6"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_NoETE_resultado"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OutputEntry_NoETE_observacao"><text>"Ecocardiograma transesofagico obrigatorio para avaliacao anatomica e planejamento de plastia mitral"</text></outputEntry>
+        <outputEntry id="OutputEntry_NoETE_fundamentacao"><text>"ACC/AHA VHD 2024 Classe I: ETE pre-operatorio mandatorio para avaliacao detalhada do mecanismo de regurgitacao, morfologia folhetos, cordoalhas, anel"</text></outputEntry>
+        <outputEntry id="OutputEntry_NoETE_alerta"><text>"DOC"</text></outputEntry>
+        <outputEntry id="OutputEntry_NoETE_acao"><text>"SOLICITAR_INFO"</text></outputEntry>
+      </rule>
+
+      <!-- MULTI: Sem Heart Team e sem ETE -->
+      <rule id="Rule_Pendente_MultiSemDocumentacao">
+        <description>Pendente: Multiplos alertas - ausencia de ETE e Heart Team</description>
+        <inputEntry id="InputEntry_Multi_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Multi_2"><text>"Incompleto","NaoDocumentado"</text></inputEntry>
+        <inputEntry id="InputEntry_Multi_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Multi_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Multi_5"><text>false</text></inputEntry>
+        <inputEntry id="InputEntry_Multi_6"><text>false</text></inputEntry>
+        <outputEntry id="OutputEntry_Multi_resultado"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OutputEntry_Multi_observacao"><text>"Multiplos alertas: documentacao incompleta, ausencia de ETE e Heart Team. Cirurgia valvar requer avaliacao multidisciplinar"</text></outputEntry>
+        <outputEntry id="OutputEntry_Multi_fundamentacao"><text>"ACC/AHA VHD 2024, SBC 2023: Decisao de plastia vs troca mitral requer ETE com analise segmentar Carpentier e discussao em Heart Team"</text></outputEntry>
+        <outputEntry id="OutputEntry_Multi_alerta"><text>"MULTI"</text></outputEntry>
+        <outputEntry id="OutputEntry_Multi_acao"><text>"SOLICITAR_INFO"</text></outputEntry>
+      </rule>
+
+      <!-- ========== REGRAS DE APROVACAO ========== -->
+
+      <!-- Classe I - Prolapso P2 isolado sintomatico -->
+      <rule id="Rule_Aprovado_Prolapso_P2">
+        <description>Aprovado: Prolapso P2 isolado com sintomas - Taxa reparo maior 95%</description>
+        <inputEntry id="InputEntry_P2_1"><text>"IM_Primaria_Prolapso_P2"</text></inputEntry>
+        <inputEntry id="InputEntry_P2_2"><text>"Adequado"</text></inputEntry>
+        <inputEntry id="InputEntry_P2_3"><text>"Classe I"</text></inputEntry>
+        <inputEntry id="InputEntry_P2_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_P2_5"><text>true</text></inputEntry>
+        <inputEntry id="InputEntry_P2_6"><text>true</text></inputEntry>
+        <outputEntry id="OutputEntry_P2_resultado"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_P2_observacao"><text>"Indicacao Classe I: prolapso P2 isolado sintomatico com taxa reparo duravel maior 95%. Tecnicas: resseccao quadrangular/triangular, neocordas ePTFE, anuloplastia"</text></outputEntry>
+        <outputEntry id="OutputEntry_P2_fundamentacao"><text>"ACC/AHA VHD 2024 Classe I nivel B: plastia mitral para IM degenerativa P2 tem resultados excelentes. Mortalidade menor 1% em centros referencia. Durabilidade maior 95% em 10 anos"</text></outputEntry>
+        <outputEntry id="OutputEntry_P2_alerta"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_P2_acao"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <!-- Classe I - IM degenerativa sintomatica -->
+      <rule id="Rule_Aprovado_Degenerativa_Sintomatica">
+        <description>Aprovado: IM degenerativa grave sintomatica com anatomia favoravel</description>
+        <inputEntry id="InputEntry_Deg_1"><text>"IM_Primaria_Degenerativa","IM_Primaria_Flail"</text></inputEntry>
+        <inputEntry id="InputEntry_Deg_2"><text>"Adequado"</text></inputEntry>
+        <inputEntry id="InputEntry_Deg_3"><text>"Classe I"</text></inputEntry>
+        <inputEntry id="InputEntry_Deg_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Deg_5"><text>true</text></inputEntry>
+        <inputEntry id="InputEntry_Deg_6"><text>true</text></inputEntry>
+        <outputEntry id="OutputEntry_Deg_resultado"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_Deg_observacao"><text>"Indicacao Classe I: IM primaria degenerativa sintomatica em centro referencia. Superioridade sobre troca: mortalidade menor, preservacao VE, sem anticoagulacao permanente"</text></outputEntry>
+        <outputEntry id="OutputEntry_Deg_fundamentacao"><text>"ACC/AHA VHD 2024 Classe I nivel B: reparo mitral indicado em IM primaria degenerativa grave sintomatica. Mortalidade 1-2% vs 5-6% troca"</text></outputEntry>
+        <outputEntry id="OutputEntry_Deg_alerta"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_Deg_acao"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <!-- Classe IIa - IM secundaria com CABG -->
+      <rule id="Rule_Aprovado_Secundaria_CABG">
+        <description>Aprovado: IM secundaria moderada-grave quando CABG indicada</description>
+        <inputEntry id="InputEntry_CABG_1"><text>"IM_Secundaria_CABG"</text></inputEntry>
+        <inputEntry id="InputEntry_CABG_2"><text>"Adequado"</text></inputEntry>
+        <inputEntry id="InputEntry_CABG_3"><text>"Classe IIa"</text></inputEntry>
+        <inputEntry id="InputEntry_CABG_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_CABG_5"><text>true</text></inputEntry>
+        <inputEntry id="InputEntry_CABG_6"><text>true</text></inputEntry>
+        <outputEntry id="OutputEntry_CABG_resultado"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_CABG_observacao"><text>"Indicacao Classe IIa: plastia mitral concomitante a CABG em IM secundaria moderada-grave. Adiciona beneficio com risco incremental aceitavel"</text></outputEntry>
+        <outputEntry id="OutputEntry_CABG_fundamentacao"><text>"ACC/AHA VHD 2024 Classe IIa: reparo mitral e razoavel durante CABG para IM secundaria significativa. Anuloplastia restritiva e tecnica preferida"</text></outputEntry>
+        <outputEntry id="OutputEntry_CABG_alerta"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_CABG_acao"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <!-- ========== REGRAS DE PENDENCIA ========== -->
+
+      <!-- DOC: Sem Heart Team -->
+      <rule id="Rule_Pendente_SemHeartTeam">
+        <description>Pendente: Heart Team nao documentado para decisao cirurgica</description>
+        <inputEntry id="InputEntry_NoHT_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_NoHT_2"><text>"Adequado"</text></inputEntry>
+        <inputEntry id="InputEntry_NoHT_3"><text>"Classe I","Classe IIa"</text></inputEntry>
+        <inputEntry id="InputEntry_NoHT_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_NoHT_5"><text>true</text></inputEntry>
+        <inputEntry id="InputEntry_NoHT_6"><text>false</text></inputEntry>
+        <outputEntry id="OutputEntry_NoHT_resultado"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OutputEntry_NoHT_observacao"><text>"Documentacao de Heart Team obrigatoria para decisao entre plastia e troca valvar mitral"</text></outputEntry>
+        <outputEntry id="OutputEntry_NoHT_fundamentacao"><text>"ACC/AHA VHD 2024: Heart Team approach mandatorio para decisoes de cirurgia valvar. Deve incluir cirurgiao, cardiologista, ecocardiografista"</text></outputEntry>
+        <outputEntry id="OutputEntry_NoHT_alerta"><text>"DOC"</text></outputEntry>
+        <outputEntry id="OutputEntry_NoHT_acao"><text>"SOLICITAR_INFO"</text></outputEntry>
+      </rule>
+
+      <!-- ========== REGRA FALLBACK ========== -->
+
+      <rule id="Rule_Fallback_30904040">
+        <description>Regra padrao - caso requer analise Heart Team especializado mitral</description>
+        <inputEntry id="InputEntry_Fallback_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Fallback_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Fallback_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Fallback_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Fallback_5"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Fallback_6"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_Fallback_resultado"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OutputEntry_Fallback_observacao"><text>"Caso requer analise Heart Team especializado em valva mitral para decisao entre plastia, troca ou tratamento conservador"</text></outputEntry>
+        <outputEntry id="OutputEntry_Fallback_fundamentacao"><text>"Documentacao obrigatoria: ETE com analise segmentar Carpentier, eco TT com quantificacao IM, STS Score, cateterismo, ata Heart Team"</text></outputEntry>
+        <outputEntry id="OutputEntry_Fallback_alerta"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_Fallback_acao"><text>"SOLICITAR_INFO"</text></outputEntry>
+      </rule>
+
+    </decisionTable>
+  </decision>
+</definitions>

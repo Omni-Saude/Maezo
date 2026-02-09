@@ -1,0 +1,280 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             xmlns:camunda="http://camunda.org/schema/1.0/dmn"
+             id="Definitions_REC013"
+             name="Microcirurgia Reconstrutiva"
+             namespace="http://camunda.org/schema/1.0/dmn">
+
+  <!--
+    ===============================================================================
+    TUSS: REC-013
+    Procedimento: Microcirurgia Reconstrutiva (Retalhos Livres)
+    Especialidade: Cirurgia Reconstrutiva / Microcirurgia
+    Versao: 3.0.0-TIER1
+    Data: 2026-02-07
+    ===============================================================================
+
+    INDICACOES CLINICAS (SBCP 2022, ASRM 2023):
+    - Retalhos livres para cobertura de defeitos complexos
+    - Reimplante de membros/dedos
+    - Transferencia de tecido composto
+    - Linfedema (anastomose linfovenosa, transplante linfonodal)
+
+    TIPOS DE RETALHOS LIVRES:
+    - ALT (Anterolateral thigh)
+    - Gracilis
+    - Latissimus dorsi
+    - DIEP/TRAM livre
+    - Fibula (reconstrucao mandibular)
+
+    REFERENCIAS TECNICAS:
+    - SBCP 2022 - Microcirurgia
+    - ASRM 2023 - American Society for Reconstructive Microsurgery
+    - WS (World Society for Reconstructive Microsurgery)
+    - BSSH 2022 - British Society for Surgery of the Hand
+
+    ===============================================================================
+  -->
+
+  <decision id="Decision_REC013" name="Regra Clinica - Microcirurgia Reconstrutiva">
+    <decisionTable id="DecisionTable_REC013" hitPolicy="FIRST">
+
+      <!-- ========== INPUTS (5) ========== -->
+
+      <input id="Input_tipoProcedimento" label="Tipo de Procedimento" camunda:inputVariable="tipoProcedimento">
+        <inputExpression id="InputExpression_tipoProcedimento" typeRef="string">
+          <text>tipoProcedimento</text>
+        </inputExpression>
+        <inputValues id="InputValues_tipoProcedimento">
+          <text>"RetalhoLivre","Reimplante","TransferenciaComposta","AnastomoseLinfovenosa","TransplanteLinfonal","ReparacaoNervo"</text>
+        </inputValues>
+      </input>
+
+      <input id="Input_localReconstrucao" label="Local da Reconstrucao" camunda:inputVariable="localReconstrucao">
+        <inputExpression id="InputExpression_localReconstrucao" typeRef="string">
+          <text>localReconstrucao</text>
+        </inputExpression>
+        <inputValues id="InputValues_localReconstrucao">
+          <text>"CabecaPescoco","Mama","MembroSuperior","MembroInferior","Tronco","Mandibula"</text>
+        </inputValues>
+      </input>
+
+      <input id="Input_urgencia" label="Urgencia" camunda:inputVariable="urgencia">
+        <inputExpression id="InputExpression_urgencia" typeRef="string">
+          <text>urgencia</text>
+        </inputExpression>
+        <inputValues id="InputValues_urgencia">
+          <text>"Emergencia","Urgente","Eletivo"</text>
+        </inputValues>
+      </input>
+
+      <input id="Input_condicoesVasculares" label="Condicoes Vasculares Receptoras" camunda:inputVariable="condicoesVasculares">
+        <inputExpression id="InputExpression_condicoesVasculares" typeRef="string">
+          <text>condicoesVasculares</text>
+        </inputExpression>
+        <inputValues id="InputValues_condicoesVasculares">
+          <text>"VasosAdequados","VasosRadiados","DoencaArterial","SemVasosDisponiveis"</text>
+        </inputValues>
+      </input>
+
+      <input id="Input_tipoRetalho" label="Tipo de Retalho" camunda:inputVariable="tipoRetalho">
+        <inputExpression id="InputExpression_tipoRetalho" typeRef="string">
+          <text>tipoRetalho</text>
+        </inputExpression>
+        <inputValues id="InputValues_tipoRetalho">
+          <text>"ALT","Gracilis","LatissimusDorsi","DIEP","Fibula","RadialAntebraco","Outro"</text>
+        </inputValues>
+      </input>
+
+      <!-- ========== OUTPUTS (3 - Padrao TIER-1) ========== -->
+
+      <output id="Output_resultado" label="Resultado" name="resultado" typeRef="string">
+        <outputValues id="OutputValues_resultado">
+          <text>"Aprovado","Reprovado","Pendente"</text>
+        </outputValues>
+      </output>
+
+      <output id="Output_observacao" label="Observacao Clinica" name="observacao" typeRef="string" />
+
+      <output id="Output_fundamentacao" label="Fundamentacao Tecnica" name="fundamentacao" typeRef="string" />
+
+      <!-- Output 4: Alertas Desperdicio -->
+      <output id="Output_alertasDesperdicio" label="Alertas de Desperdicio" name="alertasDesperdicio" typeRef="string">
+        <outputValues id="OutputValues_alertasDesperdicio">
+          <text>"NENHUM","DUP","FREQ","ESC","DOC","PROT","MULTI"</text>
+        </outputValues>
+      </output>
+
+      <!-- Output 5: Acao Recomendada -->
+      <output id="Output_acaoRecomendada" label="Acao Recomendada" name="acaoRecomendada" typeRef="string">
+        <outputValues id="OutputValues_acaoRecomendada">
+          <text>"APROVAR","NEGAR","SOLICITAR_INFO","AGUARDAR_PRAZO","SUGERIR_ALTERNATIVA"</text>
+        </outputValues>
+      </output>
+
+      <!-- ========== RULES ========== -->
+
+      <!-- APROVACOES EMERGENCIAIS -->
+      <rule id="Rule_Aprovado_ReimplanteEmergencia">
+        <description>Aprovado Emergencia: Reimplante de membro/dedo</description>
+        <inputEntry id="InputEntry_RE_1"><text>"Reimplante"</text></inputEntry>
+        <inputEntry id="InputEntry_RE_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_RE_3"><text>"Emergencia"</text></inputEntry>
+        <inputEntry id="InputEntry_RE_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_RE_5"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_RE_resultado"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_RE_observacao"><text>"EMERGENCIA - Reimplante microcirurgico de membro/dedo amputado"</text></outputEntry>
+        <outputEntry id="OutputEntry_RE_fundamentacao"><text>"SBCP 2022, ASRM 2023 - Reimplante e emergencia, tempo isquemia e critico"</text></outputEntry>
+      <outputEntry id="OE_Aprovado_ReimplanteEmergencia_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_Aprovado_ReimplanteEmergencia_5"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <!-- APROVACOES URGENTES -->
+      <rule id="Rule_Aprovado_RetalhoLivreUrgente">
+        <description>Aprovado Urgente: Retalho livre para cobertura urgente</description>
+        <inputEntry id="InputEntry_RLU_1"><text>"RetalhoLivre"</text></inputEntry>
+        <inputEntry id="InputEntry_RLU_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_RLU_3"><text>"Urgente"</text></inputEntry>
+        <inputEntry id="InputEntry_RLU_4"><text>"VasosAdequados"</text></inputEntry>
+        <inputEntry id="InputEntry_RLU_5"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_RLU_resultado"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_RLU_observacao"><text>"Retalho livre urgente para cobertura de estruturas nobres expostas"</text></outputEntry>
+        <outputEntry id="OutputEntry_RLU_fundamentacao"><text>"SBCP 2022 - Exposicao ossea/tendinea requer cobertura em 72h"</text></outputEntry>
+      <outputEntry id="OE_Aprovado_RetalhoLivreUrgente_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_Aprovado_RetalhoLivreUrgente_5"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <!-- APROVACOES ELETIVAS -->
+      <rule id="Rule_Aprovado_RetalhoMama">
+        <description>Aprovado: Retalho DIEP/TRAM para reconstrucao mamaria</description>
+        <inputEntry id="InputEntry_RM_1"><text>"RetalhoLivre"</text></inputEntry>
+        <inputEntry id="InputEntry_RM_2"><text>"Mama"</text></inputEntry>
+        <inputEntry id="InputEntry_RM_3"><text>"Eletivo"</text></inputEntry>
+        <inputEntry id="InputEntry_RM_4"><text>"VasosAdequados"</text></inputEntry>
+        <inputEntry id="InputEntry_RM_5"><text>"DIEP"</text></inputEntry>
+        <outputEntry id="OutputEntry_RM_resultado"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_RM_observacao"><text>"Retalho DIEP para reconstrucao mamaria autologa"</text></outputEntry>
+        <outputEntry id="OutputEntry_RM_fundamentacao"><text>"Lei 12.802/2013, NCCN 2023 - DIEP e padrao-ouro para reconstrucao autologa"</text></outputEntry>
+      <outputEntry id="OE_Aprovado_RetalhoMama_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_Aprovado_RetalhoMama_5"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Aprovado_RetalhoMandibula">
+        <description>Aprovado: Retalho de fibula para reconstrucao mandibular</description>
+        <inputEntry id="InputEntry_RMD_1"><text>"RetalhoLivre","TransferenciaComposta"</text></inputEntry>
+        <inputEntry id="InputEntry_RMD_2"><text>"Mandibula","CabecaPescoco"</text></inputEntry>
+        <inputEntry id="InputEntry_RMD_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_RMD_4"><text>"VasosAdequados"</text></inputEntry>
+        <inputEntry id="InputEntry_RMD_5"><text>"Fibula"</text></inputEntry>
+        <outputEntry id="OutputEntry_RMD_resultado"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_RMD_observacao"><text>"Retalho de fibula para reconstrucao mandibular pos-resseccao"</text></outputEntry>
+        <outputEntry id="OutputEntry_RMD_fundamentacao"><text>"SBCP 2022 - Fibula e padrao para reconstrucao ossea de mandibula"</text></outputEntry>
+      <outputEntry id="OE_Aprovado_RetalhoMandibula_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_Aprovado_RetalhoMandibula_5"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Aprovado_ALT">
+        <description>Aprovado: Retalho ALT para defeitos de partes moles</description>
+        <inputEntry id="InputEntry_ALT_1"><text>"RetalhoLivre"</text></inputEntry>
+        <inputEntry id="InputEntry_ALT_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_ALT_3"><text>"Eletivo"</text></inputEntry>
+        <inputEntry id="InputEntry_ALT_4"><text>"VasosAdequados"</text></inputEntry>
+        <inputEntry id="InputEntry_ALT_5"><text>"ALT"</text></inputEntry>
+        <outputEntry id="OutputEntry_ALT_resultado"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_ALT_observacao"><text>"Retalho ALT para cobertura de defeitos de partes moles"</text></outputEntry>
+        <outputEntry id="OutputEntry_ALT_fundamentacao"><text>"ASRM 2023 - ALT e workhorse da microcirurgia, versatil e confiavel"</text></outputEntry>
+      <outputEntry id="OE_Aprovado_ALT_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_Aprovado_ALT_5"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <!-- APROVACOES - LINFEDEMA -->
+      <rule id="Rule_Aprovado_AnastomoseLinfovenosa">
+        <description>Aprovado: Anastomose linfovenosa para linfedema</description>
+        <inputEntry id="InputEntry_ALV_1"><text>"AnastomoseLinfovenosa"</text></inputEntry>
+        <inputEntry id="InputEntry_ALV_2"><text>"MembroSuperior","MembroInferior"</text></inputEntry>
+        <inputEntry id="InputEntry_ALV_3"><text>"Eletivo"</text></inputEntry>
+        <inputEntry id="InputEntry_ALV_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_ALV_5"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_ALV_resultado"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_ALV_observacao"><text>"Anastomose linfovenosa supermicrocirurgica para linfedema estagio II-III"</text></outputEntry>
+        <outputEntry id="OutputEntry_ALV_fundamentacao"><text>"SBCP 2022 - LVA indicada em linfedema precoce com linfaticos funcionantes"</text></outputEntry>
+      <outputEntry id="OE_Aprovado_AnastomoseLinfovenosa_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_Aprovado_AnastomoseLinfovenosa_5"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Aprovado_TransplanteLinfonal">
+        <description>Aprovado: Transplante de linfonodo vascularizado</description>
+        <inputEntry id="InputEntry_TLN_1"><text>"TransplanteLinfonal"</text></inputEntry>
+        <inputEntry id="InputEntry_TLN_2"><text>"MembroSuperior","MembroInferior"</text></inputEntry>
+        <inputEntry id="InputEntry_TLN_3"><text>"Eletivo"</text></inputEntry>
+        <inputEntry id="InputEntry_TLN_4"><text>"VasosAdequados"</text></inputEntry>
+        <inputEntry id="InputEntry_TLN_5"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_TLN_resultado"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_TLN_observacao"><text>"Transplante de linfonodo vascularizado para linfedema avancado"</text></outputEntry>
+        <outputEntry id="OutputEntry_TLN_fundamentacao"><text>"ASRM 2023 - VLNT indicado em linfedema estagio III com fibrose"</text></outputEntry>
+      <outputEntry id="OE_Aprovado_TransplanteLinfonal_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_Aprovado_TransplanteLinfonal_5"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <!-- REPROVACOES -->
+      <rule id="Rule_Reprovado_SemVasos">
+        <description>Reprovado: Ausencia de vasos receptores</description>
+        <inputEntry id="InputEntry_SV_1"><text>"RetalhoLivre"</text></inputEntry>
+        <inputEntry id="InputEntry_SV_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_SV_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_SV_4"><text>"SemVasosDisponiveis"</text></inputEntry>
+        <inputEntry id="InputEntry_SV_5"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_SV_resultado"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_SV_observacao"><text>"Ausencia de vasos receptores inviabiliza retalho livre"</text></outputEntry>
+        <outputEntry id="OutputEntry_SV_fundamentacao"><text>"SBCP 2022 - Retalho livre requer vasos receptores adequados"</text></outputEntry>
+      <outputEntry id="OE_Reprovado_SemVasos_4"><text>"PROT"</text></outputEntry>
+        <outputEntry id="OE_Reprovado_SemVasos_5"><text>"NEGAR"</text></outputEntry>
+      </rule>
+
+      <!-- PENDENTE -->
+      <rule id="Rule_Pendente_VasosRadiados">
+        <description>Pendente: Vasos radiados - avaliar</description>
+        <inputEntry id="InputEntry_VR_1"><text>"RetalhoLivre"</text></inputEntry>
+        <inputEntry id="InputEntry_VR_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_VR_3"><text>"Eletivo"</text></inputEntry>
+        <inputEntry id="InputEntry_VR_4"><text>"VasosRadiados"</text></inputEntry>
+        <inputEntry id="InputEntry_VR_5"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_VR_resultado"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OutputEntry_VR_observacao"><text>"Vasos radiados - realizar angioTC para avaliar qualidade dos vasos"</text></outputEntry>
+        <outputEntry id="OutputEntry_VR_fundamentacao"><text>"ASRM 2023 - Radioterapia afeta parede vascular, avaliacao pre-op necessaria"</text></outputEntry>
+      <outputEntry id="OE_Pendente_VasosRadiados_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_Pendente_VasosRadiados_5"><text>"SOLICITAR_INFO"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Pendente_DoencaArterial">
+        <description>Pendente: Doenca arterial - otimizar</description>
+        <inputEntry id="InputEntry_DA_1"><text>"RetalhoLivre"</text></inputEntry>
+        <inputEntry id="InputEntry_DA_2"><text>"MembroInferior"</text></inputEntry>
+        <inputEntry id="InputEntry_DA_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_DA_4"><text>"DoencaArterial"</text></inputEntry>
+        <inputEntry id="InputEntry_DA_5"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_DA_resultado"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OutputEntry_DA_observacao"><text>"Doenca arterial periferica - revascularizacao antes de retalho livre"</text></outputEntry>
+        <outputEntry id="OutputEntry_DA_fundamentacao"><text>"SBCP 2022 - Retalho livre em membro isquemico tem alta taxa de falha"</text></outputEntry>
+      <outputEntry id="OE_Pendente_DoencaArterial_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_Pendente_DoencaArterial_5"><text>"SOLICITAR_INFO"</text></outputEntry>
+      </rule>
+
+      <!-- FALLBACK RULE -->
+      <rule id="Rule_Fallback_REC013">
+        <description>Regra padrao - Analise adicional necessaria</description>
+        <inputEntry id="InputEntry_Fallback_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Fallback_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Fallback_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Fallback_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Fallback_5"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_Fallback_resultado"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OutputEntry_Fallback_observacao"><text>"Avaliar com centro de referencia em microcirurgia"</text></outputEntry>
+        <outputEntry id="OutputEntry_Fallback_fundamentacao"><text>"SBCP 2022, ASRM 2023 - Microcirurgia requer centro especializado"</text></outputEntry>
+      <outputEntry id="OE_Fallback_REC013_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_Fallback_REC013_5"><text>"SOLICITAR_INFO"</text></outputEntry>
+      </rule>
+
+    </decisionTable>
+  </decision>
+</definitions>

@@ -1,0 +1,288 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/"
+             xmlns:dc="http://www.omg.org/spec/DD/20100524/DC/"
+             xmlns:di="http://www.omg.org/spec/DD/20100524/DI/"
+             id="Definitions_41301128"
+             name="ONQ-QT-002: Quimioterapia Segunda Linha"
+             namespace="http://camunda.org/schema/1.0/dmn"
+             exporter="Camunda Modeler"
+             exporterVersion="5.0.0">
+  <!--
+    TUSS 41301128 - Quimioterapia Segunda Linha
+    Versao: 3.1.0-LEAN-TIER2 (2026-02-08)
+    Especialidade: Oncologia Clinica
+    Categoria: Quimioterapia Sistemica - Segunda Linha
+
+    Indicacoes Clinicas (DUT ANS 2024):
+    - Progressao apos primeira linha com intervalo >=3 meses e ECOG 0-2
+    - Protocolo segunda linha validado CONITEC/NCCN para neoplasia especifica
+    - Troca de esquema quimioterapico por toxicidade limitante grau 3-4 primeira linha
+    - Imunoterapia segunda linha em NSCLC com PD-L1 >=1% ou biomarcador positivo
+    - Terapia-alvo segunda linha apos teste molecular (EGFR/ALK/BRAF/KRAS/NTRK)
+
+    Contraindicacoes:
+    - Performance Status ECOG 3-4 (sem beneficio comprovado em segunda linha)
+    - Progressao antes de 3 meses primeira linha sem mudanca de classe terapeutica
+    - Ausencia de protocolo segunda linha validado CONITEC ou NCCN
+    - Contraindicacao absoluta por comprometimento de orgao vital (hepatico/renal/medular)
+
+    Documentacao Obrigatoria:
+    - Laudo anatomopatologico confirmando diagnostico oncologico especifico
+    - Estadiamento TNM completo atualizado (III, IV ou Recidiva)
+    - Avaliacao Performance Status ECOG documentada em relatorio medico
+    - Resposta primeira linha (tempo progressao em meses desde inicio 1L)
+    - Protocolo terapeutico segunda linha especificado conforme CONITEC/NCCN
+
+    Referencias Normativas:
+    - SBOC (Sociedade Brasileira de Oncologia Clinica) Diretrizes 2023
+    - NCCN (National Comprehensive Cancer Network) Guidelines v3.2024
+    - ESMO (European Society for Medical Oncology) Clinical Practice Guidelines 2023
+    - CONITEC - Protocolos Clinicos e Diretrizes Terapeuticas Oncologia
+    - FDA/ANVISA - Diretrizes Imunoterapia e Terapia-Alvo
+  -->
+
+  <decision id="Decision_41301128" name="Criterios de Autorizacao - Quimioterapia Segunda Linha [LEAN TIER-2]">
+    <decisionTable id="DecisionTable_41301128" hitPolicy="FIRST">
+
+      <!-- Input 1: Diagnostico Oncologico -->
+      <input id="Input_diagnostico" label="Diagnostico Oncologico">
+        <inputExpression id="InputExpr_diagnostico" typeRef="string">
+          <text>diagnosticoOncologico</text>
+        </inputExpression>
+        <inputValues id="InputValues_diagnostico">
+          <text>"Mama_Metastatica","Colorretal_Metastatico","Pulmao_NSCLC_IV","Ovario_Recidiva","Gastrico_Avancado"</text>
+        </inputValues>
+      </input>
+
+      <!-- Input 2: Estadiamento TNM -->
+      <input id="Input_estadiamento" label="Estadiamento TNM">
+        <inputExpression id="InputExpr_estadiamento" typeRef="string">
+          <text>estadiamentoTNM</text>
+        </inputExpression>
+        <inputValues id="InputValues_estadiamento">
+          <text>"III","IV","Recidiva"</text>
+        </inputValues>
+      </input>
+
+      <!-- Input 3: Performance Status ECOG -->
+      <input id="Input_ecog" label="Performance Status ECOG">
+        <inputExpression id="InputExpr_ecog" typeRef="string">
+          <text>performanceStatusECOG</text>
+        </inputExpression>
+        <inputValues id="InputValues_ecog">
+          <text>"ECOG_0","ECOG_1","ECOG_2","ECOG_3","ECOG_4"</text>
+        </inputValues>
+      </input>
+
+      <!-- Input 4: Tempo Progressao 1L Meses -->
+      <input id="Input_progressao" label="Tempo Progressao 1L Meses">
+        <inputExpression id="InputExpr_progressao" typeRef="integer">
+          <text>tempoProgressao1LMeses</text>
+        </inputExpression>
+      </input>
+
+      <!-- Input 5: Protocolo Terapeutico -->
+      <input id="Input_protocolo" label="Protocolo Terapeutico Validado">
+        <inputExpression id="InputExpr_protocolo" typeRef="boolean">
+          <text>protocoloTerapeutico</text>
+        </inputExpression>
+      </input>
+
+      <!-- Output 1: Resultado -->
+      <!-- Input: Dias desde ultimo procedimento (DUP detection) -->
+      <input id="Input_ultimoProcedimentoDias" label="Dias Desde Ultimo Procedimento">
+        <inputExpression id="InputExpression_ultimoProcedimentoDias" typeRef="number">
+          <text>ultimoProcedimentoDias</text>
+        </inputExpression>
+      </input>
+
+      <output id="Output_resultado" label="Resultado" name="resultado" typeRef="string">
+        <outputValues id="OutputValues_resultado">
+          <text>"Aprovado","Reprovado","Pendente"</text>
+        </outputValues>
+      </output>
+
+      <!-- Output 2: Observacao -->
+      <output id="Output_observacao" label="Observacao Clinica" name="observacao" typeRef="string" />
+
+      <!-- Output 3: Fundamentacao -->
+      <output id="Output_fundamentacao" label="Fundamentacao Legal/Tecnica" name="fundamentacao" typeRef="string" />
+
+      <!-- Output 4: Alertas de Desperdicio -->
+      <output id="Output_alertasDesperdicio" label="Alertas de Desperdicio" name="alertasDesperdicio" typeRef="string">
+        <outputValues id="OutputValues_alertasDesperdicio"><text>"NENHUM","DUP","FREQ","ESC","DOC","PROT","MULTI"</text></outputValues>
+      </output>
+
+      <!-- Output 5: Acao Recomendada -->
+      <output id="Output_acaoRecomendada" label="Acao Recomendada" name="acaoRecomendada" typeRef="string">
+        <outputValues id="OutputValues_acaoRecomendada"><text>"APROVAR","NEGAR","SOLICITAR_INFO","AGUARDAR_PRAZO","SUGERIR_ALTERNATIVA"</text></outputValues>
+      </output>
+
+      <!-- ============================================== -->
+      <!-- CONTRAINDICATION RULES (FIRST PRIORITY)       -->
+      <!-- ============================================== -->
+
+      <rule id="Rule_41301128_Contraindicacao_1">
+        <description>Contraindicacao - ECOG 3-4 sem beneficio comprovado em segunda linha</description>
+        <inputEntry id="IE_Contra1_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_Contra1_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_Contra1_3"><text>"ECOG_3","ECOG_4"</text></inputEntry>
+        <inputEntry id="IE_Contra1_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_Contra1_5"><text>-</text></inputEntry>
+        <inputEntry id="IE_Rule_41301128_Contraindicacao_1_ultimo"><text>-</text></inputEntry>
+        <outputEntry id="OE_Contra1_1"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OE_Contra1_2"><text>"ECOG Performance Status 3-4: contraindicacao para quimioterapia segunda linha. Sem beneficio em overall survival e elevado risco toxicidade"</text></outputEntry>
+        <outputEntry id="OE_Contra1_3"><text>"NCCN Guidelines e SBOC Diretrizes 2023: ECOG >=3 em segunda linha nao demonstra beneficio clinico, apenas aumenta toxicidade e reduz qualidade de vida. Best supportive care e cuidados paliativos sao indicacao preferencial conforme ASCO 2023"</text></outputEntry>
+        <outputEntry id="OE_Contra1_4"><text>"PROT"</text></outputEntry>
+        <outputEntry id="OE_Contra1_5"><text>"NEGAR"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_41301128_Contraindicacao_2">
+        <description>Contraindicacao - Progressao rapida menos de 3 meses primeira linha sem mudanca classe terapeutica</description>
+        <inputEntry id="IE_Contra2_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_Contra2_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_Contra2_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_Contra2_4"><text>&lt;3</text></inputEntry>
+        <inputEntry id="IE_Contra2_5"><text>-</text></inputEntry>
+        <inputEntry id="IE_Rule_41301128_Contraindicacao_2_ultimo"><text>-</text></inputEntry>
+        <outputEntry id="OE_Contra2_1"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OE_Contra2_2"><text>"Progressao antes de 3 meses primeira linha sem mudanca de classe terapeutica indica resistencia primaria. Exige troca mecanismo acao"</text></outputEntry>
+        <outputEntry id="OE_Contra2_3"><text>"ESMO Clinical Practice Guidelines 2023: progressao rapida &lt;3 meses indica resistencia intrinseca ao esquema quimioterapico. Segunda linha deve utilizar mecanismo acao diferente (ex: antracíclicos para taxanos, platinas para fluoropirimidinas). Repetir mesma classe tem taxa resposta &lt;10%"</text></outputEntry>
+        <outputEntry id="OE_Contra2_4"><text>"PROT"</text></outputEntry>
+        <outputEntry id="OE_Contra2_5"><text>"NEGAR"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_41301128_Contraindicacao_3">
+        <description>Contraindicacao - Ausencia protocolo segunda linha CONITEC/NCCN validado</description>
+        <inputEntry id="IE_Contra3_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_Contra3_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_Contra3_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_Contra3_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_Contra3_5"><text>false</text></inputEntry>
+        <inputEntry id="IE_Rule_41301128_Contraindicacao_3_ultimo"><text>-</text></inputEntry>
+        <outputEntry id="OE_Contra3_1"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OE_Contra3_2"><text>"Ausencia de protocolo segunda linha validado CONITEC ou NCCN. Esquemas nao validados nao tem evidencia nivel I beneficio clinico"</text></outputEntry>
+        <outputEntry id="OE_Contra3_3"><text>"CONITEC - Protocolos Clinicos Oncologia: protocolo segunda linha obrigatorio baseado em ensaios clinicos fase III. Esquemas alternativos devem ter documentacao robusta (estudos randomizados, evidencia nivel IA conforme Oxford CEBM). RN 465/2021 ANS exige protocolo validado"</text></outputEntry>
+        <outputEntry id="OE_Contra3_4"><text>"PROT"</text></outputEntry>
+        <outputEntry id="OE_Contra3_5"><text>"NEGAR"</text></outputEntry>
+      </rule>
+
+      <!-- WASTE DETECTION: DUP -->
+      <rule id="Rule_41301128_DUP">
+        <description>DUP - Ciclo QT segunda linha repetido em menos de 21 dias</description>
+        <inputEntry id="IE_DUP_41301128_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_DUP_41301128_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_DUP_41301128_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_DUP_41301128_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_DUP_41301128_5"><text>-</text></inputEntry>
+        <inputEntry id="IE_DUP_41301128_ultimo"><text>&lt; 21</text></inputEntry>
+        <outputEntry id="OE_DUP_41301128_resultado"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OE_DUP_41301128_observacao"><text>"Ciclo QT segunda linha repetido em menos de 21 dias"</text></outputEntry>
+        <outputEntry id="OE_DUP_41301128_fundamentacao"><text>"NCCN 2024: Intervalo minimo entre ciclos QT 21 dias"</text></outputEntry>
+        <outputEntry id="OE_DUP_41301128_alertasDesperdicio"><text>"DUP"</text></outputEntry>
+        <outputEntry id="OE_DUP_41301128_acaoRecomendada"><text>"AGUARDAR_PRAZO"</text></outputEntry>
+      </rule>
+
+      <!-- WASTE DETECTION: ESC -->
+      <rule id="Rule_41301128_ESC">
+        <description>ESC - QT segunda linha sem documentacao falha/progressao primeira linha</description>
+        <inputEntry id="IE_ESC_41301128_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_ESC_41301128_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_ESC_41301128_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_ESC_41301128_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_ESC_41301128_5"><text>-</text></inputEntry>
+        <inputEntry id="IE_ESC_41301128_ultimo"><text>-</text></inputEntry>
+        <outputEntry id="OE_ESC_41301128_resultado"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OE_ESC_41301128_observacao"><text>"QT segunda linha sem documentacao falha/progressao primeira linha"</text></outputEntry>
+        <outputEntry id="OE_ESC_41301128_fundamentacao"><text>"NCCN 2024: QT 2L requer documentacao falha/intolerancia/progressao 1L"</text></outputEntry>
+        <outputEntry id="OE_ESC_41301128_alertasDesperdicio"><text>"ESC"</text></outputEntry>
+        <outputEntry id="OE_ESC_41301128_acaoRecomendada"><text>"SOLICITAR_INFO"</text></outputEntry>
+      </rule>
+
+
+      <!-- ============================================== -->
+      <!-- APPROVAL RULES (AFTER CONTRAINDICATIONS)      -->
+      <!-- ============================================== -->
+
+      <rule id="Rule_41301128_Aprovacao_1">
+        <description>Aprovacao - Quimioterapia 2L ECOG 0-1 estadio IV/Recidiva com protocolo validado >=3 meses progressao</description>
+        <inputEntry id="IE_Aprov1_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_Aprov1_2"><text>"IV","Recidiva"</text></inputEntry>
+        <inputEntry id="IE_Aprov1_3"><text>"ECOG_0","ECOG_1"</text></inputEntry>
+        <inputEntry id="IE_Aprov1_4"><text>&gt;=3</text></inputEntry>
+        <inputEntry id="IE_Aprov1_5"><text>true</text></inputEntry>
+        <inputEntry id="IE_Rule_41301128_Aprovacao_1_ultimo"><text>-</text></inputEntry>
+        <outputEntry id="OE_Aprov1_1"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OE_Aprov1_2"><text>"Quimioterapia segunda linha aprovada: ECOG 0-1, doenca metastatica/recidiva, protocolo CONITEC/NCCN validado, progressao >=3 meses pos-1L"</text></outputEntry>
+        <outputEntry id="OE_Aprov1_3"><text>"NCCN Guidelines v3.2024: segunda linha ECOG 0-1 com protocolos validados (ex: mama metastatica capecitabina/eribulina, colorretal FOLFIRI/FOLFOX switch, NSCLC docetaxel, ovario platina-sensivel carboplatina/paclitaxel). Beneficio OS 2-4 meses, PFS 1-3 meses conforme tumor"</text></outputEntry>
+        <outputEntry id="OE_Aprov1_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_Aprov1_5"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_41301128_Aprovacao_2">
+        <description>Aprovacao - Troca esquema quimioterapia por toxicidade limitante grau 3-4 primeira linha</description>
+        <inputEntry id="IE_Aprov2_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_Aprov2_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_Aprov2_3"><text>"ECOG_0","ECOG_1","ECOG_2"</text></inputEntry>
+        <inputEntry id="IE_Aprov2_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_Aprov2_5"><text>true</text></inputEntry>
+        <inputEntry id="IE_Rule_41301128_Aprovacao_2_ultimo"><text>-</text></inputEntry>
+        <outputEntry id="OE_Aprov2_1"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OE_Aprov2_2"><text>"Troca para esquema quimioterapico segunda linha justificada por toxicidade limitante grau 3-4 nao controlavel primeira linha"</text></outputEntry>
+        <outputEntry id="OE_Aprov2_3"><text>"SBOC Diretrizes 2023: toxicidade grau 3-4 (CTCAE v5.0) refrataria a medidas suporte justifica troca precoce antes progressao. Ex: neuropatia periferica grau 3 taxanos, cardiotoxicidade antracíclicos, neutropenia febril recorrente. Segunda linha permite continuidade tratamento"</text></outputEntry>
+        <outputEntry id="OE_Aprov2_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_Aprov2_5"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_41301128_Aprovacao_3">
+        <description>Aprovacao - Imunoterapia segunda linha NSCLC PD-L1 >=1% (pembrolizumab/nivolumab monoterapia)</description>
+        <inputEntry id="IE_Aprov3_1"><text>"Pulmao_NSCLC_IV"</text></inputEntry>
+        <inputEntry id="IE_Aprov3_2"><text>"IV"</text></inputEntry>
+        <inputEntry id="IE_Aprov3_3"><text>"ECOG_0","ECOG_1"</text></inputEntry>
+        <inputEntry id="IE_Aprov3_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_Aprov3_5"><text>true</text></inputEntry>
+        <inputEntry id="IE_Rule_41301128_Aprovacao_3_ultimo"><text>-</text></inputEntry>
+        <outputEntry id="OE_Aprov3_1"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OE_Aprov3_2"><text>"Imunoterapia segunda linha NSCLC aprovada: pembrolizumab (PD-L1 >=1%) ou nivolumab monoterapia pos-progressao quimioterapia platina"</text></outputEntry>
+        <outputEntry id="OE_Aprov3_3"><text>"FDA/ANVISA aprovacao e NCCN NSCLC v3.2024: pembrolizumab segunda linha PD-L1 >=1% (KEYNOTE-010: OS 10.4 vs 8.5m HR 0.71), nivolumab independente PD-L1 (CheckMate-017/057: OS 12.2 vs 9.4m HR 0.73). Combinacao quimio-imuno segunda linha conforme CONITEC"</text></outputEntry>
+        <outputEntry id="OE_Aprov3_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_Aprov3_5"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_41301128_Aprovacao_4">
+        <description>Aprovacao - Terapia-alvo segunda linha pos-teste molecular (EGFR/ALK/BRAF/KRAS/NTRK mutacoes)</description>
+        <inputEntry id="IE_Aprov4_1"><text>"Colorretal_Metastatico","Pulmao_NSCLC_IV"</text></inputEntry>
+        <inputEntry id="IE_Aprov4_2"><text>"IV"</text></inputEntry>
+        <inputEntry id="IE_Aprov4_3"><text>"ECOG_0","ECOG_1","ECOG_2"</text></inputEntry>
+        <inputEntry id="IE_Aprov4_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_Aprov4_5"><text>true</text></inputEntry>
+        <inputEntry id="IE_Rule_41301128_Aprovacao_4_ultimo"><text>-</text></inputEntry>
+        <outputEntry id="OE_Aprov4_1"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OE_Aprov4_2"><text>"Terapia-alvo segunda linha aprovada pos-teste molecular: EGFR (osimertinib T790M), ALK (alectinib/brigatinib), BRAF V600E (encorafenib+cetuximab), KRAS G12C (sotorasib), NTRK fusion (larotrectinib)"</text></outputEntry>
+        <outputEntry id="OE_Aprov4_3"><text>"NCCN Guidelines v3.2024: terapia-alvo segunda linha especifica por mutacao driver independente linha tratamento. NSCLC: osimertinib T790M (AURA3: PFS 10.1 vs 4.4m), ALK+ (ALEX: PFS 34.8 vs 10.9m). Colorretal: BRAF V600E encorafenib+cetuximab (BEACON: OS 9.0 vs 5.4m HR 0.52). NTRK fusion larotrectinib ORR 75% pan-tumor"</text></outputEntry>
+        <outputEntry id="OE_Aprov4_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_Aprov4_5"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <!-- ============================================== -->
+      <!-- FALLBACK RULE - Casos nao cobertos            -->
+      <!-- ============================================== -->
+      <rule id="Rule_Fallback_41301128">
+        <description>Regra padrao - Casos nao cobertos requerem analise manual por auditor medico especializado em oncologia clinica</description>
+        <inputEntry id="IE_Fallback_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_Fallback_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_Fallback_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_Fallback_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_Fallback_5"><text>-</text></inputEntry>
+        <inputEntry id="IE_Rule_Fallback_41301128_ultimo"><text>-</text></inputEntry>
+        <outputEntry id="OE_Fallback_1"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OE_Fallback_2"><text>"Caso requer analise manual por auditor medico oncologista clinico. Dados incompletos ou situacao clinica nao prevista nas regras automatizadas"</text></outputEntry>
+        <outputEntry id="OE_Fallback_3"><text>"Documentacao obrigatoria: laudo anatomopatologico com imunohistoquimica, estadiamento TNM completo, ECOG Performance Status, relatorio resposta primeira linha (tempo progressao em meses desde inicio 1L), protocolo segunda linha especificado conforme CONITEC/NCCN, testes moleculares se aplicavel (EGFR/ALK/BRAF/KRAS/PD-L1). Submeter para auditoria medica especializada conforme RN 465/2021 ANS"</text></outputEntry>
+        <outputEntry id="OE_Fallback_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_Fallback_5"><text>"SOLICITAR_INFO"</text></outputEntry>
+      </rule>
+
+    </decisionTable>
+  </decision>
+</definitions>

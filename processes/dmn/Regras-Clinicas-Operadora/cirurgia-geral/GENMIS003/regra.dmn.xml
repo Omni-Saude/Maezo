@@ -1,0 +1,223 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             xmlns:camunda="http://camunda.org/schema/1.0/dmn"
+             id="Definitions_GEN_MIS_003"
+             name="Melanoma - Margens de Excisao"
+             namespace="http://camunda.org/schema/1.0/dmn">
+
+  <!--
+    ===============================================================================
+    CODIGO: GEN-MIS-003
+    Procedimento: Melanoma Cutaneo - Criterios de Margens de Excisao
+    Especialidade: Cirurgia Geral - Procedimentos Diversos
+    Versao: 3.0.0-TIER1
+    Data: 2026-02-07
+    ===============================================================================
+
+    MARGENS RECOMENDADAS (Breslow):
+    - In situ: 0.5-1 cm
+    - <= 1 mm: 1 cm
+    - 1.01-2 mm: 1-2 cm
+    - > 2 mm: 2 cm
+
+    INDICACOES PARA LINFONODO SENTINELA:
+    - Breslow >= 0.8 mm
+    - Breslow < 0.8 mm com ulceracao ou mitoses >= 1/mm2
+    - Clark IV/V com < 0.8 mm
+
+    REFERENCIAS TECNICAS:
+    - NCCN Melanoma Guidelines 2023
+    - ASCO/SSO Guidelines 2020
+    - SBD Melanoma 2022
+
+    ===============================================================================
+  -->
+
+  <decision id="Decision_GEN_MIS_003" name="Regra Clinica - Melanoma Margens">
+    <decisionTable id="DecisionTable_GEN_MIS_003" hitPolicy="FIRST">
+
+      <!-- ========== INPUTS (5) ========== -->
+
+      <input id="Input_espessuraBreslow" label="Espessura de Breslow (mm)" camunda:inputVariable="espessuraBreslow">
+        <inputExpression id="InputExpression_espessuraBreslow" typeRef="number">
+          <text>espessuraBreslow</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_ulceracao" label="Ulceracao Presente" camunda:inputVariable="ulceracao">
+        <inputExpression id="InputExpression_ulceracao" typeRef="boolean">
+          <text>ulceracao</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_indiceMitotico" label="Indice Mitotico (mitoses/mm2)" camunda:inputVariable="indiceMitotico">
+        <inputExpression id="InputExpression_indiceMitotico" typeRef="number">
+          <text>indiceMitotico</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_nivelClark" label="Nivel de Clark" camunda:inputVariable="nivelClark">
+        <inputExpression id="InputExpression_nivelClark" typeRef="string">
+          <text>nivelClark</text>
+        </inputExpression>
+        <inputValues id="InputValues_nivelClark">
+          <text>"I","II","III","IV","V"</text>
+        </inputValues>
+      </input>
+
+      <input id="Input_localizacaoAnatomica" label="Localizacao Anatomica" camunda:inputVariable="localizacaoAnatomica">
+        <inputExpression id="InputExpression_localizacaoAnatomica" typeRef="string">
+          <text>localizacaoAnatomica</text>
+        </inputExpression>
+        <inputValues id="InputValues_localizacaoAnatomica">
+          <text>"Face","Extremidade","Tronco","Subungueal","Mucosa"</text>
+        </inputValues>
+      </input>
+
+      <!-- ========== OUTPUTS (3) ========== -->
+
+      <output id="Output_resultado" label="Resultado" name="resultado" typeRef="string">
+        <outputValues id="OutputValues_resultado">
+          <text>"Aprovado","Reprovado","Pendente"</text>
+        </outputValues>
+      </output>
+
+      <output id="Output_observacao" label="Observacao Clinica" name="observacao" typeRef="string" />
+
+      <output id="Output_fundamentacao" label="Fundamentacao Tecnica" name="fundamentacao" typeRef="string" />
+
+      <!-- Output 4: Alertas Desperdicio -->
+      <output id="Output_alertasDesperdicio" label="Alertas de Desperdicio" name="alertasDesperdicio" typeRef="string">
+        <outputValues id="OutputValues_alertasDesperdicio">
+          <text>"NENHUM","DUP","FREQ","ESC","DOC","PROT","MULTI"</text>
+        </outputValues>
+      </output>
+
+      <!-- Output 5: Acao Recomendada -->
+      <output id="Output_acaoRecomendada" label="Acao Recomendada" name="acaoRecomendada" typeRef="string">
+        <outputValues id="OutputValues_acaoRecomendada">
+          <text>"APROVAR","NEGAR","SOLICITAR_INFO","AGUARDAR_PRAZO","SUGERIR_ALTERNATIVA"</text>
+        </outputValues>
+      </output>
+
+      <!-- ========== REGRAS DE REPROVACAO ========== -->
+
+      <rule id="Rule_Reprovado_SemBreslow">
+        <description>Reprovado: Sem medida de Breslow definida</description>
+        <inputEntry id="IE_Rep1_1"><text>null</text></inputEntry>
+        <inputEntry id="IE_Rep1_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_Rep1_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_Rep1_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_Rep1_5"><text>-</text></inputEntry>
+        <outputEntry id="OE_Rep1_1"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OE_Rep1_2"><text>"Espessura de Breslow obrigatoria para definir margens - revisar anatomopatologico"</text></outputEntry>
+        <outputEntry id="OE_Rep1_3"><text>"NCCN 2023 - Breslow e principal determinante de margens e estadiamento"</text></outputEntry>
+      <outputEntry id="OE_Reprovado_SemBreslow_4"><text>"PROT"</text></outputEntry>
+        <outputEntry id="OE_Reprovado_SemBreslow_5"><text>"NEGAR"</text></outputEntry>
+      </rule>
+
+      <!-- ========== REGRAS DE APROVACAO ========== -->
+
+      <rule id="Rule_Aprovado_InSitu">
+        <description>Aprovado: Melanoma in situ - margem 0.5-1 cm</description>
+        <inputEntry id="IE_Apr1_1"><text>0</text></inputEntry>
+        <inputEntry id="IE_Apr1_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_Apr1_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_Apr1_4"><text>"I"</text></inputEntry>
+        <inputEntry id="IE_Apr1_5"><text>-</text></inputEntry>
+        <outputEntry id="OE_Apr1_1"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OE_Apr1_2"><text>"Melanoma in situ - excisao com margem de 0.5-1 cm, sem BLNS"</text></outputEntry>
+        <outputEntry id="OE_Apr1_3"><text>"NCCN 2023 - Melanoma in situ: margem de 0.5-1 cm, considerar Mohs em face"</text></outputEntry>
+      <outputEntry id="OE_Aprovado_InSitu_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_Aprovado_InSitu_5"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Aprovado_Fino">
+        <description>Aprovado: Melanoma fino <= 1 mm</description>
+        <inputEntry id="IE_Apr2_1"><text>(0..1]</text></inputEntry>
+        <inputEntry id="IE_Apr2_2"><text>false</text></inputEntry>
+        <inputEntry id="IE_Apr2_3"><text>&lt; 1</text></inputEntry>
+        <inputEntry id="IE_Apr2_4"><text>"II","III"</text></inputEntry>
+        <inputEntry id="IE_Apr2_5"><text>-</text></inputEntry>
+        <outputEntry id="OE_Apr2_1"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OE_Apr2_2"><text>"Melanoma fino sem fatores de risco - margem de 1 cm, BLNS opcional se &gt;= 0.8mm"</text></outputEntry>
+        <outputEntry id="OE_Apr2_3"><text>"ASCO/SSO 2020 - T1a: margem 1 cm, BLNS se Breslow &gt;= 0.8 mm"</text></outputEntry>
+      <outputEntry id="OE_Aprovado_Fino_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_Aprovado_Fino_5"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Aprovado_FinoAltoRisco">
+        <description>Aprovado: Melanoma fino com fatores de risco</description>
+        <inputEntry id="IE_Apr3_1"><text>(0..1]</text></inputEntry>
+        <inputEntry id="IE_Apr3_2"><text>true</text></inputEntry>
+        <inputEntry id="IE_Apr3_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_Apr3_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_Apr3_5"><text>-</text></inputEntry>
+        <outputEntry id="OE_Apr3_1"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OE_Apr3_2"><text>"Melanoma fino ulcerado - margem de 1 cm + BLNS obrigatoria"</text></outputEntry>
+        <outputEntry id="OE_Apr3_3"><text>"NCCN 2023 - T1b (ulcerado): BLNS recomendada"</text></outputEntry>
+      <outputEntry id="OE_Aprovado_FinoAltoRisco_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_Aprovado_FinoAltoRisco_5"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Aprovado_Intermediario">
+        <description>Aprovado: Melanoma intermediario 1-2 mm</description>
+        <inputEntry id="IE_Apr4_1"><text>(1..2]</text></inputEntry>
+        <inputEntry id="IE_Apr4_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_Apr4_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_Apr4_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_Apr4_5"><text>-</text></inputEntry>
+        <outputEntry id="OE_Apr4_1"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OE_Apr4_2"><text>"Melanoma intermediario - margem de 1-2 cm + BLNS obrigatoria"</text></outputEntry>
+        <outputEntry id="OE_Apr4_3"><text>"NCCN 2023 - T2: margem 1-2 cm, BLNS recomendada para todos"</text></outputEntry>
+      <outputEntry id="OE_Aprovado_Intermediario_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_Aprovado_Intermediario_5"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Aprovado_Espesso">
+        <description>Aprovado: Melanoma espesso > 2 mm</description>
+        <inputEntry id="IE_Apr5_1"><text>&gt; 2</text></inputEntry>
+        <inputEntry id="IE_Apr5_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_Apr5_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_Apr5_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_Apr5_5"><text>-</text></inputEntry>
+        <outputEntry id="OE_Apr5_1"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OE_Apr5_2"><text>"Melanoma espesso - margem de 2 cm + BLNS obrigatoria"</text></outputEntry>
+        <outputEntry id="OE_Apr5_3"><text>"NCCN 2023 - T3/T4: margem de 2 cm, BLNS mandatoria"</text></outputEntry>
+      <outputEntry id="OE_Aprovado_Espesso_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_Aprovado_Espesso_5"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Aprovado_FaceSubungueal">
+        <description>Aprovado: Localizacao especial - face ou subungueal</description>
+        <inputEntry id="IE_Apr6_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_Apr6_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_Apr6_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_Apr6_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_Apr6_5"><text>"Face","Subungueal"</text></inputEntry>
+        <outputEntry id="OE_Apr6_1"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OE_Apr6_2"><text>"Localizacao especial - considerar Mohs ou margens modificadas com avaliacao intraoperatoria"</text></outputEntry>
+        <outputEntry id="OE_Apr6_3"><text>"SBD 2022 - Face e subungueal podem requerer abordagem com controle de margens"</text></outputEntry>
+      <outputEntry id="OE_Aprovado_FaceSubungueal_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_Aprovado_FaceSubungueal_5"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <!-- ========== REGRA FALLBACK ========== -->
+
+      <rule id="Rule_Fallback_GEN_MIS_003">
+        <description>Pendente: Aguardar laudo anatomopatologico completo</description>
+        <inputEntry id="IE_FB_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_FB_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_FB_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_FB_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_FB_5"><text>-</text></inputEntry>
+        <outputEntry id="OE_FB_1"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OE_FB_2"><text>"Aguardar laudo com Breslow, ulceracao, mitoses e nivel de Clark"</text></outputEntry>
+        <outputEntry id="OE_FB_3"><text>"NCCN 2023 - Laudo completo obrigatorio para planejamento cirurgico"</text></outputEntry>
+      <outputEntry id="OE_Fallback_GEN_MIS_003_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_Fallback_GEN_MIS_003_5"><text>"SOLICITAR_INFO"</text></outputEntry>
+      </rule>
+
+    </decisionTable>
+  </decision>
+</definitions>

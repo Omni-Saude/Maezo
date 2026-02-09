@@ -1,0 +1,159 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  ============================================================================
+  BILL-DIARIA-001 - Tipo Acomodacao x Contrato
+  ============================================================================
+  Versao: 1.0.0 (2026-02-08)
+  Categoria: BILL-DIARIA
+  Perspectiva: HOSPITAL (Faturamento/Hotelaria)
+
+  ============================================================================
+  INDICACOES (Quando PROSSEGUIR):
+  ============================================================================
+  - Acomodacao compativel com contrato da operadora
+  - Dias de internacao dentro da media para o diagnostico
+  - Tipo de acomodacao aprovado pela auditoria da operadora
+
+  ============================================================================
+  CONTRAINDICACOES (Quando BLOQUEAR):
+  ============================================================================
+  - Acomodacao superior ao permitido pelo contrato
+  - Cobranca de apartamento quando contrato cobre apenas enfermaria
+  - Dias de internacao excessivos sem justificativa clinica
+
+  ============================================================================
+  REFERENCIAS NORMATIVAS:
+  ============================================================================
+  - ANS RN 465/2021 Art. 5 (cobertura contratual)
+  - Lei 9.656/1998 (planos de saude)
+  - TISS 4.01.00 (padrao de comunicacao)
+  ============================================================================
+-->
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/"
+             xmlns:dc="http://www.omg.org/spec/DMN/20180521/DC/"
+             id="Definitions_BILL_DIARIA_001"
+             name="Tipo Acomodacao x Contrato"
+             targetNamespace="http://camunda.org/schema/1.0/dmn">
+
+  <decision id="Decision_BILL_DIARIA_001" name="Tipo Acomodacao x Contrato">
+    <decisionTable id="DecisionTable_BILL_DIARIA_001" hitPolicy="FIRST">
+
+      <!-- ========== INPUTS ========== -->
+      <input id="Input_1" label="Tipo Acomodacao">
+        <inputExpression id="InputExpression_1" typeRef="string">
+          <text>tipoAcomodacao</text>
+        </inputExpression>
+        <inputValues id="InputValues_1">
+          <text>"ENFERMARIA", "APARTAMENTO", "UTI", "SEMI-INTENSIVA"</text>
+        </inputValues>
+      </input>
+
+      <input id="Input_2" label="Contrato Permite">
+        <inputExpression id="InputExpression_2" typeRef="boolean">
+          <text>contratoPermite</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_3" label="Dias Internacao">
+        <inputExpression id="InputExpression_3" typeRef="number">
+          <text>diasInternacao</text>
+        </inputExpression>
+      </input>
+
+      <!-- ========== OUTPUTS (5 STANDARD) ========== -->
+      <output id="Output_1" label="Resultado" name="resultado" typeRef="string">
+        <outputValues><text>"Prosseguir", "Bloquear", "Alertar", "Revisar"</text></outputValues>
+      </output>
+
+      <output id="Output_2" label="Observacao" name="observacao" typeRef="string"/>
+
+      <output id="Output_3" label="Acao Recomendada" name="acaoRecomendada" typeRef="string"/>
+
+      <output id="Output_4" label="Alertas Conformidade" name="alertasConformidade" typeRef="string">
+        <outputValues><text>"NENHUM", "DUP", "FREQ", "PRAZO", "DOC", "VALOR", "CRED", "CONTRATO"</text></outputValues>
+      </output>
+
+      <output id="Output_5" label="Risco Denial" name="riscoDenial" typeRef="string">
+        <outputValues><text>"BAIXO", "MEDIO", "ALTO", "CRITICO"</text></outputValues>
+      </output>
+
+      <!-- ========== RULES ========== -->
+
+      <!-- REGRA B1: Bloqueio - Acomodacao nao prevista em contrato -->
+      <rule id="Rule_Bloqueio_1">
+        <description>Acomodacao superior ao permitido pelo contrato</description>
+        <inputEntry id="InputEntry_B1_1"><text>"APARTAMENTO"</text></inputEntry>
+        <inputEntry id="InputEntry_B1_2"><text>false</text></inputEntry>
+        <inputEntry id="InputEntry_B1_3"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_B1_1"><text>"Bloquear"</text></outputEntry>
+        <outputEntry id="OutputEntry_B1_2"><text>"Acomodacao em APARTAMENTO nao prevista no contrato. Contrato cobre apenas ENFERMARIA."</text></outputEntry>
+        <outputEntry id="OutputEntry_B1_3"><text>"Bloquear cobranca para operadora. Cobrar diferenca diretamente do paciente se houver upgrade voluntario."</text></outputEntry>
+        <outputEntry id="OutputEntry_B1_4"><text>"CONTRATO"</text></outputEntry>
+        <outputEntry id="OutputEntry_B1_5"><text>"ALTO"</text></outputEntry>
+      </rule>
+
+      <!-- REGRA A1: Alerta - Internacao prolongada -->
+      <rule id="Rule_Alerta_1">
+        <description>Dias de internacao superiores a 7 dias - Monitorar justificativa clinica</description>
+        <inputEntry id="InputEntry_A1_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_A1_2"><text>true</text></inputEntry>
+        <inputEntry id="InputEntry_A1_3"><text>&gt; 7</text></inputEntry>
+        <outputEntry id="OutputEntry_A1_1"><text>"Alertar"</text></outputEntry>
+        <outputEntry id="OutputEntry_A1_2"><text>"Internacao prolongada (&gt;7 dias). Operadora pode solicitar justificativa clinica."</text></outputEntry>
+        <outputEntry id="OutputEntry_A1_3"><text>"Documentar evolucao clinica diaria. Anexar pareceres medicos justificando permanencia."</text></outputEntry>
+        <outputEntry id="OutputEntry_A1_4"><text>"DOC"</text></outputEntry>
+        <outputEntry id="OutputEntry_A1_5"><text>"MEDIO"</text></outputEntry>
+      </rule>
+
+      <!-- REGRA P1: Aprovado - Acomodacao conforme contrato -->
+      <rule id="Rule_Aprovado_1">
+        <description>Acomodacao compativel com contrato e internacao dentro do prazo esperado</description>
+        <inputEntry id="InputEntry_P1_1"><text>"ENFERMARIA", "APARTAMENTO"</text></inputEntry>
+        <inputEntry id="InputEntry_P1_2"><text>true</text></inputEntry>
+        <inputEntry id="InputEntry_P1_3"><text>[1..7]</text></inputEntry>
+        <outputEntry id="OutputEntry_P1_1"><text>"Prosseguir"</text></outputEntry>
+        <outputEntry id="OutputEntry_P1_2"><text>"Acomodacao conforme contrato. Dias de internacao dentro do esperado."</text></outputEntry>
+        <outputEntry id="OutputEntry_P1_3"><text>"Prosseguir com faturamento de diarias conforme tabela contratual."</text></outputEntry>
+        <outputEntry id="OutputEntry_P1_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_P1_5"><text>"BAIXO"</text></outputEntry>
+      </rule>
+
+      <!-- REGRA P2: Aprovado - UTI/Semi-intensiva -->
+      <rule id="Rule_Aprovado_2">
+        <description>UTI ou Semi-intensiva - Validar apenas necessidade clinica</description>
+        <inputEntry id="InputEntry_P2_1"><text>"UTI", "SEMI-INTENSIVA"</text></inputEntry>
+        <inputEntry id="InputEntry_P2_2"><text>true</text></inputEntry>
+        <inputEntry id="InputEntry_P2_3"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_P2_1"><text>"Prosseguir"</text></outputEntry>
+        <outputEntry id="OutputEntry_P2_2"><text>"Acomodacao em UTI/Semi-intensiva por necessidade clinica. Prosseguir com faturamento."</text></outputEntry>
+        <outputEntry id="OutputEntry_P2_3"><text>"Faturar diarias de UTI/Semi-intensiva. Documentar criterios de admissao e permanencia."</text></outputEntry>
+        <outputEntry id="OutputEntry_P2_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_P2_5"><text>"BAIXO"</text></outputEntry>
+      </rule>
+
+      <!-- REGRA F: Fallback - Requer revisao manual -->
+      <rule id="Rule_Fallback_BILL_DIARIA_001">
+        <description>Regra padrao - Requer avaliacao manual</description>
+        <inputEntry id="InputEntry_F_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_F_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_F_3"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_F_1"><text>"Revisar"</text></outputEntry>
+        <outputEntry id="OutputEntry_F_2"><text>"Situacao requer analise manual por nao corresponder a nenhum criterio automatico."</text></outputEntry>
+        <outputEntry id="OutputEntry_F_3"><text>"Encaminhar para auditoria administrativa para avaliacao caso a caso."</text></outputEntry>
+        <outputEntry id="OutputEntry_F_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_F_5"><text>"MEDIO"</text></outputEntry>
+      </rule>
+
+    </decisionTable>
+  </decision>
+
+  <dmndi:DMNDI>
+    <dmndi:DMNDiagram id="DMNDiagram_BILL_DIARIA_001">
+      <dmndi:DMNShape id="DMNShape_Decision_BILL_DIARIA_001" dmnElementRef="Decision_BILL_DIARIA_001">
+        <dc:Bounds height="80" width="180" x="160" y="100"/>
+      </dmndi:DMNShape>
+    </dmndi:DMNDiagram>
+  </dmndi:DMNDI>
+
+</definitions>

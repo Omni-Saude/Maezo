@@ -1,0 +1,283 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             xmlns:camunda="http://camunda.org/schema/1.0/dmn"
+             id="Definitions_30904161"
+             name="Implante de Ressincronizador com CDI (CRT-D) - LEAN Anti-Desperdicio"
+             namespace="http://camunda.org/schema/1.0/dmn">
+
+  <!--
+    ===============================================================================
+    TUSS: 30904161
+    Procedimento: Implante de Ressincronizador com Desfibrilador (CRT-D)
+    Versao: 1.0.0-LEAN-TIER2
+    Data: 2026-02-07
+    ===============================================================================
+
+    INDICACOES CLINICAS (ACC/AHA/HRS 2024):
+    - FEVE menor ou igual 35% + BRE QRS maior ou igual 150ms + IC NYHA II-IV (Classe I)
+    - FEVE menor ou igual 35% + BRE QRS 130-149ms + IC NYHA II-IV (Classe I)
+    - FEVE menor ou igual 35% + nao-BRE QRS maior ou igual 150ms + IC NYHA II-IV (Classe IIa)
+    - Indicacao de CDI + TRC concomitante (Classe I)
+    - Upgrade de MP para TRC-D com cardiomiopatia induzida por estimulacao (Classe IIa)
+
+    CONTRAINDICACOES:
+    - QRS menor 130ms
+    - Expectativa de vida menor 1 ano
+    - FEVE maior 35% sem indicacao de CDI
+    - IC refrataria sem perspectiva melhora
+    - Classe III: QRS estreito, assincronia isolada por eco
+
+    REFERENCIAS TECNICAS:
+    - ACC/AHA/HRS 2024 Guidelines Device Therapy
+    - ESC 2023 Heart Failure Guidelines
+    - SBC/DECA 2023 Diretrizes Dispositivos
+    - RAFT, MADIT-CRT Trials
+
+    ALERTAS DE DESPERDICIO (LEAN TIER-2):
+    - NENHUM: Sem alertas identificados
+    - DUP: Duplicidade (CRT-D previo funcional)
+    - FREQ: Troca precoce sem indicacao
+    - ESC: Escalonamento inadequado (CRT-D sem TMO otimizada ou QRS estreito)
+    - DOC: Documentacao insuficiente (FEVE, QRS, classe NYHA)
+    - PROT: Protocolo nao seguido (QRS menor 130ms, sem TMO)
+    - MULTI: Multiplos alertas combinados
+
+    ===============================================================================
+  -->
+
+  <decision id="Decision_30904161" name="Regra Clinica LEAN - CRT-D">
+    <decisionTable id="DecisionTable_30904161" hitPolicy="FIRST">
+
+      <!-- ========== INPUTS (5 - Padrao LEAN TIER-2 Cardiologia) ========== -->
+
+      <input id="Input_condicaoPaciente" label="Condicao do Paciente" camunda:inputVariable="condicaoPaciente">
+        <inputExpression id="InputExpression_condicaoPaciente" typeRef="string">
+          <text>condicaoPaciente</text>
+        </inputExpression>
+        <inputValues id="InputValues_condicaoPaciente">
+          <text>"IC_NYHA_II","IC_NYHA_III","IC_NYHA_IV","IC_NYHA_III_IV_Ambulatorial","UpgradeMP","IndicacaoCDI"</text>
+        </inputValues>
+      </input>
+
+      <input id="Input_historicoClinico" label="Historico Clinico" camunda:inputVariable="historicoClinico">
+        <inputExpression id="InputExpression_historicoClinico" typeRef="string">
+          <text>historicoClinico</text>
+        </inputExpression>
+        <inputValues id="InputValues_historicoClinico">
+          <text>"Adequado","Incompleto","NaoDocumentado"</text>
+        </inputValues>
+      </input>
+
+      <input id="Input_classeIndicacao" label="Classe de Indicacao (ACC/AHA/HRS)" camunda:inputVariable="classeIndicacao">
+        <inputExpression id="InputExpression_classeIndicacao" typeRef="string">
+          <text>classeIndicacao</text>
+        </inputExpression>
+        <inputValues id="InputValues_classeIndicacao">
+          <text>"Classe I","Classe IIa","Classe IIb","Classe III"</text>
+        </inputValues>
+      </input>
+
+      <input id="Input_ultimoProcedimentoDias" label="Dias desde Ultimo Procedimento CRT" camunda:inputVariable="ultimoProcedimentoDias">
+        <inputExpression id="InputExpression_ultimoProcedimentoDias" typeRef="integer">
+          <text>ultimoProcedimentoDias</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_larguraQRS" label="Largura QRS e Morfologia" camunda:inputVariable="larguraQRS">
+        <inputExpression id="InputExpression_larguraQRS" typeRef="string">
+          <text>larguraQRS</text>
+        </inputExpression>
+        <inputValues id="InputValues_larguraQRS">
+          <text>"BRE_QRS_Maior150","BRE_QRS_130a149","NaoBRE_QRS_Maior150","NaoBRE_QRS_130a149","QRS_Menor130","NaoDocumentado"</text>
+        </inputValues>
+      </input>
+
+      <!-- ========== OUTPUTS (5 - Padrao LEAN TIER-2) ========== -->
+
+      <output id="Output_resultado" label="Resultado" name="resultado" typeRef="string">
+        <outputValues id="OutputValues_resultado">
+          <text>"Aprovado","Reprovado","Pendente"</text>
+        </outputValues>
+      </output>
+
+      <output id="Output_observacao" label="Observacao Clinica" name="observacao" typeRef="string" />
+
+      <output id="Output_fundamentacao" label="Fundamentacao Tecnica" name="fundamentacao" typeRef="string" />
+
+      <output id="Output_alertasDesperdicio" label="Alertas de Desperdicio" name="alertasDesperdicio" typeRef="string">
+        <outputValues id="OutputValues_alertasDesperdicio">
+          <text>"NENHUM","DUP","FREQ","ESC","DOC","PROT","MULTI"</text>
+        </outputValues>
+      </output>
+
+      <output id="Output_acaoRecomendada" label="Acao Recomendada" name="acaoRecomendada" typeRef="string">
+        <outputValues id="OutputValues_acaoRecomendada">
+          <text>"APROVAR","NEGAR","SOLICITAR_INFO","AGUARDAR_PRAZO","SUGERIR_ALTERNATIVA"</text>
+        </outputValues>
+      </output>
+
+      <!-- ========== RULES - CONTRAINDICACOES ========== -->
+
+      <rule id="Rule_Reprovado_ClasseIII">
+        <description>Reprovado: Classe III - CRT-D nao indicado</description>
+        <inputEntry id="IE_CI3_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_CI3_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_CI3_3"><text>"Classe III"</text></inputEntry>
+        <inputEntry id="IE_CI3_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_CI3_5"><text>-</text></inputEntry>
+        <outputEntry id="OE_CI3_resultado"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OE_CI3_observacao"><text>"Classe III - CRT-D nao indicado. Considerar TMO isolada ou CDI isolado se indicacao presente"</text></outputEntry>
+        <outputEntry id="OE_CI3_fundamentacao"><text>"ACC/AHA/HRS 2024 - Classe III: CRT nao indicado em QRS estreito ou assincronia isolada por eco"</text></outputEntry>
+        <outputEntry id="OE_CI3_alerta"><text>"PROT"</text></outputEntry>
+        <outputEntry id="OE_CI3_acao"><text>"NEGAR"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Reprovado_PROT_QRSEstreito">
+        <description>Reprovado PROT: QRS menor 130ms - sem beneficio de ressincronizacao</description>
+        <inputEntry id="IE_QRS_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_QRS_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_QRS_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_QRS_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_QRS_5"><text>"QRS_Menor130"</text></inputEntry>
+        <outputEntry id="OE_QRS_resultado"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OE_QRS_observacao"><text>"QRS menor 130ms - sem beneficio demonstrado de ressincronizacao. Considerar CDI isolado se indicado"</text></outputEntry>
+        <outputEntry id="OE_QRS_fundamentacao"><text>"ESC 2023, ACC/AHA 2024 - QRS maior ou igual 130ms e obrigatorio para indicacao de TRC. Estudos com QRS estreito foram negativos"</text></outputEntry>
+        <outputEntry id="OE_QRS_alerta"><text>"PROT"</text></outputEntry>
+        <outputEntry id="OE_QRS_acao"><text>"SUGERIR_ALTERNATIVA"</text></outputEntry>
+      </rule>
+
+      <!-- ========== RULES - ALERTAS DE DESPERDICIO ========== -->
+
+      <rule id="Rule_Pendente_DOC_Incompleto">
+        <description>Pendente DOC: Documentacao clinica incompleta</description>
+        <inputEntry id="IE_Doc_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_Doc_2"><text>"Incompleto"</text></inputEntry>
+        <inputEntry id="IE_Doc_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_Doc_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_Doc_5"><text>-</text></inputEntry>
+        <outputEntry id="OE_Doc_resultado"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OE_Doc_observacao"><text>"Documentacao incompleta - solicitar: Eco com FEVE, ECG com QRS e morfologia, classe NYHA, TMO em uso"</text></outputEntry>
+        <outputEntry id="OE_Doc_fundamentacao"><text>"ANS RN 465/2021 - Documentacao completa necessaria para autorizacao de dispositivos de alto custo"</text></outputEntry>
+        <outputEntry id="OE_Doc_alerta"><text>"DOC"</text></outputEntry>
+        <outputEntry id="OE_Doc_acao"><text>"SOLICITAR_INFO"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Reprovado_DOC_Ausente">
+        <description>Reprovado DOC: Documentacao clinica ausente</description>
+        <inputEntry id="IE_Doc_Aus_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_Doc_Aus_2"><text>"NaoDocumentado"</text></inputEntry>
+        <inputEntry id="IE_Doc_Aus_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_Doc_Aus_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_Doc_Aus_5"><text>-</text></inputEntry>
+        <outputEntry id="OE_Doc_Aus_resultado"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OE_Doc_Aus_observacao"><text>"Documentacao clinica essencial ausente - impossivel avaliar indicacao de CRT-D"</text></outputEntry>
+        <outputEntry id="OE_Doc_Aus_fundamentacao"><text>"ANS RN 465/2021, CPC 25 - Autorizacao impossivel sem documentacao minima exigida"</text></outputEntry>
+        <outputEntry id="OE_Doc_Aus_alerta"><text>"DOC"</text></outputEntry>
+        <outputEntry id="OE_Doc_Aus_acao"><text>"NEGAR"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Pendente_ESC_QRSNaoDocumentado">
+        <description>Pendente ESC: QRS nao documentado - parametro essencial</description>
+        <inputEntry id="IE_ESC_QRS_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_ESC_QRS_2"><text>"Adequado"</text></inputEntry>
+        <inputEntry id="IE_ESC_QRS_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_ESC_QRS_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_ESC_QRS_5"><text>"NaoDocumentado"</text></inputEntry>
+        <outputEntry id="OE_ESC_QRS_resultado"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OE_ESC_QRS_observacao"><text>"QRS nao documentado - ECG com duracao e morfologia QRS e obrigatorio para indicacao de CRT"</text></outputEntry>
+        <outputEntry id="OE_ESC_QRS_fundamentacao"><text>"ACC/AHA/HRS 2024: QRS e criterio mandatorio. BRE maior 150ms tem maior beneficio"</text></outputEntry>
+        <outputEntry id="OE_ESC_QRS_alerta"><text>"ESC"</text></outputEntry>
+        <outputEntry id="OE_ESC_QRS_acao"><text>"SOLICITAR_INFO"</text></outputEntry>
+      </rule>
+
+      <!-- ========== RULES - APROVACOES ========== -->
+
+      <rule id="Rule_Aprovado_BRE_150">
+        <description>Aprovado: BRE com QRS maior ou igual 150ms - indicacao optima</description>
+        <inputEntry id="IE_BRE150_1"><text>"IC_NYHA_II","IC_NYHA_III","IC_NYHA_IV","IC_NYHA_III_IV_Ambulatorial"</text></inputEntry>
+        <inputEntry id="IE_BRE150_2"><text>"Adequado"</text></inputEntry>
+        <inputEntry id="IE_BRE150_3"><text>"Classe I"</text></inputEntry>
+        <inputEntry id="IE_BRE150_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_BRE150_5"><text>"BRE_QRS_Maior150"</text></inputEntry>
+        <outputEntry id="OE_BRE150_resultado"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OE_BRE150_observacao"><text>"Classe I - BRE com QRS maior ou igual 150ms e FEVE menor ou igual 35%: cenario optimo para CRT-D"</text></outputEntry>
+        <outputEntry id="OE_BRE150_fundamentacao"><text>"ACC/AHA/HRS 2024 Classe I, Nivel A. RAFT, MADIT-CRT - Maior beneficio em BRE com QRS alargado"</text></outputEntry>
+        <outputEntry id="OE_BRE150_alerta"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_BRE150_acao"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Aprovado_BRE_130">
+        <description>Aprovado: BRE com QRS 130-149ms</description>
+        <inputEntry id="IE_BRE130_1"><text>"IC_NYHA_II","IC_NYHA_III","IC_NYHA_IV"</text></inputEntry>
+        <inputEntry id="IE_BRE130_2"><text>"Adequado"</text></inputEntry>
+        <inputEntry id="IE_BRE130_3"><text>"Classe I"</text></inputEntry>
+        <inputEntry id="IE_BRE130_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_BRE130_5"><text>"BRE_QRS_130a149"</text></inputEntry>
+        <outputEntry id="OE_BRE130_resultado"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OE_BRE130_observacao"><text>"Classe I - BRE com QRS 130-149ms e FEVE menor ou igual 35%. Beneficio demonstrado"</text></outputEntry>
+        <outputEntry id="OE_BRE130_fundamentacao"><text>"ACC/AHA/HRS 2024 Classe I, Nivel B. Beneficio demonstrado em BRE tipico"</text></outputEntry>
+        <outputEntry id="OE_BRE130_alerta"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_BRE130_acao"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Aprovado_NaoBRE_150">
+        <description>Aprovado: Nao-BRE com QRS maior ou igual 150ms</description>
+        <inputEntry id="IE_NaoBRE150_1"><text>"IC_NYHA_II","IC_NYHA_III","IC_NYHA_IV"</text></inputEntry>
+        <inputEntry id="IE_NaoBRE150_2"><text>"Adequado"</text></inputEntry>
+        <inputEntry id="IE_NaoBRE150_3"><text>"Classe IIa"</text></inputEntry>
+        <inputEntry id="IE_NaoBRE150_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_NaoBRE150_5"><text>"NaoBRE_QRS_Maior150"</text></inputEntry>
+        <outputEntry id="OE_NaoBRE150_resultado"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OE_NaoBRE150_observacao"><text>"Classe IIa - Nao-BRE com QRS maior ou igual 150ms, beneficio provavel mas menor que BRE"</text></outputEntry>
+        <outputEntry id="OE_NaoBRE150_fundamentacao"><text>"ACC/AHA/HRS 2024 Classe IIa. Beneficio menor que BRE mas ainda presente em QRS alargado"</text></outputEntry>
+        <outputEntry id="OE_NaoBRE150_alerta"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_NaoBRE150_acao"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Aprovado_Upgrade">
+        <description>Aprovado: Upgrade de MP com cardiomiopatia induzida</description>
+        <inputEntry id="IE_Upg_1"><text>"UpgradeMP"</text></inputEntry>
+        <inputEntry id="IE_Upg_2"><text>"Adequado"</text></inputEntry>
+        <inputEntry id="IE_Upg_3"><text>"Classe IIa"</text></inputEntry>
+        <inputEntry id="IE_Upg_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_Upg_5"><text>-</text></inputEntry>
+        <outputEntry id="OE_Upg_resultado"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OE_Upg_observacao"><text>"Classe IIa - Upgrade de MP com IC secundaria a estimulacao VD maior 40%"</text></outputEntry>
+        <outputEntry id="OE_Upg_fundamentacao"><text>"ACC/AHA/HRS 2024 Classe IIa. ESC 2023 - Upgrade indicado se IC desenvolve apos MP"</text></outputEntry>
+        <outputEntry id="OE_Upg_alerta"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_Upg_acao"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Pendente_NaoBRE_130">
+        <description>Pendente: Nao-BRE com QRS 130-149ms - beneficio incerto</description>
+        <inputEntry id="IE_NaoBRE130_1"><text>"IC_NYHA_II","IC_NYHA_III","IC_NYHA_IV"</text></inputEntry>
+        <inputEntry id="IE_NaoBRE130_2"><text>"Adequado"</text></inputEntry>
+        <inputEntry id="IE_NaoBRE130_3"><text>"Classe IIb"</text></inputEntry>
+        <inputEntry id="IE_NaoBRE130_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_NaoBRE130_5"><text>"NaoBRE_QRS_130a149"</text></inputEntry>
+        <outputEntry id="OE_NaoBRE130_resultado"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OE_NaoBRE130_observacao"><text>"Classe IIb - Nao-BRE com QRS 130-149ms tem beneficio incerto. Discutir alternativas (His bundle, LBBAP)"</text></outputEntry>
+        <outputEntry id="OE_NaoBRE130_fundamentacao"><text>"ACC/AHA/HRS 2024 Classe IIb. Menor taxa de resposta em nao-BRE com QRS 130-149ms"</text></outputEntry>
+        <outputEntry id="OE_NaoBRE130_alerta"><text>"ESC"</text></outputEntry>
+        <outputEntry id="OE_NaoBRE130_acao"><text>"SOLICITAR_INFO"</text></outputEntry>
+      </rule>
+
+      <!-- ========== FALLBACK RULE ========== -->
+
+      <rule id="Rule_Fallback_30904161">
+        <description>Regra padrao - Parecer eletrofisiologista</description>
+        <inputEntry id="IE_FB_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_FB_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_FB_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_FB_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_FB_5"><text>-</text></inputEntry>
+        <outputEntry id="OE_FB_resultado"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OE_FB_observacao"><text>"Caso complexo - solicitar parecer de eletrofisiologista para avaliacao de indicacao de CRT-D"</text></outputEntry>
+        <outputEntry id="OE_FB_fundamentacao"><text>"ACC/AHA/HRS 2024: Avaliacao individualizada por especialista em dispositivos"</text></outputEntry>
+        <outputEntry id="OE_FB_alerta"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_FB_acao"><text>"SOLICITAR_INFO"</text></outputEntry>
+      </rule>
+
+    </decisionTable>
+  </decision>
+</definitions>

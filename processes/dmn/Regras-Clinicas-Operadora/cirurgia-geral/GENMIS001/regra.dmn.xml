@@ -1,0 +1,224 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             xmlns:camunda="http://camunda.org/schema/1.0/dmn"
+             id="Definitions_GEN_MIS_001"
+             name="Biopsia Linfonodal - Diagnostico"
+             namespace="http://camunda.org/schema/1.0/dmn">
+
+  <!--
+    ===============================================================================
+    CODIGO: GEN-MIS-001
+    Procedimento: Biopsia de Linfonodo - Criterios Diagnosticos
+    Especialidade: Cirurgia Geral - Procedimentos Diversos
+    Versao: 3.0.0-TIER1
+    Data: 2026-02-07
+    ===============================================================================
+
+    INDICACOES PARA BIOPSIA:
+    - Linfadenopatia persistente > 4 semanas
+    - Linfonodo > 2 cm sem causa aparente
+    - Linfonodos supraclaviculares ou escalenicos
+    - Suspeita de linfoma ou metastase
+    - Falha de investigacao nao invasiva
+
+    CONTRAINDICACOES:
+    - Coagulopatia nao corrigida
+    - Linfadenopatia reacional evidente (infeccao ativa)
+    - Possibilidade de diagnostico por PAAF/core biopsy
+
+    REFERENCIAS TECNICAS:
+    - NCCN Hodgkin Lymphoma 2023
+    - ESMO Lymphadenopathy Guidelines 2019
+    - ACR Appropriateness Criteria 2020
+
+    ===============================================================================
+  -->
+
+  <decision id="Decision_GEN_MIS_001" name="Regra Clinica - Biopsia Linfonodal">
+    <decisionTable id="DecisionTable_GEN_MIS_001" hitPolicy="FIRST">
+
+      <!-- ========== INPUTS (5) ========== -->
+
+      <input id="Input_tamanhoLinfonodo" label="Tamanho do Linfonodo (cm)" camunda:inputVariable="tamanhoLinfonodo">
+        <inputExpression id="InputExpression_tamanhoLinfonodo" typeRef="number">
+          <text>tamanhoLinfonodo</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_duracaoLinfadenopatia" label="Duracao da Linfadenopatia (semanas)" camunda:inputVariable="duracaoLinfadenopatia">
+        <inputExpression id="InputExpression_duracaoLinfadenopatia" typeRef="number">
+          <text>duracaoLinfadenopatia</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_localizacao" label="Localizacao do Linfonodo" camunda:inputVariable="localizacao">
+        <inputExpression id="InputExpression_localizacao" typeRef="string">
+          <text>localizacao</text>
+        </inputExpression>
+        <inputValues id="InputValues_localizacao">
+          <text>"Cervical","Axilar","Inguinal","Supraclavicular","Escaleno","Mediastinal","Retroperitoneal"</text>
+        </inputValues>
+      </input>
+
+      <input id="Input_paafRealizada" label="PAAF ou Core Biopsy Realizada" camunda:inputVariable="paafRealizada">
+        <inputExpression id="InputExpression_paafRealizada" typeRef="string">
+          <text>paafRealizada</text>
+        </inputExpression>
+        <inputValues id="InputValues_paafRealizada">
+          <text>"NaoRealizada","Inconclusiva","SuspeitaLinfoma","SuspeitaMetastase","Benigno"</text>
+        </inputValues>
+      </input>
+
+      <input id="Input_sintomasB" label="Sintomas B Presentes" camunda:inputVariable="sintomasB">
+        <inputExpression id="InputExpression_sintomasB" typeRef="boolean">
+          <text>sintomasB</text>
+        </inputExpression>
+      </input>
+
+      <!-- ========== OUTPUTS (3) ========== -->
+
+      <output id="Output_resultado" label="Resultado" name="resultado" typeRef="string">
+        <outputValues id="OutputValues_resultado">
+          <text>"Aprovado","Reprovado","Pendente"</text>
+        </outputValues>
+      </output>
+
+      <output id="Output_observacao" label="Observacao Clinica" name="observacao" typeRef="string" />
+
+      <output id="Output_fundamentacao" label="Fundamentacao Tecnica" name="fundamentacao" typeRef="string" />
+
+      <!-- Output 4: Alertas Desperdicio -->
+      <output id="Output_alertasDesperdicio" label="Alertas de Desperdicio" name="alertasDesperdicio" typeRef="string">
+        <outputValues id="OutputValues_alertasDesperdicio">
+          <text>"NENHUM","DUP","FREQ","ESC","DOC","PROT","MULTI"</text>
+        </outputValues>
+      </output>
+
+      <!-- Output 5: Acao Recomendada -->
+      <output id="Output_acaoRecomendada" label="Acao Recomendada" name="acaoRecomendada" typeRef="string">
+        <outputValues id="OutputValues_acaoRecomendada">
+          <text>"APROVAR","NEGAR","SOLICITAR_INFO","AGUARDAR_PRAZO","SUGERIR_ALTERNATIVA"</text>
+        </outputValues>
+      </output>
+
+      <!-- ========== REGRAS DE REPROVACAO ========== -->
+
+      <rule id="Rule_Reprovado_PequenoRecente">
+        <description>Reprovado: Linfonodo pequeno e recente - observar</description>
+        <inputEntry id="IE_Rep1_1"><text>&lt; 1</text></inputEntry>
+        <inputEntry id="IE_Rep1_2"><text>&lt; 4</text></inputEntry>
+        <inputEntry id="IE_Rep1_3"><text>"Cervical","Axilar","Inguinal"</text></inputEntry>
+        <inputEntry id="IE_Rep1_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_Rep1_5"><text>false</text></inputEntry>
+        <outputEntry id="OE_Rep1_1"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OE_Rep1_2"><text>"Linfonodo pequeno e recente em localizacao nao suspeita - observar por 4 semanas"</text></outputEntry>
+        <outputEntry id="OE_Rep1_3"><text>"ESMO 2019 - Linfadenopatia &lt; 1cm por &lt; 4 semanas geralmente reacional"</text></outputEntry>
+      <outputEntry id="OE_Reprovado_PequenoRecente_4"><text>"PROT"</text></outputEntry>
+        <outputEntry id="OE_Reprovado_PequenoRecente_5"><text>"NEGAR"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Reprovado_PAAPBenigno">
+        <description>Reprovado: PAAF benigna sem indicadores de risco</description>
+        <inputEntry id="IE_Rep2_1"><text>&lt; 2</text></inputEntry>
+        <inputEntry id="IE_Rep2_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_Rep2_3"><text>"Cervical","Axilar","Inguinal"</text></inputEntry>
+        <inputEntry id="IE_Rep2_4"><text>"Benigno"</text></inputEntry>
+        <inputEntry id="IE_Rep2_5"><text>false</text></inputEntry>
+        <outputEntry id="OE_Rep2_1"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OE_Rep2_2"><text>"PAAF benigna em linfonodo pequeno sem sintomas B - seguimento clinico"</text></outputEntry>
+        <outputEntry id="OE_Rep2_3"><text>"ACR 2020 - PAAF benigna dispensa biopsia excisional se ausencia de sinais de alarme"</text></outputEntry>
+      <outputEntry id="OE_Reprovado_PAAPBenigno_4"><text>"PROT"</text></outputEntry>
+        <outputEntry id="OE_Reprovado_PAAPBenigno_5"><text>"NEGAR"</text></outputEntry>
+      </rule>
+
+      <!-- ========== REGRAS DE APROVACAO ========== -->
+
+      <rule id="Rule_Aprovado_Supraclavicular">
+        <description>Aprovado: Linfonodo supraclavicular ou escaleno</description>
+        <inputEntry id="IE_Apr1_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_Apr1_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_Apr1_3"><text>"Supraclavicular","Escaleno"</text></inputEntry>
+        <inputEntry id="IE_Apr1_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_Apr1_5"><text>-</text></inputEntry>
+        <outputEntry id="OE_Apr1_1"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OE_Apr1_2"><text>"Linfonodo supraclavicular/escaleno - alta suspeita de malignidade, biopsia indicada"</text></outputEntry>
+        <outputEntry id="OE_Apr1_3"><text>"ESMO 2019 - Linfonodos supraclaviculares sao malignos em 90% dos adultos"</text></outputEntry>
+      <outputEntry id="OE_Aprovado_Supraclavicular_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_Aprovado_Supraclavicular_5"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Aprovado_SuspeitaLinfoma">
+        <description>Aprovado: PAAF com suspeita de linfoma</description>
+        <inputEntry id="IE_Apr2_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_Apr2_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_Apr2_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_Apr2_4"><text>"SuspeitaLinfoma"</text></inputEntry>
+        <inputEntry id="IE_Apr2_5"><text>-</text></inputEntry>
+        <outputEntry id="OE_Apr2_1"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OE_Apr2_2"><text>"Suspeita de linfoma - biopsia excisional obrigatoria para classificacao histologica"</text></outputEntry>
+        <outputEntry id="OE_Apr2_3"><text>"NCCN 2023 - Linfoma requer biopsia excisional para tipagem adequada"</text></outputEntry>
+      <outputEntry id="OE_Aprovado_SuspeitaLinfoma_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_Aprovado_SuspeitaLinfoma_5"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Aprovado_SintomasBGrande">
+        <description>Aprovado: Sintomas B com linfonodo aumentado</description>
+        <inputEntry id="IE_Apr3_1"><text>&gt;= 2</text></inputEntry>
+        <inputEntry id="IE_Apr3_2"><text>&gt;= 4</text></inputEntry>
+        <inputEntry id="IE_Apr3_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_Apr3_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_Apr3_5"><text>true</text></inputEntry>
+        <outputEntry id="OE_Apr3_1"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OE_Apr3_2"><text>"Sintomas B com linfadenopatia persistente - biopsia para excluir linfoma"</text></outputEntry>
+        <outputEntry id="OE_Apr3_3"><text>"NCCN 2023 - Sintomas B indicam doenca linfoproliferativa ativa"</text></outputEntry>
+      <outputEntry id="OE_Aprovado_SintomasBGrande_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_Aprovado_SintomasBGrande_5"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Aprovado_PAAPInconclusiva">
+        <description>Aprovado: PAAF inconclusiva com linfonodo suspeito</description>
+        <inputEntry id="IE_Apr4_1"><text>&gt;= 2</text></inputEntry>
+        <inputEntry id="IE_Apr4_2"><text>&gt;= 4</text></inputEntry>
+        <inputEntry id="IE_Apr4_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_Apr4_4"><text>"Inconclusiva"</text></inputEntry>
+        <inputEntry id="IE_Apr4_5"><text>-</text></inputEntry>
+        <outputEntry id="OE_Apr4_1"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OE_Apr4_2"><text>"PAAF inconclusiva em linfonodo suspeito - biopsia excisional indicada"</text></outputEntry>
+        <outputEntry id="OE_Apr4_3"><text>"ACR 2020 - PAAF inconclusiva com clinica suspeita requer biopsia aberta"</text></outputEntry>
+      <outputEntry id="OE_Aprovado_PAAPInconclusiva_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_Aprovado_PAAPInconclusiva_5"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Aprovado_GrandePersistente">
+        <description>Aprovado: Linfonodo grande e persistente</description>
+        <inputEntry id="IE_Apr5_1"><text>&gt;= 2</text></inputEntry>
+        <inputEntry id="IE_Apr5_2"><text>&gt;= 6</text></inputEntry>
+        <inputEntry id="IE_Apr5_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_Apr5_4"><text>"NaoRealizada"</text></inputEntry>
+        <inputEntry id="IE_Apr5_5"><text>-</text></inputEntry>
+        <outputEntry id="OE_Apr5_1"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OE_Apr5_2"><text>"Linfadenopatia &gt;= 2cm persistente por &gt;= 6 semanas - biopsia indicada"</text></outputEntry>
+        <outputEntry id="OE_Apr5_3"><text>"ESMO 2019 - Persistencia &gt; 6 semanas com tamanho &gt;= 2cm indica investigacao"</text></outputEntry>
+      <outputEntry id="OE_Aprovado_GrandePersistente_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_Aprovado_GrandePersistente_5"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <!-- ========== REGRA FALLBACK ========== -->
+
+      <rule id="Rule_Fallback_GEN_MIS_001">
+        <description>Pendente: Realizar PAAF ou core biopsy primeiro</description>
+        <inputEntry id="IE_FB_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_FB_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_FB_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_FB_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_FB_5"><text>-</text></inputEntry>
+        <outputEntry id="OE_FB_1"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OE_FB_2"><text>"Considerar PAAF ou core biopsy como primeiro passo antes de biopsia excisional"</text></outputEntry>
+        <outputEntry id="OE_FB_3"><text>"ACR 2020 - Abordagem step-wise preferencial para linfadenopatia"</text></outputEntry>
+      <outputEntry id="OE_Fallback_GEN_MIS_001_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_Fallback_GEN_MIS_001_5"><text>"SOLICITAR_INFO"</text></outputEntry>
+      </rule>
+
+    </decisionTable>
+  </decision>
+</definitions>

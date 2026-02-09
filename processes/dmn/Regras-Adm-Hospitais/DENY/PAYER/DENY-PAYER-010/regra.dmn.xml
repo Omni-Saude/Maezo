@@ -1,0 +1,207 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  ============================================================================
+  DENY-PAYER-010 - Padrao Glosa Particular
+  ============================================================================
+  Versao: 1.0.0 (2026-02-06)
+  Categoria: DENY-PAYER (Padrao Especifico de Operadora)
+
+  OBJETIVO:
+  Identificar padroes de nao-recebimento em atendimentos particulares
+  relacionados a tabela de preco e acordos previos.
+
+  REFERENCIAS:
+  - Codigo de Defesa do Consumidor
+  - Tabela CBHPM (referencia)
+  - Politica de Precos do Hospital
+  - Contratos de Pacotes
+  ============================================================================
+-->
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/"
+             xmlns:dc="http://www.omg.org/spec/DMN/20180521/DC/" id="Definitions_DENY_PAYER_010" name="Padrao Glosa Particular" targetNamespace="http://camunda.org/schema/1.0/dmn">
+
+  <decision id="Decision_DENY_PAYER_010" name="Detectar Risco Nao-Pagamento Particular">
+    <decisionTable id="DecisionTable_DENY_PAYER_010" hitPolicy="FIRST">
+
+      <input id="Input_1" label="Tipo Atendimento">
+        <inputExpression id="InputExpression_1" typeRef="string">
+          <text>tipoAtendimento</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_2" label="Tabela Preco Aplicada">
+        <inputExpression id="InputExpression_2" typeRef="boolean">
+          <text>tabelaPrecoAplicada</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_3" label="Acordo Previo Formalizado">
+        <inputExpression id="InputExpression_3" typeRef="boolean">
+          <text>acordoPrevioFormalizado</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_4" label="Tipo Acordo">
+        <inputExpression id="InputExpression_4" typeRef="string">
+          <text>tipoAcordo</text>
+        </inputExpression>
+      </input>
+
+      <!-- OUTPUTS - Hospital Perspective -->
+      <!-- ========== OUTPUTS (5 STANDARD) ========== -->
+      <output id="Output_1" label="Resultado" name="resultado" typeRef="string">
+        <outputValues><text>"Prosseguir", "Bloquear", "Alertar", "Revisar"</text></outputValues>
+      </output>
+
+      <output id="Output_2" label="Observacao" name="observacao" typeRef="string"/>
+
+      <output id="Output_3" label="Acao Recomendada" name="acaoRecomendada" typeRef="string"/>
+
+      <output id="Output_4" label="Alertas Conformidade" name="alertasConformidade" typeRef="string">
+        <outputValues><text>"NENHUM", "DUP", "FREQ", "PRAZO", "DOC", "VALOR", "CRED", "CONTRATO"</text></outputValues>
+      </output>
+
+      <output id="Output_5" label="Risco Denial" name="riscoDenial" typeRef="string">
+        <outputValues><text>"BAIXO", "MEDIO", "ALTO", "CRITICO"</text></outputValues>
+      </output>
+
+      <!-- ========== RULES ========== -->
+
+      <rule id="Rule_Block_1">
+        <description>Particular de alto valor sem acordo formalizado</description>
+        <inputEntry id="InputEntry_B1_1"><text>"Particular", "Private"</text></inputEntry>
+        <inputEntry id="InputEntry_B1_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_B1_3"><text>false</text></inputEntry>
+        <inputEntry id="InputEntry_B1_4"><text>"Alto Valor", "Cirurgia", "Internacao"</text></inputEntry>
+<outputEntry id="OutputEntry_B1_1"><text>"Bloquear"</text></outputEntry>
+<outputEntry id="OutputEntry_B1_2"><text>"RISCO INADIMPLENCIA: Procedimento particular de alto valor sem acordo formalizado. Obter autorizacao/deposito antes de executar."</text></outputEntry>
+        <outputEntry id=""><text></text></outputEntry>
+        <outputEntry id=""><text>"NENHUM"</text></outputEntry>
+<outputEntry id="OutputEntry_B1_3"><text>"CRITICO"</text></outputEntry>
+      </rule>
+
+      <!-- REGRA 2: BLOQUEIO - Tabela de preco nao aplicada -->
+      <rule id="Rule_Block_2">
+        <description>Particular sem tabela de preco formalizada</description>
+        <inputEntry id="InputEntry_B2_1"><text>"Particular", "Private"</text></inputEntry>
+        <inputEntry id="InputEntry_B2_2"><text>false</text></inputEntry>
+        <inputEntry id="InputEntry_B2_3"><text>false</text></inputEntry>
+        <inputEntry id="InputEntry_B2_4"><text>-</text></inputEntry>
+<outputEntry id="OutputEntry_B2_1"><text>"Bloquear"</text></outputEntry>
+<outputEntry id="OutputEntry_B2_2"><text>"RISCO: Atendimento particular sem tabela de preco aplicada. Definir valores antes de executar para evitar disputa posterior."</text></outputEntry>
+        <outputEntry id=""><text></text></outputEntry>
+        <outputEntry id=""><text>"NENHUM"</text></outputEntry>
+<outputEntry id="OutputEntry_B2_3"><text>"CRITICO"</text></outputEntry>
+      </rule>
+
+      <!-- REGRA 3: ALERTA - Acordo parcial -->
+      <rule id="Rule_Alert_1">
+        <description>Particular com acordo parcialmente formalizado</description>
+        <inputEntry id="InputEntry_A1_1"><text>"Particular", "Private"</text></inputEntry>
+        <inputEntry id="InputEntry_A1_2"><text>true</text></inputEntry>
+        <inputEntry id="InputEntry_A1_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_A1_4"><text>"Parcial", "Verbal"</text></inputEntry>
+<outputEntry id="OutputEntry_A1_1"><text>"Alertar"</text></outputEntry>
+<outputEntry id="OutputEntry_A1_2"><text>"ATENCAO: Acordo particular apenas verbal ou parcial. Formalizar por escrito para seguranca juridica."</text></outputEntry>
+        <outputEntry id=""><text></text></outputEntry>
+        <outputEntry id=""><text>"NENHUM"</text></outputEntry>
+<outputEntry id="OutputEntry_A1_3"><text>"ALTO"</text></outputEntry>
+      </rule>
+
+      <!-- REGRA 4: ALERTA - Pacote sem detalhamento -->
+      <rule id="Rule_Alert_2">
+        <description>Particular com pacote sem detalhamento de itens</description>
+        <inputEntry id="InputEntry_A2_1"><text>"Particular", "Private"</text></inputEntry>
+        <inputEntry id="InputEntry_A2_2"><text>true</text></inputEntry>
+        <inputEntry id="InputEntry_A2_3"><text>true</text></inputEntry>
+        <inputEntry id="InputEntry_A2_4"><text>"Pacote", "Package"</text></inputEntry>
+<outputEntry id="OutputEntry_A2_1"><text>"Alertar"</text></outputEntry>
+<outputEntry id="OutputEntry_A2_2"><text>"RISCO: Pacote particular pode ter itens nao previstos. Documentar claramente o que esta incluso e excluso."</text></outputEntry>
+        <outputEntry id=""><text></text></outputEntry>
+        <outputEntry id=""><text>"NENHUM"</text></outputEntry>
+<outputEntry id="OutputEntry_A2_3"><text>"MEDIO"</text></outputEntry>
+      </rule>
+
+      <!-- REGRA 5: PROSSEGUIR - Acordo completo formalizado -->
+      <rule id="Rule_Proceed_1">
+        <description>Particular com acordo completo e formalizado</description>
+        <inputEntry id="InputEntry_P1_1"><text>"Particular", "Private"</text></inputEntry>
+        <inputEntry id="InputEntry_P1_2"><text>true</text></inputEntry>
+        <inputEntry id="InputEntry_P1_3"><text>true</text></inputEntry>
+        <inputEntry id="InputEntry_P1_4"><text>"Completo", "Contrato", "Orcamento Aprovado"</text></inputEntry>
+<outputEntry id="OutputEntry_P1_1"><text>"Prosseguir"</text></outputEntry>
+<outputEntry id="OutputEntry_P1_2"><text>"Particular com acordo completo formalizado. Executar conforme contratado."</text></outputEntry>
+        <outputEntry id=""><text></text></outputEntry>
+        <outputEntry id=""><text>"NENHUM"</text></outputEntry>
+<outputEntry id="OutputEntry_P1_3"><text>"BAIXO"</text></outputEntry>
+      </rule>
+
+      <!-- REGRA 6: PROSSEGUIR - Pagamento antecipado -->
+      <rule id="Rule_Proceed_2">
+        <description>Particular com pagamento antecipado realizado</description>
+        <inputEntry id="InputEntry_P2_1"><text>"Particular", "Private"</text></inputEntry>
+        <inputEntry id="InputEntry_P2_2"><text>true</text></inputEntry>
+        <inputEntry id="InputEntry_P2_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_P2_4"><text>"Antecipado", "Deposito", "Pago"</text></inputEntry>
+<outputEntry id="OutputEntry_P2_1"><text>"Prosseguir"</text></outputEntry>
+<outputEntry id="OutputEntry_P2_2"><text>"Particular com pagamento antecipado. Risco de inadimplencia mitigado."</text></outputEntry>
+        <outputEntry id=""><text></text></outputEntry>
+        <outputEntry id=""><text>"NENHUM"</text></outputEntry>
+<outputEntry id="OutputEntry_P2_3"><text>"BAIXO"</text></outputEntry>
+      </rule>
+
+      <!-- REGRA 7: PROSSEGUIR - Consulta simples -->
+      <rule id="Rule_Proceed_3">
+        <description>Consulta particular simples</description>
+        <inputEntry id="InputEntry_P3_1"><text>"Particular", "Private"</text></inputEntry>
+        <inputEntry id="InputEntry_P3_2"><text>true</text></inputEntry>
+        <inputEntry id="InputEntry_P3_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_P3_4"><text>"Consulta", "Baixo Valor"</text></inputEntry>
+<outputEntry id="OutputEntry_P3_1"><text>"Prosseguir"</text></outputEntry>
+<outputEntry id="OutputEntry_P3_2"><text>"Consulta particular com tabela aplicada. Baixo risco."</text></outputEntry>
+        <outputEntry id=""><text></text></outputEntry>
+        <outputEntry id=""><text>"NENHUM"</text></outputEntry>
+<outputEntry id="OutputEntry_P3_3"><text>"BAIXO"</text></outputEntry>
+      </rule>
+
+      <!-- REGRA 8: REVISAR - Outras origens -->
+      <rule id="Rule_Review_1">
+        <description>Regra nao aplicavel - nao e particular</description>
+        <inputEntry id="InputEntry_R1_1"><text>not("Particular", "Private")</text></inputEntry>
+        <inputEntry id="InputEntry_R1_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_R1_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_R1_4"><text>-</text></inputEntry>
+<outputEntry id="OutputEntry_R1_1"><text>"Prosseguir"</text></outputEntry>
+<outputEntry id="OutputEntry_R1_2"><text>"Atendimento nao e particular. Esta regra nao se aplica."</text></outputEntry>
+        <outputEntry id=""><text></text></outputEntry>
+        <outputEntry id=""><text>"NENHUM"</text></outputEntry>
+<outputEntry id="OutputEntry_R1_3"><text>"BAIXO"</text></outputEntry>
+      </rule>
+
+      <!-- REGRA FALLBACK -->
+      <rule id="Rule_Fallback_DENY_PAYER_010">
+        <description>Caso padrao particular - verificar acordo</description>
+        <inputEntry id="InputEntry_F_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_F_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_F_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_F_4"><text>-</text></inputEntry>
+<outputEntry id="OutputEntry_F_1"><text>"Revisar"</text></outputEntry>
+<outputEntry id="OutputEntry_F_2"><text>"Verificar se ha acordo de pagamento formalizado e tabela de preco aplicada."</text></outputEntry>
+        <outputEntry id=""><text></text></outputEntry>
+        <outputEntry id=""><text>"NENHUM"</text></outputEntry>
+<outputEntry id="OutputEntry_F_3"><text>"MEDIO"</text></outputEntry>
+      </rule>
+
+    </decisionTable>
+  </decision>
+
+  <dmndi:DMNDI>
+    <dmndi:DMNDiagram id="DMNDiagram_DENY_PAYER_010">
+      <dmndi:DMNShape id="DMNShape_Decision_DENY_PAYER_010" dmnElementRef="Decision_DENY_PAYER_010">
+        <dc:Bounds height="80" width="180" x="160" y="100"/>
+      </dmndi:DMNShape>
+    </dmndi:DMNDiagram>
+  </dmndi:DMNDI>
+
+</definitions>

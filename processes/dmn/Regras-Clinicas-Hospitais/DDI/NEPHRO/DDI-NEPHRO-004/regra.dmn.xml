@@ -1,0 +1,100 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- ============================================================================
+     DDI-NEPHRO-004: Cisplatina + Aminoglicosideos - Nefrotoxicidade Aditiva
+
+     EVIDENCIA CLINICA:
+     - NCCN Guidelines - Supportive Care
+     - Lameire N et al. Lancet. 2005;365:417-30
+     - Filipski KK et al. Clin Cancer Res. 2009;15:4200-6
+
+     MECANISMO: Cisplatina causa necrose tubular proximal dose-cumulativa via
+     geracao de especies reativas de oxigenio. Aminoglicosideos tem mesmo
+     mecanismo. Efeito aditivo/sinergico com IRA em ate 50% dos pacientes.
+
+     INCIDENCIA: IRA em 25-35% com cisplatina isolada; ate 50% com combinacao
+     ============================================================================ -->
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/" xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/" xmlns:dc="http://www.omg.org/spec/DMN/20180521/DC/" xmlns:di="http://www.omg.org/spec/DMN/20180521/DI/" id="DDI_NEPHRO_004" name="DDI-NEPHRO-004: Cisplatina + Aminoglicosideos" namespace="http://camunda.org/schema/1.0/dmn">
+  <decision id="ddi_nephro_004_decision" name="Cisplatina + Aminoglicosideos - Nefrotoxicidade Aditiva">
+    <decisionTable id="ddi_nephro_004_table" hitPolicy="FIRST">
+      <input id="input_medicamentos_ativos" label="Medicamentos Ativos">
+        <inputExpression id="input_expr_medicamentos" typeRef="string">
+          <text>medicamentosAtivos</text>
+        </inputExpression>
+      </input>
+      <input id="input_medicamento_novo" label="Medicamento Novo">
+        <inputExpression id="input_expr_novo" typeRef="string">
+          <text>medicamentoNovo</text>
+        </inputExpression>
+      </input>
+      <input id="input_dose_cisplatina" label="Dose Cumulativa Cisplatina (mg/m2)">
+        <inputExpression id="input_expr_dose" typeRef="number">
+          <text>doseCumulativaCisplatina</text>
+        </inputExpression>
+      </input>
+
+      <output id="output_nivel_alerta" name="nivelAlerta" typeRef="string">
+        <outputValues><text>"Alerta","Atencao","Informativo","OK"</text></outputValues>
+      </output>
+      <output id="output_acao_requerida" name="acaoRequerida" typeRef="string" />
+      <output id="output_justificativa" name="justificativaCientifica" typeRef="string" />
+
+      <!-- Rule 1: Cisplatina em uso + Aminoglicosideo novo + dose cumulativa alta -->
+      <rule id="rule_cisplatina_amino_dose_alta">
+        <inputEntry id="ie_cisplatina_ativa">
+          <text>list contains(medicamentosAtivos, "CISPLATINA")</text>
+        </inputEntry>
+        <inputEntry id="ie_amino_novo">
+          <text>"GENTAMICINA" or "AMICACINA" or "TOBRAMICINA" or "ESTREPTOMICINA"</text>
+        </inputEntry>
+        <inputEntry id="ie_dose_alta">
+          <text>&gt; 200</text>
+        </inputEntry>
+        <outputEntry id="oe_alerta_alta"><text>"Alerta"</text></outputEntry>
+        <outputEntry id="oe_acao_alta"><text>"EVITAR COMBINACAO. Dose cumulativa cisplatina >200mg/m2 = alto risco nefrotoxicidade. Usar antibiotico alternativo (cefepime, piperacilina-tazobactam, fluoroquinolona). Se aminoglicosideo indispensavel, dose unica diaria com monitorizacao rigorosa."</text></outputEntry>
+        <outputEntry id="oe_just_alta"><text>"Nefrotoxicidade cisplatina dose-cumulativa. Acima 200mg/m2, aminoglicosideo aumenta IRA para 50%. NCCN Guidelines."</text></outputEntry>
+      </rule>
+
+      <!-- Rule 2: Cisplatina + Aminoglicosideo + dose cumulativa moderada -->
+      <rule id="rule_cisplatina_amino_dose_moderada">
+        <inputEntry id="ie_cisplatina_ativa2">
+          <text>list contains(medicamentosAtivos, "CISPLATINA")</text>
+        </inputEntry>
+        <inputEntry id="ie_amino_novo2">
+          <text>"GENTAMICINA" or "AMICACINA" or "TOBRAMICINA"</text>
+        </inputEntry>
+        <inputEntry id="ie_dose_moderada">
+          <text>[100..200]</text>
+        </inputEntry>
+        <outputEntry id="oe_atencao_moderada"><text>"Atencao"</text></outputEntry>
+        <outputEntry id="oe_acao_moderada"><text>"Preferir antibiotico alternativo. Se aminoglicosideo necessario: dose unica diaria, monitorar Mg/K, creatinina diaria, hidratar com SF 2-3L/dia. Considerar amifostina se disponivel."</text></outputEntry>
+        <outputEntry id="oe_just_moderada"><text>"Risco nefrotoxicidade moderado (30-40%). Hidratacao agressiva e monitorizacao intensiva obrigatorias."</text></outputEntry>
+      </rule>
+
+      <!-- Rule 3: Aminoglicosideo em uso + Cisplatina nova -->
+      <rule id="rule_amino_cisplatina">
+        <inputEntry id="ie_amino_ativo">
+          <text>list contains(medicamentosAtivos, "GENTAMICINA") or list contains(medicamentosAtivos, "AMICACINA") or list contains(medicamentosAtivos, "TOBRAMICINA")</text>
+        </inputEntry>
+        <inputEntry id="ie_cisplatina_nova">
+          <text>"CISPLATINA"</text>
+        </inputEntry>
+        <inputEntry id="ie_dose_any">
+          <text>-</text>
+        </inputEntry>
+        <outputEntry id="oe_atencao_cisplatina"><text>"Atencao"</text></outputEntry>
+        <outputEntry id="oe_acao_cisplatina"><text>"Aguardar clareamento aminoglicosideo (5 meias-vidas, ~24-48h) antes de cisplatina se possivel. Hidratar vigorosamente pre e pos-quimioterapia. Monitorar funcao renal diariamente."</text></outputEntry>
+        <outputEntry id="oe_just_cisplatina"><text>"Efeito nefrotoxicidade aditivo. Intervalo entre drogas reduz toxicidade cumulativa."</text></outputEntry>
+      </rule>
+
+      <!-- Fallback Rule -->
+      <rule id="Rule_Fallback">
+        <inputEntry id="ie_fallback1"><text>-</text></inputEntry>
+        <inputEntry id="ie_fallback2"><text>-</text></inputEntry>
+        <inputEntry id="ie_fallback3"><text>-</text></inputEntry>
+        <outputEntry id="oe_fallback1"><text>"OK"</text></outputEntry>
+        <outputEntry id="oe_fallback2"><text>""</text></outputEntry>
+        <outputEntry id="oe_fallback3"><text>""</text></outputEntry>
+      </rule>
+    </decisionTable>
+  </decision>
+</definitions>

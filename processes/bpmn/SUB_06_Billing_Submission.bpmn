@@ -1,0 +1,556 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" xmlns:camunda="http://camunda.org/schema/1.0/bpmn" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" id="Definitions_SUB06" targetNamespace="http://bpmn.io/schema/bpmn" exporter="Camunda Modeler" exporterVersion="5.0.0">
+  <bpmn:collaboration id="Collaboration_SUB06">
+    <bpmn:participant id="Participant_SUB06" name="SUB 06 - Fechamento e Envio de Contas" processRef="Process_SUB_06_Billing_Submission" />
+  </bpmn:collaboration>
+  <bpmn:process id="Process_SUB_06_Billing_Submission" name="Fechamento e Envio de Contas" isExecutable="true" camunda:historyTimeToLive="P365D">
+    <bpmn:laneSet id="LaneSet_SUB06">
+      <bpmn:lane id="Lane_Billing" name="Faturamento">
+        <bpmn:flowNodeRef>Event_Start_Billing_Message</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_Consolidate_Charges</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_Apply_Contract_Rules</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_Calculate_Values</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_Fix_Errors</bpmn:flowNodeRef>
+      </bpmn:lane>
+      <bpmn:lane id="Lane_TISS_Engine" name="Motor TISS">
+        <bpmn:flowNodeRef>Task_Group_By_Guide</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_Pre_Validation</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Gateway_Valid</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_Generate_TISS_Batch</bpmn:flowNodeRef>
+      </bpmn:lane>
+      <bpmn:lane id="Lane_Transmission" name="Transmissão">
+        <bpmn:flowNodeRef>Gateway_Submission_Type</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_Submit_Webservice</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_Submit_Portal</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_Capture_Protocol</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_Retry_Submission</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_Compensate_Submit</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_Compensate_Calculate</bpmn:flowNodeRef>
+      </bpmn:lane>
+      <bpmn:lane id="Lane_Monitoring" name="Monitoramento">
+        <bpmn:flowNodeRef>Task_Update_Status</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_Send_Billing_Complete</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Event_End_Submitted</bpmn:flowNodeRef>
+      </bpmn:lane>
+    </bpmn:laneSet>
+
+    <!-- ASYNC MESSAGE START: Triggered by StartBillingSubmissionMessage -->
+    <bpmn:startEvent id="Event_Start_Billing_Message" name="Mensagem: Iniciar Faturamento">
+      <bpmn:outgoing>Flow_Start_To_Consolidate</bpmn:outgoing>
+      <bpmn:messageEventDefinition messageRef="Message_StartBillingSubmission" />
+    </bpmn:startEvent>
+
+    <!-- LEGACY: Keep original start event commented for reference -->
+    <!--
+    <bpmn:startEvent id="Event_Start_Billing" name="Início Fechamento">
+      <bpmn:outgoing>Flow_Start_To_Consolidate</bpmn:outgoing>
+    </bpmn:startEvent>
+    -->
+
+    <bpmn:serviceTask id="Task_Consolidate_Charges" name="Consolidar Lançamentos" camunda:asyncBefore="true" camunda:delegateExpression="${consolidateChargesDelegate}">
+      <bpmn:extensionElements>
+        <camunda:inputOutput>
+          <camunda:inputParameter name="accountId">${accountId}</camunda:inputParameter>
+          <camunda:outputParameter name="consolidatedCharges">${consolidatedCharges}</camunda:outputParameter>
+        </camunda:inputOutput>
+      
+        <camunda:executionListener event="start" class="com.hospital.audit.TaskStartListener" />
+        <camunda:executionListener event="end" class="com.hospital.audit.TaskEndListener" />
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_Start_To_Consolidate</bpmn:incoming>
+      <bpmn:outgoing>Flow_Consolidate_To_Contract</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <bpmn:serviceTask id="Task_Apply_Contract_Rules" name="Aplicar Regras Contratuais" camunda:asyncBefore="true" camunda:delegateExpression="${applyContractRulesDelegate}">
+      <bpmn:extensionElements>
+        <camunda:inputOutput>
+          <camunda:inputParameter name="consolidatedCharges">${consolidatedCharges}</camunda:inputParameter>
+          <camunda:inputParameter name="insuranceId">${insuranceId}</camunda:inputParameter>
+          <camunda:outputParameter name="adjustedCharges">${adjustedCharges}</camunda:outputParameter>
+        </camunda:inputOutput>
+      
+        <camunda:executionListener event="start" class="com.hospital.audit.TaskStartListener" />
+        <camunda:executionListener event="end" class="com.hospital.audit.TaskEndListener" />
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_Consolidate_To_Contract</bpmn:incoming>
+      <bpmn:outgoing>Flow_Contract_To_Calculate</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <bpmn:businessRuleTask id="Task_Calculate_Values" name="Calcular Valores" camunda:asyncBefore="true" camunda:decisionRef="billing-calculation" camunda:mapDecisionResult="singleResult" camunda:resultVariable="billingDecision">
+      <bpmn:extensionElements>
+        <camunda:inputOutput>
+          <camunda:inputParameter name="adjustedCharges">${adjustedCharges}</camunda:inputParameter>
+          <camunda:inputParameter name="insuranceId">${insuranceId}</camunda:inputParameter>
+          <camunda:inputParameter name="contractRules">${contractRules}</camunda:inputParameter>
+          <camunda:outputParameter name="totalValue">${billingDecision.totalValue}</camunda:outputParameter>
+          <camunda:outputParameter name="itemizedCharges">${billingDecision.itemizedCharges}</camunda:outputParameter>
+          <camunda:outputParameter name="discounts">${billingDecision.discounts}</camunda:outputParameter>
+        </camunda:inputOutput>
+
+        <camunda:executionListener event="start" class="com.hospital.audit.TaskStartListener" />
+        <camunda:executionListener event="end" class="com.hospital.audit.TaskEndListener" />
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_Contract_To_Calculate</bpmn:incoming>
+      <bpmn:outgoing>Flow_Calculate_To_Group</bpmn:outgoing>
+    </bpmn:businessRuleTask>
+
+    <bpmn:serviceTask id="Task_Group_By_Guide" name="Agrupar por Guia/Lote" camunda:asyncBefore="true" camunda:delegateExpression="${groupByGuideDelegate}">
+      <bpmn:extensionElements>
+        <camunda:inputOutput>
+          <camunda:inputParameter name="itemizedCharges">${itemizedCharges}</camunda:inputParameter>
+          <camunda:outputParameter name="groupedGuides">${groupedGuides}</camunda:outputParameter>
+        </camunda:inputOutput>
+      
+        <camunda:executionListener event="start" class="com.hospital.audit.TaskStartListener" />
+        <camunda:executionListener event="end" class="com.hospital.audit.TaskEndListener" />
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_Calculate_To_Group</bpmn:incoming>
+      <bpmn:outgoing>Flow_Group_To_Validation</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <bpmn:serviceTask id="Task_Pre_Validation" name="Validação Pré-Envio" camunda:asyncBefore="true" camunda:delegateExpression="${preValidationDelegate}">
+      <bpmn:extensionElements>
+        <camunda:inputOutput>
+          <camunda:inputParameter name="groupedGuides">${groupedGuides}</camunda:inputParameter>
+          <camunda:outputParameter name="isValid">${isValid}</camunda:outputParameter>
+          <camunda:outputParameter name="validationErrors">${validationErrors}</camunda:outputParameter>
+        </camunda:inputOutput>
+      
+        <camunda:executionListener event="start" class="com.hospital.audit.TaskStartListener" />
+        <camunda:executionListener event="end" class="com.hospital.audit.TaskEndListener" />
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_Group_To_Validation</bpmn:incoming>
+      <bpmn:incoming>Flow_Fix_To_Validation</bpmn:incoming>
+      <bpmn:outgoing>Flow_Validation_To_Gateway</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <bpmn:exclusiveGateway id="Gateway_Valid" name="XML Válido?">
+      <bpmn:incoming>Flow_Validation_To_Gateway</bpmn:incoming>
+      <bpmn:outgoing>Flow_Valid_Yes</bpmn:outgoing>
+      <bpmn:outgoing>Flow_Valid_No</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+
+    <bpmn:userTask id="Task_Fix_Errors" name="Corrigir Erros" camunda:assignee="${faturista}">
+      <bpmn:extensionElements>
+        <camunda:formData>
+          <camunda:formField id="validationErrors" label="Erros Encontrados" type="string" />
+          <camunda:formField id="corrections" label="Correções Aplicadas" type="string" />
+        </camunda:formData>
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_Valid_No</bpmn:incoming>
+      <bpmn:outgoing>Flow_Fix_To_Validation</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <bpmn:serviceTask id="Task_Generate_TISS_Batch" name="Gerar Lote TISS (Generate Claim)" camunda:asyncBefore="true" camunda:delegateExpression="${generateClaim}">
+      <bpmn:extensionElements>
+        <camunda:inputOutput>
+          <camunda:inputParameter name="groupedGuides">${groupedGuides}</camunda:inputParameter>
+          <camunda:outputParameter name="tissBatchXML">${tissBatchXML}</camunda:outputParameter>
+          <camunda:outputParameter name="batchNumber">${batchNumber}</camunda:outputParameter>
+        </camunda:inputOutput>
+      
+        <camunda:executionListener event="start" class="com.hospital.audit.TaskStartListener" />
+        <camunda:executionListener event="end" class="com.hospital.audit.TaskEndListener" />
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_Valid_Yes</bpmn:incoming>
+      <bpmn:outgoing>Flow_Generate_To_SubType</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <bpmn:exclusiveGateway id="Gateway_Submission_Type" name="Tipo de Envio">
+      <bpmn:incoming>Flow_Generate_To_SubType</bpmn:incoming>
+      <bpmn:outgoing>Flow_Type_Webservice</bpmn:outgoing>
+      <bpmn:outgoing>Flow_Type_Portal</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+
+    <bpmn:serviceTask id="Task_Submit_Webservice" name="Enviar Webservice (Submit Claim)" camunda:asyncBefore="true" camunda:jobPriority="8" camunda:delegateExpression="${submitClaim}">
+      <bpmn:extensionElements>
+        <camunda:inputOutput>
+          <camunda:inputParameter name="tissBatchXML">${tissBatchXML}</camunda:inputParameter>
+          <camunda:inputParameter name="insuranceWebserviceURL">${insuranceWebserviceURL}</camunda:inputParameter>
+          <camunda:outputParameter name="submissionResponse">${submissionResponse}</camunda:outputParameter>
+        </camunda:inputOutput>
+        <camunda:formData>
+          <camunda:formField id="submissionDate" label="Data de Envio" type="date" />
+          <camunda:formField id="batchType" label="Tipo de Lote" type="enum">
+            <camunda:value id="PRINCIPAL" name="PRINCIPAL" />
+            <camunda:value id="COMPLEMENTAR" name="COMPLEMENTAR" />
+            <camunda:value id="RETIFICADOR" name="RETIFICADOR" />
+          </camunda:formField>
+          <camunda:formField id="errorSeverity" label="Severidade do Erro" type="enum">
+            <camunda:value id="low" name="low" />
+            <camunda:value id="medium" name="medium" />
+            <camunda:value id="high" name="high" />
+            <camunda:value id="critical" name="critical" />
+          </camunda:formField>
+        </camunda:formData>
+      
+        <camunda:executionListener event="start" class="com.hospital.audit.TaskStartListener" />
+        <camunda:executionListener event="end" class="com.hospital.audit.TaskEndListener" />
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_Type_Webservice</bpmn:incoming>
+      <bpmn:incoming>Flow_Retry_To_Submit</bpmn:incoming>
+      <bpmn:outgoing>Flow_Submit_To_Protocol</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <bpmn:serviceTask id="Task_Submit_Portal" name="Enviar Portal" camunda:asyncBefore="true" camunda:type="external" camunda:topic="rpa-portal-upload">
+      <bpmn:extensionElements>
+        <camunda:inputOutput>
+          <camunda:inputParameter name="tissBatchXML">${tissBatchXML}</camunda:inputParameter>
+          <camunda:inputParameter name="portalURL">${portalURL}</camunda:inputParameter>
+          <camunda:outputParameter name="submissionResponse">${submissionResponse}</camunda:outputParameter>
+        </camunda:inputOutput>
+      
+        <camunda:executionListener event="start" class="com.hospital.audit.TaskStartListener" />
+        <camunda:executionListener event="end" class="com.hospital.audit.TaskEndListener" />
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_Type_Portal</bpmn:incoming>
+      <bpmn:outgoing>Flow_Portal_To_Protocol</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <bpmn:serviceTask id="Task_Capture_Protocol" name="Capturar Protocolo (Process Payment)" camunda:asyncBefore="true" camunda:delegateExpression="${processPayment}">
+      <bpmn:extensionElements>
+        <camunda:inputOutput>
+          <camunda:inputParameter name="submissionResponse">${submissionResponse}</camunda:inputParameter>
+          <camunda:outputParameter name="protocolNumber">${protocolNumber}</camunda:outputParameter>
+          <camunda:outputParameter name="submissionDate">${submissionDate}</camunda:outputParameter>
+        </camunda:inputOutput>
+      
+        <camunda:executionListener event="start" class="com.hospital.audit.TaskStartListener" />
+        <camunda:executionListener event="end" class="com.hospital.audit.TaskEndListener" />
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_Submit_To_Protocol</bpmn:incoming>
+      <bpmn:incoming>Flow_Portal_To_Protocol</bpmn:incoming>
+      <bpmn:outgoing>Flow_Protocol_To_Update</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <bpmn:boundaryEvent id="Event_Error_Transmission" name="Erro Transmissão" attachedToRef="Task_Submit_Webservice">
+      <bpmn:outgoing>Flow_Error_To_Retry</bpmn:outgoing>
+      <bpmn:errorEventDefinition errorRef="Error_Transmission" />
+    </bpmn:boundaryEvent>
+
+    <!-- Compensation Boundary Events -->
+    <bpmn:boundaryEvent id="Boundary_Compensate_Submit" attachedToRef="Task_Submit_Webservice">
+      <bpmn:compensateEventDefinition />
+    </bpmn:boundaryEvent>
+
+    <bpmn:boundaryEvent id="Boundary_Compensate_Calculate" attachedToRef="Task_Calculate_Values">
+      <bpmn:compensateEventDefinition />
+    </bpmn:boundaryEvent>
+
+    <!-- Compensation Tasks -->
+    <bpmn:serviceTask id="Task_Compensate_Submit" name="Reverter Envio" isForCompensation="true" camunda:delegateExpression="${compensateSubmitDelegate}">
+      <bpmn:extensionElements>
+        <camunda:inputOutput>
+          <camunda:inputParameter name="protocolNumber">${protocolNumber}</camunda:inputParameter>
+          <camunda:inputParameter name="batchNumber">${batchNumber}</camunda:inputParameter>
+        </camunda:inputOutput>
+      </bpmn:extensionElements>
+    </bpmn:serviceTask>
+
+    <bpmn:serviceTask id="Task_Compensate_Calculate" name="Reverter Cálculo" isForCompensation="true" camunda:delegateExpression="${compensateCalculateDelegate}">
+      <bpmn:extensionElements>
+        <camunda:inputOutput>
+          <camunda:inputParameter name="accountId">${accountId}</camunda:inputParameter>
+          <camunda:inputParameter name="totalValue">${totalValue}</camunda:inputParameter>
+        </camunda:inputOutput>
+      </bpmn:extensionElements>
+    </bpmn:serviceTask>
+
+    <bpmn:serviceTask id="Task_Retry_Submission" name="Retry Automático" camunda:asyncBefore="true" camunda:delegateExpression="${retrySubmissionDelegate}">
+      <bpmn:extensionElements>
+        <camunda:inputOutput>
+          <camunda:inputParameter name="retryCount">${retryCount}</camunda:inputParameter>
+          <camunda:inputParameter name="maxRetries">3</camunda:inputParameter>
+        </camunda:inputOutput>
+        <camunda:failedJobRetryTimeCycle>R3/PT5M</camunda:failedJobRetryTimeCycle>
+      
+        <camunda:executionListener event="start" class="com.hospital.audit.TaskStartListener" />
+        <camunda:executionListener event="end" class="com.hospital.audit.TaskEndListener" />
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_Error_To_Retry</bpmn:incoming>
+      <bpmn:outgoing>Flow_Retry_To_Submit</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <bpmn:serviceTask id="Task_Update_Status" name="Atualizar Status" camunda:asyncBefore="true" camunda:delegateExpression="${updateStatusDelegate}">
+      <bpmn:extensionElements>
+        <camunda:inputOutput>
+          <camunda:inputParameter name="accountId">${accountId}</camunda:inputParameter>
+          <camunda:inputParameter name="status">SUBMITTED</camunda:inputParameter>
+          <camunda:inputParameter name="protocolNumber">${protocolNumber}</camunda:inputParameter>
+        </camunda:inputOutput>
+
+        <camunda:executionListener event="start" class="com.hospital.audit.TaskStartListener" />
+        <camunda:executionListener event="end" class="com.hospital.audit.TaskEndListener" />
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_Protocol_To_Update</bpmn:incoming>
+      <bpmn:outgoing>Flow_Update_To_Notify</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Send completion message to orchestrator -->
+    <bpmn:serviceTask id="Task_Send_Billing_Complete" name="Notificar Conclusão" camunda:asyncBefore="true" camunda:delegateExpression="${sendBillingCompleteDelegate}">
+      <bpmn:extensionElements>
+        <camunda:inputOutput>
+          <camunda:inputParameter name="atendimentoId">${execution.processBusinessKey}</camunda:inputParameter>
+          <camunda:inputParameter name="protocolNumber">${protocolNumber}</camunda:inputParameter>
+          <camunda:inputParameter name="billingResult">SUBMITTED</camunda:inputParameter>
+        </camunda:inputOutput>
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_Update_To_Notify</bpmn:incoming>
+      <bpmn:outgoing>Flow_Notify_To_End</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- End event with message throw -->
+    <bpmn:endEvent id="Event_End_Submitted" name="Faturamento Concluído">
+      <bpmn:incoming>Flow_Notify_To_End</bpmn:incoming>
+      <bpmn:messageEventDefinition messageRef="Message_BillingCompleted" camunda:delegateExpression="${sendMessageDelegate}" />
+    </bpmn:endEvent>
+
+    <!-- Sequence Flows -->
+    <bpmn:sequenceFlow id="Flow_Start_To_Consolidate" sourceRef="Event_Start_Billing_Message" targetRef="Task_Consolidate_Charges" />
+    <bpmn:sequenceFlow id="Flow_Consolidate_To_Contract" sourceRef="Task_Consolidate_Charges" targetRef="Task_Apply_Contract_Rules" />
+    <bpmn:sequenceFlow id="Flow_Contract_To_Calculate" sourceRef="Task_Apply_Contract_Rules" targetRef="Task_Calculate_Values" />
+    <bpmn:sequenceFlow id="Flow_Calculate_To_Group" sourceRef="Task_Calculate_Values" targetRef="Task_Group_By_Guide" />
+    <bpmn:sequenceFlow id="Flow_Group_To_Validation" sourceRef="Task_Group_By_Guide" targetRef="Task_Pre_Validation" />
+    <bpmn:sequenceFlow id="Flow_Validation_To_Gateway" sourceRef="Task_Pre_Validation" targetRef="Gateway_Valid" />
+    <bpmn:sequenceFlow id="Flow_Valid_Yes" name="Sim" sourceRef="Gateway_Valid" targetRef="Task_Generate_TISS_Batch">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${isValid == true}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_Valid_No" name="Não" sourceRef="Gateway_Valid" targetRef="Task_Fix_Errors">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${isValid == false}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_Fix_To_Validation" sourceRef="Task_Fix_Errors" targetRef="Task_Pre_Validation" />
+    <bpmn:sequenceFlow id="Flow_Generate_To_SubType" sourceRef="Task_Generate_TISS_Batch" targetRef="Gateway_Submission_Type" />
+    <bpmn:sequenceFlow id="Flow_Type_Webservice" name="Webservice" sourceRef="Gateway_Submission_Type" targetRef="Task_Submit_Webservice">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${submissionType == 'webservice'}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_Type_Portal" name="Portal" sourceRef="Gateway_Submission_Type" targetRef="Task_Submit_Portal">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${submissionType == 'portal'}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_Submit_To_Protocol" sourceRef="Task_Submit_Webservice" targetRef="Task_Capture_Protocol" />
+    <bpmn:sequenceFlow id="Flow_Portal_To_Protocol" sourceRef="Task_Submit_Portal" targetRef="Task_Capture_Protocol" />
+    <bpmn:sequenceFlow id="Flow_Error_To_Retry" sourceRef="Event_Error_Transmission" targetRef="Task_Retry_Submission" />
+    <bpmn:sequenceFlow id="Flow_Retry_To_Submit" sourceRef="Task_Retry_Submission" targetRef="Task_Submit_Webservice" />
+    <bpmn:sequenceFlow id="Flow_Protocol_To_Update" sourceRef="Task_Capture_Protocol" targetRef="Task_Update_Status" />
+    <bpmn:sequenceFlow id="Flow_Update_To_Notify" sourceRef="Task_Update_Status" targetRef="Task_Send_Billing_Complete" />
+    <bpmn:sequenceFlow id="Flow_Notify_To_End" sourceRef="Task_Send_Billing_Complete" targetRef="Event_End_Submitted" />
+
+    <!-- Compensation Associations -->
+    <bpmn:association id="Assoc_Compensate_Submit" associationDirection="One" sourceRef="Boundary_Compensate_Submit" targetRef="Task_Compensate_Submit" />
+    <bpmn:association id="Assoc_Compensate_Calculate" associationDirection="One" sourceRef="Boundary_Compensate_Calculate" targetRef="Task_Compensate_Calculate" />
+  </bpmn:process>
+
+  <!-- Global Message Definitions -->
+  <bpmn:message id="Message_StartBillingSubmission" name="StartBillingSubmissionMessage" />
+  <bpmn:message id="Message_BillingCompleted" name="BillingCompletedMessage" />
+
+  <bpmn:error id="Error_Transmission" name="Error_Transmission" errorCode="TRANSMISSION_ERROR" />
+
+  <bpmndi:BPMNDiagram id="BPMNDiagram_SUB06">
+    <bpmndi:BPMNPlane id="BPMNPlane_SUB06" bpmnElement="Collaboration_SUB06">
+      <bpmndi:BPMNShape id="Participant_SUB06_di" bpmnElement="Participant_SUB06" isHorizontal="true">
+        <dc:Bounds x="160" y="80" width="2400" height="720" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Lane_Billing_di" bpmnElement="Lane_Billing" isHorizontal="true">
+        <dc:Bounds x="190" y="80" width="2370" height="200" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Lane_TISS_Engine_di" bpmnElement="Lane_TISS_Engine" isHorizontal="true">
+        <dc:Bounds x="190" y="280" width="2370" height="200" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Lane_Transmission_di" bpmnElement="Lane_Transmission" isHorizontal="true">
+        <dc:Bounds x="190" y="480" width="2370" height="180" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Lane_Monitoring_di" bpmnElement="Lane_Monitoring" isHorizontal="true">
+        <dc:Bounds x="190" y="660" width="2370" height="140" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Event_Start_Billing_di" bpmnElement="Event_Start_Billing">
+        <dc:Bounds x="252" y="152" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="246" y="195" width="48" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_Consolidate_Charges_di" bpmnElement="Task_Consolidate_Charges">
+        <dc:Bounds x="340" y="130" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_Apply_Contract_Rules_di" bpmnElement="Task_Apply_Contract_Rules">
+        <dc:Bounds x="490" y="130" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_Calculate_Values_di" bpmnElement="Task_Calculate_Values">
+        <dc:Bounds x="640" y="130" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_Fix_Errors_di" bpmnElement="Task_Fix_Errors">
+        <dc:Bounds x="1050" y="140" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_Group_By_Guide_di" bpmnElement="Task_Group_By_Guide">
+        <dc:Bounds x="790" y="310" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_Pre_Validation_di" bpmnElement="Task_Pre_Validation">
+        <dc:Bounds x="940" y="310" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Gateway_Valid_di" bpmnElement="Gateway_Valid" isMarkerVisible="true">
+        <dc:Bounds x="1095" y="325" width="50" height="50" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1084" y="382" width="62" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_Generate_TISS_Batch_di" bpmnElement="Task_Generate_TISS_Batch">
+        <dc:Bounds x="1200" y="310" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Gateway_Submission_Type_di" bpmnElement="Gateway_Submission_Type" isMarkerVisible="true">
+        <dc:Bounds x="1365" y="535" width="50" height="50" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1354" y="592" width="72" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_Submit_Webservice_di" bpmnElement="Task_Submit_Webservice">
+        <dc:Bounds x="1470" y="510" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_Submit_Portal_di" bpmnElement="Task_Submit_Portal">
+        <dc:Bounds x="1470" y="600" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_Capture_Protocol_di" bpmnElement="Task_Capture_Protocol">
+        <dc:Bounds x="1700" y="520" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_Retry_Submission_di" bpmnElement="Task_Retry_Submission">
+        <dc:Bounds x="1620" y="390" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_Update_Status_di" bpmnElement="Task_Update_Status">
+        <dc:Bounds x="1900" y="690" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Event_End_Submitted_di" bpmnElement="Event_End_Submitted">
+        <dc:Bounds x="2062" y="712" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="2043" y="755" width="74" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Event_Error_Transmission_di" bpmnElement="Event_Error_Transmission">
+        <dc:Bounds x="1552" y="572" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1584" y="605" width="52" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Boundary_Compensate_Submit_di" bpmnElement="Boundary_Compensate_Submit">
+        <dc:Bounds x="1502" y="572" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Boundary_Compensate_Calculate_di" bpmnElement="Boundary_Compensate_Calculate">
+        <dc:Bounds x="722" y="192" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_Compensate_Submit_di" bpmnElement="Task_Compensate_Submit">
+        <dc:Bounds x="1470" y="420" width="100" height="60" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_Compensate_Calculate_di" bpmnElement="Task_Compensate_Calculate">
+        <dc:Bounds x="640" y="50" width="100" height="60" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Flow_Start_To_Consolidate_di" bpmnElement="Flow_Start_To_Consolidate">
+        <di:waypoint x="288" y="170" />
+        <di:waypoint x="340" y="170" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Consolidate_To_Contract_di" bpmnElement="Flow_Consolidate_To_Contract">
+        <di:waypoint x="440" y="170" />
+        <di:waypoint x="490" y="170" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Contract_To_Calculate_di" bpmnElement="Flow_Contract_To_Calculate">
+        <di:waypoint x="590" y="170" />
+        <di:waypoint x="640" y="170" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Calculate_To_Group_di" bpmnElement="Flow_Calculate_To_Group">
+        <di:waypoint x="740" y="170" />
+        <di:waypoint x="765" y="170" />
+        <di:waypoint x="765" y="350" />
+        <di:waypoint x="790" y="350" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Group_To_Validation_di" bpmnElement="Flow_Group_To_Validation">
+        <di:waypoint x="890" y="350" />
+        <di:waypoint x="940" y="350" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Validation_To_Gateway_di" bpmnElement="Flow_Validation_To_Gateway">
+        <di:waypoint x="1040" y="350" />
+        <di:waypoint x="1095" y="350" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Valid_Yes_di" bpmnElement="Flow_Valid_Yes">
+        <di:waypoint x="1145" y="350" />
+        <di:waypoint x="1200" y="350" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1164" y="332" width="19" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Valid_No_di" bpmnElement="Flow_Valid_No">
+        <di:waypoint x="1120" y="325" />
+        <di:waypoint x="1120" y="180" />
+        <di:waypoint x="1150" y="180" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1126" y="250" width="20" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Fix_To_Validation_di" bpmnElement="Flow_Fix_To_Validation">
+        <di:waypoint x="1050" y="180" />
+        <di:waypoint x="995" y="180" />
+        <di:waypoint x="995" y="310" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Generate_To_SubType_di" bpmnElement="Flow_Generate_To_SubType">
+        <di:waypoint x="1300" y="350" />
+        <di:waypoint x="1333" y="350" />
+        <di:waypoint x="1333" y="560" />
+        <di:waypoint x="1365" y="560" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Type_Webservice_di" bpmnElement="Flow_Type_Webservice">
+        <di:waypoint x="1415" y="560" />
+        <di:waypoint x="1443" y="560" />
+        <di:waypoint x="1443" y="550" />
+        <di:waypoint x="1470" y="550" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1403" y="532" width="57" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Type_Portal_di" bpmnElement="Flow_Type_Portal">
+        <di:waypoint x="1390" y="585" />
+        <di:waypoint x="1390" y="640" />
+        <di:waypoint x="1470" y="640" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1411" y="623" width="28" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Submit_To_Protocol_di" bpmnElement="Flow_Submit_To_Protocol">
+        <di:waypoint x="1570" y="550" />
+        <di:waypoint x="1635" y="550" />
+        <di:waypoint x="1635" y="560" />
+        <di:waypoint x="1700" y="560" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Portal_To_Protocol_di" bpmnElement="Flow_Portal_To_Protocol">
+        <di:waypoint x="1570" y="640" />
+        <di:waypoint x="1635" y="640" />
+        <di:waypoint x="1635" y="560" />
+        <di:waypoint x="1700" y="560" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Error_To_Retry_di" bpmnElement="Flow_Error_To_Retry">
+        <di:waypoint x="1570" y="572" />
+        <di:waypoint x="1570" y="430" />
+        <di:waypoint x="1620" y="430" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Retry_To_Submit_di" bpmnElement="Flow_Retry_To_Submit">
+        <di:waypoint x="1720" y="430" />
+        <di:waypoint x="1750" y="430" />
+        <di:waypoint x="1750" y="490" />
+        <di:waypoint x="1520" y="490" />
+        <di:waypoint x="1520" y="510" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Protocol_To_Update_di" bpmnElement="Flow_Protocol_To_Update">
+        <di:waypoint x="1800" y="560" />
+        <di:waypoint x="1850" y="560" />
+        <di:waypoint x="1850" y="730" />
+        <di:waypoint x="1900" y="730" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Update_To_End_di" bpmnElement="Flow_Update_To_End">
+        <di:waypoint x="2000" y="730" />
+        <di:waypoint x="2062" y="730" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Assoc_Compensate_Submit_di" bpmnElement="Assoc_Compensate_Submit">
+        <di:waypoint x="1520" y="572" />
+        <di:waypoint x="1520" y="480" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Assoc_Compensate_Calculate_di" bpmnElement="Assoc_Compensate_Calculate">
+        <di:waypoint x="740" y="192" />
+        <di:waypoint x="690" y="110" />
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>

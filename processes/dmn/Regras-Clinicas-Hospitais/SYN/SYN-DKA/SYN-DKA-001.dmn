@@ -1,0 +1,328 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/"
+             xmlns:dc="http://www.omg.org/spec/DMN/20180521/DC/"
+             id="Definitions_SYN_DKA_001"
+             name="Deteccao de Cetoacidose Diabetica"
+             targetNamespace="http://camunda.org/schema/1.0/dmn">
+
+  <!--
+    SYN-DKA-001 - Deteccao de Cetoacidose Diabetica (CAD/DKA)
+    Versao: 1.0.0 (2026-02-06)
+    Categoria: Alerta Clinico - Sindromes Criticas
+
+    CRITERIOS DIAGNOSTICOS DE CAD:
+
+    TRÍADE:
+    1. Hiperglicemia: Glicose > 250 mg/dL
+    2. Cetose: Cetonas positivas (sangue/urina)
+    3. Acidose metabolica: pH < 7.30 E Bicarbonato < 18 mEq/L
+
+    CLASSIFICACAO DE GRAVIDADE:
+    - LEVE: pH 7.25-7.30, Bic 15-18, Alerta
+    - MODERADA: pH 7.00-7.24, Bic 10-14, Obnubilado
+    - GRAVE: pH < 7.00, Bic < 10, Estupor/coma
+
+    ANION GAP:
+    AG = Na - (Cl + HCO3) → Normal: 8-12
+    CAD: AG > 12 (acidose com AG elevado)
+
+    CAUSAS PRECIPITANTES (5 I's):
+    - Infeccao (mais comum)
+    - Insulina (falta ou dose inadequada)
+    - Infarto (IAM silencioso no diabetico)
+    - Intoxicacao
+    - Isquemia intestinal
+
+    REFERENCIAS:
+    - ADA Standards of Care in Diabetes 2024
+    - Joint British Diabetes Societies (JBDS) DKA Guidelines
+    - Kitabchi AE et al. Diabetes Care 2009
+  -->
+
+  <decision id="Decision_SYN_DKA_001" name="Deteccao CAD">
+    <decisionTable id="DecisionTable_SYN_DKA_001" hitPolicy="FIRST">
+
+      <!-- INPUT 1: Glicose -->
+      <input id="Input_1" label="Glicose (mg/dL)">
+        <inputExpression id="InputExpression_1" typeRef="number">
+          <text>glicose</text>
+        </inputExpression>
+      </input>
+
+      <!-- INPUT 2: pH arterial -->
+      <input id="Input_2" label="pH Arterial">
+        <inputExpression id="InputExpression_2" typeRef="number">
+          <text>phArterial</text>
+        </inputExpression>
+      </input>
+
+      <!-- INPUT 3: Bicarbonato -->
+      <input id="Input_3" label="Bicarbonato (mEq/L)">
+        <inputExpression id="InputExpression_3" typeRef="number">
+          <text>bicarbonato</text>
+        </inputExpression>
+      </input>
+
+      <!-- INPUT 4: Cetonas -->
+      <input id="Input_4" label="Cetonas Positivas">
+        <inputExpression id="InputExpression_4" typeRef="boolean">
+          <text>cetonasPositivas</text>
+        </inputExpression>
+      </input>
+
+      <!-- OUTPUTS -->
+      <output id="Output_1" label="Nivel Alerta" name="nivelAlerta" typeRef="string">
+        <outputValues id="OutputValues_1">
+          <text>"Alerta", "Atencao", "OK", "Revisar"</text>
+        </outputValues>
+      </output>
+
+      <output id="Output_2" label="Classificacao Sindrome" name="classificacaoSindrome" typeRef="string"/>
+
+      <output id="Output_3" label="Protocolo Ativado" name="protocoloAtivado" typeRef="boolean"/>
+
+      <output id="Output_4" label="Acao Requerida" name="acaoRequerida" typeRef="string"/>
+
+      <output id="Output_5" label="Urgencia" name="urgencia" typeRef="string">
+        <outputValues id="OutputValues_5">
+          <text>"CRITICA", "ALTA", "MEDIA", "BAIXA"</text>
+        </outputValues>
+      </output>
+
+      <!-- RULE 1: CAD Grave -->
+      <rule id="Rule_CAD_Grave">
+        <description>Cetoacidose Diabetica Grave - pH < 7.00</description>
+        <inputEntry id="InputEntry_1_1">
+          <text>&gt; 250</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_1_2">
+          <text>&lt; 7.00</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_1_3">
+          <text>&lt; 10</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_1_4">
+          <text>true</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_1_1">
+          <text>"Alerta"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_1_2">
+          <text>"CAD_GRAVE"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_1_3">
+          <text>true</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_1_4">
+          <text>"CAD GRAVE - EMERGENCIA! UTI. Hidratacao agressiva: SF 0.9% 1-1.5L/h nas 1as 2h. Insulina regular IV 0.1 U/kg/h. Repor K+ se < 5.3 (aguardar se > 5.3). Bicarbonato IV se pH < 6.9. Buscar causa precipitante."</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_1_5">
+          <text>"CRITICA"</text>
+        </outputEntry>
+      </rule>
+
+      <!-- RULE 2: CAD Moderada -->
+      <rule id="Rule_CAD_Moderada">
+        <description>Cetoacidose Diabetica Moderada - pH 7.00-7.24</description>
+        <inputEntry id="InputEntry_2_1">
+          <text>&gt; 250</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_2_2">
+          <text>[7.00..7.24]</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_2_3">
+          <text>[10..14]</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_2_4">
+          <text>true</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_2_1">
+          <text>"Alerta"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_2_2">
+          <text>"CAD_MODERADA"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_2_3">
+          <text>true</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_2_4">
+          <text>"CAD MODERADA. UTI/Emergencia com monitorizacao. Hidratacao IV: SF 0.9% 1L/h. Insulina regular IV 0.1 U/kg/h. Monitorar K+ a cada 2h (adicionar KCl se K < 5.3). Glicemia capilar horaria. Investigar fator precipitante."</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_2_5">
+          <text>"CRITICA"</text>
+        </outputEntry>
+      </rule>
+
+      <!-- RULE 3: CAD Leve -->
+      <rule id="Rule_CAD_Leve">
+        <description>Cetoacidose Diabetica Leve - pH 7.25-7.30</description>
+        <inputEntry id="InputEntry_3_1">
+          <text>&gt; 250</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_3_2">
+          <text>[7.25..7.30]</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_3_3">
+          <text>[15..18]</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_3_4">
+          <text>true</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_3_1">
+          <text>"Alerta"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_3_2">
+          <text>"CAD_LEVE"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_3_3">
+          <text>true</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_3_4">
+          <text>"CAD LEVE. Pode ser tratada em sala de emergencia com monitorizacao. Hidratacao IV. Insulina IV ou SC (se tolerando VO). Meta: glicemia 200-250 mg/dL antes de transicao para SC. Pode evoluir para moderada/grave se nao tratada."</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_3_5">
+          <text>"ALTA"</text>
+        </outputEntry>
+      </rule>
+
+      <!-- RULE 4: Hiperglicemia cetonica sem acidose -->
+      <rule id="Rule_Cetose_Sem_Acidose">
+        <description>Cetose diabetica sem acidose</description>
+        <inputEntry id="InputEntry_4_1">
+          <text>&gt; 250</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_4_2">
+          <text>&gt;= 7.30</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_4_3">
+          <text>&gt;= 18</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_4_4">
+          <text>true</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_4_1">
+          <text>"Atencao"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_4_2">
+          <text>"CETOSE_SEM_ACIDOSE"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_4_3">
+          <text>false</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_4_4">
+          <text>"Cetose diabetica SEM acidose significativa. Pode evoluir para CAD. Hidratacao. Insulina (pode ser SC se leve). Monitorar gasometria em 2-4h. Investigar causa. Nao alta sem resolucao da cetose."</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_4_5">
+          <text>"ALTA"</text>
+        </outputEntry>
+      </rule>
+
+      <!-- RULE 5: Hiperglicemia isolada -->
+      <rule id="Rule_Hiperglicemia_Isolada">
+        <description>Hiperglicemia sem cetose/acidose</description>
+        <inputEntry id="InputEntry_5_1">
+          <text>&gt; 250</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_5_2">
+          <text>&gt;= 7.35</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_5_3">
+          <text>&gt;= 22</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_5_4">
+          <text>false</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_5_1">
+          <text>"Atencao"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_5_2">
+          <text>"HIPERGLICEMIA_ISOLADA"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_5_3">
+          <text>false</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_5_4">
+          <text>"Hiperglicemia isolada sem cetose/acidose. Pode ser EHH (ver SYN-DKA-002). Hidratacao. Ajustar insulina. Se glicose > 600 + osmolaridade elevada → protocolo EHH. Investigar causa."</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_5_5">
+          <text>"MEDIA"</text>
+        </outputEntry>
+      </rule>
+
+      <!-- RULE 6: Sem criterios de CAD -->
+      <rule id="Rule_Sem_CAD">
+        <description>Sem criterios de cetoacidose diabetica</description>
+        <inputEntry id="InputEntry_6_1">
+          <text>&lt;= 250</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_6_2">
+          <text>&gt;= 7.35</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_6_3">
+          <text>&gt;= 22</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_6_4">
+          <text>-</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_6_1">
+          <text>"OK"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_6_2">
+          <text>"SEM_CAD"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_6_3">
+          <text>false</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_6_4">
+          <text>"Sem criterios de CAD. Glicose, pH e bicarbonato dentro de limites. Manter controle glicemico conforme protocolo institucional."</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_6_5">
+          <text>"BAIXA"</text>
+        </outputEntry>
+      </rule>
+
+      <!-- FALLBACK -->
+      <rule id="Rule_Fallback_SYN_DKA_001">
+        <description>Dados insuficientes para avaliacao</description>
+        <inputEntry id="InputEntry_F_1">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_F_2">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_F_3">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_F_4">
+          <text>-</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_F_1">
+          <text>"Revisar"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_F_2">
+          <text>"DADOS_INCOMPLETOS"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_F_3">
+          <text>false</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_F_4">
+          <text>"Dados insuficientes para diagnóstico de CAD. Verificar: glicemia, gasometria arterial (pH, bicarbonato), cetonas (sangue ou urina), anion gap."</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_F_5">
+          <text>"MEDIA"</text>
+        </outputEntry>
+      </rule>
+
+    </decisionTable>
+  </decision>
+
+  <dmndi:DMNDI>
+    <dmndi:DMNDiagram id="DMNDiagram_SYN_DKA_001">
+      <dmndi:DMNShape id="DMNShape_Decision_SYN_DKA_001" dmnElementRef="Decision_SYN_DKA_001">
+        <dc:Bounds height="80" width="180" x="160" y="100"/>
+      </dmndi:DMNShape>
+    </dmndi:DMNDiagram>
+  </dmndi:DMNDI>
+
+</definitions>

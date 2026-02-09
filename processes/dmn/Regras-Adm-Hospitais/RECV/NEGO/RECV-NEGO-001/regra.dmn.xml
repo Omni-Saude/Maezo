@@ -1,0 +1,159 @@
+<?xml version='1.0' encoding='utf-8'?>
+<!--
+  ============================================================================
+  RECV-NEGO-001 - Desconto Quitacao
+  ============================================================================
+  Versao: 1.0.0 (2026-02-08)
+  Categoria: RECV-NEGO
+  Perspectiva: HOSPITAL (Administrativo)
+  ============================================================================
+-->
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/"
+             xmlns:dc="http://www.omg.org/spec/DMN/20180521/DC/" id="Definitions_RECV_NEGO_001" name="Desconto Quitacao" targetNamespace="http://camunda.org/schema/1.0/dmn">
+
+  <decision id="Decision_RECV_NEGO_001" name="Avaliacao Desconto para Quitacao">
+    <decisionTable id="DecisionTable_RECV_NEGO_001" hitPolicy="FIRST">
+
+      
+      <input id="Input_1" label="Valor Original">
+        <inputExpression id="InputExpression_1" typeRef="number">
+          <text>valorOriginal</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_2" label="Percentual Desconto">
+        <inputExpression id="InputExpression_2" typeRef="number">
+          <text>percentualDesconto</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_3" label="Prazo Quitacao (dias)">
+        <inputExpression id="InputExpression_3" typeRef="number">
+          <text>prazoQuitacao</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_4" label="Historico Operadora">
+        <inputExpression id="InputExpression_4" typeRef="string">
+          <text>historicoOperadora</text>
+        </inputExpression>
+        <inputValues id="InputValues_4">
+          <text>"REGULAR", "IRREGULAR", "INADIMPLENTE"</text>
+        </inputValues>
+      </input>
+
+      
+      <!-- ========== OUTPUTS (5 STANDARD) ========== -->
+      <output id="Output_1" label="Resultado" name="resultado" typeRef="string">
+        <outputValues><text>"Prosseguir", "Bloquear", "Alertar", "Revisar"</text></outputValues>
+      </output>
+
+      <output id="Output_2" label="Observacao" name="observacao" typeRef="string"/>
+
+      <output id="Output_3" label="Acao Recomendada" name="acaoRecomendada" typeRef="string"/>
+
+      <output id="Output_4" label="Alertas Conformidade" name="alertasConformidade" typeRef="string">
+        <outputValues><text>"NENHUM", "DUP", "FREQ", "PRAZO", "DOC", "VALOR", "CRED", "CONTRATO"</text></outputValues>
+      </output>
+
+      <output id="Output_5" label="Risco Denial" name="riscoDenial" typeRef="string">
+        <outputValues><text>"BAIXO", "MEDIO", "ALTO", "CRITICO"</text></outputValues>
+      </output>
+
+      <!-- ========== RULES ========== -->
+<rule id="Rule_Contraindicacao_1">
+        <description>Desconto superior a 30% com prazo superior a 30 dias</description>
+        <inputEntry id="InputEntry_C1_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_C1_2"><text>&gt; 30</text></inputEntry>
+        <inputEntry id="InputEntry_C1_3"><text>&gt; 30</text></inputEntry>
+        <inputEntry id="InputEntry_C1_4"><text>-</text></inputEntry>
+<outputEntry id="OutputEntry_C1_1"><text>"Bloquear"</text></outputEntry>
+<outputEntry id="OutputEntry_C1_2"><text>"Desconto superior a 30% com prazo acima de 30 dias nao permitido. CDC Art. 52 requer proporcionalidade entre desconto e antecipacao."</text></outputEntry>
+<outputEntry id="OutputEntry_C1_3"><text>"REJEITAR"</text></outputEntry>
+<outputEntry id="Rule_Contraindicacao_1_outputEntry_alertasConformidade"><text>"VALOR"</text></outputEntry>
+<outputEntry id="Rule_Contraindicacao_1_outputEntry_riscoDenial"><text>"ALTO"</text></outputEntry>
+      </rule>
+
+      
+      <rule id="Rule_Contraindicacao_2">
+        <description>Operadora com historico de inadimplencia grave</description>
+        <inputEntry id="InputEntry_C2_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_C2_2"><text>&gt; 10</text></inputEntry>
+        <inputEntry id="InputEntry_C2_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_C2_4"><text>"INADIMPLENTE"</text></inputEntry>
+<outputEntry id="OutputEntry_C2_1"><text>"Bloquear"</text></outputEntry>
+<outputEntry id="OutputEntry_C2_2"><text>"Operadora inadimplente nao elegivel para desconto superior a 10%. Exigir quitacao integral ou garantias adicionais."</text></outputEntry>
+<outputEntry id="OutputEntry_C2_3"><text>"REJEITAR"</text></outputEntry>
+<outputEntry id="Rule_Contraindicacao_2_outputEntry_alertasConformidade"><text>"VALOR"</text></outputEntry>
+<outputEntry id="Rule_Contraindicacao_2_outputEntry_riscoDenial"><text>"ALTO"</text></outputEntry>
+      </rule>
+
+      
+      <rule id="Rule_Alerta_1">
+        <description>Desconto entre 20% e 30% requer aprovacao</description>
+        <inputEntry id="InputEntry_A1_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_A1_2"><text>[20..30]</text></inputEntry>
+        <inputEntry id="InputEntry_A1_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_A1_4"><text>"REGULAR", "IRREGULAR"</text></inputEntry>
+<outputEntry id="OutputEntry_A1_1"><text>"Alertar"</text></outputEntry>
+<outputEntry id="OutputEntry_A1_2"><text>"Desconto entre 20% e 30% requer aprovacao da diretoria financeira. Verificar margem de contribuicao."</text></outputEntry>
+<outputEntry id="OutputEntry_A1_3"><text>"ESCALAR_DIRETORIA"</text></outputEntry>
+<outputEntry id="Rule_Alerta_1_outputEntry_alertasConformidade"><text>"VALOR"</text></outputEntry>
+<outputEntry id="Rule_Alerta_1_outputEntry_riscoDenial"><text>"MEDIO"</text></outputEntry>
+      </rule>
+
+      
+      <rule id="Rule_Aprovado_1">
+        <description>Desconto ate 15% com quitacao em ate 15 dias</description>
+        <inputEntry id="InputEntry_P1_1"><text>&gt;= 1000</text></inputEntry>
+        <inputEntry id="InputEntry_P1_2"><text>&lt;= 15</text></inputEntry>
+        <inputEntry id="InputEntry_P1_3"><text>&lt;= 15</text></inputEntry>
+        <inputEntry id="InputEntry_P1_4"><text>"REGULAR"</text></inputEntry>
+<outputEntry id="OutputEntry_P1_1"><text>"Prosseguir"</text></outputEntry>
+<outputEntry id="OutputEntry_P1_2"><text>"Desconto de ate 15% aprovado para quitacao em ate 15 dias. Operadora com historico regular."</text></outputEntry>
+<outputEntry id="OutputEntry_P1_3"><text>"APROVAR_DESCONTO"</text></outputEntry>
+<outputEntry id="Rule_Aprovado_1_outputEntry_alertasConformidade"><text>"NENHUM"</text></outputEntry>
+<outputEntry id="Rule_Aprovado_1_outputEntry_riscoDenial"><text>"BAIXO"</text></outputEntry>
+      </rule>
+
+      
+      <rule id="Rule_Aprovado_2">
+        <description>Desconto ate 20% com quitacao em ate 30 dias</description>
+        <inputEntry id="InputEntry_P2_1"><text>&gt;= 5000</text></inputEntry>
+        <inputEntry id="InputEntry_P2_2"><text>&lt;= 20</text></inputEntry>
+        <inputEntry id="InputEntry_P2_3"><text>&lt;= 30</text></inputEntry>
+        <inputEntry id="InputEntry_P2_4"><text>"REGULAR"</text></inputEntry>
+<outputEntry id="OutputEntry_P2_1"><text>"Prosseguir"</text></outputEntry>
+<outputEntry id="OutputEntry_P2_2"><text>"Desconto de ate 20% aprovado para valores acima de R$ 5.000 com quitacao em ate 30 dias."</text></outputEntry>
+<outputEntry id="OutputEntry_P2_3"><text>"APROVAR_DESCONTO"</text></outputEntry>
+<outputEntry id="Rule_Aprovado_2_outputEntry_alertasConformidade"><text>"NENHUM"</text></outputEntry>
+<outputEntry id="Rule_Aprovado_2_outputEntry_riscoDenial"><text>"BAIXO"</text></outputEntry>
+      </rule>
+
+      
+      <rule id="Rule_Fallback_RECV_NEGO_001">
+        <description>Caso nao atenda criterios automaticos - Contraproposta</description>
+        <inputEntry id="InputEntry_F_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_F_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_F_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_F_4"><text>-</text></inputEntry>
+<outputEntry id="OutputEntry_F_1"><text>"Revisar"</text></outputEntry>
+<outputEntry id="OutputEntry_F_2"><text>"Proposta de desconto requer analise manual. Avaliar valor, prazo e historico para contraproposta."</text></outputEntry>
+<outputEntry id="OutputEntry_F_3"><text>"CONTRAPROPOSTA"</text></outputEntry>
+<outputEntry id="Rule_Fallback_RECV_NEGO_001_outputEntry_alertasConformidade"><text>"NENHUM"</text></outputEntry>
+<outputEntry id="Rule_Fallback_RECV_NEGO_001_outputEntry_riscoDenial"><text>"MEDIO"</text></outputEntry>
+      </rule>
+
+    </decisionTable>
+  </decision>
+
+  <dmndi:DMNDI>
+    <dmndi:DMNDiagram id="DMNDiagram_RECV_NEGO_001">
+      <dmndi:DMNShape id="DMNShape_Decision_RECV_NEGO_001" dmnElementRef="Decision_RECV_NEGO_001">
+        <dc:Bounds height="80" width="180" x="160" y="100" />
+      </dmndi:DMNShape>
+    </dmndi:DMNDiagram>
+  </dmndi:DMNDI>
+
+</definitions>

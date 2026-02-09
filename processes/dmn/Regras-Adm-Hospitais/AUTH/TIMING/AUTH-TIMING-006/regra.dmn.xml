@@ -1,0 +1,212 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  ============================================================================
+  AUTH-TIMING-006 - Prazo Regularizacao Emergencia (24h)
+  ============================================================================
+  Versao: 1.0.0 (2026-02-08)
+  Categoria: AUTH-TIMING
+  Perspectiva: HOSPITAL (Faturamento/Auditoria)
+
+  ============================================================================
+  INDICACOES (Quando PROSSEGUIR):
+  ============================================================================
+  - Atendimento emergencial regularizado dentro de 24h
+  - Documentacao de emergencia presente
+  - Comunicacao com operadora dentro do prazo
+
+  ============================================================================
+  CONTRAINDICACOES (Quando BLOQUEAR):
+  ============================================================================
+  - Regularizacao de emergencia apos 24h sem justificativa
+  - Falta caracterizacao de emergencia
+  - Ausencia de comunicacao com operadora
+
+  ============================================================================
+  REFERENCIAS NORMATIVAS:
+  ============================================================================
+  - RN 259/2011 Art. 2 (Prazo 12h Emergencia, 24h Urgencia)
+  - RN 465/2021 Art. 3 (Procedimentos Urgencia/Emergencia)
+  - Lei 9.656/1998 Art. 12-C (Cobertura Emergencial)
+  - RN 424/2017 (Comunicacao Obrigatoria)
+  ============================================================================
+-->
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/"
+             xmlns:dc="http://www.omg.org/spec/DMN/20180521/DC/"
+             id="Definitions_AUTH_TIMING_006"
+             name="Prazo Regularizacao Emergencia (24h)"
+             targetNamespace="http://camunda.org/schema/1.0/dmn">
+
+  <decision id="Decision_AUTH_TIMING_006" name="Verificar Prazo de Regularizacao de Emergencia">
+    <decisionTable id="DecisionTable_AUTH_TIMING_006" hitPolicy="FIRST">
+
+      <!-- ========== INPUTS ========== -->
+      <input id="Input_1" label="Tipo Atendimento">
+        <inputExpression id="InputExpression_1" typeRef="string">
+          <text>tipoAtendimento</text>
+        </inputExpression>
+        <inputValues id="InputValues_1">
+          <text>"ELETIVO", "URGENCIA", "EMERGENCIA"</text>
+        </inputValues>
+      </input>
+
+      <input id="Input_2" label="Horas Desde Atendimento">
+        <inputExpression id="InputExpression_2" typeRef="integer">
+          <text>horasDesdeAtendimento</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_3" label="Tem Prorrogacao">
+        <inputExpression id="InputExpression_3" typeRef="boolean">
+          <text>temProrrogacao</text>
+        </inputExpression>
+      </input>
+
+      <!-- ========== OUTPUTS (5 STANDARD) ========== -->
+      <output id="Output_1" label="Resultado" name="resultado" typeRef="string">
+        <outputValues><text>"Prosseguir", "Bloquear", "Alertar", "Revisar"</text></outputValues>
+      </output>
+
+      <output id="Output_2" label="Observacao" name="observacao" typeRef="string"/>
+
+      <output id="Output_3" label="Acao Recomendada" name="acaoRecomendada" typeRef="string"/>
+
+      <output id="Output_4" label="Alertas Conformidade" name="alertasConformidade" typeRef="string">
+        <outputValues><text>"NENHUM", "DUP", "FREQ", "PRAZO", "DOC", "VALOR", "CRED", "CONTRATO"</text></outputValues>
+      </output>
+
+      <output id="Output_5" label="Risco Denial" name="riscoDenial" typeRef="string">
+        <outputValues><text>"BAIXO", "MEDIO", "ALTO", "CRITICO"</text></outputValues>
+      </output>
+
+      <!-- ========== RULES ========== -->
+
+      <!-- REGRA B1: Bloqueio - Emergencia sem comunicacao apos 24h -->
+      <rule id="Rule_Bloqueio_1">
+        <description>Emergencia nao comunicada a operadora apos 24h</description>
+        <inputEntry id="InputEntry_B1_1"><text>"EMERGENCIA"</text></inputEntry>
+        <inputEntry id="InputEntry_B1_2"><text>&gt; 24</text></inputEntry>
+        <inputEntry id="InputEntry_B1_3"><text>false</text></inputEntry>
+        <outputEntry id="OutputEntry_B1_1"><text>"Bloquear"</text></outputEntry>
+        <outputEntry id="OutputEntry_B1_2"><text>"Atendimento de emergencia nao comunicado a operadora dentro de 24h. Prazo regulatorio expirado."</text></outputEntry>
+        <outputEntry id="OutputEntry_B1_3"><text>"Solicitar justificativa formal do atraso e negociar regularizacao excepcional com operadora."</text></outputEntry>
+        <outputEntry id="OutputEntry_B1_4"><text>"PRAZO"</text></outputEntry>
+        <outputEntry id="OutputEntry_B1_5"><text>"ALTO"</text></outputEntry>
+      </rule>
+
+      <!-- REGRA B2: Bloqueio - Urgencia sem comunicacao apos 24h -->
+      <rule id="Rule_Bloqueio_2">
+        <description>Urgencia nao comunicada a operadora apos 24h</description>
+        <inputEntry id="InputEntry_B2_1"><text>"URGENCIA"</text></inputEntry>
+        <inputEntry id="InputEntry_B2_2"><text>&gt; 24</text></inputEntry>
+        <inputEntry id="InputEntry_B2_3"><text>false</text></inputEntry>
+        <outputEntry id="OutputEntry_B2_1"><text>"Bloquear"</text></outputEntry>
+        <outputEntry id="OutputEntry_B2_2"><text>"Atendimento de urgencia nao comunicado a operadora dentro de 24h. Prazo regulatorio expirado."</text></outputEntry>
+        <outputEntry id="OutputEntry_B2_3"><text>"Solicitar justificativa formal do atraso e negociar regularizacao excepcional com operadora."</text></outputEntry>
+        <outputEntry id="OutputEntry_B2_4"><text>"PRAZO"</text></outputEntry>
+        <outputEntry id="OutputEntry_B2_5"><text>"ALTO"</text></outputEntry>
+      </rule>
+
+      <!-- REGRA A1: Alerta - Emergencia entre 12-24h -->
+      <rule id="Rule_Alerta_1">
+        <description>Emergencia no prazo limite para comunicacao (12-24h)</description>
+        <inputEntry id="InputEntry_A1_1"><text>"EMERGENCIA"</text></inputEntry>
+        <inputEntry id="InputEntry_A1_2"><text>[12..24]</text></inputEntry>
+        <inputEntry id="InputEntry_A1_3"><text>false</text></inputEntry>
+        <outputEntry id="OutputEntry_A1_1"><text>"Alertar"</text></outputEntry>
+        <outputEntry id="OutputEntry_A1_2"><text>"Emergencia no limite do prazo de comunicacao (12-24h). Urgente comunicar operadora."</text></outputEntry>
+        <outputEntry id="OutputEntry_A1_3"><text>"Comunicar URGENTE a operadora sobre atendimento de emergencia antes de vencer 24h."</text></outputEntry>
+        <outputEntry id="OutputEntry_A1_4"><text>"PRAZO"</text></outputEntry>
+        <outputEntry id="OutputEntry_A1_5"><text>"MEDIO"</text></outputEntry>
+      </rule>
+
+      <!-- REGRA A2: Alerta - Urgencia entre 12-24h -->
+      <rule id="Rule_Alerta_2">
+        <description>Urgencia no prazo limite para comunicacao (12-24h)</description>
+        <inputEntry id="InputEntry_A2_1"><text>"URGENCIA"</text></inputEntry>
+        <inputEntry id="InputEntry_A2_2"><text>[12..24]</text></inputEntry>
+        <inputEntry id="InputEntry_A2_3"><text>false</text></inputEntry>
+        <outputEntry id="OutputEntry_A2_1"><text>"Alertar"</text></outputEntry>
+        <outputEntry id="OutputEntry_A2_2"><text>"Urgencia no limite do prazo de comunicacao (12-24h). Urgente comunicar operadora."</text></outputEntry>
+        <outputEntry id="OutputEntry_A2_3"><text>"Comunicar URGENTE a operadora sobre atendimento de urgencia antes de vencer 24h."</text></outputEntry>
+        <outputEntry id="OutputEntry_A2_4"><text>"PRAZO"</text></outputEntry>
+        <outputEntry id="OutputEntry_A2_5"><text>"MEDIO"</text></outputEntry>
+      </rule>
+
+      <!-- REGRA P1: Aprovado - Emergencia dentro do prazo (0-12h) -->
+      <rule id="Rule_Aprovado_1">
+        <description>Emergencia dentro do prazo de comunicacao obrigatoria</description>
+        <inputEntry id="InputEntry_P1_1"><text>"EMERGENCIA"</text></inputEntry>
+        <inputEntry id="InputEntry_P1_2"><text>&lt;= 12</text></inputEntry>
+        <inputEntry id="InputEntry_P1_3"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_P1_1"><text>"Prosseguir"</text></outputEntry>
+        <outputEntry id="OutputEntry_P1_2"><text>"Emergencia dentro do prazo de comunicacao obrigatoria (ate 24h). Prazo regulatorio ok."</text></outputEntry>
+        <outputEntry id="OutputEntry_P1_3"><text>"Comunicar operadora sobre atendimento de emergencia dentro de 24h conforme regulamentacao."</text></outputEntry>
+        <outputEntry id="OutputEntry_P1_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_P1_5"><text>"BAIXO"</text></outputEntry>
+      </rule>
+
+      <!-- REGRA P2: Aprovado - Urgencia dentro do prazo (0-12h) -->
+      <rule id="Rule_Aprovado_2">
+        <description>Urgencia dentro do prazo de comunicacao obrigatoria</description>
+        <inputEntry id="InputEntry_P2_1"><text>"URGENCIA"</text></inputEntry>
+        <inputEntry id="InputEntry_P2_2"><text>&lt;= 12</text></inputEntry>
+        <inputEntry id="InputEntry_P2_3"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_P2_1"><text>"Prosseguir"</text></outputEntry>
+        <outputEntry id="OutputEntry_P2_2"><text>"Urgencia dentro do prazo de comunicacao obrigatoria (ate 24h). Prazo regulatorio ok."</text></outputEntry>
+        <outputEntry id="OutputEntry_P2_3"><text>"Comunicar operadora sobre atendimento de urgencia dentro de 24h conforme regulamentacao."</text></outputEntry>
+        <outputEntry id="OutputEntry_P2_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_P2_5"><text>"BAIXO"</text></outputEntry>
+      </rule>
+
+      <!-- REGRA P3: Aprovado - Atendimento eletivo (nao se aplica prazo emergencial) -->
+      <rule id="Rule_Aprovado_3">
+        <description>Atendimento eletivo nao requer comunicacao emergencial</description>
+        <inputEntry id="InputEntry_P3_1"><text>"ELETIVO"</text></inputEntry>
+        <inputEntry id="InputEntry_P3_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_P3_3"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_P3_1"><text>"Prosseguir"</text></outputEntry>
+        <outputEntry id="OutputEntry_P3_2"><text>"Atendimento eletivo. Nao se aplica prazo de comunicacao emergencial."</text></outputEntry>
+        <outputEntry id="OutputEntry_P3_3"><text>"Prosseguir com faturamento conforme autorizacao previa obrigatoria para eletivos."</text></outputEntry>
+        <outputEntry id="OutputEntry_P3_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_P3_5"><text>"BAIXO"</text></outputEntry>
+      </rule>
+
+      <!-- REGRA P4: Aprovado - Prorrogacao concedida -->
+      <rule id="Rule_Aprovado_4">
+        <description>Prorrogacao de prazo concedida pela operadora</description>
+        <inputEntry id="InputEntry_P4_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_P4_2"><text>&gt; 24</text></inputEntry>
+        <inputEntry id="InputEntry_P4_3"><text>true</text></inputEntry>
+        <outputEntry id="OutputEntry_P4_1"><text>"Prosseguir"</text></outputEntry>
+        <outputEntry id="OutputEntry_P4_2"><text>"Prorrogacao de prazo de comunicacao concedida pela operadora."</text></outputEntry>
+        <outputEntry id="OutputEntry_P4_3"><text>"Prosseguir com faturamento conforme prorrogacao autorizada."</text></outputEntry>
+        <outputEntry id="OutputEntry_P4_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_P4_5"><text>"BAIXO"</text></outputEntry>
+      </rule>
+
+      <!-- REGRA F: Fallback - Requer revisao manual -->
+      <rule id="Rule_Fallback_AUTH_TIMING_006">
+        <description>Regra padrao - Requer avaliacao manual</description>
+        <inputEntry id="InputEntry_F_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_F_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_F_3"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_F_1"><text>"Revisar"</text></outputEntry>
+        <outputEntry id="OutputEntry_F_2"><text>"Situacao de prazo de regularizacao emergencial requer analise manual especializada."</text></outputEntry>
+        <outputEntry id="OutputEntry_F_3"><text>"Encaminhar para auditoria avaliar cumprimento de prazos regulatorios de comunicacao."</text></outputEntry>
+        <outputEntry id="OutputEntry_F_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_F_5"><text>"MEDIO"</text></outputEntry>
+      </rule>
+
+    </decisionTable>
+  </decision>
+
+  <dmndi:DMNDI>
+    <dmndi:DMNDiagram id="DMNDiagram_AUTH_TIMING_006">
+      <dmndi:DMNShape id="DMNShape_Decision_AUTH_TIMING_006" dmnElementRef="Decision_AUTH_TIMING_006">
+        <dc:Bounds height="80" width="180" x="160" y="100"/>
+      </dmndi:DMNShape>
+    </dmndi:DMNDiagram>
+  </dmndi:DMNDI>
+
+</definitions>

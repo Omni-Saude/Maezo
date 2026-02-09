@@ -1,0 +1,390 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  ONQ-DRUG-020: Regorafenib Last-Line Policy
+  TUSS: 40501345
+  Versao: 3.1.0-LEAN-TIER2 (2026-02-08)
+  Especialidade: Oncologia
+
+  ============================================================================
+  INDICACOES CLINICAS:
+  ============================================================================
+  - CCR metastatico: 3L+ pos-fluoropirimidina, oxaliplatina, irinotecano (CORRECT)
+  - GIST: 3L pos-imatinibe e sunitinibe (GRID)
+  - HCC: 2L pos-sorafenibe (RESORCE)
+  - PS 0-1 obrigatorio; toxicidade cutanea frequente
+
+  ============================================================================
+  REFERENCIAS NORMATIVAS:
+  ============================================================================
+  - CORRECT (mCRC 3L+)
+  - GRID (GIST 3L)
+  - RESORCE (HCC 2L)
+  - NCCN Colon Cancer 2024, NCCN GIST 2024, NCCN HCC 2024
+-->
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/" xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/" xmlns:dc="http://www.omg.org/spec/DMN/20180521/DC/" xmlns:modeler="http://camunda.org/schema/modeler/1.0" id="Definitions_ONQ_DRUG_020" name="DRD" namespace="http://camunda.org/schema/1.0/dmn" exporter="Camunda Modeler" exporterVersion="5.14.0" modeler:executionPlatform="Camunda Cloud" modeler:executionPlatformVersion="8.2.0">
+  <decision id="Decision_ONQ_DRUG_020" name="ONQ-DRUG-020: Regorafenib Last-Line Policy [LEAN TIER-2]">
+    <decisionTable id="DecisionTable_ONQ_DRUG_020" hitPolicy="FIRST">
+      <input id="Input_tumor_type" label="Tumor Type">
+        <inputExpression id="InputExpression_tumor_type" typeRef="string">
+          <text>tumorType</text>
+        </inputExpression>
+      </input>
+      <input id="Input_prior_lines" label="Prior Treatment Lines">
+        <inputExpression id="InputExpression_prior_lines" typeRef="number">
+          <text>priorLines</text>
+        </inputExpression>
+      </input>
+      <input id="Input_ecog" label="ECOG Performance Status">
+        <inputExpression id="InputExpression_ecog" typeRef="number">
+          <text>ecogStatus</text>
+        </inputExpression>
+      </input>
+      <input id="Input_prior_agents" label="Prior Agents Used">
+        <inputExpression id="InputExpression_prior_agents" typeRef="string">
+          <text>priorAgents</text>
+        </inputExpression>
+      </input>
+      <!-- Input: Dias desde ultimo procedimento (DUP detection) -->
+      <input id="Input_ultimoProcedimentoDias" label="Dias Desde Ultimo Procedimento">
+        <inputExpression id="InputExpression_ultimoProcedimentoDias" typeRef="number">
+          <text>ultimoProcedimentoDias</text>
+        </inputExpression>
+      </input>
+
+      <output id="Output_resultado" label="Resultado" name="resultado" typeRef="string">
+        <outputValues id="UnaryTests_resultado">
+          <text>"Aprovado","Reprovado","Pendente"</text>
+        </outputValues>
+      </output>
+      <output id="Output_observacao" label="Observacao" name="observacao" typeRef="string" />
+      <output id="Output_fundamentacao" label="Fundamentacao" name="fundamentacao" typeRef="string" />
+      <output id="Output_alertasDesperdicio" label="Alertas de Desperdicio" name="alertasDesperdicio" typeRef="string">
+        <outputValues id="OutputValues_alertasDesperdicio">
+          <text>"NENHUM","DUP","FREQ","ESC","DOC","PROT","MULTI"</text>
+        </outputValues>
+      </output>
+      <output id="Output_acaoRecomendada" label="Acao Recomendada" name="acaoRecomendada" typeRef="string">
+        <outputValues id="OutputValues_acaoRecomendada">
+          <text>"APROVAR","NEGAR","SOLICITAR_INFO","AGUARDAR_PRAZO","SUGERIR_ALTERNATIVA"</text>
+        </outputValues>
+      </output>
+      <rule id="DecisionRule_reject_poor_ps">
+        <description>Reject poor performance status</description>
+        <inputEntry id="InputEntry_tumor_type_ps">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_prior_lines_ps">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_ecog_ps">
+          <text>>= 2</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_prior_agents_ps">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="IE_DecisionRule_reject_poor_ps_ultimo"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_resultado_ps">
+          <text>"Reprovado"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_observacao_ps">
+          <text>"ECOG &gt;=2: regorafenibe nao recomendado. Apenas BSC ou ensaio clinico"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_fundamentacao_ps">
+          <text>"CORRECT/GRID/RESORCE: PS 0-1 nos criterios de inclusao; PS 2+ sem beneficio"</text>
+        </outputEntry>
+        <outputEntry id="OE_reject_poor_ps_alertas">
+          <text>"PROT"</text>
+        </outputEntry>
+        <outputEntry id="OE_reject_poor_ps_acao">
+          <text>"NEGAR"</text>
+        </outputEntry>
+      </rule>
+      <rule id="DecisionRule_reject_non_approved">
+        <description>Reject non-approved tumors</description>
+        <inputEntry id="InputEntry_tumor_type_non">
+          <text>not("colorectal","CRC","mCRC","GIST","HCC","hepatocellular")</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_prior_lines_non">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_ecog_non">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_prior_agents_non">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="IE_DecisionRule_reject_non_approved_ultimo"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_resultado_non">
+          <text>"Reprovado"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_observacao_non">
+          <text>"Regorafenibe: apenas CCR, GIST ou CHC"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_fundamentacao_non">
+          <text>"Indicacoes aprovadas: CORRECT (CCR), GRID (GIST), RESORCE (CHC)"</text>
+        </outputEntry>
+        <outputEntry id="OE_reject_non_approved_alertas">
+          <text>"PROT"</text>
+        </outputEntry>
+        <outputEntry id="OE_reject_non_approved_acao">
+          <text>"NEGAR"</text>
+        </outputEntry>
+      </rule>
+      <rule id="DecisionRule_reject_crc_early">
+        <description>Reject CRC in early lines</description>
+        <inputEntry id="InputEntry_tumor_type_early">
+          <text>"colorectal","CRC","mCRC"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_prior_lines_early">
+          <text>< 2</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_ecog_early">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_prior_agents_early">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="IE_DecisionRule_reject_crc_early_ultimo"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_resultado_early">
+          <text>"Reprovado"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_observacao_early">
+          <text>"CCR &lt;3L: usar quimioterapia padrao primeiro (FOLFOX/FOLFIRI/biologicos)"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_fundamentacao_early">
+          <text>"CORRECT: populacao refrataria a todas quimios standard; nao e opcao precoce"</text>
+        </outputEntry>
+        <outputEntry id="OE_reject_crc_early_alertas">
+          <text>"PROT"</text>
+        </outputEntry>
+        <outputEntry id="OE_reject_crc_early_acao">
+          <text>"NEGAR"</text>
+        </outputEntry>
+      </rule>
+
+      <!-- WASTE DETECTION: ESC -->
+      <rule id="Rule_40501345_ESC">
+        <description>ESC - Regorafenib sem documentacao falha todas linhas previas disponiveis</description>
+        <inputEntry id="IE_ESC_40501345_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_ESC_40501345_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_ESC_40501345_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_ESC_40501345_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_ESC_40501345_ultimo"><text>-</text></inputEntry>
+        <outputEntry id="OE_ESC_40501345_resultado"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OE_ESC_40501345_observacao"><text>"Regorafenib sem documentacao falha todas linhas previas disponiveis"</text></outputEntry>
+        <outputEntry id="OE_ESC_40501345_fundamentacao"><text>"NCCN CRC/GIST 2024: Regorafenib ultima linha. Documentar falha todas opcoes anteriores"</text></outputEntry>
+        <outputEntry id="OE_ESC_40501345_alertasDesperdicio"><text>"ESC"</text></outputEntry>
+        <outputEntry id="OE_ESC_40501345_acaoRecomendada"><text>"SOLICITAR_INFO"</text></outputEntry>
+      </rule>
+
+      <!-- WASTE DETECTION: FREQ -->
+      <rule id="Rule_40501345_FREQ">
+        <description>FREQ - Verificar frequencia dispensacao medicamento oral oncologico. Ciclo 28 dias padr</description>
+        <inputEntry id="IE_FREQ_40501345_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_FREQ_40501345_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_FREQ_40501345_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_FREQ_40501345_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_FREQ_40501345_ultimo"><text>-</text></inputEntry>
+        <outputEntry id="OE_FREQ_40501345_resultado"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OE_FREQ_40501345_observacao"><text>"Verificar frequencia dispensacao medicamento oral oncologico. Ciclo 28 dias padrao"</text></outputEntry>
+        <outputEntry id="OE_FREQ_40501345_fundamentacao"><text>"ANS RN 465/2021, SBOC 2023: Dispensacao oral oncologico ciclo 28 dias, max 3 ciclos por autorizacao"</text></outputEntry>
+        <outputEntry id="OE_FREQ_40501345_alertasDesperdicio"><text>"FREQ"</text></outputEntry>
+        <outputEntry id="OE_FREQ_40501345_acaoRecomendada"><text>"SOLICITAR_INFO"</text></outputEntry>
+      </rule>
+
+      <rule id="DecisionRule_approve_crc_3l">
+        <description>Approve CRC 3L+</description>
+        <inputEntry id="InputEntry_tumor_type_crc">
+          <text>"colorectal","CRC","mCRC"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_prior_lines_crc">
+          <text>>= 2</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_ecog_crc">
+          <text>[0..1]</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_prior_agents_crc">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="IE_DecisionRule_approve_crc_3l_ultimo"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_resultado_crc">
+          <text>"Aprovado"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_observacao_crc">
+          <text>"Regorafenibe aprovado: CCRm 3L+ refratario. Iniciar 80mg e escalonar"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_fundamentacao_crc">
+          <text>"CORRECT: OS 6.4 vs 5.0m; dose-escalation reduz toxicidade. Alternativa: TAS-102"</text>
+        </outputEntry>
+        <outputEntry id="OE_approve_crc_3l_alertas">
+          <text>"NENHUM"</text>
+        </outputEntry>
+        <outputEntry id="OE_approve_crc_3l_acao">
+          <text>"APROVAR"</text>
+        </outputEntry>
+      </rule>
+      <rule id="DecisionRule_approve_gist_3l">
+        <description>Approve GIST 3L</description>
+        <inputEntry id="InputEntry_tumor_type_gist">
+          <text>"GIST"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_prior_lines_gist">
+          <text>>= 2</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_ecog_gist">
+          <text>[0..1]</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_prior_agents_gist">
+          <text>"imatinib_sunitinib"</text>
+        </inputEntry>
+        <inputEntry id="IE_DecisionRule_approve_gist_3l_ultimo"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_resultado_gist">
+          <text>"Aprovado"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_observacao_gist">
+          <text>"Regorafenibe aprovado: GIST 3L pos-imatinibe e sunitinibe"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_fundamentacao_gist">
+          <text>"GRID: PFS 4.8 vs 0.9m; unica opcao 3L com evidencia em GIST"</text>
+        </outputEntry>
+        <outputEntry id="OE_approve_gist_3l_alertas">
+          <text>"NENHUM"</text>
+        </outputEntry>
+        <outputEntry id="OE_approve_gist_3l_acao">
+          <text>"APROVAR"</text>
+        </outputEntry>
+      </rule>
+      <rule id="DecisionRule_pending_gist_no_suni">
+        <description>Pending GIST without sunitinib</description>
+        <inputEntry id="InputEntry_tumor_type_gist_ns">
+          <text>"GIST"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_prior_lines_gist_ns">
+          <text>>= 1</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_ecog_gist_ns">
+          <text>[0..1]</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_prior_agents_gist_ns">
+          <text>not("imatinib_sunitinib")</text>
+        </inputEntry>
+        <inputEntry id="IE_DecisionRule_pending_gist_no_suni_ultimo"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_resultado_gist_ns">
+          <text>"Pendente"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_observacao_gist_ns">
+          <text>"GIST: usar sunitinibe 2L antes de regorafenibe"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_fundamentacao_gist_ns">
+          <text>"Sequenciamento padrao: imatinibe -> sunitinibe -> regorafenibe"</text>
+        </outputEntry>
+        <outputEntry id="OE_pending_gist_no_suni_alertas">
+          <text>"NENHUM"</text>
+        </outputEntry>
+        <outputEntry id="OE_pending_gist_no_suni_acao">
+          <text>"SOLICITAR_INFO"</text>
+        </outputEntry>
+      </rule>
+      <rule id="DecisionRule_approve_hcc_2l">
+        <description>Approve HCC 2L</description>
+        <inputEntry id="InputEntry_tumor_type_hcc">
+          <text>"HCC","hepatocellular"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_prior_lines_hcc">
+          <text>>= 1</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_ecog_hcc">
+          <text>[0..1]</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_prior_agents_hcc">
+          <text>"sorafenib"</text>
+        </inputEntry>
+        <inputEntry id="IE_DecisionRule_approve_hcc_2l_ultimo"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_resultado_hcc">
+          <text>"Aprovado"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_observacao_hcc">
+          <text>"Regorafenibe aprovado: CHC 2L pos-sorafenibe, Child-Pugh A"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_fundamentacao_hcc">
+          <text>"RESORCE: OS 10.6 vs 7.8m em tolerantes a sorafenibe; Child-Pugh A obrigatorio"</text>
+        </outputEntry>
+        <outputEntry id="OE_approve_hcc_2l_alertas">
+          <text>"NENHUM"</text>
+        </outputEntry>
+        <outputEntry id="OE_approve_hcc_2l_acao">
+          <text>"APROVAR"</text>
+        </outputEntry>
+      </rule>
+      <rule id="DecisionRule_pending_hcc_no_sorafenib">
+        <description>Pending HCC without sorafenib</description>
+        <inputEntry id="InputEntry_tumor_type_hcc_ns">
+          <text>"HCC","hepatocellular"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_prior_lines_hcc_ns">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_ecog_hcc_ns">
+          <text>[0..1]</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_prior_agents_hcc_ns">
+          <text>not("sorafenib")</text>
+        </inputEntry>
+        <inputEntry id="IE_DecisionRule_pending_hcc_no_sorafenib_ultimo"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_resultado_hcc_ns">
+          <text>"Pendente"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_observacao_hcc_ns">
+          <text>"CHC: regorafenibe apenas pos-sorafenibe. Considerar atezobeva ou lenvatinibe 1L"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_fundamentacao_hcc_ns">
+          <text>"RESORCE: inclui apenas tolerantes a sorafenibe; sem dados pos-atezobeva/lenvatinibe"</text>
+        </outputEntry>
+        <outputEntry id="OE_pending_hcc_no_sorafenib_alertas">
+          <text>"NENHUM"</text>
+        </outputEntry>
+        <outputEntry id="OE_pending_hcc_no_sorafenib_acao">
+          <text>"SOLICITAR_INFO"</text>
+        </outputEntry>
+      </rule>
+      <rule id="DecisionRule_fallback">
+        <description>Fallback rule</description>
+        <inputEntry id="InputEntry_tumor_type_fallback">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_prior_lines_fallback">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_ecog_fallback">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_prior_agents_fallback">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="IE_DecisionRule_fallback_ultimo"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_resultado_fallback">
+          <text>"Pendente"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_observacao_fallback">
+          <text>"Dados insuficientes para avaliacao de regorafenibe"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_fundamentacao_fallback">
+          <text>"Necessario: tipo tumoral, linhas previas, ECOG, agentes utilizados"</text>
+        </outputEntry>
+        <outputEntry id="OE_fallback_alertas">
+          <text>"NENHUM"</text>
+        </outputEntry>
+        <outputEntry id="OE_fallback_acao">
+          <text>"SOLICITAR_INFO"</text>
+        </outputEntry>
+      </rule>
+    </decisionTable>
+  </decision>
+  <dmndi:DMNDI>
+    <dmndi:DMNDiagram>
+      <dmndi:DMNShape dmnElementRef="Decision_ONQ_DRUG_020">
+        <dc:Bounds height="80" width="180" x="160" y="100" />
+      </dmndi:DMNShape>
+    </dmndi:DMNDiagram>
+  </dmndi:DMNDI>
+</definitions>

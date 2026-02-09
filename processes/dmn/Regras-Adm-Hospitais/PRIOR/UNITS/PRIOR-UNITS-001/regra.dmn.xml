@@ -1,0 +1,170 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  ============================================================================
+  PRIOR-UNITS-001 - Consumo de Sessoes vs Limite Autorizado
+  ============================================================================
+  Versao: 1.0.0 (2026-02-08)
+  Categoria: PRIOR-UNITS
+  Perspectiva: HOSPITAL (Faturamento/Auditoria)
+
+  ============================================================================
+  INDICACOES (Quando PROSSEGUIR):
+  ============================================================================
+  - Consumo dentro do limite autorizado
+  - Percentual de consumo abaixo de 80%
+  - Sessoes disponiveis suficientes
+
+  ============================================================================
+  CONTRAINDICACOES (Quando BLOQUEAR):
+  ============================================================================
+  - Consumo excede limite autorizado
+  - Todas sessoes ja consumidas
+  - Falta autorizacao para adicional
+
+  ============================================================================
+  REFERENCIAS NORMATIVAS:
+  ============================================================================
+  - RN 424/2017 (Autorizacao Previa)
+  - RN 465/2021 (Procedimentos Regulados)
+  - TISS 4.01.00 (Guia SP/SADT)
+  - Lei 9.656/1998 Art. 12 (Cobertura Obrigatoria)
+  ============================================================================
+-->
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/"
+             xmlns:dc="http://www.omg.org/spec/DMN/20180521/DC/"
+             id="Definitions_PRIOR_UNITS_001"
+             name="Consumo de Sessoes vs Limite Autorizado"
+             targetNamespace="http://camunda.org/schema/1.0/dmn">
+
+  <decision id="Decision_PRIOR_UNITS_001" name="Verificar Consumo de Sessoes vs Limite Autorizado">
+    <decisionTable id="DecisionTable_PRIOR_UNITS_001" hitPolicy="FIRST">
+
+      <!-- ========== INPUTS ========== -->
+      <input id="Input_1" label="Sessoes Autorizadas">
+        <inputExpression id="InputExpression_1" typeRef="integer">
+          <text>sessoesAutorizadas</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_2" label="Sessoes Consumidas">
+        <inputExpression id="InputExpression_2" typeRef="integer">
+          <text>sessoesConsumidas</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_3" label="Percentual Consumo">
+        <inputExpression id="InputExpression_3" typeRef="integer">
+          <text>percentualConsumo</text>
+        </inputExpression>
+      </input>
+
+      <!-- ========== OUTPUTS (5 STANDARD) ========== -->
+      <output id="Output_1" label="Resultado" name="resultado" typeRef="string">
+        <outputValues><text>"Prosseguir", "Bloquear", "Alertar", "Revisar"</text></outputValues>
+      </output>
+
+      <output id="Output_2" label="Observacao" name="observacao" typeRef="string"/>
+
+      <output id="Output_3" label="Acao Recomendada" name="acaoRecomendada" typeRef="string"/>
+
+      <output id="Output_4" label="Alertas Conformidade" name="alertasConformidade" typeRef="string">
+        <outputValues><text>"NENHUM", "DUP", "FREQ", "PRAZO", "DOC", "VALOR", "CRED", "CONTRATO"</text></outputValues>
+      </output>
+
+      <output id="Output_5" label="Risco Denial" name="riscoDenial" typeRef="string">
+        <outputValues><text>"BAIXO", "MEDIO", "ALTO", "CRITICO"</text></outputValues>
+      </output>
+
+      <!-- ========== RULES ========== -->
+
+      <!-- REGRA B1: Bloqueio - Consumo excede limite -->
+      <rule id="Rule_Bloqueio_1">
+        <description>Sessoes consumidas excedem limite autorizado</description>
+        <inputEntry id="InputEntry_B1_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_B1_2"><text>&gt; sessoesAutorizadas</text></inputEntry>
+        <inputEntry id="InputEntry_B1_3"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_B1_1"><text>"Bloquear"</text></outputEntry>
+        <outputEntry id="OutputEntry_B1_2"><text>"Limite de sessoes autorizadas totalmente consumido e excedido. Faturamento bloqueado."</text></outputEntry>
+        <outputEntry id="OutputEntry_B1_3"><text>"Solicitar prorrogacao da autorizacao antes de realizar novas sessoes."</text></outputEntry>
+        <outputEntry id="OutputEntry_B1_4"><text>"FREQ"</text></outputEntry>
+        <outputEntry id="OutputEntry_B1_5"><text>"CRITICO"</text></outputEntry>
+      </rule>
+
+      <!-- REGRA B2: Bloqueio - Limite totalmente consumido -->
+      <rule id="Rule_Bloqueio_2">
+        <description>Todas sessoes autorizadas ja consumidas</description>
+        <inputEntry id="InputEntry_B2_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_B2_2"><text>= sessoesAutorizadas</text></inputEntry>
+        <inputEntry id="InputEntry_B2_3"><text>&gt;= 100</text></inputEntry>
+        <outputEntry id="OutputEntry_B2_1"><text>"Bloquear"</text></outputEntry>
+        <outputEntry id="OutputEntry_B2_2"><text>"100% das sessoes autorizadas ja consumidas. Faturamento bloqueado."</text></outputEntry>
+        <outputEntry id="OutputEntry_B2_3"><text>"Solicitar prorrogacao ou nova autorizacao para sessoes adicionais."</text></outputEntry>
+        <outputEntry id="OutputEntry_B2_4"><text>"FREQ"</text></outputEntry>
+        <outputEntry id="OutputEntry_B2_5"><text>"ALTO"</text></outputEntry>
+      </rule>
+
+      <!-- REGRA A1: Alerta - Consumo critico (90-99%) -->
+      <rule id="Rule_Alerta_1">
+        <description>Consumo entre 90-99% do limite</description>
+        <inputEntry id="InputEntry_A1_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_A1_2"><text>&lt; sessoesAutorizadas</text></inputEntry>
+        <inputEntry id="InputEntry_A1_3"><text>[90..99]</text></inputEntry>
+        <outputEntry id="OutputEntry_A1_1"><text>"Alertar"</text></outputEntry>
+        <outputEntry id="OutputEntry_A1_2"><text>"Consumo critico: 90% ou mais das sessoes autorizadas ja consumidas."</text></outputEntry>
+        <outputEntry id="OutputEntry_A1_3"><text>"URGENTE: Solicitar prorrogacao imediata para evitar interrupcao do tratamento."</text></outputEntry>
+        <outputEntry id="OutputEntry_A1_4"><text>"FREQ"</text></outputEntry>
+        <outputEntry id="OutputEntry_A1_5"><text>"ALTO"</text></outputEntry>
+      </rule>
+
+      <!-- REGRA A2: Alerta - Consumo alto (80-89%) -->
+      <rule id="Rule_Alerta_2">
+        <description>Consumo entre 80-89% do limite</description>
+        <inputEntry id="InputEntry_A2_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_A2_2"><text>&lt; sessoesAutorizadas</text></inputEntry>
+        <inputEntry id="InputEntry_A2_3"><text>[80..89]</text></inputEntry>
+        <outputEntry id="OutputEntry_A2_1"><text>"Alertar"</text></outputEntry>
+        <outputEntry id="OutputEntry_A2_2"><text>"Consumo alto: 80-89% das sessoes autorizadas ja consumidas."</text></outputEntry>
+        <outputEntry id="OutputEntry_A2_3"><text>"Avaliar necessidade de prorrogacao e iniciar solicitacao preventiva."</text></outputEntry>
+        <outputEntry id="OutputEntry_A2_4"><text>"FREQ"</text></outputEntry>
+        <outputEntry id="OutputEntry_A2_5"><text>"MEDIO"</text></outputEntry>
+      </rule>
+
+      <!-- REGRA P1: Aprovado - Consumo normal -->
+      <rule id="Rule_Aprovado_1">
+        <description>Consumo dentro do limite normal</description>
+        <inputEntry id="InputEntry_P1_1"><text>&gt; 0</text></inputEntry>
+        <inputEntry id="InputEntry_P1_2"><text>&lt; sessoesAutorizadas</text></inputEntry>
+        <inputEntry id="InputEntry_P1_3"><text>&lt; 80</text></inputEntry>
+        <outputEntry id="OutputEntry_P1_1"><text>"Prosseguir"</text></outputEntry>
+        <outputEntry id="OutputEntry_P1_2"><text>"Consumo de sessoes dentro do limite autorizado (abaixo de 80%)."</text></outputEntry>
+        <outputEntry id="OutputEntry_P1_3"><text>"Prosseguir com faturamento das sessoes realizadas."</text></outputEntry>
+        <outputEntry id="OutputEntry_P1_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_P1_5"><text>"BAIXO"</text></outputEntry>
+      </rule>
+
+      <!-- REGRA F: Fallback - Requer revisao manual -->
+      <rule id="Rule_Fallback_PRIOR_UNITS_001">
+        <description>Regra padrao - Requer avaliacao manual</description>
+        <inputEntry id="InputEntry_F_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_F_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_F_3"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_F_1"><text>"Revisar"</text></outputEntry>
+        <outputEntry id="OutputEntry_F_2"><text>"Situacao de consumo de sessoes requer analise manual."</text></outputEntry>
+        <outputEntry id="OutputEntry_F_3"><text>"Encaminhar para auditoria verificar consumo vs limite autorizado."</text></outputEntry>
+        <outputEntry id="OutputEntry_F_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_F_5"><text>"MEDIO"</text></outputEntry>
+      </rule>
+
+    </decisionTable>
+  </decision>
+
+  <dmndi:DMNDI>
+    <dmndi:DMNDiagram id="DMNDiagram_PRIOR_UNITS_001">
+      <dmndi:DMNShape id="DMNShape_Decision_PRIOR_UNITS_001" dmnElementRef="Decision_PRIOR_UNITS_001">
+        <dc:Bounds height="80" width="180" x="160" y="100"/>
+      </dmndi:DMNShape>
+    </dmndi:DMNDiagram>
+  </dmndi:DMNDI>
+
+</definitions>

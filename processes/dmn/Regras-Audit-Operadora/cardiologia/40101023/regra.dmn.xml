@@ -1,0 +1,400 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             xmlns:camunda="http://camunda.org/schema/1.0/dmn"
+             id="Definitions_40101023"
+             name="Teste Ergometrico"
+             namespace="http://camunda.org/schema/1.0/dmn">
+
+  <!--
+    ===============================================================================
+    TUSS: 40101023
+    Procedimento: Teste Ergometrico (Teste de Esforco / Ergometria)
+    Versao: 1.0.0-LEAN-TIER2
+    Data: 2026-02-07
+    ===============================================================================
+
+    INDICACOES CLINICAS (DUT/ANS):
+    Avaliacao de isquemia miocardica, capacidade funcional, resposta cronotrofica,
+    avaliacao pre-operatoria, reabilitacao cardiaca, avaliacao de arritmias induzidas
+
+    CONTRAINDICACOES ABSOLUTAS:
+    IAM recente (menos de 2 dias), angina instavel de alto risco, estenose aortica severa
+    sintomatica, IC descompensada, arritmias malignas nao controladas, TEP agudo,
+    miocardite/pericardite aguda, disseccao aortica
+
+    CONTRAINDICACOES RELATIVAS:
+    Estenose coronaria de TCE, estenose aortica moderada, HAS grave nao controlada,
+    BAV alto grau, cardiomiopatia hipertrofica obstrutiva, limitacoes fisicas
+
+    REFERENCIAS TECNICAS:
+    SBC/DERC Diretrizes de Ergometria 2024, ACC/AHA Exercise Testing Guidelines 2023,
+    ANS RN 465/2021, TISS/TUSS Rol de Procedimentos
+
+    SISTEMA DE CLASSIFICACAO SBC/DERC/ACC/AHA:
+    - Classe I: Procedimento indicado e essencial (Nivel de Evidencia A/B)
+    - Classe IIa: Procedimento provavelmente util e razoavel (Evidencia B)
+    - Classe IIb: Procedimento pode ser considerado (Evidencia C)
+    - Classe III: Procedimento nao indicado ou potencialmente prejudicial
+
+    ALERTAS DE DESPERDICIO (LEAN TIER-2):
+    - DUP: Duplicidade - mesmo exame em intervalo inadequado
+    - FREQ: Frequencia excessiva - screening sem indicacao clinica
+    - ESC: Escalonamento indevido - alternativa mais simples disponivel
+    - DOC: Documentacao insuficiente - ausencia de justificativa clinica
+    - PROT: Protocolo inadequado - fora das diretrizes vigentes
+    - MULTI: Multiplos alertas combinados
+
+    ===============================================================================
+  -->
+
+  <decision id="Decision_40101023" name="Regra Clinica - Teste Ergometrico">
+    <decisionTable id="DecisionTable_40101023" hitPolicy="FIRST">
+
+      <!-- ========== INPUTS (5 - Padrao LEAN TIER-2) ========== -->
+
+      <input id="Input_condicaoPaciente" label="Condicao do Paciente" camunda:inputVariable="condicaoPaciente">
+        <inputExpression id="InputExpression_condicaoPaciente" typeRef="string">
+          <text>condicaoPaciente</text>
+        </inputExpression>
+        <inputValues id="InputValues_condicaoPaciente">
+          <text>"DorToracicaTipica","DorToracicaAtipica","AssintomaticoRiscoBaixo","AssintomaticoRiscoIntermediario","AssintomaticoRiscoAlto","Diabetico","PreOperatorio","ReabilitacaoCardiaca","AvaliacaoArritmia","ContraindicacaoAbsoluta","ContraindicacaoRelativa"</text>
+        </inputValues>
+      </input>
+
+      <input id="Input_historicoClinico" label="Historico Clinico" camunda:inputVariable="historicoClinico">
+        <inputExpression id="InputExpression_historicoClinico" typeRef="string">
+          <text>historicoClinico</text>
+        </inputExpression>
+        <inputValues id="InputValues_historicoClinico">
+          <text>"Adequado","Incompleto","NaoDocumentado"</text>
+        </inputValues>
+      </input>
+
+      <input id="Input_classeIndicacao" label="Classe de Indicacao (SBC/ACC/AHA)" camunda:inputVariable="classeIndicacao">
+        <inputExpression id="InputExpression_classeIndicacao" typeRef="string">
+          <text>classeIndicacao</text>
+        </inputExpression>
+        <inputValues id="InputValues_classeIndicacao">
+          <text>"Classe I","Classe IIa","Classe IIb","Classe III"</text>
+        </inputValues>
+      </input>
+
+      <input id="Input_ultimoProcedimentoDias" label="Dias desde Ultimo Procedimento Similar" camunda:inputVariable="ultimoProcedimentoDias">
+        <inputExpression id="InputExpression_ultimoProcedimentoDias" typeRef="integer">
+          <text>ultimoProcedimentoDias</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_examesComprobatorios" label="Exames Comprobatorios Apresentados" camunda:inputVariable="examesComprobatorios">
+        <inputExpression id="InputExpression_examesComprobatorios" typeRef="string">
+          <text>examesComprobatorios</text>
+        </inputExpression>
+        <inputValues id="InputValues_examesComprobatorios">
+          <text>"ECGRepouso","ECGEFatoresRisco","ECGESintomas","Ecocardiograma","ExamesFisicoCompleto","NenhumApresentado"</text>
+        </inputValues>
+      </input>
+
+      <!-- ========== OUTPUTS (5 - Padrao LEAN TIER-2) ========== -->
+
+      <output id="Output_resultado" label="Resultado" name="resultado" typeRef="string">
+        <outputValues id="OutputValues_resultado">
+          <text>"Aprovado","Reprovado","Pendente"</text>
+        </outputValues>
+      </output>
+
+      <output id="Output_observacao" label="Observacao Clinica" name="observacao" typeRef="string" />
+
+      <output id="Output_fundamentacao" label="Fundamentacao Tecnica" name="fundamentacao" typeRef="string" />
+
+      <output id="Output_alertasDesperdicio" label="Alertas de Desperdicio" name="alertasDesperdicio" typeRef="string">
+        <outputValues id="OutputValues_alertasDesperdicio">
+          <text>"NENHUM","DUP","FREQ","ESC","DOC","PROT","MULTI"</text>
+        </outputValues>
+      </output>
+
+      <output id="Output_acaoRecomendada" label="Acao Recomendada" name="acaoRecomendada" typeRef="string">
+        <outputValues id="OutputValues_acaoRecomendada">
+          <text>"APROVAR","NEGAR","SOLICITAR_INFO","AGUARDAR_PRAZO","SUGERIR_ALTERNATIVA"</text>
+        </outputValues>
+      </output>
+
+      <!-- ========== REGRAS DE REPROVACAO (PRIORIDADE MAXIMA) ========== -->
+
+      <!-- Contraindicacao Absoluta -->
+      <rule id="Rule_Reprovado_ContraindicacaoAbsoluta">
+        <description>Reprovado: Contraindicacao absoluta ao teste ergometrico</description>
+        <inputEntry id="InputEntry_Contraind_Abs_1"><text>"ContraindicacaoAbsoluta"</text></inputEntry>
+        <inputEntry id="InputEntry_Contraind_Abs_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Contraind_Abs_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Contraind_Abs_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Contraind_Abs_5"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_Contraind_Abs_resultado"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_Contraind_Abs_observacao"><text>"Contraindicacao absoluta: IAM recente, angina instavel alto risco, estenose aortica severa, IC descompensada, arritmia maligna, TEP agudo, miocardite/pericardite aguda ou disseccao aortica"</text></outputEntry>
+        <outputEntry id="OutputEntry_Contraind_Abs_fundamentacao"><text>"SBC/DERC 2024, ACC/AHA Exercise Testing 2023 - Contraindicacoes absolutas: risco de evento adverso grave supera beneficio diagnostico"</text></outputEntry>
+        <outputEntry id="OutputEntry_Contraind_Abs_alerta"><text>"PROT"</text></outputEntry>
+        <outputEntry id="OutputEntry_Contraind_Abs_acao"><text>"NEGAR"</text></outputEntry>
+      </rule>
+
+      <!-- Classe III - Nao indicado -->
+      <rule id="Rule_Reprovado_ClasseIII">
+        <description>Reprovado: Procedimento Classe III - nao indicado</description>
+        <inputEntry id="InputEntry_ClasseIII_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_ClasseIII_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_ClasseIII_3"><text>"Classe III"</text></inputEntry>
+        <inputEntry id="InputEntry_ClasseIII_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_ClasseIII_5"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_ClasseIII_resultado"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_ClasseIII_observacao"><text>"Indicacao Classe III - procedimento nao indicado conforme diretrizes vigentes"</text></outputEntry>
+        <outputEntry id="OutputEntry_ClasseIII_fundamentacao"><text>"SBC/DERC 2024, ACC/AHA 2023 - Classe III: Procedimento nao indicado, risco supera beneficio ou evidencia de ineficacia"</text></outputEntry>
+        <outputEntry id="OutputEntry_ClasseIII_alerta"><text>"PROT"</text></outputEntry>
+        <outputEntry id="OutputEntry_ClasseIII_acao"><text>"NEGAR"</text></outputEntry>
+      </rule>
+
+      <!-- FREQ: Screening excessivo em assintomatico baixo risco -->
+      <rule id="Rule_Reprovado_FreqScreeningBaixoRisco">
+        <description>Reprovado: Screening excessivo - assintomatico baixo risco, menos de 365 dias</description>
+        <inputEntry id="InputEntry_FreqScreen_1"><text>"AssintomaticoRiscoBaixo"</text></inputEntry>
+        <inputEntry id="InputEntry_FreqScreen_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_FreqScreen_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_FreqScreen_4"><text>&lt; 365</text></inputEntry>
+        <inputEntry id="InputEntry_FreqScreen_5"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_FreqScreen_resultado"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_FreqScreen_observacao"><text>"Frequencia excessiva: paciente assintomatico de baixo risco cardiovascular nao requer teste ergometrico com intervalo menor que 12 meses"</text></outputEntry>
+        <outputEntry id="OutputEntry_FreqScreen_fundamentacao"><text>"SBC/DERC 2024: Screening anual nao recomendado em assintomaticos de baixo risco - evidencia insuficiente de beneficio (Classe III)"</text></outputEntry>
+        <outputEntry id="OutputEntry_FreqScreen_alerta"><text>"FREQ"</text></outputEntry>
+        <outputEntry id="OutputEntry_FreqScreen_acao"><text>"NEGAR"</text></outputEntry>
+      </rule>
+
+      <!-- DUP: Duplicidade - mesmo teste em menos de 180 dias para risco intermediario estavel -->
+      <rule id="Rule_Reprovado_DupRiscoIntermediarioEstavel">
+        <description>Reprovado: Duplicidade - risco intermediario estavel, exame ha menos de 180 dias</description>
+        <inputEntry id="InputEntry_DupRisco_1"><text>"AssintomaticoRiscoIntermediario"</text></inputEntry>
+        <inputEntry id="InputEntry_DupRisco_2"><text>"Adequado"</text></inputEntry>
+        <inputEntry id="InputEntry_DupRisco_3"><text>"Classe IIb"</text></inputEntry>
+        <inputEntry id="InputEntry_DupRisco_4"><text>&lt; 180</text></inputEntry>
+        <inputEntry id="InputEntry_DupRisco_5"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_DupRisco_resultado"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_DupRisco_observacao"><text>"Duplicidade: exame similar realizado ha menos de 180 dias em paciente clinicamente estavel"</text></outputEntry>
+        <outputEntry id="OutputEntry_DupRisco_fundamentacao"><text>"SBC/DERC 2024: Repeticao de teste em menos de 6 meses sem mudanca clinica nao acrescenta informacao diagnostica relevante"</text></outputEntry>
+        <outputEntry id="OutputEntry_DupRisco_alerta"><text>"DUP"</text></outputEntry>
+        <outputEntry id="OutputEntry_DupRisco_acao"><text>"AGUARDAR_PRAZO"</text></outputEntry>
+      </rule>
+
+      <!-- DOC: Documentacao insuficiente sem sintomas ou fatores de risco -->
+      <rule id="Rule_Reprovado_DocSemSintomasSemRisco">
+        <description>Reprovado: Documentacao insuficiente - sem sintomas e sem fatores de risco documentados</description>
+        <inputEntry id="InputEntry_DocSem_1"><text>"AssintomaticoRiscoBaixo"</text></inputEntry>
+        <inputEntry id="InputEntry_DocSem_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_DocSem_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_DocSem_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_DocSem_5"><text>"NenhumApresentado"</text></inputEntry>
+        <outputEntry id="OutputEntry_DocSem_resultado"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_DocSem_observacao"><text>"Ausencia de justificativa clinica: paciente assintomatico de baixo risco sem exames comprobatorios ou fatores de risco documentados"</text></outputEntry>
+        <outputEntry id="OutputEntry_DocSem_fundamentacao"><text>"ANS RN 465/2021, SBC/DERC 2024: Teste ergometrico de rotina em assintomaticos de baixo risco nao e recomendado (Classe III)"</text></outputEntry>
+        <outputEntry id="OutputEntry_DocSem_alerta"><text>"DOC"</text></outputEntry>
+        <outputEntry id="OutputEntry_DocSem_acao"><text>"NEGAR"</text></outputEntry>
+      </rule>
+
+      <!-- MULTI: Multiplos alertas - assintomatico, sem doc, intervalo curto -->
+      <rule id="Rule_Reprovado_MultiAlertasAssintomatico">
+        <description>Reprovado: Multiplos alertas - assintomatico, documentacao inadequada, intervalo menor que 365 dias</description>
+        <inputEntry id="InputEntry_MultiAlert_1"><text>"AssintomaticoRiscoBaixo","AssintomaticoRiscoIntermediario"</text></inputEntry>
+        <inputEntry id="InputEntry_MultiAlert_2"><text>"Incompleto","NaoDocumentado"</text></inputEntry>
+        <inputEntry id="InputEntry_MultiAlert_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_MultiAlert_4"><text>&lt; 365</text></inputEntry>
+        <inputEntry id="InputEntry_MultiAlert_5"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_MultiAlert_resultado"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_MultiAlert_observacao"><text>"Multiplos alertas de desperdicio: paciente assintomatico, documentacao inadequada e intervalo menor que 12 meses desde ultimo exame"</text></outputEntry>
+        <outputEntry id="OutputEntry_MultiAlert_fundamentacao"><text>"SBC/DERC 2024, ACC/AHA 2023, ANS RN 465/2021: Ausencia de criterios clinicos e documentais para autorizacao"</text></outputEntry>
+        <outputEntry id="OutputEntry_MultiAlert_alerta"><text>"MULTI"</text></outputEntry>
+        <outputEntry id="OutputEntry_MultiAlert_acao"><text>"NEGAR"</text></outputEntry>
+      </rule>
+
+      <!-- ========== REGRAS DE APROVACAO ========== -->
+
+      <!-- Classe I - Dor toracica tipica com documentacao adequada -->
+      <rule id="Rule_Aprovado_ClasseI_DorTipica">
+        <description>Aprovado: Classe I - dor toracica tipica, documentacao adequada</description>
+        <inputEntry id="InputEntry_AprovCI_DorTip_1"><text>"DorToracicaTipica"</text></inputEntry>
+        <inputEntry id="InputEntry_AprovCI_DorTip_2"><text>"Adequado"</text></inputEntry>
+        <inputEntry id="InputEntry_AprovCI_DorTip_3"><text>"Classe I"</text></inputEntry>
+        <inputEntry id="InputEntry_AprovCI_DorTip_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_AprovCI_DorTip_5"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_AprovCI_DorTip_resultado"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_AprovCI_DorTip_observacao"><text>"Indicacao Classe I: dor toracica tipica em paciente com probabilidade intermediaria de DAC - procedimento essencial para estratificacao"</text></outputEntry>
+        <outputEntry id="OutputEntry_AprovCI_DorTip_fundamentacao"><text>"SBC/DERC 2024, ACC/AHA 2023 - Classe I, Nivel A: Teste ergometrico e metodo de escolha inicial para avaliacao de isquemia em pacientes com ECG interpretavel"</text></outputEntry>
+        <outputEntry id="OutputEntry_AprovCI_DorTip_alerta"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_AprovCI_DorTip_acao"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <!-- Classe I - Diabetico assintomatico de alto risco -->
+      <rule id="Rule_Aprovado_ClasseI_DiabeticoAltoRisco">
+        <description>Aprovado: Classe I - diabetico com alto risco cardiovascular</description>
+        <inputEntry id="InputEntry_AprovCI_Diab_1"><text>"Diabetico"</text></inputEntry>
+        <inputEntry id="InputEntry_AprovCI_Diab_2"><text>"Adequado"</text></inputEntry>
+        <inputEntry id="InputEntry_AprovCI_Diab_3"><text>"Classe I","Classe IIa"</text></inputEntry>
+        <inputEntry id="InputEntry_AprovCI_Diab_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_AprovCI_Diab_5"><text>"ECGEFatoresRisco","Ecocardiograma","ExamesFisicoCompleto"</text></inputEntry>
+        <outputEntry id="OutputEntry_AprovCI_Diab_resultado"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_AprovCI_Diab_observacao"><text>"Indicacao Classe I/IIa: paciente diabetico com fatores de risco adicionais documentados - rastreamento de isquemia silenciosa indicado"</text></outputEntry>
+        <outputEntry id="OutputEntry_AprovCI_Diab_fundamentacao"><text>"SBC/DERC 2024, ADA Standards of Care 2024 - Diabeticos com multiplos fatores de risco se beneficiam de estratificacao funcional"</text></outputEntry>
+        <outputEntry id="OutputEntry_AprovCI_Diab_alerta"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_AprovCI_Diab_acao"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <!-- Classe I - Pre-operatorio de cirurgia de alto risco -->
+      <rule id="Rule_Aprovado_ClasseI_PreOperatorio">
+        <description>Aprovado: Classe I - avaliacao pre-operatoria de cirurgia de alto risco</description>
+        <inputEntry id="InputEntry_AprovCI_PreOp_1"><text>"PreOperatorio"</text></inputEntry>
+        <inputEntry id="InputEntry_AprovCI_PreOp_2"><text>"Adequado"</text></inputEntry>
+        <inputEntry id="InputEntry_AprovCI_PreOp_3"><text>"Classe I","Classe IIa"</text></inputEntry>
+        <inputEntry id="InputEntry_AprovCI_PreOp_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_AprovCI_PreOp_5"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_AprovCI_PreOp_resultado"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_AprovCI_PreOp_observacao"><text>"Indicacao Classe I/IIa: avaliacao pre-operatoria de capacidade funcional em paciente com risco cardiovascular para cirurgia de medio/alto risco"</text></outputEntry>
+        <outputEntry id="OutputEntry_AprovCI_PreOp_fundamentacao"><text>"SBC/DERC 2024, ACC/AHA Perioperative Guidelines 2022 - Avaliacao funcional recomendada quando capacidade funcional e desconhecida ou menor que 4 METs"</text></outputEntry>
+        <outputEntry id="OutputEntry_AprovCI_PreOp_alerta"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_AprovCI_PreOp_acao"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <!-- Classe I - Reabilitacao cardiaca -->
+      <rule id="Rule_Aprovado_ClasseI_Reabilitacao">
+        <description>Aprovado: Classe I - programa de reabilitacao cardiaca</description>
+        <inputEntry id="InputEntry_AprovCI_Reab_1"><text>"ReabilitacaoCardiaca"</text></inputEntry>
+        <inputEntry id="InputEntry_AprovCI_Reab_2"><text>"Adequado"</text></inputEntry>
+        <inputEntry id="InputEntry_AprovCI_Reab_3"><text>"Classe I"</text></inputEntry>
+        <inputEntry id="InputEntry_AprovCI_Reab_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_AprovCI_Reab_5"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_AprovCI_Reab_resultado"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_AprovCI_Reab_observacao"><text>"Indicacao Classe I: teste ergometrico para prescricao de exercicio e estratificacao de risco em programa de reabilitacao cardiaca"</text></outputEntry>
+        <outputEntry id="OutputEntry_AprovCI_Reab_fundamentacao"><text>"SBC/DERC 2024, AACVPR Guidelines 2023 - Teste ergometrico e essencial para prescricao individualizada de exercicio em reabilitacao cardiaca"</text></outputEntry>
+        <outputEntry id="OutputEntry_AprovCI_Reab_alerta"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_AprovCI_Reab_acao"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <!-- Classe IIa - Dor atipica com fatores de risco -->
+      <rule id="Rule_Aprovado_ClasseIIa_DorAtipica">
+        <description>Aprovado: Classe IIa - dor toracica atipica com fatores de risco</description>
+        <inputEntry id="InputEntry_AprovCIIa_DorAtip_1"><text>"DorToracicaAtipica"</text></inputEntry>
+        <inputEntry id="InputEntry_AprovCIIa_DorAtip_2"><text>"Adequado"</text></inputEntry>
+        <inputEntry id="InputEntry_AprovCIIa_DorAtip_3"><text>"Classe IIa"</text></inputEntry>
+        <inputEntry id="InputEntry_AprovCIIa_DorAtip_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_AprovCIIa_DorAtip_5"><text>"ECGEFatoresRisco","Ecocardiograma","ExamesFisicoCompleto"</text></inputEntry>
+        <outputEntry id="OutputEntry_AprovCIIa_DorAtip_resultado"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_AprovCIIa_DorAtip_observacao"><text>"Indicacao Classe IIa: dor toracica atipica em paciente com fatores de risco cardiovascular - procedimento razoavel para estratificacao"</text></outputEntry>
+        <outputEntry id="OutputEntry_AprovCIIa_DorAtip_fundamentacao"><text>"SBC/DERC 2024, ACC/AHA 2023 - Classe IIa: Beneficio maior que risco, procedimento e razoavel"</text></outputEntry>
+        <outputEntry id="OutputEntry_AprovCIIa_DorAtip_alerta"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_AprovCIIa_DorAtip_acao"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <!-- Classe IIa - Avaliacao de arritmia induzida por esforco -->
+      <rule id="Rule_Aprovado_ClasseIIa_Arritmia">
+        <description>Aprovado: Classe IIa - avaliacao de arritmia induzida por esforco</description>
+        <inputEntry id="InputEntry_AprovCIIa_Arrit_1"><text>"AvaliacaoArritmia"</text></inputEntry>
+        <inputEntry id="InputEntry_AprovCIIa_Arrit_2"><text>"Adequado"</text></inputEntry>
+        <inputEntry id="InputEntry_AprovCIIa_Arrit_3"><text>"Classe I","Classe IIa"</text></inputEntry>
+        <inputEntry id="InputEntry_AprovCIIa_Arrit_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_AprovCIIa_Arrit_5"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_AprovCIIa_Arrit_resultado"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_AprovCIIa_Arrit_observacao"><text>"Indicacao Classe I/IIa: avaliacao de arritmia ventricular ou supraventricular induzida ou suprimida por esforco"</text></outputEntry>
+        <outputEntry id="OutputEntry_AprovCIIa_Arrit_fundamentacao"><text>"SBC/DERC 2024, ACC/AHA/HRS Arrhythmia Guidelines 2023 - Teste ergometrico util para caracterizacao de arritmias relacionadas ao esforco"</text></outputEntry>
+        <outputEntry id="OutputEntry_AprovCIIa_Arrit_alerta"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_AprovCIIa_Arrit_acao"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <!-- Classe IIa - Alto risco com documentacao adequada e intervalo apropriado -->
+      <rule id="Rule_Aprovado_ClasseIIa_AltoRisco">
+        <description>Aprovado: Classe IIa - assintomatico alto risco com intervalo adequado</description>
+        <inputEntry id="InputEntry_AprovCIIa_Alto_1"><text>"AssintomaticoRiscoAlto"</text></inputEntry>
+        <inputEntry id="InputEntry_AprovCIIa_Alto_2"><text>"Adequado"</text></inputEntry>
+        <inputEntry id="InputEntry_AprovCIIa_Alto_3"><text>"Classe IIa"</text></inputEntry>
+        <inputEntry id="InputEntry_AprovCIIa_Alto_4"><text>>= 180</text></inputEntry>
+        <inputEntry id="InputEntry_AprovCIIa_Alto_5"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_AprovCIIa_Alto_resultado"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_AprovCIIa_Alto_observacao"><text>"Indicacao Classe IIa: paciente assintomatico de alto risco cardiovascular com intervalo adequado desde ultimo exame"</text></outputEntry>
+        <outputEntry id="OutputEntry_AprovCIIa_Alto_fundamentacao"><text>"SBC/DERC 2024: Rastreamento em alto risco e razoavel com intervalo minimo de 6 meses entre exames"</text></outputEntry>
+        <outputEntry id="OutputEntry_AprovCIIa_Alto_alerta"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_AprovCIIa_Alto_acao"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <!-- ========== REGRAS DE PENDENCIA ========== -->
+
+      <!-- DOC: Pendente - sintomas mas documentacao incompleta -->
+      <rule id="Rule_Pendente_DocSintomasIncompleto">
+        <description>Pendente: Sintomas presentes mas documentacao incompleta</description>
+        <inputEntry id="InputEntry_PendDoc_Sint_1"><text>"DorToracicaTipica","DorToracicaAtipica"</text></inputEntry>
+        <inputEntry id="InputEntry_PendDoc_Sint_2"><text>"Incompleto"</text></inputEntry>
+        <inputEntry id="InputEntry_PendDoc_Sint_3"><text>"Classe I","Classe IIa"</text></inputEntry>
+        <inputEntry id="InputEntry_PendDoc_Sint_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_PendDoc_Sint_5"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_PendDoc_Sint_resultado"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OutputEntry_PendDoc_Sint_observacao"><text>"Sintomas sugerem indicacao, porem documentacao clinica incompleta - solicitar historico detalhado, ECG de repouso e descricao de fatores de risco"</text></outputEntry>
+        <outputEntry id="OutputEntry_PendDoc_Sint_fundamentacao"><text>"ANS RN 465/2021: Documentacao adequada e requisito para autorizacao - solicitar complementacao para analise"</text></outputEntry>
+        <outputEntry id="OutputEntry_PendDoc_Sint_alerta"><text>"DOC"</text></outputEntry>
+        <outputEntry id="OutputEntry_PendDoc_Sint_acao"><text>"SOLICITAR_INFO"</text></outputEntry>
+      </rule>
+
+      <!-- ESC: Pendente - contraindicacao relativa, sugerir alternativa -->
+      <rule id="Rule_Pendente_EscContraindicacaoRelativa">
+        <description>Pendente: Contraindicacao relativa - avaliar teste farmacologico</description>
+        <inputEntry id="InputEntry_PendEsc_Rel_1"><text>"ContraindicacaoRelativa"</text></inputEntry>
+        <inputEntry id="InputEntry_PendEsc_Rel_2"><text>"Adequado"</text></inputEntry>
+        <inputEntry id="InputEntry_PendEsc_Rel_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_PendEsc_Rel_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_PendEsc_Rel_5"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_PendEsc_Rel_resultado"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OutputEntry_PendEsc_Rel_observacao"><text>"Contraindicacao relativa ao teste ergometrico convencional - considerar cintilografia com estresse farmacologico ou ecocardiograma de estresse com dobutamina"</text></outputEntry>
+        <outputEntry id="OutputEntry_PendEsc_Rel_fundamentacao"><text>"SBC/DERC 2024: Em contraindicacoes relativas ao esforco fisico, testes com estresse farmacologico sao alternativas seguras"</text></outputEntry>
+        <outputEntry id="OutputEntry_PendEsc_Rel_alerta"><text>"ESC"</text></outputEntry>
+        <outputEntry id="OutputEntry_PendEsc_Rel_acao"><text>"SUGERIR_ALTERNATIVA"</text></outputEntry>
+      </rule>
+
+      <!-- DUP: Pendente - intervalo curto para risco alto -->
+      <rule id="Rule_Pendente_DupAltoRiscoIntervalo">
+        <description>Pendente: Alto risco com intervalo menor que 180 dias - aguardar prazo</description>
+        <inputEntry id="InputEntry_PendDup_Alto_1"><text>"AssintomaticoRiscoAlto"</text></inputEntry>
+        <inputEntry id="InputEntry_PendDup_Alto_2"><text>"Adequado"</text></inputEntry>
+        <inputEntry id="InputEntry_PendDup_Alto_3"><text>"Classe IIa","Classe IIb"</text></inputEntry>
+        <inputEntry id="InputEntry_PendDup_Alto_4"><text>&lt; 180</text></inputEntry>
+        <inputEntry id="InputEntry_PendDup_Alto_5"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_PendDup_Alto_resultado"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OutputEntry_PendDup_Alto_observacao"><text>"Exame similar realizado ha menos de 180 dias - aguardar completar intervalo minimo ou apresentar justificativa de mudanca clinica"</text></outputEntry>
+        <outputEntry id="OutputEntry_PendDup_Alto_fundamentacao"><text>"SBC/DERC 2024: Repeticao em intervalo menor que 6 meses requer justificativa de mudanca do quadro clinico"</text></outputEntry>
+        <outputEntry id="OutputEntry_PendDup_Alto_alerta"><text>"DUP"</text></outputEntry>
+        <outputEntry id="OutputEntry_PendDup_Alto_acao"><text>"AGUARDAR_PRAZO"</text></outputEntry>
+      </rule>
+
+      <!-- DOC: Pendente - sem exames comprobatorios em risco intermediario -->
+      <rule id="Rule_Pendente_DocRiscoIntermediarioSemExames">
+        <description>Pendente: Risco intermediario sem exames comprobatorios</description>
+        <inputEntry id="InputEntry_PendDoc_RiscoInt_1"><text>"AssintomaticoRiscoIntermediario"</text></inputEntry>
+        <inputEntry id="InputEntry_PendDoc_RiscoInt_2"><text>"Adequado"</text></inputEntry>
+        <inputEntry id="InputEntry_PendDoc_RiscoInt_3"><text>"Classe IIa","Classe IIb"</text></inputEntry>
+        <inputEntry id="InputEntry_PendDoc_RiscoInt_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_PendDoc_RiscoInt_5"><text>"NenhumApresentado"</text></inputEntry>
+        <outputEntry id="OutputEntry_PendDoc_RiscoInt_resultado"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OutputEntry_PendDoc_RiscoInt_observacao"><text>"Risco intermediario sem documentacao de exames basicos - solicitar ECG de repouso e descricao de fatores de risco cardiovascular"</text></outputEntry>
+        <outputEntry id="OutputEntry_PendDoc_RiscoInt_fundamentacao"><text>"ANS RN 465/2021, SBC/DERC 2024: Documentacao de fatores de risco e ECG basal necessarios para caracterizacao de risco"</text></outputEntry>
+        <outputEntry id="OutputEntry_PendDoc_RiscoInt_alerta"><text>"DOC"</text></outputEntry>
+        <outputEntry id="OutputEntry_PendDoc_RiscoInt_acao"><text>"SOLICITAR_INFO"</text></outputEntry>
+      </rule>
+
+      <!-- ========== REGRA FALLBACK ========== -->
+
+      <rule id="Rule_Fallback_40101023">
+        <description>Regra padrao - caso requer analise clinica adicional</description>
+        <inputEntry id="InputEntry_Fallback_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Fallback_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Fallback_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Fallback_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Fallback_5"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_Fallback_resultado"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OutputEntry_Fallback_observacao"><text>"Caso requer analise clinica individualizada - criterios de decisao automatica nao atendidos completamente"</text></outputEntry>
+        <outputEntry id="OutputEntry_Fallback_fundamentacao"><text>"Avaliacao por medico auditor necessaria conforme complexidade clinica e diretrizes SBC/DERC 2024"</text></outputEntry>
+        <outputEntry id="OutputEntry_Fallback_alerta"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_Fallback_acao"><text>"SOLICITAR_INFO"</text></outputEntry>
+      </rule>
+
+    </decisionTable>
+  </decision>
+</definitions>

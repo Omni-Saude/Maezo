@@ -1,0 +1,299 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/"
+             xmlns:dc="http://www.omg.org/spec/DMN/20180521/DC/"
+             id="Definitions_SYN_DKA_004"
+             name="Resolucao e Transicao na CAD"
+             targetNamespace="http://camunda.org/schema/1.0/dmn">
+
+  <!--
+    SYN-DKA-004 - Criterios de Resolucao e Transicao na CAD
+    Versao: 1.0.0 (2026-02-06)
+    Categoria: Alerta Clinico - Sindromes Criticas
+
+    CRITERIOS DE RESOLUCAO DA CAD:
+
+    TODOS devem estar presentes:
+    1. Glicose < 200 mg/dL
+    2. pH >= 7.30
+    3. Bicarbonato >= 15 mEq/L
+    4. Anion gap <= 12 mEq/L
+
+    TRANSICAO INSULINA IV → SC:
+    - Aguardar RESOLUCAO COMPLETA
+    - Paciente deve estar tolerando dieta oral
+    - Calcular dose total diaria de insulina
+    - Aplicar 50% basal + 50% bolus
+    - OVERLAP: manter insulina IV por 2h apos primeira dose SC
+
+    CALCULO DA DOSE SC:
+    - Se ja usava insulina: retornar dose habitual (ajustar se necessario)
+    - Se novo: 0.5-0.8 U/kg/dia dividido em:
+      - 50% basal (glargina ou NPH)
+      - 50% bolus (lispro ou regular)
+
+    COMPLICACOES DA RESOLUCAO:
+    - Hipoglicemia (correcao muito rapida)
+    - Edema cerebral (raro, mais comum em criancas)
+    - Hipocalemia de rebote
+
+    REFERENCIAS:
+    - ADA Standards of Care 2024
+    - Joint British Diabetes Societies DKA Guidelines
+    - Kitabchi Protocol
+  -->
+
+  <decision id="Decision_SYN_DKA_004" name="Resolucao CAD">
+    <decisionTable id="DecisionTable_SYN_DKA_004" hitPolicy="FIRST">
+
+      <!-- INPUT 1: Glicose -->
+      <input id="Input_1" label="Glicose (mg/dL)">
+        <inputExpression id="InputExpression_1" typeRef="number">
+          <text>glicose</text>
+        </inputExpression>
+      </input>
+
+      <!-- INPUT 2: pH arterial -->
+      <input id="Input_2" label="pH Arterial">
+        <inputExpression id="InputExpression_2" typeRef="number">
+          <text>phArterial</text>
+        </inputExpression>
+      </input>
+
+      <!-- INPUT 3: Bicarbonato -->
+      <input id="Input_3" label="Bicarbonato (mEq/L)">
+        <inputExpression id="InputExpression_3" typeRef="number">
+          <text>bicarbonato</text>
+        </inputExpression>
+      </input>
+
+      <!-- INPUT 4: Tolerando Dieta Oral -->
+      <input id="Input_4" label="Tolerando Dieta Oral">
+        <inputExpression id="InputExpression_4" typeRef="boolean">
+          <text>tolerandoDietaOral</text>
+        </inputExpression>
+      </input>
+
+      <!-- OUTPUTS -->
+      <output id="Output_1" label="Nivel Alerta" name="nivelAlerta" typeRef="string">
+        <outputValues id="OutputValues_1">
+          <text>"Alerta", "Atencao", "OK", "Revisar"</text>
+        </outputValues>
+      </output>
+
+      <output id="Output_2" label="Classificacao Sindrome" name="classificacaoSindrome" typeRef="string"/>
+
+      <output id="Output_3" label="Protocolo Ativado" name="protocoloAtivado" typeRef="boolean"/>
+
+      <output id="Output_4" label="Acao Requerida" name="acaoRequerida" typeRef="string"/>
+
+      <output id="Output_5" label="Urgencia" name="urgencia" typeRef="string">
+        <outputValues id="OutputValues_5">
+          <text>"CRITICA", "ALTA", "MEDIA", "BAIXA"</text>
+        </outputValues>
+      </output>
+
+      <!-- RULE 1: CAD Resolvida - Pronto para Transicao -->
+      <rule id="Rule_CAD_Resolvida_Transicao">
+        <description>CAD resolvida - iniciar transicao para insulina SC</description>
+        <inputEntry id="InputEntry_1_1">
+          <text>&lt; 200</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_1_2">
+          <text>&gt;= 7.30</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_1_3">
+          <text>&gt;= 15</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_1_4">
+          <text>true</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_1_1">
+          <text>"OK"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_1_2">
+          <text>"CAD_RESOLVIDA_TRANSICAO"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_1_3">
+          <text>false</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_1_4">
+          <text>"CAD RESOLVIDA - INICIAR TRANSICAO PARA SC. Aplicar insulina SC (basal + bolus). MANTER INSULINA IV por 2h apos dose SC para evitar hiperglicemia de rebote. Monitorar glicemia a cada 4h apos transicao."</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_1_5">
+          <text>"MEDIA"</text>
+        </outputEntry>
+      </rule>
+
+      <!-- RULE 2: CAD Resolvida mas nao tolerando VO -->
+      <rule id="Rule_CAD_Resolvida_Sem_VO">
+        <description>CAD resolvida mas paciente nao tolera dieta oral</description>
+        <inputEntry id="InputEntry_2_1">
+          <text>&lt; 200</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_2_2">
+          <text>&gt;= 7.30</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_2_3">
+          <text>&gt;= 15</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_2_4">
+          <text>false</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_2_1">
+          <text>"Atencao"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_2_2">
+          <text>"CAD_RESOLVIDA_AGUARDAR_VO"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_2_3">
+          <text>false</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_2_4">
+          <text>"CAD metabolicamente resolvida, mas paciente nao tolera dieta oral. MANTER INSULINA IV em dose de manutencao. Adicionar SG 5% para prevenir hipoglicemia. Aguardar tolerancia VO para transicao. Investigar causa de intolerancia."</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_2_5">
+          <text>"MEDIA"</text>
+        </outputEntry>
+      </rule>
+
+      <!-- RULE 3: Glicose controlada mas acidose persiste -->
+      <rule id="Rule_Glicose_OK_Acidose_Persiste">
+        <description>Glicose < 200 mas acidose persistente</description>
+        <inputEntry id="InputEntry_3_1">
+          <text>&lt; 200</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_3_2">
+          <text>&lt; 7.30</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_3_3">
+          <text>&lt; 15</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_3_4">
+          <text>-</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_3_1">
+          <text>"Atencao"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_3_2">
+          <text>"ACIDOSE_PERSISTENTE"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_3_3">
+          <text>false</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_3_4">
+          <text>"Glicose controlada mas ACIDOSE PERSISTENTE. Adicionar SG 5-10% para manter glicose 150-200. MANTER insulina IV para clearance de cetonas. Verificar cetona serica (beta-hidroxibutirato). NAO fazer transicao ate resolucao completa."</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_3_5">
+          <text>"ALTA"</text>
+        </outputEntry>
+      </rule>
+
+      <!-- RULE 4: Hiperglicemia persistente -->
+      <rule id="Rule_Hiperglicemia_Persistente">
+        <description>Hiperglicemia persistente com acidose</description>
+        <inputEntry id="InputEntry_4_1">
+          <text>&gt;= 250</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_4_2">
+          <text>&lt; 7.30</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_4_3">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_4_4">
+          <text>-</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_4_1">
+          <text>"Alerta"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_4_2">
+          <text>"CAD_NAO_RESOLVIDA"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_4_3">
+          <text>true</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_4_4">
+          <text>"CAD NAO RESOLVIDA. Manter protocolo de tratamento. Verificar: infusao de insulina correta, hidratacao adequada, fator precipitante nao tratado (infeccao oculta?). Considerar aumentar taxa de insulina."</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_4_5">
+          <text>"ALTA"</text>
+        </outputEntry>
+      </rule>
+
+      <!-- RULE 5: Quase resolvida -->
+      <rule id="Rule_Quase_Resolvida">
+        <description>CAD quase resolvida - continuar tratamento</description>
+        <inputEntry id="InputEntry_5_1">
+          <text>[150..250)</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_5_2">
+          <text>[7.25..7.30)</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_5_3">
+          <text>[12..15)</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_5_4">
+          <text>-</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_5_1">
+          <text>"Atencao"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_5_2">
+          <text>"CAD_QUASE_RESOLVIDA"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_5_3">
+          <text>false</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_5_4">
+          <text>"CAD quase resolvida. Continuar insulina IV + hidratacao. Adicionar SG 5% se glicose < 200. Repetir gasometria em 2h. Provavel resolucao em breve. Iniciar dieta liquida se paciente alerta."</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_5_5">
+          <text>"MEDIA"</text>
+        </outputEntry>
+      </rule>
+
+      <!-- FALLBACK -->
+      <rule id="Rule_Fallback_SYN_DKA_004">
+        <description>Dados insuficientes para avaliacao</description>
+        <inputEntry id="InputEntry_F_1">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_F_2">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_F_3">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_F_4">
+          <text>-</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_F_1">
+          <text>"Revisar"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_F_2">
+          <text>"DADOS_INCOMPLETOS"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_F_3">
+          <text>false</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_F_4">
+          <text>"Dados insuficientes para avaliar resolucao. Verificar: glicemia, gasometria (pH, bicarbonato), anion gap, tolerancia a dieta oral."</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_F_5">
+          <text>"MEDIA"</text>
+        </outputEntry>
+      </rule>
+
+    </decisionTable>
+  </decision>
+
+  <dmndi:DMNDI>
+    <dmndi:DMNDiagram id="DMNDiagram_SYN_DKA_004">
+      <dmndi:DMNShape id="DMNShape_Decision_SYN_DKA_004" dmnElementRef="Decision_SYN_DKA_004">
+        <dc:Bounds height="80" width="180" x="160" y="100"/>
+      </dmndi:DMNShape>
+    </dmndi:DMNDiagram>
+  </dmndi:DMNDI>
+
+</definitions>

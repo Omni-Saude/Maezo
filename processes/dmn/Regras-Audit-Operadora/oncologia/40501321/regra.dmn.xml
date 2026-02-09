@@ -1,0 +1,326 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  ONQ-IMG-006: Tumor Markers vs Imaging [LEAN TIER-2]
+  TUSS: 40501321
+  Versao: 3.1.0-LEAN-TIER2 (2026-02-08)
+  Especialidade: Oncologia
+
+  ============================================================================
+  INDICACOES CLINICAS:
+  ============================================================================
+  - Marcadores isolados nao justificam decisao terapeutica
+  - Imagem indicada se marcador em elevacao + clinica sugestiva
+  - Marcadores estaveis em assintomatico: manter vigilancia
+
+  ============================================================================
+  MARCADORES E CONTEXTO:
+  ============================================================================
+  - CEA (colorretal): elevacao >2x basal requer imagem
+  - CA 19-9 (pancreas): confirmar com imagem antes de mudar tratamento
+  - CA 125 (ovario): GCIG criteria para progressao (2x LSN)
+  - PSA (prostata): PSADT <10 meses indica imagem
+
+  ============================================================================
+  CONTRAINDICACOES PARA IMAGEM:
+  ============================================================================
+  - Marcador estavel em assintomatico
+  - Elevacao minima (<20% variacao)
+  - Sem correlato clinico
+
+  ============================================================================
+  REFERENCIAS NORMATIVAS:
+  ============================================================================
+  - ASCO Tumor Marker Guidelines 2024
+  - NCCN Use of Biomarkers in Clinical Practice
+  - ESMO Clinical Practice Guidelines - Biomarkers
+-->
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/" xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/" xmlns:dc="http://www.omg.org/spec/DMN/20180521/DC/" xmlns:modeler="http://camunda.org/schema/modeler/1.0" id="Definitions_ONQ_IMG_006" name="DRD" namespace="http://camunda.org/schema/1.0/dmn" exporter="Camunda Modeler" exporterVersion="5.14.0" modeler:executionPlatform="Camunda Cloud" modeler:executionPlatformVersion="8.2.0">
+  <decision id="Decision_ONQ_IMG_006" name="ONQ-IMG-006: Tumor Markers vs Imaging [LEAN TIER-2]">
+    <decisionTable id="DecisionTable_ONQ_IMG_006" hitPolicy="FIRST">
+      <input id="Input_marker_type" label="Marker Type">
+        <inputExpression id="InputExpression_marker_type" typeRef="string">
+          <text>markerType</text>
+        </inputExpression>
+      </input>
+      <input id="Input_marker_trend" label="Marker Trend">
+        <inputExpression id="InputExpression_marker_trend" typeRef="string">
+          <text>markerTrend</text>
+        </inputExpression>
+      </input>
+      <input id="Input_clinical_symptoms" label="Clinical Symptoms Present">
+        <inputExpression id="InputExpression_clinical_symptoms" typeRef="boolean">
+          <text>clinicalSymptoms</text>
+        </inputExpression>
+      </input>
+      <input id="Input_imaging_requested" label="Imaging Requested">
+        <inputExpression id="InputExpression_imaging_requested" typeRef="boolean">
+          <text>imagingRequested</text>
+        </inputExpression>
+      </input>
+      <!-- Input: Dias desde ultimo procedimento (DUP detection) -->
+      <input id="Input_ultimoProcedimentoDias" label="Dias Desde Ultimo Procedimento">
+        <inputExpression id="InputExpression_ultimoProcedimentoDias" typeRef="number">
+          <text>ultimoProcedimentoDias</text>
+        </inputExpression>
+      </input>
+
+      <output id="Output_resultado" label="Resultado" name="resultado" typeRef="string">
+        <outputValues id="UnaryTests_resultado">
+          <text>"Aprovado","Reprovado","Pendente"</text>
+        </outputValues>
+      </output>
+      <output id="Output_observacao" label="Observacao" name="observacao" typeRef="string" />
+      <output id="Output_fundamentacao" label="Fundamentacao" name="fundamentacao" typeRef="string" />
+      <output id="Output_alertasDesperdicio" label="Alertas de Desperdicio" name="alertasDesperdicio" typeRef="string">
+        <outputValues id="OutputValues_alertasDesperdicio">
+          <text>"NENHUM","DUP","FREQ","ESC","DOC","PROT","MULTI"</text>
+        </outputValues>
+      </output>
+      <output id="Output_acaoRecomendada" label="Acao Recomendada" name="acaoRecomendada" typeRef="string">
+        <outputValues id="OutputValues_acaoRecomendada">
+          <text>"APROVAR","NEGAR","SOLICITAR_INFO","AGUARDAR_PRAZO","SUGERIR_ALTERNATIVA"</text>
+        </outputValues>
+      </output>
+      <rule id="DecisionRule_reject_stable_asymp">
+        <description>Reject imaging for stable markers in asymptomatic patients</description>
+        <inputEntry id="InputEntry_marker_type_reject">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_marker_trend_reject">
+          <text>"stable","decreasing"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_clinical_symptoms_reject">
+          <text>false</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_imaging_requested_reject">
+          <text>true</text>
+        </inputEntry>
+        <inputEntry id="IE_DecisionRule_reject_stable_asymp_ultimo"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_resultado_reject">
+          <text>"Reprovado"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_observacao_reject">
+          <text>"Imagem nao indicada: marcador estavel/decrescente em paciente assintomatico"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_fundamentacao_reject">
+          <text>"Marcador estavel nao justifica imagem antecipada; aguardar intervalo padrao de vigilancia"</text>
+        </outputEntry>
+        <outputEntry id="OE_reject_alertasDesperdicio">
+          <text>"PROT"</text>
+        </outputEntry>
+        <outputEntry id="OE_reject_acaoRecomendada">
+          <text>"NEGAR"</text>
+        </outputEntry>
+      </rule>
+
+      <!-- WASTE DETECTION: DUP -->
+      <rule id="Rule_40501321_DUP">
+        <description>DUP - Marcadores tumorais repetidos em menos de 30 dias</description>
+        <inputEntry id="IE_DUP_40501321_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_DUP_40501321_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_DUP_40501321_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_DUP_40501321_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_DUP_40501321_ultimo"><text>&lt; 30</text></inputEntry>
+        <outputEntry id="OE_DUP_40501321_resultado"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OE_DUP_40501321_observacao"><text>"Marcadores tumorais repetidos em menos de 30 dias"</text></outputEntry>
+        <outputEntry id="OE_DUP_40501321_fundamentacao"><text>"NCCN 2024: Marcadores tumorais a cada ciclo ou mensalmente"</text></outputEntry>
+        <outputEntry id="OE_DUP_40501321_alertasDesperdicio"><text>"DUP"</text></outputEntry>
+        <outputEntry id="OE_DUP_40501321_acaoRecomendada"><text>"AGUARDAR_PRAZO"</text></outputEntry>
+      </rule>
+
+      <rule id="DecisionRule_approve_rising_symp">
+        <description>Approve imaging for rising markers with symptoms</description>
+        <inputEntry id="InputEntry_marker_type_rising">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_marker_trend_rising">
+          <text>"rising","doubling"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_clinical_symptoms_rising">
+          <text>true</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_imaging_requested_rising">
+          <text>true</text>
+        </inputEntry>
+        <inputEntry id="IE_DecisionRule_approve_rising_symp_ultimo"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_resultado_rising">
+          <text>"Aprovado"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_observacao_rising">
+          <text>"Imagem aprovada: marcador em elevacao + sintomas clinicos sugestivos de progressao"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_fundamentacao_rising">
+          <text>"Combinacao de marcador + clinica tem alto VPP para recidiva; imagem confirmatoria indicada"</text>
+        </outputEntry>
+        <outputEntry id="OE_rising_alertasDesperdicio">
+          <text>"NENHUM"</text>
+        </outputEntry>
+        <outputEntry id="OE_rising_acaoRecomendada">
+          <text>"APROVAR"</text>
+        </outputEntry>
+      </rule>
+      <rule id="DecisionRule_approve_cea_doubling">
+        <description>Approve imaging for CEA doubling in colorectal</description>
+        <inputEntry id="InputEntry_marker_type_cea">
+          <text>"CEA"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_marker_trend_cea">
+          <text>"doubling","rising_2x"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_clinical_symptoms_cea">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_imaging_requested_cea">
+          <text>true</text>
+        </inputEntry>
+        <inputEntry id="IE_DecisionRule_approve_cea_doubling_ultimo"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_resultado_cea">
+          <text>"Aprovado"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_observacao_cea">
+          <text>"Imagem aprovada: CEA dobrou em relacao ao nadir (suspeita de recidiva colorretal)"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_fundamentacao_cea">
+          <text>"ASCO guidelines: CEA &gt;2x nadir requer investigacao por imagem (sensibilidade 80%)"</text>
+        </outputEntry>
+        <outputEntry id="OE_cea_alertasDesperdicio">
+          <text>"NENHUM"</text>
+        </outputEntry>
+        <outputEntry id="OE_cea_acaoRecomendada">
+          <text>"APROVAR"</text>
+        </outputEntry>
+      </rule>
+      <rule id="DecisionRule_approve_ca125_gcig">
+        <description>Approve imaging for CA 125 meeting GCIG criteria</description>
+        <inputEntry id="InputEntry_marker_type_ca125">
+          <text>"CA_125"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_marker_trend_ca125">
+          <text>"rising_2x_ULN","GCIG_criteria"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_clinical_symptoms_ca125">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_imaging_requested_ca125">
+          <text>true</text>
+        </inputEntry>
+        <inputEntry id="IE_DecisionRule_approve_ca125_gcig_ultimo"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_resultado_ca125">
+          <text>"Aprovado"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_observacao_ca125">
+          <text>"Imagem aprovada: CA 125 atende criterios GCIG para progressao bioquimica"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_fundamentacao_ca125">
+          <text>"GCIG criteria: CA 125 &gt;2x LSN confirmado em 2 medicoes indica progressao em ovario"</text>
+        </outputEntry>
+        <outputEntry id="OE_ca125_alertasDesperdicio">
+          <text>"NENHUM"</text>
+        </outputEntry>
+        <outputEntry id="OE_ca125_acaoRecomendada">
+          <text>"APROVAR"</text>
+        </outputEntry>
+      </rule>
+      <rule id="DecisionRule_approve_psa_psadt">
+        <description>Approve imaging for rapid PSA doubling time</description>
+        <inputEntry id="InputEntry_marker_type_psa">
+          <text>"PSA"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_marker_trend_psa">
+          <text>"PSADT_less_10mo","rapid_rise"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_clinical_symptoms_psa">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_imaging_requested_psa">
+          <text>true</text>
+        </inputEntry>
+        <inputEntry id="IE_DecisionRule_approve_psa_psadt_ultimo"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_resultado_psa">
+          <text>"Aprovado"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_observacao_psa">
+          <text>"Imagem aprovada: PSADT &lt;10 meses indica alto risco de metastase detectavel"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_fundamentacao_psa">
+          <text>"PSADT &lt;10 meses associado a maior risco de mets detectaveis; considerar PSMA-PET"</text>
+        </outputEntry>
+        <outputEntry id="OE_psa_alertasDesperdicio">
+          <text>"NENHUM"</text>
+        </outputEntry>
+        <outputEntry id="OE_psa_acaoRecomendada">
+          <text>"APROVAR"</text>
+        </outputEntry>
+      </rule>
+      <rule id="DecisionRule_pending_rising_asymp">
+        <description>Pending for rising markers without symptoms</description>
+        <inputEntry id="InputEntry_marker_type_pending">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_marker_trend_pending">
+          <text>"rising"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_clinical_symptoms_pending">
+          <text>false</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_imaging_requested_pending">
+          <text>true</text>
+        </inputEntry>
+        <inputEntry id="IE_DecisionRule_pending_rising_asymp_ultimo"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_resultado_pending">
+          <text>"Pendente"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_observacao_pending">
+          <text>"Marcador em leve elevacao assintomatico: confirmar tendencia antes de imagem"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_fundamentacao_pending">
+          <text>"Elevacao isolada pode ser transitoria; repetir marcador em 4-6 semanas antes de imagem"</text>
+        </outputEntry>
+        <outputEntry id="OE_pending_alertasDesperdicio">
+          <text>"DOC"</text>
+        </outputEntry>
+        <outputEntry id="OE_pending_acaoRecomendada">
+          <text>"SOLICITAR_INFO"</text>
+        </outputEntry>
+      </rule>
+      <rule id="DecisionRule_fallback">
+        <description>Fallback rule for incomplete data</description>
+        <inputEntry id="InputEntry_marker_type_fallback">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_marker_trend_fallback">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_clinical_symptoms_fallback">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_imaging_requested_fallback">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="IE_DecisionRule_fallback_ultimo"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_resultado_fallback">
+          <text>"Pendente"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_observacao_fallback">
+          <text>"Dados insuficientes para correlacao marcador-imagem"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_fundamentacao_fallback">
+          <text>"Necessario: tipo de marcador, tendencia, sintomas clinicos"</text>
+        </outputEntry>
+        <outputEntry id="OE_fallback_alertasDesperdicio">
+          <text>"NENHUM"</text>
+        </outputEntry>
+        <outputEntry id="OE_fallback_acaoRecomendada">
+          <text>"SOLICITAR_INFO"</text>
+        </outputEntry>
+      </rule>
+    </decisionTable>
+  </decision>
+  <dmndi:DMNDI>
+    <dmndi:DMNDiagram>
+      <dmndi:DMNShape dmnElementRef="Decision_ONQ_IMG_006">
+        <dc:Bounds height="80" width="180" x="160" y="100" />
+      </dmndi:DMNShape>
+    </dmndi:DMNDiagram>
+  </dmndi:DMNDI>
+</definitions>

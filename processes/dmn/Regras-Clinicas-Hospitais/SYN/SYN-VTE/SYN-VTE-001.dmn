@@ -1,0 +1,326 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/"
+             xmlns:dc="http://www.omg.org/spec/DMN/20180521/DC/"
+             id="Definitions_SYN_VTE_001"
+             name="Deteccao de TVP - Score de Wells"
+             targetNamespace="http://camunda.org/schema/1.0/dmn">
+
+  <!--
+    SYN-VTE-001 - Deteccao de Trombose Venosa Profunda (TVP) via Wells Score
+    Versao: 1.0.0 (2026-02-06)
+    Categoria: Alerta Clinico - Sindromes Criticas
+
+    WELLS SCORE PARA TVP:
+    - Cancer ativo (tratamento em 6 meses ou paliativo): +1
+    - Paralisia, paresia ou imobilizacao de MMII: +1
+    - Acamado > 3 dias ou cirurgia grande em 12 sem: +1
+    - Dor localizada ao longo do sistema venoso profundo: +1
+    - Edema de toda a perna: +1
+    - Edema de panturrilha > 3cm que lado assintomatico: +1
+    - Edema depressivel (maior no lado sintomatico): +1
+    - Veias superficiais colaterais (nao varicosas): +1
+    - Diagnostico alternativo tao ou mais provavel: -2
+
+    ESTRATIFICACAO:
+    - Score >= 3: Alta probabilidade (75%)
+    - Score 1-2: Probabilidade moderada (17%)
+    - Score <= 0: Baixa probabilidade (3%)
+
+    CONDUTA:
+    - Alta: Anticoagulacao + USG Doppler
+    - Moderada: D-dimero → se elevado, USG
+    - Baixa: D-dimero → se normal, exclui TVP
+
+    REFERENCIAS:
+    - Wells PS et al. Lancet 1997
+    - ACCP Guidelines for VTE 2021
+    - CHEST Guidelines on Antithrombotic Therapy
+  -->
+
+  <decision id="Decision_SYN_VTE_001" name="Deteccao TVP Wells Score">
+    <decisionTable id="DecisionTable_SYN_VTE_001" hitPolicy="FIRST">
+
+      <!-- INPUT 1: Wells Score Total -->
+      <input id="Input_1" label="Wells Score TVP">
+        <inputExpression id="InputExpression_1" typeRef="number">
+          <text>wellsScoreTVP</text>
+        </inputExpression>
+      </input>
+
+      <!-- INPUT 2: D-Dimero -->
+      <input id="Input_2" label="D-Dimero (ng/mL)">
+        <inputExpression id="InputExpression_2" typeRef="number">
+          <text>dDimero</text>
+        </inputExpression>
+      </input>
+
+      <!-- INPUT 3: USG Doppler Positivo -->
+      <input id="Input_3" label="USG Doppler Positivo">
+        <inputExpression id="InputExpression_3" typeRef="boolean">
+          <text>usgDopplerPositivo</text>
+        </inputExpression>
+      </input>
+
+      <!-- INPUT 4: Sintomas Unilaterais -->
+      <input id="Input_4" label="Sintomas Unilaterais">
+        <inputExpression id="InputExpression_4" typeRef="boolean">
+          <text>sintomasUnilaterais</text>
+        </inputExpression>
+      </input>
+
+      <!-- OUTPUTS -->
+      <output id="Output_1" label="Nivel Alerta" name="nivelAlerta" typeRef="string">
+        <outputValues id="OutputValues_1">
+          <text>"Alerta", "Atencao", "OK", "Revisar"</text>
+        </outputValues>
+      </output>
+
+      <output id="Output_2" label="Classificacao Sindrome" name="classificacaoSindrome" typeRef="string"/>
+
+      <output id="Output_3" label="Protocolo Ativado" name="protocoloAtivado" typeRef="boolean"/>
+
+      <output id="Output_4" label="Acao Requerida" name="acaoRequerida" typeRef="string"/>
+
+      <output id="Output_5" label="Urgencia" name="urgencia" typeRef="string">
+        <outputValues id="OutputValues_5">
+          <text>"CRITICA", "ALTA", "MEDIA", "BAIXA"</text>
+        </outputValues>
+      </output>
+
+      <!-- RULE 1: TVP confirmada por USG -->
+      <rule id="Rule_TVP_Confirmada">
+        <description>TVP confirmada por USG Doppler positivo</description>
+        <inputEntry id="InputEntry_1_1">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_1_2">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_1_3">
+          <text>true</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_1_4">
+          <text>-</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_1_1">
+          <text>"Alerta"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_1_2">
+          <text>"TVP_CONFIRMADA"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_1_3">
+          <text>true</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_1_4">
+          <text>"TVP CONFIRMADA por USG Doppler. INICIAR ANTICOAGULACAO IMEDIATA: Enoxaparina 1mg/kg SC 12/12h ou Rivaroxaban 15mg 12/12h por 21 dias. Avaliar risco de EP. Considerar filtro de veia cava se contraindicacao a anticoagulacao."</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_1_5">
+          <text>"CRITICA"</text>
+        </outputEntry>
+      </rule>
+
+      <!-- RULE 2: Alta probabilidade Wells >= 3 -->
+      <rule id="Rule_Alta_Probabilidade">
+        <description>Alta probabilidade TVP - Wells >= 3</description>
+        <inputEntry id="InputEntry_2_1">
+          <text>&gt;= 3</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_2_2">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_2_3">
+          <text>false</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_2_4">
+          <text>true</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_2_1">
+          <text>"Alerta"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_2_2">
+          <text>"TVP_ALTA_PROBABILIDADE"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_2_3">
+          <text>true</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_2_4">
+          <text>"ALTA PROBABILIDADE DE TVP (Wells >= 3, ~75% chance). USG DOPPLER URGENTE. Considerar iniciar anticoagulacao empirica se USG nao disponivel imediatamente. Elevar membro, evitar deambulacao ate confirmacao."</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_2_5">
+          <text>"ALTA"</text>
+        </outputEntry>
+      </rule>
+
+      <!-- RULE 3: Probabilidade moderada com D-Dimero elevado -->
+      <rule id="Rule_Moderada_DDimero_Elevado">
+        <description>Probabilidade moderada com D-Dimero elevado</description>
+        <inputEntry id="InputEntry_3_1">
+          <text>[1..2]</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_3_2">
+          <text>&gt;= 500</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_3_3">
+          <text>false</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_3_4">
+          <text>-</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_3_1">
+          <text>"Alerta"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_3_2">
+          <text>"TVP_MODERADA_DDIMERO_ELEVADO"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_3_3">
+          <text>true</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_3_4">
+          <text>"Probabilidade moderada de TVP com D-Dimero elevado. USG DOPPLER NECESSARIO para confirmacao. D-Dimero elevado + Wells moderado tem VPP significativo. Agendar USG em ate 24h."</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_3_5">
+          <text>"ALTA"</text>
+        </outputEntry>
+      </rule>
+
+      <!-- RULE 4: Probabilidade moderada - solicitar D-Dimero -->
+      <rule id="Rule_Moderada_Solicitar_DDimero">
+        <description>Probabilidade moderada - aguardando D-Dimero</description>
+        <inputEntry id="InputEntry_4_1">
+          <text>[1..2]</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_4_2">
+          <text>null</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_4_3">
+          <text>false</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_4_4">
+          <text>-</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_4_1">
+          <text>"Atencao"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_4_2">
+          <text>"TVP_MODERADA_AVALIAR"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_4_3">
+          <text>false</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_4_4">
+          <text>"Probabilidade moderada de TVP (Wells 1-2). SOLICITAR D-DIMERO. Se D-Dimero negativo (< 500 ng/mL), TVP improvavel. Se positivo, prosseguir com USG Doppler."</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_4_5">
+          <text>"MEDIA"</text>
+        </outputEntry>
+      </rule>
+
+      <!-- RULE 5: Baixa probabilidade com D-Dimero normal -->
+      <rule id="Rule_Baixa_DDimero_Normal">
+        <description>Baixa probabilidade com D-Dimero normal - TVP excluida</description>
+        <inputEntry id="InputEntry_5_1">
+          <text>&lt;= 0</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_5_2">
+          <text>&lt; 500</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_5_3">
+          <text>false</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_5_4">
+          <text>-</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_5_1">
+          <text>"OK"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_5_2">
+          <text>"TVP_EXCLUIDA"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_5_3">
+          <text>false</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_5_4">
+          <text>"TVP EXCLUIDA com seguranca. Wells <= 0 + D-Dimero negativo tem VPN > 99%. Nao ha necessidade de USG. Investigar causas alternativas para sintomas."</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_5_5">
+          <text>"BAIXA"</text>
+        </outputEntry>
+      </rule>
+
+      <!-- RULE 6: Baixa probabilidade - solicitar D-Dimero -->
+      <rule id="Rule_Baixa_Solicitar_DDimero">
+        <description>Baixa probabilidade - solicitar D-Dimero para exclusao</description>
+        <inputEntry id="InputEntry_6_1">
+          <text>&lt;= 0</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_6_2">
+          <text>null</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_6_3">
+          <text>false</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_6_4">
+          <text>-</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_6_1">
+          <text>"Atencao"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_6_2">
+          <text>"TVP_BAIXA_AVALIAR"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_6_3">
+          <text>false</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_6_4">
+          <text>"Baixa probabilidade de TVP (Wells <= 0). SOLICITAR D-DIMERO para exclusao definitiva. Se negativo, TVP excluida sem necessidade de imagem."</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_6_5">
+          <text>"BAIXA"</text>
+        </outputEntry>
+      </rule>
+
+      <!-- FALLBACK -->
+      <rule id="Rule_Fallback_SYN_VTE_001">
+        <description>Dados insuficientes para avaliacao</description>
+        <inputEntry id="InputEntry_F_1">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_F_2">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_F_3">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_F_4">
+          <text>-</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_F_1">
+          <text>"Revisar"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_F_2">
+          <text>"DADOS_INCOMPLETOS"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_F_3">
+          <text>false</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_F_4">
+          <text>"Dados insuficientes para calculo do Wells Score. Verificar criterios: cancer ativo, imobilizacao, cirurgia recente, dor venosa, edema, veias colaterais, diagnostico alternativo."</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_F_5">
+          <text>"MEDIA"</text>
+        </outputEntry>
+      </rule>
+
+    </decisionTable>
+  </decision>
+
+  <dmndi:DMNDI>
+    <dmndi:DMNDiagram id="DMNDiagram_SYN_VTE_001">
+      <dmndi:DMNShape id="DMNShape_Decision_SYN_VTE_001" dmnElementRef="Decision_SYN_VTE_001">
+        <dc:Bounds height="80" width="180" x="160" y="100"/>
+      </dmndi:DMNShape>
+    </dmndi:DMNDiagram>
+  </dmndi:DMNDI>
+
+</definitions>

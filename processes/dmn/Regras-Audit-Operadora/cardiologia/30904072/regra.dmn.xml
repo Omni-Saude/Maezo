@@ -1,0 +1,326 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             xmlns:camunda="http://camunda.org/schema/1.0/dmn"
+             id="Definitions_30904072"
+             name="Ablacao de Fibrilacao Atrial por Cateter"
+             namespace="http://camunda.org/schema/1.0/dmn">
+
+  <!--
+    ===============================================================================
+    TUSS: 30904072
+    Procedimento: Ablacao de Fibrilacao Atrial por Cateter
+    Versao: 1.0.0-LEAN-TIER2
+    Data: 2026-02-07
+    ===============================================================================
+
+    INDICACOES CLINICAS (ACC/AHA/HRS 2024 + ESC 2024):
+    - FA paroxistica sintomatica refrataria a 1 DAA Classe I (Classe I)
+    - FA persistente sintomatica refrataria a 1 DAA (Classe I)
+    - FA sintomatica como primeira linha antes de DAA (Classe IIa)
+    - FA com IC e FEVE reduzida (Classe I - dados CASTLE-AF, AMICA)
+    - Controle de ritmo superior a controle de FC em FA precoce
+
+    CONTRAINDICACOES:
+    - Trombo em AE nao excluido
+    - Expectativa de vida menor 1 ano
+    - Contraindicacao a anticoagulacao perioperatoria
+    - AE severamente dilatada maior 55mm (relativa)
+    - FA de longa duracao maior 5 anos (resultados reduzidos)
+
+    REFERENCIAS TECNICAS:
+    - ACC/AHA/ACCP/HRS 2024 AF Guidelines
+    - ESC 2024 Atrial Fibrillation Guidelines
+    - HRS/EHRA/ECAS/APHRS Expert Consensus AF Ablation 2024
+    - SBC Diretrizes FA 2023
+
+    ALERTAS DE DESPERDICIO (LEAN TIER-2):
+    - DUP: Duplicidade - Reablacao em menos de 3 meses sem recorrencia documentada
+    - FREQ: Frequencia excessiva - Multiplas ablacoes sem protocolo
+    - ESC: Escalonamento inadequado - Ablacao sem tentar DAA
+    - DOC: Documentacao insuficiente - Falta ECG/Holter com FA, Eco TE
+    - PROT: Protocolo nao seguido - FA permanente ou trombo AE
+    - MULTI: Multiplos alertas combinados
+
+    ===============================================================================
+  -->
+
+  <decision id="Decision_30904072" name="Regra Clinica - Ablacao de Fibrilacao Atrial">
+    <decisionTable id="DecisionTable_30904072" hitPolicy="FIRST">
+
+      <!-- ========== INPUTS (6 - Padrao LEAN TIER-2 Cardiologia) ========== -->
+
+      <input id="Input_tipoFA" label="Tipo de Fibrilacao Atrial" camunda:inputVariable="tipoFA">
+        <inputExpression id="InputExpression_tipoFA" typeRef="string">
+          <text>tipoFA</text>
+        </inputExpression>
+        <inputValues id="InputValues_tipoFA">
+          <text>"Paroxistica","PersistenteMenor1Ano","PersistenteLongaDuracao","Permanente"</text>
+        </inputValues>
+      </input>
+
+      <input id="Input_historicoClinico" label="Historico Clinico" camunda:inputVariable="historicoClinico">
+        <inputExpression id="InputExpression_historicoClinico" typeRef="string">
+          <text>historicoClinico</text>
+        </inputExpression>
+        <inputValues id="InputValues_historicoClinico">
+          <text>"Adequado","Incompleto","NaoDocumentado"</text>
+        </inputValues>
+      </input>
+
+      <input id="Input_classeIndicacao" label="Classe de Indicacao (ACC/AHA/HRS)" camunda:inputVariable="classeIndicacao">
+        <inputExpression id="InputExpression_classeIndicacao" typeRef="string">
+          <text>classeIndicacao</text>
+        </inputExpression>
+        <inputValues id="InputValues_classeIndicacao">
+          <text>"Classe I","Classe IIa","Classe IIb","Classe III"</text>
+        </inputValues>
+      </input>
+
+      <input id="Input_falhaDAA" label="Falha ou Intolerancia a DAA" camunda:inputVariable="falhaDAA">
+        <inputExpression id="InputExpression_falhaDAA" typeRef="string">
+          <text>falhaDAA</text>
+        </inputExpression>
+        <inputValues id="InputValues_falhaDAA">
+          <text>"FalhaUmDAA","FalhaDoisDAA","IntoleranciaDAA","PrimeiraLinha","NaoTentouDAA"</text>
+        </inputValues>
+      </input>
+
+      <input id="Input_feVE" label="Fracao de Ejecao do VE (%)" camunda:inputVariable="feVE">
+        <inputExpression id="InputExpression_feVE" typeRef="string">
+          <text>feVE</text>
+        </inputExpression>
+        <inputValues id="InputValues_feVE">
+          <text>"Menor35","35a50","Maior50","NaoAvaliada"</text>
+        </inputValues>
+      </input>
+
+      <input id="Input_ultimoProcedimentoDias" label="Dias desde ultima ablacao" camunda:inputVariable="ultimoProcedimentoDias">
+        <inputExpression id="InputExpression_ultimoProcedimentoDias" typeRef="integer">
+          <text>ultimoProcedimentoDias</text>
+        </inputExpression>
+      </input>
+
+      <!-- ========== OUTPUTS (5 - Padrao LEAN TIER-2) ========== -->
+
+      <output id="Output_resultado" label="Resultado" name="resultado" typeRef="string">
+        <outputValues id="OutputValues_resultado">
+          <text>"Aprovado","Reprovado","Pendente"</text>
+        </outputValues>
+      </output>
+
+      <output id="Output_observacao" label="Observacao Clinica" name="observacao" typeRef="string" />
+
+      <output id="Output_fundamentacao" label="Fundamentacao Tecnica" name="fundamentacao" typeRef="string" />
+
+      <output id="Output_alertasDesperdicio" label="Alertas de Desperdicio" name="alertasDesperdicio" typeRef="string">
+        <outputValues id="OutputValues_alertasDesperdicio">
+          <text>"NENHUM","DUP","FREQ","ESC","DOC","PROT","MULTI"</text>
+        </outputValues>
+      </output>
+
+      <output id="Output_acaoRecomendada" label="Acao Recomendada" name="acaoRecomendada" typeRef="string">
+        <outputValues id="OutputValues_acaoRecomendada">
+          <text>"APROVAR","NEGAR","SOLICITAR_INFO","AGUARDAR_PRAZO","SUGERIR_ALTERNATIVA"</text>
+        </outputValues>
+      </output>
+
+      <!-- ========== RULES - REPROVACOES (Waste Detection First) ========== -->
+
+      <!-- RULE 1: Contraindicacao Classe III -->
+      <rule id="Rule_Reprovado_ClasseIII">
+        <description>Reprovado: Classe III - Ablacao nao indicada</description>
+        <inputEntry id="InputEntry_R1_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_R1_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_R1_3"><text>"Classe III"</text></inputEntry>
+        <inputEntry id="InputEntry_R1_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_R1_5"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_R1_6"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_R1_resultado"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_R1_observacao"><text>"Classe III - Ablacao nao indicada neste cenario clinico"</text></outputEntry>
+        <outputEntry id="OutputEntry_R1_fundamentacao"><text>"ACC/AHA/HRS 2024 - Classe III: Risco supera beneficio potencial"</text></outputEntry>
+        <outputEntry id="OutputEntry_R1_alertasDesperdicio"><text>"PROT"</text></outputEntry>
+        <outputEntry id="OutputEntry_R1_acaoRecomendada"><text>"NEGAR"</text></outputEntry>
+      </rule>
+
+      <!-- RULE 2: PROT - FA Permanente -->
+      <rule id="Rule_Reprovado_PROT_FAPermanente">
+        <description>Reprovado: FA permanente - estrategia de controle de ritmo nao aplicavel</description>
+        <inputEntry id="InputEntry_R2_1"><text>"Permanente"</text></inputEntry>
+        <inputEntry id="InputEntry_R2_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_R2_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_R2_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_R2_5"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_R2_6"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_R2_resultado"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_R2_observacao"><text>"FA permanente - estrategia de controle de ritmo nao aplicavel por definicao"</text></outputEntry>
+        <outputEntry id="OutputEntry_R2_fundamentacao"><text>"ESC 2024 - FA permanente: ritmo aceito, ablacao para controle de ritmo nao indicada"</text></outputEntry>
+        <outputEntry id="OutputEntry_R2_alertasDesperdicio"><text>"PROT"</text></outputEntry>
+        <outputEntry id="OutputEntry_R2_acaoRecomendada"><text>"SUGERIR_ALTERNATIVA"</text></outputEntry>
+      </rule>
+
+      <!-- RULE 3: DUP - Reablacao em menos de 90 dias -->
+      <rule id="Rule_Reprovado_DUP_Reablacao90d">
+        <description>Reprovado: Reablacao em menos de 90 dias sem recorrencia documentada</description>
+        <inputEntry id="InputEntry_R3_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_R3_2"><text>"Adequado"</text></inputEntry>
+        <inputEntry id="InputEntry_R3_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_R3_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_R3_5"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_R3_6"><text>&lt; 90</text></inputEntry>
+        <outputEntry id="OutputEntry_R3_resultado"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_R3_observacao"><text>"Ablacao realizada ha menos de 90 dias - blanking period nao completado"</text></outputEntry>
+        <outputEntry id="OutputEntry_R3_fundamentacao"><text>"HRS/EHRA 2024 - Blanking period de 90 dias apos ablacao. Recorrencia precoce pode ser transitoria"</text></outputEntry>
+        <outputEntry id="OutputEntry_R3_alertasDesperdicio"><text>"DUP"</text></outputEntry>
+        <outputEntry id="OutputEntry_R3_acaoRecomendada"><text>"AGUARDAR_PRAZO"</text></outputEntry>
+      </rule>
+
+      <!-- RULE 4: DOC - Documentacao ausente -->
+      <rule id="Rule_Pendente_DOC_Ausente">
+        <description>Pendente: Documentacao clinica ausente</description>
+        <inputEntry id="InputEntry_R4_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_R4_2"><text>"NaoDocumentado"</text></inputEntry>
+        <inputEntry id="InputEntry_R4_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_R4_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_R4_5"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_R4_6"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_R4_resultado"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OutputEntry_R4_observacao"><text>"Historico clinico nao documentado - necessario anexar ECG/Holter com FA, Eco TE"</text></outputEntry>
+        <outputEntry id="OutputEntry_R4_fundamentacao"><text>"ANS RN 465/2021 - Documentacao clinica obrigatoria para procedimentos de alta complexidade"</text></outputEntry>
+        <outputEntry id="OutputEntry_R4_alertasDesperdicio"><text>"DOC"</text></outputEntry>
+        <outputEntry id="OutputEntry_R4_acaoRecomendada"><text>"SOLICITAR_INFO"</text></outputEntry>
+      </rule>
+
+      <!-- RULE 5: DOC - Documentacao incompleta -->
+      <rule id="Rule_Pendente_DOC_Incompleta">
+        <description>Pendente: Documentacao clinica incompleta</description>
+        <inputEntry id="InputEntry_R5_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_R5_2"><text>"Incompleto"</text></inputEntry>
+        <inputEntry id="InputEntry_R5_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_R5_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_R5_5"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_R5_6"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_R5_resultado"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OutputEntry_R5_observacao"><text>"Documentacao incompleta - complementar ECG/Holter, Eco TT/TE, historico DAA"</text></outputEntry>
+        <outputEntry id="OutputEntry_R5_fundamentacao"><text>"ANS RN 465/2021 - Documentacao obrigatoria para ablacao"</text></outputEntry>
+        <outputEntry id="OutputEntry_R5_alertasDesperdicio"><text>"DOC"</text></outputEntry>
+        <outputEntry id="OutputEntry_R5_acaoRecomendada"><text>"SOLICITAR_INFO"</text></outputEntry>
+      </rule>
+
+      <!-- RULE 6: DOC - FEVE nao avaliada -->
+      <rule id="Rule_Pendente_DOC_FEVENaoAvaliada">
+        <description>Pendente: FEVE nao avaliada</description>
+        <inputEntry id="InputEntry_R6_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_R6_2"><text>"Adequado"</text></inputEntry>
+        <inputEntry id="InputEntry_R6_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_R6_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_R6_5"><text>"NaoAvaliada"</text></inputEntry>
+        <inputEntry id="InputEntry_R6_6"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_R6_resultado"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OutputEntry_R6_observacao"><text>"FEVE nao documentada - ecocardiograma obrigatorio para estratificacao"</text></outputEntry>
+        <outputEntry id="OutputEntry_R6_fundamentacao"><text>"ACC/AHA/HRS 2024 - FEVE determina beneficio de sobrevida com ablacao (CASTLE-AF)"</text></outputEntry>
+        <outputEntry id="OutputEntry_R6_alertasDesperdicio"><text>"DOC"</text></outputEntry>
+        <outputEntry id="OutputEntry_R6_acaoRecomendada"><text>"SOLICITAR_INFO"</text></outputEntry>
+      </rule>
+
+      <!-- RULE 7: ESC - Nao tentou DAA -->
+      <rule id="Rule_Pendente_ESC_SemDAA">
+        <description>Pendente: Nao tentou DAA - step therapy incompleto</description>
+        <inputEntry id="InputEntry_R7_1"><text>"Paroxistica","PersistenteMenor1Ano"</text></inputEntry>
+        <inputEntry id="InputEntry_R7_2"><text>"Adequado"</text></inputEntry>
+        <inputEntry id="InputEntry_R7_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_R7_4"><text>"NaoTentouDAA"</text></inputEntry>
+        <inputEntry id="InputEntry_R7_5"><text>"35a50","Maior50"</text></inputEntry>
+        <inputEntry id="InputEntry_R7_6"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_R7_resultado"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OutputEntry_R7_observacao"><text>"Step therapy incompleto - requer tentativa de DAA ou justificativa para primeira linha"</text></outputEntry>
+        <outputEntry id="OutputEntry_R7_fundamentacao"><text>"DUT ANS - Ablacao FA apos falha ou intolerancia a tratamento farmacologico"</text></outputEntry>
+        <outputEntry id="OutputEntry_R7_alertasDesperdicio"><text>"ESC"</text></outputEntry>
+        <outputEntry id="OutputEntry_R7_acaoRecomendada"><text>"SOLICITAR_INFO"</text></outputEntry>
+      </rule>
+
+      <!-- ========== RULES - APROVACOES ========== -->
+
+      <!-- RULE 8: Aprovado Classe I - FA com falha DAA -->
+      <rule id="Rule_Aprovado_ClasseI_FalhaDAA">
+        <description>Aprovado: Classe I - FA sintomatica com falha ou intolerancia a DAA</description>
+        <inputEntry id="InputEntry_R8_1"><text>"Paroxistica","PersistenteMenor1Ano"</text></inputEntry>
+        <inputEntry id="InputEntry_R8_2"><text>"Adequado"</text></inputEntry>
+        <inputEntry id="InputEntry_R8_3"><text>"Classe I"</text></inputEntry>
+        <inputEntry id="InputEntry_R8_4"><text>"FalhaUmDAA","FalhaDoisDAA","IntoleranciaDAA"</text></inputEntry>
+        <inputEntry id="InputEntry_R8_5"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_R8_6"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_R8_resultado"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_R8_observacao"><text>"Classe I - FA sintomatica com falha a DAA, ablacao indicada"</text></outputEntry>
+        <outputEntry id="OutputEntry_R8_fundamentacao"><text>"ACC/AHA/HRS 2024 Classe I, Nivel A. ESC 2024 Classe I, Nivel A"</text></outputEntry>
+        <outputEntry id="OutputEntry_R8_alertasDesperdicio"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_R8_acaoRecomendada"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <!-- RULE 9: Aprovado Classe I - FA com IC e FEVE reduzida (CASTLE-AF) -->
+      <rule id="Rule_Aprovado_ClasseI_IC_FEVEReduzida">
+        <description>Aprovado: Classe I - FA com IC e FEVE menor 35% (CASTLE-AF)</description>
+        <inputEntry id="InputEntry_R9_1"><text>"Paroxistica","PersistenteMenor1Ano","PersistenteLongaDuracao"</text></inputEntry>
+        <inputEntry id="InputEntry_R9_2"><text>"Adequado"</text></inputEntry>
+        <inputEntry id="InputEntry_R9_3"><text>"Classe I"</text></inputEntry>
+        <inputEntry id="InputEntry_R9_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_R9_5"><text>"Menor35"</text></inputEntry>
+        <inputEntry id="InputEntry_R9_6"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_R9_resultado"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_R9_observacao"><text>"Classe I - FA com IC e FEVE menor 35%, ablacao para melhorar sobrevida (CASTLE-AF)"</text></outputEntry>
+        <outputEntry id="OutputEntry_R9_fundamentacao"><text>"ACC/AHA/HRS 2024 Classe I. ESC 2024 - Evidencia CASTLE-AF: reducao mortalidade"</text></outputEntry>
+        <outputEntry id="OutputEntry_R9_alertasDesperdicio"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_R9_acaoRecomendada"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <!-- RULE 10: Aprovado Classe IIa - FA paroxistica primeira linha -->
+      <rule id="Rule_Aprovado_ClasseIIa_PrimeiraLinha">
+        <description>Aprovado: Classe IIa - Ablacao como primeira linha em FA paroxistica</description>
+        <inputEntry id="InputEntry_R10_1"><text>"Paroxistica"</text></inputEntry>
+        <inputEntry id="InputEntry_R10_2"><text>"Adequado"</text></inputEntry>
+        <inputEntry id="InputEntry_R10_3"><text>"Classe IIa"</text></inputEntry>
+        <inputEntry id="InputEntry_R10_4"><text>"PrimeiraLinha"</text></inputEntry>
+        <inputEntry id="InputEntry_R10_5"><text>"Maior50"</text></inputEntry>
+        <inputEntry id="InputEntry_R10_6"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_R10_resultado"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_R10_observacao"><text>"Classe IIa - Ablacao como primeira linha e razoavel em FA paroxistica selecionada"</text></outputEntry>
+        <outputEntry id="OutputEntry_R10_fundamentacao"><text>"ACC/AHA/HRS 2024 Classe IIa. ESC 2024 - STOP-AF, EARLY-AF favorecem abordagem precoce"</text></outputEntry>
+        <outputEntry id="OutputEntry_R10_alertasDesperdicio"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_R10_acaoRecomendada"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <!-- RULE 11: Aprovado Classe IIb - FA persistente longa duracao -->
+      <rule id="Rule_Aprovado_ClasseIIb_LongaDuracao">
+        <description>Aprovado: Classe IIb - FA persistente de longa duracao</description>
+        <inputEntry id="InputEntry_R11_1"><text>"PersistenteLongaDuracao"</text></inputEntry>
+        <inputEntry id="InputEntry_R11_2"><text>"Adequado"</text></inputEntry>
+        <inputEntry id="InputEntry_R11_3"><text>"Classe IIb"</text></inputEntry>
+        <inputEntry id="InputEntry_R11_4"><text>"FalhaUmDAA","FalhaDoisDAA","IntoleranciaDAA"</text></inputEntry>
+        <inputEntry id="InputEntry_R11_5"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_R11_6"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_R11_resultado"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_R11_observacao"><text>"Classe IIb - FA longa duracao: ablacao pode ser considerada, resultados menos previsiveis"</text></outputEntry>
+        <outputEntry id="OutputEntry_R11_fundamentacao"><text>"ACC/AHA/HRS 2024 Classe IIb. Taxa sucesso 50-65% vs 70-85% em paroxistica"</text></outputEntry>
+        <outputEntry id="OutputEntry_R11_alertasDesperdicio"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_R11_acaoRecomendada"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <!-- ========== FALLBACK RULE ========== -->
+
+      <rule id="Rule_Fallback_30904072">
+        <description>Regra padrao - Analise por eletrofisiologista necessaria</description>
+        <inputEntry id="InputEntry_Fallback_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Fallback_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Fallback_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Fallback_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Fallback_5"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Fallback_6"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_Fallback_resultado"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OutputEntry_Fallback_observacao"><text>"Caso atipico - requer parecer de eletrofisiologista"</text></outputEntry>
+        <outputEntry id="OutputEntry_Fallback_fundamentacao"><text>"Avaliacao individualizada pelo especialista em eletrofisiologia"</text></outputEntry>
+        <outputEntry id="OutputEntry_Fallback_alertasDesperdicio"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_Fallback_acaoRecomendada"><text>"SOLICITAR_INFO"</text></outputEntry>
+      </rule>
+
+    </decisionTable>
+  </decision>
+</definitions>

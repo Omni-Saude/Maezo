@@ -1,0 +1,328 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/"
+             xmlns:dc="http://www.omg.org/spec/DMN/20180521/DC/"
+             id="Definitions_SYN_MI_003"
+             name="Estratificacao de Risco SCA - GRACE Score"
+             targetNamespace="http://camunda.org/schema/1.0/dmn">
+
+  <!--
+    SYN-MI-003 - Estratificacao de Risco em SCA via GRACE Score
+    Versao: 1.0.0 (2026-02-06)
+    Categoria: Alerta Clinico - Sindromes Criticas
+
+    GRACE SCORE 2.0 (Global Registry of Acute Coronary Events):
+
+    VARIAVEIS:
+    - Idade (pontos variam de 0 a 100)
+    - Frequencia cardiaca (pontos variam)
+    - Pressao arterial sistolica (pontos variam)
+    - Creatinina (pontos variam)
+    - Classe Killip (I=0, II=20, III=39, IV=59)
+    - Parada cardiaca na admissao (+39)
+    - Elevacao de biomarcadores (+14)
+    - Desvio de ST (+28)
+
+    ESTRATIFICACAO DE RISCO:
+    - Muito baixo: GRACE < 109 (mortalidade < 1%)
+    - Baixo: GRACE 109-140 (mortalidade 1-3%)
+    - Intermediario: GRACE 141-180 (mortalidade 3-9%)
+    - Alto: GRACE > 180 (mortalidade > 9%)
+
+    TIMING DA ICP (ESC Guidelines):
+    - Imediata (< 2h): instabilidade, GRACE > 140 com alteracoes dinamicas
+    - Precoce (< 24h): GRACE > 140
+    - Seletiva (< 72h): GRACE < 140
+
+    REFERENCIAS:
+    - GRACE Risk Score Calculator 2.0
+    - ESC NSTE-ACS Guidelines 2020
+    - Fox KA et al. BMJ 2006
+  -->
+
+  <decision id="Decision_SYN_MI_003" name="GRACE Score SCA">
+    <decisionTable id="DecisionTable_SYN_MI_003" hitPolicy="FIRST">
+
+      <!-- INPUT 1: GRACE Score -->
+      <input id="Input_1" label="GRACE Score">
+        <inputExpression id="InputExpression_1" typeRef="number">
+          <text>graceScore</text>
+        </inputExpression>
+      </input>
+
+      <!-- INPUT 2: Classe Killip -->
+      <input id="Input_2" label="Classe Killip">
+        <inputExpression id="InputExpression_2" typeRef="number">
+          <text>classeKillip</text>
+        </inputExpression>
+      </input>
+
+      <!-- INPUT 3: Alteracao ST Dinamica -->
+      <input id="Input_3" label="Alteracao ST Dinamica">
+        <inputExpression id="InputExpression_3" typeRef="boolean">
+          <text>alteracaoSTDinamica</text>
+        </inputExpression>
+      </input>
+
+      <!-- INPUT 4: Parada Cardiaca Reanimada -->
+      <input id="Input_4" label="Parada Cardiaca Reanimada">
+        <inputExpression id="InputExpression_4" typeRef="boolean">
+          <text>paradaCardiacaReanimada</text>
+        </inputExpression>
+      </input>
+
+      <!-- OUTPUTS -->
+      <output id="Output_1" label="Nivel Alerta" name="nivelAlerta" typeRef="string">
+        <outputValues id="OutputValues_1">
+          <text>"Alerta", "Atencao", "OK", "Revisar"</text>
+        </outputValues>
+      </output>
+
+      <output id="Output_2" label="Classificacao Sindrome" name="classificacaoSindrome" typeRef="string"/>
+
+      <output id="Output_3" label="Protocolo Ativado" name="protocoloAtivado" typeRef="boolean"/>
+
+      <output id="Output_4" label="Acao Requerida" name="acaoRequerida" typeRef="string"/>
+
+      <output id="Output_5" label="Urgencia" name="urgencia" typeRef="string">
+        <outputValues id="OutputValues_5">
+          <text>"CRITICA", "ALTA", "MEDIA", "BAIXA"</text>
+        </outputValues>
+      </output>
+
+      <!-- RULE 1: Muito alto risco - pos-PCR ou Killip IV -->
+      <rule id="Rule_Muito_Alto_Risco_PCR">
+        <description>Muito alto risco - parada cardiaca reanimada</description>
+        <inputEntry id="InputEntry_1_1">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_1_2">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_1_3">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_1_4">
+          <text>true</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_1_1">
+          <text>"Alerta"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_1_2">
+          <text>"SCA_MUITO_ALTO_RISCO_PCR"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_1_3">
+          <text>true</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_1_4">
+          <text>"SCA MUITO ALTO RISCO - POS-PARADA CARDIACA. ICP IMEDIATA (< 2h). Cuidados pos-PCR incluindo hipotermia terapeutica se indicado. UTI. Suporte hemodinamico conforme necessario."</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_1_5">
+          <text>"CRITICA"</text>
+        </outputEntry>
+      </rule>
+
+      <!-- RULE 2: Muito alto risco - choque cardiogenico (Killip IV) -->
+      <rule id="Rule_Muito_Alto_Risco_Killip4">
+        <description>Muito alto risco - choque cardiogenico</description>
+        <inputEntry id="InputEntry_2_1">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_2_2">
+          <text>4</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_2_3">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_2_4">
+          <text>false</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_2_1">
+          <text>"Alerta"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_2_2">
+          <text>"SCA_CHOQUE_CARDIOGENICO"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_2_3">
+          <text>true</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_2_4">
+          <text>"SCA COM CHOQUE CARDIOGENICO (Killip IV). ICP IMEDIATA. Vasopressores (noradrenalina). Considerar BIA ou dispositivo de assistencia ventricular. Monitoramento invasivo (PAI, Swan-Ganz)."</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_2_5">
+          <text>"CRITICA"</text>
+        </outputEntry>
+      </rule>
+
+      <!-- RULE 3: Alto risco - GRACE > 180 -->
+      <rule id="Rule_Alto_Risco_GRACE180">
+        <description>Alto risco - GRACE > 180</description>
+        <inputEntry id="InputEntry_3_1">
+          <text>&gt; 180</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_3_2">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_3_3">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_3_4">
+          <text>false</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_3_1">
+          <text>"Alerta"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_3_2">
+          <text>"SCA_ALTO_RISCO"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_3_3">
+          <text>true</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_3_4">
+          <text>"SCA ALTO RISCO (GRACE > 180, mortalidade > 9%). ICP PRECOCE (< 24h). Terapia antiisquemica agressiva. UCO. Monitoramento continuo. Alta probabilidade de doenca multiarterial."</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_3_5">
+          <text>"CRITICA"</text>
+        </outputEntry>
+      </rule>
+
+      <!-- RULE 4: Risco intermediario - GRACE 141-180 -->
+      <rule id="Rule_Intermediario_GRACE">
+        <description>Risco intermediario - GRACE 141-180</description>
+        <inputEntry id="InputEntry_4_1">
+          <text>[141..180]</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_4_2">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_4_3">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_4_4">
+          <text>false</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_4_1">
+          <text>"Alerta"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_4_2">
+          <text>"SCA_RISCO_INTERMEDIARIO"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_4_3">
+          <text>true</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_4_4">
+          <text>"SCA RISCO INTERMEDIARIO (GRACE 141-180, mortalidade 3-9%). ICP em ate 24h. Otimizar terapia medicamentosa. Internacao em UCO. Monitorar para eventos isquemicos recorrentes."</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_4_5">
+          <text>"ALTA"</text>
+        </outputEntry>
+      </rule>
+
+      <!-- RULE 5: Risco baixo - GRACE 109-140 -->
+      <rule id="Rule_Baixo_GRACE">
+        <description>Risco baixo - GRACE 109-140</description>
+        <inputEntry id="InputEntry_5_1">
+          <text>[109..140]</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_5_2">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_5_3">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_5_4">
+          <text>false</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_5_1">
+          <text>"Atencao"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_5_2">
+          <text>"SCA_BAIXO_RISCO"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_5_3">
+          <text>false</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_5_4">
+          <text>"SCA BAIXO RISCO (GRACE 109-140, mortalidade 1-3%). Estrategia invasiva seletiva (ate 72h) vs teste funcional. Terapia medicamentosa otimizada. Pode ser manejado em enfermaria cardiologica."</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_5_5">
+          <text>"MEDIA"</text>
+        </outputEntry>
+      </rule>
+
+      <!-- RULE 6: Muito baixo risco - GRACE < 109 -->
+      <rule id="Rule_Muito_Baixo_GRACE">
+        <description>Muito baixo risco - GRACE < 109</description>
+        <inputEntry id="InputEntry_6_1">
+          <text>&lt; 109</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_6_2">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_6_3">
+          <text>false</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_6_4">
+          <text>false</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_6_1">
+          <text>"Atencao"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_6_2">
+          <text>"SCA_MUITO_BAIXO_RISCO"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_6_3">
+          <text>false</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_6_4">
+          <text>"SCA MUITO BAIXO RISCO (GRACE < 109, mortalidade < 1%). Considerar teste funcional nao invasivo. Alta precoce pode ser considerada apos estabilizacao. Prevencao secundaria rigorosa."</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_6_5">
+          <text>"MEDIA"</text>
+        </outputEntry>
+      </rule>
+
+      <!-- FALLBACK -->
+      <rule id="Rule_Fallback_SYN_MI_003">
+        <description>Dados insuficientes para avaliacao</description>
+        <inputEntry id="InputEntry_F_1">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_F_2">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_F_3">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_F_4">
+          <text>-</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_F_1">
+          <text>"Revisar"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_F_2">
+          <text>"DADOS_INCOMPLETOS"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_F_3">
+          <text>false</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_F_4">
+          <text>"Dados insuficientes para calculo GRACE. Verificar: idade, FC, PA, creatinina, classe Killip, troponina, desvio ST, historico de PCR."</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_F_5">
+          <text>"MEDIA"</text>
+        </outputEntry>
+      </rule>
+
+    </decisionTable>
+  </decision>
+
+  <dmndi:DMNDI>
+    <dmndi:DMNDiagram id="DMNDiagram_SYN_MI_003">
+      <dmndi:DMNShape id="DMNShape_Decision_SYN_MI_003" dmnElementRef="Decision_SYN_MI_003">
+        <dc:Bounds height="80" width="180" x="160" y="100"/>
+      </dmndi:DMNShape>
+    </dmndi:DMNDiagram>
+  </dmndi:DMNDI>
+
+</definitions>

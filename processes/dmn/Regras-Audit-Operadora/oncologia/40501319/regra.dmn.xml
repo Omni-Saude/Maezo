@@ -1,0 +1,355 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  ONQ-IMG-004: Bone Scan Appropriateness [LEAN TIER-2]
+  TUSS: 40501319
+  Versao: 3.1.0-LEAN-TIER2 (2026-02-08)
+  Especialidade: Oncologia/Medicina Nuclear
+
+  ============================================================================
+  INDICACOES CLINICAS:
+  ============================================================================
+  - Prostata: PSA >20 ng/mL ou Gleason >=8 ou estadio T3-T4 ou dor ossea
+  - Mama: Estadio III ou sintomas osseos ou FA elevada
+  - Pulmao: Sintomas osseos ou FA elevada ou estadiamento inicial
+
+  ============================================================================
+  ALTERNATIVAS PREFERIDAS:
+  ============================================================================
+  - PET-CT com PSMA: Prostata de alto risco (superior a cintilografia)
+  - RNM corpo inteiro: Mieloma multiplo
+  - TC areas especificas: Lesoes focais sintomaticas
+
+  ============================================================================
+  CONTRAINDICACOES:
+  ============================================================================
+  - Gravidez
+  - Amamentacao (suspender 24-48h)
+
+  ============================================================================
+  REFERENCIAS NORMATIVAS:
+  ============================================================================
+  - ACR Appropriateness Criteria - Bone Metastases 2024
+  - NCCN Prostate/Breast Cancer Guidelines
+  - EANM Bone Scintigraphy Guidelines
+-->
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/" xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/" xmlns:dc="http://www.omg.org/spec/DMN/20180521/DC/" xmlns:modeler="http://camunda.org/schema/modeler/1.0" id="Definitions_ONQ_IMG_004" name="DRD" namespace="http://camunda.org/schema/1.0/dmn" exporter="Camunda Modeler" exporterVersion="5.14.0" modeler:executionPlatform="Camunda Cloud" modeler:executionPlatformVersion="8.2.0">
+  <decision id="Decision_ONQ_IMG_004" name="ONQ-IMG-004: Bone Scan Appropriateness [LEAN TIER-2]">
+    <decisionTable id="DecisionTable_ONQ_IMG_004" hitPolicy="FIRST">
+      <input id="Input_tumor_type" label="Tumor Type">
+        <inputExpression id="InputExpression_tumor_type" typeRef="string">
+          <text>tumorType</text>
+        </inputExpression>
+      </input>
+      <input id="Input_bone_pain" label="Bone Pain Present">
+        <inputExpression id="InputExpression_bone_pain" typeRef="boolean">
+          <text>bonePain</text>
+        </inputExpression>
+      </input>
+      <input id="Input_alk_phos" label="Alkaline Phosphatase Elevated">
+        <inputExpression id="InputExpression_alk_phos" typeRef="boolean">
+          <text>alkPhosElevated</text>
+        </inputExpression>
+      </input>
+      <input id="Input_risk_category" label="Risk Category">
+        <inputExpression id="InputExpression_risk_category" typeRef="string">
+          <text>riskCategory</text>
+        </inputExpression>
+      </input>
+      <!-- Input: Dias desde ultimo procedimento (DUP detection) -->
+      <input id="Input_ultimoProcedimentoDias" label="Dias Desde Ultimo Procedimento">
+        <inputExpression id="InputExpression_ultimoProcedimentoDias" typeRef="number">
+          <text>ultimoProcedimentoDias</text>
+        </inputExpression>
+      </input>
+
+      <output id="Output_resultado" label="Resultado" name="resultado" typeRef="string">
+        <outputValues id="UnaryTests_resultado">
+          <text>"Aprovado","Reprovado","Pendente"</text>
+        </outputValues>
+      </output>
+      <output id="Output_observacao" label="Observacao" name="observacao" typeRef="string" />
+      <output id="Output_fundamentacao" label="Fundamentacao" name="fundamentacao" typeRef="string" />
+      <output id="Output_alertasDesperdicio" label="Alertas de Desperdicio" name="alertasDesperdicio" typeRef="string">
+        <outputValues id="OutputValues_alertasDesperdicio">
+          <text>"NENHUM","DUP","FREQ","ESC","DOC","PROT","MULTI"</text>
+        </outputValues>
+      </output>
+      <output id="Output_acaoRecomendada" label="Acao Recomendada" name="acaoRecomendada" typeRef="string">
+        <outputValues id="OutputValues_acaoRecomendada">
+          <text>"APROVAR","NEGAR","SOLICITAR_INFO","AGUARDAR_PRAZO","SUGERIR_ALTERNATIVA"</text>
+        </outputValues>
+      </output>
+      <rule id="DecisionRule_reject_low_risk_asymp">
+        <description>Reject bone scan for low-risk asymptomatic patients</description>
+        <inputEntry id="InputEntry_tumor_type_reject">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_bone_pain_reject">
+          <text>false</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_alk_phos_reject">
+          <text>false</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_risk_category_reject">
+          <text>"low"</text>
+        </inputEntry>
+        <inputEntry id="IE_DecisionRule_reject_low_risk_asymp_ultimo"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_resultado_reject">
+          <text>"Reprovado"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_observacao_reject">
+          <text>"Cintilografia ossea nao indicada: paciente assintomatico de baixo risco"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_fundamentacao_reject">
+          <text>"Baixo rendimento (&lt;3% positivo) em assintomaticos de baixo risco; nao custo-efetivo"</text>
+        </outputEntry>
+        <outputEntry id="OE_reject_alertasDesperdicio">
+          <text>"PROT"</text>
+        </outputEntry>
+        <outputEntry id="OE_reject_acaoRecomendada">
+          <text>"NEGAR"</text>
+        </outputEntry>
+      </rule>
+
+      <!-- WASTE DETECTION: DUP -->
+      <rule id="Rule_40501319_DUP">
+        <description>DUP - Cintilografia ossea repetida em menos de 180 dias</description>
+        <inputEntry id="IE_DUP_40501319_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_DUP_40501319_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_DUP_40501319_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_DUP_40501319_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_DUP_40501319_ultimo"><text>&lt; 180</text></inputEntry>
+        <outputEntry id="OE_DUP_40501319_resultado"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OE_DUP_40501319_observacao"><text>"Cintilografia ossea repetida em menos de 180 dias"</text></outputEntry>
+        <outputEntry id="OE_DUP_40501319_fundamentacao"><text>"NCCN/ACR 2024: Cintilografia ossea vigilancia a cada 6-12 meses"</text></outputEntry>
+        <outputEntry id="OE_DUP_40501319_alertasDesperdicio"><text>"DUP"</text></outputEntry>
+        <outputEntry id="OE_DUP_40501319_acaoRecomendada"><text>"AGUARDAR_PRAZO"</text></outputEntry>
+      </rule>
+
+      <rule id="DecisionRule_approve_symptomatic">
+        <description>Approve bone scan for symptomatic patients</description>
+        <inputEntry id="InputEntry_tumor_type_symp">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_bone_pain_symp">
+          <text>true</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_alk_phos_symp">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_risk_category_symp">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="IE_DecisionRule_approve_symptomatic_ultimo"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_resultado_symp">
+          <text>"Aprovado"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_observacao_symp">
+          <text>"Cintilografia ossea aprovada: dor ossea nova em paciente oncologico"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_fundamentacao_symp">
+          <text>"Dor ossea em paciente oncologico tem alto VPP para metastase; imagem indicada"</text>
+        </outputEntry>
+        <outputEntry id="OE_symp_alertasDesperdicio">
+          <text>"NENHUM"</text>
+        </outputEntry>
+        <outputEntry id="OE_symp_acaoRecomendada">
+          <text>"APROVAR"</text>
+        </outputEntry>
+      </rule>
+      <rule id="DecisionRule_approve_prostate_high">
+        <description>Approve bone scan for high-risk prostate cancer</description>
+        <inputEntry id="InputEntry_tumor_type_prostate">
+          <text>"prostate"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_bone_pain_prostate">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_alk_phos_prostate">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_risk_category_prostate">
+          <text>"high","very_high","intermediate_unfavorable"</text>
+        </inputEntry>
+        <inputEntry id="IE_DecisionRule_approve_prostate_high_ultimo"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_resultado_prostate">
+          <text>"Aprovado"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_observacao_prostate">
+          <text>"Cintilografia ossea aprovada para prostata de alto risco (PSA&gt;20, Gleason&gt;=8, T3-T4)"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_fundamentacao_prostate">
+          <text>"NCCN: cintilografia indicada se PSA&gt;20, Gleason 8-10, T3-T4 ou sintomas osseos"</text>
+        </outputEntry>
+        <outputEntry id="OE_prostate_alertasDesperdicio">
+          <text>"NENHUM"</text>
+        </outputEntry>
+        <outputEntry id="OE_prostate_acaoRecomendada">
+          <text>"APROVAR"</text>
+        </outputEntry>
+      </rule>
+      <rule id="DecisionRule_approve_breast_stage3">
+        <description>Approve bone scan for breast cancer stage III+</description>
+        <inputEntry id="InputEntry_tumor_type_breast">
+          <text>"breast"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_bone_pain_breast">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_alk_phos_breast">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_risk_category_breast">
+          <text>"high","stage_III","stage_IV"</text>
+        </inputEntry>
+        <inputEntry id="IE_DecisionRule_approve_breast_stage3_ultimo"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_resultado_breast">
+          <text>"Aprovado"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_observacao_breast">
+          <text>"Cintilografia ossea aprovada para estadiamento de mama estadio III ou superior"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_fundamentacao_breast">
+          <text>"NCCN mama: estadiamento osseo indicado para estadio III+ ou sintomas osseos"</text>
+        </outputEntry>
+        <outputEntry id="OE_breast_alertasDesperdicio">
+          <text>"NENHUM"</text>
+        </outputEntry>
+        <outputEntry id="OE_breast_acaoRecomendada">
+          <text>"APROVAR"</text>
+        </outputEntry>
+      </rule>
+      <rule id="DecisionRule_approve_alk_phos">
+        <description>Approve bone scan for elevated alkaline phosphatase</description>
+        <inputEntry id="InputEntry_tumor_type_alk">
+          <text>"prostate","breast","lung","kidney"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_bone_pain_alk">
+          <text>false</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_alk_phos_alk">
+          <text>true</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_risk_category_alk">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="IE_DecisionRule_approve_alk_phos_ultimo"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_resultado_alk">
+          <text>"Aprovado"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_observacao_alk">
+          <text>"Cintilografia ossea aprovada: FA elevada em tumor com tropismo osseo"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_fundamentacao_alk">
+          <text>"FA elevada isolada em tumores osteotropicos tem sensibilidade &gt;80% para mets osseas"</text>
+        </outputEntry>
+        <outputEntry id="OE_alk_alertasDesperdicio">
+          <text>"NENHUM"</text>
+        </outputEntry>
+        <outputEntry id="OE_alk_acaoRecomendada">
+          <text>"APROVAR"</text>
+        </outputEntry>
+      </rule>
+      <rule id="DecisionRule_pending_psma_preferred">
+        <description>Pending - consider PSMA-PET for prostate</description>
+        <inputEntry id="InputEntry_tumor_type_psma">
+          <text>"prostate"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_bone_pain_psma">
+          <text>false</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_alk_phos_psma">
+          <text>false</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_risk_category_psma">
+          <text>"high","very_high"</text>
+        </inputEntry>
+        <inputEntry id="IE_DecisionRule_pending_psma_preferred_ultimo"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_resultado_psma">
+          <text>"Pendente"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_observacao_psma">
+          <text>"Considerar PET-PSMA em vez de cintilografia ossea: sensibilidade superior"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_fundamentacao_psma">
+          <text>"PSMA-PET detecta lesoes osseas menores e em fase mais precoce que cintilografia convencional"</text>
+        </outputEntry>
+        <outputEntry id="OE_psma_alertasDesperdicio">
+          <text>"NENHUM"</text>
+        </outputEntry>
+        <outputEntry id="OE_psma_acaoRecomendada">
+          <text>"SUGERIR_ALTERNATIVA"</text>
+        </outputEntry>
+      </rule>
+      <rule id="DecisionRule_pending_myeloma">
+        <description>Pending - RNM preferred for myeloma</description>
+        <inputEntry id="InputEntry_tumor_type_mm">
+          <text>"multiple_myeloma","myeloma"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_bone_pain_mm">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_alk_phos_mm">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_risk_category_mm">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="IE_DecisionRule_pending_myeloma_ultimo"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_resultado_mm">
+          <text>"Pendente"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_observacao_mm">
+          <text>"Cintilografia ossea tem baixa sensibilidade para mieloma. RNM corpo inteiro e preferido"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_fundamentacao_mm">
+          <text>"Lesoes liticas puras do mieloma nao captam Tc99m; IMWG recomenda PET-CT ou RNM"</text>
+        </outputEntry>
+        <outputEntry id="OE_mm_alertasDesperdicio">
+          <text>"NENHUM"</text>
+        </outputEntry>
+        <outputEntry id="OE_mm_acaoRecomendada">
+          <text>"SUGERIR_ALTERNATIVA"</text>
+        </outputEntry>
+      </rule>
+      <rule id="DecisionRule_fallback">
+        <description>Fallback rule for incomplete data</description>
+        <inputEntry id="InputEntry_tumor_type_fallback">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_bone_pain_fallback">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_alk_phos_fallback">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_risk_category_fallback">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="IE_DecisionRule_fallback_ultimo"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_resultado_fallback">
+          <text>"Pendente"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_observacao_fallback">
+          <text>"Dados insuficientes para avaliacao de cintilografia ossea"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_fundamentacao_fallback">
+          <text>"Necessario: tipo tumoral, sintomas, FA, categoria de risco"</text>
+        </outputEntry>
+        <outputEntry id="OE_fallback_alertasDesperdicio">
+          <text>"NENHUM"</text>
+        </outputEntry>
+        <outputEntry id="OE_fallback_acaoRecomendada">
+          <text>"SOLICITAR_INFO"</text>
+        </outputEntry>
+      </rule>
+    </decisionTable>
+  </decision>
+  <dmndi:DMNDI>
+    <dmndi:DMNDiagram>
+      <dmndi:DMNShape dmnElementRef="Decision_ONQ_IMG_004">
+        <dc:Bounds height="80" width="180" x="160" y="100" />
+      </dmndi:DMNShape>
+    </dmndi:DMNDiagram>
+  </dmndi:DMNDI>
+</definitions>

@@ -1,0 +1,341 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  ONQ-DRUG-001: Trastuzumab Duration
+  TUSS: 40501326
+  Versao: 3.1.0-LEAN-TIER2 (2026-02-08)
+  Especialidade: Oncologia
+
+  ============================================================================
+  INDICACOES CLINICAS:
+  ============================================================================
+  - Adjuvante: 12 meses (52 semanas) padrao per HERA/BCIRG-006
+  - Metastatico: Ate progressao ou toxicidade cardiaca inaceitavel
+  - Neoadjuvante: Parte de esquema antes de cirurgia
+
+  ============================================================================
+  CRITERIOS DE DURACAO:
+  ============================================================================
+  - Adjuvante: NAO exceder 12 meses (HERA extension mostrou sem beneficio adicional)
+  - FEVE <50%: Suspender e reavaliar em 4 semanas
+  - Progressao em metastatico: Considerar TDM-1 ou outro anti-HER2
+
+  ============================================================================
+  DOCUMENTACAO OBRIGATORIA:
+  ============================================================================
+  - HER2 3+ por IHC ou FISH positivo
+  - Ecocardiograma basal e a cada 3 meses
+  - Duracao acumulada do tratamento
+
+  ============================================================================
+  REFERENCIAS NORMATIVAS:
+  ============================================================================
+  - HERA Trial (N Engl J Med 2005, 2017 update)
+  - NCCN Breast Cancer Guidelines 2024
+  - ESMO HER2+ Breast Cancer Guidelines
+-->
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/" xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/" xmlns:dc="http://www.omg.org/spec/DMN/20180521/DC/" xmlns:modeler="http://camunda.org/schema/modeler/1.0" id="Definitions_ONQ_DRUG_001" name="DRD" namespace="http://camunda.org/schema/1.0/dmn" exporter="Camunda Modeler" exporterVersion="5.14.0" modeler:executionPlatform="Camunda Cloud" modeler:executionPlatformVersion="8.2.0">
+  <decision id="Decision_ONQ_DRUG_001" name="ONQ-DRUG-001: Trastuzumab Duration [LEAN TIER-2]">
+    <decisionTable id="DecisionTable_ONQ_DRUG_001" hitPolicy="FIRST">
+      <input id="Input_indication" label="Indication">
+        <inputExpression id="InputExpression_indication" typeRef="string">
+          <text>indication</text>
+        </inputExpression>
+      </input>
+      <input id="Input_months_on_therapy" label="Months on Trastuzumab">
+        <inputExpression id="InputExpression_months_on_therapy" typeRef="number">
+          <text>monthsOnTherapy</text>
+        </inputExpression>
+      </input>
+      <input id="Input_response" label="Treatment Response">
+        <inputExpression id="InputExpression_response" typeRef="string">
+          <text>treatmentResponse</text>
+        </inputExpression>
+      </input>
+      <input id="Input_cardiac_ef" label="Cardiac Ejection Fraction">
+        <inputExpression id="InputExpression_cardiac_ef" typeRef="number">
+          <text>cardiacEF</text>
+        </inputExpression>
+      </input>
+      <input id="Input_ultimoProcedimentoDias" label="Dias Desde Ultimo Procedimento">
+        <inputExpression id="InputExpression_ultimoProcedimentoDias" typeRef="number">
+          <text>ultimoProcedimentoDias</text>
+        </inputExpression>
+      </input>
+      <output id="Output_resultado" label="Resultado" name="resultado" typeRef="string">
+        <outputValues id="UnaryTests_resultado">
+          <text>"Aprovado","Reprovado","Pendente"</text>
+        </outputValues>
+      </output>
+      <output id="Output_observacao" label="Observacao" name="observacao" typeRef="string" />
+      <output id="Output_fundamentacao" label="Fundamentacao" name="fundamentacao" typeRef="string" />
+      <!-- Output 4: Alertas de Desperdicio - Anti-Waste Intelligence -->
+      <output id="Output_alertasDesperdicio" label="Alertas de Desperdicio" name="alertasDesperdicio" typeRef="string">
+        <outputValues id="OutputValues_alertasDesperdicio">
+          <text>"NENHUM","DUP","FREQ","ESC","DOC","PROT","MULTI"</text>
+        </outputValues>
+      </output>
+      <!-- Output 5: Acao Recomendada -->
+      <output id="Output_acaoRecomendada" label="Acao Recomendada" name="acaoRecomendada" typeRef="string">
+        <outputValues id="OutputValues_acaoRecomendada">
+          <text>"APROVAR","NEGAR","SOLICITAR_INFO","AGUARDAR_PRAZO","SUGERIR_ALTERNATIVA"</text>
+        </outputValues>
+      </output>
+      <!-- WASTE DETECTION: DUP - Dose duplicada antes do intervalo minimo -->
+      <rule id="Rule_40501326_DUP_dose">
+        <description>DUP - Dose repetida antes do intervalo minimo de 14 dias</description>
+        <inputEntry id="InputEntry_indication_dup">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_months_on_therapy_dup">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_response_dup">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_cardiac_ef_dup">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="IE_Rule_40501326_DUP_dose_ultimo"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_resultado_dup">
+          <text>"Reprovado"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_observacao_dup">
+          <text>"Dose repetida em menos de 14 dias. Intervalo minimo entre doses de trastuzumabe (infusional) nao respeitado"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_fundamentacao_dup">
+          <text>"NCCN 2024: Trastuzumabe infusional intervalo minimo 14 dias (ciclo triweekly). Dose prematura aumenta risco cardiotoxicidade sem beneficio adicional"</text>
+        </outputEntry>
+        <outputEntry id="OE_DecisionRule_dup_alertasDesperdicio">
+          <text>"DUP"</text>
+        </outputEntry>
+        <outputEntry id="OE_DecisionRule_dup_acaoRecomendada">
+          <text>"AGUARDAR_PRAZO"</text>
+        </outputEntry>
+      </rule>
+      <rule id="DecisionRule_reject_cardiac">
+        <description>Reject if cardiac EF drops below 50%</description>
+        <inputEntry id="InputEntry_indication_cardiac">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_months_on_therapy_cardiac">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_response_cardiac">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_cardiac_ef_cardiac">
+          <text>&lt; 50</text>
+        </inputEntry>
+        <inputEntry id="IE_DecisionRule_reject_cardiac_ultimo"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_resultado_cardiac">
+          <text>"Reprovado"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_observacao_cardiac">
+          <text>"Trastuzumabe suspenso: FEVE &lt;50%. Reavaliar em 4 semanas com eco"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_fundamentacao_cardiac">
+          <text>"Cardiotoxicidade: suspender se FEVE cai &gt;15% ou &lt;50%; reversivel em 80% apos suspensao"</text>
+        </outputEntry>
+        <outputEntry id="OE_DecisionRule_reject_cardiac_alertasDesperdicio">
+          <text>"PROT"</text>
+        </outputEntry>
+        <outputEntry id="OE_DecisionRule_reject_cardiac_acaoRecomendada">
+          <text>"NEGAR"</text>
+        </outputEntry>
+      </rule>
+      <rule id="DecisionRule_reject_adjuvant_over12">
+        <description>Reject adjuvant beyond 12 months</description>
+        <inputEntry id="InputEntry_indication_adj">
+          <text>"adjuvant"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_months_on_therapy_adj">
+          <text>&gt; 12</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_response_adj">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_cardiac_ef_adj">
+          <text>&gt;= 50</text>
+        </inputEntry>
+        <inputEntry id="IE_DecisionRule_reject_adjuvant_over12_ultimo"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_resultado_adj">
+          <text>"Reprovado"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_observacao_adj">
+          <text>"Trastuzumabe adjuvante: 12 meses completos. Extensao nao indicada"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_fundamentacao_adj">
+          <text>"HERA 2-year extension: sem beneficio adicional alem de 12 meses; maior cardiotoxicidade"</text>
+        </outputEntry>
+        <outputEntry id="OE_DecisionRule_reject_adjuvant_over12_alertasDesperdicio">
+          <text>"FREQ"</text>
+        </outputEntry>
+        <outputEntry id="OE_DecisionRule_reject_adjuvant_over12_acaoRecomendada">
+          <text>"NEGAR"</text>
+        </outputEntry>
+      </rule>
+      <rule id="DecisionRule_approve_adjuvant">
+        <description>Approve adjuvant up to 12 months</description>
+        <inputEntry id="InputEntry_indication_adj_ok">
+          <text>"adjuvant"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_months_on_therapy_adj_ok">
+          <text>&lt;= 12</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_response_adj_ok">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_cardiac_ef_adj_ok">
+          <text>&gt;= 50</text>
+        </inputEntry>
+        <inputEntry id="IE_DecisionRule_approve_adjuvant_ultimo"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_resultado_adj_ok">
+          <text>"Aprovado"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_observacao_adj_ok">
+          <text>"Trastuzumabe adjuvante aprovado: dentro do periodo de 12 meses padrao"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_fundamentacao_adj_ok">
+          <text>"HERA/BCIRG-006: 12 meses de trastuzumabe reduz recidiva em 50% em HER2+ precoce"</text>
+        </outputEntry>
+        <outputEntry id="OE_DecisionRule_approve_adjuvant_alertasDesperdicio">
+          <text>"NENHUM"</text>
+        </outputEntry>
+        <outputEntry id="OE_DecisionRule_approve_adjuvant_acaoRecomendada">
+          <text>"APROVAR"</text>
+        </outputEntry>
+      </rule>
+      <rule id="DecisionRule_approve_metastatic_responding">
+        <description>Approve metastatic if responding</description>
+        <inputEntry id="InputEntry_indication_met">
+          <text>"metastatic"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_months_on_therapy_met">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_response_met">
+          <text>"CR","PR","SD"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_cardiac_ef_met">
+          <text>&gt;= 50</text>
+        </inputEntry>
+        <inputEntry id="IE_DecisionRule_approve_metastatic_responding_ultimo"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_resultado_met">
+          <text>"Aprovado"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_observacao_met">
+          <text>"Trastuzumabe metastatico aprovado: doenca controlada, continuar ate progressao"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_fundamentacao_met">
+          <text>"NCCN: manter anti-HER2 enquanto houver resposta; trocar para TDM-1/pertuzumabe se PD"</text>
+        </outputEntry>
+        <outputEntry id="OE_DecisionRule_approve_metastatic_responding_alertasDesperdicio">
+          <text>"NENHUM"</text>
+        </outputEntry>
+        <outputEntry id="OE_DecisionRule_approve_metastatic_responding_acaoRecomendada">
+          <text>"APROVAR"</text>
+        </outputEntry>
+      </rule>
+      <rule id="DecisionRule_reject_metastatic_pd">
+        <description>Reject continuation in metastatic with progression</description>
+        <inputEntry id="InputEntry_indication_pd">
+          <text>"metastatic"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_months_on_therapy_pd">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_response_pd">
+          <text>"PD"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_cardiac_ef_pd">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="IE_DecisionRule_reject_metastatic_pd_ultimo"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_resultado_pd">
+          <text>"Reprovado"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_observacao_pd">
+          <text>"Progressao em trastuzumabe: trocar para T-DM1 ou tucatinib-combo per NCCN"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_fundamentacao_pd">
+          <text>"Progressao em anti-HER2: T-DM1 (EMILIA) ou tucatinib+tras+cap (HER2CLIMB) sao 2L padrao"</text>
+        </outputEntry>
+        <outputEntry id="OE_DecisionRule_reject_metastatic_pd_alertasDesperdicio">
+          <text>"PROT"</text>
+        </outputEntry>
+        <outputEntry id="OE_DecisionRule_reject_metastatic_pd_acaoRecomendada">
+          <text>"NEGAR"</text>
+        </outputEntry>
+      </rule>
+      <rule id="DecisionRule_approve_neoadjuvant">
+        <description>Approve neoadjuvant trastuzumab</description>
+        <inputEntry id="InputEntry_indication_neo">
+          <text>"neoadjuvant"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_months_on_therapy_neo">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_response_neo">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_cardiac_ef_neo">
+          <text>&gt;= 50</text>
+        </inputEntry>
+        <inputEntry id="IE_DecisionRule_approve_neoadjuvant_ultimo"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_resultado_neo">
+          <text>"Aprovado"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_observacao_neo">
+          <text>"Trastuzumabe neoadjuvante aprovado: parte de esquema pre-operatorio HER2+"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_fundamentacao_neo">
+          <text>"Neoadjuvante com tras+pertuzumabe: pCR 50-60% (NeoSphere, TRYPHAENA)"</text>
+        </outputEntry>
+        <outputEntry id="OE_DecisionRule_approve_neoadjuvant_alertasDesperdicio">
+          <text>"NENHUM"</text>
+        </outputEntry>
+        <outputEntry id="OE_DecisionRule_approve_neoadjuvant_acaoRecomendada">
+          <text>"APROVAR"</text>
+        </outputEntry>
+      </rule>
+      <rule id="DecisionRule_fallback">
+        <description>Fallback rule for incomplete data</description>
+        <inputEntry id="InputEntry_indication_fallback">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_months_on_therapy_fallback">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_response_fallback">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_cardiac_ef_fallback">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="IE_DecisionRule_fallback_ultimo"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_resultado_fallback">
+          <text>"Pendente"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_observacao_fallback">
+          <text>"Dados insuficientes para avaliacao de trastuzumabe"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_fundamentacao_fallback">
+          <text>"Necessario: indicacao, duracao, resposta, FEVE atual"</text>
+        </outputEntry>
+        <outputEntry id="OE_DecisionRule_fallback_alertasDesperdicio">
+          <text>"NENHUM"</text>
+        </outputEntry>
+        <outputEntry id="OE_DecisionRule_fallback_acaoRecomendada">
+          <text>"SOLICITAR_INFO"</text>
+        </outputEntry>
+      </rule>
+    </decisionTable>
+  </decision>
+  <dmndi:DMNDI>
+    <dmndi:DMNDiagram>
+      <dmndi:DMNShape dmnElementRef="Decision_ONQ_DRUG_001">
+        <dc:Bounds height="80" width="180" x="160" y="100" />
+      </dmndi:DMNShape>
+    </dmndi:DMNDiagram>
+  </dmndi:DMNDI>
+</definitions>

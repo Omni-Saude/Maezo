@@ -1,0 +1,322 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             xmlns:camunda="http://camunda.org/schema/1.0/dmn"
+             id="Definitions_30803112"
+             name="TOR-LUN-003 Resseccao Sublobar"
+             namespace="http://camunda.org/schema/1.0/dmn">
+
+  <!--
+    ===============================================================================
+    TUSS: 30803112
+    Procedimento: Resseccao Sublobar (Segmentectomia/Cunha) para Tumores Pequenos
+    Especialidade: Cirurgia Toracica
+    Codigo Regra: TOR-LUN-003
+    Versao: 3.0.0-LEAN-TIER2
+    Data: 2026-02-07
+    ===============================================================================
+
+    INDICACOES CLINICAS:
+    - Nodulo em vidro fosco puro (GGO) ou predominante (maior 50% GGO)
+    - Adenocarcinoma in situ (AIS) ou minimamente invasivo (MIA)
+    - Tumores menores ou iguais a 2cm (T1a) perifericos
+    - CPNPC estadio IA1 em pacientes com funcao pulmonar limitada
+    - Pacientes idosos (maior 75 anos) com comorbidades
+    - Segundo tumor primario em paciente ja ressecado
+    - JCOG0802/CALGB140503: Tumores menor ou igual 2cm, consolidacao menor ou igual 0.5
+
+    CONTRAINDICACOES:
+    - Tumor maior que 3cm
+    - Componente solido maior que 50% em GGO
+    - N1 ou N2 confirmado (necessita lobectomia)
+    - Tumor central (necessita lobectomia ou pneumonectomia)
+    - Invasao pleural visceral (VPI positivo - considerar lobectomia)
+    - Margens inadequadas previstas (menor 2cm ou menor diametro tumoral)
+
+    REFERENCIAS TECNICAS:
+    - JCOG0802/0804 Trial Results 2022
+    - CALGB/Alliance 140503 Trial 2023
+    - NCCN NSCLC 2024 - Sublobar Resection Criteria
+    - Fleischner Society Guidelines for GGO 2024
+    - SBCT 2023 - Nodulos Pulmonares
+    ===============================================================================
+  -->
+
+  <decision id="Decision_30803112" name="Regra Clinica - Resseccao Sublobar">
+    <decisionTable id="DecisionTable_30803112" hitPolicy="FIRST">
+
+      <!-- ========== INPUTS (5) - Padrao TIER-1 Cirurgia Toracica ========== -->
+
+      <input id="Input_diagnosticoPulmonar" label="Diagnostico Pulmonar e Caracteristicas do Nodulo" camunda:inputVariable="diagnosticoPulmonar">
+        <inputExpression id="InputExpression_diagnosticoPulmonar" typeRef="string">
+          <text>diagnosticoPulmonar</text>
+        </inputExpression>
+        <inputValues id="InputValues_diagnosticoPulmonar">
+          <text>"GGO_PURO","GGO_PREDOMINANTE","PART_SOLIDO_MAIOR_50","SOLIDO","AIS_MIA_CONFIRMADO","CPNPC_MENOR_2CM","NAO_CLASSIFICADO"</text>
+        </inputValues>
+      </input>
+
+      <input id="Input_estadiamentoTNM" label="Estadiamento TNM e Tamanho Tumoral" camunda:inputVariable="estadiamentoTNM">
+        <inputExpression id="InputExpression_estadiamentoTNM" typeRef="string">
+          <text>estadiamentoTNM</text>
+        </inputExpression>
+        <inputValues id="InputValues_estadiamentoTNM">
+          <text>"IA1_MENOR_1CM","IA2_1_2CM","IA3_2_3CM","IB_MAIOR_3CM","N1_POSITIVO","N2_POSITIVO","NAO_ESTADIADO"</text>
+        </inputValues>
+      </input>
+
+      <input id="Input_funcaoPulmonar" label="Funcao Pulmonar" camunda:inputVariable="funcaoPulmonar">
+        <inputExpression id="InputExpression_funcaoPulmonar" typeRef="string">
+          <text>funcaoPulmonar</text>
+        </inputExpression>
+        <inputValues id="InputValues_funcaoPulmonar">
+          <text>"NORMAL","LIMITADA_TOLERA_SUBLOBAR","GRAVEMENTE_REDUZIDA","NAO_AVALIADA"</text>
+        </inputValues>
+      </input>
+
+      <input id="Input_comorbidades" label="Comorbidades e Indicacao de Resseccao Limitada" camunda:inputVariable="comorbidades">
+        <inputExpression id="InputExpression_comorbidades" typeRef="string">
+          <text>comorbidades</text>
+        </inputExpression>
+        <inputValues id="InputValues_comorbidades">
+          <text>"JOVEM_SEM_COMORBIDADES","IDOSO_MAIOR_75","MULTIPLAS_COMORBIDADES","SEGUNDO_PRIMARIO","ALTO_RISCO_LOBECTOMIA"</text>
+        </inputValues>
+      </input>
+
+      <input id="Input_documentacaoClinica" label="Documentacao Clinica" camunda:inputVariable="documentacaoClinica">
+        <inputExpression id="InputExpression_documentacaoClinica" typeRef="string">
+          <text>documentacaoClinica</text>
+        </inputExpression>
+        <inputValues id="InputValues_documentacaoClinica">
+          <text>"COMPLETA_TC_FINO","COMPLETA_COM_PET","PARCIAL_SEM_TC_FINO","INCOMPLETA"</text>
+        </inputValues>
+      </input>
+
+      <!-- ========== OUTPUTS (3) - Padrao TIER-1 ========== -->
+
+      <output id="Output_resultado" label="Resultado" name="resultado" typeRef="string">
+        <outputValues id="OutputValues_resultado">
+          <text>"Aprovado","Reprovado","Pendente"</text>
+        </outputValues>
+      </output>
+
+      <output id="Output_observacao" label="Observacao Clinica" name="observacao" typeRef="string" />
+
+      <output id="Output_fundamentacao" label="Fundamentacao Tecnica" name="fundamentacao" typeRef="string" />
+
+      <output id="Output_alertasDesperdicio" name="alertasDesperdicio" typeRef="string">
+        <outputValues>
+          <text>"NENHUM","DUP","FREQ","ESC","DOC","PROT","MULTI"</text>
+        </outputValues>
+      </output>
+
+      <output id="Output_acaoRecomendada" name="acaoRecomendada" typeRef="string">
+        <outputValues>
+          <text>"APROVAR","NEGAR","SOLICITAR_INFO","AGUARDAR_PRAZO","SUGERIR_ALTERNATIVA"</text>
+        </outputValues>
+      </output>
+
+      <!-- ========== REGRAS - Ordem: Reprovado, Aprovado, Pendente, Fallback ========== -->
+
+      <!-- REPROVACOES -->
+
+      <rule id="Rule_Reprovado_TumorGrande">
+        <description>Reprovado: Tumor maior que 3cm - indicada lobectomia</description>
+        <inputEntry id="InputEntry_Rep_Grande_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Rep_Grande_2"><text>"IB_MAIOR_3CM"</text></inputEntry>
+        <inputEntry id="InputEntry_Rep_Grande_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Rep_Grande_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Rep_Grande_5"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_Rep_Grande_resultado"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_Rep_Grande_observacao"><text>"Tumor maior que 3cm. Resseccao sublobar nao indicada - lobectomia e procedimento padrao para tumores maiores que 2-3cm."</text></outputEntry>
+        <outputEntry id="OutputEntry_Rep_Grande_fundamentacao"><text>"JCOG0802, CALGB140503, NCCN 2024: Resseccao sublobar intencional limitada a tumores menor ou igual 2cm. Tumores maiores requerem lobectomia."</text></outputEntry>
+        <outputEntry id="OutputEntry_Reprovado_TumorGrande_alertasDesperdicio"><text>"PROT"</text></outputEntry>
+        <outputEntry id="OutputEntry_Reprovado_TumorGrande_acaoRecomendada"><text>"NEGAR"</text></outputEntry>
+        <outputEntry id="OutputEntry_Reprovado_TumorGrande_alertasDesperdicio"><text>"PROT"</text></outputEntry>
+        <outputEntry id="OutputEntry_Reprovado_TumorGrande_acaoRecomendada"><text>"NEGAR"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Reprovado_N1N2">
+        <description>Reprovado: Comprometimento linfonodal N1/N2 confirmado</description>
+        <inputEntry id="InputEntry_Rep_N12_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Rep_N12_2"><text>"N1_POSITIVO","N2_POSITIVO"</text></inputEntry>
+        <inputEntry id="InputEntry_Rep_N12_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Rep_N12_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Rep_N12_5"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_Rep_N12_resultado"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_Rep_N12_observacao"><text>"Comprometimento linfonodal N1 ou N2 confirmado. Resseccao sublobar inadequada - lobectomia com linfadenectomia obrigatoria."</text></outputEntry>
+        <outputEntry id="OutputEntry_Rep_N12_fundamentacao"><text>"NCCN 2024, ACCP: N1/N2 positivo requer lobectomia com linfadenectomia sistematica. Resseccao sublobar tem alta taxa de recorrencia em N+."</text></outputEntry>
+        <outputEntry id="OutputEntry_Reprovado_N1N2_alertasDesperdicio"><text>"PROT"</text></outputEntry>
+        <outputEntry id="OutputEntry_Reprovado_N1N2_acaoRecomendada"><text>"NEGAR"</text></outputEntry>
+        <outputEntry id="OutputEntry_Reprovado_N1N2_alertasDesperdicio"><text>"PROT"</text></outputEntry>
+        <outputEntry id="OutputEntry_Reprovado_N1N2_acaoRecomendada"><text>"NEGAR"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Reprovado_SolidoMaior50">
+        <description>Reprovado: Componente solido maior que 50% em nodulo maior 2cm</description>
+        <inputEntry id="InputEntry_Rep_Solido_1"><text>"PART_SOLIDO_MAIOR_50","SOLIDO"</text></inputEntry>
+        <inputEntry id="InputEntry_Rep_Solido_2"><text>"IA3_2_3CM"</text></inputEntry>
+        <inputEntry id="InputEntry_Rep_Solido_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Rep_Solido_4"><text>"JOVEM_SEM_COMORBIDADES"</text></inputEntry>
+        <inputEntry id="InputEntry_Rep_Solido_5"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_Rep_Solido_resultado"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_Rep_Solido_observacao"><text>"Nodulo solido ou predominantemente solido maior 2cm em paciente jovem. Lobectomia e tratamento padrao nesta situacao."</text></outputEntry>
+        <outputEntry id="OutputEntry_Rep_Solido_fundamentacao"><text>"JCOG0802: Beneficio de sublobar demonstrado apenas para tumores menor ou igual 2cm com consolidacao menor ou igual 0.5. Solidos maiores requerem lobectomia."</text></outputEntry>
+        <outputEntry id="OutputEntry_Reprovado_SolidoMaior50_alertasDesperdicio"><text>"PROT"</text></outputEntry>
+        <outputEntry id="OutputEntry_Reprovado_SolidoMaior50_acaoRecomendada"><text>"NEGAR"</text></outputEntry>
+        <outputEntry id="OutputEntry_Reprovado_SolidoMaior50_alertasDesperdicio"><text>"PROT"</text></outputEntry>
+        <outputEntry id="OutputEntry_Reprovado_SolidoMaior50_acaoRecomendada"><text>"NEGAR"</text></outputEntry>
+      </rule>
+
+      <!-- APROVACOES -->
+
+      <rule id="Rule_Aprovado_GGO_Puro">
+        <description>Aprovado: GGO puro ou AIS/MIA - segmentectomia indicada</description>
+        <inputEntry id="InputEntry_Apr_GGO_1"><text>"GGO_PURO","AIS_MIA_CONFIRMADO"</text></inputEntry>
+        <inputEntry id="InputEntry_Apr_GGO_2"><text>"IA1_MENOR_1CM","IA2_1_2CM","IA3_2_3CM"</text></inputEntry>
+        <inputEntry id="InputEntry_Apr_GGO_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Apr_GGO_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Apr_GGO_5"><text>"COMPLETA_TC_FINO","COMPLETA_COM_PET"</text></inputEntry>
+        <outputEntry id="OutputEntry_Apr_GGO_resultado"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_Apr_GGO_observacao"><text>"GGO puro ou AIS/MIA confirmado. Segmentectomia anatomica e tratamento adequado com excelente prognostico (sobrevida maior 95% em 5 anos)."</text></outputEntry>
+        <outputEntry id="OutputEntry_Apr_GGO_fundamentacao"><text>"JCOG0804, Fleischner 2024, NCCN: GGO puros e AIS/MIA tem excelente prognostico com resseccao sublobar. Segmentectomia preferivel a cunha."</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprovado_GGO_Puro_alertasDesperdicio"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprovado_GGO_Puro_acaoRecomendada"><text>"APROVAR"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprovado_GGO_Puro_alertasDesperdicio"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprovado_GGO_Puro_acaoRecomendada"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Aprovado_GGO_Predominante">
+        <description>Aprovado: GGO predominante menor ou igual 2cm - sublobar aceitavel</description>
+        <inputEntry id="InputEntry_Apr_GGOp_1"><text>"GGO_PREDOMINANTE"</text></inputEntry>
+        <inputEntry id="InputEntry_Apr_GGOp_2"><text>"IA1_MENOR_1CM","IA2_1_2CM"</text></inputEntry>
+        <inputEntry id="InputEntry_Apr_GGOp_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Apr_GGOp_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Apr_GGOp_5"><text>"COMPLETA_TC_FINO","COMPLETA_COM_PET"</text></inputEntry>
+        <outputEntry id="OutputEntry_Apr_GGOp_resultado"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_Apr_GGOp_observacao"><text>"GGO predominante (consolidacao menor ou igual 50%) e menor ou igual 2cm. Resseccao sublobar indicada com margem adequada."</text></outputEntry>
+        <outputEntry id="OutputEntry_Apr_GGOp_fundamentacao"><text>"JCOG0802: CTR (consolidation-to-tumor ratio) menor ou igual 0.5 e tumor menor ou igual 2cm: sublobar nao inferior a lobectomia."</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprovado_GGO_Predominante_alertasDesperdicio"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprovado_GGO_Predominante_acaoRecomendada"><text>"APROVAR"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprovado_GGO_Predominante_alertasDesperdicio"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprovado_GGO_Predominante_acaoRecomendada"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Aprovado_Pequeno_FuncaoLimitada">
+        <description>Aprovado: Tumor pequeno com funcao pulmonar limitada</description>
+        <inputEntry id="InputEntry_Apr_FuncLim_1"><text>"CPNPC_MENOR_2CM","GGO_PREDOMINANTE","SOLIDO"</text></inputEntry>
+        <inputEntry id="InputEntry_Apr_FuncLim_2"><text>"IA1_MENOR_1CM","IA2_1_2CM"</text></inputEntry>
+        <inputEntry id="InputEntry_Apr_FuncLim_3"><text>"LIMITADA_TOLERA_SUBLOBAR","GRAVEMENTE_REDUZIDA"</text></inputEntry>
+        <inputEntry id="InputEntry_Apr_FuncLim_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Apr_FuncLim_5"><text>"COMPLETA_TC_FINO","COMPLETA_COM_PET"</text></inputEntry>
+        <outputEntry id="OutputEntry_Apr_FuncLim_resultado"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_Apr_FuncLim_observacao"><text>"Tumor menor ou igual 2cm em paciente com funcao pulmonar limitada. Resseccao sublobar e opcao de compromisso preservando parenquima."</text></outputEntry>
+        <outputEntry id="OutputEntry_Apr_FuncLim_fundamentacao"><text>"NCCN 2024, ACCP: Resseccao sublobar aceitavel em pacientes com reserva funcional limitada que nao toleram lobectomia. Preservacao de funcao pulmonar."</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprovado_Pequeno_FuncaoLimitada_alertasDesperdicio"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprovado_Pequeno_FuncaoLimitada_acaoRecomendada"><text>"APROVAR"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprovado_Pequeno_FuncaoLimitada_alertasDesperdicio"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprovado_Pequeno_FuncaoLimitada_acaoRecomendada"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Aprovado_Idoso_Comorbido">
+        <description>Aprovado: Paciente idoso ou com multiplas comorbidades</description>
+        <inputEntry id="InputEntry_Apr_Idoso_1"><text>"CPNPC_MENOR_2CM","GGO_PURO","GGO_PREDOMINANTE"</text></inputEntry>
+        <inputEntry id="InputEntry_Apr_Idoso_2"><text>"IA1_MENOR_1CM","IA2_1_2CM"</text></inputEntry>
+        <inputEntry id="InputEntry_Apr_Idoso_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Apr_Idoso_4"><text>"IDOSO_MAIOR_75","MULTIPLAS_COMORBIDADES","ALTO_RISCO_LOBECTOMIA"</text></inputEntry>
+        <inputEntry id="InputEntry_Apr_Idoso_5"><text>"COMPLETA_TC_FINO","COMPLETA_COM_PET"</text></inputEntry>
+        <outputEntry id="OutputEntry_Apr_Idoso_resultado"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_Apr_Idoso_observacao"><text>"Tumor pequeno em paciente idoso ou com multiplas comorbidades. Resseccao sublobar indicada visando menor morbimortalidade."</text></outputEntry>
+        <outputEntry id="OutputEntry_Apr_Idoso_fundamentacao"><text>"CALGB140503, NCCN 2024: Sublobar aceitavel em pacientes de alto risco cirurgico com tumores perifericos pequenos. Menor morbidade pos-operatoria."</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprovado_Idoso_Comorbido_alertasDesperdicio"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprovado_Idoso_Comorbido_acaoRecomendada"><text>"APROVAR"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprovado_Idoso_Comorbido_alertasDesperdicio"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprovado_Idoso_Comorbido_acaoRecomendada"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Aprovado_SegundoPrimario">
+        <description>Aprovado: Segundo tumor primario metacrono</description>
+        <inputEntry id="InputEntry_Apr_2Pri_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Apr_2Pri_2"><text>"IA1_MENOR_1CM","IA2_1_2CM"</text></inputEntry>
+        <inputEntry id="InputEntry_Apr_2Pri_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Apr_2Pri_4"><text>"SEGUNDO_PRIMARIO"</text></inputEntry>
+        <inputEntry id="InputEntry_Apr_2Pri_5"><text>"COMPLETA_TC_FINO","COMPLETA_COM_PET"</text></inputEntry>
+        <outputEntry id="OutputEntry_Apr_2Pri_resultado"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_Apr_2Pri_observacao"><text>"Segundo tumor primario metacrono em paciente previamente ressecado. Sublobar indicada para preservar parenquima remanescente."</text></outputEntry>
+        <outputEntry id="OutputEntry_Apr_2Pri_fundamentacao"><text>"NCCN 2024: Em segundos tumores primarios, resseccao sublobar e preferida para maximizar preservacao de funcao pulmonar pos-resseccao previa."</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprovado_SegundoPrimario_alertasDesperdicio"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprovado_SegundoPrimario_acaoRecomendada"><text>"APROVAR"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprovado_SegundoPrimario_alertasDesperdicio"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprovado_SegundoPrimario_acaoRecomendada"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <!-- PENDENCIAS -->
+
+      <rule id="Rule_Pendente_SemTC_Fino">
+        <description>Pendente: TC de alta resolucao nao realizada</description>
+        <inputEntry id="InputEntry_Pend_TC_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Pend_TC_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Pend_TC_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Pend_TC_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Pend_TC_5"><text>"PARCIAL_SEM_TC_FINO","INCOMPLETA"</text></inputEntry>
+        <outputEntry id="OutputEntry_Pend_TC_resultado"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OutputEntry_Pend_TC_observacao"><text>"TC de alta resolucao (cortes finos menor ou igual 1mm) necessaria para caracterizar GGO e medir consolidacao. Fundamental para indicar sublobar."</text></outputEntry>
+        <outputEntry id="OutputEntry_Pend_TC_fundamentacao"><text>"Fleischner 2024, JCOG: Caracterizacao de GGO requer TC de alta resolucao. CTR (consolidation-to-tumor ratio) define indicacao de sublobar vs lobectomia."</text></outputEntry>
+        <outputEntry id="OutputEntry_Pendente_SemTC_Fino_alertasDesperdicio"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_Pendente_SemTC_Fino_acaoRecomendada"><text>"SOLICITAR_INFO"</text></outputEntry>
+        <outputEntry id="OutputEntry_Pendente_SemTC_Fino_alertasDesperdicio"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_Pendente_SemTC_Fino_acaoRecomendada"><text>"SOLICITAR_INFO"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Pendente_NaoClassificado">
+        <description>Pendente: Nodulo nao classificado quanto a atenuacao</description>
+        <inputEntry id="InputEntry_Pend_Class_1"><text>"NAO_CLASSIFICADO"</text></inputEntry>
+        <inputEntry id="InputEntry_Pend_Class_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Pend_Class_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Pend_Class_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Pend_Class_5"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_Pend_Class_resultado"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OutputEntry_Pend_Class_observacao"><text>"Classificar nodulo como GGO puro, GGO predominante ou solido. Relatorio radiologico deve incluir CTR e dimensoes do componente solido."</text></outputEntry>
+        <outputEntry id="OutputEntry_Pend_Class_fundamentacao"><text>"JCOG criteria: CTR menor ou igual 0.5 e tumor menor ou igual 2cm sao criterios essenciais para indicar resseccao sublobar intencional."</text></outputEntry>
+        <outputEntry id="OutputEntry_Pendente_NaoClassificado_alertasDesperdicio"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_Pendente_NaoClassificado_acaoRecomendada"><text>"SOLICITAR_INFO"</text></outputEntry>
+        <outputEntry id="OutputEntry_Pendente_NaoClassificado_alertasDesperdicio"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_Pendente_NaoClassificado_acaoRecomendada"><text>"SOLICITAR_INFO"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Pendente_NaoEstadiado">
+        <description>Pendente: Estadiamento incompleto</description>
+        <inputEntry id="InputEntry_Pend_Est_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Pend_Est_2"><text>"NAO_ESTADIADO"</text></inputEntry>
+        <inputEntry id="InputEntry_Pend_Est_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Pend_Est_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Pend_Est_5"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_Pend_Est_resultado"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OutputEntry_Pend_Est_observacao"><text>"Estadiamento clinico incompleto. Para tumores solidos, PET-CT recomendado para excluir N1/N2 e confirmar indicacao de sublobar."</text></outputEntry>
+        <outputEntry id="OutputEntry_Pend_Est_fundamentacao"><text>"NCCN 2024: PET-CT recomendado para estadiamento de CPNPC. GGO puros tem baixa captacao e podem dispensar PET."</text></outputEntry>
+        <outputEntry id="OutputEntry_Pendente_NaoEstadiado_alertasDesperdicio"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_Pendente_NaoEstadiado_acaoRecomendada"><text>"SOLICITAR_INFO"</text></outputEntry>
+        <outputEntry id="OutputEntry_Pendente_NaoEstadiado_alertasDesperdicio"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_Pendente_NaoEstadiado_acaoRecomendada"><text>"SOLICITAR_INFO"</text></outputEntry>
+      </rule>
+
+      <!-- FALLBACK -->
+
+      <rule id="Rule_Fallback_30803112">
+        <description>Fallback: Caso requer analise individualizada</description>
+        <inputEntry id="InputEntry_Fallback_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Fallback_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Fallback_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Fallback_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Fallback_5"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_Fallback_resultado"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OutputEntry_Fallback_observacao"><text>"Caso requer analise individualizada. Decisao entre lobectomia e sublobar deve considerar caracteristicas tumorais, funcao pulmonar e risco cirurgico."</text></outputEntry>
+        <outputEntry id="OutputEntry_Fallback_fundamentacao"><text>"SBCT 2023, NCCN 2024: Casos limites devem ser discutidos em tumor board multidisciplinar para definir extensao ideal da resseccao."</text></outputEntry>
+        <outputEntry id="OutputEntry_Fallback_30803112_alertasDesperdicio"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_Fallback_30803112_acaoRecomendada"><text>"SOLICITAR_INFO"</text></outputEntry>
+        <outputEntry id="OutputEntry_Fallback_30803112_alertasDesperdicio"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_Fallback_30803112_acaoRecomendada"><text>"SOLICITAR_INFO"</text></outputEntry>
+      </rule>
+
+    </decisionTable>
+  </decision>
+</definitions>

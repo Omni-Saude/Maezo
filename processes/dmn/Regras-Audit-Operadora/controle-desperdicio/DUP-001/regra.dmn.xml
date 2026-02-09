@@ -1,0 +1,178 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/"
+             xmlns:dc="http://www.omg.org/spec/DD/20100524/DC/"
+             xmlns:di="http://www.omg.org/spec/DD/20100524/DI/"
+             id="Definitions_DUP_001"
+             name="Prevencao de Duplicidade - Exames Laboratoriais Mesmo Dia"
+             namespace="http://camunda.org/schema/1.0/dmn"
+             exporter="Camunda Modeler"
+             exporterVersion="5.0.0">
+  <!--
+    DUP-001 - Prevencao de Duplicidade de Exames Laboratoriais no Mesmo Dia
+    Versao: 1.0.0 (2026-02-07)
+    Especialidade: Controle de Desperdicio
+    Categoria: Duplicate Procedure Prevention
+
+    Objetivo:
+    - Identificar e bloquear solicitacoes duplicadas de exames laboratoriais no mesmo dia
+    - Evitar custos desnecessarios com repeticao de coletas
+    - Garantir uso racional de recursos laboratoriais
+
+    Indicacoes para Bloqueio:
+    - Mesmo exame solicitado mais de uma vez no mesmo dia
+    - Exame ja realizado nas ultimas 24 horas sem justificativa clinica
+    - Painel de exames identicos solicitados por prestadores diferentes
+
+    Excecoes Permitidas:
+    - Monitoramento de parametros criticos (troponina, lactato, gasometria)
+    - Pacientes em UTI com protocolo de monitoramento
+    - Justificativa medica documentada para repeticao
+
+    Referencias Normativas:
+    - ANS - Diretrizes de Controle de Desperdicio 2024
+    - ABRAMGE - Boas Praticas em Gestao de Exames 2023
+    - Choosing Wisely Brasil - Recomendacoes Laboratoriais 2024
+  -->
+
+  <decision id="Decision_DUP_001" name="Prevencao Duplicidade - Exames Laboratoriais Mesmo Dia">
+    <decisionTable id="DecisionTable_DUP_001" hitPolicy="FIRST">
+
+      <!-- Input 1: Exame ja realizado nas ultimas 24h -->
+      <input id="Input_exameRealizadoUltimas24h" label="Exame Realizado nas Ultimas 24h">
+        <inputExpression id="InputExpr_exameRealizadoUltimas24h" typeRef="boolean">
+          <text>exameRealizadoUltimas24h</text>
+        </inputExpression>
+      </input>
+
+      <!-- Input 2: Justificativa medica para repeticao -->
+      <input id="Input_justificativaMedicaRepeticao" label="Justificativa Medica para Repeticao">
+        <inputExpression id="InputExpr_justificativaMedicaRepeticao" typeRef="boolean">
+          <text>justificativaMedicaRepeticao</text>
+        </inputExpression>
+      </input>
+
+      <!-- Input 3: Exame de monitoramento critico -->
+      <input id="Input_exameMonitoramentoCritico" label="Exame de Monitoramento Critico (troponina, lactato, gasometria)">
+        <inputExpression id="InputExpr_exameMonitoramentoCritico" typeRef="boolean">
+          <text>exameMonitoramentoCritico</text>
+        </inputExpression>
+      </input>
+
+      <!-- Input 4: Paciente em UTI -->
+      <input id="Input_pacienteUTI" label="Paciente em UTI">
+        <inputExpression id="InputExpr_pacienteUTI" typeRef="boolean">
+          <text>pacienteUTI</text>
+        </inputExpression>
+      </input>
+
+      <!-- Output 1: Resultado -->
+      <output id="Output_resultado" label="Resultado" name="resultado" typeRef="string">
+        <outputValues id="OutputValues_resultado">
+          <text>"Aprovado","Reprovado","Pendente"</text>
+        </outputValues>
+      </output>
+
+      <!-- Output 2: Observacao -->
+      <output id="Output_observacao" label="Observacao" name="observacao" typeRef="string" />
+
+      <!-- Output 3: Fundamentacao -->
+      <output id="Output_fundamentacao" label="Fundamentacao Legal" name="fundamentacao" typeRef="string" />
+      <!-- Output 4: Alertas de Desperdicio -->
+      <output id="Output_alertasDesperdicio" label="Alertas de Desperdicio" name="alertasDesperdicio" typeRef="string">
+        <outputValues id="OutputValues_alertasDesperdicio">
+          <text>"NENHUM","DUP","FREQ","ESC","DOC","PROT","MULTI"</text>
+        </outputValues>
+      </output>
+
+      <!-- Output 5: Acao Recomendada -->
+      <output id="Output_acaoRecomendada" label="Acao Recomendada" name="acaoRecomendada" typeRef="string">
+        <outputValues id="OutputValues_acaoRecomendada">
+          <text>"APROVAR","NEGAR","SOLICITAR_INFO","AGUARDAR_PRAZO","SUGERIR_ALTERNATIVA"</text>
+        </outputValues>
+      </output>
+
+
+      <!-- ============================================== -->
+      <!-- REPROVADO: Duplicidade sem justificativa      -->
+      <!-- ============================================== -->
+      <rule id="Rule_DUP_001_Reprovado_SemJustificativa">
+        <description>Reprovado - Exame duplicado sem justificativa medica</description>
+        <inputEntry id="IE_Rep1_1"><text>true</text></inputEntry>
+        <inputEntry id="IE_Rep1_2"><text>false</text></inputEntry>
+        <inputEntry id="IE_Rep1_3"><text>false</text></inputEntry>
+        <inputEntry id="IE_Rep1_4"><text>false</text></inputEntry>
+        <outputEntry id="OE_Rep1_1"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OE_Rep1_2"><text>"Exame ja realizado nas ultimas 24 horas. Duplicidade detectada sem justificativa clinica para repeticao."</text></outputEntry>
+        <outputEntry id="OE_Rep1_3"><text>"ANS Diretrizes Controle Desperdicio 2024 - Art. 12; ABRAMGE Boas Praticas 2023"</text></outputEntry>
+        <outputEntry id="OE_Rule_DUP_001_Reprovado_SemJustificativa_4"><text>"DUP"</text></outputEntry>
+        <outputEntry id="OE_Rule_DUP_001_Reprovado_SemJustificativa_5"><text>"NEGAR"</text></outputEntry>
+      </rule>
+
+      <!-- ============================================== -->
+      <!-- APROVADO: Monitoramento critico em UTI        -->
+      <!-- ============================================== -->
+      <rule id="Rule_DUP_001_Aprovado_MonitoramentoUTI">
+        <description>Aprovado - Monitoramento critico em paciente UTI</description>
+        <inputEntry id="IE_Aprov1_1"><text>true</text></inputEntry>
+        <inputEntry id="IE_Aprov1_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_Aprov1_3"><text>true</text></inputEntry>
+        <inputEntry id="IE_Aprov1_4"><text>true</text></inputEntry>
+        <outputEntry id="OE_Aprov1_1"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OE_Aprov1_2"><text>"Repeticao autorizada - Monitoramento critico em paciente de UTI conforme protocolo."</text></outputEntry>
+        <outputEntry id="OE_Aprov1_3"><text>"Protocolo de Monitoramento UTI - Excecao justificada"</text></outputEntry>
+        <outputEntry id="OE_Rule_DUP_001_Aprovado_MonitoramentoUTI_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_Rule_DUP_001_Aprovado_MonitoramentoUTI_5"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <!-- ============================================== -->
+      <!-- APROVADO: Com justificativa medica            -->
+      <!-- ============================================== -->
+      <rule id="Rule_DUP_001_Aprovado_ComJustificativa">
+        <description>Aprovado - Repeticao com justificativa medica documentada</description>
+        <inputEntry id="IE_Aprov2_1"><text>true</text></inputEntry>
+        <inputEntry id="IE_Aprov2_2"><text>true</text></inputEntry>
+        <inputEntry id="IE_Aprov2_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_Aprov2_4"><text>-</text></inputEntry>
+        <outputEntry id="OE_Aprov2_1"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OE_Aprov2_2"><text>"Repeticao autorizada - Justificativa medica documentada para nova coleta."</text></outputEntry>
+        <outputEntry id="OE_Aprov2_3"><text>"Justificativa clinica aceita conforme ANS 2024"</text></outputEntry>
+        <outputEntry id="OE_Rule_DUP_001_Aprovado_ComJustificativa_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_Rule_DUP_001_Aprovado_ComJustificativa_5"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <!-- ============================================== -->
+      <!-- APROVADO: Sem duplicidade                     -->
+      <!-- ============================================== -->
+      <rule id="Rule_DUP_001_Aprovado_SemDuplicidade">
+        <description>Aprovado - Nenhuma duplicidade detectada</description>
+        <inputEntry id="IE_Aprov3_1"><text>false</text></inputEntry>
+        <inputEntry id="IE_Aprov3_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_Aprov3_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_Aprov3_4"><text>-</text></inputEntry>
+        <outputEntry id="OE_Aprov3_1"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OE_Aprov3_2"><text>"Exame autorizado - Nenhuma duplicidade identificada nas ultimas 24 horas."</text></outputEntry>
+        <outputEntry id="OE_Aprov3_3"><text>"Verificacao de duplicidade - OK"</text></outputEntry>
+        <outputEntry id="OE_Rule_DUP_001_Aprovado_SemDuplicidade_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_Rule_DUP_001_Aprovado_SemDuplicidade_5"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <!-- ============================================== -->
+      <!-- PENDENTE: Analise manual necessaria           -->
+      <!-- ============================================== -->
+      <rule id="Rule_DUP_001_Pendente_Fallback">
+        <description>Pendente - Requer analise manual por auditor</description>
+        <inputEntry id="IE_Pend_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_Pend_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_Pend_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_Pend_4"><text>-</text></inputEntry>
+        <outputEntry id="OE_Pend_1"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OE_Pend_2"><text>"Caso requer analise manual por auditor medico para validacao de duplicidade."</text></outputEntry>
+        <outputEntry id="OE_Pend_3"><text>"Auditoria medica - Processo manual"</text></outputEntry>
+        <outputEntry id="OE_Rule_DUP_001_Pendente_Fallback_4"><text>"DOC"</text></outputEntry>
+        <outputEntry id="OE_Rule_DUP_001_Pendente_Fallback_5"><text>"SOLICITAR_INFO"</text></outputEntry>
+      </rule>
+
+    </decisionTable>
+  </decision>
+</definitions>

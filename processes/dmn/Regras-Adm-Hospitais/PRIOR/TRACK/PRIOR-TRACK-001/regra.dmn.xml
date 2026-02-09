@@ -1,0 +1,173 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  ============================================================================
+  PRIOR-TRACK-001 - Dias Pendencia Autorizacao (SLA Operadora)
+  ============================================================================
+  Versao: 1.0.0 (2026-02-08)
+  Categoria: PRIOR-TRACK
+  Perspectiva: HOSPITAL (Faturamento/Auditoria)
+
+  ============================================================================
+  INDICACOES (Quando PROSSEGUIR):
+  ============================================================================
+  - Pendencia dentro do SLA
+  - Operadora dentro do prazo de resposta
+  - Tipo de urgencia respeitado
+
+  ============================================================================
+  CONTRAINDICACOES (Quando BLOQUEAR):
+  ============================================================================
+  - SLA excedido para urgencias
+  - Emergencia sem resposta imediata
+  - Atraso critico comprometendo atendimento
+
+  ============================================================================
+  REFERENCIAS NORMATIVAS:
+  ============================================================================
+  - RN 424/2017 (SLA: 5 dias uteis eletivo, 48h urgente, 24h emergencia)
+  - RN 465/2021 (Procedimentos Regulados)
+  - RN 259/2011 (Autorizacao Tacita)
+  - Lei 9.656/1998 Art. 12 (Cobertura Obrigatoria)
+  ============================================================================
+-->
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/"
+             xmlns:dc="http://www.omg.org/spec/DMN/20180521/DC/"
+             id="Definitions_PRIOR_TRACK_001"
+             name="Dias Pendencia Autorizacao (SLA Operadora)"
+             targetNamespace="http://camunda.org/schema/1.0/dmn">
+
+  <decision id="Decision_PRIOR_TRACK_001" name="Verificar Dias Pendencia Autorizacao (SLA)">
+    <decisionTable id="DecisionTable_PRIOR_TRACK_001" hitPolicy="FIRST">
+
+      <!-- ========== INPUTS ========== -->
+      <input id="Input_1" label="Dias Pendencia">
+        <inputExpression id="InputExpression_1" typeRef="integer">
+          <text>diasPendencia</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_2" label="SLA Operadora (dias)">
+        <inputExpression id="InputExpression_2" typeRef="integer">
+          <text>slaOperadora</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_3" label="Tipo Urgencia">
+        <inputExpression id="InputExpression_3" typeRef="string">
+          <text>tipoUrgencia</text>
+        </inputExpression>
+        <inputValues id="InputValues_3">
+          <text>"ELETIVO", "URGENTE", "EMERGENCIA"</text>
+        </inputValues>
+      </input>
+
+      <!-- ========== OUTPUTS (5 STANDARD) ========== -->
+      <output id="Output_1" label="Resultado" name="resultado" typeRef="string">
+        <outputValues><text>"Prosseguir", "Bloquear", "Alertar", "Revisar"</text></outputValues>
+      </output>
+
+      <output id="Output_2" label="Observacao" name="observacao" typeRef="string"/>
+
+      <output id="Output_3" label="Acao Recomendada" name="acaoRecomendada" typeRef="string"/>
+
+      <output id="Output_4" label="Alertas Conformidade" name="alertasConformidade" typeRef="string">
+        <outputValues><text>"NENHUM", "DUP", "FREQ", "PRAZO", "DOC", "VALOR", "CRED", "CONTRATO"</text></outputValues>
+      </output>
+
+      <output id="Output_5" label="Risco Denial" name="riscoDenial" typeRef="string">
+        <outputValues><text>"BAIXO", "MEDIO", "ALTO", "CRITICO"</text></outputValues>
+      </output>
+
+      <!-- ========== RULES ========== -->
+
+      <!-- REGRA B1: Bloqueio - Emergencia excede 1 dia -->
+      <rule id="Rule_Bloqueio_1">
+        <description>Emergencia pendente ha mais de 24 horas</description>
+        <inputEntry id="InputEntry_B1_1"><text>&gt; 1</text></inputEntry>
+        <inputEntry id="InputEntry_B1_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_B1_3"><text>"EMERGENCIA"</text></inputEntry>
+        <outputEntry id="OutputEntry_B1_1"><text>"Bloquear"</text></outputEntry>
+        <outputEntry id="OutputEntry_B1_2"><text>"Emergencia pendente ha mais de 24 horas. SLA critico excedido."</text></outputEntry>
+        <outputEntry id="OutputEntry_B1_3"><text>"Acionar juridico e considerar autorizacao tacita (RN 259/2011). Realizar atendimento e notificar ANS."</text></outputEntry>
+        <outputEntry id="OutputEntry_B1_4"><text>"PRAZO"</text></outputEntry>
+        <outputEntry id="OutputEntry_B1_5"><text>"CRITICO"</text></outputEntry>
+      </rule>
+
+      <!-- REGRA B2: Bloqueio - Urgente excede 2 dias -->
+      <rule id="Rule_Bloqueio_2">
+        <description>Urgencia pendente ha mais de 48 horas</description>
+        <inputEntry id="InputEntry_B2_1"><text>&gt; 2</text></inputEntry>
+        <inputEntry id="InputEntry_B2_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_B2_3"><text>"URGENTE"</text></inputEntry>
+        <outputEntry id="OutputEntry_B2_1"><text>"Bloquear"</text></outputEntry>
+        <outputEntry id="OutputEntry_B2_2"><text>"Urgencia pendente ha mais de 48 horas. SLA excedido."</text></outputEntry>
+        <outputEntry id="OutputEntry_B2_3"><text>"Considerar autorizacao tacita (RN 259/2011). Contatar operadora com urgencia."</text></outputEntry>
+        <outputEntry id="OutputEntry_B2_4"><text>"PRAZO"</text></outputEntry>
+        <outputEntry id="OutputEntry_B2_5"><text>"ALTO"</text></outputEntry>
+      </rule>
+
+      <!-- REGRA A1: Alerta - SLA excedido (eletivo) -->
+      <rule id="Rule_Alerta_1">
+        <description>Procedimento eletivo excede SLA da operadora</description>
+        <inputEntry id="InputEntry_A1_1"><text>&gt; slaOperadora</text></inputEntry>
+        <inputEntry id="InputEntry_A1_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_A1_3"><text>"ELETIVO"</text></inputEntry>
+        <outputEntry id="OutputEntry_A1_1"><text>"Alertar"</text></outputEntry>
+        <outputEntry id="OutputEntry_A1_2"><text>"Procedimento eletivo excede SLA da operadora. Atraso administrativo."</text></outputEntry>
+        <outputEntry id="OutputEntry_A1_3"><text>"Contatar operadora para obter posicionamento. Documentar atraso para eventual recurso."</text></outputEntry>
+        <outputEntry id="OutputEntry_A1_4"><text>"PRAZO"</text></outputEntry>
+        <outputEntry id="OutputEntry_A1_5"><text>"MEDIO"</text></outputEntry>
+      </rule>
+
+      <!-- REGRA A2: Alerta - Proximo do SLA -->
+      <rule id="Rule_Alerta_2">
+        <description>Pendencia proxima do SLA</description>
+        <inputEntry id="InputEntry_A2_1"><text>[slaOperadora * 0.8..slaOperadora]</text></inputEntry>
+        <inputEntry id="InputEntry_A2_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_A2_3"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_A2_1"><text>"Alertar"</text></outputEntry>
+        <outputEntry id="OutputEntry_A2_2"><text>"Pendencia proxima de exceder SLA da operadora (80% ou mais)."</text></outputEntry>
+        <outputEntry id="OutputEntry_A2_3"><text>"Contatar operadora preventivamente para agilizar resposta."</text></outputEntry>
+        <outputEntry id="OutputEntry_A2_4"><text>"PRAZO"</text></outputEntry>
+        <outputEntry id="OutputEntry_A2_5"><text>"MEDIO"</text></outputEntry>
+      </rule>
+
+      <!-- REGRA P1: Aprovado - Dentro do SLA -->
+      <rule id="Rule_Aprovado_1">
+        <description>Pendencia dentro do SLA da operadora</description>
+        <inputEntry id="InputEntry_P1_1"><text>&lt; slaOperadora * 0.8</text></inputEntry>
+        <inputEntry id="InputEntry_P1_2"><text>&gt; 0</text></inputEntry>
+        <inputEntry id="InputEntry_P1_3"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_P1_1"><text>"Prosseguir"</text></outputEntry>
+        <outputEntry id="OutputEntry_P1_2"><text>"Autorizacao pendente dentro do SLA da operadora."</text></outputEntry>
+        <outputEntry id="OutputEntry_P1_3"><text>"Aguardar resposta da operadora. Monitorar prazo de SLA."</text></outputEntry>
+        <outputEntry id="OutputEntry_P1_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_P1_5"><text>"BAIXO"</text></outputEntry>
+      </rule>
+
+      <!-- REGRA F: Fallback - Requer revisao manual -->
+      <rule id="Rule_Fallback_PRIOR_TRACK_001">
+        <description>Regra padrao - Requer avaliacao manual</description>
+        <inputEntry id="InputEntry_F_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_F_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_F_3"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_F_1"><text>"Revisar"</text></outputEntry>
+        <outputEntry id="OutputEntry_F_2"><text>"Situacao de pendencia de autorizacao requer analise manual."</text></outputEntry>
+        <outputEntry id="OutputEntry_F_3"><text>"Encaminhar para auditoria verificar SLA com operadora."</text></outputEntry>
+        <outputEntry id="OutputEntry_F_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_F_5"><text>"MEDIO"</text></outputEntry>
+      </rule>
+
+    </decisionTable>
+  </decision>
+
+  <dmndi:DMNDI>
+    <dmndi:DMNDiagram id="DMNDiagram_PRIOR_TRACK_001">
+      <dmndi:DMNShape id="DMNShape_Decision_PRIOR_TRACK_001" dmnElementRef="Decision_PRIOR_TRACK_001">
+        <dc:Bounds height="80" width="180" x="160" y="100"/>
+      </dmndi:DMNShape>
+    </dmndi:DMNDiagram>
+  </dmndi:DMNDI>
+
+</definitions>

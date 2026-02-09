@@ -1,0 +1,407 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" xmlns:camunda="http://camunda.org/schema/1.0/bpmn" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" id="Definitions_SUB03" targetNamespace="http://bpmn.io/schema/bpmn" exporter="Camunda Modeler" exporterVersion="5.0.0">
+  <bpmn:collaboration id="Collaboration_SUB03">
+    <bpmn:participant id="Participant_SUB03" name="SUB 03 - Atendimento Clínico e Procedimentos" processRef="Process_SUB03_AtendimentoClinico" />
+  </bpmn:collaboration>
+  <bpmn:process id="Process_SUB03_AtendimentoClinico" name="Atendimento Clínico e Procedimentos" isExecutable="true" camunda:historyTimeToLive="P365D">
+    <bpmn:laneSet id="LaneSet_SUB03">
+      <bpmn:lane id="Lane_Medico" name="Médico">
+        <bpmn:flowNodeRef>StartEvent_SUB03</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_AnamneseExameFisico</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Gateway_NecessitaExames</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_SolicitarExames</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_AvaliarResultados</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_Diagnostico</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Gateway_TipoTratamento</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_PrescricaoMedicacao</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_SolicitarProcedimento</bpmn:flowNodeRef>
+      </bpmn:lane>
+      <bpmn:lane id="Lane_Enfermagem" name="Enfermagem">
+        <bpmn:flowNodeRef>Task_RealizarProcedimento</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_AdministrarMedicacao</bpmn:flowNodeRef>
+      </bpmn:lane>
+      <bpmn:lane id="Lane_Sistema" name="Sistema">
+        <bpmn:flowNodeRef>ServiceTask_AgendarExame</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>ServiceTask_RegistrarProntuario</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>ServiceTask_RegistrarProcedimento</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Gateway_JoinAtendimento</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>ServiceTask_FinalizarAtendimento</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>EndEvent_SUB03</bpmn:flowNodeRef>
+      </bpmn:lane>
+    </bpmn:laneSet>
+    <bpmn:startEvent id="StartEvent_SUB03" name="Início do Atendimento">
+      <bpmn:outgoing>Flow_Start_To_Anamnese</bpmn:outgoing>
+    </bpmn:startEvent>
+    <bpmn:userTask id="Task_AnamneseExameFisico" name="Realizar Anamnese e Exame Físico" camunda:assignee="${medico}">
+      <bpmn:extensionElements>
+        <camunda:formData>
+          <camunda:formField id="historiaDoenca" label="História da Doença Atual" type="string" />
+          <camunda:formField id="exameF isico" label="Exame Físico" type="string" />
+          <camunda:formField id="hipoteseDiagnostica" label="Hipótese Diagnóstica" type="string" />
+        </camunda:formData>
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_Start_To_Anamnese</bpmn:incoming>
+      <bpmn:outgoing>Flow_Anamnese_To_Gateway</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:exclusiveGateway id="Gateway_NecessitaExames" name="Necessita Exames?" default="Flow_Gateway_ExamesNao">
+      <bpmn:incoming>Flow_Anamnese_To_Gateway</bpmn:incoming>
+      <bpmn:outgoing>Flow_Gateway_ExamesSim</bpmn:outgoing>
+      <bpmn:outgoing>Flow_Gateway_ExamesNao</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:userTask id="Task_SolicitarExames" name="Solicitar Exames Complementares" camunda:assignee="${medico}">
+      <bpmn:extensionElements>
+        <camunda:formData>
+          <camunda:formField id="tipoExame" label="Tipo de Exame" type="enum">
+            <camunda:value id="laboratorio" name="Laboratório" />
+            <camunda:value id="imagem" name="Imagem" />
+            <camunda:value id="outros" name="Outros" />
+          </camunda:formField>
+          <camunda:formField id="examesSolicitados" label="Exames Solicitados" type="string" />
+          <camunda:formField id="urgencia" label="Urgência" type="boolean" />
+        </camunda:formData>
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_Gateway_ExamesSim</bpmn:incoming>
+      <bpmn:outgoing>Flow_Solicitar_To_Agendar</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:serviceTask id="ServiceTask_AgendarExame" name="Agendar Exame" camunda:asyncBefore="true" camunda:delegateExpression="${collectTASYData}">
+      <bpmn:extensionElements>
+        <camunda:inputOutput>
+          <camunda:inputParameter name="pacienteId">${pacienteId}</camunda:inputParameter>
+          <camunda:inputParameter name="exames">${examesSolicitados}</camunda:inputParameter>
+          <camunda:inputParameter name="urgente">${urgencia}</camunda:inputParameter>
+          <camunda:outputParameter name="exameMarcado">${exameMarcado}</camunda:outputParameter>
+        </camunda:inputOutput>
+
+        <camunda:executionListener event="start" class="com.hospital.audit.TaskStartListener" />
+        <camunda:executionListener event="end" class="com.hospital.audit.TaskEndListener" />
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_Solicitar_To_Agendar</bpmn:incoming>
+      <bpmn:outgoing>Flow_Agendar_To_Avaliar</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:userTask id="Task_AvaliarResultados" name="Avaliar Resultados de Exames" camunda:assignee="${medico}">
+      <bpmn:extensionElements>
+        <camunda:formData>
+          <camunda:formField id="resultadosExames" label="Resultados" type="string" />
+          <camunda:formField id="conclusao" label="Conclusão" type="string" />
+        </camunda:formData>
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_Agendar_To_Avaliar</bpmn:incoming>
+      <bpmn:outgoing>Flow_Avaliar_To_Diagnostico</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:userTask id="Task_Diagnostico" name="Estabelecer Diagnóstico" camunda:assignee="${medico}">
+      <bpmn:extensionElements>
+        <camunda:formData>
+          <camunda:formField id="diagnostico" label="Diagnóstico Final" type="string" />
+          <camunda:formField id="cid10" label="CID-10" type="string" />
+          <camunda:formField id="conduta" label="Conduta Terapêutica" type="enum">
+            <camunda:value id="medicacao" name="Medicação" />
+            <camunda:value id="procedimento_option" name="Procedimento" />
+            <camunda:value id="ambos" name="Ambos" />
+            <camunda:value id="observacao" name="Observação" />
+          </camunda:formField>
+        </camunda:formData>
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_Avaliar_To_Diagnostico</bpmn:incoming>
+      <bpmn:incoming>Flow_Gateway_ExamesNao</bpmn:incoming>
+      <bpmn:outgoing>Flow_Diagnostico_To_GatewayTratamento</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:exclusiveGateway id="Gateway_TipoTratamento" name="Tipo de Tratamento?" default="Flow_Gateway_Medicacao">
+      <bpmn:incoming>Flow_Diagnostico_To_GatewayTratamento</bpmn:incoming>
+      <bpmn:outgoing>Flow_Gateway_Medicacao</bpmn:outgoing>
+      <bpmn:outgoing>Flow_Gateway_Procedimento</bpmn:outgoing>
+      <bpmn:outgoing>Flow_Gateway_Ambos</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:userTask id="Task_PrescricaoMedicacao" name="Prescrever Medicação" camunda:assignee="${medico}">
+      <bpmn:extensionElements>
+        <camunda:formData>
+          <camunda:formField id="medicamentos" label="Medicamentos" type="string" />
+          <camunda:formField id="posologia" label="Posologia" type="string" />
+          <camunda:formField id="duracao" label="Duração do Tratamento" type="string" />
+        </camunda:formData>
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_Gateway_Medicacao</bpmn:incoming>
+      <bpmn:incoming>Flow_Gateway_Ambos</bpmn:incoming>
+      <bpmn:outgoing>Flow_Prescricao_To_Administrar</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:userTask id="Task_SolicitarProcedimento" name="Solicitar Procedimento" camunda:assignee="${medico}">
+      <bpmn:extensionElements>
+        <camunda:formData>
+          <camunda:formField id="procedimentoSolicitado" label="Procedimento" type="string" />
+          <camunda:formField id="justificativa" label="Justificativa" type="string" />
+        </camunda:formData>
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_Gateway_Procedimento</bpmn:incoming>
+      <bpmn:incoming>Flow_Gateway_Ambos</bpmn:incoming>
+      <bpmn:outgoing>Flow_SolicitarProc_To_RealizarProc</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:userTask id="Task_AdministrarMedicacao" name="Administrar Medicação" camunda:assignee="${enfermeiro}">
+      <bpmn:incoming>Flow_Prescricao_To_Administrar</bpmn:incoming>
+      <bpmn:outgoing>Flow_Administrar_To_Join</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:userTask id="Task_RealizarProcedimento" name="Realizar Procedimento" camunda:assignee="${enfermeiro}">
+      <bpmn:incoming>Flow_SolicitarProc_To_RealizarProc</bpmn:incoming>
+      <bpmn:outgoing>Flow_RealizarProc_To_RegistrarProc</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:serviceTask id="ServiceTask_RegistrarProcedimento" name="Registrar Procedimento" camunda:asyncBefore="true" camunda:delegateExpression="${registrarProcedimentoDelegate}">
+      <bpmn:extensionElements>
+        <camunda:inputOutput>
+          <camunda:inputParameter name="procedimento">${procedimentoSolicitado}</camunda:inputParameter>
+          <camunda:inputParameter name="pacienteId">${pacienteId}</camunda:inputParameter>
+          <camunda:outputParameter name="procedimentoId">${procedimentoId}</camunda:outputParameter>
+        </camunda:inputOutput>
+      
+        <camunda:executionListener event="start" class="com.hospital.audit.TaskStartListener" />
+        <camunda:executionListener event="end" class="com.hospital.audit.TaskEndListener" />
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_RealizarProc_To_RegistrarProc</bpmn:incoming>
+      <bpmn:outgoing>Flow_RegistrarProc_To_Join</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:serviceTask id="ServiceTask_RegistrarProntuario" name="Registrar no Prontuário Eletrônico" camunda:asyncBefore="true" camunda:delegateExpression="${registerEncounter}">
+      <bpmn:extensionElements>
+        <camunda:inputOutput>
+          <camunda:inputParameter name="pacienteId">${pacienteId}</camunda:inputParameter>
+          <camunda:inputParameter name="atendimentoCompleto">${atendimentoCompleto}</camunda:inputParameter>
+          <camunda:outputParameter name="prontuarioAtualizado">${prontuarioAtualizado}</camunda:outputParameter>
+        </camunda:inputOutput>
+
+        <camunda:executionListener event="start" class="com.hospital.audit.TaskStartListener" />
+        <camunda:executionListener event="end" class="com.hospital.audit.TaskEndListener" />
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_Join_To_RegistrarProntuario</bpmn:incoming>
+      <bpmn:outgoing>Flow_RegistrarProntuario_To_Finalizar</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:parallelGateway id="Gateway_JoinAtendimento" name="Unir Tratamentos">
+      <bpmn:incoming>Flow_Administrar_To_Join</bpmn:incoming>
+      <bpmn:incoming>Flow_RegistrarProc_To_Join</bpmn:incoming>
+      <bpmn:outgoing>Flow_Join_To_RegistrarProntuario</bpmn:outgoing>
+    </bpmn:parallelGateway>
+    <bpmn:serviceTask id="ServiceTask_FinalizarAtendimento" name="Finalizar Atendimento" camunda:asyncBefore="true" camunda:delegateExpression="${finalizarAtendimentoDelegate}">
+      <bpmn:extensionElements>
+        <camunda:inputOutput>
+          <camunda:inputParameter name="atendimentoId">${atendimentoId}</camunda:inputParameter>
+          <camunda:outputParameter name="atendimentoFinalizado">${atendimentoFinalizado}</camunda:outputParameter>
+        </camunda:inputOutput>
+      
+        <camunda:executionListener event="start" class="com.hospital.audit.TaskStartListener" />
+        <camunda:executionListener event="end" class="com.hospital.audit.TaskEndListener" />
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_RegistrarProntuario_To_Finalizar</bpmn:incoming>
+      <bpmn:outgoing>Flow_Finalizar_To_End</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:endEvent id="EndEvent_SUB03" name="Atendimento Concluído">
+      <bpmn:incoming>Flow_Finalizar_To_End</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:sequenceFlow id="Flow_Start_To_Anamnese" sourceRef="StartEvent_SUB03" targetRef="Task_AnamneseExameFisico" />
+    <bpmn:sequenceFlow id="Flow_Anamnese_To_Gateway" sourceRef="Task_AnamneseExameFisico" targetRef="Gateway_NecessitaExames" />
+    <bpmn:sequenceFlow id="Flow_Gateway_ExamesSim" name="Sim" sourceRef="Gateway_NecessitaExames" targetRef="Task_SolicitarExames">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${necessitaExames == true}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_Gateway_ExamesNao" name="Não" sourceRef="Gateway_NecessitaExames" targetRef="Task_Diagnostico" />
+    <bpmn:sequenceFlow id="Flow_Solicitar_To_Agendar" sourceRef="Task_SolicitarExames" targetRef="ServiceTask_AgendarExame" />
+    <bpmn:sequenceFlow id="Flow_Agendar_To_Avaliar" sourceRef="ServiceTask_AgendarExame" targetRef="Task_AvaliarResultados" />
+    <bpmn:sequenceFlow id="Flow_Avaliar_To_Diagnostico" sourceRef="Task_AvaliarResultados" targetRef="Task_Diagnostico" />
+    <bpmn:sequenceFlow id="Flow_Diagnostico_To_GatewayTratamento" sourceRef="Task_Diagnostico" targetRef="Gateway_TipoTratamento" />
+    <bpmn:sequenceFlow id="Flow_Gateway_Medicacao" name="Medicação" sourceRef="Gateway_TipoTratamento" targetRef="Task_PrescricaoMedicacao" />
+    <bpmn:sequenceFlow id="Flow_Gateway_Procedimento" name="Procedimento" sourceRef="Gateway_TipoTratamento" targetRef="Task_SolicitarProcedimento">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${conduta == 'procedimento_option'}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_Gateway_Ambos" name="Ambos" sourceRef="Gateway_TipoTratamento" targetRef="Task_PrescricaoMedicacao">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${conduta == 'ambos'}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_Prescricao_To_Administrar" sourceRef="Task_PrescricaoMedicacao" targetRef="Task_AdministrarMedicacao" />
+    <bpmn:sequenceFlow id="Flow_SolicitarProc_To_RealizarProc" sourceRef="Task_SolicitarProcedimento" targetRef="Task_RealizarProcedimento" />
+    <bpmn:sequenceFlow id="Flow_Administrar_To_Join" sourceRef="Task_AdministrarMedicacao" targetRef="Gateway_JoinAtendimento" />
+    <bpmn:sequenceFlow id="Flow_RealizarProc_To_RegistrarProc" sourceRef="Task_RealizarProcedimento" targetRef="ServiceTask_RegistrarProcedimento" />
+    <bpmn:sequenceFlow id="Flow_RegistrarProc_To_Join" sourceRef="ServiceTask_RegistrarProcedimento" targetRef="Gateway_JoinAtendimento" />
+    <bpmn:sequenceFlow id="Flow_Join_To_RegistrarProntuario" sourceRef="Gateway_JoinAtendimento" targetRef="ServiceTask_RegistrarProntuario" />
+    <bpmn:sequenceFlow id="Flow_RegistrarProntuario_To_Finalizar" sourceRef="ServiceTask_RegistrarProntuario" targetRef="ServiceTask_FinalizarAtendimento" />
+    <bpmn:sequenceFlow id="Flow_Finalizar_To_End" sourceRef="ServiceTask_FinalizarAtendimento" targetRef="EndEvent_SUB03" />
+  </bpmn:process>
+  <bpmndi:BPMNDiagram id="BPMNDiagram_SUB03">
+    <bpmndi:BPMNPlane id="BPMNPlane_SUB03" bpmnElement="Collaboration_SUB03">
+      <bpmndi:BPMNShape id="Participant_SUB03_di" bpmnElement="Participant_SUB03" isHorizontal="true">
+        <dc:Bounds x="160" y="80" width="2200" height="800" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Lane_Medico_di" bpmnElement="Lane_Medico" isHorizontal="true">
+        <dc:Bounds x="190" y="80" width="2170" height="300" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Lane_Enfermagem_di" bpmnElement="Lane_Enfermagem" isHorizontal="true">
+        <dc:Bounds x="190" y="380" width="2170" height="250" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Lane_Sistema_di" bpmnElement="Lane_Sistema" isHorizontal="true">
+        <dc:Bounds x="190" y="630" width="2170" height="250" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="StartEvent_SUB03_di" bpmnElement="StartEvent_SUB03">
+        <dc:Bounds x="252" y="202" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="244" y="245" width="52" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_AnamneseExameFisico_di" bpmnElement="Task_AnamneseExameFisico">
+        <dc:Bounds x="340" y="180" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Gateway_NecessitaExames_di" bpmnElement="Gateway_NecessitaExames" isMarkerVisible="true">
+        <dc:Bounds x="495" y="195" width="50" height="50" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="493" y="165" width="54" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_SolicitarExames_di" bpmnElement="Task_SolicitarExames">
+        <dc:Bounds x="600" y="180" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="ServiceTask_AgendarExame_di" bpmnElement="ServiceTask_AgendarExame">
+        <dc:Bounds x="600" y="700" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_AvaliarResultados_di" bpmnElement="Task_AvaliarResultados">
+        <dc:Bounds x="760" y="180" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_Diagnostico_di" bpmnElement="Task_Diagnostico">
+        <dc:Bounds x="920" y="180" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Gateway_TipoTratamento_di" bpmnElement="Gateway_TipoTratamento" isMarkerVisible="true">
+        <dc:Bounds x="1075" y="195" width="50" height="50" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1073" y="165" width="54" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_PrescricaoMedicacao_di" bpmnElement="Task_PrescricaoMedicacao">
+        <dc:Bounds x="1180" y="120" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_SolicitarProcedimento_di" bpmnElement="Task_SolicitarProcedimento">
+        <dc:Bounds x="1180" y="240" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_AdministrarMedicacao_di" bpmnElement="Task_AdministrarMedicacao">
+        <dc:Bounds x="1350" y="430" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_RealizarProcedimento_di" bpmnElement="Task_RealizarProcedimento">
+        <dc:Bounds x="1350" y="530" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="ServiceTask_RegistrarProcedimento_di" bpmnElement="ServiceTask_RegistrarProcedimento">
+        <dc:Bounds x="1520" y="700" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Gateway_JoinAtendimento_di" bpmnElement="Gateway_JoinAtendimento">
+        <dc:Bounds x="1685" y="715" width="50" height="50" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1684" y="772" width="52" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="ServiceTask_RegistrarProntuario_di" bpmnElement="ServiceTask_RegistrarProntuario">
+        <dc:Bounds x="1790" y="700" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="ServiceTask_FinalizarAtendimento_di" bpmnElement="ServiceTask_FinalizarAtendimento">
+        <dc:Bounds x="1950" y="700" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="EndEvent_SUB03_di" bpmnElement="EndEvent_SUB03">
+        <dc:Bounds x="2102" y="722" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="2092" y="765" width="56" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Flow_Start_To_Anamnese_di" bpmnElement="Flow_Start_To_Anamnese">
+        <di:waypoint x="288" y="220" />
+        <di:waypoint x="340" y="220" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Anamnese_To_Gateway_di" bpmnElement="Flow_Anamnese_To_Gateway">
+        <di:waypoint x="440" y="220" />
+        <di:waypoint x="495" y="220" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Gateway_ExamesSim_di" bpmnElement="Flow_Gateway_ExamesSim">
+        <di:waypoint x="545" y="220" />
+        <di:waypoint x="600" y="220" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="565" y="202" width="20" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Gateway_ExamesNao_di" bpmnElement="Flow_Gateway_ExamesNao">
+        <di:waypoint x="520" y="245" />
+        <di:waypoint x="520" y="340" />
+        <di:waypoint x="970" y="340" />
+        <di:waypoint x="970" y="260" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="738" y="322" width="20" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Solicitar_To_Agendar_di" bpmnElement="Flow_Solicitar_To_Agendar">
+        <di:waypoint x="650" y="260" />
+        <di:waypoint x="650" y="700" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Agendar_To_Avaliar_di" bpmnElement="Flow_Agendar_To_Avaliar">
+        <di:waypoint x="700" y="740" />
+        <di:waypoint x="810" y="740" />
+        <di:waypoint x="810" y="260" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Avaliar_To_Diagnostico_di" bpmnElement="Flow_Avaliar_To_Diagnostico">
+        <di:waypoint x="860" y="220" />
+        <di:waypoint x="920" y="220" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Diagnostico_To_GatewayTratamento_di" bpmnElement="Flow_Diagnostico_To_GatewayTratamento">
+        <di:waypoint x="1020" y="220" />
+        <di:waypoint x="1075" y="220" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Gateway_Medicacao_di" bpmnElement="Flow_Gateway_Medicacao">
+        <di:waypoint x="1100" y="195" />
+        <di:waypoint x="1100" y="160" />
+        <di:waypoint x="1180" y="160" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1113" y="143" width="54" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Gateway_Procedimento_di" bpmnElement="Flow_Gateway_Procedimento">
+        <di:waypoint x="1100" y="245" />
+        <di:waypoint x="1100" y="280" />
+        <di:waypoint x="1180" y="280" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1098" y="283" width="64" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Gateway_Ambos_di" bpmnElement="Flow_Gateway_Ambos">
+        <di:waypoint x="1125" y="220" />
+        <di:waypoint x="1153" y="220" />
+        <di:waypoint x="1153" y="160" />
+        <di:waypoint x="1180" y="160" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1151" y="187" width="35" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Prescricao_To_Administrar_di" bpmnElement="Flow_Prescricao_To_Administrar">
+        <di:waypoint x="1280" y="160" />
+        <di:waypoint x="1315" y="160" />
+        <di:waypoint x="1315" y="470" />
+        <di:waypoint x="1350" y="470" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_SolicitarProc_To_RealizarProc_di" bpmnElement="Flow_SolicitarProc_To_RealizarProc">
+        <di:waypoint x="1280" y="280" />
+        <di:waypoint x="1315" y="280" />
+        <di:waypoint x="1315" y="570" />
+        <di:waypoint x="1350" y="570" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Administrar_To_Join_di" bpmnElement="Flow_Administrar_To_Join">
+        <di:waypoint x="1450" y="470" />
+        <di:waypoint x="1710" y="470" />
+        <di:waypoint x="1710" y="715" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_RealizarProc_To_RegistrarProc_di" bpmnElement="Flow_RealizarProc_To_RegistrarProc">
+        <di:waypoint x="1450" y="570" />
+        <di:waypoint x="1485" y="570" />
+        <di:waypoint x="1485" y="740" />
+        <di:waypoint x="1520" y="740" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_RegistrarProc_To_Join_di" bpmnElement="Flow_RegistrarProc_To_Join">
+        <di:waypoint x="1620" y="740" />
+        <di:waypoint x="1685" y="740" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Join_To_RegistrarProntuario_di" bpmnElement="Flow_Join_To_RegistrarProntuario">
+        <di:waypoint x="1735" y="740" />
+        <di:waypoint x="1790" y="740" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_RegistrarProntuario_To_Finalizar_di" bpmnElement="Flow_RegistrarProntuario_To_Finalizar">
+        <di:waypoint x="1890" y="740" />
+        <di:waypoint x="1950" y="740" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Finalizar_To_End_di" bpmnElement="Flow_Finalizar_To_End">
+        <di:waypoint x="2050" y="740" />
+        <di:waypoint x="2102" y="740" />
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>

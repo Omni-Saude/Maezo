@@ -1,0 +1,361 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/"
+             xmlns:dc="http://www.omg.org/spec/DMN/20180521/DC/"
+             id="Definitions_SYN_MI_005"
+             name="Arritmias Pos-IAM"
+             targetNamespace="http://camunda.org/schema/1.0/dmn">
+
+  <!--
+    SYN-MI-005 - Deteccao de Arritmias Pos-IAM
+    Versao: 1.0.0 (2026-02-06)
+    Categoria: Alerta Clinico - Sindromes Criticas
+
+    ARRITMIAS NO CONTEXTO DO IAM:
+
+    TAQUIARRITMIAS VENTRICULARES:
+    - TV sustentada (>= 30 seg ou instabilidade): EMERGENCIA
+    - FV: cardioversao/desfibrilacao imediata
+    - RIVA (ritmo idioventricular acelerado): geralmente benigno (reperfusao)
+
+    BRADIARRITMIAS:
+    - BAV 1o grau: monitorar
+    - BAV 2o grau Mobitz I (Wenckebach): comum no IAM inferior, geralmente transitorio
+    - BAV 2o grau Mobitz II: alto risco de progressao
+    - BAVT: marcapasso transvenoso se instavel
+
+    FATORES DE RISCO PARA ARRITMIAS:
+    - FE reduzida (< 35%)
+    - IAM extenso
+    - Disturbios eletroliticos (K+, Mg++)
+    - Isquemia residual
+
+    INDICACOES DE CDI POS-IAM:
+    - FE <= 30% apos 40 dias
+    - TV/FV > 48h pos-IAM (nao relacionada a isquemia reversivel)
+    - TV nao sustentada + FE < 40% + EEF positivo
+
+    REFERENCIAS:
+    - ESC Guidelines on Ventricular Arrhythmias 2022
+    - AHA Post-MI Arrhythmia Management
+    - ACC/AHA/HRS Guideline for Device Therapy
+  -->
+
+  <decision id="Decision_SYN_MI_005" name="Arritmias Pos-IAM">
+    <decisionTable id="DecisionTable_SYN_MI_005" hitPolicy="FIRST">
+
+      <!-- INPUT 1: Tipo de Arritmia -->
+      <input id="Input_1" label="Tipo de Arritmia">
+        <inputExpression id="InputExpression_1" typeRef="string">
+          <text>tipoArritmia</text>
+        </inputExpression>
+      </input>
+
+      <!-- INPUT 2: Estabilidade Hemodinamica -->
+      <input id="Input_2" label="Estabilidade Hemodinamica">
+        <inputExpression id="InputExpression_2" typeRef="boolean">
+          <text>estabilidadeHemodinamica</text>
+        </inputExpression>
+      </input>
+
+      <!-- INPUT 3: Fracao de Ejecao -->
+      <input id="Input_3" label="Fracao Ejecao (%)">
+        <inputExpression id="InputExpression_3" typeRef="number">
+          <text>fracaoEjecao</text>
+        </inputExpression>
+      </input>
+
+      <!-- INPUT 4: Horas pos-IAM -->
+      <input id="Input_4" label="Horas pos-IAM">
+        <inputExpression id="InputExpression_4" typeRef="number">
+          <text>horasPosIAM</text>
+        </inputExpression>
+      </input>
+
+      <!-- OUTPUTS -->
+      <output id="Output_1" label="Nivel Alerta" name="nivelAlerta" typeRef="string">
+        <outputValues id="OutputValues_1">
+          <text>"Alerta", "Atencao", "OK", "Revisar"</text>
+        </outputValues>
+      </output>
+
+      <output id="Output_2" label="Classificacao Sindrome" name="classificacaoSindrome" typeRef="string"/>
+
+      <output id="Output_3" label="Protocolo Ativado" name="protocoloAtivado" typeRef="boolean"/>
+
+      <output id="Output_4" label="Acao Requerida" name="acaoRequerida" typeRef="string"/>
+
+      <output id="Output_5" label="Urgencia" name="urgencia" typeRef="string">
+        <outputValues id="OutputValues_5">
+          <text>"CRITICA", "ALTA", "MEDIA", "BAIXA"</text>
+        </outputValues>
+      </output>
+
+      <!-- RULE 1: FV/TV sem pulso -->
+      <rule id="Rule_FV_TV_Sem_Pulso">
+        <description>Fibrilacao Ventricular ou TV sem pulso - PCR</description>
+        <inputEntry id="InputEntry_1_1">
+          <text>"FV", "TV_SEM_PULSO"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_1_2">
+          <text>false</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_1_3">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_1_4">
+          <text>-</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_1_1">
+          <text>"Alerta"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_1_2">
+          <text>"FV_TV_PCR"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_1_3">
+          <text>true</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_1_4">
+          <text>"FV/TV SEM PULSO - PARADA CARDIACA! Iniciar RCP. DESFIBRILACAO IMEDIATA 200J bifasico. Adrenalina 1mg IV a cada 3-5 min. Amiodarona 300mg IV. Corrigir causas reversiveis (5H5T). Se retorno: avaliar ICP emergente."</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_1_5">
+          <text>"CRITICA"</text>
+        </outputEntry>
+      </rule>
+
+      <!-- RULE 2: TV sustentada instavel -->
+      <rule id="Rule_TV_Sustentada_Instavel">
+        <description>TV sustentada com instabilidade hemodinamica</description>
+        <inputEntry id="InputEntry_2_1">
+          <text>"TV_SUSTENTADA"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_2_2">
+          <text>false</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_2_3">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_2_4">
+          <text>-</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_2_1">
+          <text>"Alerta"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_2_2">
+          <text>"TV_SUSTENTADA_INSTAVEL"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_2_3">
+          <text>true</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_2_4">
+          <text>"TV SUSTENTADA INSTAVEL - CARDIOVERSAO SINCRONIZADA IMEDIATA 100-200J. Se nao converter, tratar como FV. Apos conversao: Amiodarona 150mg IV em 10 min → infusao 1mg/min. Corrigir K+ e Mg++. Avaliar isquemia residual."</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_2_5">
+          <text>"CRITICA"</text>
+        </outputEntry>
+      </rule>
+
+      <!-- RULE 3: BAVT com instabilidade -->
+      <rule id="Rule_BAVT_Instavel">
+        <description>Bloqueio AV Total com instabilidade</description>
+        <inputEntry id="InputEntry_3_1">
+          <text>"BAVT"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_3_2">
+          <text>false</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_3_3">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_3_4">
+          <text>-</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_3_1">
+          <text>"Alerta"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_3_2">
+          <text>"BAVT_INSTAVEL"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_3_3">
+          <text>true</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_3_4">
+          <text>"BAVT COM INSTABILIDADE. Atropina 0.5-1mg IV (pode nao funcionar em infranodal). MARCAPASSO TRANSVENOSO DE EMERGENCIA. Preparar material para MPT. Se nao disponivel: isoprenalina ou adrenalina em infusao. Se IAM inferior, pode ser transitorio."</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_3_5">
+          <text>"CRITICA"</text>
+        </outputEntry>
+      </rule>
+
+      <!-- RULE 4: TV sustentada estavel -->
+      <rule id="Rule_TV_Sustentada_Estavel">
+        <description>TV sustentada hemodinamicamente estavel</description>
+        <inputEntry id="InputEntry_4_1">
+          <text>"TV_SUSTENTADA"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_4_2">
+          <text>true</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_4_3">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_4_4">
+          <text>-</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_4_1">
+          <text>"Alerta"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_4_2">
+          <text>"TV_SUSTENTADA_ESTAVEL"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_4_3">
+          <text>true</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_4_4">
+          <text>"TV SUSTENTADA ESTAVEL. Amiodarona 150mg IV em 10 min. Se nao converter: cardioversao sincronizada eletiva (sedar paciente). Corrigir eletroliticos. Avaliar revascularizacao se isquemia residual. Considerar CDI se > 48h pos-IAM."</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_4_5">
+          <text>"ALTA"</text>
+        </outputEntry>
+      </rule>
+
+      <!-- RULE 5: BAVT estavel no IAM inferior -->
+      <rule id="Rule_BAVT_IAM_Inferior">
+        <description>BAVT estavel no IAM inferior - geralmente transitorio</description>
+        <inputEntry id="InputEntry_5_1">
+          <text>"BAVT"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_5_2">
+          <text>true</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_5_3">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_5_4">
+          <text>&lt; 72</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_5_1">
+          <text>"Atencao"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_5_2">
+          <text>"BAVT_TRANSITORIO"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_5_3">
+          <text>false</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_5_4">
+          <text>"BAVT no IAM (provavelmente inferior) - pode ser transitorio. Monitoramento continuo. Manter MPT profilatico disponivel. Geralmente resolve em 5-7 dias. Se persistir > 7 dias ou BAM anterior, considerar MPP."</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_5_5">
+          <text>"ALTA"</text>
+        </outputEntry>
+      </rule>
+
+      <!-- RULE 6: RIVA (reperfusao) -->
+      <rule id="Rule_RIVA">
+        <description>Ritmo Idioventricular Acelerado - reperfusao</description>
+        <inputEntry id="InputEntry_6_1">
+          <text>"RIVA"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_6_2">
+          <text>true</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_6_3">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_6_4">
+          <text>&lt; 24</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_6_1">
+          <text>"Atencao"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_6_2">
+          <text>"RIVA_REPERFUSAO"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_6_3">
+          <text>false</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_6_4">
+          <text>"RIVA - Ritmo Idioventricular Acelerado. Sinal de REPERFUSAO - bom prognostico. Geralmente benigno e autolimitado. NAO tratar, pois antiarritmicos podem causar assistolia. Monitorar. Se degenerar para TV, tratar."</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_6_5">
+          <text>"MEDIA"</text>
+        </outputEntry>
+      </rule>
+
+      <!-- RULE 7: Ritmo sinusal pos-IAM -->
+      <rule id="Rule_Ritmo_Sinusal">
+        <description>Ritmo sinusal pos-IAM - estavel</description>
+        <inputEntry id="InputEntry_7_1">
+          <text>"SINUSAL"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_7_2">
+          <text>true</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_7_3">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_7_4">
+          <text>-</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_7_1">
+          <text>"OK"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_7_2">
+          <text>"RITMO_ESTAVEL"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_7_3">
+          <text>false</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_7_4">
+          <text>"Ritmo sinusal pos-IAM. Manter monitorizacao cardiaca continua. Corrigir eletroliticos profilaticamente (K+ > 4.0, Mg++ > 2.0). Reavaliar FE antes da alta para indicacao de CDI se <= 30%."</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_7_5">
+          <text>"BAIXA"</text>
+        </outputEntry>
+      </rule>
+
+      <!-- FALLBACK -->
+      <rule id="Rule_Fallback_SYN_MI_005">
+        <description>Dados insuficientes para avaliacao</description>
+        <inputEntry id="InputEntry_F_1">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_F_2">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_F_3">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_F_4">
+          <text>-</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_F_1">
+          <text>"Revisar"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_F_2">
+          <text>"DADOS_INCOMPLETOS"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_F_3">
+          <text>false</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_F_4">
+          <text>"Dados insuficientes para avaliacao de arritmia pos-IAM. Verificar: ritmo cardiaco, estabilidade hemodinamica, FE, tempo pos-IAM."</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_F_5">
+          <text>"MEDIA"</text>
+        </outputEntry>
+      </rule>
+
+    </decisionTable>
+  </decision>
+
+  <dmndi:DMNDI>
+    <dmndi:DMNDiagram id="DMNDiagram_SYN_MI_005">
+      <dmndi:DMNShape id="DMNShape_Decision_SYN_MI_005" dmnElementRef="Decision_SYN_MI_005">
+        <dc:Bounds height="80" width="180" x="160" y="100"/>
+      </dmndi:DMNShape>
+    </dmndi:DMNDiagram>
+  </dmndi:DMNDI>
+
+</definitions>

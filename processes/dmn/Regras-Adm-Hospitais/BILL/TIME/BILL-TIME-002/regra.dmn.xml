@@ -1,0 +1,191 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<!--
+  ============================================================================
+  BILL-TIME-002 - ICU Daily Billing Validation
+  ============================================================================
+  Versao: 1.0.0 (2026-02-08)
+  Categoria: BILL-TIME
+  Perspectiva: HOSPITAL (Administrativo)
+  ============================================================================
+-->
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/"
+             xmlns:dc="http://www.omg.org/spec/DMN/20180521/DC/" id="Definitions_BILL_TIME_002" name="ICU Daily Billing Validation" targetNamespace="http://camunda.org/schema/1.0/dmn">
+
+  <decision id="Decision_BILL_TIME_002" name="Validar Cobranca Diaria UTI">
+    <decisionTable id="DecisionTable_BILL_TIME_002" hitPolicy="FIRST">
+
+      <input id="Input_1" label="Hora Entrada UTI">
+        <inputExpression id="InputExpression_1" typeRef="number">
+          <text>horaEntradaUTI</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_2" label="Hora Saida UTI">
+        <inputExpression id="InputExpression_2" typeRef="number">
+          <text>horaSaidaUTI</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_3" label="Horas Permanencia">
+        <inputExpression id="InputExpression_3" typeRef="number">
+          <text>horasPermanencia</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_4" label="Contrato Cobra Diaria Parcial">
+        <inputExpression id="InputExpression_4" typeRef="boolean">
+          <text>contratoCobraDiariaParcial</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_5" label="Diarias Cobradas">
+        <inputExpression id="InputExpression_5" typeRef="number">
+          <text>diariasCobradas</text>
+        </inputExpression>
+      </input>
+
+      <output id="Output_1" label="Resultado" name="resultado" typeRef="string">
+        <outputValues><text>"Prosseguir", "Bloquear", "Alertar", "Revisar"</text></outputValues>
+      </output>
+      <output id="Output_2" label="Observacao" name="observacao" typeRef="string" />
+      <output id="Output_3" label="Acao Recomendada" name="acaoRecomendada" typeRef="string" />
+
+      
+      <output id="Output_4" label="Alertas Conformidade" name="alertasConformidade" typeRef="string"><outputValues>"NENHUM", "DUP", "FREQ", "PRAZO", "DOC", "VALOR", "CRED", "CONTRATO"</outputValues></output><output id="Output_5" label="Risco Denial" name="riscoDenial" typeRef="string"><outputValues>"BAIXO", "MEDIO", "ALTO", "CRITICO"</outputValues></output><rule id="Rule_Block_1">
+        <description>Bloquear diarias maiores que permanencia</description>
+        <inputEntry id="InputEntry_B1_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_B1_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_B1_3"><text>&lt; 24</text></inputEntry>
+        <inputEntry id="InputEntry_B1_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_B1_5"><text>&gt; 1</text></inputEntry>
+        
+      <outputEntry id="OutputEntry_B1_1"><text>"Bloquear"</text></outputEntry>
+        
+      <outputEntry id="OutputEntry_B1_2"><text>"Cobrando mais de 1 diaria para permanencia menor que 24h."</text></outputEntry>
+        
+      <outputEntry id="OutputEntry_B1_3"><text>"Ajustar para 1 diaria ou verificar datas de entrada/saida."</text></outputEntry>
+      
+      <outputEntry id="OutputEntry_Block_1_4"><text>"DOC"</text></outputEntry>
+      <outputEntry id="OutputEntry_Block_1_5"><text>"ALTO"</text></outputEntry></rule>
+
+      
+      <rule id="Rule_Block_2">
+        <description>Bloquear diaria completa com menos de 6h sem contrato</description>
+        <inputEntry id="InputEntry_B2_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_B2_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_B2_3"><text>&lt; 6</text></inputEntry>
+        <inputEntry id="InputEntry_B2_4"><text>false</text></inputEntry>
+        <inputEntry id="InputEntry_B2_5"><text>1</text></inputEntry>
+        
+      <outputEntry id="OutputEntry_B2_1"><text>"Bloquear"</text></outputEntry>
+        
+      <outputEntry id="OutputEntry_B2_2"><text>"Diaria integral cobrada com menos de 6h de permanencia. Contrato nao permite."</text></outputEntry>
+        
+      <outputEntry id="OutputEntry_B2_3"><text>"Cobrar meia-diaria ou procedimento de observacao."</text></outputEntry>
+      
+      <outputEntry id="OutputEntry_Block_2_4"><text>"DOC"</text></outputEntry>
+      <outputEntry id="OutputEntry_Block_2_5"><text>"ALTO"</text></outputEntry></rule>
+
+      
+      <rule id="Rule_Alert_1">
+        <description>Alertar permanencia curta com diaria integral</description>
+        <inputEntry id="InputEntry_A1_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_A1_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_A1_3"><text>[6..12]</text></inputEntry>
+        <inputEntry id="InputEntry_A1_4"><text>true</text></inputEntry>
+        <inputEntry id="InputEntry_A1_5"><text>1</text></inputEntry>
+        
+      <outputEntry id="OutputEntry_A1_1"><text>"Alertar"</text></outputEntry>
+        
+      <outputEntry id="OutputEntry_A1_2"><text>"Diaria integral para 6-12h. Contrato permite mas auditor pode questionar."</text></outputEntry>
+        
+      <outputEntry id="OutputEntry_A1_3"><text>"Manter documentacao de horarios precisa."</text></outputEntry>
+      
+      <outputEntry id="OutputEntry_Alert_1_4"><text>"DOC"</text></outputEntry>
+      <outputEntry id="OutputEntry_Alert_1_5"><text>"MEDIO"</text></outputEntry></rule>
+
+      
+      <rule id="Rule_Alert_2">
+        <description>Alertar subcobranca - muitas horas poucas diarias</description>
+        <inputEntry id="InputEntry_A2_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_A2_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_A2_3"><text>&gt; 48</text></inputEntry>
+        <inputEntry id="InputEntry_A2_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_A2_5"><text>1</text></inputEntry>
+        
+      <outputEntry id="OutputEntry_A2_1"><text>"Alertar"</text></outputEntry>
+        
+      <outputEntry id="OutputEntry_A2_2"><text>"Mais de 48h de permanencia cobrando apenas 1 diaria. Perda de receita."</text></outputEntry>
+        
+      <outputEntry id="OutputEntry_A2_3"><text>"Revisar calculo de diarias baseado em calendario."</text></outputEntry>
+      
+      <outputEntry id="OutputEntry_Alert_2_4"><text>"DOC"</text></outputEntry>
+      <outputEntry id="OutputEntry_Alert_2_5"><text>"MEDIO"</text></outputEntry></rule>
+
+      
+      <rule id="Rule_Proceed_1">
+        <description>Prosseguir diaria padrao</description>
+        <inputEntry id="InputEntry_P1_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_P1_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_P1_3"><text>&gt;= 12</text></inputEntry>
+        <inputEntry id="InputEntry_P1_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_P1_5"><text>1</text></inputEntry>
+        
+      <outputEntry id="OutputEntry_P1_1"><text>"Prosseguir"</text></outputEntry>
+        
+      <outputEntry id="OutputEntry_P1_2"><text>"Permanencia maior que 12h justifica diaria completa."</text></outputEntry>
+        
+      <outputEntry id="OutputEntry_P1_3"><text>"Faturar diaria UTI."</text></outputEntry>
+      
+      <outputEntry id="OutputEntry_Proceed_1_4"><text>"NENHUM"</text></outputEntry>
+      <outputEntry id="OutputEntry_Proceed_1_5"><text>"BAIXO"</text></outputEntry></rule>
+
+      
+      <rule id="Rule_Proceed_2">
+        <description>Prosseguir multiplas diarias corretas</description>
+        <inputEntry id="InputEntry_P2_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_P2_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_P2_3"><text>&gt;= 24</text></inputEntry>
+        <inputEntry id="InputEntry_P2_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_P2_5"><text>&gt;= 2</text></inputEntry>
+        
+      <outputEntry id="OutputEntry_P2_1"><text>"Prosseguir"</text></outputEntry>
+        
+      <outputEntry id="OutputEntry_P2_2"><text>"Multiplas diarias compativeis com permanencia."</text></outputEntry>
+        
+      <outputEntry id="OutputEntry_P2_3"><text>"Faturar diarias conforme periodo."</text></outputEntry>
+      
+      <outputEntry id="OutputEntry_Proceed_2_4"><text>"NENHUM"</text></outputEntry>
+      <outputEntry id="OutputEntry_Proceed_2_5"><text>"BAIXO"</text></outputEntry></rule>
+
+      
+      <rule id="Rule_Fallback">
+        <description>Caso padrao - revisar manualmente</description>
+        <inputEntry id="InputEntry_F_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_F_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_F_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_F_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_F_5"><text>-</text></inputEntry>
+        
+      <outputEntry id="OutputEntry_F_1"><text>"Revisar"</text></outputEntry>
+        
+      <outputEntry id="OutputEntry_F_2"><text>"Dados insuficientes para validar diarias UTI."</text></outputEntry>
+        
+      <outputEntry id="OutputEntry_F_3"><text>"Verificar horarios de entrada/saida e contrato."</text></outputEntry>
+      
+      <outputEntry id="OutputEntry_Fallback_4"><text>"NENHUM"</text></outputEntry>
+      <outputEntry id="OutputEntry_Fallback_5"><text>"MEDIO"</text></outputEntry></rule>
+
+    </decisionTable>
+  </decision>
+
+  <dmndi:DMNDI>
+    <dmndi:DMNDiagram id="DMNDiagram_BILL_TIME_002">
+      <dmndi:DMNShape id="DMNShape_Decision" dmnElementRef="Decision_BILL_TIME_002">
+        <dc:Bounds height="80" width="180" x="160" y="100" />
+      </dmndi:DMNShape>
+    </dmndi:DMNDiagram>
+  </dmndi:DMNDI>
+
+</definitions>

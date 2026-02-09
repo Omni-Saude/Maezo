@@ -1,0 +1,100 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- ============================================================================
+     DDI-NEPHRO-008: Litio + AINEs/Diureticos - Toxicidade por Acumulo
+
+     EVIDENCIA CLINICA:
+     - Micromedex: Major Interaction (Litio + AINEs)
+     - Finley PR et al. Clin Pharmacokinet. 1995;29:172-91
+     - Timmer RT, Sands JM. Am J Physiol. 1999;276:F952-9
+
+     MECANISMO: AINEs reduzem TFG e excrecao renal de litio (aumento nivel 25-60%).
+     Tiazidicos aumentam reabsorcao proximal de litio. Ambos causam toxicidade litica
+     (tremor, ataxia, convulsoes, coma).
+
+     INCIDENCIA: Toxicidade em 15-20% dos pacientes em uso combinado
+     ============================================================================ -->
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/" xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/" xmlns:dc="http://www.omg.org/spec/DMN/20180521/DC/" xmlns:di="http://www.omg.org/spec/DMN/20180521/DI/" id="DDI_NEPHRO_008" name="DDI-NEPHRO-008: Litio + AINEs/Diureticos" namespace="http://camunda.org/schema/1.0/dmn">
+  <decision id="ddi_nephro_008_decision" name="Litio + AINEs/Diureticos - Toxicidade Litica">
+    <decisionTable id="ddi_nephro_008_table" hitPolicy="FIRST">
+      <input id="input_medicamentos_ativos" label="Medicamentos Ativos">
+        <inputExpression id="input_expr_medicamentos" typeRef="string">
+          <text>medicamentosAtivos</text>
+        </inputExpression>
+      </input>
+      <input id="input_medicamento_novo" label="Medicamento Novo">
+        <inputExpression id="input_expr_novo" typeRef="string">
+          <text>medicamentoNovo</text>
+        </inputExpression>
+      </input>
+      <input id="input_nivel_litio" label="Litemia (mEq/L)">
+        <inputExpression id="input_expr_litemia" typeRef="number">
+          <text>nivelLitio</text>
+        </inputExpression>
+      </input>
+
+      <output id="output_nivel_alerta" name="nivelAlerta" typeRef="string">
+        <outputValues><text>"Alerta","Atencao","Informativo","OK"</text></outputValues>
+      </output>
+      <output id="output_acao_requerida" name="acaoRequerida" typeRef="string" />
+      <output id="output_justificativa" name="justificativaCientifica" typeRef="string" />
+
+      <!-- Rule 1: Litio + AINE + litemia limite -->
+      <rule id="rule_litio_aine_alto">
+        <inputEntry id="ie_litio_ativo">
+          <text>list contains(medicamentosAtivos, "LITIO") or list contains(medicamentosAtivos, "CARBONATO_DE_LITIO")</text>
+        </inputEntry>
+        <inputEntry id="ie_aine_novo">
+          <text>"IBUPROFENO" or "DICLOFENACO" or "NAPROXENO" or "INDOMETACINA" or "PIROXICAM" or "MELOXICAM"</text>
+        </inputEntry>
+        <inputEntry id="ie_litemia_alta">
+          <text>&gt;= 1.0</text>
+        </inputEntry>
+        <outputEntry id="oe_alerta_alto"><text>"Alerta"</text></outputEntry>
+        <outputEntry id="oe_acao_alto"><text>"EVITAR AINE. Litemia&gt; =1.0 com AINE = alto risco toxicidade (aumento 25-60% nivel). Usar paracetamol. Se AINE indispensavel, reduzir dose litio 25-50% e monitorar litemia em 5-7 dias. Vigiar: tremor, ataxia, confusao."</text></outputEntry>
+        <outputEntry id="oe_just_alto"><text>"AINEs reduzem excrecao renal de litio. Aumento nivel 25-60%. Finley PR, Clin Pharmacokinet 1995."</text></outputEntry>
+      </rule>
+
+      <!-- Rule 2: Litio + Tiazidico -->
+      <rule id="rule_litio_tiazidico">
+        <inputEntry id="ie_litio_ativo2">
+          <text>list contains(medicamentosAtivos, "LITIO") or list contains(medicamentosAtivos, "CARBONATO_DE_LITIO")</text>
+        </inputEntry>
+        <inputEntry id="ie_tiazidico_novo">
+          <text>"HIDROCLOROTIAZIDA" or "CLORTALIDONA" or "INDAPAMIDA"</text>
+        </inputEntry>
+        <inputEntry id="ie_litemia_any">
+          <text>-</text>
+        </inputEntry>
+        <outputEntry id="oe_alerta_tiaz"><text>"Alerta"</text></outputEntry>
+        <outputEntry id="oe_acao_tiaz"><text>"EVITAR TIAZIDICO se possivel. Tiazidicos aumentam reabsorcao proximal de litio (aumento nivel 20-40%). Se necessario para HAS, reduzir dose litio 25% e monitorar litemia semanalmente por 4 semanas. Preferir furosemida (menor interacao)."</text></outputEntry>
+        <outputEntry id="oe_just_tiaz"><text>"Tiazidicos causam deplecao sodio, aumentando reabsorcao tubular proximal de litio. Timmer RT, Am J Physiol 1999."</text></outputEntry>
+      </rule>
+
+      <!-- Rule 3: Litio + AINE + litemia normal-baixa -->
+      <rule id="rule_litio_aine_normal">
+        <inputEntry id="ie_litio_ativo3">
+          <text>list contains(medicamentosAtivos, "LITIO") or list contains(medicamentosAtivos, "CARBONATO_DE_LITIO")</text>
+        </inputEntry>
+        <inputEntry id="ie_aine_novo2">
+          <text>"IBUPROFENO" or "DICLOFENACO" or "NAPROXENO" or "MELOXICAM" or "NIMESULIDA"</text>
+        </inputEntry>
+        <inputEntry id="ie_litemia_normal">
+          <text>&lt; 1.0</text>
+        </inputEntry>
+        <outputEntry id="oe_atencao_normal"><text>"Atencao"</text></outputEntry>
+        <outputEntry id="oe_acao_normal"><text>"Preferir paracetamol. Se AINE necessario por curto periodo (&lt; 7 dias), monitorar litemia em 5-7 dias. Orientar sinais de intoxicacao (tremor, nausea, diarreia). Manter hidratacao adequada."</text></outputEntry>
+        <outputEntry id="oe_just_normal"><text>"Risco menor com litemia baixa, mas monitorizacao ainda necessaria. AINEs COX-2 seletivos podem ter menor interacao."</text></outputEntry>
+      </rule>
+
+      <!-- Fallback Rule -->
+      <rule id="Rule_Fallback">
+        <inputEntry id="ie_fallback1"><text>-</text></inputEntry>
+        <inputEntry id="ie_fallback2"><text>-</text></inputEntry>
+        <inputEntry id="ie_fallback3"><text>-</text></inputEntry>
+        <outputEntry id="oe_fallback1"><text>"OK"</text></outputEntry>
+        <outputEntry id="oe_fallback2"><text>""</text></outputEntry>
+        <outputEntry id="oe_fallback3"><text>""</text></outputEntry>
+      </rule>
+    </decisionTable>
+  </decision>
+</definitions>

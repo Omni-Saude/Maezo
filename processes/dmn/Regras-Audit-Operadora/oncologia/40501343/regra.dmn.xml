@@ -1,0 +1,327 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  ONQ-DRUG-018: Lorlatinib After Crizotinib Progression
+  TUSS: 40501343
+  Versao: 3.1.0-LEAN-TIER2 (2026-02-08)
+  Especialidade: Oncologia
+
+  ============================================================================
+  INDICACOES CLINICAS:
+  ============================================================================
+  - CPNPC ALK+: 1L preferido (CROWN) ou pos-TKI 2G (ALEX progressores)
+  - Mutacao de resistencia ALK: lorlatinibe ativo contra G1202R
+  - Metastases SNC: alta penetracao (intracranial ORR 66%)
+  - Monitorar colesterol/triglicerides
+
+  ============================================================================
+  REFERENCIAS NORMATIVAS:
+  ============================================================================
+  - CROWN (1L ALK+)
+  - B7461001 (post-crizotinib)
+  - NCCN NSCLC 2024, ESMO NSCLC 2024
+-->
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/" xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/" xmlns:dc="http://www.omg.org/spec/DMN/20180521/DC/" xmlns:modeler="http://camunda.org/schema/modeler/1.0" id="Definitions_ONQ_DRUG_018" name="DRD" namespace="http://camunda.org/schema/1.0/dmn" exporter="Camunda Modeler" exporterVersion="5.14.0" modeler:executionPlatform="Camunda Cloud" modeler:executionPlatformVersion="8.2.0">
+  <decision id="Decision_ONQ_DRUG_018" name="ONQ-DRUG-018: Lorlatinib for ALK+ NSCLC [LEAN TIER-2]">
+    <decisionTable id="DecisionTable_ONQ_DRUG_018" hitPolicy="FIRST">
+      <input id="Input_alk_status" label="ALK Status">
+        <inputExpression id="InputExpression_alk_status" typeRef="string">
+          <text>alkStatus</text>
+        </inputExpression>
+      </input>
+      <input id="Input_prior_alk_tki" label="Prior ALK TKI">
+        <inputExpression id="InputExpression_prior_alk_tki" typeRef="string">
+          <text>priorAlkTki</text>
+        </inputExpression>
+      </input>
+      <input id="Input_cns_mets" label="CNS Metastases">
+        <inputExpression id="InputExpression_cns_mets" typeRef="boolean">
+          <text>cnsMetastases</text>
+        </inputExpression>
+      </input>
+      <input id="Input_resistance_mutation" label="ALK Resistance Mutation">
+        <inputExpression id="InputExpression_resistance_mutation" typeRef="string">
+          <text>alkResistanceMutation</text>
+        </inputExpression>
+      </input>
+      <!-- Input: Dias desde ultimo procedimento (DUP detection) -->
+      <input id="Input_ultimoProcedimentoDias" label="Dias Desde Ultimo Procedimento">
+        <inputExpression id="InputExpression_ultimoProcedimentoDias" typeRef="number">
+          <text>ultimoProcedimentoDias</text>
+        </inputExpression>
+      </input>
+
+      <output id="Output_resultado" label="Resultado" name="resultado" typeRef="string">
+        <outputValues id="UnaryTests_resultado">
+          <text>"Aprovado","Reprovado","Pendente"</text>
+        </outputValues>
+      </output>
+      <output id="Output_observacao" label="Observacao" name="observacao" typeRef="string" />
+      <output id="Output_fundamentacao" label="Fundamentacao" name="fundamentacao" typeRef="string" />
+      <output id="Output_alertasDesperdicio" label="Alertas de Desperdicio" name="alertasDesperdicio" typeRef="string">
+        <outputValues id="OutputValues_alertasDesperdicio">
+          <text>"NENHUM","DUP","FREQ","ESC","DOC","PROT","MULTI"</text>
+        </outputValues>
+      </output>
+      <output id="Output_acaoRecomendada" label="Acao Recomendada" name="acaoRecomendada" typeRef="string">
+        <outputValues id="OutputValues_acaoRecomendada">
+          <text>"APROVAR","NEGAR","SOLICITAR_INFO","AGUARDAR_PRAZO","SUGERIR_ALTERNATIVA"</text>
+        </outputValues>
+      </output>
+      <rule id="DecisionRule_reject_alk_negative">
+        <description>Reject ALK negative</description>
+        <inputEntry id="InputEntry_alk_status_neg">
+          <text>"negative","not_tested","ALK-"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_prior_alk_tki_neg">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_cns_mets_neg">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_resistance_mutation_neg">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="IE_DecisionRule_reject_alk_negative_ultimo"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_resultado_neg">
+          <text>"Reprovado"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_observacao_neg">
+          <text>"ALK negativo: lorlatinibe nao indicado. Confirmar ALK por FISH ou IHC"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_fundamentacao_neg">
+          <text>"CROWN/B7461001: apenas ALK rearranged; ALK-negativo sem beneficio"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_alertasDesperdicio_neg">
+          <text>"PROT"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_acaoRecomendada_neg">
+          <text>"NEGAR"</text>
+        </outputEntry>
+      </rule>
+
+      <!-- WASTE DETECTION: ESC -->
+      <rule id="Rule_40501343_ESC">
+        <description>ESC - Lorlatinib sem documentacao falha ALK TKI previo</description>
+        <inputEntry id="IE_ESC_40501343_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_ESC_40501343_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_ESC_40501343_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_ESC_40501343_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_ESC_40501343_ultimo"><text>-</text></inputEntry>
+        <outputEntry id="OE_ESC_40501343_resultado"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OE_ESC_40501343_observacao"><text>"Lorlatinib sem documentacao falha ALK TKI previo"</text></outputEntry>
+        <outputEntry id="OE_ESC_40501343_fundamentacao"><text>"NCCN NSCLC 2024: Lorlatinib 2L+ ALK+ requer falha crizotinib/alectinib/ceritinib"</text></outputEntry>
+        <outputEntry id="OE_ESC_40501343_alertasDesperdicio"><text>"ESC"</text></outputEntry>
+        <outputEntry id="OE_ESC_40501343_acaoRecomendada"><text>"SOLICITAR_INFO"</text></outputEntry>
+      </rule>
+
+      <!-- WASTE DETECTION: FREQ -->
+      <rule id="Rule_40501343_FREQ">
+        <description>FREQ - Verificar frequencia dispensacao medicamento oral oncologico. Ciclo 28 dias padr</description>
+        <inputEntry id="IE_FREQ_40501343_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_FREQ_40501343_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_FREQ_40501343_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_FREQ_40501343_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_FREQ_40501343_ultimo"><text>-</text></inputEntry>
+        <outputEntry id="OE_FREQ_40501343_resultado"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OE_FREQ_40501343_observacao"><text>"Verificar frequencia dispensacao medicamento oral oncologico. Ciclo 28 dias padrao"</text></outputEntry>
+        <outputEntry id="OE_FREQ_40501343_fundamentacao"><text>"ANS RN 465/2021, SBOC 2023: Dispensacao oral oncologico ciclo 28 dias, max 3 ciclos por autorizacao"</text></outputEntry>
+        <outputEntry id="OE_FREQ_40501343_alertasDesperdicio"><text>"FREQ"</text></outputEntry>
+        <outputEntry id="OE_FREQ_40501343_acaoRecomendada"><text>"SOLICITAR_INFO"</text></outputEntry>
+      </rule>
+
+      <rule id="DecisionRule_approve_1l">
+        <description>Approve 1L ALK+</description>
+        <inputEntry id="InputEntry_alk_status_1l">
+          <text>"positive","ALK+","rearranged"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_prior_alk_tki_1l">
+          <text>"none","naive"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_cns_mets_1l">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_resistance_mutation_1l">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="IE_DecisionRule_approve_1l_ultimo"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_resultado_1l">
+          <text>"Aprovado"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_observacao_1l">
+          <text>"Lorlatinibe 1L aprovado: CPNPC ALK+ avancado - tratamento preferido junto com alectinibe"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_fundamentacao_1l">
+          <text>"CROWN: PFS NR vs 9.3m (crizotinibe); intracranial ORR 82%. Monitorar lipideos"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_alertasDesperdicio_1l">
+          <text>"NENHUM"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_acaoRecomendada_1l">
+          <text>"APROVAR"</text>
+        </outputEntry>
+      </rule>
+      <rule id="DecisionRule_approve_cns">
+        <description>Approve for CNS metastases</description>
+        <inputEntry id="InputEntry_alk_status_cns">
+          <text>"positive","ALK+","rearranged"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_prior_alk_tki_cns">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_cns_mets_cns">
+          <text>true</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_resistance_mutation_cns">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="IE_DecisionRule_approve_cns_ultimo"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_resultado_cns">
+          <text>"Aprovado"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_observacao_cns">
+          <text>"Lorlatinibe aprovado: ALK+ com metastases SNC - alta penetracao cerebral"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_fundamentacao_cns">
+          <text>"CROWN: intracranial ORR 66-82%; melhor TKI ALK para SNC"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_alertasDesperdicio_cns">
+          <text>"NENHUM"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_acaoRecomendada_cns">
+          <text>"APROVAR"</text>
+        </outputEntry>
+      </rule>
+      <rule id="DecisionRule_approve_g1202r">
+        <description>Approve for G1202R resistance</description>
+        <inputEntry id="InputEntry_alk_status_g1202r">
+          <text>"positive","ALK+","rearranged"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_prior_alk_tki_g1202r">
+          <text>"alectinib","ceritinib","brigatinib"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_cns_mets_g1202r">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_resistance_mutation_g1202r">
+          <text>"G1202R"</text>
+        </inputEntry>
+        <inputEntry id="IE_DecisionRule_approve_g1202r_ultimo"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_resultado_g1202r">
+          <text>"Aprovado"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_observacao_g1202r">
+          <text>"Lorlatinibe aprovado: unico TKI ativo contra G1202R"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_fundamentacao_g1202r">
+          <text>"G1202R confere resistencia a todos TKI ALK exceto lorlatinibe; ORR 42% neste subgrupo"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_alertasDesperdicio_g1202r">
+          <text>"NENHUM"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_acaoRecomendada_g1202r">
+          <text>"APROVAR"</text>
+        </outputEntry>
+      </rule>
+      <rule id="DecisionRule_approve_post_2g">
+        <description>Approve post-2G TKI</description>
+        <inputEntry id="InputEntry_alk_status_post2g">
+          <text>"positive","ALK+","rearranged"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_prior_alk_tki_post2g">
+          <text>"alectinib","ceritinib","brigatinib"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_cns_mets_post2g">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_resistance_mutation_post2g">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="IE_DecisionRule_approve_post_2g_ultimo"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_resultado_post2g">
+          <text>"Aprovado"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_observacao_post2g">
+          <text>"Lorlatinibe aprovado: pos-progressao em TKI ALK 2G. Considerar biopsia para mutacao"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_fundamentacao_post2g">
+          <text>"B7461001: ORR 47% pos-alectinibe/ceritinibe; unica opcao TKI pos-2G"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_alertasDesperdicio_post2g">
+          <text>"NENHUM"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_acaoRecomendada_post2g">
+          <text>"APROVAR"</text>
+        </outputEntry>
+      </rule>
+      <rule id="DecisionRule_pending_post_crizo_only">
+        <description>Pending if only post-crizotinib</description>
+        <inputEntry id="InputEntry_alk_status_crizo">
+          <text>"positive","ALK+","rearranged"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_prior_alk_tki_crizo">
+          <text>"crizotinib"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_cns_mets_crizo">
+          <text>false</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_resistance_mutation_crizo">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="IE_DecisionRule_pending_post_crizo_only_ultimo"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_resultado_crizo">
+          <text>"Pendente"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_observacao_crizo">
+          <text>"Pos-crizotinibe sem SNC: considerar alectinibe/brigatinibe antes de lorlatinibe"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_fundamentacao_crizo">
+          <text>"Sequenciamento ideal: 1L->2G->lorlatinibe; pular 2G apenas se SNC ou G1202R"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_alertasDesperdicio_crizo">
+          <text>"NENHUM"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_acaoRecomendada_crizo">
+          <text>"SOLICITAR_INFO"</text>
+        </outputEntry>
+      </rule>
+      <rule id="DecisionRule_fallback">
+        <description>Fallback rule</description>
+        <inputEntry id="InputEntry_alk_status_fallback">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_prior_alk_tki_fallback">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_cns_mets_fallback">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_resistance_mutation_fallback">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="IE_DecisionRule_fallback_ultimo"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_resultado_fallback">
+          <text>"Pendente"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_observacao_fallback">
+          <text>"Dados insuficientes para avaliacao de lorlatinibe"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_fundamentacao_fallback">
+          <text>"Necessario: status ALK, TKI previo, metastases SNC, mutacao de resistencia"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_alertasDesperdicio_fallback">
+          <text>"DOC"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_acaoRecomendada_fallback">
+          <text>"SOLICITAR_INFO"</text>
+        </outputEntry>
+      </rule>
+    </decisionTable>
+  </decision>
+  <dmndi:DMNDI>
+    <dmndi:DMNDiagram>
+      <dmndi:DMNShape dmnElementRef="Decision_ONQ_DRUG_018">
+        <dc:Bounds height="80" width="180" x="160" y="100" />
+      </dmndi:DMNShape>
+    </dmndi:DMNDiagram>
+  </dmndi:DMNDI>
+</definitions>

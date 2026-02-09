@@ -1,0 +1,254 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/"
+             xmlns:dc="http://www.omg.org/spec/DD/20100524/DC/"
+             xmlns:di="http://www.omg.org/spec/DD/20100524/DI/"
+             id="Definitions_VAS_CAR_002"
+             name="Endarterectomia Carotidea - Paciente Assintomatico"
+             namespace="http://camunda.org/schema/1.0/dmn"
+             exporter="Camunda Modeler"
+             exporterVersion="5.0.0">
+  <!--
+    VAS-CAR-002 - Endarterectomia Carotidea - Paciente Assintomatico
+    Versao: 1.0.0 (2026-02-07)
+    Especialidade: Cirurgia Vascular
+    Categoria: Cirurgia Carotidea
+    TUSS Relacionados: 30907010, 30907028
+
+    Indicacoes Clinicas (SVS/ESVS 2019, ACST-2):
+    - Estenose carotidea assintomatica maior que 70% (NASCET)
+    - Expectativa de vida maior que 5 anos
+    - Risco cirurgico muito baixo (morbimortalidade menor que 3%)
+    - Progressao documentada da estenose
+    - Caracteristicas de placa instavel (ulcerada, ecolucente)
+
+    Contraindicacoes:
+    - Estenose menor que 70% em assintomatico
+    - Expectativa de vida menor que 5 anos
+    - Comorbidades graves com risco cirurgico maior que 3%
+    - Oclusao carotidea contralateral (risco aumentado)
+    - Placa calcificada estavel sem progressao
+
+    Documentacao Obrigatoria:
+    - Duplex scan carotideo seriado (progressao)
+    - Avaliacao cardiologica completa
+    - TC ou RM de cranio excluindo lesoes silentes
+    - Avaliacao de expectativa de vida
+
+    Referencias Normativas:
+    - SVS/ESVS Guidelines 2019 - Asymptomatic Carotid Disease
+    - ACST-2 Trial 2021 - Best Medical Therapy vs CEA
+    - AHA/ASA Guidelines 2021
+    - DUT ANS 2024
+  -->
+
+  <decision id="Decision_VAS_CAR_002" name="Criterios de Autorizacao - Endarterectomia Carotidea Assintomatica">
+    <decisionTable id="DecisionTable_VAS_CAR_002" hitPolicy="FIRST">
+
+      <!-- Input 1: Grau de Estenose -->
+      <input id="Input_grauEstenose" label="Grau de Estenose Carotidea (%)">
+        <inputExpression id="InputExpr_grauEstenose" typeRef="string">
+          <text>grauEstenose</text>
+        </inputExpression>
+        <inputValues id="InputValues_grauEstenose">
+          <text>"Menor_60","Entre_60_69","Entre_70_79","Entre_80_99","Oclusao_Total"</text>
+        </inputValues>
+      </input>
+
+      <!-- Input 2: Caracteristicas da Placa -->
+      <input id="Input_caracteristicaPlaca" label="Caracteristicas da Placa Carotidea">
+        <inputExpression id="InputExpr_caracteristicaPlaca" typeRef="string">
+          <text>caracteristicaPlaca</text>
+        </inputExpression>
+        <inputValues id="InputValues_caracteristicaPlaca">
+          <text>"Estavel_Calcificada","Instavel_Ecolucente","Ulcerada","Progressao_Documentada","Nao_Avaliada"</text>
+        </inputValues>
+      </input>
+
+      <!-- Input 3: Expectativa de Vida -->
+      <input id="Input_expectativaVida" label="Expectativa de Vida Estimada">
+        <inputExpression id="InputExpr_expectativaVida" typeRef="string">
+          <text>expectativaVida</text>
+        </inputExpression>
+        <inputValues id="InputValues_expectativaVida">
+          <text>"Maior_5_Anos","Entre_3_5_Anos","Menor_3_Anos"</text>
+        </inputValues>
+      </input>
+
+      <!-- Input 4: Risco Cirurgico -->
+      <input id="Input_riscoCirurgico" label="Risco Cirurgico Estimado">
+        <inputExpression id="InputExpr_riscoCirurgico" typeRef="string">
+          <text>riscoCirurgico</text>
+        </inputExpression>
+        <inputValues id="InputValues_riscoCirurgico">
+          <text>"Muito_Baixo_Menor_3","Baixo_3_5","Intermediario_Maior_5"</text>
+        </inputValues>
+      </input>
+
+      <!-- Input 5: Documentacao Completa -->
+      <input id="Input_documentacaoCompleta" label="Documentacao Completa (Imagem + Cardiologica)">
+        <inputExpression id="InputExpr_documentacaoCompleta" typeRef="boolean">
+          <text>documentacaoCompleta</text>
+        </inputExpression>
+      </input>
+
+      <!-- Outputs -->
+      <output id="Output_resultado" label="Resultado" name="resultado" typeRef="string">
+        <outputValues id="OutputValues_resultado">
+          <text>"Aprovado","Reprovado","Pendente"</text>
+        </outputValues>
+      </output>
+      <output id="Output_observacao" label="Observacao Clinica" name="observacao" typeRef="string" />
+      <output id="Output_fundamentacao" label="Fundamentacao Legal/Tecnica" name="fundamentacao" typeRef="string" />
+
+      <output id="Output_alertasDesperdicio" name="alertasDesperdicio" typeRef="string">
+        <outputValues>
+          <text>"NENHUM","DUP","FREQ","ESC","DOC","PROT","MULTI"</text>
+        </outputValues>
+      </output>
+
+      <output id="Output_acaoRecomendada" name="acaoRecomendada" typeRef="string">
+        <outputValues>
+          <text>"APROVAR","NEGAR","SOLICITAR_INFO","AGUARDAR_PRAZO","SUGERIR_ALTERNATIVA"</text>
+        </outputValues>
+      </output>
+
+      <!-- ============================================== -->
+      <!-- REGRAS DE REPROVACAO                          -->
+      <!-- ============================================== -->
+
+      <rule id="Rule_VAS_CAR_002_Reprovacao_EstenoseBaixa">
+        <description>Reprovacao - Estenose menor que 60% em assintomatico</description>
+        <inputEntry id="IE_Rep1_1"><text>"Menor_60"</text></inputEntry>
+        <inputEntry id="IE_Rep1_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_Rep1_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_Rep1_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_Rep1_5"><text>-</text></inputEntry>
+        <outputEntry id="OE_Rep1_1"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OE_Rep1_2"><text>"Estenose carotidea menor que 60% em paciente assintomatico nao tem indicacao cirurgica - manter tratamento clinico otimizado com estatinas e antiplaquetarios"</text></outputEntry>
+        <outputEntry id="OE_Rep1_3"><text>"SVS/ESVS 2019 e ACST-2 - Sem beneficio para estenose menor que 60% assintomatica"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_VAS_CAR_002_Reprovacao_OclusaoTotal">
+        <description>Reprovacao - Oclusao carotidea total</description>
+        <inputEntry id="IE_Rep2_1"><text>"Oclusao_Total"</text></inputEntry>
+        <inputEntry id="IE_Rep2_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_Rep2_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_Rep2_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_Rep2_5"><text>-</text></inputEntry>
+        <outputEntry id="OE_Rep2_1"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OE_Rep2_2"><text>"Oclusao carotidea total cronica nao eh candidata a endarterectomia"</text></outputEntry>
+        <outputEntry id="OE_Rep2_3"><text>"SVS/ESVS 2019 - Contraindicacao absoluta"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_VAS_CAR_002_Reprovacao_ExpectativaBaixa">
+        <description>Reprovacao - Expectativa de vida menor que 3 anos</description>
+        <inputEntry id="IE_Rep3_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_Rep3_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_Rep3_3"><text>"Menor_3_Anos"</text></inputEntry>
+        <inputEntry id="IE_Rep3_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_Rep3_5"><text>-</text></inputEntry>
+        <outputEntry id="OE_Rep3_1"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OE_Rep3_2"><text>"Expectativa de vida menor que 3 anos contraindica CEA em assintomatico - beneficio requer sobrevida minima de 5 anos para se manifestar"</text></outputEntry>
+        <outputEntry id="OE_Rep3_3"><text>"SVS/ESVS 2019 - Beneficio de CEA requer expectativa de vida adequada"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_VAS_CAR_002_Reprovacao_RiscoAlto">
+        <description>Reprovacao - Risco cirurgico maior que 3% em assintomatico</description>
+        <inputEntry id="IE_Rep4_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_Rep4_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_Rep4_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_Rep4_4"><text>"Intermediario_Maior_5"</text></inputEntry>
+        <inputEntry id="IE_Rep4_5"><text>-</text></inputEntry>
+        <outputEntry id="OE_Rep4_1"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OE_Rep4_2"><text>"Risco cirurgico maior que 3% supera beneficio em paciente assintomatico - tratamento clinico otimizado eh preferivel"</text></outputEntry>
+        <outputEntry id="OE_Rep4_3"><text>"SVS/ESVS 2019 - Morbimortalidade aceitavel para CEA assintomatica deve ser menor que 3%"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_VAS_CAR_002_Reprovacao_SemDocumentacao">
+        <description>Reprovacao - Documentacao incompleta</description>
+        <inputEntry id="IE_Rep5_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_Rep5_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_Rep5_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_Rep5_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_Rep5_5"><text>false</text></inputEntry>
+        <outputEntry id="OE_Rep5_1"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OE_Rep5_2"><text>"Documentacao completa obrigatoria - duplex seriado, avaliacao cardiologica e neuroimagem para exclusao de lesoes silentes"</text></outputEntry>
+        <outputEntry id="OE_Rep5_3"><text>"RN 465/2021 - Documentacao minima para procedimentos de alto custo"</text></outputEntry>
+      </rule>
+
+      <!-- ============================================== -->
+      <!-- REGRAS DE APROVACAO                           -->
+      <!-- ============================================== -->
+
+      <rule id="Rule_VAS_CAR_002_Aprovacao_Ideal">
+        <description>Aprovacao - Estenose maior que 80% com placa instavel e risco muito baixo</description>
+        <inputEntry id="IE_Apr1_1"><text>"Entre_80_99"</text></inputEntry>
+        <inputEntry id="IE_Apr1_2"><text>"Instavel_Ecolucente","Ulcerada","Progressao_Documentada"</text></inputEntry>
+        <inputEntry id="IE_Apr1_3"><text>"Maior_5_Anos"</text></inputEntry>
+        <inputEntry id="IE_Apr1_4"><text>"Muito_Baixo_Menor_3"</text></inputEntry>
+        <inputEntry id="IE_Apr1_5"><text>true</text></inputEntry>
+        <outputEntry id="OE_Apr1_1"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OE_Apr1_2"><text>"CEA APROVADA - estenose maior que 80% assintomatica com caracteristicas de alto risco (placa instavel/progressao) e risco cirurgico muito baixo"</text></outputEntry>
+        <outputEntry id="OE_Apr1_3"><text>"SVS/ESVS 2019 Classe IIa - CEA pode ser considerada em estenose severa assintomatica com caracteristicas de alto risco"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_VAS_CAR_002_Aprovacao_70_79">
+        <description>Aprovacao - Estenose 70-79% com placa instavel</description>
+        <inputEntry id="IE_Apr2_1"><text>"Entre_70_79"</text></inputEntry>
+        <inputEntry id="IE_Apr2_2"><text>"Instavel_Ecolucente","Ulcerada","Progressao_Documentada"</text></inputEntry>
+        <inputEntry id="IE_Apr2_3"><text>"Maior_5_Anos"</text></inputEntry>
+        <inputEntry id="IE_Apr2_4"><text>"Muito_Baixo_Menor_3"</text></inputEntry>
+        <inputEntry id="IE_Apr2_5"><text>true</text></inputEntry>
+        <outputEntry id="OE_Apr2_1"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OE_Apr2_2"><text>"CEA APROVADA - estenose 70-79% assintomatica com caracteristicas de placa de alto risco justificam intervencao"</text></outputEntry>
+        <outputEntry id="OE_Apr2_3"><text>"SVS/ESVS 2019 - Beneficio em estenose maior que 70% com caracteristicas de risco"</text></outputEntry>
+      </rule>
+
+      <!-- ============================================== -->
+      <!-- REGRA DE PENDENCIA                            -->
+      <!-- ============================================== -->
+
+      <rule id="Rule_VAS_CAR_002_Pendente_PlacaEstavel">
+        <description>Pendente - Estenose maior que 70% mas placa estavel requer analise</description>
+        <inputEntry id="IE_Pend1_1"><text>"Entre_70_79","Entre_80_99"</text></inputEntry>
+        <inputEntry id="IE_Pend1_2"><text>"Estavel_Calcificada"</text></inputEntry>
+        <inputEntry id="IE_Pend1_3"><text>"Maior_5_Anos"</text></inputEntry>
+        <inputEntry id="IE_Pend1_4"><text>"Muito_Baixo_Menor_3"</text></inputEntry>
+        <inputEntry id="IE_Pend1_5"><text>true</text></inputEntry>
+        <outputEntry id="OE_Pend1_1"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OE_Pend1_2"><text>"Estenose maior que 70% com placa estavel calcificada - ACST-2 sugere tratamento clinico otimizado pode ser equivalente - requer analise individualizada"</text></outputEntry>
+        <outputEntry id="OE_Pend1_3"><text>"ACST-2 Trial 2021 - Discussao CEA vs Best Medical Therapy em placa estavel"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_VAS_CAR_002_Pendente_Intermediario">
+        <description>Pendente - Estenose 60-69% requer analise cuidadosa</description>
+        <inputEntry id="IE_Pend2_1"><text>"Entre_60_69"</text></inputEntry>
+        <inputEntry id="IE_Pend2_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_Pend2_3"><text>"Maior_5_Anos"</text></inputEntry>
+        <inputEntry id="IE_Pend2_4"><text>"Muito_Baixo_Menor_3"</text></inputEntry>
+        <inputEntry id="IE_Pend2_5"><text>true</text></inputEntry>
+        <outputEntry id="OE_Pend2_1"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OE_Pend2_2"><text>"Estenose 60-69% assintomatica - beneficio marginal de CEA - requer analise individualizada considerando caracteristicas da placa e progressao"</text></outputEntry>
+        <outputEntry id="OE_Pend2_3"><text>"SVS/ESVS 2019 Classe IIb - Beneficio incerto para estenose 60-69% assintomatica"</text></outputEntry>
+      </rule>
+
+      <!-- ============================================== -->
+      <!-- REGRA FALLBACK                                -->
+      <!-- ============================================== -->
+
+      <rule id="Rule_Fallback_VAS_CAR_002">
+        <description>Fallback - Casos nao cobertos requerem analise manual</description>
+        <inputEntry id="IE_Fallback_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_Fallback_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_Fallback_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_Fallback_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_Fallback_5"><text>-</text></inputEntry>
+        <outputEntry id="OE_Fallback_1"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OE_Fallback_2"><text>"Caso requer analise manual por auditor especializado em cirurgia vascular"</text></outputEntry>
+        <outputEntry id="OE_Fallback_3"><text>"Auditoria especializada conforme RN 428/2017"</text></outputEntry>
+      </rule>
+
+    </decisionTable>
+  </decision>
+</definitions>

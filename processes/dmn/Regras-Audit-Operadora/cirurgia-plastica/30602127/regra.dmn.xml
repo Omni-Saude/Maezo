@@ -1,0 +1,322 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             xmlns:camunda="http://camunda.org/schema/1.0/dmn"
+             id="Definitions_30602127"
+             name="Anastomose Linfatico-Venosa"
+             namespace="http://camunda.org/schema/1.0/dmn">
+
+  <!--
+    ===============================================================================
+    TUSS: 30602127
+    Procedimento: Anastomose Linfatico-Venosa (LVA)
+    Especialidade: Cirurgia Plastica
+    Versao: 3.0.0-LEAN-TIER2
+    Data: 2026-02-07
+    ===============================================================================
+
+    INDICACOES CLINICAS (DUT/ANS):
+    - Linfedema estagio inicial a moderado (ISL I-II precoce)
+    - Linfedema com vasos linfaticos funcionantes na linfocintilografia
+    - Falha de tratamento conservador por minimo 3-6 meses
+    - Linfedema pos-mastectomia ou linfadenectomia
+    - Pacientes com ICG positivo (vasos linfaticos visiveis)
+    - Linfedema com episodios de celulite de repeticao
+
+    CONTRAINDICACOES:
+    - Linfedema estagio III avancado (fibroesclerose completa)
+    - Ausencia de vasos linfaticos funcionantes no ICG
+    - Insuficiencia venosa descompensada
+    - Obesidade morbida (IMC maior 40)
+    - Expectativa de nao adesao ao tratamento pos-operatorio
+    - Infeccao ativa no membro afetado
+
+    DOCUMENTACAO OBRIGATORIA:
+    - Linfocintilografia com funcao linfatica residual
+    - Mapeamento com verde de indocianina (ICG)
+    - Perimetria comparativa dos membros
+    - Registro de tratamento conservador por minimo 3 meses
+    - Documentacao fotografica
+    - Ultrassom doppler para avaliar veias receptoras
+
+    REFERENCIAS TECNICAS:
+    - Koshima LVA Protocols (2024)
+    - IFSSH Lymphedema Surgery Guidelines (2023)
+    - European Lymphedema Framework Consensus (2024)
+    - SBCP Microcirurgia Linfatica (2024)
+    - ANS RN 465/2021, DUT 2024
+
+    ===============================================================================
+  -->
+
+  <decision id="Decision_30602127" name="Regra Clinica - Anastomose Linfatico-Venosa">
+    <decisionTable id="DecisionTable_30602127" hitPolicy="FIRST">
+
+      <!-- ========== INPUTS (5 - Padrao TIER-1) ========== -->
+
+      <input id="Input_condicaoPaciente" label="Condicao do Paciente" camunda:inputVariable="condicaoPaciente">
+        <inputExpression id="InputExpression_condicaoPaciente" typeRef="string">
+          <text>condicaoPaciente</text>
+        </inputExpression>
+        <inputValues id="InputValues_condicaoPaciente">
+          <text>"LinfedemaEstagioI","LinfedemaEstagioIIPrecoce","LinfedemaPosLinfadenectomia","VasosLinfaticosFuncionantes","FibroescleroseCompleta","InsuficienciaVenosa","InfeccaoAtiva"</text>
+        </inputValues>
+      </input>
+
+      <input id="Input_historicoClinico" label="Historico Clinico" camunda:inputVariable="historicoClinico">
+        <inputExpression id="InputExpression_historicoClinico" typeRef="string">
+          <text>historicoClinico</text>
+        </inputExpression>
+        <inputValues id="InputValues_historicoClinico">
+          <text>"Adequado","Incompleto","NaoDocumentado"</text>
+        </inputValues>
+      </input>
+
+      <input id="Input_classeIndicacao" label="Classe de Indicacao" camunda:inputVariable="classeIndicacao">
+        <inputExpression id="InputExpression_classeIndicacao" typeRef="string">
+          <text>classeIndicacao</text>
+        </inputExpression>
+        <inputValues id="InputValues_classeIndicacao">
+          <text>"Classe I","Classe IIa","Classe IIb","Classe III"</text>
+        </inputValues>
+      </input>
+
+      <input id="Input_examesComprobatorios" label="Exames Comprobatorios" camunda:inputVariable="examesComprobatorios">
+        <inputExpression id="InputExpression_examesComprobatorios" typeRef="string">
+          <text>examesComprobatorios</text>
+        </inputExpression>
+        <inputValues id="InputValues_examesComprobatorios">
+          <text>"Linfocintilografia","MapeamentoICG","Perimetria","DopplerVenoso","Completos","Incompleto","Ausente"</text>
+        </inputValues>
+      </input>
+
+      <input id="Input_expectativaVidaSuperior1Ano" label="Expectativa de Vida Superior 1 Ano" camunda:inputVariable="expectativaVidaSuperior1Ano">
+        <inputExpression id="InputExpression_expectativaVidaSuperior1Ano" typeRef="boolean">
+          <text>expectativaVidaSuperior1Ano</text>
+        </inputExpression>
+      </input>
+
+      <!-- ========== OUTPUTS (5 - LEAN TIER-2) ========== -->
+
+      <output id="Output_resultado" label="Resultado" name="resultado" typeRef="string">
+        <outputValues id="OutputValues_resultado">
+          <text>"Aprovado","Reprovado","Pendente"</text>
+        </outputValues>
+      </output>
+
+      <output id="Output_observacao" label="Observacao Clinica" name="observacao" typeRef="string" />
+
+      <output id="Output_fundamentacao" label="Fundamentacao Tecnica" name="fundamentacao" typeRef="string" />
+
+      <output id="Output_alertasDesperdicio" name="alertasDesperdicio" typeRef="string">
+        <outputValues>
+          <text>"NENHUM","DUP","FREQ","ESC","DOC","PROT","MULTI"</text>
+        </outputValues>
+      </output>
+
+      <output id="Output_acaoRecomendada" name="acaoRecomendada" typeRef="string">
+        <outputValues>
+          <text>"APROVAR","NEGAR","SOLICITAR_INFO","AGUARDAR_PRAZO","SUGERIR_ALTERNATIVA"</text>
+        </outputValues>
+      </output>
+
+      <!-- ========== RULES ========== -->
+
+      <!-- REPROVACOES -->
+      <rule id="Rule_Contraind_ClasseIII">
+        <description>Contraindicacao: Procedimento Classe III</description>
+        <inputEntry id="InputEntry_Contraind_ClasseIII_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Contraind_ClasseIII_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Contraind_ClasseIII_3"><text>"Classe III"</text></inputEntry>
+        <inputEntry id="InputEntry_Contraind_ClasseIII_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Contraind_ClasseIII_5"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_Contraind_ClasseIII_resultado"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_Contraind_ClasseIII_observacao"><text>"Procedimento nao indicado - Classe III"</text></outputEntry>
+        <outputEntry id="OutputEntry_Contraind_ClasseIII_fundamentacao"><text>"Koshima 2024 - LVA nao indicada em ausencia de vasos linfaticos funcionantes"</text></outputEntry>
+        <outputEntry id="OutputEntry_Contraind_ClasseIII_alertasDesperdicio"><text>"PROT"</text></outputEntry>
+        <outputEntry id="OutputEntry_Contraind_ClasseIII_acaoRecomendada"><text>"NEGAR"</text></outputEntry>
+        <outputEntry id="OutputEntry_Contraind_ClasseIII_alertasDesperdicio"><text>"PROT"</text></outputEntry>
+        <outputEntry id="OutputEntry_Contraind_ClasseIII_acaoRecomendada"><text>"NEGAR"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Contraind_ExpectativaVida">
+        <description>Contraindicacao: Expectativa de vida menor que 1 ano</description>
+        <inputEntry id="InputEntry_Contraind_ExpVida_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Contraind_ExpVida_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Contraind_ExpVida_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Contraind_ExpVida_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Contraind_ExpVida_5"><text>false</text></inputEntry>
+        <outputEntry id="OutputEntry_Contraind_ExpVida_resultado"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_Contraind_ExpVida_observacao"><text>"Expectativa de vida insuficiente para beneficio a longo prazo"</text></outputEntry>
+        <outputEntry id="OutputEntry_Contraind_ExpVida_fundamentacao"><text>"ELF 2024 - Resultados de LVA melhoram progressivamente ao longo de 12-24 meses"</text></outputEntry>
+        <outputEntry id="OutputEntry_Contraind_ExpectativaVida_alertasDesperdicio"><text>"DOC"</text></outputEntry>
+        <outputEntry id="OutputEntry_Contraind_ExpectativaVida_acaoRecomendada"><text>"NEGAR"</text></outputEntry>
+        <outputEntry id="OutputEntry_Contraind_ExpectativaVida_alertasDesperdicio"><text>"DOC"</text></outputEntry>
+        <outputEntry id="OutputEntry_Contraind_ExpectativaVida_acaoRecomendada"><text>"NEGAR"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Contraind_Fibroesclerose">
+        <description>Contraindicacao: Fibroesclerose completa</description>
+        <inputEntry id="InputEntry_Contraind_Fibro_1"><text>"FibroescleroseCompleta"</text></inputEntry>
+        <inputEntry id="InputEntry_Contraind_Fibro_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Contraind_Fibro_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Contraind_Fibro_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Contraind_Fibro_5"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_Contraind_Fibro_resultado"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_Contraind_Fibro_observacao"><text>"Linfedema estagio III avancado - considerar VLNT ou lipoaspiracao"</text></outputEntry>
+        <outputEntry id="OutputEntry_Contraind_Fibro_fundamentacao"><text>"IFSSH 2023 - LVA requer vasos linfaticos funcionantes, ineficaz em fibroesclerose"</text></outputEntry>
+        <outputEntry id="OutputEntry_Contraind_Fibroesclerose_alertasDesperdicio"><text>"PROT"</text></outputEntry>
+        <outputEntry id="OutputEntry_Contraind_Fibroesclerose_acaoRecomendada"><text>"NEGAR"</text></outputEntry>
+        <outputEntry id="OutputEntry_Contraind_Fibroesclerose_alertasDesperdicio"><text>"PROT"</text></outputEntry>
+        <outputEntry id="OutputEntry_Contraind_Fibroesclerose_acaoRecomendada"><text>"NEGAR"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Contraind_InsufVenosa">
+        <description>Contraindicacao: Insuficiencia venosa descompensada</description>
+        <inputEntry id="InputEntry_Contraind_Venosa_1"><text>"InsuficienciaVenosa"</text></inputEntry>
+        <inputEntry id="InputEntry_Contraind_Venosa_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Contraind_Venosa_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Contraind_Venosa_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Contraind_Venosa_5"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_Contraind_Venosa_resultado"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_Contraind_Venosa_observacao"><text>"Tratar insuficiencia venosa antes de considerar LVA"</text></outputEntry>
+        <outputEntry id="OutputEntry_Contraind_Venosa_fundamentacao"><text>"Koshima 2024 - Hipertensao venosa compromete resultado da anastomose"</text></outputEntry>
+        <outputEntry id="OutputEntry_Contraind_InsufVenosa_alertasDesperdicio"><text>"PROT"</text></outputEntry>
+        <outputEntry id="OutputEntry_Contraind_InsufVenosa_acaoRecomendada"><text>"NEGAR"</text></outputEntry>
+        <outputEntry id="OutputEntry_Contraind_InsufVenosa_alertasDesperdicio"><text>"PROT"</text></outputEntry>
+        <outputEntry id="OutputEntry_Contraind_InsufVenosa_acaoRecomendada"><text>"NEGAR"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Reprovado_DocAusente">
+        <description>Reprovado: Documentacao ausente</description>
+        <inputEntry id="InputEntry_Reprovado_Doc_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Reprovado_Doc_2"><text>"NaoDocumentado"</text></inputEntry>
+        <inputEntry id="InputEntry_Reprovado_Doc_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Reprovado_Doc_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Reprovado_Doc_5"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_Reprovado_Doc_resultado"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_Reprovado_Doc_observacao"><text>"Documentacao obrigatoria nao apresentada"</text></outputEntry>
+        <outputEntry id="OutputEntry_Reprovado_Doc_fundamentacao"><text>"ANS RN 465/2021 - Mapeamento ICG e linfocintilografia obrigatorios"</text></outputEntry>
+        <outputEntry id="OutputEntry_Reprovado_DocAusente_alertasDesperdicio"><text>"DOC"</text></outputEntry>
+        <outputEntry id="OutputEntry_Reprovado_DocAusente_acaoRecomendada"><text>"NEGAR"</text></outputEntry>
+        <outputEntry id="OutputEntry_Reprovado_DocAusente_alertasDesperdicio"><text>"DOC"</text></outputEntry>
+        <outputEntry id="OutputEntry_Reprovado_DocAusente_acaoRecomendada"><text>"NEGAR"</text></outputEntry>
+      </rule>
+
+      <!-- APROVACOES -->
+      <rule id="Rule_Aprovado_EstagioI_ClasseI">
+        <description>Aprovado: Linfedema estagio I precoce</description>
+        <inputEntry id="InputEntry_Aprovado_EstI_1"><text>"LinfedemaEstagioI"</text></inputEntry>
+        <inputEntry id="InputEntry_Aprovado_EstI_2"><text>"Adequado"</text></inputEntry>
+        <inputEntry id="InputEntry_Aprovado_EstI_3"><text>"Classe I"</text></inputEntry>
+        <inputEntry id="InputEntry_Aprovado_EstI_4"><text>"MapeamentoICG","Linfocintilografia","Completos"</text></inputEntry>
+        <inputEntry id="InputEntry_Aprovado_EstI_5"><text>true</text></inputEntry>
+        <outputEntry id="OutputEntry_Aprovado_EstI_resultado"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprovado_EstI_observacao"><text>"LVA para linfedema estagio I - melhor indicacao"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprovado_EstI_fundamentacao"><text>"Koshima 2024 - Estagio I tem melhor resposta a LVA com vasos linfaticos preservados"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprovado_EstagioI_ClasseI_alertasDesperdicio"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprovado_EstagioI_ClasseI_acaoRecomendada"><text>"APROVAR"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprovado_EstagioI_ClasseI_alertasDesperdicio"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprovado_EstagioI_ClasseI_acaoRecomendada"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Aprovado_EstagioIIPrecoce_ClasseI">
+        <description>Aprovado: Linfedema estagio II precoce</description>
+        <inputEntry id="InputEntry_Aprovado_EstII_1"><text>"LinfedemaEstagioIIPrecoce","VasosLinfaticosFuncionantes"</text></inputEntry>
+        <inputEntry id="InputEntry_Aprovado_EstII_2"><text>"Adequado"</text></inputEntry>
+        <inputEntry id="InputEntry_Aprovado_EstII_3"><text>"Classe I"</text></inputEntry>
+        <inputEntry id="InputEntry_Aprovado_EstII_4"><text>"MapeamentoICG","Linfocintilografia","DopplerVenoso","Completos"</text></inputEntry>
+        <inputEntry id="InputEntry_Aprovado_EstII_5"><text>true</text></inputEntry>
+        <outputEntry id="OutputEntry_Aprovado_EstII_resultado"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprovado_EstII_observacao"><text>"LVA para linfedema estagio II precoce com vasos funcionantes no ICG"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprovado_EstII_fundamentacao"><text>"IFSSH 2023 - Estagio II precoce com ICG positivo responde bem a LVA"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprovado_EstagioIIPrecoce_ClasseI_alertasDesperdicio"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprovado_EstagioIIPrecoce_ClasseI_acaoRecomendada"><text>"APROVAR"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprovado_EstagioIIPrecoce_ClasseI_alertasDesperdicio"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprovado_EstagioIIPrecoce_ClasseI_acaoRecomendada"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Aprovado_PosLinfadenectomia_ClasseI">
+        <description>Aprovado: Linfedema pos-linfadenectomia</description>
+        <inputEntry id="InputEntry_Aprovado_Linfaden_1"><text>"LinfedemaPosLinfadenectomia"</text></inputEntry>
+        <inputEntry id="InputEntry_Aprovado_Linfaden_2"><text>"Adequado"</text></inputEntry>
+        <inputEntry id="InputEntry_Aprovado_Linfaden_3"><text>"Classe I","Classe IIa"</text></inputEntry>
+        <inputEntry id="InputEntry_Aprovado_Linfaden_4"><text>"MapeamentoICG","Completos"</text></inputEntry>
+        <inputEntry id="InputEntry_Aprovado_Linfaden_5"><text>true</text></inputEntry>
+        <outputEntry id="OutputEntry_Aprovado_Linfaden_resultado"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprovado_Linfaden_observacao"><text>"LVA pos-linfadenectomia oncologica - intervencao precoce recomendada"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprovado_Linfaden_fundamentacao"><text>"ELF 2024 - LVA profilatica ou precoce pos-linfadenectomia reduz progressao"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprovado_PosLinfadenectomia_ClasseI_alertasDesperdicio"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprovado_PosLinfadenectomia_ClasseI_acaoRecomendada"><text>"APROVAR"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprovado_PosLinfadenectomia_ClasseI_alertasDesperdicio"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprovado_PosLinfadenectomia_ClasseI_acaoRecomendada"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <!-- PENDENTES -->
+      <rule id="Rule_Pendente_DocIncompleta">
+        <description>Pendente: Documentacao incompleta</description>
+        <inputEntry id="InputEntry_Pendente_Doc_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Pendente_Doc_2"><text>"Incompleto"</text></inputEntry>
+        <inputEntry id="InputEntry_Pendente_Doc_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Pendente_Doc_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Pendente_Doc_5"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_Pendente_Doc_resultado"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OutputEntry_Pendente_Doc_observacao"><text>"Complementar mapeamento ICG e linfocintilografia"</text></outputEntry>
+        <outputEntry id="OutputEntry_Pendente_Doc_fundamentacao"><text>"Koshima 2024 - ICG obrigatorio para identificar vasos linfaticos funcionantes"</text></outputEntry>
+        <outputEntry id="OutputEntry_Pendente_DocIncompleta_alertasDesperdicio"><text>"DOC"</text></outputEntry>
+        <outputEntry id="OutputEntry_Pendente_DocIncompleta_acaoRecomendada"><text>"SOLICITAR_INFO"</text></outputEntry>
+        <outputEntry id="OutputEntry_Pendente_DocIncompleta_alertasDesperdicio"><text>"DOC"</text></outputEntry>
+        <outputEntry id="OutputEntry_Pendente_DocIncompleta_acaoRecomendada"><text>"SOLICITAR_INFO"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Pendente_ExamesIncompletos">
+        <description>Pendente: Exames incompletos</description>
+        <inputEntry id="InputEntry_Pendente_Exames_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Pendente_Exames_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Pendente_Exames_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Pendente_Exames_4"><text>"Incompleto","Ausente"</text></inputEntry>
+        <inputEntry id="InputEntry_Pendente_Exames_5"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_Pendente_Exames_resultado"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OutputEntry_Pendente_Exames_observacao"><text>"Solicitar linfocintilografia, ICG e doppler venoso"</text></outputEntry>
+        <outputEntry id="OutputEntry_Pendente_Exames_fundamentacao"><text>"IFSSH 2023 - Avaliacao completa do sistema linfatico e venoso obrigatoria"</text></outputEntry>
+        <outputEntry id="OutputEntry_Pendente_ExamesIncompletos_alertasDesperdicio"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_Pendente_ExamesIncompletos_acaoRecomendada"><text>"SOLICITAR_INFO"</text></outputEntry>
+        <outputEntry id="OutputEntry_Pendente_ExamesIncompletos_alertasDesperdicio"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_Pendente_ExamesIncompletos_acaoRecomendada"><text>"SOLICITAR_INFO"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Pendente_ClasseIIb">
+        <description>Pendente: Classe IIb requer junta medica</description>
+        <inputEntry id="InputEntry_Pendente_IIb_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Pendente_IIb_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Pendente_IIb_3"><text>"Classe IIb"</text></inputEntry>
+        <inputEntry id="InputEntry_Pendente_IIb_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Pendente_IIb_5"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_Pendente_IIb_resultado"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OutputEntry_Pendente_IIb_observacao"><text>"Indicacao limitrofe requer parecer de microcirurgiao linfatico"</text></outputEntry>
+        <outputEntry id="OutputEntry_Pendente_IIb_fundamentacao"><text>"ELF 2024 - Casos limítrofes requerem avaliacao por centro especializado"</text></outputEntry>
+        <outputEntry id="OutputEntry_Pendente_ClasseIIb_alertasDesperdicio"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_Pendente_ClasseIIb_acaoRecomendada"><text>"SOLICITAR_INFO"</text></outputEntry>
+        <outputEntry id="OutputEntry_Pendente_ClasseIIb_alertasDesperdicio"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_Pendente_ClasseIIb_acaoRecomendada"><text>"SOLICITAR_INFO"</text></outputEntry>
+      </rule>
+
+      <!-- FALLBACK -->
+      <rule id="Rule_Fallback_30602127">
+        <description>Regra padrao - Analise adicional</description>
+        <inputEntry id="InputEntry_Fallback_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Fallback_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Fallback_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Fallback_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Fallback_5"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_Fallback_resultado"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OutputEntry_Fallback_observacao"><text>"Caso requer analise por equipe de supermicrocirurgia linfatica"</text></outputEntry>
+        <outputEntry id="OutputEntry_Fallback_fundamentacao"><text>"Avaliacao individualizada conforme protocolos Koshima/ELF"</text></outputEntry>
+        <outputEntry id="OutputEntry_Fallback_30602127_alertasDesperdicio"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_Fallback_30602127_acaoRecomendada"><text>"SOLICITAR_INFO"</text></outputEntry>
+        <outputEntry id="OutputEntry_Fallback_30602127_alertasDesperdicio"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_Fallback_30602127_acaoRecomendada"><text>"SOLICITAR_INFO"</text></outputEntry>
+      </rule>
+
+    </decisionTable>
+  </decision>
+</definitions>

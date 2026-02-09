@@ -1,0 +1,363 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             xmlns:camunda="http://camunda.org/schema/1.0/dmn"
+             id="Definitions_40201023"
+             name="Ecocardiograma Transtorácico (ETT)"
+             namespace="http://camunda.org/schema/1.0/dmn">
+
+  <!--
+    ===============================================================================
+    TUSS: 40201023
+    Procedimento: Ecocardiograma Transtorácico (ETT)
+    Versao: 1.0.0-LEAN-TIER2
+    Data: 2026-02-07
+    ===============================================================================
+
+    INDICACOES CLINICAS (DUT/ANS):
+    Avaliacao de funcao ventricular, valvulopatias, cardiomiopatias,
+    pericardiopatias, doenca cardiaca congenita, massas cardiacas
+
+    CONTRAINDICACOES:
+    Classe III, ausencia de indicacao clinica documentada
+
+    REFERENCIAS TECNICAS:
+    SBC/DIC 2024, ASE Echo Guidelines 2023
+
+    SISTEMA DE CLASSIFICACAO SBC/DIC/ACC/AHA:
+    - Classe I: Procedimento indicado e essencial (Nivel de Evidencia A/B)
+    - Classe IIa: Procedimento provavelmente util e razoavel (Evidencia B)
+    - Classe IIb: Procedimento pode ser considerado (Evidencia C)
+    - Classe III: Procedimento nao indicado ou potencialmente prejudicial
+
+    ALERTAS DE DESPERDICIO (LEAN TIER-2):
+    - DUP: Duplicidade - Exame repetido em intervalo curto sem justificativa
+    - FREQ: Frequencia excessiva - Mais de 2 exames/ano sem alteracao clinica
+    - ESC: Escalonamento inadequado - Exame avancado sem exame basico previo
+    - DOC: Documentacao insuficiente - Falta justificativa clinica
+    - PROT: Protocolo nao seguido - Desvio de diretriz clinica
+    - MULTI: Multiplos alertas combinados
+
+    ===============================================================================
+  -->
+
+  <decision id="Decision_40201023" name="Regra Clinica - Ecocardiograma Transtoracico (ETT)">
+    <decisionTable id="DecisionTable_40201023" hitPolicy="FIRST">
+
+      <!-- ========== INPUTS (5 - Padrao LEAN TIER-2 Cardiologia) ========== -->
+
+      <input id="Input_condicaoPaciente" label="Condicao do Paciente" camunda:inputVariable="condicaoPaciente">
+        <inputExpression id="InputExpression_condicaoPaciente" typeRef="string">
+          <text>condicaoPaciente</text>
+        </inputExpression>
+        <inputValues id="InputValues_condicaoPaciente">
+          <text>"ICC","Valvulopatia","Cardiomiopatia","Pericardite","DorToracica","Sopro","HAS","CheckupRotina","AcompanhamentoEstavel","Outro"</text>
+        </inputValues>
+      </input>
+
+      <input id="Input_historicoClinico" label="Historico Clinico" camunda:inputVariable="historicoClinico">
+        <inputExpression id="InputExpression_historicoClinico" typeRef="string">
+          <text>historicoClinico</text>
+        </inputExpression>
+        <inputValues id="InputValues_historicoClinico">
+          <text>"Adequado","Incompleto","NaoDocumentado"</text>
+        </inputValues>
+      </input>
+
+      <input id="Input_classeIndicacao" label="Classe de Indicacao (SBC/ACC/AHA)" camunda:inputVariable="classeIndicacao">
+        <inputExpression id="InputExpression_classeIndicacao" typeRef="string">
+          <text>classeIndicacao</text>
+        </inputExpression>
+        <inputValues id="InputValues_classeIndicacao">
+          <text>"Classe I","Classe IIa","Classe IIb","Classe III"</text>
+        </inputValues>
+      </input>
+
+      <input id="Input_ultimoProcedimentoDias" label="Dias desde ultimo ETT" camunda:inputVariable="ultimoProcedimentoDias">
+        <inputExpression id="InputExpression_ultimoProcedimentoDias" typeRef="integer">
+          <text>ultimoProcedimentoDias</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_examesComprobatorios" label="Exames Comprobatorios" camunda:inputVariable="examesComprobatorios">
+        <inputExpression id="InputExpression_examesComprobatorios" typeRef="string">
+          <text>examesComprobatorios</text>
+        </inputExpression>
+        <inputValues id="InputValues_examesComprobatorios">
+          <text>"Completo","Parcial","Ausente"</text>
+        </inputValues>
+      </input>
+
+      <!-- ========== OUTPUTS (5 - Padrao LEAN TIER-2) ========== -->
+
+      <output id="Output_resultado" label="Resultado" name="resultado" typeRef="string">
+        <outputValues id="OutputValues_resultado">
+          <text>"Aprovado","Reprovado","Pendente"</text>
+        </outputValues>
+      </output>
+
+      <output id="Output_observacao" label="Observacao Clinica" name="observacao" typeRef="string" />
+
+      <output id="Output_fundamentacao" label="Fundamentacao Tecnica" name="fundamentacao" typeRef="string" />
+
+      <output id="Output_alertasDesperdicio" label="Alertas de Desperdicio" name="alertasDesperdicio" typeRef="string">
+        <outputValues id="OutputValues_alertasDesperdicio">
+          <text>"NENHUM","DUP","FREQ","ESC","DOC","PROT","MULTI"</text>
+        </outputValues>
+      </output>
+
+      <output id="Output_acaoRecomendada" label="Acao Recomendada" name="acaoRecomendada" typeRef="string">
+        <outputValues id="OutputValues_acaoRecomendada">
+          <text>"APROVAR","NEGAR","SOLICITAR_INFO","AGUARDAR_PRAZO","SUGERIR_ALTERNATIVA"</text>
+        </outputValues>
+      </output>
+
+      <!-- ========== RULES - REPROVACOES (Waste Detection First) ========== -->
+
+      <!-- RULE 1: Contraindicacao Classe III -->
+      <rule id="Rule_Reprovado_ClasseIII">
+        <description>Reprovado: Procedimento Classe III - nao indicado</description>
+        <inputEntry id="InputEntry_R1_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_R1_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_R1_3"><text>"Classe III"</text></inputEntry>
+        <inputEntry id="InputEntry_R1_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_R1_5"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_R1_resultado"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_R1_observacao"><text>"Procedimento nao indicado conforme classificacao Classe III"</text></outputEntry>
+        <outputEntry id="OutputEntry_R1_fundamentacao"><text>"SBC/DIC 2024, ASE Echo Guidelines 2023 - Classe III: Procedimento nao indicado ou potencialmente prejudicial"</text></outputEntry>
+        <outputEntry id="OutputEntry_R1_alertasDesperdicio"><text>"PROT"</text></outputEntry>
+        <outputEntry id="OutputEntry_R1_acaoRecomendada"><text>"NEGAR"</text></outputEntry>
+      </rule>
+
+      <!-- RULE 2: DUP - Duplicidade em menos de 90 dias para paciente estavel -->
+      <rule id="Rule_Reprovado_DUP_Estavel90d">
+        <description>Reprovado: ETT duplicado em menos de 90 dias - paciente estavel</description>
+        <inputEntry id="InputEntry_R2_1"><text>"AcompanhamentoEstavel"</text></inputEntry>
+        <inputEntry id="InputEntry_R2_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_R2_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_R2_4"><text>&lt; 90</text></inputEntry>
+        <inputEntry id="InputEntry_R2_5"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_R2_resultado"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_R2_observacao"><text>"ETT realizado ha menos de 90 dias em paciente clinicamente estavel - aguardar intervalo minimo"</text></outputEntry>
+        <outputEntry id="OutputEntry_R2_fundamentacao"><text>"SBC/DIC 2024 - Intervalo minimo de 90 dias para repeticao de ETT em pacientes estaveis sem alteracao clinica"</text></outputEntry>
+        <outputEntry id="OutputEntry_R2_alertasDesperdicio"><text>"DUP"</text></outputEntry>
+        <outputEntry id="OutputEntry_R2_acaoRecomendada"><text>"AGUARDAR_PRAZO"</text></outputEntry>
+      </rule>
+
+      <!-- RULE 3: DUP - Duplicidade em menos de 30 dias sem justificativa aguda -->
+      <rule id="Rule_Reprovado_DUP_30d">
+        <description>Reprovado: ETT duplicado em menos de 30 dias sem evento agudo</description>
+        <inputEntry id="InputEntry_R3_1"><text>"HAS","CheckupRotina","Outro"</text></inputEntry>
+        <inputEntry id="InputEntry_R3_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_R3_3"><text>"Classe IIa","Classe IIb"</text></inputEntry>
+        <inputEntry id="InputEntry_R3_4"><text>&lt; 30</text></inputEntry>
+        <inputEntry id="InputEntry_R3_5"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_R3_resultado"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_R3_observacao"><text>"ETT realizado ha menos de 30 dias sem evento cardiovascular agudo documentado"</text></outputEntry>
+        <outputEntry id="OutputEntry_R3_fundamentacao"><text>"SBC/DIC 2024, ASE 2023 - Repeticao precoce de ETT requer justificativa de evento agudo ou mudanca clinica significativa"</text></outputEntry>
+        <outputEntry id="OutputEntry_R3_alertasDesperdicio"><text>"DUP"</text></outputEntry>
+        <outputEntry id="OutputEntry_R3_acaoRecomendada"><text>"AGUARDAR_PRAZO"</text></outputEntry>
+      </rule>
+
+      <!-- RULE 4: FREQ - Frequencia excessiva (mais de 2/ano sem mudanca) -->
+      <rule id="Rule_Reprovado_FREQ_Excessiva">
+        <description>Reprovado: Frequencia excessiva - mais de 2 ETT/ano em paciente estavel</description>
+        <inputEntry id="InputEntry_R4_1"><text>"AcompanhamentoEstavel","CheckupRotina"</text></inputEntry>
+        <inputEntry id="InputEntry_R4_2"><text>"Adequado"</text></inputEntry>
+        <inputEntry id="InputEntry_R4_3"><text>"Classe IIb"</text></inputEntry>
+        <inputEntry id="InputEntry_R4_4"><text>&lt; 180</text></inputEntry>
+        <inputEntry id="InputEntry_R4_5"><text>"Completo"</text></inputEntry>
+        <outputEntry id="OutputEntry_R4_resultado"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_R4_observacao"><text>"Terceiro ETT solicitado em menos de 12 meses sem alteracao clinica documentada"</text></outputEntry>
+        <outputEntry id="OutputEntry_R4_fundamentacao"><text>"SBC/DIC 2024 - Limite de 2 ETT/ano para pacientes estaveis, exceto se mudanca clinica significativa"</text></outputEntry>
+        <outputEntry id="OutputEntry_R4_alertasDesperdicio"><text>"FREQ"</text></outputEntry>
+        <outputEntry id="OutputEntry_R4_acaoRecomendada"><text>"NEGAR"</text></outputEntry>
+      </rule>
+
+      <!-- RULE 5: DOC - Documentacao ausente -->
+      <rule id="Rule_Pendente_DOC_Ausente">
+        <description>Pendente: Documentacao clinica ausente</description>
+        <inputEntry id="InputEntry_R5_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_R5_2"><text>"NaoDocumentado"</text></inputEntry>
+        <inputEntry id="InputEntry_R5_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_R5_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_R5_5"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_R5_resultado"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OutputEntry_R5_observacao"><text>"Historico clinico nao documentado - necessario anexar justificativa clinica"</text></outputEntry>
+        <outputEntry id="OutputEntry_R5_fundamentacao"><text>"ANS RN 465/2021, CDC Art. 6 - Direito a informacao adequada sobre servicos de saude"</text></outputEntry>
+        <outputEntry id="OutputEntry_R5_alertasDesperdicio"><text>"DOC"</text></outputEntry>
+        <outputEntry id="OutputEntry_R5_acaoRecomendada"><text>"SOLICITAR_INFO"</text></outputEntry>
+      </rule>
+
+      <!-- RULE 6: DOC - Documentacao incompleta -->
+      <rule id="Rule_Pendente_DOC_Incompleto">
+        <description>Pendente: Documentacao clinica incompleta</description>
+        <inputEntry id="InputEntry_R6_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_R6_2"><text>"Incompleto"</text></inputEntry>
+        <inputEntry id="InputEntry_R6_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_R6_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_R6_5"><text>"Ausente"</text></inputEntry>
+        <outputEntry id="OutputEntry_R6_resultado"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OutputEntry_R6_observacao"><text>"Historico incompleto e exames comprobatorios ausentes - complementar documentacao"</text></outputEntry>
+        <outputEntry id="OutputEntry_R6_fundamentacao"><text>"ANS RN 465/2021 - Documentacao clinica adequada necessaria para autorizacao"</text></outputEntry>
+        <outputEntry id="OutputEntry_R6_alertasDesperdicio"><text>"DOC"</text></outputEntry>
+        <outputEntry id="OutputEntry_R6_acaoRecomendada"><text>"SOLICITAR_INFO"</text></outputEntry>
+      </rule>
+
+      <!-- RULE 7: ESC - Checkup de rotina sem indicacao -->
+      <rule id="Rule_Reprovado_ESC_CheckupSemIndicacao">
+        <description>Reprovado: ETT solicitado como checkup de rotina sem indicacao clinica</description>
+        <inputEntry id="InputEntry_R7_1"><text>"CheckupRotina"</text></inputEntry>
+        <inputEntry id="InputEntry_R7_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_R7_3"><text>"Classe III"</text></inputEntry>
+        <inputEntry id="InputEntry_R7_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_R7_5"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_R7_resultado"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_R7_observacao"><text>"ETT nao indicado como exame de rotina em pacientes assintomaticos sem fatores de risco"</text></outputEntry>
+        <outputEntry id="OutputEntry_R7_fundamentacao"><text>"SBC/DIC 2024, ASE 2023 - ETT de rastreamento nao recomendado em populacao assintomatica de baixo risco"</text></outputEntry>
+        <outputEntry id="OutputEntry_R7_alertasDesperdicio"><text>"ESC"</text></outputEntry>
+        <outputEntry id="OutputEntry_R7_acaoRecomendada"><text>"SUGERIR_ALTERNATIVA"</text></outputEntry>
+      </rule>
+
+      <!-- ========== RULES - APROVACOES ========== -->
+
+      <!-- RULE 8: Aprovado Classe I - ICC -->
+      <rule id="Rule_Aprovado_ClasseI_ICC">
+        <description>Aprovado: Classe I - Insuficiencia Cardiaca</description>
+        <inputEntry id="InputEntry_R8_1"><text>"ICC"</text></inputEntry>
+        <inputEntry id="InputEntry_R8_2"><text>"Adequado"</text></inputEntry>
+        <inputEntry id="InputEntry_R8_3"><text>"Classe I"</text></inputEntry>
+        <inputEntry id="InputEntry_R8_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_R8_5"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_R8_resultado"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_R8_observacao"><text>"ETT indicado para avaliacao de funcao ventricular em ICC - Classe I"</text></outputEntry>
+        <outputEntry id="OutputEntry_R8_fundamentacao"><text>"SBC/DIC 2024, ASE 2023 - Classe I: ETT essencial para diagnostico e acompanhamento de ICC"</text></outputEntry>
+        <outputEntry id="OutputEntry_R8_alertasDesperdicio"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_R8_acaoRecomendada"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <!-- RULE 9: Aprovado Classe I - Valvulopatia -->
+      <rule id="Rule_Aprovado_ClasseI_Valvulopatia">
+        <description>Aprovado: Classe I - Valvulopatia</description>
+        <inputEntry id="InputEntry_R9_1"><text>"Valvulopatia"</text></inputEntry>
+        <inputEntry id="InputEntry_R9_2"><text>"Adequado"</text></inputEntry>
+        <inputEntry id="InputEntry_R9_3"><text>"Classe I"</text></inputEntry>
+        <inputEntry id="InputEntry_R9_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_R9_5"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_R9_resultado"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_R9_observacao"><text>"ETT indicado para avaliacao de valvulopatia - Classe I"</text></outputEntry>
+        <outputEntry id="OutputEntry_R9_fundamentacao"><text>"SBC/DIC 2024, ASE 2023 - Classe I: ETT essencial para avaliacao de gravidade e prognostico de valvulopatias"</text></outputEntry>
+        <outputEntry id="OutputEntry_R9_alertasDesperdicio"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_R9_acaoRecomendada"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <!-- RULE 10: Aprovado Classe I - Cardiomiopatia -->
+      <rule id="Rule_Aprovado_ClasseI_Cardiomiopatia">
+        <description>Aprovado: Classe I - Cardiomiopatia</description>
+        <inputEntry id="InputEntry_R10_1"><text>"Cardiomiopatia"</text></inputEntry>
+        <inputEntry id="InputEntry_R10_2"><text>"Adequado"</text></inputEntry>
+        <inputEntry id="InputEntry_R10_3"><text>"Classe I"</text></inputEntry>
+        <inputEntry id="InputEntry_R10_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_R10_5"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_R10_resultado"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_R10_observacao"><text>"ETT indicado para investigacao de cardiomiopatia - Classe I"</text></outputEntry>
+        <outputEntry id="OutputEntry_R10_fundamentacao"><text>"SBC/DIC 2024, ASE 2023 - Classe I: ETT fundamental para diagnostico e classificacao de cardiomiopatias"</text></outputEntry>
+        <outputEntry id="OutputEntry_R10_alertasDesperdicio"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_R10_acaoRecomendada"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <!-- RULE 11: Aprovado Classe I - Pericardite -->
+      <rule id="Rule_Aprovado_ClasseI_Pericardite">
+        <description>Aprovado: Classe I - Pericardite/Derrame Pericardico</description>
+        <inputEntry id="InputEntry_R11_1"><text>"Pericardite"</text></inputEntry>
+        <inputEntry id="InputEntry_R11_2"><text>"Adequado"</text></inputEntry>
+        <inputEntry id="InputEntry_R11_3"><text>"Classe I"</text></inputEntry>
+        <inputEntry id="InputEntry_R11_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_R11_5"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_R11_resultado"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_R11_observacao"><text>"ETT indicado para avaliacao de pericardite e derrame pericardico - Classe I"</text></outputEntry>
+        <outputEntry id="OutputEntry_R11_fundamentacao"><text>"SBC/DIC 2024, ASE 2023 - Classe I: ETT essencial para diagnostico e quantificacao de derrame pericardico"</text></outputEntry>
+        <outputEntry id="OutputEntry_R11_alertasDesperdicio"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_R11_acaoRecomendada"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <!-- RULE 12: Aprovado Classe IIa - Sopro com documentacao -->
+      <rule id="Rule_Aprovado_ClasseIIa_Sopro">
+        <description>Aprovado: Classe IIa - Investigacao de sopro cardiaco</description>
+        <inputEntry id="InputEntry_R12_1"><text>"Sopro"</text></inputEntry>
+        <inputEntry id="InputEntry_R12_2"><text>"Adequado"</text></inputEntry>
+        <inputEntry id="InputEntry_R12_3"><text>"Classe IIa"</text></inputEntry>
+        <inputEntry id="InputEntry_R12_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_R12_5"><text>"Completo","Parcial"</text></inputEntry>
+        <outputEntry id="OutputEntry_R12_resultado"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_R12_observacao"><text>"ETT indicado para investigacao de sopro cardiaco - Classe IIa"</text></outputEntry>
+        <outputEntry id="OutputEntry_R12_fundamentacao"><text>"SBC/DIC 2024, ASE 2023 - Classe IIa: ETT razoavel para avaliacao de sopro cardiaco novo ou em mudanca"</text></outputEntry>
+        <outputEntry id="OutputEntry_R12_alertasDesperdicio"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_R12_acaoRecomendada"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <!-- RULE 13: Aprovado Classe IIa - Dor Toracica -->
+      <rule id="Rule_Aprovado_ClasseIIa_DorToracica">
+        <description>Aprovado: Classe IIa - Investigacao de dor toracica</description>
+        <inputEntry id="InputEntry_R13_1"><text>"DorToracica"</text></inputEntry>
+        <inputEntry id="InputEntry_R13_2"><text>"Adequado"</text></inputEntry>
+        <inputEntry id="InputEntry_R13_3"><text>"Classe IIa"</text></inputEntry>
+        <inputEntry id="InputEntry_R13_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_R13_5"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_R13_resultado"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_R13_observacao"><text>"ETT indicado para investigacao de dor toracica - Classe IIa"</text></outputEntry>
+        <outputEntry id="OutputEntry_R13_fundamentacao"><text>"SBC/DIC 2024, ASE 2023 - Classe IIa: ETT razoavel para avaliacao de dor toracica atipica ou suspeita cardiaca"</text></outputEntry>
+        <outputEntry id="OutputEntry_R13_alertasDesperdicio"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_R13_acaoRecomendada"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <!-- RULE 14: Aprovado Classe IIb - Acompanhamento com intervalo adequado -->
+      <rule id="Rule_Aprovado_ClasseIIb_AcompanhamentoAdequado">
+        <description>Aprovado: Classe IIb - Acompanhamento com intervalo minimo de 180 dias</description>
+        <inputEntry id="InputEntry_R14_1"><text>"AcompanhamentoEstavel"</text></inputEntry>
+        <inputEntry id="InputEntry_R14_2"><text>"Adequado"</text></inputEntry>
+        <inputEntry id="InputEntry_R14_3"><text>"Classe IIb"</text></inputEntry>
+        <inputEntry id="InputEntry_R14_4"><text>&gt;= 180</text></inputEntry>
+        <inputEntry id="InputEntry_R14_5"><text>"Completo"</text></inputEntry>
+        <outputEntry id="OutputEntry_R14_resultado"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_R14_observacao"><text>"ETT de acompanhamento aprovado - intervalo minimo de 180 dias respeitado"</text></outputEntry>
+        <outputEntry id="OutputEntry_R14_fundamentacao"><text>"SBC/DIC 2024 - Classe IIb: ETT de seguimento pode ser considerado com intervalo adequado"</text></outputEntry>
+        <outputEntry id="OutputEntry_R14_alertasDesperdicio"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_R14_acaoRecomendada"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <!-- ========== RULES - PENDENTES ========== -->
+
+      <!-- RULE 15: Pendente - Exames comprobatorios ausentes em Classe IIb -->
+      <rule id="Rule_Pendente_ExamesAusentes">
+        <description>Pendente: Exames comprobatorios ausentes para indicacao Classe IIb</description>
+        <inputEntry id="InputEntry_R15_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_R15_2"><text>"Adequado"</text></inputEntry>
+        <inputEntry id="InputEntry_R15_3"><text>"Classe IIb"</text></inputEntry>
+        <inputEntry id="InputEntry_R15_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_R15_5"><text>"Ausente"</text></inputEntry>
+        <outputEntry id="OutputEntry_R15_resultado"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OutputEntry_R15_observacao"><text>"Indicacao Classe IIb requer exames comprobatorios para autorizacao"</text></outputEntry>
+        <outputEntry id="OutputEntry_R15_fundamentacao"><text>"SBC/DIC 2024 - Classe IIb: Necessaria documentacao complementar para justificar beneficio"</text></outputEntry>
+        <outputEntry id="OutputEntry_R15_alertasDesperdicio"><text>"DOC"</text></outputEntry>
+        <outputEntry id="OutputEntry_R15_acaoRecomendada"><text>"SOLICITAR_INFO"</text></outputEntry>
+      </rule>
+
+      <!-- ========== FALLBACK RULE ========== -->
+
+      <rule id="Rule_Fallback_40201023">
+        <description>Regra padrao - Analise adicional necessaria</description>
+        <inputEntry id="InputEntry_Fallback_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Fallback_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Fallback_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Fallback_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Fallback_5"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_Fallback_resultado"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OutputEntry_Fallback_observacao"><text>"Caso requer analise clinica adicional - criterios nao totalmente atendidos"</text></outputEntry>
+        <outputEntry id="OutputEntry_Fallback_fundamentacao"><text>"Avaliacao individualizada necessaria conforme complexidade clinica e diretrizes SBC/DIC 2024"</text></outputEntry>
+        <outputEntry id="OutputEntry_Fallback_alertasDesperdicio"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_Fallback_acaoRecomendada"><text>"SOLICITAR_INFO"</text></outputEntry>
+      </rule>
+
+    </decisionTable>
+  </decision>
+</definitions>

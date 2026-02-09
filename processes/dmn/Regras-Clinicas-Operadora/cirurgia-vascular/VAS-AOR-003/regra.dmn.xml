@@ -1,0 +1,290 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/"
+             xmlns:dc="http://www.omg.org/spec/DD/20100524/DC/"
+             xmlns:di="http://www.omg.org/spec/DD/20100524/DI/"
+             id="Definitions_VAS_AOR_003"
+             name="EVAR vs Cirurgia Aberta AAA - Criterios de Selecao"
+             namespace="http://camunda.org/schema/1.0/dmn"
+             exporter="Camunda Modeler"
+             exporterVersion="5.0.0">
+  <!--
+    VAS-AOR-003 - EVAR vs Cirurgia Aberta para AAA - Criterios de Selecao
+    Versao: 1.0.0 (2026-02-07)
+    Especialidade: Cirurgia Vascular
+    Categoria: Cirurgia Aortica
+    TUSS Relacionados: 30907060, 30907079, 40901130
+
+    Indicacoes Gerais para Reparo de AAA:
+    - Diametro maior ou igual a 5.5cm (homens)
+    - Diametro maior ou igual a 5.0cm (mulheres)
+    - Crescimento maior que 0.5cm em 6 meses
+    - AAA sintomatico (dor, embolizacao)
+
+    Criterios para EVAR (vs Cirurgia Aberta):
+    - Anatomia favoravel (colo proximal adequado maior ou igual a 15mm)
+    - Alto risco cirurgico para cirurgia aberta
+    - Idade avancada com expectativa de vida limitada
+    - Preferencia do paciente quando ambos sao viaveis
+
+    Criterios para Cirurgia Aberta:
+    - Anatomia desfavoravel para EVAR
+    - Idade jovem com boa expectativa de vida (maior durabilidade)
+    - Baixo risco cirurgico
+    - AAA roto (controverso - EVAR tambem indicado)
+
+    Documentacao Obrigatoria:
+    - AngioTC com cortes finos para planejamento
+    - Avaliacao de risco cirurgico padronizada
+    - Medicoes de colos e angulacoes
+    - Avaliacao de acessos iliacos
+
+    Referencias Normativas:
+    - SVS/ESVS 2019 - AAA Guidelines
+    - EVAR 1/2 Trials
+    - ACC/AHA 2022
+    - DUT ANS 2024
+  -->
+
+  <decision id="Decision_VAS_AOR_003" name="Criterios de Selecao - EVAR vs Cirurgia Aberta para AAA">
+    <decisionTable id="DecisionTable_VAS_AOR_003" hitPolicy="FIRST">
+
+      <!-- Input 1: Diametro do AAA -->
+      <input id="Input_diametro" label="Diametro Maximo do AAA (cm)">
+        <inputExpression id="InputExpr_diametro" typeRef="string">
+          <text>diametroAAA</text>
+        </inputExpression>
+        <inputValues id="InputValues_diametro">
+          <text>"Menor_5.0","Entre_5.0_5.4","Entre_5.5_6.5","Maior_6.5","Roto"</text>
+        </inputValues>
+      </input>
+
+      <!-- Input 2: Anatomia para EVAR -->
+      <input id="Input_anatomiaEVAR" label="Anatomia para EVAR">
+        <inputExpression id="InputExpr_anatomiaEVAR" typeRef="string">
+          <text>anatomiaEVAR</text>
+        </inputExpression>
+        <inputValues id="InputValues_anatomiaEVAR">
+          <text>"Favoravel_IFU","Fora_IFU_Tratavel","Hostil_Colo_Curto","Hostil_Angulacao","Acesso_Inadequado"</text>
+        </inputValues>
+      </input>
+
+      <!-- Input 3: Risco Cirurgico -->
+      <input id="Input_riscoCirurgico" label="Risco Cirurgico para Cirurgia Aberta">
+        <inputExpression id="InputExpr_riscoCirurgico" typeRef="string">
+          <text>riscoCirurgico</text>
+        </inputExpression>
+        <inputValues id="InputValues_riscoCirurgico">
+          <text>"Baixo","Intermediario","Alto","Proibitivo"</text>
+        </inputValues>
+      </input>
+
+      <!-- Input 4: Idade e Expectativa de Vida -->
+      <input id="Input_idade" label="Idade e Expectativa de Vida">
+        <inputExpression id="InputExpr_idade" typeRef="string">
+          <text>idadeExpectativa</text>
+        </inputExpression>
+        <inputValues id="InputValues_idade">
+          <text>"Menor_60_Longa","Entre_60_75_Boa","Maior_75_Limitada","Maior_80"</text>
+        </inputValues>
+      </input>
+
+      <!-- Input 5: Documentacao de Imagem -->
+      <input id="Input_documentacao" label="AngioTC com Planejamento Adequado">
+        <inputExpression id="InputExpr_documentacao" typeRef="boolean">
+          <text>documentacaoImagem</text>
+        </inputExpression>
+      </input>
+
+      <!-- Outputs -->
+      <output id="Output_resultado" label="Resultado" name="resultado" typeRef="string">
+        <outputValues id="OutputValues_resultado">
+          <text>"Aprovado","Reprovado","Pendente"</text>
+        </outputValues>
+      </output>
+      <output id="Output_observacao" label="Observacao Clinica" name="observacao" typeRef="string" />
+      <output id="Output_fundamentacao" label="Fundamentacao Legal/Tecnica" name="fundamentacao" typeRef="string" />
+
+      <output id="Output_alertasDesperdicio" name="alertasDesperdicio" typeRef="string">
+        <outputValues>
+          <text>"NENHUM","DUP","FREQ","ESC","DOC","PROT","MULTI"</text>
+        </outputValues>
+      </output>
+
+      <output id="Output_acaoRecomendada" name="acaoRecomendada" typeRef="string">
+        <outputValues>
+          <text>"APROVAR","NEGAR","SOLICITAR_INFO","AGUARDAR_PRAZO","SUGERIR_ALTERNATIVA"</text>
+        </outputValues>
+      </output>
+
+      <!-- ============================================== -->
+      <!-- REGRAS DE REPROVACAO                          -->
+      <!-- ============================================== -->
+
+      <rule id="Rule_VAS_AOR_003_Reprovacao_Pequeno">
+        <description>Reprovacao - AAA menor que 5.0cm sem indicacao de reparo</description>
+        <inputEntry id="IE_Rep1_1"><text>"Menor_5.0"</text></inputEntry>
+        <inputEntry id="IE_Rep1_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_Rep1_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_Rep1_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_Rep1_5"><text>-</text></inputEntry>
+        <outputEntry id="OE_Rep1_1"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OE_Rep1_2"><text>"AAA menor que 5.0cm nao tem indicacao de reparo eletivo - manter vigilancia ultrassonografica semestral"</text></outputEntry>
+        <outputEntry id="OE_Rep1_3"><text>"SVS/ESVS 2019 Classe III - Reparo nao indicado para AAA menor que 5.0cm em mulheres ou 5.5cm em homens"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_VAS_AOR_003_Reprovacao_SemDoc">
+        <description>Reprovacao - Documentacao de imagem inadequada</description>
+        <inputEntry id="IE_Rep2_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_Rep2_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_Rep2_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_Rep2_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_Rep2_5"><text>false</text></inputEntry>
+        <outputEntry id="OE_Rep2_1"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OE_Rep2_2"><text>"AngioTC com cortes finos (menor ou igual a 1mm) obrigatoria para planejamento de reparo de AAA e selecao de metodo"</text></outputEntry>
+        <outputEntry id="OE_Rep2_3"><text>"SVS/ESVS 2019 - Imagem de alta qualidade obrigatoria para planejamento"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_VAS_AOR_003_Reprovacao_RiscoProibitivo">
+        <description>Reprovacao - Risco cirurgico proibitivo para qualquer intervencao</description>
+        <inputEntry id="IE_Rep3_1"><text>"Entre_5.5_6.5"</text></inputEntry>
+        <inputEntry id="IE_Rep3_2"><text>"Acesso_Inadequado"</text></inputEntry>
+        <inputEntry id="IE_Rep3_3"><text>"Proibitivo"</text></inputEntry>
+        <inputEntry id="IE_Rep3_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_Rep3_5"><text>true</text></inputEntry>
+        <outputEntry id="OE_Rep3_1"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OE_Rep3_2"><text>"Risco cirurgico proibitivo para cirurgia aberta E anatomia inadequada para EVAR - tratamento conservador pode ser mais apropriado"</text></outputEntry>
+        <outputEntry id="OE_Rep3_3"><text>"SVS/ESVS 2019 - Risco-beneficio desfavoravel quando ambos metodos sao contraindicados"</text></outputEntry>
+      </rule>
+
+      <!-- ============================================== -->
+      <!-- REGRAS DE APROVACAO - EMERGENCIA AAA ROTO     -->
+      <!-- ============================================== -->
+
+      <rule id="Rule_VAS_AOR_003_Aprovacao_Roto">
+        <description>Aprovacao Emergencia - AAA roto</description>
+        <inputEntry id="IE_Apr1_1"><text>"Roto"</text></inputEntry>
+        <inputEntry id="IE_Apr1_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_Apr1_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_Apr1_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_Apr1_5"><text>true</text></inputEntry>
+        <outputEntry id="OE_Apr1_1"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OE_Apr1_2"><text>"REPARO EMERGENCIAL APROVADO - AAA roto - EVAR ou cirurgia aberta de acordo com disponibilidade e expertise do centro"</text></outputEntry>
+        <outputEntry id="OE_Apr1_3"><text>"SVS/ESVS 2019 Classe I - Reparo emergencial obrigatorio em AAA roto"</text></outputEntry>
+      </rule>
+
+      <!-- ============================================== -->
+      <!-- REGRAS DE APROVACAO - EVAR                    -->
+      <!-- ============================================== -->
+
+      <rule id="Rule_VAS_AOR_003_Aprovacao_EVAR_AltoRisco">
+        <description>Aprovacao EVAR - Alto risco cirurgico com anatomia favoravel</description>
+        <inputEntry id="IE_Apr2_1"><text>"Entre_5.5_6.5","Maior_6.5"</text></inputEntry>
+        <inputEntry id="IE_Apr2_2"><text>"Favoravel_IFU"</text></inputEntry>
+        <inputEntry id="IE_Apr2_3"><text>"Alto"</text></inputEntry>
+        <inputEntry id="IE_Apr2_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_Apr2_5"><text>true</text></inputEntry>
+        <outputEntry id="OE_Apr2_1"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OE_Apr2_2"><text>"EVAR APROVADO - alto risco cirurgico para cirurgia aberta com anatomia favoravel para tratamento endovascular"</text></outputEntry>
+        <outputEntry id="OE_Apr2_3"><text>"SVS/ESVS 2019 Classe I - EVAR preferencial em alto risco cirurgico"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_VAS_AOR_003_Aprovacao_EVAR_Idoso">
+        <description>Aprovacao EVAR - Paciente idoso maior 80 anos</description>
+        <inputEntry id="IE_Apr3_1"><text>"Entre_5.5_6.5","Maior_6.5"</text></inputEntry>
+        <inputEntry id="IE_Apr3_2"><text>"Favoravel_IFU","Fora_IFU_Tratavel"</text></inputEntry>
+        <inputEntry id="IE_Apr3_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_Apr3_4"><text>"Maior_80"</text></inputEntry>
+        <inputEntry id="IE_Apr3_5"><text>true</text></inputEntry>
+        <outputEntry id="OE_Apr3_1"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OE_Apr3_2"><text>"EVAR APROVADO - paciente maior que 80 anos beneficia-se de menor invasividade do EVAR mesmo com anatomia subotima"</text></outputEntry>
+        <outputEntry id="OE_Apr3_3"><text>"SVS/ESVS 2019 Classe IIa - EVAR favorecido em pacientes idosos pela menor morbimortalidade perioperatoria"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_VAS_AOR_003_Aprovacao_EVAR_Padrao">
+        <description>Aprovacao EVAR - Anatomia favoravel com risco intermediario</description>
+        <inputEntry id="IE_Apr4_1"><text>"Entre_5.5_6.5","Maior_6.5"</text></inputEntry>
+        <inputEntry id="IE_Apr4_2"><text>"Favoravel_IFU"</text></inputEntry>
+        <inputEntry id="IE_Apr4_3"><text>"Intermediario"</text></inputEntry>
+        <inputEntry id="IE_Apr4_4"><text>"Entre_60_75_Boa","Maior_75_Limitada"</text></inputEntry>
+        <inputEntry id="IE_Apr4_5"><text>true</text></inputEntry>
+        <outputEntry id="OE_Apr4_1"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OE_Apr4_2"><text>"EVAR APROVADO - anatomia favoravel dentro das instrucoes de uso (IFU) com risco cirurgico intermediario"</text></outputEntry>
+        <outputEntry id="OE_Apr4_3"><text>"SVS/ESVS 2019 Classe I - EVAR e cirurgia aberta sao opcoes equivalentes quando anatomia eh favoravel"</text></outputEntry>
+      </rule>
+
+      <!-- ============================================== -->
+      <!-- REGRAS DE APROVACAO - CIRURGIA ABERTA         -->
+      <!-- ============================================== -->
+
+      <rule id="Rule_VAS_AOR_003_Aprovacao_Aberta_Jovem">
+        <description>Aprovacao Cirurgia Aberta - Paciente jovem com baixo risco</description>
+        <inputEntry id="IE_Apr5_1"><text>"Entre_5.5_6.5","Maior_6.5"</text></inputEntry>
+        <inputEntry id="IE_Apr5_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_Apr5_3"><text>"Baixo"</text></inputEntry>
+        <inputEntry id="IE_Apr5_4"><text>"Menor_60_Longa"</text></inputEntry>
+        <inputEntry id="IE_Apr5_5"><text>true</text></inputEntry>
+        <outputEntry id="OE_Apr5_1"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OE_Apr5_2"><text>"Cirurgia Aberta APROVADA - paciente jovem com baixo risco cirurgico beneficia-se de maior durabilidade do reparo aberto"</text></outputEntry>
+        <outputEntry id="OE_Apr5_3"><text>"SVS/ESVS 2019 Classe IIa - Cirurgia aberta pode ser preferida em pacientes jovens pela durabilidade"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_VAS_AOR_003_Aprovacao_Aberta_AnatomiaHostil">
+        <description>Aprovacao Cirurgia Aberta - Anatomia hostil para EVAR com baixo risco</description>
+        <inputEntry id="IE_Apr6_1"><text>"Entre_5.5_6.5","Maior_6.5"</text></inputEntry>
+        <inputEntry id="IE_Apr6_2"><text>"Hostil_Colo_Curto","Hostil_Angulacao","Acesso_Inadequado"</text></inputEntry>
+        <inputEntry id="IE_Apr6_3"><text>"Baixo","Intermediario"</text></inputEntry>
+        <inputEntry id="IE_Apr6_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_Apr6_5"><text>true</text></inputEntry>
+        <outputEntry id="OE_Apr6_1"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OE_Apr6_2"><text>"Cirurgia Aberta APROVADA - anatomia hostil para EVAR com risco cirurgico aceitavel para reparo convencional"</text></outputEntry>
+        <outputEntry id="OE_Apr6_3"><text>"SVS/ESVS 2019 Classe I - Cirurgia aberta indicada quando anatomia contraindica EVAR"</text></outputEntry>
+      </rule>
+
+      <!-- ============================================== -->
+      <!-- REGRAS DE PENDENCIA                           -->
+      <!-- ============================================== -->
+
+      <rule id="Rule_VAS_AOR_003_Pendente_Intermediario">
+        <description>Pendente - AAA 5.0-5.4cm em mulher ou paciente de alto risco</description>
+        <inputEntry id="IE_Pend1_1"><text>"Entre_5.0_5.4"</text></inputEntry>
+        <inputEntry id="IE_Pend1_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_Pend1_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_Pend1_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_Pend1_5"><text>true</text></inputEntry>
+        <outputEntry id="OE_Pend1_1"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OE_Pend1_2"><text>"AAA 5.0-5.4cm - zona intermediaria - indicacao depende de sexo (menor limiar em mulheres), taxa de crescimento e fatores de risco individuais"</text></outputEntry>
+        <outputEntry id="OE_Pend1_3"><text>"SVS/ESVS 2019 Classe IIb - Decisao individualizada para AAA 5.0-5.4cm"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_VAS_AOR_003_Pendente_ForaIFU">
+        <description>Pendente - Anatomia fora de IFU com risco intermediario</description>
+        <inputEntry id="IE_Pend2_1"><text>"Entre_5.5_6.5","Maior_6.5"</text></inputEntry>
+        <inputEntry id="IE_Pend2_2"><text>"Fora_IFU_Tratavel"</text></inputEntry>
+        <inputEntry id="IE_Pend2_3"><text>"Intermediario"</text></inputEntry>
+        <inputEntry id="IE_Pend2_4"><text>"Entre_60_75_Boa"</text></inputEntry>
+        <inputEntry id="IE_Pend2_5"><text>true</text></inputEntry>
+        <outputEntry id="OE_Pend2_1"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OE_Pend2_2"><text>"Anatomia fora de IFU padrao mas potencialmente tratavel por EVAR - decisao entre EVAR fora de IFU vs cirurgia aberta requer junta vascular"</text></outputEntry>
+        <outputEntry id="OE_Pend2_3"><text>"SVS/ESVS 2019 - Casos fora de IFU requerem experiencia do centro e decisao compartilhada"</text></outputEntry>
+      </rule>
+
+      <!-- ============================================== -->
+      <!-- REGRA FALLBACK                                -->
+      <!-- ============================================== -->
+
+      <rule id="Rule_Fallback_VAS_AOR_003">
+        <description>Fallback - Casos nao cobertos requerem analise manual</description>
+        <inputEntry id="IE_Fallback_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_Fallback_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_Fallback_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_Fallback_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_Fallback_5"><text>-</text></inputEntry>
+        <outputEntry id="OE_Fallback_1"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OE_Fallback_2"><text>"Caso requer analise manual por junta vascular especializada"</text></outputEntry>
+        <outputEntry id="OE_Fallback_3"><text>"Auditoria especializada conforme RN 428/2017"</text></outputEntry>
+      </rule>
+
+    </decisionTable>
+  </decision>
+</definitions>

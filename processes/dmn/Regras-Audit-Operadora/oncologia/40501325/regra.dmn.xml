@@ -1,0 +1,327 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  ONQ-IMG-010: Hepatic Imaging for Metastases
+  TUSS: 40501325
+  Versao: 3.1.0-LEAN-TIER2 (2026-02-08)
+  Especialidade: Oncologia/Radiologia
+
+  ============================================================================
+  INDICACOES CLINICAS:
+  ============================================================================
+  - CCR: Alto risco de metastases hepaticas (50% desenvolvem mets)
+  - TNE: Figado e sitio mais comum de metastases (octreoscan + RNM)
+  - Melanoma: Vigilancia hepatica em estadio III-IV
+
+  ============================================================================
+  FREQUENCIA DE VIGILANCIA:
+  ============================================================================
+  - CCR alto risco: TC/RNM hepatica cada 6 meses por 3 anos
+  - CCR baixo risco: TC/RNM anual
+  - TNE: RNM cada 6-12 meses
+
+  ============================================================================
+  MODALIDADES:
+  ============================================================================
+  - TC contraste: Padrao para maioria dos tumores
+  - RNM hepatica: Superior para lesoes pequenas e caracterizacao
+  - PET-CT: Complementar se duvida diagnostica
+
+  ============================================================================
+  REFERENCIAS NORMATIVAS:
+  ============================================================================
+  - NCCN Colorectal Cancer Guidelines - Surveillance
+  - NCCN Neuroendocrine Tumors Guidelines
+  - ESMO Consensus on Management of Liver Metastases
+-->
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/" xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/" xmlns:dc="http://www.omg.org/spec/DMN/20180521/DC/" xmlns:modeler="http://camunda.org/schema/modeler/1.0" id="Definitions_ONQ_IMG_010" name="DRD" namespace="http://camunda.org/schema/1.0/dmn" exporter="Camunda Modeler" exporterVersion="5.14.0" modeler:executionPlatform="Camunda Cloud" modeler:executionPlatformVersion="8.2.0">
+  <decision id="Decision_ONQ_IMG_010" name="ONQ-IMG-010: Hepatic Imaging for Metastases [LEAN TIER-2]">
+    <decisionTable id="DecisionTable_ONQ_IMG_010" hitPolicy="FIRST">
+      <input id="Input_tumor_type" label="Tumor Type">
+        <inputExpression id="InputExpression_tumor_type" typeRef="string">
+          <text>tumorType</text>
+        </inputExpression>
+      </input>
+      <input id="Input_baseline_liver_mets" label="Baseline Liver Metastases">
+        <inputExpression id="InputExpression_baseline_liver_mets" typeRef="boolean">
+          <text>baselineLiverMets</text>
+        </inputExpression>
+      </input>
+      <input id="Input_months_since_last" label="Months Since Last Hepatic Imaging">
+        <inputExpression id="InputExpression_months_since_last" typeRef="number">
+          <text>monthsSinceLastHepaticImaging</text>
+        </inputExpression>
+      </input>
+      <input id="Input_cea_chromogranin" label="CEA or Chromogranin Trend">
+        <inputExpression id="InputExpression_cea_chromogranin" typeRef="string">
+          <text>markerTrend</text>
+        </inputExpression>
+      </input>
+      <!-- Input: Dias desde ultimo procedimento (DUP detection) -->
+      <input id="Input_ultimoProcedimentoDias" label="Dias Desde Ultimo Procedimento">
+        <inputExpression id="InputExpression_ultimoProcedimentoDias" typeRef="number">
+          <text>ultimoProcedimentoDias</text>
+        </inputExpression>
+      </input>
+
+      <output id="Output_resultado" label="Resultado" name="resultado" typeRef="string">
+        <outputValues id="UnaryTests_resultado">
+          <text>"Aprovado","Reprovado","Pendente"</text>
+        </outputValues>
+      </output>
+      <output id="Output_observacao" label="Observacao" name="observacao" typeRef="string" />
+      <output id="Output_fundamentacao" label="Fundamentacao" name="fundamentacao" typeRef="string" />
+      <!-- Output 4: Alertas de Desperdicio - Anti-Waste Intelligence -->
+      <output id="Output_alertasDesperdicio" label="Alertas de Desperdicio" name="alertasDesperdicio" typeRef="string">
+        <outputValues id="OutputValues_alertasDesperdicio">
+          <text>"NENHUM","DUP","FREQ","ESC","DOC","PROT","MULTI"</text>
+        </outputValues>
+      </output>
+      <!-- Output 5: Acao Recomendada -->
+      <output id="Output_acaoRecomendada" label="Acao Recomendada" name="acaoRecomendada" typeRef="string">
+        <outputValues id="OutputValues_acaoRecomendada">
+          <text>"APROVAR","NEGAR","SOLICITAR_INFO","AGUARDAR_PRAZO","SUGERIR_ALTERNATIVA"</text>
+        </outputValues>
+      </output>
+      <rule id="DecisionRule_reject_low_risk">
+        <description>Reject hepatic imaging for low metastatic potential tumors</description>
+        <inputEntry id="InputEntry_tumor_type_reject">
+          <text>"prostate","thyroid_differentiated","basal_cell"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_baseline_liver_mets_reject">
+          <text>false</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_months_since_last_reject">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_cea_chromogranin_reject">
+          <text>"stable","not_applicable"</text>
+        </inputEntry>
+        <inputEntry id="IE_DecisionRule_reject_low_risk_ultimo"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_resultado_reject">
+          <text>"Reprovado"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_observacao_reject">
+          <text>"Imagem hepatica nao indicada: tumor com baixo potencial metastatico para figado"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_fundamentacao_reject">
+          <text>"Prostata, tireoide diferenciado raramente metastatizam para figado; vigilancia nao justificada"</text>
+        </outputEntry>
+        <outputEntry id="OE_DecisionRule_reject_low_risk_alertasDesperdicio">
+          <text>"FREQ"</text>
+        </outputEntry>
+        <outputEntry id="OE_DecisionRule_reject_low_risk_acaoRecomendada">
+          <text>"NEGAR"</text>
+        </outputEntry>
+      </rule>
+      <rule id="DecisionRule_approve_crc_6mo">
+        <description>Approve hepatic imaging for CRC every 6 months</description>
+        <inputEntry id="InputEntry_tumor_type_crc">
+          <text>"colorectal","colon","rectal"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_baseline_liver_mets_crc">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_months_since_last_crc">
+          <text>&gt;= 6</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_cea_chromogranin_crc">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="IE_DecisionRule_approve_crc_6mo_ultimo"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_resultado_crc">
+          <text>"Aprovado"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_observacao_crc">
+          <text>"TC/RNM hepatica aprovada: CCR requer vigilancia cada 6-12 meses por 3 anos"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_fundamentacao_crc">
+          <text>"50% CCR desenvolvem mets hepaticas; resseccao hepatica potencialmente curativa se detectada precoce"</text>
+        </outputEntry>
+        <outputEntry id="OE_DecisionRule_approve_crc_6mo_alertasDesperdicio">
+          <text>"NENHUM"</text>
+        </outputEntry>
+        <outputEntry id="OE_DecisionRule_approve_crc_6mo_acaoRecomendada">
+          <text>"APROVAR"</text>
+        </outputEntry>
+      </rule>
+      <rule id="DecisionRule_approve_net">
+        <description>Approve hepatic MRI for neuroendocrine tumors</description>
+        <inputEntry id="InputEntry_tumor_type_net">
+          <text>"neuroendocrine","NET","carcinoid"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_baseline_liver_mets_net">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_months_since_last_net">
+          <text>&gt;= 6</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_cea_chromogranin_net">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="IE_DecisionRule_approve_net_ultimo"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_resultado_net">
+          <text>"Aprovado"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_observacao_net">
+          <text>"RNM hepatica aprovada para TNE: vigilancia cada 6-12 meses (complementar octreoscan)"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_fundamentacao_net">
+          <text>"Figado e sitio primario de mets em TNE; RNM superior a TC para lesoes pequenas hipervascularizadas"</text>
+        </outputEntry>
+        <outputEntry id="OE_DecisionRule_approve_net_alertasDesperdicio">
+          <text>"NENHUM"</text>
+        </outputEntry>
+        <outputEntry id="OE_DecisionRule_approve_net_acaoRecomendada">
+          <text>"APROVAR"</text>
+        </outputEntry>
+      </rule>
+      <rule id="DecisionRule_approve_melanoma">
+        <description>Approve hepatic imaging for melanoma stage III-IV</description>
+        <inputEntry id="InputEntry_tumor_type_melanoma">
+          <text>"melanoma"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_baseline_liver_mets_melanoma">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_months_since_last_melanoma">
+          <text>&gt;= 6</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_cea_chromogranin_melanoma">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="IE_DecisionRule_approve_melanoma_ultimo"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_resultado_melanoma">
+          <text>"Aprovado"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_observacao_melanoma">
+          <text>"TC torax/abdome aprovada para melanoma metastatico: vigilancia cada 6-12 meses"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_fundamentacao_melanoma">
+          <text>"Melanoma estadio III-IV: vigilancia intensiva por 3 anos (maior risco recidiva)"</text>
+        </outputEntry>
+        <outputEntry id="OE_DecisionRule_approve_melanoma_alertasDesperdicio">
+          <text>"NENHUM"</text>
+        </outputEntry>
+        <outputEntry id="OE_DecisionRule_approve_melanoma_acaoRecomendada">
+          <text>"APROVAR"</text>
+        </outputEntry>
+      </rule>
+      <rule id="DecisionRule_approve_rising_marker">
+        <description>Approve hepatic imaging for rising tumor markers</description>
+        <inputEntry id="InputEntry_tumor_type_marker">
+          <text>"colorectal","neuroendocrine"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_baseline_liver_mets_marker">
+          <text>false</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_months_since_last_marker">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_cea_chromogranin_marker">
+          <text>"rising","doubling"</text>
+        </inputEntry>
+        <inputEntry id="IE_DecisionRule_approve_rising_marker_ultimo"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_resultado_marker">
+          <text>"Aprovado"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_observacao_marker">
+          <text>"Imagem hepatica aprovada: marcador em elevacao sugere metastases ocultas"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_fundamentacao_marker">
+          <text>"CEA/cromogranina em elevacao precede deteccao radiologica em 3-6 meses; antecipar imagem"</text>
+        </outputEntry>
+        <outputEntry id="OE_DecisionRule_approve_rising_marker_alertasDesperdicio">
+          <text>"NENHUM"</text>
+        </outputEntry>
+        <outputEntry id="OE_DecisionRule_approve_rising_marker_acaoRecomendada">
+          <text>"APROVAR"</text>
+        </outputEntry>
+      </rule>
+      <rule id="DecisionRule_reject_too_soon">
+        <description>Reject if hepatic imaging done recently</description>
+        <inputEntry id="InputEntry_tumor_type_freq">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_baseline_liver_mets_freq">
+          <text>false</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_months_since_last_freq">
+          <text>&lt; 6</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_cea_chromogranin_freq">
+          <text>"stable","decreasing"</text>
+        </inputEntry>
+        <inputEntry id="IE_DecisionRule_reject_too_soon_ultimo"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_resultado_freq">
+          <text>"Reprovado"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_observacao_freq">
+          <text>"Imagem hepatica realizada ha &lt;6 meses: intervalo minimo nao atingido"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_fundamentacao_freq">
+          <text>"Intervalo minimo de 6 meses para vigilancia de rotina; exceto sintomas/marcadores alterados"</text>
+        </outputEntry>
+        <outputEntry id="OE_DecisionRule_reject_too_soon_alertasDesperdicio">
+          <text>"FREQ"</text>
+        </outputEntry>
+        <outputEntry id="OE_DecisionRule_reject_too_soon_acaoRecomendada">
+          <text>"NEGAR"</text>
+        </outputEntry>
+      </rule>
+
+      <!-- WASTE DETECTION: DUP -->
+      <rule id="Rule_40501325_DUP">
+        <description>DUP - Imagem hepatica metastases repetida em menos de 90 dias</description>
+        <inputEntry id="IE_DUP_40501325_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_DUP_40501325_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_DUP_40501325_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_DUP_40501325_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_DUP_40501325_ultimo"><text>&lt; 90</text></inputEntry>
+        <outputEntry id="OE_DUP_40501325_resultado"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OE_DUP_40501325_observacao"><text>"Imagem hepatica metastases repetida em menos de 90 dias"</text></outputEntry>
+        <outputEntry id="OE_DUP_40501325_fundamentacao"><text>"NCCN 2024: Imagem hepatica a cada 3-6 meses durante tratamento"</text></outputEntry>
+        <outputEntry id="OE_DUP_40501325_alertasDesperdicio"><text>"DUP"</text></outputEntry>
+        <outputEntry id="OE_DUP_40501325_acaoRecomendada"><text>"AGUARDAR_PRAZO"</text></outputEntry>
+      </rule>
+
+      <rule id="DecisionRule_fallback">
+        <description>Fallback rule for incomplete data</description>
+        <inputEntry id="InputEntry_tumor_type_fallback">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_baseline_liver_mets_fallback">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_months_since_last_fallback">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_cea_chromogranin_fallback">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="IE_DecisionRule_fallback_ultimo"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_resultado_fallback">
+          <text>"Pendente"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_observacao_fallback">
+          <text>"Dados insuficientes para avaliacao de imagem hepatica"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_fundamentacao_fallback">
+          <text>"Necessario: tipo tumoral, mets basais, data ultimo exame, marcadores"</text>
+        </outputEntry>
+        <outputEntry id="OE_DecisionRule_fallback_alertasDesperdicio">
+          <text>"NENHUM"</text>
+        </outputEntry>
+        <outputEntry id="OE_DecisionRule_fallback_acaoRecomendada">
+          <text>"SOLICITAR_INFO"</text>
+        </outputEntry>
+      </rule>
+    </decisionTable>
+  </decision>
+  <dmndi:DMNDI>
+    <dmndi:DMNDiagram>
+      <dmndi:DMNShape dmnElementRef="Decision_ONQ_IMG_010">
+        <dc:Bounds height="80" width="180" x="160" y="100" />
+      </dmndi:DMNShape>
+    </dmndi:DMNDiagram>
+  </dmndi:DMNDI>
+</definitions>

@@ -1,0 +1,321 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             xmlns:camunda="http://camunda.org/schema/1.0/dmn"
+             id="Definitions_30803113"
+             name="TOR-LUN-004 VATS vs Toracotomia Aberta"
+             namespace="http://camunda.org/schema/1.0/dmn">
+
+  <!--
+    ===============================================================================
+    TUSS: 30803113
+    Procedimento: Selecao de Via de Acesso - VATS vs Toracotomia Aberta
+    Especialidade: Cirurgia Toracica
+    Codigo Regra: TOR-LUN-004
+    Versao: 3.0.0-LEAN-TIER2
+    Data: 2026-02-07
+    ===============================================================================
+
+    INDICACOES PARA VATS (Video-Assisted Thoracoscopic Surgery):
+    - Tumor periferico menor que 5-6cm
+    - Ausencia de invasao de parede toracica ou estruturas centrais
+    - Estadio clinico I-II (selecionados IIIA)
+    - Ausencia de quimioterapia de inducao com fibrose hiliar
+    - Centro com experiencia em VATS oncologico
+    - Recursos adequados para conversao se necessario
+
+    INDICACOES PARA TORACOTOMIA ABERTA:
+    - Tumor central com envolvimento hilar extenso
+    - Necessidade de resseccao em manga (sleeve)
+    - Invasao de parede toracica requerendo resseccao
+    - Tumor maior que 6-7cm
+    - Aderencias pleurais densas conhecidas (cirurgia previa, empiema)
+    - Reconstrucao vascular ou broncoplastia complexa
+    - Quimioterapia de inducao com resposta e fibrose
+
+    REFERENCIAS TECNICAS:
+    - VIOLET Trial 2019 (Lancet)
+    - NCCN NSCLC 2024 - Surgical Approaches
+    - ESTS/SBCT Guidelines VATS Lobectomy 2023
+    - CALGB 39802 - VATS Lobectomy Standards
+    ===============================================================================
+  -->
+
+  <decision id="Decision_30803113" name="Regra Clinica - VATS vs Toracotomia">
+    <decisionTable id="DecisionTable_30803113" hitPolicy="FIRST">
+
+      <!-- ========== INPUTS (5) - Padrao TIER-1 Cirurgia Toracica ========== -->
+
+      <input id="Input_diagnosticoPulmonar" label="Caracteristicas do Tumor" camunda:inputVariable="diagnosticoPulmonar">
+        <inputExpression id="InputExpression_diagnosticoPulmonar" typeRef="string">
+          <text>diagnosticoPulmonar</text>
+        </inputExpression>
+        <inputValues id="InputValues_diagnosticoPulmonar">
+          <text>"PERIFERICO_MENOR_5CM","PERIFERICO_5_7CM","CENTRAL_HILAR","INVASAO_PAREDE","INVASAO_ESTRUTURAS_CENTRAIS","NECESSITA_SLEEVE"</text>
+        </inputValues>
+      </input>
+
+      <input id="Input_estadiamentoTNM" label="Estadiamento e Tratamento Previo" camunda:inputVariable="estadiamentoTNM">
+        <inputExpression id="InputExpression_estadiamentoTNM" typeRef="string">
+          <text>estadiamentoTNM</text>
+        </inputExpression>
+        <inputValues id="InputValues_estadiamentoTNM">
+          <text>"ESTADIO_I_II_SEM_NEOADJ","ESTADIO_IIIA_SEM_NEOADJ","POS_NEOADJUVANCIA","ADERENCIAS_PREVIAS","NAO_ESTADIADO"</text>
+        </inputValues>
+      </input>
+
+      <input id="Input_funcaoPulmonar" label="Funcao Pulmonar e Risco Cirurgico" camunda:inputVariable="funcaoPulmonar">
+        <inputExpression id="InputExpression_funcaoPulmonar" typeRef="string">
+          <text>funcaoPulmonar</text>
+        </inputExpression>
+        <inputValues id="InputValues_funcaoPulmonar">
+          <text>"ADEQUADA","LIMITADA_BENEFICIA_VATS","GRAVEMENTE_REDUZIDA","NAO_AVALIADA"</text>
+        </inputValues>
+      </input>
+
+      <input id="Input_comorbidades" label="Complexidade Cirurgica Prevista" camunda:inputVariable="comorbidades">
+        <inputExpression id="InputExpression_comorbidades" typeRef="string">
+          <text>comorbidades</text>
+        </inputExpression>
+        <inputValues id="InputValues_comorbidades">
+          <text>"BAIXA_COMPLEXIDADE","MEDIA_COMPLEXIDADE","ALTA_COMPLEXIDADE_VASCULAR","RECONSTRUCAO_BRONQUICA","RESSECCAO_PAREDE"</text>
+        </inputValues>
+      </input>
+
+      <input id="Input_documentacaoClinica" label="Experiencia do Centro e Documentacao" camunda:inputVariable="documentacaoClinica">
+        <inputExpression id="InputExpression_documentacaoClinica" typeRef="string">
+          <text>documentacaoClinica</text>
+        </inputExpression>
+        <inputValues id="InputValues_documentacaoClinica">
+          <text>"CENTRO_VATS_EXPERIENTE","CENTRO_VATS_INICIANTE","CENTRO_SEM_VATS","DOCUMENTACAO_INCOMPLETA"</text>
+        </inputValues>
+      </input>
+
+      <!-- ========== OUTPUTS (3) - Padrao TIER-1 ========== -->
+
+      <output id="Output_resultado" label="Resultado" name="resultado" typeRef="string">
+        <outputValues id="OutputValues_resultado">
+          <text>"Aprovado","Reprovado","Pendente"</text>
+        </outputValues>
+      </output>
+
+      <output id="Output_observacao" label="Observacao Clinica" name="observacao" typeRef="string" />
+
+      <output id="Output_fundamentacao" label="Fundamentacao Tecnica" name="fundamentacao" typeRef="string" />
+
+      <output id="Output_alertasDesperdicio" name="alertasDesperdicio" typeRef="string">
+        <outputValues>
+          <text>"NENHUM","DUP","FREQ","ESC","DOC","PROT","MULTI"</text>
+        </outputValues>
+      </output>
+
+      <output id="Output_acaoRecomendada" name="acaoRecomendada" typeRef="string">
+        <outputValues>
+          <text>"APROVAR","NEGAR","SOLICITAR_INFO","AGUARDAR_PRAZO","SUGERIR_ALTERNATIVA"</text>
+        </outputValues>
+      </output>
+
+      <!-- ========== REGRAS - Ordem: Reprovado, Aprovado, Pendente, Fallback ========== -->
+
+      <!-- REPROVACOES (VATS contraindicada - requer Toracotomia) -->
+
+      <rule id="Rule_Reprovado_InvasaoCentral">
+        <description>VATS Reprovado: Invasao de estruturas centrais - Toracotomia obrigatoria</description>
+        <inputEntry id="InputEntry_Rep_Central_1"><text>"INVASAO_ESTRUTURAS_CENTRAIS"</text></inputEntry>
+        <inputEntry id="InputEntry_Rep_Central_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Rep_Central_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Rep_Central_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Rep_Central_5"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_Rep_Central_resultado"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_Rep_Central_observacao"><text>"VATS nao indicada - invasao de estruturas centrais (grandes vasos, carina, esofago). Toracotomia aberta obrigatoria para controle vascular e resseccao segura."</text></outputEntry>
+        <outputEntry id="OutputEntry_Rep_Central_fundamentacao"><text>"ESTS Guidelines, NCCN 2024: Tumores T4 com invasao de estruturas irressecaveis ou que requerem reconstrucao vascular maior necessitam toracotomia."</text></outputEntry>
+        <outputEntry id="OutputEntry_Reprovado_InvasaoCentral_alertasDesperdicio"><text>"PROT"</text></outputEntry>
+        <outputEntry id="OutputEntry_Reprovado_InvasaoCentral_acaoRecomendada"><text>"NEGAR"</text></outputEntry>
+        <outputEntry id="OutputEntry_Reprovado_InvasaoCentral_alertasDesperdicio"><text>"PROT"</text></outputEntry>
+        <outputEntry id="OutputEntry_Reprovado_InvasaoCentral_acaoRecomendada"><text>"NEGAR"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Reprovado_Sleeve">
+        <description>VATS Reprovado: Necessidade de resseccao em manga (sleeve)</description>
+        <inputEntry id="InputEntry_Rep_Sleeve_1"><text>"NECESSITA_SLEEVE"</text></inputEntry>
+        <inputEntry id="InputEntry_Rep_Sleeve_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Rep_Sleeve_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Rep_Sleeve_4"><text>"RECONSTRUCAO_BRONQUICA"</text></inputEntry>
+        <inputEntry id="InputEntry_Rep_Sleeve_5"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_Rep_Sleeve_resultado"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_Rep_Sleeve_observacao"><text>"VATS nao indicada para resseccao em manga (sleeve lobectomy). Toracotomia permite anastomose bronquica com melhor exposicao."</text></outputEntry>
+        <outputEntry id="OutputEntry_Rep_Sleeve_fundamentacao"><text>"SBCT 2023, ESTS: Sleeve lobectomy por VATS e factivel em centros altamente experientes, mas toracotomia permanece padrao para seguranca oncologica."</text></outputEntry>
+        <outputEntry id="OutputEntry_Reprovado_Sleeve_alertasDesperdicio"><text>"PROT"</text></outputEntry>
+        <outputEntry id="OutputEntry_Reprovado_Sleeve_acaoRecomendada"><text>"NEGAR"</text></outputEntry>
+        <outputEntry id="OutputEntry_Reprovado_Sleeve_alertasDesperdicio"><text>"PROT"</text></outputEntry>
+        <outputEntry id="OutputEntry_Reprovado_Sleeve_acaoRecomendada"><text>"NEGAR"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Reprovado_InvasaoParede">
+        <description>VATS Reprovado: Invasao de parede toracica requerendo resseccao</description>
+        <inputEntry id="InputEntry_Rep_Parede_1"><text>"INVASAO_PAREDE"</text></inputEntry>
+        <inputEntry id="InputEntry_Rep_Parede_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Rep_Parede_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Rep_Parede_4"><text>"RESSECCAO_PAREDE"</text></inputEntry>
+        <inputEntry id="InputEntry_Rep_Parede_5"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_Rep_Parede_resultado"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_Rep_Parede_observacao"><text>"VATS nao indicada - tumor T3 com invasao de parede toracica requerendo resseccao em bloco. Toracotomia permite resseccao oncologica adequada."</text></outputEntry>
+        <outputEntry id="OutputEntry_Rep_Parede_fundamentacao"><text>"NCCN 2024: Resseccao de parede toracica em bloco requer toracotomia para margens adequadas e reconstrucao quando necessaria."</text></outputEntry>
+        <outputEntry id="OutputEntry_Reprovado_InvasaoParede_alertasDesperdicio"><text>"PROT"</text></outputEntry>
+        <outputEntry id="OutputEntry_Reprovado_InvasaoParede_acaoRecomendada"><text>"NEGAR"</text></outputEntry>
+        <outputEntry id="OutputEntry_Reprovado_InvasaoParede_alertasDesperdicio"><text>"PROT"</text></outputEntry>
+        <outputEntry id="OutputEntry_Reprovado_InvasaoParede_acaoRecomendada"><text>"NEGAR"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Reprovado_AderenciasPrevias">
+        <description>VATS Reprovado: Aderencias pleurais densas conhecidas</description>
+        <inputEntry id="InputEntry_Rep_Ader_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Rep_Ader_2"><text>"ADERENCIAS_PREVIAS"</text></inputEntry>
+        <inputEntry id="InputEntry_Rep_Ader_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Rep_Ader_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Rep_Ader_5"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_Rep_Ader_resultado"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_Rep_Ader_observacao"><text>"VATS com alta probabilidade de conversao - aderencias pleurais densas (cirurgia toracica previa, empiema, pleurodese). Toracotomia planejada preferivel."</text></outputEntry>
+        <outputEntry id="OutputEntry_Rep_Ader_fundamentacao"><text>"ESTS, SBCT: Conversao de VATS para toracotomia aumenta morbimortalidade. Se aderencias conhecidas, toracotomia planejada e mais segura."</text></outputEntry>
+        <outputEntry id="OutputEntry_Reprovado_AderenciasPrevias_alertasDesperdicio"><text>"PROT"</text></outputEntry>
+        <outputEntry id="OutputEntry_Reprovado_AderenciasPrevias_acaoRecomendada"><text>"NEGAR"</text></outputEntry>
+        <outputEntry id="OutputEntry_Reprovado_AderenciasPrevias_alertasDesperdicio"><text>"PROT"</text></outputEntry>
+        <outputEntry id="OutputEntry_Reprovado_AderenciasPrevias_acaoRecomendada"><text>"NEGAR"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Reprovado_SemExperiencia">
+        <description>VATS Reprovado: Centro sem experiencia em VATS oncologico</description>
+        <inputEntry id="InputEntry_Rep_Exp_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Rep_Exp_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Rep_Exp_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Rep_Exp_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Rep_Exp_5"><text>"CENTRO_SEM_VATS"</text></inputEntry>
+        <outputEntry id="OutputEntry_Rep_Exp_resultado"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_Rep_Exp_observacao"><text>"VATS nao autorizada - centro sem experiencia comprovada em VATS lobectomia oncologica. Toracotomia ou encaminhamento para centro de referencia."</text></outputEntry>
+        <outputEntry id="OutputEntry_Rep_Exp_fundamentacao"><text>"CALGB 39802, ESTS: VATS lobectomia oncologica requer curva de aprendizado minima de 50 casos. Qualidade oncologica pode ser comprometida em centros inexperientes."</text></outputEntry>
+        <outputEntry id="OutputEntry_Reprovado_SemExperiencia_alertasDesperdicio"><text>"PROT"</text></outputEntry>
+        <outputEntry id="OutputEntry_Reprovado_SemExperiencia_acaoRecomendada"><text>"NEGAR"</text></outputEntry>
+        <outputEntry id="OutputEntry_Reprovado_SemExperiencia_alertasDesperdicio"><text>"PROT"</text></outputEntry>
+        <outputEntry id="OutputEntry_Reprovado_SemExperiencia_acaoRecomendada"><text>"NEGAR"</text></outputEntry>
+      </rule>
+
+      <!-- APROVACOES (VATS indicada) -->
+
+      <rule id="Rule_Aprovado_VATS_Ideal">
+        <description>VATS Aprovado: Tumor periferico menor 5cm, estadio I-II, centro experiente</description>
+        <inputEntry id="InputEntry_Apr_Ideal_1"><text>"PERIFERICO_MENOR_5CM"</text></inputEntry>
+        <inputEntry id="InputEntry_Apr_Ideal_2"><text>"ESTADIO_I_II_SEM_NEOADJ"</text></inputEntry>
+        <inputEntry id="InputEntry_Apr_Ideal_3"><text>"ADEQUADA","LIMITADA_BENEFICIA_VATS"</text></inputEntry>
+        <inputEntry id="InputEntry_Apr_Ideal_4"><text>"BAIXA_COMPLEXIDADE","MEDIA_COMPLEXIDADE"</text></inputEntry>
+        <inputEntry id="InputEntry_Apr_Ideal_5"><text>"CENTRO_VATS_EXPERIENTE"</text></inputEntry>
+        <outputEntry id="OutputEntry_Apr_Ideal_resultado"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_Apr_Ideal_observacao"><text>"VATS lobectomia aprovada. Tumor periferico ideal para abordagem minimamente invasiva. Menor morbidade, dor e tempo de internacao."</text></outputEntry>
+        <outputEntry id="OutputEntry_Apr_Ideal_fundamentacao"><text>"VIOLET Trial 2019, NCCN 2024: VATS equivalente oncologicamente a toracotomia com menor morbidade. Padrao de cuidado para estadio I-II periferico."</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprovado_VATS_Ideal_alertasDesperdicio"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprovado_VATS_Ideal_acaoRecomendada"><text>"APROVAR"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprovado_VATS_Ideal_alertasDesperdicio"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprovado_VATS_Ideal_acaoRecomendada"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Aprovado_VATS_FuncaoLimitada">
+        <description>VATS Aprovado: Funcao pulmonar limitada - maior beneficio da via minimamente invasiva</description>
+        <inputEntry id="InputEntry_Apr_FuncLim_1"><text>"PERIFERICO_MENOR_5CM","PERIFERICO_5_7CM"</text></inputEntry>
+        <inputEntry id="InputEntry_Apr_FuncLim_2"><text>"ESTADIO_I_II_SEM_NEOADJ"</text></inputEntry>
+        <inputEntry id="InputEntry_Apr_FuncLim_3"><text>"LIMITADA_BENEFICIA_VATS","GRAVEMENTE_REDUZIDA"</text></inputEntry>
+        <inputEntry id="InputEntry_Apr_FuncLim_4"><text>"BAIXA_COMPLEXIDADE"</text></inputEntry>
+        <inputEntry id="InputEntry_Apr_FuncLim_5"><text>"CENTRO_VATS_EXPERIENTE"</text></inputEntry>
+        <outputEntry id="OutputEntry_Apr_FuncLim_resultado"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_Apr_FuncLim_observacao"><text>"VATS fortemente indicada em funcao pulmonar limitada. Menor dor, preservacao de musculatura e recuperacao mais rapida beneficiam pacientes de alto risco."</text></outputEntry>
+        <outputEntry id="OutputEntry_Apr_FuncLim_fundamentacao"><text>"ESTS, SBCT 2023: Pacientes com reserva funcional limitada se beneficiam particularmente de VATS por menor trauma cirurgico e melhor recuperacao."</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprovado_VATS_FuncaoLimitada_alertasDesperdicio"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprovado_VATS_FuncaoLimitada_acaoRecomendada"><text>"APROVAR"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprovado_VATS_FuncaoLimitada_alertasDesperdicio"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprovado_VATS_FuncaoLimitada_acaoRecomendada"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Aprovado_VATS_CentralHilar">
+        <description>VATS Aprovado com ressalvas: Tumor central/hilar em centro muito experiente</description>
+        <inputEntry id="InputEntry_Apr_Central_1"><text>"CENTRAL_HILAR"</text></inputEntry>
+        <inputEntry id="InputEntry_Apr_Central_2"><text>"ESTADIO_I_II_SEM_NEOADJ"</text></inputEntry>
+        <inputEntry id="InputEntry_Apr_Central_3"><text>"ADEQUADA"</text></inputEntry>
+        <inputEntry id="InputEntry_Apr_Central_4"><text>"MEDIA_COMPLEXIDADE"</text></inputEntry>
+        <inputEntry id="InputEntry_Apr_Central_5"><text>"CENTRO_VATS_EXPERIENTE"</text></inputEntry>
+        <outputEntry id="OutputEntry_Apr_Central_resultado"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_Apr_Central_observacao"><text>"VATS possivel para tumor central em centro altamente experiente. Preparo para conversao obrigatorio. Linfadenectomia hilar completa essencial."</text></outputEntry>
+        <outputEntry id="OutputEntry_Apr_Central_fundamentacao"><text>"ESTS Advanced VATS: Tumores centrais sao factives por VATS em centros de excelencia. Taxa de conversao maior que perifericos e aceitavel."</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprovado_VATS_CentralHilar_alertasDesperdicio"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprovado_VATS_CentralHilar_acaoRecomendada"><text>"APROVAR"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprovado_VATS_CentralHilar_alertasDesperdicio"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprovado_VATS_CentralHilar_acaoRecomendada"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <!-- PENDENCIAS -->
+
+      <rule id="Rule_Pendente_IIIA_PosNeo">
+        <description>Pendente: Pos-neoadjuvancia - avaliar fibrose e resposta</description>
+        <inputEntry id="InputEntry_Pend_Neo_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Pend_Neo_2"><text>"POS_NEOADJUVANCIA"</text></inputEntry>
+        <inputEntry id="InputEntry_Pend_Neo_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Pend_Neo_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Pend_Neo_5"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_Pend_Neo_resultado"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OutputEntry_Pend_Neo_observacao"><text>"Pos-quimioterapia de inducao - decisao entre VATS e toracotomia depende de resposta e grau de fibrose hilar. Avaliacao caso a caso."</text></outputEntry>
+        <outputEntry id="OutputEntry_Pend_Neo_fundamentacao"><text>"NCCN 2024: VATS pos-neoadjuvancia e tecnicamente desafiadora. Fibrose hilar pode aumentar risco de conversao. Experiencia do cirurgiao e determinante."</text></outputEntry>
+        <outputEntry id="OutputEntry_Pendente_IIIA_PosNeo_alertasDesperdicio"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_Pendente_IIIA_PosNeo_acaoRecomendada"><text>"SOLICITAR_INFO"</text></outputEntry>
+        <outputEntry id="OutputEntry_Pendente_IIIA_PosNeo_alertasDesperdicio"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_Pendente_IIIA_PosNeo_acaoRecomendada"><text>"SOLICITAR_INFO"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Pendente_CentroIniciante">
+        <description>Pendente: Centro iniciante em VATS - avaliar complexidade</description>
+        <inputEntry id="InputEntry_Pend_Ini_1"><text>"PERIFERICO_MENOR_5CM"</text></inputEntry>
+        <inputEntry id="InputEntry_Pend_Ini_2"><text>"ESTADIO_I_II_SEM_NEOADJ"</text></inputEntry>
+        <inputEntry id="InputEntry_Pend_Ini_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Pend_Ini_4"><text>"BAIXA_COMPLEXIDADE"</text></inputEntry>
+        <inputEntry id="InputEntry_Pend_Ini_5"><text>"CENTRO_VATS_INICIANTE"</text></inputEntry>
+        <outputEntry id="OutputEntry_Pend_Ini_resultado"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OutputEntry_Pend_Ini_observacao"><text>"Centro em fase de aprendizado VATS. Avaliar experiencia acumulada do cirurgiao e selecao de casos simples. Supervisao recomendada."</text></outputEntry>
+        <outputEntry id="OutputEntry_Pend_Ini_fundamentacao"><text>"CALGB 39802: Curva de aprendizado de VATS lobectomia e 50+ casos. Casos iniciais devem ser perifericos, lobos inferiores, sem fissura incompleta."</text></outputEntry>
+        <outputEntry id="OutputEntry_Pendente_CentroIniciante_alertasDesperdicio"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_Pendente_CentroIniciante_acaoRecomendada"><text>"SOLICITAR_INFO"</text></outputEntry>
+        <outputEntry id="OutputEntry_Pendente_CentroIniciante_alertasDesperdicio"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_Pendente_CentroIniciante_acaoRecomendada"><text>"SOLICITAR_INFO"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Pendente_DocumentacaoIncompleta">
+        <description>Pendente: Documentacao incompleta para definir via de acesso</description>
+        <inputEntry id="InputEntry_Pend_Doc_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Pend_Doc_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Pend_Doc_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Pend_Doc_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Pend_Doc_5"><text>"DOCUMENTACAO_INCOMPLETA"</text></inputEntry>
+        <outputEntry id="OutputEntry_Pend_Doc_resultado"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OutputEntry_Pend_Doc_observacao"><text>"Documentacao insuficiente. Anexar: TC de torax com contraste, estadiamento, localizacao tumoral precisa, experiencia do centro em VATS."</text></outputEntry>
+        <outputEntry id="OutputEntry_Pend_Doc_fundamentacao"><text>"Decisao de via de acesso requer imagem de qualidade para avaliar relacao com estruturas hilares e experiencia institucional documentada."</text></outputEntry>
+        <outputEntry id="OutputEntry_Pendente_DocumentacaoIncompleta_alertasDesperdicio"><text>"DOC"</text></outputEntry>
+        <outputEntry id="OutputEntry_Pendente_DocumentacaoIncompleta_acaoRecomendada"><text>"SOLICITAR_INFO"</text></outputEntry>
+        <outputEntry id="OutputEntry_Pendente_DocumentacaoIncompleta_alertasDesperdicio"><text>"DOC"</text></outputEntry>
+        <outputEntry id="OutputEntry_Pendente_DocumentacaoIncompleta_acaoRecomendada"><text>"SOLICITAR_INFO"</text></outputEntry>
+      </rule>
+
+      <!-- FALLBACK -->
+
+      <rule id="Rule_Fallback_30803113">
+        <description>Fallback: Decisao de via de acesso requer analise individualizada</description>
+        <inputEntry id="InputEntry_Fallback_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Fallback_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Fallback_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Fallback_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Fallback_5"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_Fallback_resultado"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OutputEntry_Fallback_observacao"><text>"Decisao entre VATS e toracotomia requer analise pelo cirurgiao toracico considerando anatomia tumoral, experiencia e preferencia do paciente."</text></outputEntry>
+        <outputEntry id="OutputEntry_Fallback_fundamentacao"><text>"NCCN 2024, SBCT 2023: Escolha da via de acesso e prerrogativa do cirurgiao com base em avaliacao individualizada e experiencia institucional."</text></outputEntry>
+        <outputEntry id="OutputEntry_Fallback_30803113_alertasDesperdicio"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_Fallback_30803113_acaoRecomendada"><text>"SOLICITAR_INFO"</text></outputEntry>
+        <outputEntry id="OutputEntry_Fallback_30803113_alertasDesperdicio"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_Fallback_30803113_acaoRecomendada"><text>"SOLICITAR_INFO"</text></outputEntry>
+      </rule>
+
+    </decisionTable>
+  </decision>
+</definitions>

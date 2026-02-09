@@ -1,0 +1,100 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- ============================================================================
+     DDI-HEPATO-006: Amiodarona + Hepatotoxicos - Lesao Hepatica Cronica
+
+     EVIDENCIA CLINICA:
+     - LiverTox Database - Amiodarone
+     - Goldschlager N et al. Circulation. 2000;102:2042-50
+     - Ashrafian H, Davey P. J Cardiovasc Pharmacol Ther. 2001;6:177-86
+
+     MECANISMO: Amiodarona causa fosfolipidose hepatica por acumulo lisossomal.
+     Hepatotoxicidade ocorre em 15-30%, geralmente apos meses de uso. Combinacao
+     com outros hepatotoxicos (estatinas, azolicos) potencializa lesao.
+
+     INCIDENCIA: Elevacao transaminases 15-30%; hepatite clinica 1-3%
+     ============================================================================ -->
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/" xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/" xmlns:dc="http://www.omg.org/spec/DMN/20180521/DC/" xmlns:di="http://www.omg.org/spec/DMN/20180521/DI/" id="DDI_HEPATO_006" name="DDI-HEPATO-006: Amiodarona + Hepatotoxicos" namespace="http://camunda.org/schema/1.0/dmn">
+  <decision id="ddi_hepato_006_decision" name="Amiodarona + Hepatotoxicos - Lesao Hepatica">
+    <decisionTable id="ddi_hepato_006_table" hitPolicy="FIRST">
+      <input id="input_medicamentos_ativos" label="Medicamentos Ativos">
+        <inputExpression id="input_expr_medicamentos" typeRef="string">
+          <text>medicamentosAtivos</text>
+        </inputExpression>
+      </input>
+      <input id="input_medicamento_novo" label="Medicamento Novo">
+        <inputExpression id="input_expr_novo" typeRef="string">
+          <text>medicamentoNovo</text>
+        </inputExpression>
+      </input>
+      <input id="input_duracao_amiodarona" label="Duracao Uso Amiodarona (meses)">
+        <inputExpression id="input_expr_duracao" typeRef="number">
+          <text>duracaoAmiodarona</text>
+        </inputExpression>
+      </input>
+
+      <output id="output_nivel_alerta" name="nivelAlerta" typeRef="string">
+        <outputValues><text>"Alerta","Atencao","Informativo","OK"</text></outputValues>
+      </output>
+      <output id="output_acao_requerida" name="acaoRequerida" typeRef="string" />
+      <output id="output_justificativa" name="justificativaCientifica" typeRef="string" />
+
+      <!-- Rule 1: Amiodarona + Estatina (interacao CYP3A4) -->
+      <rule id="rule_amiodarona_estatina">
+        <inputEntry id="ie_amiodarona_ativa">
+          <text>list contains(medicamentosAtivos, "AMIODARONA")</text>
+        </inputEntry>
+        <inputEntry id="ie_estatina_nova">
+          <text>"SINVASTATINA" or "ATORVASTATINA" or "LOVASTATINA"</text>
+        </inputEntry>
+        <inputEntry id="ie_duracao_any">
+          <text>-</text>
+        </inputEntry>
+        <outputEntry id="oe_alerta_estatina"><text>"Alerta"</text></outputEntry>
+        <outputEntry id="oe_acao_estatina"><text>"Amiodarona inibe CYP3A4, aumentando nivel estatinas 2-4x. LIMITAR sinvastatina a MAX 20mg/dia (FDA). Preferir pravastatina ou rosuvastatina. Monitorar CPK e TGO/TGP. Ambos hepatotoxicos - sinergismo possivel."</text></outputEntry>
+        <outputEntry id="oe_just_estatina"><text>"FDA: sinvastatina max 20mg com amiodarona. Risco rabdomiolise e hepatotoxicidade combinada. Goldschlager N, Circulation 2000."</text></outputEntry>
+      </rule>
+
+      <!-- Rule 2: Amiodarona cronica + Outro hepatotoxico -->
+      <rule id="rule_amiodarona_cronica_hepato">
+        <inputEntry id="ie_amiodarona_ativa2">
+          <text>list contains(medicamentosAtivos, "AMIODARONA")</text>
+        </inputEntry>
+        <inputEntry id="ie_hepato_novo">
+          <text>"METOTREXATO" or "ISONIAZIDA" or "AZATIOPRINA" or "ITRACONAZOL" or "FLUCONAZOL"</text>
+        </inputEntry>
+        <inputEntry id="ie_duracao_longa">
+          <text>&gt; 6</text>
+        </inputEntry>
+        <outputEntry id="oe_alerta_cronica"><text>"Alerta"</text></outputEntry>
+        <outputEntry id="oe_acao_cronica"><text>"Uso prolongado de amiodarona + novo hepatotoxico = alto risco. Amiodarona causa fosfolipidose hepatica progressiva. Monitorar TGO/TGP basal, 2 semanas, depois mensalmente. Se elevacao >3x LSN, suspender medicamento adicionado."</text></outputEntry>
+        <outputEntry id="oe_just_cronica"><text>"Fosfolipidose por amiodarona cumulativa. Adicao de hepatotoxicos potencializa lesao. Ashrafian H, J Cardiovasc Pharmacol Ther 2001."</text></outputEntry>
+      </rule>
+
+      <!-- Rule 3: Inicio de amiodarona em paciente com hepatotoxico ativo -->
+      <rule id="rule_inicio_amiodarona">
+        <inputEntry id="ie_hepato_ativo">
+          <text>list contains(medicamentosAtivos, "SINVASTATINA") or list contains(medicamentosAtivos, "METOTREXATO") or list contains(medicamentosAtivos, "ISONIAZIDA")</text>
+        </inputEntry>
+        <inputEntry id="ie_amiodarona_nova">
+          <text>"AMIODARONA"</text>
+        </inputEntry>
+        <inputEntry id="ie_duracao_na">
+          <text>-</text>
+        </inputEntry>
+        <outputEntry id="oe_atencao_inicio"><text>"Atencao"</text></outputEntry>
+        <outputEntry id="oe_acao_inicio"><text>"Paciente ja em hepatotoxico. Obter TGO/TGP basal antes de amiodarona. Monitorar funcao hepatica mensalmente por 6 meses. Ajustar doses de estatinas se aplicavel. Considerar antiarritmico alternativo se funcao hepatica comprometida."</text></outputEntry>
+        <outputEntry id="oe_just_inicio"><text>"Estabelecer baseline hepatico antes de iniciar amiodarona em pacientes de risco."</text></outputEntry>
+      </rule>
+
+      <!-- Fallback Rule -->
+      <rule id="Rule_Fallback">
+        <inputEntry id="ie_fallback1"><text>-</text></inputEntry>
+        <inputEntry id="ie_fallback2"><text>-</text></inputEntry>
+        <inputEntry id="ie_fallback3"><text>-</text></inputEntry>
+        <outputEntry id="oe_fallback1"><text>"OK"</text></outputEntry>
+        <outputEntry id="oe_fallback2"><text>""</text></outputEntry>
+        <outputEntry id="oe_fallback3"><text>""</text></outputEntry>
+      </rule>
+    </decisionTable>
+  </decision>
+</definitions>

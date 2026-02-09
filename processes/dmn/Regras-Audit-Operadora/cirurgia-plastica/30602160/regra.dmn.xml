@@ -1,0 +1,338 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             xmlns:camunda="http://camunda.org/schema/1.0/dmn"
+             id="Definitions_30602160"
+             name="Reconstrucao de Tendao Flexor"
+             namespace="http://camunda.org/schema/1.0/dmn">
+
+  <!--
+    ===============================================================================
+    TUSS: 30602160
+    Procedimento: Reconstrucao de Tendao Flexor
+    Especialidade: Cirurgia Plastica
+    Versao: 3.0.0-LEAN-TIER2
+    Data: 2026-02-07
+    ===============================================================================
+
+    INDICACOES CLINICAS (DUT/ANS):
+    - Lesao traumatica de tendao flexor em qualquer zona
+    - Rotura de enxerto tendinoso previo
+    - Sequela de lesao tendinea com aderencias
+    - Lesao tardia de tendao flexor (mais de 3 semanas)
+    - Lesao combinada de flexor profundo e superficial
+    - Falha de tenorrafia primaria
+    - Lesao de tendao flexor em zona II (terra de ninguem)
+
+    CONTRAINDICACOES:
+    - Lesao extensa de partes moles sem cobertura cutanea
+    - Infeccao ativa na mao ou dedo
+    - Rigidez articular sem possibilidade de mobilizacao
+    - Nao adesao ao programa de reabilitacao
+    - Vasculopatia periferica severa no membro
+    - Lesao nervosa associada sem perspectiva de recuperacao
+
+    DOCUMENTACAO OBRIGATORIA:
+    - Radiografia da mao (excluir lesao ossea)
+    - Ultrassom ou RM de mao quando indicado
+    - Avaliacao de amplitude de movimento articular
+    - Documentacao fotografica e funcional
+    - Tempo de evolucao da lesao
+
+    REFERENCIAS TECNICAS:
+    - IFSSH Flexor Tendon Committee Guidelines (2024)
+    - ASSH Hand Surgery Standards (2023)
+    - SBM Protocolo de Tendao Flexor (2024)
+    - BSSH Tendon Injury Management (2024)
+    - ANS RN 465/2021, DUT 2024
+
+    ===============================================================================
+  -->
+
+  <decision id="Decision_30602160" name="Regra Clinica - Reconstrucao de Tendao Flexor">
+    <decisionTable id="DecisionTable_30602160" hitPolicy="FIRST">
+
+      <!-- ========== INPUTS (5 - Padrao TIER-1) ========== -->
+
+      <input id="Input_condicaoPaciente" label="Condicao do Paciente" camunda:inputVariable="condicaoPaciente">
+        <inputExpression id="InputExpression_condicaoPaciente" typeRef="string">
+          <text>condicaoPaciente</text>
+        </inputExpression>
+        <inputValues id="InputValues_condicaoPaciente">
+          <text>"LesaoTraumaticaAguda","LesaoZonaII","LesaoTardia","RoturaEnxerto","SequelasAderencias","FalhaTenorrafia","LesaoCombinadaFPFS","InfeccaoAtiva","RigidezArticular"</text>
+        </inputValues>
+      </input>
+
+      <input id="Input_historicoClinico" label="Historico Clinico" camunda:inputVariable="historicoClinico">
+        <inputExpression id="InputExpression_historicoClinico" typeRef="string">
+          <text>historicoClinico</text>
+        </inputExpression>
+        <inputValues id="InputValues_historicoClinico">
+          <text>"Adequado","Incompleto","NaoDocumentado"</text>
+        </inputValues>
+      </input>
+
+      <input id="Input_classeIndicacao" label="Classe de Indicacao" camunda:inputVariable="classeIndicacao">
+        <inputExpression id="InputExpression_classeIndicacao" typeRef="string">
+          <text>classeIndicacao</text>
+        </inputExpression>
+        <inputValues id="InputValues_classeIndicacao">
+          <text>"Classe I","Classe IIa","Classe IIb","Classe III"</text>
+        </inputValues>
+      </input>
+
+      <input id="Input_examesComprobatorios" label="Exames Comprobatorios" camunda:inputVariable="examesComprobatorios">
+        <inputExpression id="InputExpression_examesComprobatorios" typeRef="string">
+          <text>examesComprobatorios</text>
+        </inputExpression>
+        <inputValues id="InputValues_examesComprobatorios">
+          <text>"RXMao","USMao","RMMao","AvaliacaoAmplitude","Completos","Incompleto","Ausente"</text>
+        </inputValues>
+      </input>
+
+      <input id="Input_expectativaVidaSuperior1Ano" label="Expectativa de Vida Superior 1 Ano" camunda:inputVariable="expectativaVidaSuperior1Ano">
+        <inputExpression id="InputExpression_expectativaVidaSuperior1Ano" typeRef="boolean">
+          <text>expectativaVidaSuperior1Ano</text>
+        </inputExpression>
+      </input>
+
+      <!-- ========== OUTPUTS (5 - LEAN TIER-2) ========== -->
+
+      <output id="Output_resultado" label="Resultado" name="resultado" typeRef="string">
+        <outputValues id="OutputValues_resultado">
+          <text>"Aprovado","Reprovado","Pendente"</text>
+        </outputValues>
+      </output>
+
+      <output id="Output_observacao" label="Observacao Clinica" name="observacao" typeRef="string" />
+
+      <output id="Output_fundamentacao" label="Fundamentacao Tecnica" name="fundamentacao" typeRef="string" />
+
+      <output id="Output_alertasDesperdicio" name="alertasDesperdicio" typeRef="string">
+        <outputValues>
+          <text>"NENHUM","DUP","FREQ","ESC","DOC","PROT","MULTI"</text>
+        </outputValues>
+      </output>
+
+      <output id="Output_acaoRecomendada" name="acaoRecomendada" typeRef="string">
+        <outputValues>
+          <text>"APROVAR","NEGAR","SOLICITAR_INFO","AGUARDAR_PRAZO","SUGERIR_ALTERNATIVA"</text>
+        </outputValues>
+      </output>
+
+      <!-- ========== RULES ========== -->
+
+      <!-- REPROVACOES -->
+      <rule id="Rule_Contraind_ClasseIII">
+        <description>Contraindicacao: Procedimento Classe III</description>
+        <inputEntry id="InputEntry_Contraind_ClasseIII_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Contraind_ClasseIII_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Contraind_ClasseIII_3"><text>"Classe III"</text></inputEntry>
+        <inputEntry id="InputEntry_Contraind_ClasseIII_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Contraind_ClasseIII_5"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_Contraind_ClasseIII_resultado"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_Contraind_ClasseIII_observacao"><text>"Procedimento nao indicado - Classe III"</text></outputEntry>
+        <outputEntry id="OutputEntry_Contraind_ClasseIII_fundamentacao"><text>"IFSSH 2024 - Reconstrucao contraindicada quando articulacao rigida ou leito comprometido"</text></outputEntry>
+        <outputEntry id="OutputEntry_Contraind_ClasseIII_alertasDesperdicio"><text>"PROT"</text></outputEntry>
+        <outputEntry id="OutputEntry_Contraind_ClasseIII_acaoRecomendada"><text>"NEGAR"</text></outputEntry>
+        <outputEntry id="OutputEntry_Contraind_ClasseIII_alertasDesperdicio"><text>"PROT"</text></outputEntry>
+        <outputEntry id="OutputEntry_Contraind_ClasseIII_acaoRecomendada"><text>"NEGAR"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Contraind_ExpectativaVida">
+        <description>Contraindicacao: Expectativa de vida menor que 1 ano</description>
+        <inputEntry id="InputEntry_Contraind_ExpVida_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Contraind_ExpVida_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Contraind_ExpVida_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Contraind_ExpVida_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Contraind_ExpVida_5"><text>false</text></inputEntry>
+        <outputEntry id="OutputEntry_Contraind_ExpVida_resultado"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_Contraind_ExpVida_observacao"><text>"Reabilitacao pos-reconstrucao tendinea requer tempo prolongado"</text></outputEntry>
+        <outputEntry id="OutputEntry_Contraind_ExpVida_fundamentacao"><text>"ASSH 2023 - Resultado funcional requer 3-6 meses de fisioterapia intensiva"</text></outputEntry>
+        <outputEntry id="OutputEntry_Contraind_ExpectativaVida_alertasDesperdicio"><text>"PROT"</text></outputEntry>
+        <outputEntry id="OutputEntry_Contraind_ExpectativaVida_acaoRecomendada"><text>"NEGAR"</text></outputEntry>
+        <outputEntry id="OutputEntry_Contraind_ExpectativaVida_alertasDesperdicio"><text>"PROT"</text></outputEntry>
+        <outputEntry id="OutputEntry_Contraind_ExpectativaVida_acaoRecomendada"><text>"NEGAR"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Contraind_Infeccao">
+        <description>Contraindicacao: Infeccao ativa</description>
+        <inputEntry id="InputEntry_Contraind_Infec_1"><text>"InfeccaoAtiva"</text></inputEntry>
+        <inputEntry id="InputEntry_Contraind_Infec_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Contraind_Infec_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Contraind_Infec_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Contraind_Infec_5"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_Contraind_Infec_resultado"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_Contraind_Infec_observacao"><text>"Infeccao ativa contraindica reconstrucao tendinea"</text></outputEntry>
+        <outputEntry id="OutputEntry_Contraind_Infec_fundamentacao"><text>"BSSH 2024 - Tratar infeccao e aguardar resolucao antes de reconstrucao"</text></outputEntry>
+        <outputEntry id="OutputEntry_Contraind_Infeccao_alertasDesperdicio"><text>"PROT"</text></outputEntry>
+        <outputEntry id="OutputEntry_Contraind_Infeccao_acaoRecomendada"><text>"NEGAR"</text></outputEntry>
+        <outputEntry id="OutputEntry_Contraind_Infeccao_alertasDesperdicio"><text>"PROT"</text></outputEntry>
+        <outputEntry id="OutputEntry_Contraind_Infeccao_acaoRecomendada"><text>"NEGAR"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Contraind_Rigidez">
+        <description>Contraindicacao: Rigidez articular severa</description>
+        <inputEntry id="InputEntry_Contraind_Rigidez_1"><text>"RigidezArticular"</text></inputEntry>
+        <inputEntry id="InputEntry_Contraind_Rigidez_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Contraind_Rigidez_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Contraind_Rigidez_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Contraind_Rigidez_5"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_Contraind_Rigidez_resultado"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_Contraind_Rigidez_observacao"><text>"Rigidez articular contraindica - fisioterapia pre-operatoria primeiro"</text></outputEntry>
+        <outputEntry id="OutputEntry_Contraind_Rigidez_fundamentacao"><text>"IFSSH 2024 - Amplitude de movimento passivo minimo 60 graus antes de reconstrucao"</text></outputEntry>
+        <outputEntry id="OutputEntry_Contraind_Rigidez_alertasDesperdicio"><text>"PROT"</text></outputEntry>
+        <outputEntry id="OutputEntry_Contraind_Rigidez_acaoRecomendada"><text>"NEGAR"</text></outputEntry>
+        <outputEntry id="OutputEntry_Contraind_Rigidez_alertasDesperdicio"><text>"PROT"</text></outputEntry>
+        <outputEntry id="OutputEntry_Contraind_Rigidez_acaoRecomendada"><text>"NEGAR"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Reprovado_DocAusente">
+        <description>Reprovado: Documentacao ausente</description>
+        <inputEntry id="InputEntry_Reprovado_Doc_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Reprovado_Doc_2"><text>"NaoDocumentado"</text></inputEntry>
+        <inputEntry id="InputEntry_Reprovado_Doc_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Reprovado_Doc_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Reprovado_Doc_5"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_Reprovado_Doc_resultado"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_Reprovado_Doc_observacao"><text>"Documentacao obrigatoria nao apresentada"</text></outputEntry>
+        <outputEntry id="OutputEntry_Reprovado_Doc_fundamentacao"><text>"ANS RN 465/2021 - RX e avaliacao de amplitude obrigatorios"</text></outputEntry>
+        <outputEntry id="OutputEntry_Reprovado_DocAusente_alertasDesperdicio"><text>"DOC"</text></outputEntry>
+        <outputEntry id="OutputEntry_Reprovado_DocAusente_acaoRecomendada"><text>"NEGAR"</text></outputEntry>
+        <outputEntry id="OutputEntry_Reprovado_DocAusente_alertasDesperdicio"><text>"DOC"</text></outputEntry>
+        <outputEntry id="OutputEntry_Reprovado_DocAusente_acaoRecomendada"><text>"NEGAR"</text></outputEntry>
+      </rule>
+
+      <!-- APROVACOES -->
+      <rule id="Rule_Aprovado_ZonaII_ClasseI">
+        <description>Aprovado: Lesao em zona II (terra de ninguem)</description>
+        <inputEntry id="InputEntry_Aprovado_ZonaII_1"><text>"LesaoZonaII"</text></inputEntry>
+        <inputEntry id="InputEntry_Aprovado_ZonaII_2"><text>"Adequado"</text></inputEntry>
+        <inputEntry id="InputEntry_Aprovado_ZonaII_3"><text>"Classe I"</text></inputEntry>
+        <inputEntry id="InputEntry_Aprovado_ZonaII_4"><text>"RXMao","AvaliacaoAmplitude","Completos"</text></inputEntry>
+        <inputEntry id="InputEntry_Aprovado_ZonaII_5"><text>true</text></inputEntry>
+        <outputEntry id="OutputEntry_Aprovado_ZonaII_resultado"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprovado_ZonaII_observacao"><text>"Reconstrucao de tendao flexor em zona II - tenolise ou enxerto em dois tempos"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprovado_ZonaII_fundamentacao"><text>"IFSSH 2024 - Zona II requer tecnica especializada por alta incidencia de aderencias"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprovado_ZonaII_ClasseI_alertasDesperdicio"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprovado_ZonaII_ClasseI_acaoRecomendada"><text>"APROVAR"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprovado_ZonaII_ClasseI_alertasDesperdicio"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprovado_ZonaII_ClasseI_acaoRecomendada"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Aprovado_LesaoTardia_ClasseI">
+        <description>Aprovado: Lesao tardia de tendao flexor</description>
+        <inputEntry id="InputEntry_Aprovado_Tardia_1"><text>"LesaoTardia"</text></inputEntry>
+        <inputEntry id="InputEntry_Aprovado_Tardia_2"><text>"Adequado"</text></inputEntry>
+        <inputEntry id="InputEntry_Aprovado_Tardia_3"><text>"Classe I"</text></inputEntry>
+        <inputEntry id="InputEntry_Aprovado_Tardia_4"><text>"RXMao","RMMao","AvaliacaoAmplitude","Completos"</text></inputEntry>
+        <inputEntry id="InputEntry_Aprovado_Tardia_5"><text>true</text></inputEntry>
+        <outputEntry id="OutputEntry_Aprovado_Tardia_resultado"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprovado_Tardia_observacao"><text>"Reconstrucao tendinea tardia - enxerto em um ou dois tempos"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprovado_Tardia_fundamentacao"><text>"ASSH 2023 - Lesao tardia (mais de 3 semanas) indica enxerto tendinoso"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprovado_LesaoTardia_ClasseI_alertasDesperdicio"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprovado_LesaoTardia_ClasseI_acaoRecomendada"><text>"APROVAR"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprovado_LesaoTardia_ClasseI_alertasDesperdicio"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprovado_LesaoTardia_ClasseI_acaoRecomendada"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Aprovado_FalhaPrimaria_ClasseI">
+        <description>Aprovado: Falha de tenorrafia primaria</description>
+        <inputEntry id="InputEntry_Aprovado_Falha_1"><text>"FalhaTenorrafia","RoturaEnxerto"</text></inputEntry>
+        <inputEntry id="InputEntry_Aprovado_Falha_2"><text>"Adequado"</text></inputEntry>
+        <inputEntry id="InputEntry_Aprovado_Falha_3"><text>"Classe I"</text></inputEntry>
+        <inputEntry id="InputEntry_Aprovado_Falha_4"><text>"USMao","RMMao","Completos"</text></inputEntry>
+        <inputEntry id="InputEntry_Aprovado_Falha_5"><text>true</text></inputEntry>
+        <outputEntry id="OutputEntry_Aprovado_Falha_resultado"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprovado_Falha_observacao"><text>"Reconstrucao secundaria apos falha de reparo primario"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprovado_Falha_fundamentacao"><text>"SBM 2024 - Falha de tenorrafia indica revisao ou reconstrucao em dois tempos"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprovado_FalhaPrimaria_ClasseI_alertasDesperdicio"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprovado_FalhaPrimaria_ClasseI_acaoRecomendada"><text>"APROVAR"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprovado_FalhaPrimaria_ClasseI_alertasDesperdicio"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprovado_FalhaPrimaria_ClasseI_acaoRecomendada"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Aprovado_ClasseIIa">
+        <description>Aprovado: Indicacao Classe IIa documentada</description>
+        <inputEntry id="InputEntry_Aprovado_IIa_1"><text>"LesaoTraumaticaAguda","LesaoCombinadaFPFS","SequelasAderencias"</text></inputEntry>
+        <inputEntry id="InputEntry_Aprovado_IIa_2"><text>"Adequado"</text></inputEntry>
+        <inputEntry id="InputEntry_Aprovado_IIa_3"><text>"Classe IIa"</text></inputEntry>
+        <inputEntry id="InputEntry_Aprovado_IIa_4"><text>"RXMao","AvaliacaoAmplitude","Completos"</text></inputEntry>
+        <inputEntry id="InputEntry_Aprovado_IIa_5"><text>true</text></inputEntry>
+        <outputEntry id="OutputEntry_Aprovado_IIa_resultado"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprovado_IIa_observacao"><text>"Reconstrucao de tendao flexor com indicacao Classe IIa"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprovado_IIa_fundamentacao"><text>"BSSH 2024 - Lesao tendinea com impacto funcional indica reconstrucao"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprovado_ClasseIIa_alertasDesperdicio"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprovado_ClasseIIa_acaoRecomendada"><text>"APROVAR"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprovado_ClasseIIa_alertasDesperdicio"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprovado_ClasseIIa_acaoRecomendada"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <!-- PENDENTES -->
+      <rule id="Rule_Pendente_DocIncompleta">
+        <description>Pendente: Documentacao incompleta</description>
+        <inputEntry id="InputEntry_Pendente_Doc_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Pendente_Doc_2"><text>"Incompleto"</text></inputEntry>
+        <inputEntry id="InputEntry_Pendente_Doc_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Pendente_Doc_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Pendente_Doc_5"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_Pendente_Doc_resultado"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OutputEntry_Pendente_Doc_observacao"><text>"Complementar RX de mao e avaliacao de amplitude articular"</text></outputEntry>
+        <outputEntry id="OutputEntry_Pendente_Doc_fundamentacao"><text>"IFSSH 2024 - Mobilidade articular passiva minima obrigatoria"</text></outputEntry>
+        <outputEntry id="OutputEntry_Pendente_DocIncompleta_alertasDesperdicio"><text>"DOC"</text></outputEntry>
+        <outputEntry id="OutputEntry_Pendente_DocIncompleta_acaoRecomendada"><text>"SOLICITAR_INFO"</text></outputEntry>
+        <outputEntry id="OutputEntry_Pendente_DocIncompleta_alertasDesperdicio"><text>"DOC"</text></outputEntry>
+        <outputEntry id="OutputEntry_Pendente_DocIncompleta_acaoRecomendada"><text>"SOLICITAR_INFO"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Pendente_ExamesIncompletos">
+        <description>Pendente: Exames incompletos</description>
+        <inputEntry id="InputEntry_Pendente_Exames_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Pendente_Exames_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Pendente_Exames_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Pendente_Exames_4"><text>"Incompleto","Ausente"</text></inputEntry>
+        <inputEntry id="InputEntry_Pendente_Exames_5"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_Pendente_Exames_resultado"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OutputEntry_Pendente_Exames_observacao"><text>"Solicitar RX de mao e US ou RM para avaliar tendao"</text></outputEntry>
+        <outputEntry id="OutputEntry_Pendente_Exames_fundamentacao"><text>"ASSH 2023 - Imagem demonstra localizacao e extensao da lesao"</text></outputEntry>
+        <outputEntry id="OutputEntry_Pendente_ExamesIncompletos_alertasDesperdicio"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_Pendente_ExamesIncompletos_acaoRecomendada"><text>"SOLICITAR_INFO"</text></outputEntry>
+        <outputEntry id="OutputEntry_Pendente_ExamesIncompletos_alertasDesperdicio"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_Pendente_ExamesIncompletos_acaoRecomendada"><text>"SOLICITAR_INFO"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Pendente_ClasseIIb">
+        <description>Pendente: Classe IIb requer junta medica</description>
+        <inputEntry id="InputEntry_Pendente_IIb_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Pendente_IIb_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Pendente_IIb_3"><text>"Classe IIb"</text></inputEntry>
+        <inputEntry id="InputEntry_Pendente_IIb_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Pendente_IIb_5"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_Pendente_IIb_resultado"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OutputEntry_Pendente_IIb_observacao"><text>"Indicacao limitrofe requer parecer de cirurgia de mao"</text></outputEntry>
+        <outputEntry id="OutputEntry_Pendente_IIb_fundamentacao"><text>"SBM 2024 - Casos complexos requerem avaliacao por especialista em mao"</text></outputEntry>
+        <outputEntry id="OutputEntry_Pendente_ClasseIIb_alertasDesperdicio"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_Pendente_ClasseIIb_acaoRecomendada"><text>"SOLICITAR_INFO"</text></outputEntry>
+        <outputEntry id="OutputEntry_Pendente_ClasseIIb_alertasDesperdicio"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_Pendente_ClasseIIb_acaoRecomendada"><text>"SOLICITAR_INFO"</text></outputEntry>
+      </rule>
+
+      <!-- FALLBACK -->
+      <rule id="Rule_Fallback_30602160">
+        <description>Regra padrao - Analise adicional</description>
+        <inputEntry id="InputEntry_Fallback_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Fallback_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Fallback_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Fallback_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Fallback_5"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_Fallback_resultado"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OutputEntry_Fallback_observacao"><text>"Caso requer analise por equipe de cirurgia de mao"</text></outputEntry>
+        <outputEntry id="OutputEntry_Fallback_fundamentacao"><text>"Avaliacao individualizada conforme protocolos IFSSH/ASSH"</text></outputEntry>
+        <outputEntry id="OutputEntry_Fallback_30602160_alertasDesperdicio"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_Fallback_30602160_acaoRecomendada"><text>"SOLICITAR_INFO"</text></outputEntry>
+        <outputEntry id="OutputEntry_Fallback_30602160_alertasDesperdicio"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_Fallback_30602160_acaoRecomendada"><text>"SOLICITAR_INFO"</text></outputEntry>
+      </rule>
+
+    </decisionTable>
+  </decision>
+</definitions>

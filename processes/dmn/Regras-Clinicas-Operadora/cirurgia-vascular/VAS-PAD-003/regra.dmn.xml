@@ -1,0 +1,263 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/"
+             xmlns:dc="http://www.omg.org/spec/DD/20100524/DC/"
+             xmlns:di="http://www.omg.org/spec/DD/20100524/DI/"
+             id="Definitions_VAS_PAD_003"
+             name="Bypass vs Endovascular - Classificacao TASC"
+             namespace="http://camunda.org/schema/1.0/dmn"
+             exporter="Camunda Modeler"
+             exporterVersion="5.0.0">
+  <!--
+    VAS-PAD-003 - Bypass vs Endovascular - Classificacao TASC
+    Versao: 1.0.0 (2026-02-07)
+    Especialidade: Cirurgia Vascular
+    Categoria: Doenca Arterial Periferica
+    TUSS Relacionados: 30907087, 30907095, 40901156
+
+    Classificacao TASC II (TransAtlantic Inter-Society Consensus):
+    - TASC A: Lesoes curtas, ideais para endovascular
+    - TASC B: Lesoes intermediarias, endovascular preferivel
+    - TASC C: Lesoes complexas, bypass pode ser preferido
+    - TASC D: Lesoes extensas, bypass classicamente indicado
+
+    Evolucao do Conceito (GLASS 2019):
+    - Endovascular first em muitos casos de TASC C/D
+    - Decisao baseada em anatomia especifica (GLASS)
+    - Disponibilidade de veia saféna para bypass
+    - Expectativa de vida e comorbidades
+
+    Criterios de Decisao:
+    Endovascular Favorecido:
+    - TASC A/B
+    - Alto risco cirurgico
+    - Ausencia de veia saféna adequada
+    - Expectativa de vida limitada
+
+    Bypass Favorecido:
+    - TASC C/D com veia saféna disponivel
+    - Expectativa de vida longa
+    - Baixo risco cirurgico
+    - Falha de endovascular previo
+
+    Referencias Normativas:
+    - TASC II 2007
+    - GLASS Classification 2019
+    - BASIL Trial
+    - DUT ANS 2024
+  -->
+
+  <decision id="Decision_VAS_PAD_003" name="Criterios de Selecao - Bypass vs Endovascular">
+    <decisionTable id="DecisionTable_VAS_PAD_003" hitPolicy="FIRST">
+
+      <!-- Input 1: Classificacao TASC -->
+      <input id="Input_tasc" label="Classificacao TASC da Lesao">
+        <inputExpression id="InputExpr_tasc" typeRef="string">
+          <text>classificacaoTASC</text>
+        </inputExpression>
+        <inputValues id="InputValues_tasc">
+          <text>"TASC_A","TASC_B","TASC_C","TASC_D"</text>
+        </inputValues>
+      </input>
+
+      <!-- Input 2: Disponibilidade de Veia -->
+      <input id="Input_veia" label="Disponibilidade de Veia Safena">
+        <inputExpression id="InputExpr_veia" typeRef="string">
+          <text>veiaSafena</text>
+        </inputExpression>
+        <inputValues id="InputValues_veia">
+          <text>"Disponivel_Qualidade","Disponivel_Subotima","Indisponivel","Nao_Avaliada"</text>
+        </inputValues>
+      </input>
+
+      <!-- Input 3: Risco Cirurgico -->
+      <input id="Input_riscoCirurgico" label="Risco Cirurgico para Bypass">
+        <inputExpression id="InputExpr_riscoCirurgico" typeRef="string">
+          <text>riscoCirurgico</text>
+        </inputExpression>
+        <inputValues id="InputValues_riscoCirurgico">
+          <text>"Baixo","Intermediario","Alto","Proibitivo"</text>
+        </inputValues>
+      </input>
+
+      <!-- Input 4: Expectativa de Vida -->
+      <input id="Input_expectativa" label="Expectativa de Vida">
+        <inputExpression id="InputExpr_expectativa" typeRef="string">
+          <text>expectativaVida</text>
+        </inputExpression>
+        <inputValues id="InputValues_expectativa">
+          <text>"Maior_5_Anos","Entre_2_5_Anos","Menor_2_Anos"</text>
+        </inputValues>
+      </input>
+
+      <!-- Input 5: Documentacao -->
+      <input id="Input_documentacao" label="Imagem Arterial Completa para Planejamento">
+        <inputExpression id="InputExpr_documentacao" typeRef="boolean">
+          <text>documentacaoCompleta</text>
+        </inputExpression>
+      </input>
+
+      <!-- Outputs -->
+      <output id="Output_resultado" label="Resultado" name="resultado" typeRef="string">
+        <outputValues id="OutputValues_resultado">
+          <text>"Aprovado","Reprovado","Pendente"</text>
+        </outputValues>
+      </output>
+      <output id="Output_observacao" label="Observacao Clinica" name="observacao" typeRef="string" />
+      <output id="Output_fundamentacao" label="Fundamentacao Legal/Tecnica" name="fundamentacao" typeRef="string" />
+
+      <output id="Output_alertasDesperdicio" name="alertasDesperdicio" typeRef="string">
+        <outputValues>
+          <text>"NENHUM","DUP","FREQ","ESC","DOC","PROT","MULTI"</text>
+        </outputValues>
+      </output>
+
+      <output id="Output_acaoRecomendada" name="acaoRecomendada" typeRef="string">
+        <outputValues>
+          <text>"APROVAR","NEGAR","SOLICITAR_INFO","AGUARDAR_PRAZO","SUGERIR_ALTERNATIVA"</text>
+        </outputValues>
+      </output>
+
+      <!-- ============================================== -->
+      <!-- REGRAS DE REPROVACAO                          -->
+      <!-- ============================================== -->
+
+      <rule id="Rule_VAS_PAD_003_Reprovacao_SemDoc">
+        <description>Reprovacao - Documentacao incompleta</description>
+        <inputEntry id="IE_Rep1_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_Rep1_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_Rep1_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_Rep1_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_Rep1_5"><text>false</text></inputEntry>
+        <outputEntry id="OE_Rep1_1"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OE_Rep1_2"><text>"Imagem arterial completa (duplex + angioTC ou arteriografia) obrigatoria para classificacao TASC e planejamento de revascularizacao"</text></outputEntry>
+        <outputEntry id="OE_Rep1_3"><text>"TASC II - Classificacao depende de imagem arterial de qualidade"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_VAS_PAD_003_Reprovacao_SemAvaliacaoVeia">
+        <description>Reprovacao Bypass - Veia nao avaliada para bypass proposto</description>
+        <inputEntry id="IE_Rep2_1"><text>"TASC_C","TASC_D"</text></inputEntry>
+        <inputEntry id="IE_Rep2_2"><text>"Nao_Avaliada"</text></inputEntry>
+        <inputEntry id="IE_Rep2_3"><text>"Baixo","Intermediario"</text></inputEntry>
+        <inputEntry id="IE_Rep2_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_Rep2_5"><text>true</text></inputEntry>
+        <outputEntry id="OE_Rep2_1"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OE_Rep2_2"><text>"Bypass proposto sem mapeamento de veia safena - avaliacao de veia com duplex obrigatoria antes de indicar bypass"</text></outputEntry>
+        <outputEntry id="OE_Rep2_3"><text>"BASIL Trial - Qualidade da veia eh determinante para patencia de bypass"</text></outputEntry>
+      </rule>
+
+      <!-- ============================================== -->
+      <!-- REGRAS DE APROVACAO - ENDOVASCULAR            -->
+      <!-- ============================================== -->
+
+      <rule id="Rule_VAS_PAD_003_Aprovacao_Endo_TASC_AB">
+        <description>Aprovacao Endovascular - TASC A ou B</description>
+        <inputEntry id="IE_Apr1_1"><text>"TASC_A","TASC_B"</text></inputEntry>
+        <inputEntry id="IE_Apr1_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_Apr1_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_Apr1_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_Apr1_5"><text>true</text></inputEntry>
+        <outputEntry id="OE_Apr1_1"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OE_Apr1_2"><text>"Tratamento ENDOVASCULAR APROVADO - lesao TASC A/B com excelentes resultados por via endovascular"</text></outputEntry>
+        <outputEntry id="OE_Apr1_3"><text>"TASC II Classe I - Endovascular eh tratamento de escolha para TASC A/B"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_VAS_PAD_003_Aprovacao_Endo_AltoRisco">
+        <description>Aprovacao Endovascular - Alto risco cirurgico</description>
+        <inputEntry id="IE_Apr2_1"><text>"TASC_C","TASC_D"</text></inputEntry>
+        <inputEntry id="IE_Apr2_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_Apr2_3"><text>"Alto","Proibitivo"</text></inputEntry>
+        <inputEntry id="IE_Apr2_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_Apr2_5"><text>true</text></inputEntry>
+        <outputEntry id="OE_Apr2_1"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OE_Apr2_2"><text>"Tratamento ENDOVASCULAR APROVADO - alto risco cirurgico para bypass favorece abordagem endovascular mesmo em lesoes TASC C/D"</text></outputEntry>
+        <outputEntry id="OE_Apr2_3"><text>"GLASS 2019 - Endovascular first em pacientes de alto risco"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_VAS_PAD_003_Aprovacao_Endo_SemVeia">
+        <description>Aprovacao Endovascular - Veia safena indisponivel</description>
+        <inputEntry id="IE_Apr3_1"><text>"TASC_C","TASC_D"</text></inputEntry>
+        <inputEntry id="IE_Apr3_2"><text>"Indisponivel"</text></inputEntry>
+        <inputEntry id="IE_Apr3_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_Apr3_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_Apr3_5"><text>true</text></inputEntry>
+        <outputEntry id="OE_Apr3_1"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OE_Apr3_2"><text>"Tratamento ENDOVASCULAR APROVADO - ausencia de veia safena adequada favorece endovascular mesmo em TASC C/D - bypass com protese tem resultado inferior"</text></outputEntry>
+        <outputEntry id="OE_Apr3_3"><text>"BASIL Trial - Bypass com protese tem patencia inferior a endovascular"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_VAS_PAD_003_Aprovacao_Endo_ExpectativaCurta">
+        <description>Aprovacao Endovascular - Expectativa de vida limitada</description>
+        <inputEntry id="IE_Apr4_1"><text>"TASC_C","TASC_D"</text></inputEntry>
+        <inputEntry id="IE_Apr4_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_Apr4_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_Apr4_4"><text>"Menor_2_Anos"</text></inputEntry>
+        <inputEntry id="IE_Apr4_5"><text>true</text></inputEntry>
+        <outputEntry id="OE_Apr4_1"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OE_Apr4_2"><text>"Tratamento ENDOVASCULAR APROVADO - expectativa de vida menor 2 anos favorece menor invasividade do endovascular"</text></outputEntry>
+        <outputEntry id="OE_Apr4_3"><text>"BASIL Trial - Endovascular equivalente a bypass nos primeiros 2 anos"</text></outputEntry>
+      </rule>
+
+      <!-- ============================================== -->
+      <!-- REGRAS DE APROVACAO - BYPASS                  -->
+      <!-- ============================================== -->
+
+      <rule id="Rule_VAS_PAD_003_Aprovacao_Bypass_Ideal">
+        <description>Aprovacao Bypass - TASC C/D com veia boa e baixo risco</description>
+        <inputEntry id="IE_Apr5_1"><text>"TASC_C","TASC_D"</text></inputEntry>
+        <inputEntry id="IE_Apr5_2"><text>"Disponivel_Qualidade"</text></inputEntry>
+        <inputEntry id="IE_Apr5_3"><text>"Baixo"</text></inputEntry>
+        <inputEntry id="IE_Apr5_4"><text>"Maior_5_Anos"</text></inputEntry>
+        <inputEntry id="IE_Apr5_5"><text>true</text></inputEntry>
+        <outputEntry id="OE_Apr5_1"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OE_Apr5_2"><text>"BYPASS com veia safena APROVADO - TASC C/D com veia de qualidade, baixo risco e expectativa de vida maior 5 anos - melhor durabilidade a longo prazo"</text></outputEntry>
+        <outputEntry id="OE_Apr5_3"><text>"BASIL Trial - Bypass com veia tem melhor sobrevida apos 2 anos"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_VAS_PAD_003_Aprovacao_Bypass_TASC_D">
+        <description>Aprovacao Bypass - TASC D com veia disponivel</description>
+        <inputEntry id="IE_Apr6_1"><text>"TASC_D"</text></inputEntry>
+        <inputEntry id="IE_Apr6_2"><text>"Disponivel_Qualidade","Disponivel_Subotima"</text></inputEntry>
+        <inputEntry id="IE_Apr6_3"><text>"Baixo","Intermediario"</text></inputEntry>
+        <inputEntry id="IE_Apr6_4"><text>"Maior_5_Anos","Entre_2_5_Anos"</text></inputEntry>
+        <inputEntry id="IE_Apr6_5"><text>true</text></inputEntry>
+        <outputEntry id="OE_Apr6_1"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OE_Apr6_2"><text>"BYPASS com veia APROVADO - lesao TASC D extensa com veia disponivel e risco aceitavel"</text></outputEntry>
+        <outputEntry id="OE_Apr6_3"><text>"TASC II Classe I - Bypass indicado para TASC D quando veia disponivel"</text></outputEntry>
+      </rule>
+
+      <!-- ============================================== -->
+      <!-- REGRAS DE PENDENCIA                           -->
+      <!-- ============================================== -->
+
+      <rule id="Rule_VAS_PAD_003_Pendente_TASC_C">
+        <description>Pendente - TASC C com veia subotima</description>
+        <inputEntry id="IE_Pend1_1"><text>"TASC_C"</text></inputEntry>
+        <inputEntry id="IE_Pend1_2"><text>"Disponivel_Subotima"</text></inputEntry>
+        <inputEntry id="IE_Pend1_3"><text>"Intermediario"</text></inputEntry>
+        <inputEntry id="IE_Pend1_4"><text>"Entre_2_5_Anos"</text></inputEntry>
+        <inputEntry id="IE_Pend1_5"><text>true</text></inputEntry>
+        <outputEntry id="OE_Pend1_1"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OE_Pend1_2"><text>"TASC C com veia subotima e risco intermediario - decisao entre endovascular first vs bypass requer analise individualizada"</text></outputEntry>
+        <outputEntry id="OE_Pend1_3"><text>"GLASS 2019 - Decisao baseada em anatomia especifica e discussao multidisciplinar"</text></outputEntry>
+      </rule>
+
+      <!-- ============================================== -->
+      <!-- REGRA FALLBACK                                -->
+      <!-- ============================================== -->
+
+      <rule id="Rule_Fallback_VAS_PAD_003">
+        <description>Fallback - Casos nao cobertos requerem analise manual</description>
+        <inputEntry id="IE_Fallback_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_Fallback_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_Fallback_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_Fallback_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_Fallback_5"><text>-</text></inputEntry>
+        <outputEntry id="OE_Fallback_1"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OE_Fallback_2"><text>"Caso requer analise por junta vascular para definicao de estrategia de revascularizacao"</text></outputEntry>
+        <outputEntry id="OE_Fallback_3"><text>"Auditoria especializada conforme RN 428/2017"</text></outputEntry>
+      </rule>
+
+    </decisionTable>
+  </decision>
+</definitions>

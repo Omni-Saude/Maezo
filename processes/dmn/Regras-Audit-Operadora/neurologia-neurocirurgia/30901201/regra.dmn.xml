@@ -1,0 +1,284 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             xmlns:camunda="http://camunda.org/schema/1.0/dmn"
+             id="Definitions_30901201"
+             name="Drenagem de Hematoma Epidural"
+             namespace="http://camunda.org/schema/1.0/dmn">
+
+  <!--
+    ===============================================================================
+    TUSS: 30901201
+    Procedimento: Drenagem de Hematoma Epidural
+    Versao: 3.1.0-LEAN-TIER2
+    Data: 2026-02-08
+    Enrichment: Added waste prevention rules (DUP+DOC)
+    ===============================================================================
+
+    INDICACOES CLINICAS (DUT/ANS):
+    Hematoma epidural com volume >30cm3, hematoma epidural com espessura >15mm,
+    hematoma epidural com desvio de linha media >5mm,
+    hematoma epidural com deterioracao neurologica (intervalo lucido classico)
+
+    CONTRAINDICACOES:
+    Hematoma epidural pequeno assintomatico (<30cm3, <15mm),
+    coagulopatia grave nao corrigida (relativa em emergencia)
+
+    DOCUMENTACAO OBRIGATORIA:
+    TC de cranio urgente, avaliacao de escala de Glasgow,
+    documentacao de pupilas, mecanismo de trauma
+
+    REFERENCIAS TECNICAS:
+    BTF Guidelines Epidural Hematoma 2023, AANS/CNS Neurotrauma 2024,
+    SBN 2023, ANS RN 465/2021, DUT 2024
+
+    ===============================================================================
+  -->
+
+  <decision id="Decision_30901201" name="Regra Clinica - Drenagem de Hematoma Epidural">
+    <decisionTable id="DecisionTable_30901201" hitPolicy="FIRST">
+
+      <input id="Input_condicaoPaciente" label="Condicao do Paciente" camunda:inputVariable="condicaoPaciente">
+        <inputExpression id="InputExpression_condicaoPaciente" typeRef="string">
+          <text>condicaoPaciente</text>
+        </inputExpression>
+        <inputValues id="InputValues_condicaoPaciente">
+          <text>"HEDVolume30cm3","HEDEspessura15mm","HEDDesvioLinhaMédia","DeterioracaoIntervaloLucido","HEDPequenoAssintomatico"</text>
+        </inputValues>
+      </input>
+
+      <input id="Input_historicoClinico" label="Historico Clinico" camunda:inputVariable="historicoClinico">
+        <inputExpression id="InputExpression_historicoClinico" typeRef="string">
+          <text>historicoClinico</text>
+        </inputExpression>
+        <inputValues id="InputValues_historicoClinico">
+          <text>"Adequado","Incompleto","NaoDocumentado"</text>
+        </inputValues>
+      </input>
+
+      <input id="Input_classeIndicacao" label="Classe de Indicacao (BTF/AANS)" camunda:inputVariable="classeIndicacao">
+        <inputExpression id="InputExpression_classeIndicacao" typeRef="string">
+          <text>classeIndicacao</text>
+        </inputExpression>
+        <inputValues id="InputValues_classeIndicacao">
+          <text>"Classe I","Classe IIa","Classe IIb","Classe III"</text>
+        </inputValues>
+      </input>
+
+      <input id="Input_examesComprobatorios" label="Exames Comprobatorios" camunda:inputVariable="examesComprobatorios">
+        <inputExpression id="InputExpression_examesComprobatorios" typeRef="string">
+          <text>examesComprobatorios</text>
+        </inputExpression>
+        <inputValues id="InputValues_examesComprobatorios">
+          <text>"TCCranioUrgente","SemImagem"</text>
+        </inputValues>
+      </input>
+
+      <input id="Input_expectativaVidaSuperior1Ano" label="Expectativa de Vida Superior 1 Ano" camunda:inputVariable="expectativaVidaSuperior1Ano">
+        <inputExpression id="InputExpression_expectativaVidaSuperior1Ano" typeRef="boolean">
+          <text>expectativaVidaSuperior1Ano</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_ultimoProcedimentoDias" label="Dias Desde Ultimo Procedimento" camunda:inputVariable="ultimoProcedimentoDias">
+        <inputExpression id="InputExpression_ultimoProcedimentoDias" typeRef="integer">
+          <text>ultimoProcedimentoDias</text>
+        </inputExpression>
+      </input>
+
+      <output id="Output_resultado" label="Resultado" name="resultado" typeRef="string">
+        <outputValues id="OutputValues_resultado">
+          <text>"Aprovado","Reprovado","Pendente"</text>
+        </outputValues>
+      </output>
+
+      <output id="Output_observacao" label="Observacao Clinica" name="observacao" typeRef="string" />
+
+      <output id="Output_fundamentacao" label="Fundamentacao Tecnica" name="fundamentacao" typeRef="string" />
+      <!-- Output 4: Alertas de Desperdicio -->
+      <output id="Output_alertasDesperdicio" label="Alertas de Desperdicio" name="alertasDesperdicio" typeRef="string">
+        <outputValues id="OutputValues_alertasDesperdicio">
+          <text>"NENHUM","DUP","FREQ","ESC","DOC","PROT","MULTI"</text>
+        </outputValues>
+      </output>
+
+      <!-- Output 5: Acao Recomendada -->
+      <output id="Output_acaoRecomendada" label="Acao Recomendada" name="acaoRecomendada" typeRef="string">
+        <outputValues id="OutputValues_acaoRecomendada">
+          <text>"APROVAR","NEGAR","SOLICITAR_INFO","AGUARDAR_PRAZO","SUGERIR_ALTERNATIVA"</text>
+        </outputValues>
+      </output>
+
+
+      <!-- REPROVACOES -->
+      <rule id="Rule_Contraind_ClasseIII">
+        <description>Contraindicacao: Procedimento Classe III</description>
+        <inputEntry id="InputEntry_1_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_1_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_1_3"><text>"Classe III"</text></inputEntry>
+        <inputEntry id="InputEntry_1_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_1_5"><text>-</text></inputEntry>
+        <inputEntry id="IE_30901201_ClasseIII_6"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_1_1"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_1_2"><text>"Procedimento nao indicado - Classe III"</text></outputEntry>
+        <outputEntry id="OutputEntry_1_3"><text>"BTF 2023 - Classe III: Observacao recomendada"</text></outputEntry>
+        <outputEntry id="OE_Rule_Contraind_ClasseIII_4"><text>"PROT"</text></outputEntry>
+        <outputEntry id="OE_Rule_Contraind_ClasseIII_5"><text>"NEGAR"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Contraind_Assintomatico">
+        <description>Contraindicacao: HED pequeno assintomatico</description>
+        <inputEntry id="InputEntry_2_1"><text>"HEDPequenoAssintomatico"</text></inputEntry>
+        <inputEntry id="InputEntry_2_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_2_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_2_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_2_5"><text>-</text></inputEntry>
+        <inputEntry id="IE_30901201_Assintomatico_6"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_2_1"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_2_2"><text>"HED pequeno assintomatico - observacao com TC seriada"</text></outputEntry>
+        <outputEntry id="OutputEntry_2_3"><text>"BTF 2023 - Tratamento conservador para HED pequeno estavel"</text></outputEntry>
+        <outputEntry id="OE_Rule_Contraind_Assintomatico_4"><text>"PROT"</text></outputEntry>
+        <outputEntry id="OE_Rule_Contraind_Assintomatico_5"><text>"NEGAR"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Reprovado_SemImagem">
+        <description>Reprovado: Sem imagem</description>
+        <inputEntry id="InputEntry_3_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_3_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_3_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_3_4"><text>"SemImagem"</text></inputEntry>
+        <inputEntry id="InputEntry_3_5"><text>-</text></inputEntry>
+        <inputEntry id="IE_30901201_SemImagem_6"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_3_1"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_3_2"><text>"TC de cranio obrigatoria para diagnostico"</text></outputEntry>
+        <outputEntry id="OutputEntry_3_3"><text>"BTF 2023 - TC essencial para diagnostico de HED"</text></outputEntry>
+        <outputEntry id="OE_Rule_Reprovado_SemImagem_4"><text>"PROT"</text></outputEntry>
+        <outputEntry id="OE_Rule_Reprovado_SemImagem_5"><text>"NEGAR"</text></outputEntry>
+      </rule>
+
+      <!-- WASTE PREVENTION RULES -->
+      <rule id="Rule_30901201_DUP_Reop">
+        <description>DUP: Reoperacao craniana em menos de 30 dias sem complicacao documentada</description>
+        <inputEntry id="IE_30901201_DUP_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_30901201_DUP_2"><text>"Incompleto","NaoDocumentado"</text></inputEntry>
+        <inputEntry id="IE_30901201_DUP_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_30901201_DUP_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_30901201_DUP_5"><text>-</text></inputEntry>
+        <inputEntry id="IE_30901201_DUP_6"><text>&lt; 30</text></inputEntry>
+        <outputEntry id="OE_30901201_DUP_1"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OE_30901201_DUP_2"><text>"Reoperacao craniana em menos de 30 dias requer justificativa de complicacao documentada"</text></outputEntry>
+        <outputEntry id="OE_30901201_DUP_3"><text>"AANS/CNS 2024 - Reoperacao precoce requer documentacao de complicacao ou evento agudo"</text></outputEntry>
+        <outputEntry id="OE_30901201_DUP_4"><text>"DUP"</text></outputEntry>
+        <outputEntry id="OE_30901201_DUP_5"><text>"SOLICITAR_INFO"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_30901201_DOC_Imagem">
+        <description>DOC: Procedimento neurocirurgico sem imagem atual</description>
+        <inputEntry id="IE_30901201_DOC_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_30901201_DOC_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_30901201_DOC_3"><text>"Classe I","Classe IIa"</text></inputEntry>
+        <inputEntry id="IE_30901201_DOC_4"><text>"SemImagem"</text></inputEntry>
+        <inputEntry id="IE_30901201_DOC_5"><text>-</text></inputEntry>
+        <inputEntry id="IE_30901201_DOC_6"><text>-</text></inputEntry>
+        <outputEntry id="OE_30901201_DOC_1"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OE_30901201_DOC_2"><text>"TC de cranio obrigatoria para planejamento cirurgico"</text></outputEntry>
+        <outputEntry id="OE_30901201_DOC_3"><text>"AANS/CNS 2024, ANS RN 465/2021 - Imagem atual obrigatoria"</text></outputEntry>
+        <outputEntry id="OE_30901201_DOC_4"><text>"DOC"</text></outputEntry>
+        <outputEntry id="OE_30901201_DOC_5"><text>"SOLICITAR_INFO"</text></outputEntry>
+      </rule>
+
+      <!-- APROVACOES -->
+      <rule id="Rule_Aprovado_Volume">
+        <description>Aprovado: HED volume maior que 30cm3</description>
+        <inputEntry id="InputEntry_4_1"><text>"HEDVolume30cm3"</text></inputEntry>
+        <inputEntry id="InputEntry_4_2"><text>"Adequado"</text></inputEntry>
+        <inputEntry id="InputEntry_4_3"><text>"Classe I"</text></inputEntry>
+        <inputEntry id="InputEntry_4_4"><text>"TCCranioUrgente"</text></inputEntry>
+        <inputEntry id="InputEntry_4_5"><text>-</text></inputEntry>
+        <inputEntry id="IE_30901201_Volume_6"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_4_1"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_4_2"><text>"HED volume >30cm3 - craniotomia de emergencia"</text></outputEntry>
+        <outputEntry id="OutputEntry_4_3"><text>"BTF Guidelines 2023 - Evacuacao para HED >30cm3"</text></outputEntry>
+        <outputEntry id="OE_Rule_Aprovado_Volume_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_Rule_Aprovado_Volume_5"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Aprovado_Espessura">
+        <description>Aprovado: HED espessura maior que 15mm</description>
+        <inputEntry id="InputEntry_5_1"><text>"HEDEspessura15mm"</text></inputEntry>
+        <inputEntry id="InputEntry_5_2"><text>"Adequado"</text></inputEntry>
+        <inputEntry id="InputEntry_5_3"><text>"Classe I"</text></inputEntry>
+        <inputEntry id="InputEntry_5_4"><text>"TCCranioUrgente"</text></inputEntry>
+        <inputEntry id="InputEntry_5_5"><text>-</text></inputEntry>
+        <inputEntry id="IE_30901201_Espessura_6"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_5_1"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_5_2"><text>"HED espessura >15mm - craniotomia indicada"</text></outputEntry>
+        <outputEntry id="OutputEntry_5_3"><text>"BTF Guidelines 2023 - Evacuacao para HED >15mm"</text></outputEntry>
+        <outputEntry id="OE_Rule_Aprovado_Espessura_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_Rule_Aprovado_Espessura_5"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Aprovado_Desvio">
+        <description>Aprovado: HED com desvio de linha media</description>
+        <inputEntry id="InputEntry_6_1"><text>"HEDDesvioLinhaMédia"</text></inputEntry>
+        <inputEntry id="InputEntry_6_2"><text>"Adequado"</text></inputEntry>
+        <inputEntry id="InputEntry_6_3"><text>"Classe I"</text></inputEntry>
+        <inputEntry id="InputEntry_6_4"><text>"TCCranioUrgente"</text></inputEntry>
+        <inputEntry id="InputEntry_6_5"><text>-</text></inputEntry>
+        <inputEntry id="IE_30901201_Desvio_6"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_6_1"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_6_2"><text>"HED com desvio >5mm - craniotomia de emergencia"</text></outputEntry>
+        <outputEntry id="OutputEntry_6_3"><text>"BTF Guidelines 2023 - Evacuacao para desvio >5mm"</text></outputEntry>
+        <outputEntry id="OE_Rule_Aprovado_Desvio_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_Rule_Aprovado_Desvio_5"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Aprovado_IntervaloLucido">
+        <description>Aprovado: Deterioracao pos intervalo lucido</description>
+        <inputEntry id="InputEntry_7_1"><text>"DeterioracaoIntervaloLucido"</text></inputEntry>
+        <inputEntry id="InputEntry_7_2"><text>"Adequado"</text></inputEntry>
+        <inputEntry id="InputEntry_7_3"><text>"Classe I"</text></inputEntry>
+        <inputEntry id="InputEntry_7_4"><text>"TCCranioUrgente"</text></inputEntry>
+        <inputEntry id="InputEntry_7_5"><text>-</text></inputEntry>
+        <inputEntry id="IE_30901201_IntervaloLucido_6"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_7_1"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_7_2"><text>"Intervalo lucido com deterioracao - craniotomia de emergencia"</text></outputEntry>
+        <outputEntry id="OutputEntry_7_3"><text>"BTF 2023, AANS/CNS 2024 - Evacuacao imediata em deterioracao"</text></outputEntry>
+        <outputEntry id="OE_Rule_Aprovado_IntervaloLucido_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_Rule_Aprovado_IntervaloLucido_5"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <!-- PENDENTES -->
+      <rule id="Rule_Pendente_DocIncompleta">
+        <description>Pendente: Documentacao incompleta</description>
+        <inputEntry id="InputEntry_8_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_8_2"><text>"Incompleto"</text></inputEntry>
+        <inputEntry id="InputEntry_8_3"><text>"Classe I","Classe IIa"</text></inputEntry>
+        <inputEntry id="InputEntry_8_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_8_5"><text>-</text></inputEntry>
+        <inputEntry id="IE_30901201_DocIncompleta_6"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_8_1"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OutputEntry_8_2"><text>"Documentar Glasgow, pupilas e mecanismo de trauma"</text></outputEntry>
+        <outputEntry id="OutputEntry_8_3"><text>"ANS RN 465/2021 - Documentacao adequada necessaria"</text></outputEntry>
+        <outputEntry id="OE_Rule_Pendente_DocIncompleta_4"><text>"DOC"</text></outputEntry>
+        <outputEntry id="OE_Rule_Pendente_DocIncompleta_5"><text>"SOLICITAR_INFO"</text></outputEntry>
+      </rule>
+
+      <!-- FALLBACK -->
+      <rule id="Rule_Fallback_30901201">
+        <description>Regra padrao - Analise adicional necessaria</description>
+        <inputEntry id="InputEntry_9_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_9_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_9_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_9_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_9_5"><text>-</text></inputEntry>
+        <inputEntry id="IE_30901201_Fallback_6"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_9_1"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OutputEntry_9_2"><text>"Caso requer avaliacao neurocirurgica de emergencia"</text></outputEntry>
+        <outputEntry id="OutputEntry_9_3"><text>"Avaliacao conforme BTF Epidural Hematoma Guidelines 2023"</text></outputEntry>
+        <outputEntry id="OE_Rule_Fallback_30901201_4"><text>"DOC"</text></outputEntry>
+        <outputEntry id="OE_Rule_Fallback_30901201_5"><text>"SOLICITAR_INFO"</text></outputEntry>
+      </rule>
+
+    </decisionTable>
+  </decision>
+</definitions>

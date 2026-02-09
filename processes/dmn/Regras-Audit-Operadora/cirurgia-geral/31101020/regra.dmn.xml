@@ -1,0 +1,407 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             xmlns:camunda="http://camunda.org/schema/1.0/dmn"
+             id="Definitions_31101020"
+             name="Cirurgia Bariátrica - Critérios de IMC"
+             namespace="http://camunda.org/schema/1.0/dmn">
+
+  <!--
+    ===============================================================================
+    TUSS: 31101020
+    Procedimento: Cirurgia Bariátrica - Critérios de IMC e Comorbidades
+    Versão: 3.1.0-LEAN-TIER2
+    Data: 2026-02-08
+    ===============================================================================
+    INDICAÇÕES CLÍNICAS (DUT/ANS):
+    - IMC ≥ 40 kg/m² (obesidade grau III)
+    - IMC ≥ 35 kg/m² com comorbidades graves:
+      * Diabetes mellitus tipo 2 (DM2)
+      * Hipertensão arterial sistêmica (HAS)
+      * Síndrome da apneia obstrutiva do sono (SAOS)
+      * Dislipidemia grave
+      * Esteatose hepática não alcoólica (NASH)
+      * Artropatias incapacitantes
+    - Idade entre 18 e 65 anos (fora dessa faixa requer junta médica)
+    - Falha de tratamento clínico por ≥ 2 anos
+
+    CONTRAINDICAÇÕES:
+    - IMC < 35 kg/m² sem comorbidades
+    - Tratamento conservador < 2 anos
+    - Transtornos psiquiátricos graves não controlados
+    - Dependência química ativa (álcool, drogas)
+    - Doenças endócrinas não tratadas (Cushing, hipotireoidismo)
+    - Risco cirúrgico ASA IV-V
+    - Idade < 18 anos ou > 65 anos sem justificativa
+
+    DOCUMENTAÇÃO OBRIGATÓRIA:
+    - IMC documentado (peso, altura, cálculo)
+    - Laudos de comorbidades (DM2, HAS, SAOS com polissonografia)
+    - Relatório de tratamento clínico ≥ 2 anos (nutricionista, endocrinologista)
+    - Avaliação psicológica/psiquiátrica
+    - Consentimento informado sobre riscos cirúrgicos
+    - Endoscopia digestiva alta (EDA) pré-operatória
+
+    REFERÊNCIAS TÉCNICAS:
+    - SBCBM - Diretrizes Brasileiras de Cirurgia Bariátrica e Metabólica 2023
+    - CFM - Resolução CFM 2.131/2015 (critérios para cirurgia bariátrica)
+    - IFSO - International Federation for Surgery of Obesity Guidelines 2023
+    - ANS - Resolução Normativa 465/2021 (Rol de Procedimentos)
+    ===============================================================================
+  -->
+
+  <decision id="Decision_31101020" name="Regra Clínica - Cirurgia Bariátrica IMC">
+    <decisionTable id="DecisionTable_31101020" hitPolicy="FIRST">
+
+      <input id="Input_imc" label="Índice de Massa Corporal (IMC)">
+        <inputExpression typeRef="string">
+          <text>imc</text>
+        </inputExpression>
+        <inputValues>
+          <text>"<30","30-34.9","35-39.9","40-49.9",">=50"</text>
+        </inputValues>
+      </input>
+
+      <input id="Input_comorbidades" label="Comorbidades Associadas">
+        <inputExpression typeRef="string">
+          <text>comorbidades</text>
+        </inputExpression>
+        <inputValues>
+          <text>"Nenhuma","DM2","HAS","SAOS","DM2HAS","MultiplasComorbidades"</text>
+        </inputValues>
+      </input>
+
+      <input id="Input_tratamentoClinico" label="Tratamento Clínico Prévio">
+        <inputExpression typeRef="string">
+          <text>tratamentoClinicoPrevio</text>
+        </inputExpression>
+        <inputValues>
+          <text>"Nenhum","<2anos","2-5anos",">5anos"</text>
+        </inputValues>
+      </input>
+
+      <input id="Input_avaliacaoMulti" label="Avaliação Multidisciplinar Completa">
+        <inputExpression typeRef="boolean">
+          <text>avaliacaoMultidisciplinar</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_idadeAdequada" label="Faixa Etária">
+        <inputExpression typeRef="string">
+          <text>idadeAdequada</text>
+        </inputExpression>
+        <inputValues>
+          <text>"18-65","<18",">65"</text>
+        </inputValues>
+      </input>
+
+      <!-- Input: Dias desde ultimo procedimento igual -->
+      <input id="Input_ultimoProcedimentoDias" label="Dias Desde Ultimo Procedimento">
+        <inputExpression id="InputExpr_ultimoProcedimentoDias" typeRef="integer">
+          <text>ultimoProcedimentoDias</text>
+        </inputExpression>
+      </input>
+
+      <!-- Input: Frequencia anual do procedimento -->
+      <input id="Input_frequenciaAnualProcedimento" label="Frequencia Anual do Procedimento">
+        <inputExpression id="InputExpr_frequenciaAnualProcedimento" typeRef="integer">
+          <text>frequenciaAnualProcedimento</text>
+        </inputExpression>
+      </input>
+
+      <output id="Output_resultado" label="Resultado Autorização" name="resultado" typeRef="string">
+        <outputValues>
+          <text>"Aprovado","Reprovado","Pendente"</text>
+        </outputValues>
+      </output>
+
+      <output id="Output_observacao" label="Observação" name="observacao" typeRef="string" />
+
+      <output id="Output_fundamentacao" label="Fundamentação Técnica" name="fundamentacao" typeRef="string" />
+
+      <!-- Output 4: Alertas Desperdicio -->
+      <output id="Output_alertasDesperdicio" label="Alertas de Desperdicio" name="alertasDesperdicio" typeRef="string">
+        <outputValues id="OutputValues_alertasDesperdicio">
+          <text>"NENHUM","DUP","FREQ","ESC","DOC","PROT","MULTI"</text>
+        </outputValues>
+      </output>
+
+      <!-- Output 5: Acao Recomendada -->
+      <output id="Output_acaoRecomendada" label="Acao Recomendada" name="acaoRecomendada" typeRef="string">
+        <outputValues id="OutputValues_acaoRecomendada">
+          <text>"APROVAR","NEGAR","SOLICITAR_INFO","AGUARDAR_PRAZO","SUGERIR_ALTERNATIVA"</text>
+        </outputValues>
+      </output>
+
+      <rule id="Rule_Contraind_31101020_1">
+        <description>Contraindicação: IMC &lt; 35 kg/m² sem comorbidades graves</description>
+        <inputEntry>
+          <text>"<30","30-34.9"</text>
+        </inputEntry>
+        <inputEntry>
+          <text>-</text>
+        </inputEntry>
+        <inputEntry>
+          <text>-</text>
+        </inputEntry>
+        <inputEntry>
+          <text>-</text>
+        </inputEntry>
+        <inputEntry>
+          <text>-</text>
+        </inputEntry>
+        <outputEntry>
+          <text>"NEGADO"</text>
+        </outputEntry>
+        <outputEntry>
+          <text>"IMC abaixo do critério mínimo - intensificar tratamento clínico (nutrição, atividade física, farmacoterapia)"</text>
+        </outputEntry>
+        <outputEntry>
+          <text>"CFM 2.131/2015 + SBCBM 2023: cirurgia bariátrica indicada apenas para IMC ≥ 40 ou ≥ 35 com comorbidades"</text>
+        </outputEntry>
+      <outputEntry id="OE_Contraind_31101020_1_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_Contraind_31101020_1_5"><text>"SOLICITAR_INFO"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Contraind_31101020_2">
+        <description>Contraindicação: Tratamento clínico insuficiente (&lt; 2 anos)</description>
+        <inputEntry>
+          <text>-</text>
+        </inputEntry>
+        <inputEntry>
+          <text>-</text>
+        </inputEntry>
+        <inputEntry>
+          <text>"Nenhum","<2anos"</text>
+        </inputEntry>
+        <inputEntry>
+          <text>-</text>
+        </inputEntry>
+        <inputEntry>
+          <text>-</text>
+        </inputEntry>
+        <outputEntry>
+          <text>"NEGADO"</text>
+        </outputEntry>
+        <outputEntry>
+          <text>"Falha de tratamento conservador não comprovada - necessário ≥ 2 anos de acompanhamento multidisciplinar"</text>
+        </outputEntry>
+        <outputEntry>
+          <text>"CFM 2.131/2015: exige ≥ 2 anos de tratamento clínico documentado antes de cirurgia bariátrica"</text>
+        </outputEntry>
+      <outputEntry id="OE_Contraind_31101020_2_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_Contraind_31101020_2_5"><text>"SOLICITAR_INFO"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Contraind_31101020_3">
+        <description>Contraindicação: Avaliação multidisciplinar incompleta</description>
+        <inputEntry>
+          <text>-</text>
+        </inputEntry>
+        <inputEntry>
+          <text>-</text>
+        </inputEntry>
+        <inputEntry>
+          <text>-</text>
+        </inputEntry>
+        <inputEntry>
+          <text>false</text>
+        </inputEntry>
+        <inputEntry>
+          <text>-</text>
+        </inputEntry>
+        <outputEntry>
+          <text>"PENDENTE"</text>
+        </outputEntry>
+        <outputEntry>
+          <text>"Avaliação multidisciplinar incompleta - anexar laudos de endocrinologia, nutrição, psicologia e EDA"</text>
+        </outputEntry>
+        <outputEntry>
+          <text>"SBCBM 2023 + ANS RN 465/2021: avaliação multidisciplinar obrigatória (clínico, nutri, psico, anestesista)"</text>
+        </outputEntry>
+      <outputEntry id="OE_Contraind_31101020_3_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_Contraind_31101020_3_5"><text>"SOLICITAR_INFO"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Aprovado_31101020_1">
+        <description>Aprovação: IMC ≥ 40 kg/m² (obesidade grau III) com tratamento adequado</description>
+        <inputEntry>
+          <text>"40-49.9",">=50"</text>
+        </inputEntry>
+        <inputEntry>
+          <text>-</text>
+        </inputEntry>
+        <inputEntry>
+          <text>"2-5anos",">5anos"</text>
+        </inputEntry>
+        <inputEntry>
+          <text>true</text>
+        </inputEntry>
+        <inputEntry>
+          <text>"18-65"</text>
+        </inputEntry>
+        <outputEntry>
+          <text>"APROVADO"</text>
+        </outputEntry>
+        <outputEntry>
+          <text>"Indicação clássica de cirurgia bariátrica - IMC ≥ 40 com falha de tratamento clínico ≥ 2 anos"</text>
+        </outputEntry>
+        <outputEntry>
+          <text>"CFM 2.131/2015 + IFSO 2023: IMC ≥ 40 é indicação formal de cirurgia bariátrica após tratamento conservador"</text>
+        </outputEntry>
+      <outputEntry id="OE_Aprovado_31101020_1_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_Aprovado_31101020_1_5"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Aprovado_31101020_2">
+        <description>Aprovação: IMC 35-39.9 kg/m² com DM2 (cirurgia metabólica)</description>
+        <inputEntry>
+          <text>"35-39.9"</text>
+        </inputEntry>
+        <inputEntry>
+          <text>"DM2","DM2HAS","MultiplasComorbidades"</text>
+        </inputEntry>
+        <inputEntry>
+          <text>"2-5anos",">5anos"</text>
+        </inputEntry>
+        <inputEntry>
+          <text>true</text>
+        </inputEntry>
+        <inputEntry>
+          <text>"18-65"</text>
+        </inputEntry>
+        <outputEntry>
+          <text>"APROVADO"</text>
+        </outputEntry>
+        <outputEntry>
+          <text>"Cirurgia metabólica - IMC 35-39.9 com DM2 refratário tem benefício de remissão diabética"</text>
+        </outputEntry>
+        <outputEntry>
+          <text>"SBCBM 2023 + IFSO 2023: cirurgia bariátrica em IMC 35-40 com DM2 promove remissão em 60-80% dos casos"</text>
+        </outputEntry>
+      <outputEntry id="OE_Aprovado_31101020_2_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_Aprovado_31101020_2_5"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Aprovado_31101020_3">
+        <description>Aprovação: IMC 35-39.9 kg/m² com SAOS grave (múltiplas comorbidades)</description>
+        <inputEntry>
+          <text>"35-39.9"</text>
+        </inputEntry>
+        <inputEntry>
+          <text>"SAOS","MultiplasComorbidades"</text>
+        </inputEntry>
+        <inputEntry>
+          <text>"2-5anos",">5anos"</text>
+        </inputEntry>
+        <inputEntry>
+          <text>true</text>
+        </inputEntry>
+        <inputEntry>
+          <text>"18-65"</text>
+        </inputEntry>
+        <outputEntry>
+          <text>"APROVADO"</text>
+        </outputEntry>
+        <outputEntry>
+          <text>"IMC 35-39.9 com SAOS grave - cirurgia bariátrica melhora qualidade de vida e reduz risco cardiovascular"</text>
+        </outputEntry>
+        <outputEntry>
+          <text>"CFM 2.131/2015: IMC ≥ 35 com comorbidades graves (SAOS, HAS, dislipidemia) justifica cirurgia"</text>
+        </outputEntry>
+      <outputEntry id="OE_Aprovado_31101020_3_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_Aprovado_31101020_3_5"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Aprovado_31101020_4">
+        <description>Aprovação: IMC ≥ 50 kg/m² (super-obesidade) - prioridade cirúrgica</description>
+        <inputEntry>
+          <text>">=50"</text>
+        </inputEntry>
+        <inputEntry>
+          <text>-</text>
+        </inputEntry>
+        <inputEntry>
+          <text>"2-5anos",">5anos"</text>
+        </inputEntry>
+        <inputEntry>
+          <text>true</text>
+        </inputEntry>
+        <inputEntry>
+          <text>"18-65"</text>
+        </inputEntry>
+        <outputEntry>
+          <text>"APROVADO"</text>
+        </outputEntry>
+        <outputEntry>
+          <text>"Super-obesidade (IMC ≥ 50) - alto risco de mortalidade, priorizar cirurgia bariátrica"</text>
+        </outputEntry>
+        <outputEntry>
+          <text>"IFSO 2023: IMC ≥ 50 tem mortalidade 12x maior que população geral, cirurgia é prioridade terapêutica"</text>
+        </outputEntry>
+      <outputEntry id="OE_Aprovado_31101020_4_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_Aprovado_31101020_4_5"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Aprovado_31101020_5">
+        <description>Aprovação: IMC 35-39.9 com HAS + DM2 (síndrome metabólica completa)</description>
+        <inputEntry>
+          <text>"35-39.9","40-49.9"</text>
+        </inputEntry>
+        <inputEntry>
+          <text>"DM2HAS","MultiplasComorbidades"</text>
+        </inputEntry>
+        <inputEntry>
+          <text>"2-5anos",">5anos"</text>
+        </inputEntry>
+        <inputEntry>
+          <text>true</text>
+        </inputEntry>
+        <inputEntry>
+          <text>"18-65"</text>
+        </inputEntry>
+        <outputEntry>
+          <text>"APROVADO"</text>
+        </outputEntry>
+        <outputEntry>
+          <text>"Síndrome metabólica completa (HAS + DM2) - cirurgia bariátrica reduz mortalidade cardiovascular em 40%"</text>
+        </outputEntry>
+        <outputEntry>
+          <text>"SBCBM 2023: múltiplas comorbidades metabólicas justificam cirurgia em IMC ≥ 35 com tratamento clínico falho"</text>
+        </outputEntry>
+      <outputEntry id="OE_Aprovado_31101020_5_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_Aprovado_31101020_5_5"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Fallback_31101020">
+        <description>Fallback: Encaminhar para junta médica de cirurgia bariátrica</description>
+        <inputEntry>
+          <text>-</text>
+        </inputEntry>
+        <inputEntry>
+          <text>-</text>
+        </inputEntry>
+        <inputEntry>
+          <text>-</text>
+        </inputEntry>
+        <inputEntry>
+          <text>-</text>
+        </inputEntry>
+        <inputEntry>
+          <text>-</text>
+        </inputEntry>
+        <outputEntry>
+          <text>"PENDENTE"</text>
+        </outputEntry>
+        <outputEntry>
+          <text>"Caso atípico ou idade fora da faixa 18-65 anos - solicitar avaliação por junta médica especializada"</text>
+        </outputEntry>
+        <outputEntry>
+          <text>"CFM 2.131/2015 + ANS RN 465/2021: casos limítrofes requerem junta médica (cirurgião, endocrino, psiquiatra)"</text>
+        </outputEntry>
+      <outputEntry id="OE_Fallback_31101020_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_Fallback_31101020_5"><text>"SOLICITAR_INFO"</text></outputEntry>
+      </rule>
+
+    </decisionTable>
+  </decision>
+</definitions>

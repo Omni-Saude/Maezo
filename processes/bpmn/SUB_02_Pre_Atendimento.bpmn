@@ -1,0 +1,342 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" xmlns:camunda="http://camunda.org/schema/1.0/bpmn" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" id="Definitions_SUB02" targetNamespace="http://bpmn.io/schema/bpmn" exporter="Camunda Modeler" exporterVersion="5.0.0">
+  <bpmn:collaboration id="Collaboration_SUB02">
+    <bpmn:participant id="Participant_SUB02" name="SUB 02 - Pré-Atendimento e Triagem" processRef="Process_SUB02_PreAtendimento" />
+  </bpmn:collaboration>
+  <bpmn:process id="Process_SUB02_PreAtendimento" name="Pré-Atendimento e Triagem" isExecutable="true" camunda:historyTimeToLive="P365D">
+    <bpmn:laneSet id="LaneSet_SUB02">
+      <bpmn:lane id="Lane_Enfermagem" name="Enfermagem">
+        <bpmn:flowNodeRef>StartEvent_SUB02</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_RealizarTriagem</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_ColetarSinaisVitais</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Gateway_ClassificacaoRisco</bpmn:flowNodeRef>
+      </bpmn:lane>
+      <bpmn:lane id="Lane_Autorizacao" name="Autorização">
+        <bpmn:flowNodeRef>ServiceTask_VerificarAutorizacao</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Gateway_AutorizacaoNecessaria</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>ServiceTask_SolicitarAutorizacao</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_AguardarRetornoConvenio</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Gateway_AutorizacaoConcedida</bpmn:flowNodeRef>
+      </bpmn:lane>
+      <bpmn:lane id="Lane_Sistema" name="Sistema">
+        <bpmn:flowNodeRef>ServiceTask_RegistrarTriagem</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>ServiceTask_EncaminharAtendimento</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>EndEvent_SUB02</bpmn:flowNodeRef>
+      </bpmn:lane>
+    </bpmn:laneSet>
+    <bpmn:startEvent id="StartEvent_SUB02" name="Paciente Chegou">
+      <bpmn:outgoing>Flow_Start_To_Triagem</bpmn:outgoing>
+    </bpmn:startEvent>
+    <bpmn:userTask id="Task_RealizarTriagem" name="Realizar Triagem" camunda:assignee="${enfermeiro}">
+      <bpmn:extensionElements>
+        <camunda:formData>
+          <camunda:formField id="queixaPrincipal" label="Queixa Principal" type="string" />
+          <camunda:formField id="historico" label="Histórico Clínico" type="string" />
+          <camunda:formField id="alergias" label="Alergias" type="string" />
+          <camunda:formField id="medicamentosUso" label="Medicamentos em Uso" type="string" />
+          <camunda:formField id="triagemTimestamp" label="Data/Hora da Triagem" type="date" defaultValue="${now()}" />
+          <camunda:formField id="manchesterColor" label="Cor Manchester" type="enum">
+            <camunda:value id="VERMELHA" name="VERMELHA" />
+            <camunda:value id="LARANJA" name="LARANJA" />
+            <camunda:value id="AMARELA" name="AMARELA" />
+            <camunda:value id="VERDE" name="VERDE" />
+            <camunda:value id="AZUL" name="AZUL" />
+          </camunda:formField>
+        </camunda:formData>
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_Start_To_Triagem</bpmn:incoming>
+      <bpmn:outgoing>Flow_Triagem_To_Sinais</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:userTask id="Task_ColetarSinaisVitais" name="Coletar Sinais Vitais" camunda:assignee="${enfermeiro}">
+      <bpmn:extensionElements>
+        <camunda:formData>
+          <camunda:formField id="pressaoArterial" label="Pressão Arterial" type="string" />
+          <camunda:formField id="frequenciaCardiaca" label="Frequência Cardíaca" type="long" />
+          <camunda:formField id="temperatura" label="Temperatura (°C)" type="string" />
+          <camunda:formField id="saturacaoO2" label="Saturação O2 (%)" type="long" />
+          <camunda:formField id="glicemia" label="Glicemia" type="long" />
+        </camunda:formData>
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_Triagem_To_Sinais</bpmn:incoming>
+      <bpmn:outgoing>Flow_Sinais_To_Gateway</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:exclusiveGateway id="Gateway_ClassificacaoRisco" name="Classificação de Risco?" default="Flow_Gateway_Pouco_Urgente">
+      <bpmn:incoming>Flow_Sinais_To_Gateway</bpmn:incoming>
+      <bpmn:outgoing>Flow_Gateway_Emergencia</bpmn:outgoing>
+      <bpmn:outgoing>Flow_Gateway_Urgente</bpmn:outgoing>
+      <bpmn:outgoing>Flow_Gateway_Pouco_Urgente</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:businessRuleTask id="ServiceTask_VerificarAutorizacao" name="Verificar Necessidade de Autorização" camunda:asyncBefore="true" camunda:decisionRef="authorization-approval" camunda:mapDecisionResult="singleResult" camunda:resultVariable="autorizacaoDecision">
+      <bpmn:extensionElements>
+        <camunda:inputOutput>
+          <camunda:inputParameter name="procedimento">${procedimento}</camunda:inputParameter>
+          <camunda:inputParameter name="convenio">${convenio}</camunda:inputParameter>
+          <camunda:inputParameter name="classificacaoRisco">${classificacaoRisco}</camunda:inputParameter>
+          <camunda:outputParameter name="autorizacaoNecessaria">${autorizacaoDecision.autorizacaoNecessaria}</camunda:outputParameter>
+        </camunda:inputOutput>
+        <camunda:executionListener event="start" class="com.hospital.audit.TaskStartListener" />
+        <camunda:executionListener event="end" class="com.hospital.audit.TaskEndListener" />
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_Gateway_Pouco_Urgente</bpmn:incoming>
+      <bpmn:incoming>Flow_Gateway_Urgente</bpmn:incoming>
+      <bpmn:outgoing>Flow_Verificar_To_Gateway</bpmn:outgoing>
+    </bpmn:businessRuleTask>
+    <bpmn:exclusiveGateway id="Gateway_AutorizacaoNecessaria" name="Autorização Necessária?" default="Flow_Gateway_AutorizacaoNao">
+      <bpmn:incoming>Flow_Verificar_To_Gateway</bpmn:incoming>
+      <bpmn:outgoing>Flow_Gateway_AutorizacaoSim</bpmn:outgoing>
+      <bpmn:outgoing>Flow_Gateway_AutorizacaoNao</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:serviceTask id="ServiceTask_SolicitarAutorizacao" name="Solicitar Autorização ao Convênio" camunda:asyncBefore="true" camunda:jobPriority="10" camunda:delegateExpression="${checkCoverage}">
+      <bpmn:extensionElements>
+        <camunda:inputOutput>
+          <camunda:inputParameter name="numeroCarteirinha">${numeroCarteirinha}</camunda:inputParameter>
+          <camunda:inputParameter name="procedimento">${procedimento}</camunda:inputParameter>
+          <camunda:inputParameter name="justificativa">${justificativa}</camunda:inputParameter>
+        </camunda:inputOutput>
+        <camunda:executionListener event="start" class="com.hospital.audit.TaskStartListener" />
+        <camunda:executionListener event="end" class="com.hospital.audit.TaskEndListener" />
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_Gateway_AutorizacaoSim</bpmn:incoming>
+      <bpmn:outgoing>Flow_Solicitar_To_Aguardar</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:receiveTask id="Task_AguardarRetornoConvenio" name="Aguardar Retorno do Convênio" messageRef="Message_RetornoAutorizacao">
+      <bpmn:incoming>Flow_Solicitar_To_Aguardar</bpmn:incoming>
+      <bpmn:outgoing>Flow_Aguardar_To_GatewayAutorizacao</bpmn:outgoing>
+    </bpmn:receiveTask>
+    <bpmn:exclusiveGateway id="Gateway_AutorizacaoConcedida" name="Autorização Concedida?" default="Flow_Gateway_AutorizadaNao">
+      <bpmn:incoming>Flow_Aguardar_To_GatewayAutorizacao</bpmn:incoming>
+      <bpmn:outgoing>Flow_Gateway_AutorizadaSim</bpmn:outgoing>
+      <bpmn:outgoing>Flow_Gateway_AutorizadaNao</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:serviceTask id="ServiceTask_RegistrarTriagem" name="Registrar Triagem no Sistema" camunda:asyncBefore="true" camunda:delegateExpression="${registrarTriagemDelegate}">
+      <bpmn:extensionElements>
+        <camunda:inputOutput>
+          <camunda:inputParameter name="pacienteId">${pacienteId}</camunda:inputParameter>
+          <camunda:inputParameter name="dadosTriagem">${dadosTriagem}</camunda:inputParameter>
+          <camunda:inputParameter name="classificacaoRisco">${classificacaoRisco}</camunda:inputParameter>
+          <camunda:outputParameter name="triagemId">${triagemId}</camunda:outputParameter>
+        </camunda:inputOutput>
+        <camunda:executionListener event="start" class="com.hospital.audit.TaskStartListener" />
+        <camunda:executionListener event="end" class="com.hospital.audit.TaskEndListener" />
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_Gateway_Emergencia</bpmn:incoming>
+      <bpmn:incoming>Flow_Gateway_AutorizadaSim</bpmn:incoming>
+      <bpmn:incoming>Flow_Gateway_AutorizacaoNao</bpmn:incoming>
+      <bpmn:outgoing>Flow_Registrar_To_Encaminhar</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:serviceTask id="ServiceTask_EncaminharAtendimento" name="Encaminhar para Atendimento" camunda:asyncBefore="true" camunda:delegateExpression="${encaminharAtendimentoDelegate}">
+      <bpmn:extensionElements>
+        <camunda:inputOutput>
+          <camunda:inputParameter name="pacienteId">${pacienteId}</camunda:inputParameter>
+          <camunda:inputParameter name="classificacaoRisco">${classificacaoRisco}</camunda:inputParameter>
+          <camunda:inputParameter name="especialidade">${especialidade}</camunda:inputParameter>
+          <camunda:outputParameter name="atendimentoId">${atendimentoId}</camunda:outputParameter>
+        </camunda:inputOutput>
+        <camunda:executionListener event="start" class="com.hospital.audit.TaskStartListener" />
+        <camunda:executionListener event="end" class="com.hospital.audit.TaskEndListener" />
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_Registrar_To_Encaminhar</bpmn:incoming>
+      <bpmn:outgoing>Flow_Encaminhar_To_End</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:endEvent id="EndEvent_SUB02" name="Pré-Atendimento Concluído">
+      <bpmn:incoming>Flow_Encaminhar_To_End</bpmn:incoming>
+      <bpmn:incoming>Flow_Gateway_AutorizadaNao</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:sequenceFlow id="Flow_Start_To_Triagem" sourceRef="StartEvent_SUB02" targetRef="Task_RealizarTriagem" />
+    <bpmn:sequenceFlow id="Flow_Triagem_To_Sinais" sourceRef="Task_RealizarTriagem" targetRef="Task_ColetarSinaisVitais" />
+    <bpmn:sequenceFlow id="Flow_Sinais_To_Gateway" sourceRef="Task_ColetarSinaisVitais" targetRef="Gateway_ClassificacaoRisco" />
+    <bpmn:sequenceFlow id="Flow_Gateway_Emergencia" name="Emergência" sourceRef="Gateway_ClassificacaoRisco" targetRef="ServiceTask_RegistrarTriagem">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${classificacaoRisco == 'VERMELHA'}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_Gateway_Urgente" name="Urgente" sourceRef="Gateway_ClassificacaoRisco" targetRef="ServiceTask_VerificarAutorizacao">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${classificacaoRisco == 'LARANJA' || classificacaoRisco == 'AMARELA'}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_Gateway_Pouco_Urgente" name="Pouco Urgente" sourceRef="Gateway_ClassificacaoRisco" targetRef="ServiceTask_VerificarAutorizacao" />
+    <bpmn:sequenceFlow id="Flow_Verificar_To_Gateway" sourceRef="ServiceTask_VerificarAutorizacao" targetRef="Gateway_AutorizacaoNecessaria" />
+    <bpmn:sequenceFlow id="Flow_Gateway_AutorizacaoSim" name="Sim" sourceRef="Gateway_AutorizacaoNecessaria" targetRef="ServiceTask_SolicitarAutorizacao">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${autorizacaoNecessaria == true}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_Gateway_AutorizacaoNao" name="Não" sourceRef="Gateway_AutorizacaoNecessaria" targetRef="ServiceTask_RegistrarTriagem" />
+    <bpmn:sequenceFlow id="Flow_Solicitar_To_Aguardar" sourceRef="ServiceTask_SolicitarAutorizacao" targetRef="Task_AguardarRetornoConvenio" />
+    <bpmn:sequenceFlow id="Flow_Aguardar_To_GatewayAutorizacao" sourceRef="Task_AguardarRetornoConvenio" targetRef="Gateway_AutorizacaoConcedida" />
+    <bpmn:sequenceFlow id="Flow_Gateway_AutorizadaSim" name="Sim" sourceRef="Gateway_AutorizacaoConcedida" targetRef="ServiceTask_RegistrarTriagem">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${autorizacaoConcedida == true}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_Gateway_AutorizadaNao" name="Não" sourceRef="Gateway_AutorizacaoConcedida" targetRef="EndEvent_SUB02">
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_Registrar_To_Encaminhar" sourceRef="ServiceTask_RegistrarTriagem" targetRef="ServiceTask_EncaminharAtendimento" />
+    <bpmn:sequenceFlow id="Flow_Encaminhar_To_End" sourceRef="ServiceTask_EncaminharAtendimento" targetRef="EndEvent_SUB02" />
+    <bpmn:boundaryEvent id="BoundaryEvent_TimeoutAutorizacao" name="Timeout 4h" attachedToRef="Task_AguardarRetornoConvenio">
+      <bpmn:outgoing>Flow_Timeout_To_Registrar</bpmn:outgoing>
+      <bpmn:timerEventDefinition>
+        <bpmn:timeDuration>PT4H</bpmn:timeDuration>
+      </bpmn:timerEventDefinition>
+    </bpmn:boundaryEvent>
+    <bpmn:sequenceFlow id="Flow_Timeout_To_Registrar" sourceRef="BoundaryEvent_TimeoutAutorizacao" targetRef="ServiceTask_RegistrarTriagem" />
+  </bpmn:process>
+  <bpmn:message id="Message_RetornoAutorizacao" name="Message_RetornoAutorizacao" />
+  <bpmndi:BPMNDiagram id="BPMNDiagram_SUB02">
+    <bpmndi:BPMNPlane id="BPMNPlane_SUB02" bpmnElement="Collaboration_SUB02">
+      <bpmndi:BPMNShape id="Participant_SUB02_di" bpmnElement="Participant_SUB02" isHorizontal="true">
+        <dc:Bounds x="160" y="80" width="1900" height="750" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Lane_Enfermagem_di" bpmnElement="Lane_Enfermagem" isHorizontal="true">
+        <dc:Bounds x="190" y="80" width="1870" height="250" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Lane_Autorizacao_di" bpmnElement="Lane_Autorizacao" isHorizontal="true">
+        <dc:Bounds x="190" y="330" width="1870" height="250" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Lane_Sistema_di" bpmnElement="Lane_Sistema" isHorizontal="true">
+        <dc:Bounds x="190" y="580" width="1870" height="250" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="StartEvent_SUB02_di" bpmnElement="StartEvent_SUB02">
+        <dc:Bounds x="252" y="192" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="230" y="235" width="80" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_RealizarTriagem_di" bpmnElement="Task_RealizarTriagem">
+        <dc:Bounds x="340" y="170" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_ColetarSinaisVitais_di" bpmnElement="Task_ColetarSinaisVitais">
+        <dc:Bounds x="490" y="170" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Gateway_ClassificacaoRisco_di" bpmnElement="Gateway_ClassificacaoRisco" isMarkerVisible="true">
+        <dc:Bounds x="645" y="185" width="50" height="50" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="631" y="148" width="78" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="ServiceTask_VerificarAutorizacao_di" bpmnElement="ServiceTask_VerificarAutorizacao">
+        <dc:Bounds x="750" y="400" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Gateway_AutorizacaoNecessaria_di" bpmnElement="Gateway_AutorizacaoNecessaria" isMarkerVisible="true">
+        <dc:Bounds x="905" y="415" width="50" height="50" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="890" y="378" width="80" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="ServiceTask_SolicitarAutorizacao_di" bpmnElement="ServiceTask_SolicitarAutorizacao">
+        <dc:Bounds x="1010" y="400" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_AguardarRetornoConvenio_di" bpmnElement="Task_AguardarRetornoConvenio">
+        <dc:Bounds x="1160" y="400" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Gateway_AutorizacaoConcedida_di" bpmnElement="Gateway_AutorizacaoConcedida" isMarkerVisible="true">
+        <dc:Bounds x="1315" y="415" width="50" height="50" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1300" y="378" width="80" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="ServiceTask_RegistrarTriagem_di" bpmnElement="ServiceTask_RegistrarTriagem">
+        <dc:Bounds x="1290" y="650" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="ServiceTask_EncaminharAtendimento_di" bpmnElement="ServiceTask_EncaminharAtendimento">
+        <dc:Bounds x="1450" y="650" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="EndEvent_SUB02_di" bpmnElement="EndEvent_SUB02">
+        <dc:Bounds x="1602" y="672" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1589" y="715" width="62" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="BoundaryEvent_TimeoutAutorizacao_di" bpmnElement="BoundaryEvent_TimeoutAutorizacao">
+        <dc:Bounds x="1242" y="462" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1279" y="493" width="62" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Flow_Start_To_Triagem_di" bpmnElement="Flow_Start_To_Triagem">
+        <di:waypoint x="288" y="210" />
+        <di:waypoint x="340" y="210" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Triagem_To_Sinais_di" bpmnElement="Flow_Triagem_To_Sinais">
+        <di:waypoint x="440" y="210" />
+        <di:waypoint x="490" y="210" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Sinais_To_Gateway_di" bpmnElement="Flow_Sinais_To_Gateway">
+        <di:waypoint x="590" y="210" />
+        <di:waypoint x="645" y="210" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Gateway_Emergencia_di" bpmnElement="Flow_Gateway_Emergencia">
+        <di:waypoint x="670" y="235" />
+        <di:waypoint x="670" y="690" />
+        <di:waypoint x="1290" y="690" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="657" y="460" width="56" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Gateway_Urgente_di" bpmnElement="Flow_Gateway_Urgente">
+        <di:waypoint x="670" y="235" />
+        <di:waypoint x="670" y="440" />
+        <di:waypoint x="750" y="440" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="690" y="423" width="39" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Gateway_Pouco_Urgente_di" bpmnElement="Flow_Gateway_Pouco_Urgente">
+        <di:waypoint x="695" y="210" />
+        <di:waypoint x="800" y="210" />
+        <di:waypoint x="800" y="400" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="720" y="176" width="70" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Verificar_To_Gateway_di" bpmnElement="Flow_Verificar_To_Gateway">
+        <di:waypoint x="850" y="440" />
+        <di:waypoint x="905" y="440" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Gateway_AutorizacaoSim_di" bpmnElement="Flow_Gateway_AutorizacaoSim">
+        <di:waypoint x="955" y="440" />
+        <di:waypoint x="1010" y="440" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="975" y="422" width="20" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Gateway_AutorizacaoNao_di" bpmnElement="Flow_Gateway_AutorizacaoNao">
+        <di:waypoint x="930" y="465" />
+        <di:waypoint x="930" y="690" />
+        <di:waypoint x="1290" y="690" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="937" y="575" width="20" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Solicitar_To_Aguardar_di" bpmnElement="Flow_Solicitar_To_Aguardar">
+        <di:waypoint x="1110" y="440" />
+        <di:waypoint x="1160" y="440" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Aguardar_To_GatewayAutorizacao_di" bpmnElement="Flow_Aguardar_To_GatewayAutorizacao">
+        <di:waypoint x="1260" y="440" />
+        <di:waypoint x="1315" y="440" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Gateway_AutorizadaSim_di" bpmnElement="Flow_Gateway_AutorizadaSim">
+        <di:waypoint x="1340" y="465" />
+        <di:waypoint x="1340" y="650" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1347" y="555" width="20" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Gateway_AutorizadaNao_di" bpmnElement="Flow_Gateway_AutorizadaNao">
+        <di:waypoint x="1365" y="440" />
+        <di:waypoint x="1620" y="440" />
+        <di:waypoint x="1620" y="672" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1487" y="422" width="20" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Registrar_To_Encaminhar_di" bpmnElement="Flow_Registrar_To_Encaminhar">
+        <di:waypoint x="1390" y="690" />
+        <di:waypoint x="1450" y="690" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Encaminhar_To_End_di" bpmnElement="Flow_Encaminhar_To_End">
+        <di:waypoint x="1550" y="690" />
+        <di:waypoint x="1602" y="690" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Timeout_To_Registrar_di" bpmnElement="Flow_Timeout_To_Registrar">
+        <di:waypoint x="1260" y="498" />
+        <di:waypoint x="1260" y="690" />
+        <di:waypoint x="1290" y="690" />
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>

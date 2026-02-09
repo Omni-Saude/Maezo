@@ -1,0 +1,330 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/"
+             xmlns:dc="http://www.omg.org/spec/DMN/20180521/DC/"
+             id="Definitions_SYN_DKA_002"
+             name="Deteccao de Estado Hiperglicemico Hiperosmolar"
+             targetNamespace="http://camunda.org/schema/1.0/dmn">
+
+  <!--
+    SYN-DKA-002 - Deteccao de Estado Hiperglicemico Hiperosmolar (EHH/HHS)
+    Versao: 1.0.0 (2026-02-06)
+    Categoria: Alerta Clinico - Sindromes Criticas
+
+    CRITERIOS DIAGNOSTICOS DE EHH:
+
+    TRIADE:
+    1. Hiperglicemia grave: Glicose > 600 mg/dL
+    2. Hiperosmolaridade: Osmolaridade efetiva > 320 mOsm/kg
+    3. Desidratacao profunda com alteracao do sensorio
+
+    CARACTERISTICAS:
+    - pH > 7.30 (acidose minima ou ausente)
+    - Bicarbonato > 18 mEq/L
+    - Cetonas ausentes ou levemente positivas
+    - Desidratacao mais severa que na CAD (deficit 8-12L)
+
+    OSMOLARIDADE EFETIVA:
+    Osm = 2x[Na+] + Glicose/18
+    Normal: 275-295 mOsm/kg
+    EHH: > 320 mOsm/kg
+
+    CORRECAO DO SODIO:
+    Na corrigido = Na medido + 1.6 x [(Glicose - 100) / 100]
+
+    MORTALIDADE:
+    - EHH tem mortalidade MAIOR que CAD (10-20% vs 1-5%)
+    - Pacientes geralmente mais idosos e com comorbidades
+
+    REFERENCIAS:
+    - ADA Standards of Care in Diabetes 2024
+    - Kitabchi AE et al. Diabetes Care 2009
+    - Joint British Diabetes Societies HHS Guidelines
+  -->
+
+  <decision id="Decision_SYN_DKA_002" name="Deteccao EHH">
+    <decisionTable id="DecisionTable_SYN_DKA_002" hitPolicy="FIRST">
+
+      <!-- INPUT 1: Glicose -->
+      <input id="Input_1" label="Glicose (mg/dL)">
+        <inputExpression id="InputExpression_1" typeRef="number">
+          <text>glicose</text>
+        </inputExpression>
+      </input>
+
+      <!-- INPUT 2: Osmolaridade -->
+      <input id="Input_2" label="Osmolaridade (mOsm/kg)">
+        <inputExpression id="InputExpression_2" typeRef="number">
+          <text>osmolaridade</text>
+        </inputExpression>
+      </input>
+
+      <!-- INPUT 3: Nivel de Consciencia -->
+      <input id="Input_3" label="Nivel Consciencia Alterado">
+        <inputExpression id="InputExpression_3" typeRef="boolean">
+          <text>nivelConscienciaAlterado</text>
+        </inputExpression>
+      </input>
+
+      <!-- INPUT 4: Cetonas -->
+      <input id="Input_4" label="Cetonas Fortemente Positivas">
+        <inputExpression id="InputExpression_4" typeRef="boolean">
+          <text>cetonasFortementePositivas</text>
+        </inputExpression>
+      </input>
+
+      <!-- OUTPUTS -->
+      <output id="Output_1" label="Nivel Alerta" name="nivelAlerta" typeRef="string">
+        <outputValues id="OutputValues_1">
+          <text>"Alerta", "Atencao", "OK", "Revisar"</text>
+        </outputValues>
+      </output>
+
+      <output id="Output_2" label="Classificacao Sindrome" name="classificacaoSindrome" typeRef="string"/>
+
+      <output id="Output_3" label="Protocolo Ativado" name="protocoloAtivado" typeRef="boolean"/>
+
+      <output id="Output_4" label="Acao Requerida" name="acaoRequerida" typeRef="string"/>
+
+      <output id="Output_5" label="Urgencia" name="urgencia" typeRef="string">
+        <outputValues id="OutputValues_5">
+          <text>"CRITICA", "ALTA", "MEDIA", "BAIXA"</text>
+        </outputValues>
+      </output>
+
+      <!-- RULE 1: EHH Grave com Coma -->
+      <rule id="Rule_EHH_Grave">
+        <description>EHH Grave com alteracao do sensorio</description>
+        <inputEntry id="InputEntry_1_1">
+          <text>&gt; 600</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_1_2">
+          <text>&gt; 350</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_1_3">
+          <text>true</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_1_4">
+          <text>false</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_1_1">
+          <text>"Alerta"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_1_2">
+          <text>"EHH_GRAVE"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_1_3">
+          <text>true</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_1_4">
+          <text>"EHH GRAVE - EMERGENCIA! UTI. Hidratacao PRIORITARIA: SF 0.9% 1-1.5L/h nas 1as horas (deficit 8-12L). Insulina IV so apos inicio de hidratacao. Meta: reduzir osmolaridade 3-8 mOsm/h. Risco de edema cerebral se correcao rapida. Profilaxia TVP."</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_1_5">
+          <text>"CRITICA"</text>
+        </outputEntry>
+      </rule>
+
+      <!-- RULE 2: EHH Moderado -->
+      <rule id="Rule_EHH_Moderado">
+        <description>EHH com osmolaridade elevada</description>
+        <inputEntry id="InputEntry_2_1">
+          <text>&gt; 600</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_2_2">
+          <text>[320..350]</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_2_3">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_2_4">
+          <text>false</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_2_1">
+          <text>"Alerta"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_2_2">
+          <text>"EHH_MODERADO"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_2_3">
+          <text>true</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_2_4">
+          <text>"EHH MODERADO. UTI/Emergencia. Hidratacao IV agressiva: SF 0.9% ou 0.45% conforme natremia corrigida. Insulina IV baixa dose (0.02-0.05 U/kg/h) apos 1-2L de hidratacao. Monitorar osmolaridade, eletroliticos e sensorio a cada 2-4h."</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_2_5">
+          <text>"CRITICA"</text>
+        </outputEntry>
+      </rule>
+
+      <!-- RULE 3: EHH + CAD Misto -->
+      <rule id="Rule_EHH_CAD_Misto">
+        <description>Quadro misto EHH + CAD</description>
+        <inputEntry id="InputEntry_3_1">
+          <text>&gt; 600</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_3_2">
+          <text>&gt; 320</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_3_3">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_3_4">
+          <text>true</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_3_1">
+          <text>"Alerta"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_3_2">
+          <text>"EHH_CAD_MISTO"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_3_3">
+          <text>true</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_3_4">
+          <text>"QUADRO MISTO EHH + CAD - mais grave! Tratar como EHH (hidratacao prioritaria) + CAD (correcao acidose). UTI. Insulina IV. Monitoramento intensivo. Dosar beta-hidroxibutirato. Mortalidade elevada."</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_3_5">
+          <text>"CRITICA"</text>
+        </outputEntry>
+      </rule>
+
+      <!-- RULE 4: Hiperglicemia grave sem hiperosmolaridade -->
+      <rule id="Rule_Hiperglicemia_Grave">
+        <description>Hiperglicemia grave sem criterios de EHH</description>
+        <inputEntry id="InputEntry_4_1">
+          <text>[400..600]</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_4_2">
+          <text>&lt; 320</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_4_3">
+          <text>false</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_4_4">
+          <text>false</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_4_1">
+          <text>"Atencao"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_4_2">
+          <text>"HIPERGLICEMIA_GRAVE"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_4_3">
+          <text>false</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_4_4">
+          <text>"Hiperglicemia grave sem criterios completos de EHH. Hidratacao IV. Insulina (IV ou SC alta dose). Pode evoluir para EHH se nao tratada. Monitorar osmolaridade e nivel de consciencia. Investigar causa."</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_4_5">
+          <text>"ALTA"</text>
+        </outputEntry>
+      </rule>
+
+      <!-- RULE 5: Hiperglicemia moderada -->
+      <rule id="Rule_Hiperglicemia_Moderada">
+        <description>Hiperglicemia moderada</description>
+        <inputEntry id="InputEntry_5_1">
+          <text>[250..400)</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_5_2">
+          <text>&lt; 300</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_5_3">
+          <text>false</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_5_4">
+          <text>false</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_5_1">
+          <text>"Atencao"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_5_2">
+          <text>"HIPERGLICEMIA_MODERADA"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_5_3">
+          <text>false</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_5_4">
+          <text>"Hiperglicemia moderada. Hidratacao. Ajustar insulina. Se diabetico tipo 2, avaliar adesao. Investigar fator descompensador (infeccao, estresse, corticoides)."</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_5_5">
+          <text>"MEDIA"</text>
+        </outputEntry>
+      </rule>
+
+      <!-- RULE 6: Controle glicemico adequado -->
+      <rule id="Rule_Controle_Adequado">
+        <description>Controle glicemico adequado</description>
+        <inputEntry id="InputEntry_6_1">
+          <text>&lt; 250</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_6_2">
+          <text>&lt; 300</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_6_3">
+          <text>false</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_6_4">
+          <text>-</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_6_1">
+          <text>"OK"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_6_2">
+          <text>"SEM_EHH"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_6_3">
+          <text>false</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_6_4">
+          <text>"Sem criterios de EHH. Glicemia e osmolaridade dentro de limites. Manter controle glicemico conforme protocolo."</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_6_5">
+          <text>"BAIXA"</text>
+        </outputEntry>
+      </rule>
+
+      <!-- FALLBACK -->
+      <rule id="Rule_Fallback_SYN_DKA_002">
+        <description>Dados insuficientes para avaliacao</description>
+        <inputEntry id="InputEntry_F_1">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_F_2">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_F_3">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_F_4">
+          <text>-</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_F_1">
+          <text>"Revisar"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_F_2">
+          <text>"DADOS_INCOMPLETOS"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_F_3">
+          <text>false</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_F_4">
+          <text>"Dados insuficientes para avaliacao de EHH. Calcular osmolaridade: 2x[Na+] + Glicose/18. Verificar: glicemia, sodio, nivel de consciencia, cetonas."</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_F_5">
+          <text>"MEDIA"</text>
+        </outputEntry>
+      </rule>
+
+    </decisionTable>
+  </decision>
+
+  <dmndi:DMNDI>
+    <dmndi:DMNDiagram id="DMNDiagram_SYN_DKA_002">
+      <dmndi:DMNShape id="DMNShape_Decision_SYN_DKA_002" dmnElementRef="Decision_SYN_DKA_002">
+        <dc:Bounds height="80" width="180" x="160" y="100"/>
+      </dmndi:DMNShape>
+    </dmndi:DMNDiagram>
+  </dmndi:DMNDI>
+
+</definitions>

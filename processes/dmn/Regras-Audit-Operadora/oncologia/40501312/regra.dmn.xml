@@ -1,0 +1,422 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  ONQ-LINE-006: Maintenance Therapy Criteria
+  TUSS: 40501312
+  Versao: 3.1.0-LEAN-TIER2 (2026-02-08)
+  Especialidade: Oncologia
+
+  ============================================================================
+  INDICACOES CLINICAS (Criterios NCCN/ESMO):
+  ============================================================================
+  - Mieloma multiplo: Manutencao com lenalidomida pos-ASCT ou pos-inducao
+  - Cancer de ovario: Manutencao com inibidor de PARP pos-platina
+  - Linfoma folicular: Manutencao com rituximabe pos-inducao
+
+  ============================================================================
+  CONTRAINDICACOES:
+  ============================================================================
+  - Progressao de doenca durante inducao
+  - Toxicidade grau 3-4 intratavel durante inducao
+  - Performance status deteriorado (ECOG 3-4)
+
+  ============================================================================
+  DOCUMENTACAO OBRIGATORIA:
+  ============================================================================
+  - Resposta a inducao documentada (RECIST/IMWG/Lugano)
+  - Grau de toxicidade durante inducao
+  - Performance status atual
+
+  ============================================================================
+  REFERENCIAS NORMATIVAS:
+  ============================================================================
+  - NCCN Multiple Myeloma Guidelines 2024
+  - NCCN Ovarian Cancer Guidelines 2024
+  - ESMO Follicular Lymphoma Guidelines 2024
+  - ANS RN 465/2021
+-->
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/" xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/" xmlns:dc="http://www.omg.org/spec/DMN/20180521/DC/" xmlns:modeler="http://camunda.org/schema/modeler/1.0" id="Definitions_ONQ_LINE_006" name="DRD" namespace="http://camunda.org/schema/1.0/dmn" exporter="Camunda Modeler" exporterVersion="5.14.0" modeler:executionPlatform="Camunda Cloud" modeler:executionPlatformVersion="8.2.0">
+  <decision id="Decision_ONQ_LINE_006" name="ONQ-LINE-006: Maintenance Therapy Criteria [LEAN TIER-2]">
+    <decisionTable id="DecisionTable_ONQ_LINE_006" hitPolicy="FIRST">
+      <input id="Input_tumor_type" label="Tumor Type">
+        <inputExpression id="InputExpression_tumor_type" typeRef="string">
+          <text>tumorType</text>
+        </inputExpression>
+      </input>
+      <input id="Input_induction_response" label="Induction Response">
+        <inputExpression id="InputExpression_induction_response" typeRef="string">
+          <text>inductionResponse</text>
+        </inputExpression>
+      </input>
+      <input id="Input_toxicity_grade" label="Toxicity Grade">
+        <inputExpression id="InputExpression_toxicity_grade" typeRef="number">
+          <text>toxicityGrade</text>
+        </inputExpression>
+      </input>
+      <input id="Input_maintenance_agent" label="Maintenance Agent">
+        <inputExpression id="InputExpression_maintenance_agent" typeRef="string">
+          <text>maintenanceAgent</text>
+        </inputExpression>
+      </input>
+      <!-- Input: Dias desde ultimo procedimento (DUP detection) -->
+      <input id="Input_ultimoProcedimentoDias" label="Dias Desde Ultimo Procedimento">
+        <inputExpression id="InputExpression_ultimoProcedimentoDias" typeRef="number">
+          <text>ultimoProcedimentoDias</text>
+        </inputExpression>
+      </input>
+      <output id="Output_resultado" label="Resultado" name="resultado" typeRef="string">
+        <outputValues id="UnaryTests_resultado">
+          <text>"Aprovado","Reprovado","Pendente"</text>
+        </outputValues>
+      </output>
+      <output id="Output_observacao" label="Observacao" name="observacao" typeRef="string" />
+      <output id="Output_fundamentacao" label="Fundamentacao" name="fundamentacao" typeRef="string" />
+      <!-- Output 4: Alertas de Desperdicio - Anti-Waste Intelligence -->
+      <output id="Output_alertasDesperdicio" label="Alertas de Desperdicio" name="alertasDesperdicio" typeRef="string">
+        <outputValues id="OutputValues_alertasDesperdicio">
+          <text>"NENHUM","DUP","FREQ","ESC","DOC","PROT","MULTI"</text>
+        </outputValues>
+      </output>
+      <!-- Output 5: Acao Recomendada -->
+      <output id="Output_acaoRecomendada" label="Acao Recomendada" name="acaoRecomendada" typeRef="string">
+        <outputValues id="OutputValues_acaoRecomendada">
+          <text>"APROVAR","NEGAR","SOLICITAR_INFO","AGUARDAR_PRAZO","SUGERIR_ALTERNATIVA"</text>
+        </outputValues>
+      </output>
+      <rule id="DecisionRule_reject_pd">
+        <description>Reject maintenance if disease progressed during induction</description>
+        <inputEntry id="InputEntry_tumor_type_reject">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_induction_response_reject">
+          <text>"progressive_disease"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_toxicity_grade_reject">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_maintenance_agent_reject">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="IE_DecisionRule_reject_pd_ultimo"><text>-</text></inputEntry>
+                <inputEntry id="IE_DecisionRule_reject_pd_ultimo">
+          <text>-</text>
+        </inputEntry>
+<outputEntry id="OutputEntry_resultado_reject">
+          <text>"Reprovado"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_observacao_reject">
+          <text>"Progressao de doenca durante inducao: manutencao nao indicada. Considerar 2a linha"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_fundamentacao_reject">
+          <text>"Manutencao pressupoe resposta a inducao; PD indica resistencia primaria - trocar esquema"</text>
+        </outputEntry>
+        <outputEntry id="OE_DecisionRule_reject_pd_alertasDesperdicio">
+          <text>"PROT"</text>
+        </outputEntry>
+        <outputEntry id="OE_DecisionRule_reject_pd_acaoRecomendada">
+          <text>"NEGAR"</text>
+        </outputEntry>
+      </rule>
+      <rule id="Rule_40501312_ESC_escalonamento">
+        <description>ESC - Escalonamento inadequado sem falha linha anterior documentada</description>
+        <inputEntry id="IE_ESC_1">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="IE_ESC_2">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="IE_ESC_3">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="IE_ESC_4">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="IE_ESC_5">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="IE_ESC_6">
+          <text>-</text>
+        </inputEntry>
+
+        <outputEntry id="OE_ESC_resultado">
+          <text>"Pendente"</text>
+        </outputEntry>
+        <outputEntry id="OE_ESC_observacao">
+          <text>"Documentar falha/intolerancia linha terapeutica anterior antes de escalonar"</text>
+        </outputEntry>
+        <outputEntry id="OE_ESC_fundamentacao">
+          <text>"NCCN/CONITEC 2024: Step therapy obrigatoria - documentar falha antes de progredir para proxima linha"</text>
+        </outputEntry>
+        <outputEntry id="OE_ESC_alertasDesperdicio">
+          <text>"ESC"</text>
+        </outputEntry>
+        <outputEntry id="OE_ESC_acaoRecomendada">
+          <text>"SUGERIR_ALTERNATIVA"</text>
+        </outputEntry>
+      </rule>
+      <rule id="DecisionRule_reject_toxicity">
+        <description>Reject if grade 3-4 intractable toxicity</description>
+        <inputEntry id="InputEntry_tumor_type_tox">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_induction_response_tox">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_toxicity_grade_tox">
+          <text>[3..4]</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_maintenance_agent_tox">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="IE_DecisionRule_reject_toxicity_ultimo"><text>-</text></inputEntry>
+                <inputEntry id="IE_DecisionRule_reject_toxicity_ultimo">
+          <text>-</text>
+        </inputEntry>
+<outputEntry id="OutputEntry_resultado_tox">
+          <text>"Reprovado"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_observacao_tox">
+          <text>"Toxicidade grau 3-4 durante inducao: manutencao com mesmo agente contraindicada"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_fundamentacao_tox">
+          <text>"Risco de toxicidade cumulativa supera beneficio; considerar agente alternativo ou observacao"</text>
+        </outputEntry>
+        <outputEntry id="OE_DecisionRule_reject_toxicity_alertasDesperdicio">
+          <text>"PROT"</text>
+        </outputEntry>
+        <outputEntry id="OE_DecisionRule_reject_toxicity_acaoRecomendada">
+          <text>"NEGAR"</text>
+        </outputEntry>
+      </rule>
+
+      <!-- WASTE DETECTION: ESC -->
+      <rule id="Rule_40501312_ESC">
+        <description>ESC - Terapia manutencao sem documentacao resposta ao tratamento inicial</description>
+        <inputEntry id="IE_ESC_40501312_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_ESC_40501312_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_ESC_40501312_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_ESC_40501312_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_ESC_40501312_ultimo"><text>-</text></inputEntry>
+                <inputEntry id="IE_Rule_40501312_ESC_ultimo">
+          <text>-</text>
+        </inputEntry>
+<outputEntry id="OE_ESC_40501312_resultado"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OE_ESC_40501312_observacao"><text>"Terapia manutencao sem documentacao resposta ao tratamento inicial"</text></outputEntry>
+        <outputEntry id="OE_ESC_40501312_fundamentacao"><text>"NCCN 2024: Manutencao requer resposta (CR/PR/SD) documentada ao tratamento inicial"</text></outputEntry>
+        <outputEntry id="OE_ESC_40501312_alertasDesperdicio"><text>"ESC"</text></outputEntry>
+        <outputEntry id="OE_ESC_40501312_acaoRecomendada"><text>"SOLICITAR_INFO"</text></outputEntry>
+      </rule>
+
+      <rule id="DecisionRule_approve_mm_lenalidomide">
+        <description>Approve lenalidomide maintenance for multiple myeloma</description>
+        <inputEntry id="InputEntry_tumor_type_mm">
+          <text>"multiple_myeloma"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_induction_response_mm">
+          <text>"CR","VGPR","PR"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_toxicity_grade_mm">
+          <text>[0..2]</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_maintenance_agent_mm">
+          <text>"lenalidomide"</text>
+        </inputEntry>
+        <inputEntry id="IE_DecisionRule_approve_mm_lenalidomide_ultimo"><text>-</text></inputEntry>
+                <inputEntry id="IE_DecisionRule_approve_mm_lenalidomide_ultimo">
+          <text>-</text>
+        </inputEntry>
+<outputEntry id="OutputEntry_resultado_mm">
+          <text>"Aprovado"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_observacao_mm">
+          <text>"Manutencao com lenalidomida aprovada para mieloma pos-ASCT ou pos-inducao (10mg/dia)"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_fundamentacao_mm">
+          <text>"CALGB 100104 e IFM 2005-02: PFS de 46 vs 27 meses; OS beneficio confirmado em meta-analise"</text>
+        </outputEntry>
+        <outputEntry id="OE_DecisionRule_approve_mm_lenalidomide_alertasDesperdicio">
+          <text>"NENHUM"</text>
+        </outputEntry>
+        <outputEntry id="OE_DecisionRule_approve_mm_lenalidomide_acaoRecomendada">
+          <text>"APROVAR"</text>
+        </outputEntry>
+      </rule>
+      <rule id="DecisionRule_approve_ovarian_parp">
+        <description>Approve PARP inhibitor maintenance for ovarian cancer</description>
+        <inputEntry id="InputEntry_tumor_type_ovarian">
+          <text>"ovarian_cancer"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_induction_response_ovarian">
+          <text>"CR","PR"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_toxicity_grade_ovarian">
+          <text>[0..2]</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_maintenance_agent_ovarian">
+          <text>"olaparib","niraparib","rucaparib"</text>
+        </inputEntry>
+        <inputEntry id="IE_DecisionRule_approve_ovarian_parp_ultimo"><text>-</text></inputEntry>
+                <inputEntry id="IE_DecisionRule_approve_ovarian_parp_ultimo">
+          <text>-</text>
+        </inputEntry>
+<outputEntry id="OutputEntry_resultado_ovarian">
+          <text>"Aprovado"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_observacao_ovarian">
+          <text>"Inibidor de PARP aprovado para manutencao em cancer de ovario pos-resposta a platina"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_fundamentacao_ovarian">
+          <text>"SOLO-1 (olaparib BRCA+): PFS 56 vs 13.8 meses; PRIMA (niraparib): PFS 13.8 vs 8.2 meses"</text>
+        </outputEntry>
+        <outputEntry id="OE_DecisionRule_approve_ovarian_parp_alertasDesperdicio">
+          <text>"NENHUM"</text>
+        </outputEntry>
+        <outputEntry id="OE_DecisionRule_approve_ovarian_parp_acaoRecomendada">
+          <text>"APROVAR"</text>
+        </outputEntry>
+      </rule>
+      <rule id="DecisionRule_approve_follicular_rituximab">
+        <description>Approve rituximab maintenance for follicular lymphoma</description>
+        <inputEntry id="InputEntry_tumor_type_fl">
+          <text>"follicular_lymphoma"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_induction_response_fl">
+          <text>"CR","PR"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_toxicity_grade_fl">
+          <text>[0..2]</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_maintenance_agent_fl">
+          <text>"rituximab"</text>
+        </inputEntry>
+        <inputEntry id="IE_DecisionRule_approve_follicular_rituximab_ultimo"><text>-</text></inputEntry>
+                <inputEntry id="IE_DecisionRule_approve_follicular_rituximab_ultimo">
+          <text>-</text>
+        </inputEntry>
+<outputEntry id="OutputEntry_resultado_fl">
+          <text>"Aprovado"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_observacao_fl">
+          <text>"Rituximabe manutencao aprovado: 375mg/m2 a cada 8 semanas por 2 anos (PRIMA)"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_fundamentacao_fl">
+          <text>"PRIMA trial: PFS 74.9% vs 57.6% aos 3 anos; beneficio em OS em analise de 10 anos"</text>
+        </outputEntry>
+        <outputEntry id="OE_DecisionRule_approve_follicular_rituximab_alertasDesperdicio">
+          <text>"NENHUM"</text>
+        </outputEntry>
+        <outputEntry id="OE_DecisionRule_approve_follicular_rituximab_acaoRecomendada">
+          <text>"APROVAR"</text>
+        </outputEntry>
+      </rule>
+      <rule id="DecisionRule_pending_sd">
+        <description>Pending review for stable disease response</description>
+        <inputEntry id="InputEntry_tumor_type_sd">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_induction_response_sd">
+          <text>"stable_disease"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_toxicity_grade_sd">
+          <text>[0..2]</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_maintenance_agent_sd">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="IE_DecisionRule_pending_sd_ultimo"><text>-</text></inputEntry>
+                <inputEntry id="IE_DecisionRule_pending_sd_ultimo">
+          <text>-</text>
+        </inputEntry>
+<outputEntry id="OutputEntry_resultado_sd">
+          <text>"Pendente"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_observacao_sd">
+          <text>"Doenca estavel: beneficio de manutencao incerto. Discussao em tumor board"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_fundamentacao_sd">
+          <text>"Manutencao tipicamente indicada apos CR/PR; SD pode indicar resistencia parcial"</text>
+        </outputEntry>
+        <outputEntry id="OE_DecisionRule_pending_sd_alertasDesperdicio">
+          <text>"NENHUM"</text>
+        </outputEntry>
+        <outputEntry id="OE_DecisionRule_pending_sd_acaoRecomendada">
+          <text>"SOLICITAR_INFO"</text>
+        </outputEntry>
+      </rule>
+      <rule id="DecisionRule_pending_off_label">
+        <description>Pending review for off-label maintenance indications</description>
+        <inputEntry id="InputEntry_tumor_type_off">
+          <text>not("multiple_myeloma","ovarian_cancer","follicular_lymphoma")</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_induction_response_off">
+          <text>"CR","PR"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_toxicity_grade_off">
+          <text>[0..2]</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_maintenance_agent_off">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="IE_DecisionRule_pending_off_label_ultimo"><text>-</text></inputEntry>
+                <inputEntry id="IE_DecisionRule_pending_off_label_ultimo">
+          <text>-</text>
+        </inputEntry>
+<outputEntry id="OutputEntry_resultado_off">
+          <text>"Pendente"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_observacao_off">
+          <text>"Indicacao de manutencao fora do padrao. Encaminhar para revisao com evidencia clinica"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_fundamentacao_off">
+          <text>"Manutencao off-label requer justificativa baseada em ensaios clinicos fase III ou consenso de especialistas"</text>
+        </outputEntry>
+        <outputEntry id="OE_DecisionRule_pending_off_label_alertasDesperdicio">
+          <text>"NENHUM"</text>
+        </outputEntry>
+        <outputEntry id="OE_DecisionRule_pending_off_label_acaoRecomendada">
+          <text>"SOLICITAR_INFO"</text>
+        </outputEntry>
+      </rule>
+      <rule id="DecisionRule_fallback">
+        <description>Fallback rule for incomplete data</description>
+        <inputEntry id="InputEntry_tumor_type_fallback">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_induction_response_fallback">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_toxicity_grade_fallback">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_maintenance_agent_fallback">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="IE_DecisionRule_fallback_ultimo"><text>-</text></inputEntry>
+                <inputEntry id="IE_DecisionRule_fallback_ultimo">
+          <text>-</text>
+        </inputEntry>
+<outputEntry id="OutputEntry_resultado_fallback">
+          <text>"Pendente"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_observacao_fallback">
+          <text>"Dados insuficientes para avaliacao de manutencao"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_fundamentacao_fallback">
+          <text>"Necessario: tipo tumoral, resposta a inducao, toxicidade, agente proposto"</text>
+        </outputEntry>
+        <outputEntry id="OE_DecisionRule_fallback_alertasDesperdicio">
+          <text>"DOC"</text>
+        </outputEntry>
+        <outputEntry id="OE_DecisionRule_fallback_acaoRecomendada">
+          <text>"SOLICITAR_INFO"</text>
+        </outputEntry>
+      </rule>
+    </decisionTable>
+  </decision>
+  <dmndi:DMNDI>
+    <dmndi:DMNDiagram>
+      <dmndi:DMNShape dmnElementRef="Decision_ONQ_LINE_006">
+        <dc:Bounds height="80" width="180" x="160" y="100" />
+      </dmndi:DMNShape>
+    </dmndi:DMNDiagram>
+  </dmndi:DMNDI>
+</definitions>

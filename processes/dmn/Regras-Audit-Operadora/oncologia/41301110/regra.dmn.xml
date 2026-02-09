@@ -1,0 +1,275 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/"
+             xmlns:dc="http://www.omg.org/spec/DD/20100524/DC/"
+             xmlns:di="http://www.omg.org/spec/DD/20100524/DI/"
+             id="Definitions_41301110"
+             name="Quimioterapia Primeira Linha"
+             namespace="http://camunda.org/schema/1.0/dmn"
+             exporter="Camunda Modeler"
+             exporterVersion="5.0.0">
+  <!--
+    TUSS 41301110 - Quimioterapia Primeira Linha
+    Versao: 3.1.0-LEAN-TIER2 (2026-02-08)
+    Especialidade: Oncologia Clinica
+    Categoria: Quimioterapia Primeira Linha
+
+    Indicacoes Clinicas (DUT ANS 2024):
+    - Mama, colorretal, pulmao, ovario, gastrico estadio II-IV
+    - Performance Status ECOG 0-2 adequado para quimioterapia
+    - Protocolo CONITEC validado (neoadjuvante, adjuvante, ou paliativa)
+    - Finalidade: neoadjuvante (pre-cirurgia), adjuvante (pos-cirurgia), ou paliativa (metastatico)
+
+    Contraindicacoes:
+    - Performance Status ECOG 3-4 (exceto SCLC em emergencia oncologica)
+    - Ausencia de protocolo institucional aprovado
+    - Contraindicacoes absolutas especificas do orgao-alvo
+    - Comorbidades graves que contraindiquem quimioterapia
+
+    Documentacao Obrigatoria:
+    - Diagnostico confirmado (CID-10) com laudo anatomopatologico detalhado
+    - Estadiamento TNM completo com exames de imagem
+    - Avaliacao Performance Status ECOG por oncologista
+    - Laudo de indicacao assinado por oncologista especialista
+    - Termo de consentimento informado assinado
+    - Protocolo terapeutico detalhado conforme diretrizes CONITEC/NCCN
+
+    Referencias Normativas:
+    - SBOC Diretrizes Oncologia 2023
+    - CONITEC Protocolos Clinicos e Diretrizes Terapeuticas Oncologia
+    - NCCN Clinical Practice Guidelines in Oncology v3.2024
+    - ESMO Clinical Practice Guidelines 2023
+  -->
+
+  <decision id="Decision_41301110" name="Criterios de Autorizacao - Quimioterapia Primeira Linha [LEAN TIER-2]">
+    <decisionTable id="DecisionTable_41301110" hitPolicy="FIRST">
+
+      <!-- Input 1: Diagnostico Oncologico -->
+      <input id="Input_diagnosticoOncologico" label="Diagnostico Oncologico">
+        <inputExpression id="InputExpr_diagnosticoOncologico" typeRef="string">
+          <text>diagnosticoOncologico</text>
+        </inputExpression>
+        <inputValues id="InputValues_diagnosticoOncologico">
+          <text>"Mama","Colorretal","Pulmao_NSCLC","Pulmao_SCLC","Ovario","Gastrico"</text>
+        </inputValues>
+      </input>
+
+      <!-- Input 2: Estadiamento TNM -->
+      <input id="Input_estadiamentoTNM" label="Estadiamento TNM">
+        <inputExpression id="InputExpr_estadiamentoTNM" typeRef="string">
+          <text>estadiamentoTNM</text>
+        </inputExpression>
+        <inputValues id="InputValues_estadiamentoTNM">
+          <text>"II","III","IV"</text>
+        </inputValues>
+      </input>
+
+      <!-- Input 3: Performance Status ECOG -->
+      <input id="Input_performanceStatusECOG" label="Performance Status ECOG">
+        <inputExpression id="InputExpr_performanceStatusECOG" typeRef="string">
+          <text>performanceStatusECOG</text>
+        </inputExpression>
+        <inputValues id="InputValues_performanceStatusECOG">
+          <text>"ECOG_0","ECOG_1","ECOG_2","ECOG_3","ECOG_4"</text>
+        </inputValues>
+      </input>
+
+      <!-- Input 4: Finalidade Tratamento -->
+      <input id="Input_finalidadeTratamento" label="Finalidade Tratamento">
+        <inputExpression id="InputExpr_finalidadeTratamento" typeRef="string">
+          <text>finalidadeTratamento</text>
+        </inputExpression>
+        <inputValues id="InputValues_finalidadeTratamento">
+          <text>"Neoadjuvante","Adjuvante","Paliativa"</text>
+        </inputValues>
+      </input>
+
+      <!-- Input 5: Protocolo Terapeutico -->
+      <input id="Input_protocoloTerapeutico" label="Protocolo Terapeutico Validado">
+        <inputExpression id="InputExpr_protocoloTerapeutico" typeRef="boolean">
+          <text>protocoloTerapeutico</text>
+        </inputExpression>
+      </input>
+
+      <!-- Output 1: Resultado -->
+      <!-- Input: Dias desde ultimo procedimento (DUP detection) -->
+      <input id="Input_ultimoProcedimentoDias" label="Dias Desde Ultimo Procedimento">
+        <inputExpression id="InputExpression_ultimoProcedimentoDias" typeRef="number">
+          <text>ultimoProcedimentoDias</text>
+        </inputExpression>
+      </input>
+
+      <output id="Output_resultado" label="Resultado" name="resultado" typeRef="string">
+        <outputValues id="OutputValues_resultado">
+          <text>"Aprovado","Reprovado","Pendente"</text>
+        </outputValues>
+      </output>
+
+      <!-- Output 2: Observacao -->
+      <output id="Output_observacao" label="Observacao Clinica" name="observacao" typeRef="string" />
+
+      <!-- Output 3: Fundamentacao -->
+      <output id="Output_fundamentacao" label="Fundamentacao Legal/Tecnica" name="fundamentacao" typeRef="string" />
+
+      <!-- Output 4: Alertas de Desperdicio -->
+      <output id="Output_alertasDesperdicio" label="Alertas de Desperdicio" name="alertasDesperdicio" typeRef="string">
+        <outputValues id="OutputValues_alertasDesperdicio"><text>"NENHUM","DUP","FREQ","ESC","DOC","PROT","MULTI"</text></outputValues>
+      </output>
+
+      <!-- Output 5: Acao Recomendada -->
+      <output id="Output_acaoRecomendada" label="Acao Recomendada" name="acaoRecomendada" typeRef="string">
+        <outputValues id="OutputValues_acaoRecomendada"><text>"APROVAR","NEGAR","SOLICITAR_INFO","AGUARDAR_PRAZO","SUGERIR_ALTERNATIVA"</text></outputValues>
+      </output>
+
+      <!-- ============================================== -->
+      <!-- CONTRAINDICATION RULES (FIRST PRIORITY)       -->
+      <!-- ============================================== -->
+
+      <rule id="Rule_41301110_Contraindicacao_1">
+        <description>ECOG 3-4: contraindicacao quimioterapia (exceto SCLC emergencia)</description>
+        <inputEntry id="IE_Contra1_1"><text>"Mama","Colorretal","Pulmao_NSCLC","Ovario","Gastrico"</text></inputEntry>
+        <inputEntry id="IE_Contra1_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_Contra1_3"><text>"ECOG_3","ECOG_4"</text></inputEntry>
+        <inputEntry id="IE_Contra1_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_Contra1_5"><text>-</text></inputEntry>
+        <inputEntry id="IE_Rule_41301110_Contraindicacao_1_ultimo"><text>-</text></inputEntry>
+        <outputEntry id="OE_Contra1_1"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OE_Contra1_2"><text>"ECOG 3-4: contraindicacao quimioterapia (exceto SCLC emergencia)"</text></outputEntry>
+        <outputEntry id="OE_Contra1_3"><text>"NCCN/SBOC: ECOG >=3 sem beneficio sobrevida, risco toxicidade fatal"</text></outputEntry>
+        <outputEntry id="OE_Contra1_4"><text>"PROT"</text></outputEntry>
+        <outputEntry id="OE_Contra1_5"><text>"NEGAR"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_41301110_Contraindicacao_2">
+        <description>Ausencia protocolo CONITEC/institucional aprovado primeira linha</description>
+        <inputEntry id="IE_Contra2_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_Contra2_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_Contra2_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_Contra2_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_Contra2_5"><text>false</text></inputEntry>
+        <inputEntry id="IE_Rule_41301110_Contraindicacao_2_ultimo"><text>-</text></inputEntry>
+        <outputEntry id="OE_Contra2_1"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OE_Contra2_2"><text>"Ausencia protocolo CONITEC/institucional aprovado primeira linha"</text></outputEntry>
+        <outputEntry id="OE_Contra2_3"><text>"CONITEC: exigencia protocolo validado por diretrizes nacionais"</text></outputEntry>
+        <outputEntry id="OE_Contra2_4"><text>"PROT"</text></outputEntry>
+        <outputEntry id="OE_Contra2_5"><text>"NEGAR"</text></outputEntry>
+      </rule>
+
+      <!-- WASTE DETECTION: DUP -->
+      <rule id="Rule_41301110_DUP">
+        <description>DUP - Ciclo QT primeira linha repetido em menos de 21 dias</description>
+        <inputEntry id="IE_DUP_41301110_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_DUP_41301110_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_DUP_41301110_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_DUP_41301110_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_DUP_41301110_5"><text>-</text></inputEntry>
+        <inputEntry id="IE_DUP_41301110_ultimo"><text>&lt; 21</text></inputEntry>
+        <outputEntry id="OE_DUP_41301110_resultado"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OE_DUP_41301110_observacao"><text>"Ciclo QT primeira linha repetido em menos de 21 dias"</text></outputEntry>
+        <outputEntry id="OE_DUP_41301110_fundamentacao"><text>"NCCN 2024: Intervalo minimo entre ciclos QT 21 dias"</text></outputEntry>
+        <outputEntry id="OE_DUP_41301110_alertasDesperdicio"><text>"DUP"</text></outputEntry>
+        <outputEntry id="OE_DUP_41301110_acaoRecomendada"><text>"AGUARDAR_PRAZO"</text></outputEntry>
+      </rule>
+
+      <!-- WASTE DETECTION: ESC -->
+      <rule id="Rule_41301110_ESC">
+        <description>ESC - QT primeira linha sem documentacao diagnostico histopatologico e estadiamento</description>
+        <inputEntry id="IE_ESC_41301110_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_ESC_41301110_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_ESC_41301110_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_ESC_41301110_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_ESC_41301110_5"><text>-</text></inputEntry>
+        <inputEntry id="IE_ESC_41301110_ultimo"><text>-</text></inputEntry>
+        <outputEntry id="OE_ESC_41301110_resultado"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OE_ESC_41301110_observacao"><text>"QT primeira linha sem documentacao diagnostico histopatologico e estadiamento"</text></outputEntry>
+        <outputEntry id="OE_ESC_41301110_fundamentacao"><text>"NCCN 2024: QT 1L requer histopatologia confirmada e estadiamento completo"</text></outputEntry>
+        <outputEntry id="OE_ESC_41301110_alertasDesperdicio"><text>"ESC"</text></outputEntry>
+        <outputEntry id="OE_ESC_41301110_acaoRecomendada"><text>"SOLICITAR_INFO"</text></outputEntry>
+      </rule>
+
+
+      <!-- ============================================== -->
+      <!-- APPROVAL RULES (AFTER CONTRAINDICATIONS)      -->
+      <!-- ============================================== -->
+
+      <rule id="Rule_41301110_Aprovacao_1">
+        <description>ECOG 0-1 com protocolo CONITEC validado primeira linha</description>
+        <inputEntry id="IE_Aprov1_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_Aprov1_2"><text>"II","III","IV"</text></inputEntry>
+        <inputEntry id="IE_Aprov1_3"><text>"ECOG_0","ECOG_1"</text></inputEntry>
+        <inputEntry id="IE_Aprov1_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_Aprov1_5"><text>true</text></inputEntry>
+        <inputEntry id="IE_Rule_41301110_Aprovacao_1_ultimo"><text>-</text></inputEntry>
+        <outputEntry id="OE_Aprov1_1"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OE_Aprov1_2"><text>"ECOG 0-1 com protocolo CONITEC validado primeira linha"</text></outputEntry>
+        <outputEntry id="OE_Aprov1_3"><text>"NCCN: ECOG 0-1 grupo ideal quimioterapia, protocolos padrao 1L"</text></outputEntry>
+        <outputEntry id="OE_Aprov1_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_Aprov1_5"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_41301110_Aprovacao_2">
+        <description>Quimioterapia neoadjuvante estadio II-III localmente avancado</description>
+        <inputEntry id="IE_Aprov2_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_Aprov2_2"><text>"II","III"</text></inputEntry>
+        <inputEntry id="IE_Aprov2_3"><text>"ECOG_0","ECOG_1","ECOG_2"</text></inputEntry>
+        <inputEntry id="IE_Aprov2_4"><text>"Neoadjuvante"</text></inputEntry>
+        <inputEntry id="IE_Aprov2_5"><text>true</text></inputEntry>
+        <inputEntry id="IE_Rule_41301110_Aprovacao_2_ultimo"><text>-</text></inputEntry>
+        <outputEntry id="OE_Aprov2_1"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OE_Aprov2_2"><text>"Quimioterapia neoadjuvante estadio II-III localmente avancado"</text></outputEntry>
+        <outputEntry id="OE_Aprov2_3"><text>"SBOC/NCCN: neoadjuvante aumenta ressecabilidade, downstaging tumoral"</text></outputEntry>
+        <outputEntry id="OE_Aprov2_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_Aprov2_5"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_41301110_Aprovacao_3">
+        <description>Quimioterapia adjuvante pos-cirurgia curativa estadio II-III</description>
+        <inputEntry id="IE_Aprov3_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_Aprov3_2"><text>"II","III"</text></inputEntry>
+        <inputEntry id="IE_Aprov3_3"><text>"ECOG_0","ECOG_1","ECOG_2"</text></inputEntry>
+        <inputEntry id="IE_Aprov3_4"><text>"Adjuvante"</text></inputEntry>
+        <inputEntry id="IE_Aprov3_5"><text>true</text></inputEntry>
+        <inputEntry id="IE_Rule_41301110_Aprovacao_3_ultimo"><text>-</text></inputEntry>
+        <outputEntry id="OE_Aprov3_1"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OE_Aprov3_2"><text>"Quimioterapia adjuvante pos-cirurgia curativa estadio II-III"</text></outputEntry>
+        <outputEntry id="OE_Aprov3_3"><text>"NCCN: adjuvante reduz recidiva, melhora DFS em tumores alto risco"</text></outputEntry>
+        <outputEntry id="OE_Aprov3_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_Aprov3_5"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_41301110_Aprovacao_4">
+        <description>Quimioterapia paliativa 1L estadio IV ECOG 0-2</description>
+        <inputEntry id="IE_Aprov4_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_Aprov4_2"><text>"IV"</text></inputEntry>
+        <inputEntry id="IE_Aprov4_3"><text>"ECOG_0","ECOG_1","ECOG_2"</text></inputEntry>
+        <inputEntry id="IE_Aprov4_4"><text>"Paliativa"</text></inputEntry>
+        <inputEntry id="IE_Aprov4_5"><text>true</text></inputEntry>
+        <inputEntry id="IE_Rule_41301110_Aprovacao_4_ultimo"><text>-</text></inputEntry>
+        <outputEntry id="OE_Aprov4_1"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OE_Aprov4_2"><text>"Quimioterapia paliativa 1L estadio IV ECOG 0-2"</text></outputEntry>
+        <outputEntry id="OE_Aprov4_3"><text>"ESMO: QT paliativa 1L ECOG 0-2 melhora OS e qualidade vida"</text></outputEntry>
+        <outputEntry id="OE_Aprov4_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_Aprov4_5"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <!-- ============================================== -->
+      <!-- FALLBACK RULE - Casos nao cobertos            -->
+      <!-- ============================================== -->
+      <rule id="Rule_Fallback_41301110">
+        <description>Regra padrao - Casos nao cobertos requerem analise manual por auditor medico especializado</description>
+        <inputEntry id="IE_Fallback_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_Fallback_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_Fallback_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_Fallback_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_Fallback_5"><text>-</text></inputEntry>
+        <inputEntry id="IE_Rule_Fallback_41301110_ultimo"><text>-</text></inputEntry>
+        <outputEntry id="OE_Fallback_1"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OE_Fallback_2"><text>"Dados incompletos para avaliacao primeira linha"</text></outputEntry>
+        <outputEntry id="OE_Fallback_3"><text>"Documentacao obrigatoria: laudo AP, estadio TNM, ECOG, finalidade, protocolo institucional"</text></outputEntry>
+        <outputEntry id="OE_Fallback_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_Fallback_5"><text>"SOLICITAR_INFO"</text></outputEntry>
+      </rule>
+
+    </decisionTable>
+  </decision>
+</definitions>

@@ -1,0 +1,296 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/"
+             xmlns:dc="http://www.omg.org/spec/DD/20100524/DC/"
+             xmlns:di="http://www.omg.org/spec/DD/20100524/DI/"
+             id="Definitions_30601089"
+             name="Enxerto de Pele Parcial"
+             namespace="http://camunda.org/schema/1.0/dmn"
+             exporter="Camunda Modeler"
+             exporterVersion="5.0.0">
+  <!--
+    TUSS 30601089 - Enxerto de pele parcial (split-thickness skin graft)
+    Versao: 3.0.0 (2026-02-07)
+    Especialidade: Cirurgia Plastica Reconstrutiva
+    Categoria: Cobertura Cutanea - Enxertos
+
+    Indicacoes Clinicas (ASPS 2024 / ISBI 2022):
+    - Cobertura de areas cruentas extensas (queimaduras, trauma, ulceras)
+    - Perda de substancia cutanea sem exposicao de estruturas nobres
+    - Areas onde resultado cosmetico nao e prioritario
+    - Feridas cronicas com leito adequado (ulceras venosas, diabeticas)
+    - Preparo para enxerto de pele total em segunda etapa
+
+    Caracteristicas do Enxerto Parcial:
+    - Espessura: 0.2-0.5mm (epiderme + derme parcial)
+    - Vantagens: pega mais facil, area doadora cicatriza espontaneamente
+    - Desvantagens: contratura maior, resultado cosmetico inferior
+    - Variacoes: laminar, em malha (mesh), stamp grafts
+
+    Contraindicacoes:
+    - Leito da ferida infectado ou com necrose
+    - Exposicao de osso, cartilagem ou tendao sem periósteo
+    - Areas com exigencia cosmetica alta (face)
+    - Insuficiencia vascular severa
+
+    Documentacao Obrigatoria:
+    - Extensao da area a ser enxertada (cm2)
+    - Etiologia da ferida
+    - Condicao do leito receptor
+    - Fotografias pre-operatorias
+    - Area doadora planejada
+
+    Referencias Normativas:
+    - ASPS Evidence-Based Guidelines: Skin Grafting (2024)
+    - ISBI Practice Guidelines (2022)
+    - RN 465/2021 ANS
+    - SBCP 2024 - Enxertos Cutaneos
+  -->
+
+  <decision id="Decision_30601089" name="Criterios de Autorizacao - Enxerto de Pele Parcial">
+    <decisionTable id="DecisionTable_30601089" hitPolicy="FIRST">
+
+      <!-- Input 1: Condicao do Paciente -->
+      <input id="Input_condicaoPaciente" label="Condicao da Ferida/Leito Receptor">
+        <inputExpression id="InputExpr_condicaoPaciente" typeRef="string">
+          <text>condicaoPaciente</text>
+        </inputExpression>
+        <inputValues id="InputValues_condicaoPaciente">
+          <text>"leito_limpo_granulado","leito_infectado","necrose_presente","exposicao_estrutura_nobre","ferida_cronica_controlada","queimadura_desbridada","ulcera_venosa","ulcera_diabetica"</text>
+        </inputValues>
+      </input>
+
+      <!-- Input 2: Historico Clinico -->
+      <input id="Input_historicoClinico" label="Etiologia e Contexto Clinico">
+        <inputExpression id="InputExpr_historicoClinico" typeRef="string">
+          <text>historicoClinico</text>
+        </inputExpression>
+        <inputValues id="InputValues_historicoClinico">
+          <text>"pos_trauma_agudo","pos_queimadura","ulcera_cronica_tratada","resseccao_tumoral","insuficiencia_vascular_controlada","insuficiencia_vascular_severa","diabetes_controlado","area_doadora_disponivel"</text>
+        </inputValues>
+      </input>
+
+      <!-- Input 3: Classe de Indicacao -->
+      <input id="Input_classeIndicacao" label="Classe de Indicacao Cirurgica">
+        <inputExpression id="InputExpr_classeIndicacao" typeRef="string">
+          <text>classeIndicacao</text>
+        </inputExpression>
+        <inputValues id="InputValues_classeIndicacao">
+          <text>"classe_I_indicacao_absoluta","classe_II_indicacao_relativa","classe_III_beneficio_incerto","classe_IV_contraindicado"</text>
+        </inputValues>
+      </input>
+
+      <!-- Input 4: Exames Comprobatorios -->
+      <input id="Input_examesComprobatorios" label="Documentacao Clinica Completa">
+        <inputExpression id="InputExpr_examesComprobatorios" typeRef="boolean">
+          <text>examesComprobatorios</text>
+        </inputExpression>
+      </input>
+
+      <!-- Input 5: Expectativa de Vida Superior a 1 Ano -->
+      <input id="Input_expectativaVida" label="Expectativa de Vida Superior a 1 Ano">
+        <inputExpression id="InputExpr_expectativaVida" typeRef="boolean">
+          <text>expectativaVidaSuperior1Ano</text>
+        </inputExpression>
+      </input>
+
+      <!-- Output 1: Resultado -->
+      <output id="Output_resultado" label="Resultado" name="resultado" typeRef="string">
+        <outputValues id="OutputValues_resultado">
+          <text>"Aprovado","Reprovado","Pendente"</text>
+        </outputValues>
+      </output>
+
+      <!-- Output 2: Observacao -->
+      <output id="Output_observacao" label="Observacao Clinica" name="observacao" typeRef="string" />
+
+      <!-- Output 3: Fundamentacao -->
+      <output id="Output_fundamentacao" label="Fundamentacao Legal/Tecnica" name="fundamentacao" typeRef="string" />
+
+      <output id="Output_alertasDesperdicio" name="alertasDesperdicio" typeRef="string">
+        <outputValues>
+          <text>"NENHUM","DUP","FREQ","ESC","DOC","PROT","MULTI"</text>
+        </outputValues>
+      </output>
+
+      <output id="Output_acaoRecomendada" name="acaoRecomendada" typeRef="string">
+        <outputValues>
+          <text>"APROVAR","NEGAR","SOLICITAR_INFO","AGUARDAR_PRAZO","SUGERIR_ALTERNATIVA"</text>
+        </outputValues>
+      </output>
+
+      <!-- ============================================== -->
+      <!-- REGRAS DE REPROVACAO (PRIORIDADE MAXIMA)      -->
+      <!-- ============================================== -->
+
+      <rule id="Rule_30601089_Reprovacao_LeitoInfectado">
+        <description>Reprovacao - Leito infectado contraindica enxertia</description>
+        <inputEntry id="IE_Rep1_1"><text>"leito_infectado"</text></inputEntry>
+        <inputEntry id="IE_Rep1_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_Rep1_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_Rep1_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_Rep1_5"><text>-</text></inputEntry>
+        <outputEntry id="OE_Rep1_1"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OE_Rep1_2"><text>"Leito da ferida infectado. Enxertia contraindicada - alto risco de perda do enxerto. Tratar infeccao com curativos antimicrobianos e antibioticoterapia. Reavaliar apos controle."</text></outputEntry>
+        <outputEntry id="OE_Rep1_3"><text>"ASPS 2024 - Wound Bed Preparation; ISBI 2022"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_30601089_Reprovacao_Necrose">
+        <description>Reprovacao - Necrose presente no leito</description>
+        <inputEntry id="IE_Rep2_1"><text>"necrose_presente"</text></inputEntry>
+        <inputEntry id="IE_Rep2_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_Rep2_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_Rep2_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_Rep2_5"><text>-</text></inputEntry>
+        <outputEntry id="OE_Rep2_1"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OE_Rep2_2"><text>"Necrose presente no leito receptor. Realizar desbridamento completo antes da enxertia. Enxerto sobre tecido necrotico nao integra."</text></outputEntry>
+        <outputEntry id="OE_Rep2_3"><text>"ISBI 2022 - Debridement Before Grafting"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_30601089_Reprovacao_EstruturaExposta">
+        <description>Reprovacao - Estrutura nobre exposta sem cobertura</description>
+        <inputEntry id="IE_Rep3_1"><text>"exposicao_estrutura_nobre"</text></inputEntry>
+        <inputEntry id="IE_Rep3_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_Rep3_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_Rep3_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_Rep3_5"><text>-</text></inputEntry>
+        <outputEntry id="OE_Rep3_1"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OE_Rep3_2"><text>"Exposicao de estrutura nobre (osso, cartilagem, tendao sem paratendao). Enxerto parcial nao pega sobre superficies avasculares. Indicar retalho ou matriz dermica + enxerto."</text></outputEntry>
+        <outputEntry id="OE_Rep3_3"><text>"ASPS 2024 - Flap vs Graft Indications"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_30601089_Reprovacao_InsuficienciaVascular">
+        <description>Reprovacao - Insuficiencia vascular severa</description>
+        <inputEntry id="IE_Rep4_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_Rep4_2"><text>"insuficiencia_vascular_severa"</text></inputEntry>
+        <inputEntry id="IE_Rep4_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_Rep4_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_Rep4_5"><text>-</text></inputEntry>
+        <outputEntry id="OE_Rep4_1"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OE_Rep4_2"><text>"Insuficiencia vascular severa. Enxerto nao integrara por falta de perfusao. Revascularizacao necessaria antes de cobertura cutanea. Encaminhar para cirurgia vascular."</text></outputEntry>
+        <outputEntry id="OE_Rep4_3"><text>"ISBI 2022 - Vascular Assessment; Guidelines de Ulceras"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_30601089_Reprovacao_ExpectativaVida">
+        <description>Reprovacao - Expectativa de vida inferior a 1 ano</description>
+        <inputEntry id="IE_Rep5_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_Rep5_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_Rep5_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_Rep5_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_Rep5_5"><text>false</text></inputEntry>
+        <outputEntry id="OE_Rep5_1"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OE_Rep5_2"><text>"Expectativa de vida inferior a 12 meses. Considerar tratamento conservador com curativos para controle de sintomas e qualidade de vida."</text></outputEntry>
+        <outputEntry id="OE_Rep5_3"><text>"Principios de Proporcionalidade Terapeutica"</text></outputEntry>
+      </rule>
+
+      <!-- ============================================== -->
+      <!-- REGRAS DE APROVACAO                           -->
+      <!-- ============================================== -->
+
+      <rule id="Rule_30601089_Aprovacao_QueimaduraDesbridada">
+        <description>Aprovacao - Queimadura desbridada pronta para enxertia</description>
+        <inputEntry id="IE_Aprov1_1"><text>"queimadura_desbridada","leito_limpo_granulado"</text></inputEntry>
+        <inputEntry id="IE_Aprov1_2"><text>"pos_queimadura","area_doadora_disponivel"</text></inputEntry>
+        <inputEntry id="IE_Aprov1_3"><text>"classe_I_indicacao_absoluta"</text></inputEntry>
+        <inputEntry id="IE_Aprov1_4"><text>true</text></inputEntry>
+        <inputEntry id="IE_Aprov1_5"><text>true</text></inputEntry>
+        <outputEntry id="OE_Aprov1_1"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OE_Aprov1_2"><text>"Enxerto de pele parcial aprovado para queimadura desbridada. Leito limpo e granulado. Definir laminar ou malha conforme extensao. Curativos compressivos pos-operatorios."</text></outputEntry>
+        <outputEntry id="OE_Aprov1_3"><text>"ABA 2023 - Skin Grafting in Burns; ISBI 2022; RN 465/2021"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_30601089_Aprovacao_TraumaAgudo">
+        <description>Aprovacao - Perda cutanea pos-trauma</description>
+        <inputEntry id="IE_Aprov2_1"><text>"leito_limpo_granulado"</text></inputEntry>
+        <inputEntry id="IE_Aprov2_2"><text>"pos_trauma_agudo","area_doadora_disponivel"</text></inputEntry>
+        <inputEntry id="IE_Aprov2_3"><text>"classe_I_indicacao_absoluta","classe_II_indicacao_relativa"</text></inputEntry>
+        <inputEntry id="IE_Aprov2_4"><text>true</text></inputEntry>
+        <inputEntry id="IE_Aprov2_5"><text>true</text></inputEntry>
+        <outputEntry id="OE_Aprov2_1"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OE_Aprov2_2"><text>"Enxerto de pele parcial aprovado para perda cutanea pos-trauma. Cobertura rapida reduz risco de infeccao e tempo de cicatrizacao. Area doadora: coxa, dorso, regiao glutea."</text></outputEntry>
+        <outputEntry id="OE_Aprov2_3"><text>"ASPS 2024 - Traumatic Wounds; Principios de Cobertura"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_30601089_Aprovacao_UlceraVenosa">
+        <description>Aprovacao - Ulcera venosa cronica tratada</description>
+        <inputEntry id="IE_Aprov3_1"><text>"ulcera_venosa","ferida_cronica_controlada"</text></inputEntry>
+        <inputEntry id="IE_Aprov3_2"><text>"ulcera_cronica_tratada","insuficiencia_vascular_controlada"</text></inputEntry>
+        <inputEntry id="IE_Aprov3_3"><text>"classe_I_indicacao_absoluta","classe_II_indicacao_relativa"</text></inputEntry>
+        <inputEntry id="IE_Aprov3_4"><text>true</text></inputEntry>
+        <inputEntry id="IE_Aprov3_5"><text>true</text></inputEntry>
+        <outputEntry id="OE_Aprov3_1"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OE_Aprov3_2"><text>"Enxerto de pele parcial aprovado para ulcera venosa cronica. Tratamento compressivo adequado documentado. Leito preparado. Manter compressao pos-enxertia essencial."</text></outputEntry>
+        <outputEntry id="OE_Aprov3_3"><text>"ASPS 2024 - Chronic Wound Coverage; Guidelines de Ulceras Venosas"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_30601089_Aprovacao_UlceraDiabetica">
+        <description>Aprovacao - Ulcera diabetica com diabetes controlado</description>
+        <inputEntry id="IE_Aprov4_1"><text>"ulcera_diabetica","ferida_cronica_controlada"</text></inputEntry>
+        <inputEntry id="IE_Aprov4_2"><text>"diabetes_controlado","insuficiencia_vascular_controlada"</text></inputEntry>
+        <inputEntry id="IE_Aprov4_3"><text>"classe_II_indicacao_relativa"</text></inputEntry>
+        <inputEntry id="IE_Aprov4_4"><text>true</text></inputEntry>
+        <inputEntry id="IE_Aprov4_5"><text>true</text></inputEntry>
+        <outputEntry id="OE_Aprov4_1"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OE_Aprov4_2"><text>"Enxerto aprovado para ulcera diabetica com glicemia controlada (HbA1c menor que 8%). Perfusao adequada documentada. Descarga de pressao pos-operatoria essencial."</text></outputEntry>
+        <outputEntry id="OE_Aprov4_3"><text>"IWGDF Guidelines 2023; ASPS 2024 - Diabetic Wounds"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_30601089_Aprovacao_ResseccaoTumoral">
+        <description>Aprovacao - Defeito pos-resseccao tumoral</description>
+        <inputEntry id="IE_Aprov5_1"><text>"leito_limpo_granulado"</text></inputEntry>
+        <inputEntry id="IE_Aprov5_2"><text>"resseccao_tumoral","area_doadora_disponivel"</text></inputEntry>
+        <inputEntry id="IE_Aprov5_3"><text>"classe_I_indicacao_absoluta"</text></inputEntry>
+        <inputEntry id="IE_Aprov5_4"><text>true</text></inputEntry>
+        <inputEntry id="IE_Aprov5_5"><text>true</text></inputEntry>
+        <outputEntry id="OE_Aprov5_1"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OE_Aprov5_2"><text>"Enxerto de pele parcial aprovado para cobertura de defeito pos-resseccao tumoral. Aguardar liberacao de margens livres se tumor maligno antes de cobertura definitiva."</text></outputEntry>
+        <outputEntry id="OE_Aprov5_3"><text>"ASPS 2024 - Post-Excision Coverage; Oncoplastic Principles"</text></outputEntry>
+      </rule>
+
+      <!-- ============================================== -->
+      <!-- REGRAS DE PENDENCIA                           -->
+      <!-- ============================================== -->
+
+      <rule id="Rule_30601089_Pendente_ClasseIII">
+        <description>Pendente - Beneficio incerto requer avaliacao</description>
+        <inputEntry id="IE_Pend1_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_Pend1_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_Pend1_3"><text>"classe_III_beneficio_incerto"</text></inputEntry>
+        <inputEntry id="IE_Pend1_4"><text>true</text></inputEntry>
+        <inputEntry id="IE_Pend1_5"><text>true</text></inputEntry>
+        <outputEntry id="OE_Pend1_1"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OE_Pend1_2"><text>"Indicacao Classe III - beneficio incerto. Encaminhar para avaliacao especializada. Considerar alternativas: tratamento conservador otimizado, terapia pressao negativa, substitutos dermicos."</text></outputEntry>
+        <outputEntry id="OE_Pend1_3"><text>"RN 424/2017 - Junta Medica"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_30601089_Pendente_SemDocumentacao">
+        <description>Pendente - Documentacao incompleta</description>
+        <inputEntry id="IE_Pend2_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_Pend2_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_Pend2_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_Pend2_4"><text>false</text></inputEntry>
+        <inputEntry id="IE_Pend2_5"><text>true</text></inputEntry>
+        <outputEntry id="OE_Pend2_1"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OE_Pend2_2"><text>"Documentacao incompleta. Anexar: etiologia da ferida, extensao em cm2, fotografias clinicas, descricao do leito receptor, planejamento da area doadora."</text></outputEntry>
+        <outputEntry id="OE_Pend2_3"><text>"RN 465/2021 Art. 5 - Documentacao"</text></outputEntry>
+      </rule>
+
+      <!-- ============================================== -->
+      <!-- REGRA FALLBACK                                -->
+      <!-- ============================================== -->
+
+      <rule id="Rule_Fallback_30601089">
+        <description>Regra padrao - Casos nao cobertos</description>
+        <inputEntry id="IE_Fallback_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_Fallback_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_Fallback_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_Fallback_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_Fallback_5"><text>-</text></inputEntry>
+        <outputEntry id="OE_Fallback_1"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OE_Fallback_2"><text>"Caso nao enquadrado nos criterios automaticos. Encaminhar para auditoria especializada em cirurgia plastica/cobertura cutanea."</text></outputEntry>
+        <outputEntry id="OE_Fallback_3"><text>"RN 428/2017 - Auditoria Especializada"</text></outputEntry>
+      </rule>
+
+    </decisionTable>
+  </decision>
+</definitions>

@@ -1,0 +1,217 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             xmlns:camunda="http://camunda.org/schema/1.0/dmn"
+             id="Definitions_GEN_EME_001"
+             name="Abdome Agudo - Indicacao Cirurgica vs Clinica"
+             namespace="http://camunda.org/schema/1.0/dmn">
+
+  <!--
+    ===============================================================================
+    CODIGO: GEN-EME-001
+    Procedimento: Abdome Agudo - Avaliacao Cirurgica vs Tratamento Clinico
+    Especialidade: Cirurgia Geral - Emergencia
+    Versao: 3.0.0-TIER1
+    Data: 2026-02-07
+    ===============================================================================
+
+    INDICACOES CIRURGICAS:
+    - Peritonite difusa com sinais de sepse
+    - Pneumoperitonio em radiografia ou TC
+    - Isquemia mesentrica com sinais de necrose
+    - Obstrucao intestinal com estrangulamento
+    - Perfuracao de viscera oca documentada
+
+    CONTRAINDICACOES CIRURGICAS:
+    - Pancreatite aguda sem necrose infectada (tratamento clinico)
+    - Colica biliar simples sem colecistite (tratamento clinico)
+    - Gastroenterite aguda infecciosa (tratamento clinico)
+    - Risco cirurgico proibitivo ASA V sem indicacao absoluta
+
+    REFERENCIAS TECNICAS:
+    - EAST Guidelines 2023 - Emergency General Surgery
+    - ACS Trauma Quality Programs 2024
+    - CBC 2022 - Colégio Brasileiro de Cirurgioes
+
+    ===============================================================================
+  -->
+
+  <decision id="Decision_GEN_EME_001" name="Regra Clinica - Abdome Agudo">
+    <decisionTable id="DecisionTable_GEN_EME_001" hitPolicy="FIRST">
+
+      <!-- ========== INPUTS (5) ========== -->
+
+      <input id="Input_sinaisPeritonite" label="Sinais de Peritonite" camunda:inputVariable="sinaisPeritonite">
+        <inputExpression id="InputExpression_sinaisPeritonite" typeRef="string">
+          <text>sinaisPeritonite</text>
+        </inputExpression>
+        <inputValues id="InputValues_sinaisPeritonite">
+          <text>"Difusa","Localizada","Ausente","NaoAvaliado"</text>
+        </inputValues>
+      </input>
+
+      <input id="Input_pneumoperitonio" label="Pneumoperitonio Documentado" camunda:inputVariable="pneumoperitonio">
+        <inputExpression id="InputExpression_pneumoperitonio" typeRef="boolean">
+          <text>pneumoperitonio</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_sinaisSepse" label="Sinais de Sepse/Choque" camunda:inputVariable="sinaisSepse">
+        <inputExpression id="InputExpression_sinaisSepse" typeRef="string">
+          <text>sinaisSepse</text>
+        </inputExpression>
+        <inputValues id="InputValues_sinaisSepse">
+          <text>"ChoqueSeptico","SepseSevera","SIRS","Ausente","NaoAvaliado"</text>
+        </inputValues>
+      </input>
+
+      <input id="Input_imagemAbdominal" label="Achados de Imagem" camunda:inputVariable="imagemAbdominal">
+        <inputExpression id="InputExpression_imagemAbdominal" typeRef="string">
+          <text>imagemAbdominal</text>
+        </inputExpression>
+        <inputValues id="InputValues_imagemAbdominal">
+          <text>"Perfuracao","Obstrucao","Isquemia","Inflamatorio","Normal","NaoRealizado"</text>
+        </inputValues>
+      </input>
+
+      <input id="Input_riscoCirurgico" label="Classificacao ASA" camunda:inputVariable="riscoCirurgico">
+        <inputExpression id="InputExpression_riscoCirurgico" typeRef="string">
+          <text>riscoCirurgico</text>
+        </inputExpression>
+        <inputValues id="InputValues_riscoCirurgico">
+          <text>"ASA_I","ASA_II","ASA_III","ASA_IV","ASA_V"</text>
+        </inputValues>
+      </input>
+
+      <!-- ========== OUTPUTS (3) ========== -->
+
+      <output id="Output_resultado" label="Resultado" name="resultado" typeRef="string">
+        <outputValues id="OutputValues_resultado">
+          <text>"Aprovado","Reprovado","Pendente"</text>
+        </outputValues>
+      </output>
+
+      <output id="Output_observacao" label="Observacao Clinica" name="observacao" typeRef="string" />
+
+      <output id="Output_fundamentacao" label="Fundamentacao Tecnica" name="fundamentacao" typeRef="string" />
+
+      <!-- Output 4: Alertas Desperdicio -->
+      <output id="Output_alertasDesperdicio" label="Alertas de Desperdicio" name="alertasDesperdicio" typeRef="string">
+        <outputValues id="OutputValues_alertasDesperdicio">
+          <text>"NENHUM","DUP","FREQ","ESC","DOC","PROT","MULTI"</text>
+        </outputValues>
+      </output>
+
+      <!-- Output 5: Acao Recomendada -->
+      <output id="Output_acaoRecomendada" label="Acao Recomendada" name="acaoRecomendada" typeRef="string">
+        <outputValues id="OutputValues_acaoRecomendada">
+          <text>"APROVAR","NEGAR","SOLICITAR_INFO","AGUARDAR_PRAZO","SUGERIR_ALTERNATIVA"</text>
+        </outputValues>
+      </output>
+
+      <!-- ========== REGRAS DE REPROVACAO ========== -->
+
+      <rule id="Rule_Reprovado_RiscoProibitivo">
+        <description>Reprovado: ASA V sem indicacao absoluta de emergencia</description>
+        <inputEntry id="IE_Rep1_1"><text>not("Difusa")</text></inputEntry>
+        <inputEntry id="IE_Rep1_2"><text>false</text></inputEntry>
+        <inputEntry id="IE_Rep1_3"><text>not("ChoqueSeptico")</text></inputEntry>
+        <inputEntry id="IE_Rep1_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_Rep1_5"><text>"ASA_V"</text></inputEntry>
+        <outputEntry id="OE_Rep1_1"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OE_Rep1_2"><text>"Paciente ASA V sem indicacao absoluta de emergencia - risco cirurgico proibitivo supera beneficio"</text></outputEntry>
+        <outputEntry id="OE_Rep1_3"><text>"EAST Guidelines 2023 - Avaliacao risco-beneficio em pacientes criticos"</text></outputEntry>
+      <outputEntry id="OE_Reprovado_RiscoProibitivo_4"><text>"PROT"</text></outputEntry>
+        <outputEntry id="OE_Reprovado_RiscoProibitivo_5"><text>"NEGAR"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Reprovado_SemDocumentacao">
+        <description>Reprovado: Imagem nao realizada em quadro agudo</description>
+        <inputEntry id="IE_Rep2_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_Rep2_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_Rep2_3"><text>"Ausente"</text></inputEntry>
+        <inputEntry id="IE_Rep2_4"><text>"NaoRealizado"</text></inputEntry>
+        <inputEntry id="IE_Rep2_5"><text>-</text></inputEntry>
+        <outputEntry id="OE_Rep2_1"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OE_Rep2_2"><text>"Documentacao de imagem obrigatoria para avaliacao cirurgica de abdome agudo"</text></outputEntry>
+        <outputEntry id="OE_Rep2_3"><text>"CBC 2022 - Protocolo de investigacao de abdome agudo"</text></outputEntry>
+      <outputEntry id="OE_Reprovado_SemDocumentacao_4"><text>"PROT"</text></outputEntry>
+        <outputEntry id="OE_Reprovado_SemDocumentacao_5"><text>"NEGAR"</text></outputEntry>
+      </rule>
+
+      <!-- ========== REGRAS DE APROVACAO ========== -->
+
+      <rule id="Rule_Aprovado_Pneumoperitonio">
+        <description>Aprovado: Pneumoperitonio documentado - emergencia cirurgica</description>
+        <inputEntry id="IE_Apr1_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_Apr1_2"><text>true</text></inputEntry>
+        <inputEntry id="IE_Apr1_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_Apr1_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_Apr1_5"><text>-</text></inputEntry>
+        <outputEntry id="OE_Apr1_1"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OE_Apr1_2"><text>"Pneumoperitonio documentado indica perfuracao de viscera oca - indicacao cirurgica absoluta"</text></outputEntry>
+        <outputEntry id="OE_Apr1_3"><text>"EAST Guidelines 2023 - Perfuracao gastrointestinal requer laparotomia de emergencia"</text></outputEntry>
+      <outputEntry id="OE_Aprovado_Pneumoperitonio_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_Aprovado_Pneumoperitonio_5"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Aprovado_PeritoniteDifusa">
+        <description>Aprovado: Peritonite difusa com sepse</description>
+        <inputEntry id="IE_Apr2_1"><text>"Difusa"</text></inputEntry>
+        <inputEntry id="IE_Apr2_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_Apr2_3"><text>"ChoqueSeptico","SepseSevera"</text></inputEntry>
+        <inputEntry id="IE_Apr2_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_Apr2_5"><text>-</text></inputEntry>
+        <outputEntry id="OE_Apr2_1"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OE_Apr2_2"><text>"Peritonite difusa com sepse - controle de foco cirurgico indicado"</text></outputEntry>
+        <outputEntry id="OE_Apr2_3"><text>"Surviving Sepsis Campaign 2021 - Controle de foco em ate 6-12h"</text></outputEntry>
+      <outputEntry id="OE_Aprovado_PeritoniteDifusa_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_Aprovado_PeritoniteDifusa_5"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Aprovado_Perfuracao">
+        <description>Aprovado: Perfuracao documentada em imagem</description>
+        <inputEntry id="IE_Apr3_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_Apr3_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_Apr3_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_Apr3_4"><text>"Perfuracao"</text></inputEntry>
+        <inputEntry id="IE_Apr3_5"><text>-</text></inputEntry>
+        <outputEntry id="OE_Apr3_1"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OE_Apr3_2"><text>"Perfuracao de viscera documentada em imagem - indicacao cirurgica de emergencia"</text></outputEntry>
+        <outputEntry id="OE_Apr3_3"><text>"ACS Trauma Quality Programs 2024 - Manejo de perfuracoes gastrointestinais"</text></outputEntry>
+      <outputEntry id="OE_Aprovado_Perfuracao_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_Aprovado_Perfuracao_5"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Aprovado_Isquemia">
+        <description>Aprovado: Isquemia intestinal documentada</description>
+        <inputEntry id="IE_Apr4_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_Apr4_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_Apr4_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_Apr4_4"><text>"Isquemia"</text></inputEntry>
+        <inputEntry id="IE_Apr4_5"><text>-</text></inputEntry>
+        <outputEntry id="OE_Apr4_1"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OE_Apr4_2"><text>"Isquemia mesentérica documentada - exploracao cirurgica de emergencia para avaliacao de viabilidade"</text></outputEntry>
+        <outputEntry id="OE_Apr4_3"><text>"EAST Guidelines 2023 - Isquemia mesentérica aguda"</text></outputEntry>
+      <outputEntry id="OE_Aprovado_Isquemia_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_Aprovado_Isquemia_5"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <!-- ========== REGRA FALLBACK ========== -->
+
+      <rule id="Rule_Fallback_GEN_EME_001">
+        <description>Pendente: Avaliacao clinica adicional necessaria</description>
+        <inputEntry id="IE_FB_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_FB_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_FB_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_FB_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_FB_5"><text>-</text></inputEntry>
+        <outputEntry id="OE_FB_1"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OE_FB_2"><text>"Quadro clinico requer avaliacao especializada - criterios para indicacao cirurgica vs clinica nao claramente definidos"</text></outputEntry>
+        <outputEntry id="OE_FB_3"><text>"Avaliacao por cirurgiao geral de emergencia necessaria conforme CBC 2022"</text></outputEntry>
+      <outputEntry id="OE_Fallback_GEN_EME_001_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_Fallback_GEN_EME_001_5"><text>"SOLICITAR_INFO"</text></outputEntry>
+      </rule>
+
+    </decisionTable>
+  </decision>
+</definitions>

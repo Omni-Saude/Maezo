@@ -1,0 +1,347 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  TUSS: 40314081 - Pesquisa de Rearranjo ALK por FISH/IHC
+
+  INDICAÇÕES CLÍNICAS:
+  - Adenocarcinoma pulmonar de células não pequenas (NSCLC)
+  - Estágio avançado (IIIB não ressecável ou IV)
+  - Antes de iniciar primeira linha de tratamento sistêmico
+  - Idade: Qualquer (mais frequente em jovens não fumantes)
+
+  CONTRAINDICAÇÕES:
+  - Diagnóstico histológico não confirmado como adenocarcinoma
+  - Carcinoma pulmonar de células escamosas (baixíssima prevalência ALK+)
+  - Carcinoma pulmonar de pequenas células
+  - Já em tratamento sistêmico sem biomarker
+  - Performance status ECOG 4 (cuidados paliativos exclusivos)
+
+  FUNDAMENTAÇÃO TÉCNICA:
+  - Rearranjo ALK ocorre em 3-5% dos NSCLC adenocarcinomas
+  - Preditivo de resposta a inibidores ALK (crizotinibe, alectinibe, brigatinibe)
+  - Mutualmente exclusivo com EGFR e ROS1 na maioria dos casos
+  - Teste obrigatório antes de 1ª linha conforme diretrizes internacionais
+
+  REFERÊNCIAS:
+  - SBOC Diretrizes Câncer de Pulmão 2024
+  - NCCN Guidelines NSCLC v2.2024
+  - ASCO Molecular Testing in Lung Cancer 2024
+  - CAP/IASLC/AMP Molecular Testing Guideline 2024
+-->
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/" xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/" xmlns:dc="http://www.omg.org/spec/DMN/20180521/DC/" xmlns:modeler="http://camunda.org/schema/modeler/1.0" id="Definitions_ALK_FISH_IHC" name="DRD" namespace="http://camunda.org/schema/1.0/dmn" exporter="Camunda Modeler" exporterVersion="5.20.0" modeler:executionPlatform="Camunda Cloud" modeler:executionPlatformVersion="8.4.0">
+  <decision id="Decision_ALK_40314081" name="Autorização ALK FISH/IHC [LEAN TIER-2]">
+    <decisionTable id="DecisionTable_ALK_40314081" hitPolicy="FIRST">
+      <input id="Input_diagnostico_ALK" label="Diagnóstico Oncológico">
+        <inputExpression id="InputExpression_diagnostico_ALK" typeRef="string">
+          <text>diagnosticoOncologico</text>
+        </inputExpression>
+        <inputValues id="UnaryTests_diagnostico_ALK">
+          <text>"C34.0","C34.1","C34.2","C34.3","C34.9"</text>
+        </inputValues>
+      </input>
+      <input id="Input_estadiamento_ALK" label="Estadiamento TNM">
+        <inputExpression id="InputExpression_estadiamento_ALK" typeRef="string">
+          <text>estadiamentoTNM</text>
+        </inputExpression>
+        <inputValues id="UnaryTests_estadiamento_ALK">
+          <text>"T0","T1","T2","T3","T4","Tis","TX"</text>
+        </inputValues>
+      </input>
+      <input id="Input_ecog_ALK" label="Performance Status ECOG">
+        <inputExpression id="InputExpression_ecog_ALK" typeRef="string">
+          <text>performanceStatusECOG</text>
+        </inputExpression>
+        <inputValues id="UnaryTests_ecog_ALK">
+          <text>"0","1","2","3","4"</text>
+        </inputValues>
+      </input>
+      <input id="Input_linhas_ALK" label="Linhas Tratamento Prévias">
+        <inputExpression id="InputExpression_linhas_ALK" typeRef="string">
+          <text>linhasTratamentoPrevias</text>
+        </inputExpression>
+        <inputValues id="UnaryTests_linhas_ALK">
+          <text>"0","1","2","3+"</text>
+        </inputValues>
+      </input>
+      <input id="Input_protocolo_ALK" label="Protocolo Terapêutico Definido">
+        <inputExpression id="InputExpression_protocolo_ALK" typeRef="boolean">
+          <text>protocoloTerapeutico</text>
+        </inputExpression>
+      </input>
+      <!-- Input: Dias desde ultimo procedimento (DUP detection) -->
+      <input id="Input_ultimoProcedimentoDias" label="Dias Desde Ultimo Procedimento">
+        <inputExpression id="InputExpression_ultimoProcedimentoDias" typeRef="number">
+          <text>ultimoProcedimentoDias</text>
+        </inputExpression>
+      </input>
+
+      <output id="Output_resultado_ALK" label="Resultado" name="resultado" typeRef="string" />
+      <output id="Output_observacao_ALK" label="Observação" name="observacao" typeRef="string" />
+      <output id="Output_fundamentacao_ALK" label="Fundamentação" name="fundamentacao" typeRef="string" />
+      <output id="Output_alertasDesperdicio_ALK" label="Alertas de Desperdicio" name="alertasDesperdicio" typeRef="string">
+        <outputValues id="OutputValues_alertasDesperdicio_ALK">
+          <text>"NENHUM","DUP","FREQ","ESC","DOC","PROT","MULTI"</text>
+        </outputValues>
+      </output>
+      <output id="Output_acaoRecomendada_ALK" label="Acao Recomendada" name="acaoRecomendada" typeRef="string">
+        <outputValues id="OutputValues_acaoRecomendada_ALK">
+          <text>"APROVAR","NEGAR","SOLICITAR_INFO","AGUARDAR_PRAZO","SUGERIR_ALTERNATIVA"</text>
+        </outputValues>
+      </output>
+      
+
+      <!-- WASTE DETECTION: DUP -->
+      <rule id="Rule_40314081_DUP">
+        <description>DUP - Reteste ALK em menos de 90 dias. Resultado anterior ainda valido</description>
+        <inputEntry id="IE_DUP_40314081_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_DUP_40314081_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_DUP_40314081_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_DUP_40314081_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_DUP_40314081_5"><text>-</text></inputEntry>
+        <inputEntry id="IE_DUP_40314081_ultimo"><text>&lt; 90</text></inputEntry>
+        <outputEntry id="OE_DUP_40314081_resultado"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OE_DUP_40314081_observacao"><text>"Reteste ALK em menos de 90 dias. Resultado anterior ainda valido"</text></outputEntry>
+        <outputEntry id="OE_DUP_40314081_fundamentacao"><text>"NCCN 2024: Reteste ALK apenas se progressao ou novo primario"</text></outputEntry>
+        <outputEntry id="OE_DUP_40314081_alertasDesperdicio"><text>"DUP"</text></outputEntry>
+        <outputEntry id="OE_DUP_40314081_acaoRecomendada"><text>"AGUARDAR_PRAZO"</text></outputEntry>
+      </rule>
+<rule id="Rule_Contraind_40314081_1">
+        <description>Performance status ECOG 4 incompatível com tratamento sistêmico</description>
+        <inputEntry id="UnaryTests_contraind_diag_1">
+          <text></text>
+        </inputEntry>
+        <inputEntry id="UnaryTests_contraind_tnm_1">
+          <text></text>
+        </inputEntry>
+        <inputEntry id="UnaryTests_contraind_ecog_1">
+          <text>"4"</text>
+        </inputEntry>
+        <inputEntry id="UnaryTests_contraind_linhas_1">
+          <text></text>
+        </inputEntry>
+        <inputEntry id="UnaryTests_contraind_protocolo_1">
+          <text></text>
+        </inputEntry>
+        <inputEntry id="IE_Rule_Contraind_40314081_1_ultimo"><text>-</text></inputEntry>
+        <outputEntry id="LiteralExpression_contraind_resultado_1">
+          <text>"NEGADO"</text>
+        </outputEntry>
+        <outputEntry id="LiteralExpression_contraind_obs_1">
+          <text>"Paciente ECOG 4 não candidato a tratamento sistêmico"</text>
+        </outputEntry>
+        <outputEntry id="LiteralExpression_contraind_fund_1">
+          <text>"Performance status incompatível. Indicar cuidados paliativos exclusivos."</text>
+        </outputEntry>
+        <outputEntry id="OE_contraind_1_alertas">
+          <text>"PROT"</text>
+        </outputEntry>
+        <outputEntry id="OE_contraind_1_acao">
+          <text>"NEGAR"</text>
+        </outputEntry>
+      </rule>
+      <rule id="Rule_Contraind_40314081_2">
+        <description>Diagnóstico fora dos códigos CID-10 para câncer de pulmão</description>
+        <inputEntry id="UnaryTests_contraind_diag_2">
+          <text>not(list contains(["C34.0","C34.1","C34.2","C34.3","C34.9"], diagnosticoOncologico))</text>
+        </inputEntry>
+        <inputEntry id="UnaryTests_contraind_tnm_2">
+          <text></text>
+        </inputEntry>
+        <inputEntry id="UnaryTests_contraind_ecog_2">
+          <text></text>
+        </inputEntry>
+        <inputEntry id="UnaryTests_contraind_linhas_2">
+          <text></text>
+        </inputEntry>
+        <inputEntry id="UnaryTests_contraind_protocolo_2">
+          <text></text>
+        </inputEntry>
+        <inputEntry id="IE_Rule_Contraind_40314081_2_ultimo"><text>-</text></inputEntry>
+        <outputEntry id="LiteralExpression_contraind_resultado_2">
+          <text>"NEGADO"</text>
+        </outputEntry>
+        <outputEntry id="LiteralExpression_contraind_obs_2">
+          <text>"CID-10 não corresponde a neoplasia pulmonar"</text>
+        </outputEntry>
+        <outputEntry id="LiteralExpression_contraind_fund_2">
+          <text>"Teste ALK indicado exclusivamente para NSCLC adenocarcinoma (C34.x)."</text>
+        </outputEntry>
+        <outputEntry id="OE_contraind_2_alertas">
+          <text>"PROT"</text>
+        </outputEntry>
+        <outputEntry id="OE_contraind_2_acao">
+          <text>"NEGAR"</text>
+        </outputEntry>
+      </rule>
+      <rule id="Rule_Contraind_40314081_3">
+        <description>Paciente já recebeu tratamento sistêmico sem testagem prévia</description>
+        <inputEntry id="UnaryTests_contraind_diag_3">
+          <text></text>
+        </inputEntry>
+        <inputEntry id="UnaryTests_contraind_tnm_3">
+          <text></text>
+        </inputEntry>
+        <inputEntry id="UnaryTests_contraind_ecog_3">
+          <text></text>
+        </inputEntry>
+        <inputEntry id="UnaryTests_contraind_linhas_3">
+          <text>"1","2","3+"</text>
+        </inputEntry>
+        <inputEntry id="UnaryTests_contraind_protocolo_3">
+          <text></text>
+        </inputEntry>
+        <inputEntry id="IE_Rule_Contraind_40314081_3_ultimo"><text>-</text></inputEntry>
+        <outputEntry id="LiteralExpression_contraind_resultado_3">
+          <text>"NEGADO"</text>
+        </outputEntry>
+        <outputEntry id="LiteralExpression_contraind_obs_3">
+          <text>"Teste deve ser realizado ANTES de iniciar primeira linha"</text>
+        </outputEntry>
+        <outputEntry id="LiteralExpression_contraind_fund_3">
+          <text>"Diretriz NCCN: molecular testing obrigatório antes de 1ª linha sistêmica."</text>
+        </outputEntry>
+        <outputEntry id="OE_contraind_3_alertas">
+          <text>"PROT"</text>
+        </outputEntry>
+        <outputEntry id="OE_contraind_3_acao">
+          <text>"NEGAR"</text>
+        </outputEntry>
+      </rule>
+      <rule id="Rule_Aprovado_40314081_1">
+        <description>Adenocarcinoma pulmonar avançado, sem tratamento prévio, ECOG adequado</description>
+        <inputEntry id="UnaryTests_aprovado_diag_1">
+          <text>"C34.0","C34.1","C34.2","C34.3","C34.9"</text>
+        </inputEntry>
+        <inputEntry id="UnaryTests_aprovado_tnm_1">
+          <text>"T3","T4","TX"</text>
+        </inputEntry>
+        <inputEntry id="UnaryTests_aprovado_ecog_1">
+          <text>"0","1","2"</text>
+        </inputEntry>
+        <inputEntry id="UnaryTests_aprovado_linhas_1">
+          <text>"0"</text>
+        </inputEntry>
+        <inputEntry id="UnaryTests_aprovado_protocolo_1">
+          <text>true</text>
+        </inputEntry>
+        <inputEntry id="IE_Rule_Aprovado_40314081_1_ultimo"><text>-</text></inputEntry>
+        <outputEntry id="LiteralExpression_aprovado_resultado_1">
+          <text>"APROVADO"</text>
+        </outputEntry>
+        <outputEntry id="LiteralExpression_aprovado_obs_1">
+          <text>"Teste ALK autorizado para NSCLC avançado pré-tratamento"</text>
+        </outputEntry>
+        <outputEntry id="LiteralExpression_aprovado_fund_1">
+          <text>"SBOC 2023 + NCCN NSCLC: biomarker obrigatório antes de 1ª linha em adenocarcinoma."</text>
+        </outputEntry>
+        <outputEntry id="OE_aprovado_1_alertas">
+          <text>"NENHUM"</text>
+        </outputEntry>
+        <outputEntry id="OE_aprovado_1_acao">
+          <text>"APROVAR"</text>
+        </outputEntry>
+      </rule>
+      <rule id="Rule_Aprovado_40314081_2">
+        <description>NSCLC estadio inicial mas com protocolo neoadjuvante definido</description>
+        <inputEntry id="UnaryTests_aprovado_diag_2">
+          <text>"C34.0","C34.1","C34.2","C34.3","C34.9"</text>
+        </inputEntry>
+        <inputEntry id="UnaryTests_aprovado_tnm_2">
+          <text>"T1","T2"</text>
+        </inputEntry>
+        <inputEntry id="UnaryTests_aprovado_ecog_2">
+          <text>"0","1"</text>
+        </inputEntry>
+        <inputEntry id="UnaryTests_aprovado_linhas_2">
+          <text>"0"</text>
+        </inputEntry>
+        <inputEntry id="UnaryTests_aprovado_protocolo_2">
+          <text>true</text>
+        </inputEntry>
+        <inputEntry id="IE_Rule_Aprovado_40314081_2_ultimo"><text>-</text></inputEntry>
+        <outputEntry id="LiteralExpression_aprovado_resultado_2">
+          <text>"APROVADO"</text>
+        </outputEntry>
+        <outputEntry id="LiteralExpression_aprovado_obs_2">
+          <text>"Teste ALK para protocolo neoadjuvante/adjuvante"</text>
+        </outputEntry>
+        <outputEntry id="LiteralExpression_aprovado_fund_2">
+          <text>"Em cenário neoadjuvante, testagem pode orientar terapia-alvo pós-cirúrgica."</text>
+        </outputEntry>
+        <outputEntry id="OE_aprovado_2_alertas">
+          <text>"NENHUM"</text>
+        </outputEntry>
+        <outputEntry id="OE_aprovado_2_acao">
+          <text>"APROVAR"</text>
+        </outputEntry>
+      </rule>
+      <rule id="Rule_Pendente_40314081_1">
+        <description>ECOG 3 requer avaliação individualizada</description>
+        <inputEntry id="UnaryTests_pendente_diag_1">
+          <text>"C34.0","C34.1","C34.2","C34.3","C34.9"</text>
+        </inputEntry>
+        <inputEntry id="UnaryTests_pendente_tnm_1">
+          <text></text>
+        </inputEntry>
+        <inputEntry id="UnaryTests_pendente_ecog_1">
+          <text>"3"</text>
+        </inputEntry>
+        <inputEntry id="UnaryTests_pendente_linhas_1">
+          <text>"0"</text>
+        </inputEntry>
+        <inputEntry id="UnaryTests_pendente_protocolo_1">
+          <text></text>
+        </inputEntry>
+        <inputEntry id="IE_Rule_Pendente_40314081_1_ultimo"><text>-</text></inputEntry>
+        <outputEntry id="LiteralExpression_pendente_resultado_1">
+          <text>"PENDENTE"</text>
+        </outputEntry>
+        <outputEntry id="LiteralExpression_pendente_obs_1">
+          <text>"ECOG 3 requer avaliação oncológica para definir viabilidade de tratamento"</text>
+        </outputEntry>
+        <outputEntry id="LiteralExpression_pendente_fund_1">
+          <text>"Aguardar parecer médico sobre capacidade funcional e expectativa de benefício."</text>
+        </outputEntry>
+        <outputEntry id="OE_pendente_1_alertas">
+          <text>"NENHUM"</text>
+        </outputEntry>
+        <outputEntry id="OE_pendente_1_acao">
+          <text>"SOLICITAR_INFO"</text>
+        </outputEntry>
+      </rule>
+      <rule id="Rule_Fallback_40314081">
+        <description>Casos não categorizados nas regras anteriores</description>
+        <inputEntry id="UnaryTests_fallback_diag">
+          <text></text>
+        </inputEntry>
+        <inputEntry id="UnaryTests_fallback_tnm">
+          <text></text>
+        </inputEntry>
+        <inputEntry id="UnaryTests_fallback_ecog">
+          <text></text>
+        </inputEntry>
+        <inputEntry id="UnaryTests_fallback_linhas">
+          <text></text>
+        </inputEntry>
+        <inputEntry id="UnaryTests_fallback_protocolo">
+          <text></text>
+        </inputEntry>
+        <inputEntry id="IE_Rule_Fallback_40314081_ultimo"><text>-</text></inputEntry>
+        <outputEntry id="LiteralExpression_fallback_resultado">
+          <text>"PENDENTE"</text>
+        </outputEntry>
+        <outputEntry id="LiteralExpression_fallback_obs">
+          <text>"Caso requer análise manual pela auditoria médica"</text>
+        </outputEntry>
+        <outputEntry id="LiteralExpression_fallback_fund">
+          <text>"Situação clínica não prevista nas regras automatizadas. Revisão necessária."</text>
+        </outputEntry>
+        <outputEntry id="OE_fallback_alertas">
+          <text>"NENHUM"</text>
+        </outputEntry>
+        <outputEntry id="OE_fallback_acao">
+          <text>"SOLICITAR_INFO"</text>
+        </outputEntry>
+      </rule>
+    </decisionTable>
+  </decision>
+</definitions>

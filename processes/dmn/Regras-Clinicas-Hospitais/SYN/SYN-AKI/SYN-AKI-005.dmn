@@ -1,0 +1,326 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/"
+             xmlns:dc="http://www.omg.org/spec/DMN/20180521/DC/"
+             id="Definitions_SYN_AKI_005"
+             name="Deteccao de AKI - Nefrotoxicidade por Contraste"
+             targetNamespace="http://camunda.org/schema/1.0/dmn">
+
+  <!--
+    SYN-AKI-005 - Deteccao de Nefropatia Induzida por Contraste (NIC)
+    Versao: 1.0.0 (2026-02-06)
+    Categoria: Alerta Clinico - Sindromes Criticas
+
+    DEFINICAO DE NIC (Contrast-Induced Nephropathy):
+    - Aumento de creatinina >= 0.5 mg/dL OU
+    - Aumento >= 25% do basal
+    - Dentro de 48-72h apos exposicao ao contraste iodado
+
+    FATORES DE RISCO (Mehran Score):
+    - Hipotensao: +5
+    - Balao intra-aortico: +5
+    - ICC NYHA III-IV: +5
+    - Idade > 75: +4
+    - Anemia (Hct < 39% H, < 36% M): +3
+    - Diabetes: +3
+    - Volume de contraste: +1 por 100mL
+    - Creatinina > 1.5 OU TFG < 60: +2 a +6
+
+    PREVENCAO:
+    - Hidratacao com SF 0.9% ou bicarbonato
+    - Minimizar volume de contraste
+    - Usar contraste iso-osmolar
+    - Suspender metformina 48h
+
+    REFERENCIAS:
+    - KDIGO AKI Guidelines 2012
+    - ACR Manual on Contrast Media 2021
+    - ESC Guidelines on Contrast-Induced Nephropathy
+  -->
+
+  <decision id="Decision_SYN_AKI_005" name="Deteccao NIC Contraste">
+    <decisionTable id="DecisionTable_SYN_AKI_005" hitPolicy="FIRST">
+
+      <!-- INPUT 1: Creatinina Pre-Contraste -->
+      <input id="Input_1" label="Creatinina Pre-Contraste (mg/dL)">
+        <inputExpression id="InputExpression_1" typeRef="number">
+          <text>creatininaPreContraste</text>
+        </inputExpression>
+      </input>
+
+      <!-- INPUT 2: Creatinina Pos-Contraste -->
+      <input id="Input_2" label="Creatinina Pos-Contraste (mg/dL)">
+        <inputExpression id="InputExpression_2" typeRef="number">
+          <text>creatininaPosContraste</text>
+        </inputExpression>
+      </input>
+
+      <!-- INPUT 3: Horas desde exposicao -->
+      <input id="Input_3" label="Horas desde Contraste">
+        <inputExpression id="InputExpression_3" typeRef="number">
+          <text>horasDesdeContraste</text>
+        </inputExpression>
+      </input>
+
+      <!-- INPUT 4: TFG Estimada Pre -->
+      <input id="Input_4" label="TFG Pre-Contraste (mL/min/1.73m2)">
+        <inputExpression id="InputExpression_4" typeRef="number">
+          <text>tfgPreContraste</text>
+        </inputExpression>
+      </input>
+
+      <!-- OUTPUTS -->
+      <output id="Output_1" label="Nivel Alerta" name="nivelAlerta" typeRef="string">
+        <outputValues id="OutputValues_1">
+          <text>"Alerta", "Atencao", "OK", "Revisar"</text>
+        </outputValues>
+      </output>
+
+      <output id="Output_2" label="Classificacao Sindrome" name="classificacaoSindrome" typeRef="string"/>
+
+      <output id="Output_3" label="Protocolo Ativado" name="protocoloAtivado" typeRef="boolean"/>
+
+      <output id="Output_4" label="Acao Requerida" name="acaoRequerida" typeRef="string"/>
+
+      <output id="Output_5" label="Urgencia" name="urgencia" typeRef="string">
+        <outputValues id="OutputValues_5">
+          <text>"CRITICA", "ALTA", "MEDIA", "BAIXA"</text>
+        </outputValues>
+      </output>
+
+      <!-- RULE 1: NIC confirmada grave - dialise potencial -->
+      <rule id="Rule_NIC_Grave">
+        <description>NIC grave com necessidade de dialise potencial</description>
+        <inputEntry id="InputEntry_1_1">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_1_2">
+          <text>&gt;= 4.0</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_1_3">
+          <text>[24..96]</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_1_4">
+          <text>&lt; 30</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_1_1">
+          <text>"Alerta"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_1_2">
+          <text>"NIC_GRAVE"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_1_3">
+          <text>true</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_1_4">
+          <text>"NIC GRAVE - Nefropatia Induzida por Contraste com AKI severa. Nefrologia URGENTE. Manter hidratacao vigorosa. Monitorar potassio e acidose. Preparar para possivel dialise se oliguria ou hipercalemia refrataria."</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_1_5">
+          <text>"CRITICA"</text>
+        </outputEntry>
+      </rule>
+
+      <!-- RULE 2: NIC confirmada - aumento >= 0.5 mg/dL -->
+      <rule id="Rule_NIC_Confirmada">
+        <description>NIC confirmada - aumento creatinina >= 0.5 mg/dL em 48-72h</description>
+        <inputEntry id="InputEntry_2_1">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_2_2">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_2_3">
+          <text>[24..72]</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_2_4">
+          <text>-</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_2_1">
+          <text>"Alerta"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_2_2">
+          <text>"NIC_CONFIRMADA"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_2_3">
+          <text>true</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_2_4">
+          <text>"NIC CONFIRMADA - Aumento creatinina >= 0.5 mg/dL ou >= 25% em 48-72h pos-contraste. Manter hidratacao IV. Suspender nefrotoxicos. Monitorar creatinina diaria. A maioria recupera em 7-14 dias."</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_2_5">
+          <text>"ALTA"</text>
+        </outputEntry>
+      </rule>
+
+      <!-- RULE 3: Alto risco pre-contraste - TFG < 30 -->
+      <rule id="Rule_Alto_Risco_TFG30">
+        <description>Muito alto risco de NIC - TFG < 30 mL/min</description>
+        <inputEntry id="InputEntry_3_1">
+          <text>&gt; 2.0</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_3_2">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_3_3">
+          <text>&lt; 24</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_3_4">
+          <text>&lt; 30</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_3_1">
+          <text>"Alerta"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_3_2">
+          <text>"ALTO_RISCO_NIC"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_3_3">
+          <text>false</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_3_4">
+          <text>"MUITO ALTO RISCO DE NIC - TFG < 30. Se contraste for necessario: usar menor volume possivel, contraste iso-osmolar. Hidratacao: SF 0.9% 1mL/kg/h por 6-12h pre e pos. Considerar alternativas sem contraste."</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_3_5">
+          <text>"ALTA"</text>
+        </outputEntry>
+      </rule>
+
+      <!-- RULE 4: Risco moderado pre-contraste - TFG 30-60 -->
+      <rule id="Rule_Risco_Moderado_TFG60">
+        <description>Risco moderado de NIC - TFG 30-60 mL/min</description>
+        <inputEntry id="InputEntry_4_1">
+          <text>[1.5..2.0]</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_4_2">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_4_3">
+          <text>&lt; 24</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_4_4">
+          <text>[30..60)</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_4_1">
+          <text>"Atencao"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_4_2">
+          <text>"RISCO_MODERADO_NIC"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_4_3">
+          <text>false</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_4_4">
+          <text>"Risco moderado de NIC - TFG 30-60. Hidratacao pre-contraste: SF 0.9% 1mL/kg/h por 6h pre e 6h pos. Suspender metformina 48h apos. Dosar creatinina 48-72h apos contraste."</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_4_5">
+          <text>"MEDIA"</text>
+        </outputEntry>
+      </rule>
+
+      <!-- RULE 5: Monitoramento pos-contraste -->
+      <rule id="Rule_Monitorar_Pos_Contraste">
+        <description>Periodo de monitoramento pos-contraste</description>
+        <inputEntry id="InputEntry_5_1">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_5_2">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_5_3">
+          <text>[24..72]</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_5_4">
+          <text>&gt;= 60</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_5_1">
+          <text>"Atencao"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_5_2">
+          <text>"JANELA_MONITORAMENTO"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_5_3">
+          <text>false</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_5_4">
+          <text>"Janela de monitoramento para NIC (24-72h pos-contraste). Dosar creatinina. Manter hidratacao. Evitar novos nefrotoxicos. Se creatinina estavel, risco de NIC e baixo."</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_5_5">
+          <text>"BAIXA"</text>
+        </outputEntry>
+      </rule>
+
+      <!-- RULE 6: Baixo risco - TFG normal -->
+      <rule id="Rule_Baixo_Risco">
+        <description>Baixo risco de NIC - funcao renal normal</description>
+        <inputEntry id="InputEntry_6_1">
+          <text>&lt; 1.2</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_6_2">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_6_3">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_6_4">
+          <text>&gt;= 60</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_6_1">
+          <text>"OK"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_6_2">
+          <text>"BAIXO_RISCO_NIC"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_6_3">
+          <text>false</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_6_4">
+          <text>"Baixo risco de NIC - TFG >= 60 e creatinina normal. Hidratacao padrao. Nao ha necessidade de monitoramento intensivo apos contraste em pacientes de baixo risco."</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_6_5">
+          <text>"BAIXA"</text>
+        </outputEntry>
+      </rule>
+
+      <!-- FALLBACK -->
+      <rule id="Rule_Fallback_SYN_AKI_005">
+        <description>Dados insuficientes para avaliacao</description>
+        <inputEntry id="InputEntry_F_1">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_F_2">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_F_3">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_F_4">
+          <text>-</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_F_1">
+          <text>"Revisar"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_F_2">
+          <text>"DADOS_INCOMPLETOS"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_F_3">
+          <text>false</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_F_4">
+          <text>"Dados insuficientes para avaliacao de risco de NIC. Verificar: creatinina pre e pos-contraste, TFG estimada, tempo desde exposicao ao contraste."</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_F_5">
+          <text>"MEDIA"</text>
+        </outputEntry>
+      </rule>
+
+    </decisionTable>
+  </decision>
+
+  <dmndi:DMNDI>
+    <dmndi:DMNDiagram id="DMNDiagram_SYN_AKI_005">
+      <dmndi:DMNShape id="DMNShape_Decision_SYN_AKI_005" dmnElementRef="Decision_SYN_AKI_005">
+        <dc:Bounds height="80" width="180" x="160" y="100"/>
+      </dmndi:DMNShape>
+    </dmndi:DMNDiagram>
+  </dmndi:DMNDI>
+
+</definitions>

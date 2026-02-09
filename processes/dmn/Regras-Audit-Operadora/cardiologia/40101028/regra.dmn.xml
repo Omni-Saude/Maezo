@@ -1,0 +1,298 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             xmlns:camunda="http://camunda.org/schema/1.0/dmn"
+             id="Definitions_40101028"
+             name="MAPA - Monitorizacao Ambulatorial da Pressao Arterial 24h"
+             namespace="http://camunda.org/schema/1.0/dmn">
+
+  <!--
+    ===============================================================================
+    TUSS: 40101028
+    Procedimento: MAPA - Monitorizacao Ambulatorial da Pressao Arterial 24h
+    Versao: 1.0.0-LEAN-TIER2
+    Data: 2026-02-07
+    ===============================================================================
+
+    INDICACOES CLINICAS (DUT/ANS + ACC/AHA HTN 2024):
+    - Hipertensao de avental branco suspeita
+    - Hipertensao mascarada suspeita
+    - Hipertensao resistente
+    - Avaliacao de descenso noturno
+    - Hipotensao sintomatica
+    - Ajuste de tratamento anti-hipertensivo
+
+    INDICACOES MENOS APROPRIADAS:
+    - Screening em normotensos
+    - Follow-up de rotina sem indicacao especifica
+
+    REFERENCIAS TECNICAS:
+    ACC/AHA Hypertension 2024, ESC HTN 2023, SBC 2024
+
+    ALERTAS DE DESPERDICIO (LEAN TIER-2):
+    - DUP: Duplicidade - MAPA repetido em menos de 6 meses sem mudanca clinica
+    - FREQ: Frequencia excessiva - Mais de 2 MAPA/ano sem indicacao
+    - ESC: Escalonamento inadequado - MAPA sem MRPA previa ou PA consultorio
+    - DOC: Documentacao insuficiente - Falta justificativa clinica
+    - PROT: Protocolo nao seguido - Screening em normotensos
+
+    ===============================================================================
+  -->
+
+  <decision id="Decision_40101028" name="Regra Clinica - MAPA">
+    <decisionTable id="DecisionTable_40101028" hitPolicy="FIRST">
+
+      <!-- ========== INPUTS (6 - Padrao LEAN TIER-2) ========== -->
+
+      <input id="Input_indicacaoClinica" label="Indicacao Clinica" camunda:inputVariable="indicacaoClinica">
+        <inputExpression id="InputExpression_indicacaoClinica" typeRef="string">
+          <text>indicacaoClinica</text>
+        </inputExpression>
+        <inputValues id="InputValues_indicacaoClinica">
+          <text>"HAventalBrancoSuspeita","HAmascaradaSuspeita","HAresistente","AvaliacaoDescensoNoturno","HipotensaoSintomatica","AjusteTratamento","ScreeningNormotenso","FollowUpRotina"</text>
+        </inputValues>
+      </input>
+
+      <input id="Input_paConsultorio" label="PA Consultorio (mmHg)" camunda:inputVariable="paConsultorio">
+        <inputExpression id="InputExpression_paConsultorio" typeRef="string">
+          <text>paConsultorio</text>
+        </inputExpression>
+        <inputValues id="InputValues_paConsultorio">
+          <text>"Normal_menor130_80","Elevada_130_139_80_89","HA1_140_159_90_99","HA2_maior160_100","NaoDocumentada"</text>
+        </inputValues>
+      </input>
+
+      <input id="Input_paResidencial" label="PA Residencial (MRPA)" camunda:inputVariable="paResidencial">
+        <inputExpression id="InputExpression_paResidencial" typeRef="string">
+          <text>paResidencial</text>
+        </inputExpression>
+        <inputValues id="InputValues_paResidencial">
+          <text>"Normal_menor130_80","Elevada","NaoDisponivel"</text>
+        </inputValues>
+      </input>
+
+      <input id="Input_numAntiHipertensivos" label="Numero de Anti-Hipertensivos" camunda:inputVariable="numAntiHipertensivos">
+        <inputExpression id="InputExpression_numAntiHipertensivos" typeRef="integer">
+          <text>numAntiHipertensivos</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_mudancaTratamento" label="Mudanca de Tratamento Anti-Hipertensivo" camunda:inputVariable="mudancaTratamento">
+        <inputExpression id="InputExpression_mudancaTratamento" typeRef="boolean">
+          <text>mudancaTratamento</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_ultimoProcedimentoDias" label="Dias desde ultimo MAPA" camunda:inputVariable="ultimoProcedimentoDias">
+        <inputExpression id="InputExpression_ultimoProcedimentoDias" typeRef="integer">
+          <text>ultimoProcedimentoDias</text>
+        </inputExpression>
+      </input>
+
+      <!-- ========== OUTPUTS (5 - Padrao LEAN TIER-2) ========== -->
+
+      <output id="Output_resultado" label="Resultado" name="resultado" typeRef="string">
+        <outputValues id="OutputValues_resultado">
+          <text>"Aprovado","Reprovado","Pendente"</text>
+        </outputValues>
+      </output>
+
+      <output id="Output_observacao" label="Observacao Clinica" name="observacao" typeRef="string" />
+
+      <output id="Output_fundamentacao" label="Fundamentacao Tecnica" name="fundamentacao" typeRef="string" />
+
+      <output id="Output_alertasDesperdicio" label="Alertas de Desperdicio" name="alertasDesperdicio" typeRef="string">
+        <outputValues id="OutputValues_alertasDesperdicio">
+          <text>"NENHUM","DUP","FREQ","ESC","DOC","PROT","MULTI"</text>
+        </outputValues>
+      </output>
+
+      <output id="Output_acaoRecomendada" label="Acao Recomendada" name="acaoRecomendada" typeRef="string">
+        <outputValues id="OutputValues_acaoRecomendada">
+          <text>"APROVAR","NEGAR","SOLICITAR_INFO","AGUARDAR_PRAZO","SUGERIR_ALTERNATIVA"</text>
+        </outputValues>
+      </output>
+
+      <!-- ========== RULES - REPROVACOES (Waste Detection First) ========== -->
+
+      <!-- RULE 1: Screening em normotensos -->
+      <rule id="Rule_Reprovado_Screening">
+        <description>Reprovado: Screening em normotensos - nao indicado</description>
+        <inputEntry id="InputEntry_R1_1"><text>"ScreeningNormotenso"</text></inputEntry>
+        <inputEntry id="InputEntry_R1_2"><text>"Normal_menor130_80"</text></inputEntry>
+        <inputEntry id="InputEntry_R1_3"><text>"Normal_menor130_80","NaoDisponivel"</text></inputEntry>
+        <inputEntry id="InputEntry_R1_4"><text>0</text></inputEntry>
+        <inputEntry id="InputEntry_R1_5"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_R1_6"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_R1_resultado"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_R1_observacao"><text>"MAPA nao indicado em normotensos sem suspeita de HA mascarada. MRPA como alternativa"</text></outputEntry>
+        <outputEntry id="OutputEntry_R1_fundamentacao"><text>"ACC/AHA HTN 2024: MAPA nao indicado para rastreamento em normotensos de baixo risco"</text></outputEntry>
+        <outputEntry id="OutputEntry_R1_alertasDesperdicio"><text>"PROT"</text></outputEntry>
+        <outputEntry id="OutputEntry_R1_acaoRecomendada"><text>"NEGAR"</text></outputEntry>
+      </rule>
+
+      <!-- RULE 2: DUP - MAPA recente sem mudanca -->
+      <rule id="Rule_Reprovado_DUP_Recente">
+        <description>Reprovado: MAPA duplicado em menos de 180 dias sem mudanca</description>
+        <inputEntry id="InputEntry_R2_1"><text>"FollowUpRotina"</text></inputEntry>
+        <inputEntry id="InputEntry_R2_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_R2_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_R2_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_R2_5"><text>false</text></inputEntry>
+        <inputEntry id="InputEntry_R2_6"><text>&lt; 180</text></inputEntry>
+        <outputEntry id="OutputEntry_R2_resultado"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_R2_observacao"><text>"MAPA realizado ha menos de 6 meses sem mudanca de tratamento"</text></outputEntry>
+        <outputEntry id="OutputEntry_R2_fundamentacao"><text>"ACC/AHA HTN 2024: Repeticao de MAPA sem mudanca terapeutica nao e apropriada"</text></outputEntry>
+        <outputEntry id="OutputEntry_R2_alertasDesperdicio"><text>"DUP"</text></outputEntry>
+        <outputEntry id="OutputEntry_R2_acaoRecomendada"><text>"AGUARDAR_PRAZO"</text></outputEntry>
+      </rule>
+
+      <!-- RULE 3: DOC - PA consultorio nao documentada -->
+      <rule id="Rule_Pendente_SemPA">
+        <description>Pendente: PA consultorio nao documentada</description>
+        <inputEntry id="InputEntry_R3_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_R3_2"><text>"NaoDocumentada"</text></inputEntry>
+        <inputEntry id="InputEntry_R3_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_R3_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_R3_5"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_R3_6"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_R3_resultado"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OutputEntry_R3_observacao"><text>"PA consultorio deve ser documentada (minimo 3 ocasioes) antes do MAPA - referencia para interpretacao"</text></outputEntry>
+        <outputEntry id="OutputEntry_R3_fundamentacao"><text>"ACC/AHA HTN 2024: PA consultorio e referencia para interpretacao do MAPA"</text></outputEntry>
+        <outputEntry id="OutputEntry_R3_alertasDesperdicio"><text>"DOC"</text></outputEntry>
+        <outputEntry id="OutputEntry_R3_acaoRecomendada"><text>"SOLICITAR_INFO"</text></outputEntry>
+      </rule>
+
+      <!-- RULE 4: ESC - Suspeita HA sem MRPA -->
+      <rule id="Rule_Pendente_SemMRPA">
+        <description>Pendente: Suspeita HA sem MRPA previa - step therapy</description>
+        <inputEntry id="InputEntry_R4_1"><text>"HAventalBrancoSuspeita","HAmascaradaSuspeita"</text></inputEntry>
+        <inputEntry id="InputEntry_R4_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_R4_3"><text>"NaoDisponivel"</text></inputEntry>
+        <inputEntry id="InputEntry_R4_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_R4_5"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_R4_6"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_R4_resultado"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OutputEntry_R4_observacao"><text>"MRPA por 7 dias deve ser realizada como triagem antes do MAPA para suspeita de HA"</text></outputEntry>
+        <outputEntry id="OutputEntry_R4_fundamentacao"><text>"ACC/AHA HTN 2024: MRPA e opcao inicial mais custo-efetiva antes de MAPA"</text></outputEntry>
+        <outputEntry id="OutputEntry_R4_alertasDesperdicio"><text>"ESC"</text></outputEntry>
+        <outputEntry id="OutputEntry_R4_acaoRecomendada"><text>"SUGERIR_ALTERNATIVA"</text></outputEntry>
+      </rule>
+
+      <!-- ========== RULES - APROVACOES ========== -->
+
+      <!-- RULE 5: Aprovado - HA de avental branco suspeita -->
+      <rule id="Rule_Aprovado_HAventalBranco">
+        <description>Aprovado: Suspeita de HA de avental branco com discrepancia documentada</description>
+        <inputEntry id="InputEntry_R5_1"><text>"HAventalBrancoSuspeita"</text></inputEntry>
+        <inputEntry id="InputEntry_R5_2"><text>"Elevada_130_139_80_89","HA1_140_159_90_99"</text></inputEntry>
+        <inputEntry id="InputEntry_R5_3"><text>"Normal_menor130_80"</text></inputEntry>
+        <inputEntry id="InputEntry_R5_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_R5_5"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_R5_6"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_R5_resultado"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_R5_observacao"><text>"Discrepancia PA consultorio vs MRPA documentada - MAPA para confirmacao de HA avental branco"</text></outputEntry>
+        <outputEntry id="OutputEntry_R5_fundamentacao"><text>"ACC/AHA HTN 2024, ESC 2023: MAPA indicado para confirmar HA de avental branco antes de iniciar tratamento"</text></outputEntry>
+        <outputEntry id="OutputEntry_R5_alertasDesperdicio"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_R5_acaoRecomendada"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <!-- RULE 6: Aprovado - HA mascarada suspeita -->
+      <rule id="Rule_Aprovado_HAmascarada">
+        <description>Aprovado: Suspeita de HA mascarada</description>
+        <inputEntry id="InputEntry_R6_1"><text>"HAmascaradaSuspeita"</text></inputEntry>
+        <inputEntry id="InputEntry_R6_2"><text>"Normal_menor130_80"</text></inputEntry>
+        <inputEntry id="InputEntry_R6_3"><text>"Elevada"</text></inputEntry>
+        <inputEntry id="InputEntry_R6_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_R6_5"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_R6_6"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_R6_resultado"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_R6_observacao"><text>"PA normal consultorio com MRPA elevada - MAPA essencial para confirmar HA mascarada (alto risco CV)"</text></outputEntry>
+        <outputEntry id="OutputEntry_R6_fundamentacao"><text>"ACC/AHA HTN 2024: HA mascarada associada a risco cardiovascular elevado - MAPA e padrao-ouro"</text></outputEntry>
+        <outputEntry id="OutputEntry_R6_alertasDesperdicio"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_R6_acaoRecomendada"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <!-- RULE 7: Aprovado - HA resistente -->
+      <rule id="Rule_Aprovado_HAresistente">
+        <description>Aprovado: Hipertensao resistente (3+ anti-hipertensivos)</description>
+        <inputEntry id="InputEntry_R7_1"><text>"HAresistente"</text></inputEntry>
+        <inputEntry id="InputEntry_R7_2"><text>"HA1_140_159_90_99","HA2_maior160_100"</text></inputEntry>
+        <inputEntry id="InputEntry_R7_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_R7_4"><text>[3..10]</text></inputEntry>
+        <inputEntry id="InputEntry_R7_5"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_R7_6"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_R7_resultado"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_R7_observacao"><text>"HA resistente (3+ farmacos incluindo diuretico) - MAPA mandatorio para excluir pseudorresistencia"</text></outputEntry>
+        <outputEntry id="OutputEntry_R7_fundamentacao"><text>"ACC/AHA HTN 2024: MAPA obrigatorio para confirmar HA resistente verdadeira vs avental branco"</text></outputEntry>
+        <outputEntry id="OutputEntry_R7_alertasDesperdicio"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_R7_acaoRecomendada"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <!-- RULE 8: Aprovado - Avaliacao descenso noturno -->
+      <rule id="Rule_Aprovado_DescensoNoturno">
+        <description>Aprovado: Avaliacao de descenso noturno com LOA</description>
+        <inputEntry id="InputEntry_R8_1"><text>"AvaliacaoDescensoNoturno"</text></inputEntry>
+        <inputEntry id="InputEntry_R8_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_R8_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_R8_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_R8_5"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_R8_6"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_R8_resultado"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_R8_observacao"><text>"Avaliacao de padrao circadiano - MAPA unico metodo para detectar non-dipping (risco CV aumentado)"</text></outputEntry>
+        <outputEntry id="OutputEntry_R8_fundamentacao"><text>"ESC HTN 2023: Ausencia de descenso noturno associada a maior risco cardiovascular"</text></outputEntry>
+        <outputEntry id="OutputEntry_R8_alertasDesperdicio"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_R8_acaoRecomendada"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <!-- RULE 9: Aprovado - Hipotensao sintomatica -->
+      <rule id="Rule_Aprovado_Hipotensao">
+        <description>Aprovado: Hipotensao sintomatica</description>
+        <inputEntry id="InputEntry_R9_1"><text>"HipotensaoSintomatica"</text></inputEntry>
+        <inputEntry id="InputEntry_R9_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_R9_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_R9_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_R9_5"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_R9_6"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_R9_resultado"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_R9_observacao"><text>"Hipotensao sintomatica - MAPA para documentar e ajustar tratamento"</text></outputEntry>
+        <outputEntry id="OutputEntry_R9_fundamentacao"><text>"ACC/AHA HTN 2024: MAPA indicado para documentar hipotensao sintomatica e guiar ajuste"</text></outputEntry>
+        <outputEntry id="OutputEntry_R9_alertasDesperdicio"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_R9_acaoRecomendada"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <!-- RULE 10: Aprovado - Ajuste tratamento -->
+      <rule id="Rule_Aprovado_AjusteTratamento">
+        <description>Aprovado: Ajuste de tratamento anti-hipertensivo</description>
+        <inputEntry id="InputEntry_R10_1"><text>"AjusteTratamento"</text></inputEntry>
+        <inputEntry id="InputEntry_R10_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_R10_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_R10_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_R10_5"><text>true</text></inputEntry>
+        <inputEntry id="InputEntry_R10_6"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_R10_resultado"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_R10_observacao"><text>"Mudanca de tratamento documentada - MAPA para avaliacao de resposta"</text></outputEntry>
+        <outputEntry id="OutputEntry_R10_fundamentacao"><text>"ACC/AHA HTN 2024: MAPA util para monitorar resposta a ajustes terapeuticos"</text></outputEntry>
+        <outputEntry id="OutputEntry_R10_alertasDesperdicio"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_R10_acaoRecomendada"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <!-- ========== FALLBACK RULE ========== -->
+
+      <rule id="Rule_Fallback_40101028">
+        <description>Regra padrao - analise clinica adicional necessaria</description>
+        <inputEntry id="InputEntry_Fallback_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Fallback_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Fallback_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Fallback_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Fallback_5"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Fallback_6"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_Fallback_resultado"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OutputEntry_Fallback_observacao"><text>"Caso requer analise clinica adicional - PA consultorio, MRPA e indicacao especifica"</text></outputEntry>
+        <outputEntry id="OutputEntry_Fallback_fundamentacao"><text>"Avaliacao individualizada necessaria conforme diretrizes ACC/AHA HTN 2024"</text></outputEntry>
+        <outputEntry id="OutputEntry_Fallback_alertasDesperdicio"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_Fallback_acaoRecomendada"><text>"SOLICITAR_INFO"</text></outputEntry>
+      </rule>
+
+    </decisionTable>
+  </decision>
+</definitions>

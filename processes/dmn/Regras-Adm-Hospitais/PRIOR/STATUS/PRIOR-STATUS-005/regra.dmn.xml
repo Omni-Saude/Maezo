@@ -1,0 +1,170 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  ============================================================================
+  PRIOR-STATUS-005 - Multiplas Autorizacoes Mesmo Paciente
+  ============================================================================
+  Versao: 1.0.0 (2026-02-08)
+  Categoria: PRIOR-STATUS
+  Perspectiva: HOSPITAL (Faturamento/Auditoria)
+
+  ============================================================================
+  INDICACOES (Quando PROSSEGUIR):
+  ============================================================================
+  - Autorizacoes para procedimentos diferentes
+  - Periodos distintos sem sobreposicao
+  - Justificativa clinica clara
+
+  ============================================================================
+  CONTRAINDICACOES (Quando BLOQUEAR):
+  ============================================================================
+  - Multiplas autorizacoes sobrepostas
+  - Mesmo procedimento duplicado
+  - Risco de duplicidade de faturamento
+
+  ============================================================================
+  REFERENCIAS NORMATIVAS:
+  ============================================================================
+  - RN 424/2017 (Autorizacao Previa)
+  - RN 465/2021 (Procedimentos Regulados)
+  - TISS 4.01.00 (Guia SADT)
+  - Lei 9.656/1998 Art. 12 (Cobertura Obrigatoria)
+  ============================================================================
+-->
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/"
+             xmlns:dc="http://www.omg.org/spec/DMN/20180521/DC/"
+             id="Definitions_PRIOR_STATUS_005"
+             name="Multiplas Autorizacoes Mesmo Paciente"
+             targetNamespace="http://camunda.org/schema/1.0/dmn">
+
+  <decision id="Decision_PRIOR_STATUS_005" name="Verificar Multiplas Autorizacoes Mesmo Paciente">
+    <decisionTable id="DecisionTable_PRIOR_STATUS_005" hitPolicy="FIRST">
+
+      <!-- ========== INPUTS ========== -->
+      <input id="Input_1" label="Quantidade Autorizacoes">
+        <inputExpression id="InputExpression_1" typeRef="integer">
+          <text>quantidadeAutorizacoes</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_2" label="Mesmo Periodo">
+        <inputExpression id="InputExpression_2" typeRef="boolean">
+          <text>mesmoPeriodo</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_3" label="Mesmo Tipo Procedimento">
+        <inputExpression id="InputExpression_3" typeRef="boolean">
+          <text>mesmoTipoProcedimento</text>
+        </inputExpression>
+      </input>
+
+      <!-- ========== OUTPUTS (5 STANDARD) ========== -->
+      <output id="Output_1" label="Resultado" name="resultado" typeRef="string">
+        <outputValues><text>"Prosseguir", "Bloquear", "Alertar", "Revisar"</text></outputValues>
+      </output>
+
+      <output id="Output_2" label="Observacao" name="observacao" typeRef="string"/>
+
+      <output id="Output_3" label="Acao Recomendada" name="acaoRecomendada" typeRef="string"/>
+
+      <output id="Output_4" label="Alertas Conformidade" name="alertasConformidade" typeRef="string">
+        <outputValues><text>"NENHUM", "DUP", "FREQ", "PRAZO", "DOC", "VALOR", "CRED", "CONTRATO"</text></outputValues>
+      </output>
+
+      <output id="Output_5" label="Risco Denial" name="riscoDenial" typeRef="string">
+        <outputValues><text>"BAIXO", "MEDIO", "ALTO", "CRITICO"</text></outputValues>
+      </output>
+
+      <!-- ========== RULES ========== -->
+
+      <!-- REGRA B1: Bloqueio - Mesmo procedimento no mesmo periodo -->
+      <rule id="Rule_Bloqueio_1">
+        <description>Multiplas autorizacoes do mesmo procedimento no mesmo periodo</description>
+        <inputEntry id="InputEntry_B1_1"><text>&gt; 1</text></inputEntry>
+        <inputEntry id="InputEntry_B1_2"><text>true</text></inputEntry>
+        <inputEntry id="InputEntry_B1_3"><text>true</text></inputEntry>
+        <outputEntry id="OutputEntry_B1_1"><text>"Bloquear"</text></outputEntry>
+        <outputEntry id="OutputEntry_B1_2"><text>"Detectadas autorizacoes duplicadas do mesmo procedimento no mesmo periodo. Risco de faturamento duplicado."</text></outputEntry>
+        <outputEntry id="OutputEntry_B1_3"><text>"Verificar com operadora qual autorizacao utilizar. Cancelar duplicatas antes de faturar."</text></outputEntry>
+        <outputEntry id="OutputEntry_B1_4"><text>"DUP"</text></outputEntry>
+        <outputEntry id="OutputEntry_B1_5"><text>"CRITICO"</text></outputEntry>
+      </rule>
+
+      <!-- REGRA A1: Alerta - Mesmo tipo no mesmo periodo -->
+      <rule id="Rule_Alerta_1">
+        <description>Multiplas autorizacoes de mesmo tipo no mesmo periodo</description>
+        <inputEntry id="InputEntry_A1_1"><text>&gt; 1</text></inputEntry>
+        <inputEntry id="InputEntry_A1_2"><text>true</text></inputEntry>
+        <inputEntry id="InputEntry_A1_3"><text>false</text></inputEntry>
+        <outputEntry id="OutputEntry_A1_1"><text>"Alertar"</text></outputEntry>
+        <outputEntry id="OutputEntry_A1_2"><text>"Multiplas autorizacoes de procedimentos similares no mesmo periodo. Risco de sobreposicao."</text></outputEntry>
+        <outputEntry id="OutputEntry_A1_3"><text>"Verificar se procedimentos sao complementares ou se ha risco de duplicidade. Documentar justificativa."</text></outputEntry>
+        <outputEntry id="OutputEntry_A1_4"><text>"DUP"</text></outputEntry>
+        <outputEntry id="OutputEntry_A1_5"><text>"ALTO"</text></outputEntry>
+      </rule>
+
+      <!-- REGRA A2: Alerta - Multiplas autorizacoes periodos diferentes -->
+      <rule id="Rule_Alerta_2">
+        <description>Multiplas autorizacoes em periodos diferentes</description>
+        <inputEntry id="InputEntry_A2_1"><text>&gt; 1</text></inputEntry>
+        <inputEntry id="InputEntry_A2_2"><text>false</text></inputEntry>
+        <inputEntry id="InputEntry_A2_3"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_A2_1"><text>"Alertar"</text></outputEntry>
+        <outputEntry id="OutputEntry_A2_2"><text>"Paciente possui multiplas autorizacoes em periodos diferentes. Monitorar para evitar confusao."</text></outputEntry>
+        <outputEntry id="OutputEntry_A2_3"><text>"Verificar validade de cada autorizacao. Utilizar autorizacao correspondente ao periodo do atendimento."</text></outputEntry>
+        <outputEntry id="OutputEntry_A2_4"><text>"PRAZO"</text></outputEntry>
+        <outputEntry id="OutputEntry_A2_5"><text>"MEDIO"</text></outputEntry>
+      </rule>
+
+      <!-- REGRA P1: Aprovado - Autorizacao unica -->
+      <rule id="Rule_Aprovado_1">
+        <description>Paciente com autorizacao unica</description>
+        <inputEntry id="InputEntry_P1_1"><text>1</text></inputEntry>
+        <inputEntry id="InputEntry_P1_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_P1_3"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_P1_1"><text>"Prosseguir"</text></outputEntry>
+        <outputEntry id="OutputEntry_P1_2"><text>"Paciente possui autorizacao unica. Sem risco de duplicidade."</text></outputEntry>
+        <outputEntry id="OutputEntry_P1_3"><text>"Prosseguir com faturamento conforme autorizacao unica."</text></outputEntry>
+        <outputEntry id="OutputEntry_P1_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_P1_5"><text>"BAIXO"</text></outputEntry>
+      </rule>
+
+      <!-- REGRA P2: Aprovado - Multiplas autorizacoes diferentes -->
+      <rule id="Rule_Aprovado_2">
+        <description>Multiplas autorizacoes de procedimentos diferentes</description>
+        <inputEntry id="InputEntry_P2_1"><text>&gt; 1</text></inputEntry>
+        <inputEntry id="InputEntry_P2_2"><text>false</text></inputEntry>
+        <inputEntry id="InputEntry_P2_3"><text>false</text></inputEntry>
+        <outputEntry id="OutputEntry_P2_1"><text>"Prosseguir"</text></outputEntry>
+        <outputEntry id="OutputEntry_P2_2"><text>"Paciente possui multiplas autorizacoes para procedimentos diferentes em periodos distintos."</text></outputEntry>
+        <outputEntry id="OutputEntry_P2_3"><text>"Utilizar autorizacao correspondente ao procedimento e periodo corretos."</text></outputEntry>
+        <outputEntry id="OutputEntry_P2_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_P2_5"><text>"BAIXO"</text></outputEntry>
+      </rule>
+
+      <!-- REGRA F: Fallback - Requer revisao manual -->
+      <rule id="Rule_Fallback_PRIOR_STATUS_005">
+        <description>Regra padrao - Requer avaliacao manual</description>
+        <inputEntry id="InputEntry_F_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_F_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_F_3"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_F_1"><text>"Revisar"</text></outputEntry>
+        <outputEntry id="OutputEntry_F_2"><text>"Situacao de multiplas autorizacoes requer analise manual."</text></outputEntry>
+        <outputEntry id="OutputEntry_F_3"><text>"Encaminhar para auditoria verificar autorizacoes do paciente."</text></outputEntry>
+        <outputEntry id="OutputEntry_F_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_F_5"><text>"MEDIO"</text></outputEntry>
+      </rule>
+
+    </decisionTable>
+  </decision>
+
+  <dmndi:DMNDI>
+    <dmndi:DMNDiagram id="DMNDiagram_PRIOR_STATUS_005">
+      <dmndi:DMNShape id="DMNShape_Decision_PRIOR_STATUS_005" dmnElementRef="Decision_PRIOR_STATUS_005">
+        <dc:Bounds height="80" width="180" x="160" y="100"/>
+      </dmndi:DMNShape>
+    </dmndi:DMNDiagram>
+  </dmndi:DMNDI>
+
+</definitions>

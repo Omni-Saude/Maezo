@@ -1,0 +1,85 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- ============================================================================
+     DDI-HEPATO-003: Estatinas + Inibidores CYP3A4 (Azolicos) - Hepatotoxicidade
+
+     EVIDENCIA CLINICA:
+     - FDA Drug Safety Communications - Statins
+     - Bellosta S et al. Circulation. 2004;109(23 Suppl 1):III50-7
+     - Neuvonen PJ et al. Clin Pharmacol Ther. 2006;80:565-81
+
+     MECANISMO: Itraconazol, cetoconazol, fluconazol inibem CYP3A4, aumentando
+     niveis de estatinas metabolizadas por essa via (sinvastatina, atorvastatina,
+     lovastatina). Risco de miopatia e hepatotoxicidade aumentado 10-20x.
+
+     INCIDENCIA: Rabdomiolise/hepatotoxicidade 5-10% com combinacao de alto risco
+     ============================================================================ -->
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/" xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/" xmlns:dc="http://www.omg.org/spec/DMN/20180521/DC/" xmlns:di="http://www.omg.org/spec/DMN/20180521/DI/" id="DDI_HEPATO_003" name="DDI-HEPATO-003: Estatinas + Azolicos" namespace="http://camunda.org/schema/1.0/dmn">
+  <decision id="ddi_hepato_003_decision" name="Estatinas + Inibidores CYP3A4 - Hepatotoxicidade/Miopatia">
+    <decisionTable id="ddi_hepato_003_table" hitPolicy="FIRST">
+      <input id="input_medicamentos_ativos" label="Medicamentos Ativos">
+        <inputExpression id="input_expr_medicamentos" typeRef="string">
+          <text>medicamentosAtivos</text>
+        </inputExpression>
+      </input>
+      <input id="input_medicamento_novo" label="Medicamento Novo">
+        <inputExpression id="input_expr_novo" typeRef="string">
+          <text>medicamentoNovo</text>
+        </inputExpression>
+      </input>
+
+      <output id="output_nivel_alerta" name="nivelAlerta" typeRef="string">
+        <outputValues><text>"Alerta","Atencao","Informativo","OK"</text></outputValues>
+      </output>
+      <output id="output_acao_requerida" name="acaoRequerida" typeRef="string" />
+      <output id="output_justificativa" name="justificativaCientifica" typeRef="string" />
+
+      <!-- Rule 1: Sinvastatina/Lovastatina + Azolico potente -->
+      <rule id="rule_sinva_azol_potente">
+        <inputEntry id="ie_sinva_ativa">
+          <text>list contains(medicamentosAtivos, "SINVASTATINA") or list contains(medicamentosAtivos, "LOVASTATINA")</text>
+        </inputEntry>
+        <inputEntry id="ie_azol_potente">
+          <text>"ITRACONAZOL" or "CETOCONAZOL" or "POSACONAZOL" or "VORICONAZOL"</text>
+        </inputEntry>
+        <outputEntry id="oe_alerta_potente"><text>"Alerta"</text></outputEntry>
+        <outputEntry id="oe_acao_potente"><text>"CONTRAINDICADO. Itraconazol/cetoconazol aumentam sinvastatina 10-20x. Suspender estatina durante antifungico OU trocar para pravastatina/rosuvastatina (nao CYP3A4). Se estatina essencial, usar pitavastatina ou pravastatina."</text></outputEntry>
+        <outputEntry id="oe_just_potente"><text>"FDA contraindica sinvastatina/lovastatina com inibidores CYP3A4 potentes. Risco rabdomiolise e hepatotoxicidade. Neuvonen PJ, Clin Pharmacol Ther 2006."</text></outputEntry>
+      </rule>
+
+      <!-- Rule 2: Atorvastatina + Azolico potente -->
+      <rule id="rule_atorva_azol">
+        <inputEntry id="ie_atorva_ativa">
+          <text>list contains(medicamentosAtivos, "ATORVASTATINA")</text>
+        </inputEntry>
+        <inputEntry id="ie_azol_potente2">
+          <text>"ITRACONAZOL" or "CETOCONAZOL" or "POSACONAZOL" or "VORICONAZOL"</text>
+        </inputEntry>
+        <outputEntry id="oe_atencao_atorva"><text>"Atencao"</text></outputEntry>
+        <outputEntry id="oe_acao_atorva"><text>"Risco elevado. Atorvastatina aumenta 2-4x com azolicos. Limitar atorvastatina a MAX 20mg/dia durante antifungico. Monitorar CPK e TGO/TGP semanalmente. Orientar sinais de miopatia (dor muscular, fraqueza)."</text></outputEntry>
+        <outputEntry id="oe_just_atorva"><text>"Atorvastatina parcialmente metabolizada por CYP3A4. Menor risco que sinvastatina, mas requer cautela."</text></outputEntry>
+      </rule>
+
+      <!-- Rule 3: Estatina + Fluconazol (inibidor moderado) -->
+      <rule id="rule_estatina_fluconazol">
+        <inputEntry id="ie_estatina_ativa">
+          <text>list contains(medicamentosAtivos, "SINVASTATINA") or list contains(medicamentosAtivos, "ATORVASTATINA") or list contains(medicamentosAtivos, "LOVASTATINA")</text>
+        </inputEntry>
+        <inputEntry id="ie_fluconazol">
+          <text>"FLUCONAZOL"</text>
+        </inputEntry>
+        <outputEntry id="oe_atencao_fluco"><text>"Atencao"</text></outputEntry>
+        <outputEntry id="oe_acao_fluco"><text>"Fluconazol e inibidor CYP3A4 moderado. Se dose fluconazol >200mg/dia, reduzir estatina 50% ou trocar para pravastatina. Monitorar CPK e transaminases."</text></outputEntry>
+        <outputEntry id="oe_just_fluco"><text>"Fluconazol: inibicao CYP3A4 dose-dependente. Risco menor que itraconazol mas presente."</text></outputEntry>
+      </rule>
+
+      <!-- Fallback Rule -->
+      <rule id="Rule_Fallback">
+        <inputEntry id="ie_fallback1"><text>-</text></inputEntry>
+        <inputEntry id="ie_fallback2"><text>-</text></inputEntry>
+        <outputEntry id="oe_fallback1"><text>"OK"</text></outputEntry>
+        <outputEntry id="oe_fallback2"><text>""</text></outputEntry>
+        <outputEntry id="oe_fallback3"><text>""</text></outputEntry>
+      </rule>
+    </decisionTable>
+  </decision>
+</definitions>

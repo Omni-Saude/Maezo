@@ -1,0 +1,170 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  ============================================================================
+  PRIOR-UNITS-002 - Alerta 80% Consumo (Solicitar Prorrogacao)
+  ============================================================================
+  Versao: 1.0.0 (2026-02-08)
+  Categoria: PRIOR-UNITS
+  Perspectiva: HOSPITAL (Faturamento/Auditoria)
+
+  ============================================================================
+  INDICACOES (Quando PROSSEGUIR):
+  ============================================================================
+  - Prorrogacao ja solicitada
+  - Dias restantes suficientes
+  - Consumo abaixo do limite de alerta
+
+  ============================================================================
+  CONTRAINDICACOES (Quando BLOQUEAR):
+  ============================================================================
+  - 80% consumido sem prorrogacao solicitada
+  - Prazo expirado sem nova autorizacao
+  - Risco de interrupcao do tratamento
+
+  ============================================================================
+  REFERENCIAS NORMATIVAS:
+  ============================================================================
+  - RN 424/2017 (Autorizacao Previa)
+  - RN 465/2021 (Procedimentos Regulados)
+  - TISS 4.01.00 (Guia SP/SADT)
+  - Lei 9.656/1998 Art. 12 (Cobertura Obrigatoria)
+  ============================================================================
+-->
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/"
+             xmlns:dc="http://www.omg.org/spec/DMN/20180521/DC/"
+             id="Definitions_PRIOR_UNITS_002"
+             name="Alerta 80% Consumo (Solicitar Prorrogacao)"
+             targetNamespace="http://camunda.org/schema/1.0/dmn">
+
+  <decision id="Decision_PRIOR_UNITS_002" name="Verificar Alerta 80% Consumo">
+    <decisionTable id="DecisionTable_PRIOR_UNITS_002" hitPolicy="FIRST">
+
+      <!-- ========== INPUTS ========== -->
+      <input id="Input_1" label="Percentual Consumo">
+        <inputExpression id="InputExpression_1" typeRef="integer">
+          <text>percentualConsumo</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_2" label="Dias Restantes">
+        <inputExpression id="InputExpression_2" typeRef="integer">
+          <text>diasRestantes</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_3" label="Prorrogacao Solicitada">
+        <inputExpression id="InputExpression_3" typeRef="boolean">
+          <text>prorrogacaoSolicitada</text>
+        </inputExpression>
+      </input>
+
+      <!-- ========== OUTPUTS (5 STANDARD) ========== -->
+      <output id="Output_1" label="Resultado" name="resultado" typeRef="string">
+        <outputValues><text>"Prosseguir", "Bloquear", "Alertar", "Revisar"</text></outputValues>
+      </output>
+
+      <output id="Output_2" label="Observacao" name="observacao" typeRef="string"/>
+
+      <output id="Output_3" label="Acao Recomendada" name="acaoRecomendada" typeRef="string"/>
+
+      <output id="Output_4" label="Alertas Conformidade" name="alertasConformidade" typeRef="string">
+        <outputValues><text>"NENHUM", "DUP", "FREQ", "PRAZO", "DOC", "VALOR", "CRED", "CONTRATO"</text></outputValues>
+      </output>
+
+      <output id="Output_5" label="Risco Denial" name="riscoDenial" typeRef="string">
+        <outputValues><text>"BAIXO", "MEDIO", "ALTO", "CRITICO"</text></outputValues>
+      </output>
+
+      <!-- ========== RULES ========== -->
+
+      <!-- REGRA B1: Bloqueio - Consumo critico sem prorrogacao e prazo expirado -->
+      <rule id="Rule_Bloqueio_1">
+        <description>Consumo acima de 80%, sem prorrogacao e prazo expirado</description>
+        <inputEntry id="InputEntry_B1_1"><text>&gt;= 80</text></inputEntry>
+        <inputEntry id="InputEntry_B1_2"><text>&lt;= 0</text></inputEntry>
+        <inputEntry id="InputEntry_B1_3"><text>false</text></inputEntry>
+        <outputEntry id="OutputEntry_B1_1"><text>"Bloquear"</text></outputEntry>
+        <outputEntry id="OutputEntry_B1_2"><text>"Consumo acima de 80%, prazo expirado e sem prorrogacao solicitada. Faturamento bloqueado."</text></outputEntry>
+        <outputEntry id="OutputEntry_B1_3"><text>"URGENTE: Solicitar nova autorizacao imediatamente para continuidade do tratamento."</text></outputEntry>
+        <outputEntry id="OutputEntry_B1_4"><text>"PRAZO"</text></outputEntry>
+        <outputEntry id="OutputEntry_B1_5"><text>"CRITICO"</text></outputEntry>
+      </rule>
+
+      <!-- REGRA A1: Alerta - 80%+ consumido sem prorrogacao -->
+      <rule id="Rule_Alerta_1">
+        <description>Consumo acima de 80% sem prorrogacao solicitada</description>
+        <inputEntry id="InputEntry_A1_1"><text>&gt;= 80</text></inputEntry>
+        <inputEntry id="InputEntry_A1_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_A1_3"><text>false</text></inputEntry>
+        <outputEntry id="OutputEntry_A1_1"><text>"Alertar"</text></outputEntry>
+        <outputEntry id="OutputEntry_A1_2"><text>"Alerta: 80% ou mais das sessoes consumidas sem prorrogacao solicitada."</text></outputEntry>
+        <outputEntry id="OutputEntry_A1_3"><text>"Solicitar prorrogacao imediatamente para evitar interrupcao do tratamento."</text></outputEntry>
+        <outputEntry id="OutputEntry_A1_4"><text>"FREQ"</text></outputEntry>
+        <outputEntry id="OutputEntry_A1_5"><text>"ALTO"</text></outputEntry>
+      </rule>
+
+      <!-- REGRA A2: Alerta - Prorrogacao solicitada mas prazo critico -->
+      <rule id="Rule_Alerta_2">
+        <description>Prorrogacao solicitada mas prazo muito curto</description>
+        <inputEntry id="InputEntry_A2_1"><text>&gt;= 80</text></inputEntry>
+        <inputEntry id="InputEntry_A2_2"><text>[1..3]</text></inputEntry>
+        <inputEntry id="InputEntry_A2_3"><text>true</text></inputEntry>
+        <outputEntry id="OutputEntry_A2_1"><text>"Alertar"</text></outputEntry>
+        <outputEntry id="OutputEntry_A2_2"><text>"Prorrogacao solicitada mas prazo muito curto (3 dias ou menos)."</text></outputEntry>
+        <outputEntry id="OutputEntry_A2_3"><text>"Acompanhar resposta da operadora diariamente. Preparar plano B se negado."</text></outputEntry>
+        <outputEntry id="OutputEntry_A2_4"><text>"PRAZO"</text></outputEntry>
+        <outputEntry id="OutputEntry_A2_5"><text>"MEDIO"</text></outputEntry>
+      </rule>
+
+      <!-- REGRA P1: Aprovado - Prorrogacao solicitada com prazo adequado -->
+      <rule id="Rule_Aprovado_1">
+        <description>Prorrogacao solicitada e prazo ainda adequado</description>
+        <inputEntry id="InputEntry_P1_1"><text>&gt;= 80</text></inputEntry>
+        <inputEntry id="InputEntry_P1_2"><text>&gt; 3</text></inputEntry>
+        <inputEntry id="InputEntry_P1_3"><text>true</text></inputEntry>
+        <outputEntry id="OutputEntry_P1_1"><text>"Prosseguir"</text></outputEntry>
+        <outputEntry id="OutputEntry_P1_2"><text>"Prorrogacao ja solicitada e prazo ainda adequado para resposta."</text></outputEntry>
+        <outputEntry id="OutputEntry_P1_3"><text>"Aguardar resposta da operadora. Monitorar prazo."</text></outputEntry>
+        <outputEntry id="OutputEntry_P1_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_P1_5"><text>"MEDIO"</text></outputEntry>
+      </rule>
+
+      <!-- REGRA P2: Aprovado - Consumo abaixo de 80% -->
+      <rule id="Rule_Aprovado_2">
+        <description>Consumo abaixo do limite de alerta</description>
+        <inputEntry id="InputEntry_P2_1"><text>&lt; 80</text></inputEntry>
+        <inputEntry id="InputEntry_P2_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_P2_3"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_P2_1"><text>"Prosseguir"</text></outputEntry>
+        <outputEntry id="OutputEntry_P2_2"><text>"Consumo abaixo de 80%. Sem necessidade de prorrogacao imediata."</text></outputEntry>
+        <outputEntry id="OutputEntry_P2_3"><text>"Continuar monitorando consumo de sessoes."</text></outputEntry>
+        <outputEntry id="OutputEntry_P2_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_P2_5"><text>"BAIXO"</text></outputEntry>
+      </rule>
+
+      <!-- REGRA F: Fallback - Requer revisao manual -->
+      <rule id="Rule_Fallback_PRIOR_UNITS_002">
+        <description>Regra padrao - Requer avaliacao manual</description>
+        <inputEntry id="InputEntry_F_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_F_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_F_3"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_F_1"><text>"Revisar"</text></outputEntry>
+        <outputEntry id="OutputEntry_F_2"><text>"Situacao de consumo e prorrogacao requer analise manual."</text></outputEntry>
+        <outputEntry id="OutputEntry_F_3"><text>"Encaminhar para auditoria avaliar necessidade de prorrogacao."</text></outputEntry>
+        <outputEntry id="OutputEntry_F_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_F_5"><text>"MEDIO"</text></outputEntry>
+      </rule>
+
+    </decisionTable>
+  </decision>
+
+  <dmndi:DMNDI>
+    <dmndi:DMNDiagram id="DMNDiagram_PRIOR_UNITS_002">
+      <dmndi:DMNShape id="DMNShape_Decision_PRIOR_UNITS_002" dmnElementRef="Decision_PRIOR_UNITS_002">
+        <dc:Bounds height="80" width="180" x="160" y="100"/>
+      </dmndi:DMNShape>
+    </dmndi:DMNDiagram>
+  </dmndi:DMNDI>
+
+</definitions>

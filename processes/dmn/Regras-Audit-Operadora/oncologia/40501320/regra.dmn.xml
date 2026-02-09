@@ -1,0 +1,325 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  ONQ-IMG-005: CT Chest/Abdomen Intervals [LEAN TIER-2]
+  TUSS: 40501320
+  Versao: 3.1.0-LEAN-TIER2 (2026-02-08)
+  Especialidade: Oncologia/Radiologia
+
+  ============================================================================
+  INTERVALOS DE VIGILANCIA (NCCN):
+  ============================================================================
+  - Alto risco: TC cada 3-4 meses por 2 anos, depois cada 6 meses
+  - Risco intermediario: TC cada 6 meses por 5 anos
+  - Baixo risco: TC anual ou acompanhamento clinico
+
+  ============================================================================
+  FATORES DE RISCO:
+  ============================================================================
+  - Alto: Estadio III-IV, margem positiva, alto grau, recidiva previa
+  - Intermediario: Estadio II, fatores de mau prognostico isolados
+  - Baixo: Estadio I, baixo grau, margens amplas
+
+  ============================================================================
+  DOCUMENTACAO OBRIGATORIA:
+  ============================================================================
+  - Estadio patologico final
+  - Data do ultimo tratamento/cirurgia
+  - Data do ultimo exame de imagem
+
+  ============================================================================
+  REFERENCIAS NORMATIVAS:
+  ============================================================================
+  - NCCN Survivorship Guidelines 2024
+  - ASCO Surveillance Guidelines by Tumor Type
+  - ESMO Minimum Follow-up Recommendations
+-->
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/" xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/" xmlns:dc="http://www.omg.org/spec/DMN/20180521/DC/" xmlns:modeler="http://camunda.org/schema/modeler/1.0" id="Definitions_ONQ_IMG_005" name="DRD" namespace="http://camunda.org/schema/1.0/dmn" exporter="Camunda Modeler" exporterVersion="5.14.0" modeler:executionPlatform="Camunda Cloud" modeler:executionPlatformVersion="8.2.0">
+  <decision id="Decision_ONQ_IMG_005" name="ONQ-IMG-005: CT Chest/Abdomen Intervals [LEAN TIER-2]">
+    <decisionTable id="DecisionTable_ONQ_IMG_005" hitPolicy="FIRST">
+      <input id="Input_tumor_type" label="Tumor Type">
+        <inputExpression id="InputExpression_tumor_type" typeRef="string">
+          <text>tumorType</text>
+        </inputExpression>
+      </input>
+      <input id="Input_stage" label="Stage at Diagnosis">
+        <inputExpression id="InputExpression_stage" typeRef="string">
+          <text>stageAtDiagnosis</text>
+        </inputExpression>
+      </input>
+      <input id="Input_risk_category" label="Risk Category">
+        <inputExpression id="InputExpression_risk_category" typeRef="string">
+          <text>riskCategory</text>
+        </inputExpression>
+      </input>
+      <input id="Input_months_since_last" label="Months Since Last CT">
+        <inputExpression id="InputExpression_months_since_last" typeRef="number">
+          <text>monthsSinceLastCT</text>
+        </inputExpression>
+      </input>
+      <!-- Input: Dias desde ultimo procedimento (DUP detection) -->
+      <input id="Input_ultimoProcedimentoDias" label="Dias Desde Ultimo Procedimento">
+        <inputExpression id="InputExpression_ultimoProcedimentoDias" typeRef="number">
+          <text>ultimoProcedimentoDias</text>
+        </inputExpression>
+      </input>
+
+      <output id="Output_resultado" label="Resultado" name="resultado" typeRef="string">
+        <outputValues id="UnaryTests_resultado">
+          <text>"Aprovado","Reprovado","Pendente"</text>
+        </outputValues>
+      </output>
+      <output id="Output_observacao" label="Observacao" name="observacao" typeRef="string" />
+      <output id="Output_fundamentacao" label="Fundamentacao" name="fundamentacao" typeRef="string" />
+      <output id="Output_alertasDesperdicio" label="Alertas de Desperdicio" name="alertasDesperdicio" typeRef="string">
+        <outputValues id="OutputValues_alertasDesperdicio">
+          <text>"NENHUM","DUP","FREQ","ESC","DOC","PROT","MULTI"</text>
+        </outputValues>
+      </output>
+      <output id="Output_acaoRecomendada" label="Acao Recomendada" name="acaoRecomendada" typeRef="string">
+        <outputValues id="OutputValues_acaoRecomendada">
+          <text>"APROVAR","NEGAR","SOLICITAR_INFO","AGUARDAR_PRAZO","SUGERIR_ALTERNATIVA"</text>
+        </outputValues>
+      </output>
+      <rule id="DecisionRule_reject_too_soon_high">
+        <description>Reject if CT done too recently for high-risk (less than 3 months)</description>
+        <inputEntry id="InputEntry_tumor_type_freq">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_stage_freq">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_risk_category_freq">
+          <text>"high"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_months_since_last_freq">
+          <text>&lt; 3</text>
+        </inputEntry>
+        <inputEntry id="IE_DecisionRule_reject_too_soon_high_ultimo"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_resultado_freq">
+          <text>"Reprovado"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_observacao_freq">
+          <text>"TC realizada ha &lt;3 meses: intervalo minimo nao atingido mesmo para alto risco"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_fundamentacao_freq">
+          <text>"Intervalo minimo de 3 meses para alto risco; exceto se novos sintomas clinicos"</text>
+        </outputEntry>
+        <outputEntry id="OE_freq_alertasDesperdicio">
+          <text>"FREQ"</text>
+        </outputEntry>
+        <outputEntry id="OE_freq_acaoRecomendada">
+          <text>"NEGAR"</text>
+        </outputEntry>
+      </rule>
+      <rule id="DecisionRule_reject_low_annual">
+        <description>Reject if CT done within 12 months for low-risk</description>
+        <inputEntry id="InputEntry_tumor_type_low">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_stage_low">
+          <text>"I","IA","IB"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_risk_category_low">
+          <text>"low"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_months_since_last_low">
+          <text>&lt; 12</text>
+        </inputEntry>
+        <inputEntry id="IE_DecisionRule_reject_low_annual_ultimo"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_resultado_low">
+          <text>"Reprovado"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_observacao_low">
+          <text>"TC realizada ha &lt;12 meses: baixo risco requer intervalo anual"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_fundamentacao_low">
+          <text>"Estadio I baixo risco: vigilancia anual suficiente per NCCN; sobreuso expoe a radiacao"</text>
+        </outputEntry>
+        <outputEntry id="OE_low_alertasDesperdicio">
+          <text>"FREQ"</text>
+        </outputEntry>
+        <outputEntry id="OE_low_acaoRecomendada">
+          <text>"NEGAR"</text>
+        </outputEntry>
+      </rule>
+
+      <!-- WASTE DETECTION: DUP -->
+      <rule id="Rule_40501320_DUP">
+        <description>DUP - TC torax/abdome repetida em menos de 60 dias</description>
+        <inputEntry id="IE_DUP_40501320_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_DUP_40501320_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_DUP_40501320_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_DUP_40501320_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_DUP_40501320_ultimo"><text>&lt; 60</text></inputEntry>
+        <outputEntry id="OE_DUP_40501320_resultado"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OE_DUP_40501320_observacao"><text>"TC torax/abdome repetida em menos de 60 dias"</text></outputEntry>
+        <outputEntry id="OE_DUP_40501320_fundamentacao"><text>"NCCN 2024: TC torax/abdome vigilancia a cada 2-3 meses durante tratamento"</text></outputEntry>
+        <outputEntry id="OE_DUP_40501320_alertasDesperdicio"><text>"DUP"</text></outputEntry>
+        <outputEntry id="OE_DUP_40501320_acaoRecomendada"><text>"AGUARDAR_PRAZO"</text></outputEntry>
+      </rule>
+
+      <rule id="DecisionRule_approve_high_3mo">
+        <description>Approve CT for high-risk at 3-month interval</description>
+        <inputEntry id="InputEntry_tumor_type_high3">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_stage_high3">
+          <text>"III","IIIA","IIIB","IIIC","IV"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_risk_category_high3">
+          <text>"high"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_months_since_last_high3">
+          <text>[3..4]</text>
+        </inputEntry>
+        <inputEntry id="IE_DecisionRule_approve_high_3mo_ultimo"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_resultado_high3">
+          <text>"Aprovado"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_observacao_high3">
+          <text>"TC de vigilancia aprovada: alto risco, intervalo de 3-4 meses adequado"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_fundamentacao_high3">
+          <text>"NCCN: vigilancia intensiva (3-4 meses) nos primeiros 2 anos para alto risco de recidiva"</text>
+        </outputEntry>
+        <outputEntry id="OE_high3_alertasDesperdicio">
+          <text>"NENHUM"</text>
+        </outputEntry>
+        <outputEntry id="OE_high3_acaoRecomendada">
+          <text>"APROVAR"</text>
+        </outputEntry>
+      </rule>
+      <rule id="DecisionRule_approve_int_6mo">
+        <description>Approve CT for intermediate-risk at 6-month interval</description>
+        <inputEntry id="InputEntry_tumor_type_int6">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_stage_int6">
+          <text>"II","IIA","IIB","IIC"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_risk_category_int6">
+          <text>"intermediate"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_months_since_last_int6">
+          <text>&gt;= 6</text>
+        </inputEntry>
+        <inputEntry id="IE_DecisionRule_approve_int_6mo_ultimo"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_resultado_int6">
+          <text>"Aprovado"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_observacao_int6">
+          <text>"TC de vigilancia aprovada: risco intermediario, intervalo de 6 meses adequado"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_fundamentacao_int6">
+          <text>"Estadio II: vigilancia semestral por 5 anos recomendada por NCCN/ESMO"</text>
+        </outputEntry>
+        <outputEntry id="OE_int6_alertasDesperdicio">
+          <text>"NENHUM"</text>
+        </outputEntry>
+        <outputEntry id="OE_int6_acaoRecomendada">
+          <text>"APROVAR"</text>
+        </outputEntry>
+      </rule>
+      <rule id="DecisionRule_approve_low_annual">
+        <description>Approve CT for low-risk at annual interval</description>
+        <inputEntry id="InputEntry_tumor_type_low_annual">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_stage_low_annual">
+          <text>"I","IA","IB"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_risk_category_low_annual">
+          <text>"low"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_months_since_last_low_annual">
+          <text>&gt;= 12</text>
+        </inputEntry>
+        <inputEntry id="IE_DecisionRule_approve_low_annual_ultimo"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_resultado_low_annual">
+          <text>"Aprovado"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_observacao_low_annual">
+          <text>"TC de vigilancia aprovada: baixo risco, intervalo anual atingido"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_fundamentacao_low_annual">
+          <text>"Estadio I: vigilancia anual ou acompanhamento clinico per NCCN survivorship"</text>
+        </outputEntry>
+        <outputEntry id="OE_low_annual_alertasDesperdicio">
+          <text>"NENHUM"</text>
+        </outputEntry>
+        <outputEntry id="OE_low_annual_acaoRecomendada">
+          <text>"APROVAR"</text>
+        </outputEntry>
+      </rule>
+      <rule id="DecisionRule_pending_int_early">
+        <description>Pending if intermediate-risk requesting early scan</description>
+        <inputEntry id="InputEntry_tumor_type_int_early">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_stage_int_early">
+          <text>"II","IIA","IIB","IIC"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_risk_category_int_early">
+          <text>"intermediate"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_months_since_last_int_early">
+          <text>[3..6[</text>
+        </inputEntry>
+        <inputEntry id="IE_DecisionRule_pending_int_early_ultimo"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_resultado_int_early">
+          <text>"Pendente"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_observacao_int_early">
+          <text>"TC solicitada antes de 6 meses para risco intermediario: justificar indicacao clinica"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_fundamentacao_int_early">
+          <text>"Antecipacao de exame requer justificativa: novos sintomas, marcadores alterados"</text>
+        </outputEntry>
+        <outputEntry id="OE_int_early_alertasDesperdicio">
+          <text>"NENHUM"</text>
+        </outputEntry>
+        <outputEntry id="OE_int_early_acaoRecomendada">
+          <text>"SOLICITAR_INFO"</text>
+        </outputEntry>
+      </rule>
+      <rule id="DecisionRule_fallback">
+        <description>Fallback rule for incomplete data</description>
+        <inputEntry id="InputEntry_tumor_type_fallback">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_stage_fallback">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_risk_category_fallback">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_months_since_last_fallback">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="IE_DecisionRule_fallback_ultimo"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_resultado_fallback">
+          <text>"Pendente"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_observacao_fallback">
+          <text>"Dados insuficientes para definir intervalo de TC de vigilancia"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_fundamentacao_fallback">
+          <text>"Necessario: estadio, categoria de risco, data do ultimo exame"</text>
+        </outputEntry>
+        <outputEntry id="OE_fallback_alertasDesperdicio">
+          <text>"NENHUM"</text>
+        </outputEntry>
+        <outputEntry id="OE_fallback_acaoRecomendada">
+          <text>"SOLICITAR_INFO"</text>
+        </outputEntry>
+      </rule>
+    </decisionTable>
+  </decision>
+  <dmndi:DMNDI>
+    <dmndi:DMNDiagram>
+      <dmndi:DMNShape dmnElementRef="Decision_ONQ_IMG_005">
+        <dc:Bounds height="80" width="180" x="160" y="100" />
+      </dmndi:DMNShape>
+    </dmndi:DMNDiagram>
+  </dmndi:DMNDI>
+</definitions>

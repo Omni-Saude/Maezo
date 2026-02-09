@@ -1,0 +1,165 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/" xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/" xmlns:dc="http://www.omg.org/spec/DMN/20180521/DC/" xmlns:di="http://www.omg.org/spec/DMN/20180521/DI/" id="DDI_BLEED_013" name="DDI-BLEED-013: Heparina + Abciximab" namespace="http://camunda.org/schema/1.0/dmn">
+  <decision id="ddi_bleed_013_decision" name="Heparin + Abciximab ICP Protocol">
+    <decisionTable id="ddi_bleed_013_table" hitPolicy="FIRST">
+      <input id="input_medicamentos_ativos" label="Medicamentos Ativos">
+        <inputExpression id="input_expr_medicamentos_ativos" typeRef="string">
+          <text>medicamentosAtivos</text>
+        </inputExpression>
+      </input>
+      <input id="input_medicamento_novo" label="Medicamento Novo">
+        <inputExpression id="input_expr_medicamento_novo" typeRef="string">
+          <text>medicamentoNovo</text>
+        </inputExpression>
+      </input>
+      <input id="input_procedimento" label="Procedimento">
+        <inputExpression id="input_expr_procedimento" typeRef="string">
+          <text>procedimento</text>
+        </inputExpression>
+      </input>
+      <input id="input_plaquetas" label="Plaquetas (/mm³)">
+        <inputExpression id="input_expr_plaquetas" typeRef="number">
+          <text>contagemPlaquetas</text>
+        </inputExpression>
+      </input>
+
+      <output id="output_nivel_alerta" name="nivelAlerta" typeRef="string">
+        <outputValues>
+          <text>"Alerta","Atencao","Informativo","OK"</text>
+        </outputValues>
+      </output>
+      <output id="output_urgencia" name="urgencia" typeRef="string">
+        <outputValues>
+          <text>"IMEDIATA","URGENTE","ROTINA"</text>
+        </outputValues>
+      </output>
+      <output id="output_medicamentos_conflitantes" name="medicamentosConflitantes" typeRef="string" />
+      <output id="output_mecanismo_interacao" name="mecanismoInteracao" typeRef="string" />
+      <output id="output_acao_requerida" name="acaoRequerida" typeRef="string" />
+
+      <!-- Rule 1: Heparina + Abciximab durante ICP (PROTOCOLO) -->
+      <rule id="rule_hep_abcix_icp">
+        <inputEntry id="input_medicamentos_hep">
+          <text>list contains(medicamentosAtivos, "HEPARINA") or list contains(medicamentosAtivos, "HEPARINA NAO-FRACIONADA")</text>
+        </inputEntry>
+        <inputEntry id="input_novo_abcix">
+          <text>"ABCIXIMAB"</text>
+        </inputEntry>
+        <inputEntry id="input_procedimento_icp">
+          <text>"ICP" or "INTERVEN CAO CORONARIA PERCUTANEA" or "ANGIOPLASTIA" or "STENT CORONARIO"</text>
+        </inputEntry>
+        <inputEntry id="input_plaquetas_normal">
+          <text>&gt;= 100000</text>
+        </inputEntry>
+        <outputEntry id="output_alerta_icp">
+          <text>"Atencao"</text>
+        </outputEntry>
+        <outputEntry id="output_urgencia_icp">
+          <text>"URGENTE"</text>
+        </outputEntry>
+        <outputEntry id="output_conflitantes_icp">
+          <text>"Heparina + Abciximab (ICP - protocolo)"</text>
+        </outputEntry>
+        <outputEntry id="output_mecanismo_icp">
+          <text>"QUÁDRUPLA antitrombose ICP (heparina + abciximab + aspirina + clopidogrel): (1) Heparina inibe trombina (IIa) e fator Xa → bloqueio coagulação, (2) Abciximab (inibidor GP IIb/IIIa) bloqueia receptor final agregação plaquetária → antiagregação POTENTE, (3) Aspirina + clopidogrel. Risco sangramento MAIOR 5-10%, MAS reduz eventos isquêmicos agudos (stent trombose) 50-60% em ICP alto risco."</text>
+        </outputEntry>
+        <outputEntry id="output_acao_icp">
+          <text>"PROTOCOLO ICP: (1) Heparina 70-100 U/kg bolus IV (alvo ACT 200-250s se abciximab usado, 250-300s se sem abciximab), (2) Abciximab 0.25mg/kg bolus IV + 0.125mcg/kg/min infusão 12h, (3) REDUZIR dose heparina 50-70 U/kg se abciximab (evitar sangramento excessivo), (4) Suspender heparina AO FIM ICP, (5) Remover bainha femoral quando ACT &lt;180s, (6) Compressão manual rigorosa 20-30min, (7) Monitorar plaquetas 2-4h, 8h, 24h (risco trombocitopenia), (8) Evitar punção femoral se possível (preferir acesso radial - 70% menos sangramento)."</text>
+        </outputEntry>
+      </rule>
+
+      <!-- Rule 2: Heparina + Abciximab com trombocitopenia -->
+      <rule id="rule_hep_abcix_trombo">
+        <inputEntry id="input_medicamentos_hep_tr">
+          <text>list contains(medicamentosAtivos, "HEPARINA") or list contains(medicamentosAtivos, "HEPARINA NAO-FRACIONADA")</text>
+        </inputEntry>
+        <inputEntry id="input_novo_abcix_tr">
+          <text>"ABCIXIMAB"</text>
+        </inputEntry>
+        <inputEntry id="input_procedimento_any">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="input_plaquetas_baixas">
+          <text>&lt; 100000</text>
+        </inputEntry>
+        <outputEntry id="output_alerta_trombo">
+          <text>"Alerta"</text>
+        </outputEntry>
+        <outputEntry id="output_urgencia_trombo">
+          <text>"URGENTE"</text>
+        </outputEntry>
+        <outputEntry id="output_conflitantes_trombo">
+          <text>"Heparina + Abciximab (trombocitopenia)"</text>
+        </outputEntry>
+        <outputEntry id="output_mecanismo_trombo">
+          <text>"CONTRAINDICAÇÃO RELATIVA: Abciximab causa trombocitopenia em 1-5% casos (queda &gt;50% contagem basal ou &lt;100.000). Trombocitopenia PRÉ-EXISTENTE aumenta risco sangramento GRAVE 5-10x. Heparina pode agravar (HIT - trombocitopenia induzida heparina)."</text>
+        </outputEntry>
+        <outputEntry id="output_acao_trombo">
+          <text>"CAUTELA EXTREMA: (1) Se plaquetas 50-100k: usar abciximab APENAS se benefício supera risco (ICP salvamento STEMI), reduzir dose 50% (0.125mg/kg bolus), (2) Se plaquetas &lt;50k: CONTRAINDICADO abciximab, considerar bivalirudina (menos trombocitopenia), (3) Suspender heparina se HIT suspeita (queda plaquetas + trombose paradoxal), usar argatroban/bivalirudina, (4) Transfusão plaquetas SE sangramento ativo (não profilática - abciximab neutraliza plaquetas transfundidas)."</text>
+        </outputEntry>
+      </rule>
+
+      <!-- Rule 3: Heparina + Abciximab fora contexto ICP -->
+      <rule id="rule_hep_abcix_sem_icp">
+        <inputEntry id="input_medicamentos_hep_si">
+          <text>list contains(medicamentosAtivos, "HEPARINA") or list contains(medicamentosAtivos, "HEPARINA NAO-FRACIONADA")</text>
+        </inputEntry>
+        <inputEntry id="input_novo_abcix_si">
+          <text>"ABCIXIMAB"</text>
+        </inputEntry>
+        <inputEntry id="input_procedimento_nao_icp">
+          <text>not("ICP" or "INTERVEN CAO CORONARIA PERCUTANEA" or "ANGIOPLASTIA" or "STENT CORONARIO")</text>
+        </inputEntry>
+        <inputEntry id="input_plaquetas_any">
+          <text>-</text>
+        </inputEntry>
+        <outputEntry id="output_alerta_si">
+          <text>"Alerta"</text>
+        </outputEntry>
+        <outputEntry id="output_urgencia_si">
+          <text>"URGENTE"</text>
+        </outputEntry>
+        <outputEntry id="output_conflitantes_si">
+          <text>"Heparina + Abciximab (sem indicação ICP)"</text>
+        </outputEntry>
+        <outputEntry id="output_mecanismo_si">
+          <text>"USO INAPROPRIADO: Abciximab indicado EXCLUSIVAMENTE para ICP (bloqueio receptor GP IIb/IIIa final comum agregação plaquetária). Fora contexto ICP = risco sangramento EXCESSIVO (10-15%) sem benefício. Custo ALTO ($1000-1500/dose)."</text>
+        </outputEntry>
+        <outputEntry id="output_acao_si">
+          <text>"SUSPENDER abciximab IMEDIATAMENTE se não em ICP. Abciximab indicações: (1) ICP alto risco (STEMI, trombo visível, fluxo lento), (2) ICP facilitada (abciximab pré-ICP em STEMI), (3) ICP bailout (complicação trombótica aguda). FORA ICP: risco-benefício NEGATIVO. Alternativas: clopidogrel/prasugrel/ticagrelor suficientes para antiagregação."</text>
+        </outputEntry>
+      </rule>
+
+      <!-- Fallback Rule -->
+      <rule id="rule_fallback">
+        <inputEntry id="input_fallback_1">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="input_fallback_2">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="input_fallback_3">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="input_fallback_4">
+          <text>-</text>
+        </inputEntry>
+        <outputEntry id="output_fallback_1">
+          <text>"OK"</text>
+        </outputEntry>
+        <outputEntry id="output_fallback_2">
+          <text>"ROTINA"</text>
+        </outputEntry>
+        <outputEntry id="output_fallback_3">
+          <text>""</text>
+        </outputEntry>
+        <outputEntry id="output_fallback_4">
+          <text>""</text>
+        </outputEntry>
+        <outputEntry id="output_fallback_5">
+          <text>""</text>
+        </outputEntry>
+      </rule>
+    </decisionTable>
+  </decision>
+</definitions>

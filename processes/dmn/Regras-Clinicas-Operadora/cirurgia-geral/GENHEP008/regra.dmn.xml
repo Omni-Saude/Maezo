@@ -1,0 +1,255 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/"
+             xmlns:dc="http://www.omg.org/spec/DD/20100524/DC/"
+             xmlns:di="http://www.omg.org/spec/DD/20100524/DI/"
+             id="Definitions_GEN_HEP_008"
+             name="Pancreatite Cirurgia - Timing Necrosectomia"
+             namespace="http://camunda.org/schema/1.0/dmn"
+             exporter="Camunda Modeler"
+             exporterVersion="5.0.0">
+  <!--
+    GEN-HEP-008 - Pancreatite Aguda Grave - Timing de Necrosectomia
+    Versao: 1.0.0 (2026-02-07)
+    Especialidade: Cirurgia Geral - Hepatobiliar/Pancreatica
+    Categoria: Procedimentos Cirurgicos
+
+    Indicacoes Clinicas (IAP/APA Guidelines 2013 / WSES 2019):
+    - Necrose pancreatica infectada confirmada (aspiracao guiada ou gas em TC)
+    - Sindrome compartimental abdominal refrataria
+    - Obstrucao intestinal/biliar persistente por necrose
+    - Sangramento nao controlado de pseudoaneurisma
+
+    Timing Otimo:
+    - Preferir intervencao apos 4 semanas (necrose encapsulada - WON)
+    - Abordagem step-up: drenagem percutanea/endoscopica antes de cirurgia
+    - Cirurgia precoce (<2 semanas) apenas em casos selecionados
+
+    Abordagens:
+    - Drenagem percutanea transgastrica/retroperitoneal
+    - Necrosectomia endoscopica transluminal (NOTES)
+    - Necrosectomia minimamente invasiva retroperitoneal (VARD)
+    - Necrosectomia aberta (ultima opcao)
+
+    Documentacao Obrigatoria:
+    - TC com contraste mostrando extensao da necrose
+    - Aspiracao por agulha fina com gram/cultura se infeccao suspeita
+    - Avaliacao em UTI com scores de gravidade
+
+    Referencias Normativas:
+    - IAP/APA Guidelines 2013 - Acute Pancreatitis
+    - WSES 2019 - Severe Acute Pancreatitis
+    - Dutch Pancreatitis Study Group - Step-up Approach
+  -->
+
+  <decision id="Decision_GEN_HEP_008" name="Criterios de Autorizacao - Necrosectomia Pancreatite">
+    <decisionTable id="DecisionTable_GEN_HEP_008" hitPolicy="FIRST">
+
+      <!-- Input 1: Indicacao de Intervencao -->
+      <input id="Input_indicacao" label="Indicacao de Intervencao">
+        <inputExpression id="InputExpr_indicacao" typeRef="string">
+          <text>indicacaoIntervencao</text>
+        </inputExpression>
+        <inputValues id="InputValues_indicacao">
+          <text>"Necrose_Infectada_Confirmada","Necrose_Infectada_Suspeita","Necrose_Esteril_Sintomatica","Sindrome_Compartimental","Sangramento","Obstrucao_Intestinal"</text>
+        </inputValues>
+      </input>
+
+      <!-- Input 2: Timing (semanas desde inicio) -->
+      <input id="Input_timing" label="Timing desde Inicio (semanas)">
+        <inputExpression id="InputExpr_timing" typeRef="string">
+          <text>timingSemanas</text>
+        </inputExpression>
+        <inputValues id="InputValues_timing">
+          <text>"Menos_2_Semanas","2_4_Semanas","Mais_4_Semanas_WON"</text>
+        </inputValues>
+      </input>
+
+      <!-- Input 3: Procedimento Solicitado -->
+      <input id="Input_procedimento" label="Procedimento Solicitado">
+        <inputExpression id="InputExpr_procedimento" typeRef="string">
+          <text>procedimentoSolicitado</text>
+        </inputExpression>
+        <inputValues id="InputValues_procedimento">
+          <text>"Drenagem_Percutanea","Drenagem_Endoscopica","Necrosectomia_VARD","Necrosectomia_Aberta"</text>
+        </inputValues>
+      </input>
+
+      <!-- Input 4: TC com Contraste Documentando Necrose -->
+      <input id="Input_tcNecrose" label="TC Documentando Extensao Necrose">
+        <inputExpression id="InputExpr_tcNecrose" typeRef="boolean">
+          <text>tcDocumentandoNecrose</text>
+        </inputExpression>
+      </input>
+
+      <!-- Input 5: Laudo/Indicacao Cirurgica -->
+      <input id="Input_laudoIndicacao" label="Laudo de Indicacao">
+        <inputExpression id="InputExpr_laudoIndicacao" typeRef="boolean">
+          <text>laudoIndicacao</text>
+        </inputExpression>
+      </input>
+
+      <!-- Output 1: Resultado -->
+      <output id="Output_resultado" label="Resultado" name="resultado" typeRef="string">
+        <outputValues id="OutputValues_resultado">
+          <text>"Aprovado","Reprovado","Pendente"</text>
+        </outputValues>
+      </output>
+
+      <!-- Output 2: Observacao -->
+      <output id="Output_observacao" label="Observacao Clinica" name="observacao" typeRef="string" />
+
+      <!-- Output 3: Fundamentacao -->
+      <output id="Output_fundamentacao" label="Fundamentacao" name="fundamentacao" typeRef="string" />
+
+      <!-- Output 4: Alertas Desperdicio -->
+      <output id="Output_alertasDesperdicio" label="Alertas de Desperdicio" name="alertasDesperdicio" typeRef="string">
+        <outputValues id="OutputValues_alertasDesperdicio">
+          <text>"NENHUM","DUP","FREQ","ESC","DOC","PROT","MULTI"</text>
+        </outputValues>
+      </output>
+
+      <!-- Output 5: Acao Recomendada -->
+      <output id="Output_acaoRecomendada" label="Acao Recomendada" name="acaoRecomendada" typeRef="string">
+        <outputValues id="OutputValues_acaoRecomendada">
+          <text>"APROVAR","NEGAR","SOLICITAR_INFO","AGUARDAR_PRAZO","SUGERIR_ALTERNATIVA"</text>
+        </outputValues>
+      </output>
+
+      <!-- REGRAS DE REPROVACAO -->
+
+      <rule id="Rule_GEN_HEP_008_Reprovado_SemTC">
+        <description>Reprovado - Sem TC documentando necrose</description>
+        <inputEntry id="IE_Rep1_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_Rep1_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_Rep1_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_Rep1_4"><text>false</text></inputEntry>
+        <inputEntry id="IE_Rep1_5"><text>-</text></inputEntry>
+        <outputEntry id="OE_Rep1_1"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OE_Rep1_2"><text>"TC com contraste obrigatoria para documentacao de extensao da necrose pancreatica e planejamento de intervencao."</text></outputEntry>
+        <outputEntry id="OE_Rep1_3"><text>"IAP/APA 2013 - Imaging Requirements"</text></outputEntry>
+      <outputEntry id="OE_GEN_HEP_008_Reprovado_SemTC_4"><text>"PROT"</text></outputEntry>
+        <outputEntry id="OE_GEN_HEP_008_Reprovado_SemTC_5"><text>"NEGAR"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_GEN_HEP_008_Reprovado_SemLaudo">
+        <description>Reprovado - Sem laudo de indicacao</description>
+        <inputEntry id="IE_Rep2_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_Rep2_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_Rep2_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_Rep2_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_Rep2_5"><text>false</text></inputEntry>
+        <outputEntry id="OE_Rep2_1"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OE_Rep2_2"><text>"Laudo de indicacao obrigatorio com justificativa da intervencao, timing e abordagem escolhida."</text></outputEntry>
+        <outputEntry id="OE_Rep2_3"><text>"RN 465/2021 - Documentacao Obrigatoria"</text></outputEntry>
+      <outputEntry id="OE_GEN_HEP_008_Reprovado_SemLaudo_4"><text>"PROT"</text></outputEntry>
+        <outputEntry id="OE_GEN_HEP_008_Reprovado_SemLaudo_5"><text>"NEGAR"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_GEN_HEP_008_Reprovado_EsterilPrecoce">
+        <description>Reprovado - Necrose esteril com cirurgia precoce</description>
+        <inputEntry id="IE_Rep3_1"><text>"Necrose_Esteril_Sintomatica"</text></inputEntry>
+        <inputEntry id="IE_Rep3_2"><text>"Menos_2_Semanas"</text></inputEntry>
+        <inputEntry id="IE_Rep3_3"><text>"Necrosectomia_Aberta","Necrosectomia_VARD"</text></inputEntry>
+        <inputEntry id="IE_Rep3_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_Rep3_5"><text>-</text></inputEntry>
+        <outputEntry id="OE_Rep3_1"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OE_Rep3_2"><text>"Necrose esteril nao tem indicacao de intervencao cirurgica precoce. Manter suporte clinico e reavaliar apos 4 semanas se sintomas persistirem."</text></outputEntry>
+        <outputEntry id="OE_Rep3_3"><text>"IAP/APA 2013 - Sterile Necrosis Management"</text></outputEntry>
+      <outputEntry id="OE_GEN_HEP_008_Reprovado_EsterilPrecoce_4"><text>"PROT"</text></outputEntry>
+        <outputEntry id="OE_GEN_HEP_008_Reprovado_EsterilPrecoce_5"><text>"NEGAR"</text></outputEntry>
+      </rule>
+
+      <!-- REGRAS DE APROVACAO -->
+
+      <rule id="Rule_GEN_HEP_008_Aprovado_Infectada_StepUp">
+        <description>Aprovado - Necrose infectada com step-up approach</description>
+        <inputEntry id="IE_Apr1_1"><text>"Necrose_Infectada_Confirmada"</text></inputEntry>
+        <inputEntry id="IE_Apr1_2"><text>"Mais_4_Semanas_WON"</text></inputEntry>
+        <inputEntry id="IE_Apr1_3"><text>"Drenagem_Percutanea","Drenagem_Endoscopica"</text></inputEntry>
+        <inputEntry id="IE_Apr1_4"><text>true</text></inputEntry>
+        <inputEntry id="IE_Apr1_5"><text>true</text></inputEntry>
+        <outputEntry id="OE_Apr1_1"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OE_Apr1_2"><text>"Necrose pancreatica infectada (WON) apos 4 semanas - drenagem minimamente invasiva aprovada como primeiro step. Step-up approach conforme diretrizes."</text></outputEntry>
+        <outputEntry id="OE_Apr1_3"><text>"WSES 2019 / Dutch Pancreatitis Study - Step-up Approach"</text></outputEntry>
+      <outputEntry id="OE_GEN_HEP_008_Aprovado_Infectada_StepUp_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_GEN_HEP_008_Aprovado_Infectada_StepUp_5"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_GEN_HEP_008_Aprovado_Necrosectomia_Apos_Drenagem">
+        <description>Aprovado - Necrosectomia apos falha de drenagem</description>
+        <inputEntry id="IE_Apr2_1"><text>"Necrose_Infectada_Confirmada"</text></inputEntry>
+        <inputEntry id="IE_Apr2_2"><text>"Mais_4_Semanas_WON"</text></inputEntry>
+        <inputEntry id="IE_Apr2_3"><text>"Necrosectomia_VARD","Necrosectomia_Aberta"</text></inputEntry>
+        <inputEntry id="IE_Apr2_4"><text>true</text></inputEntry>
+        <inputEntry id="IE_Apr2_5"><text>true</text></inputEntry>
+        <outputEntry id="OE_Apr2_1"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OE_Apr2_2"><text>"Necrosectomia aprovada apos encapsulamento (WON >4 semanas). VARD preferida sobre aberta. Documentar falha ou impossibilidade de drenagem percutanea/endoscopica."</text></outputEntry>
+        <outputEntry id="OE_Apr2_3"><text>"WSES 2019 - Surgical Necrosectomy Timing"</text></outputEntry>
+      <outputEntry id="OE_GEN_HEP_008_Aprovado_Necrosectomia_Apos_Drenagem_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_GEN_HEP_008_Aprovado_Necrosectomia_Apos_Drenagem_5"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_GEN_HEP_008_Aprovado_Urgencia">
+        <description>Aprovado - Indicacao de urgencia (sindrome compartimental/sangramento)</description>
+        <inputEntry id="IE_Apr3_1"><text>"Sindrome_Compartimental","Sangramento","Obstrucao_Intestinal"</text></inputEntry>
+        <inputEntry id="IE_Apr3_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_Apr3_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_Apr3_4"><text>true</text></inputEntry>
+        <inputEntry id="IE_Apr3_5"><text>true</text></inputEntry>
+        <outputEntry id="OE_Apr3_1"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OE_Apr3_2"><text>"Indicacao de urgencia (sindrome compartimental, sangramento ou obstrucao) - intervencao cirurgica aprovada independente de timing. Procedimento de salvamento."</text></outputEntry>
+        <outputEntry id="OE_Apr3_3"><text>"IAP/APA 2013 - Emergency Surgical Indications"</text></outputEntry>
+      <outputEntry id="OE_GEN_HEP_008_Aprovado_Urgencia_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_GEN_HEP_008_Aprovado_Urgencia_5"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <!-- REGRAS DE PENDENCIA -->
+
+      <rule id="Rule_GEN_HEP_008_Pendente_Suspeita">
+        <description>Pendente - Necrose infectada suspeita requer confirmacao</description>
+        <inputEntry id="IE_Pend1_1"><text>"Necrose_Infectada_Suspeita"</text></inputEntry>
+        <inputEntry id="IE_Pend1_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_Pend1_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_Pend1_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_Pend1_5"><text>-</text></inputEntry>
+        <outputEntry id="OE_Pend1_1"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OE_Pend1_2"><text>"Suspeita de necrose infectada - realizar aspiracao por agulha fina guiada por TC/USG para gram e cultura antes de indicar intervencao. Ausencia de gas na TC nao exclui infeccao."</text></outputEntry>
+        <outputEntry id="OE_Pend1_3"><text>"IAP/APA 2013 - FNA Diagnosis"</text></outputEntry>
+      <outputEntry id="OE_GEN_HEP_008_Pendente_Suspeita_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_GEN_HEP_008_Pendente_Suspeita_5"><text>"SOLICITAR_INFO"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_GEN_HEP_008_Pendente_TimingPrecoce">
+        <description>Pendente - Timing precoce requer justificativa</description>
+        <inputEntry id="IE_Pend2_1"><text>"Necrose_Infectada_Confirmada"</text></inputEntry>
+        <inputEntry id="IE_Pend2_2"><text>"Menos_2_Semanas","2_4_Semanas"</text></inputEntry>
+        <inputEntry id="IE_Pend2_3"><text>"Necrosectomia_VARD","Necrosectomia_Aberta"</text></inputEntry>
+        <inputEntry id="IE_Pend2_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_Pend2_5"><text>-</text></inputEntry>
+        <outputEntry id="OE_Pend2_1"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OE_Pend2_2"><text>"Intervencao cirurgica antes de 4 semanas tem pior prognostico. Justificar razao para nao aguardar encapsulamento (WON) ou tentativa de drenagem primeiro."</text></outputEntry>
+        <outputEntry id="OE_Pend2_3"><text>"WSES 2019 - Delayed Intervention Benefits"</text></outputEntry>
+      <outputEntry id="OE_GEN_HEP_008_Pendente_TimingPrecoce_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_GEN_HEP_008_Pendente_TimingPrecoce_5"><text>"SOLICITAR_INFO"</text></outputEntry>
+      </rule>
+
+      <!-- REGRA FALLBACK -->
+
+      <rule id="Rule_GEN_HEP_008_Fallback">
+        <description>Fallback - Analise especializada em pancreatite</description>
+        <inputEntry id="IE_Fallback_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_Fallback_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_Fallback_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_Fallback_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_Fallback_5"><text>-</text></inputEntry>
+        <outputEntry id="OE_Fallback_1"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OE_Fallback_2"><text>"Caso de pancreatite grave requer analise por auditor medico especializado em pancreas/UTI."</text></outputEntry>
+        <outputEntry id="OE_Fallback_3"><text>"Auditoria especializada - RN 428/2017"</text></outputEntry>
+      <outputEntry id="OE_GEN_HEP_008_Fallback_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_GEN_HEP_008_Fallback_5"><text>"SOLICITAR_INFO"</text></outputEntry>
+      </rule>
+
+    </decisionTable>
+  </decision>
+</definitions>

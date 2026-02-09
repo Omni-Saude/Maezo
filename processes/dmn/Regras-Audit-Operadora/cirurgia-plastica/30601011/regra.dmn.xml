@@ -1,0 +1,280 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/"
+             xmlns:dc="http://www.omg.org/spec/DD/20100524/DC/"
+             xmlns:di="http://www.omg.org/spec/DD/20100524/DI/"
+             id="Definitions_30601011"
+             name="Reconstrucao Mamaria Pos-Mastectomia"
+             namespace="http://camunda.org/schema/1.0/dmn"
+             exporter="Camunda Modeler"
+             exporterVersion="5.0.0">
+  <!--
+    TUSS 30601011 - Reconstrucao mamaria pos-mastectomia
+    Versao: 3.0.0 (2026-02-07)
+    Especialidade: Cirurgia Plastica Reconstrutiva
+    Categoria: Reconstrucao Mamaria
+
+    Indicacoes Clinicas (ASPS 2024 / SBCP 2024):
+    - Pacientes submetidas a mastectomia total ou parcial por cancer de mama
+    - Mastectomia profilatica por mutacao BRCA1/BRCA2 documentada
+    - Sequelas de tratamento oncologico mamario (radioterapia, quimioterapia)
+    - Assimetria mamaria significativa pos-mastectomia unilateral
+
+    Contraindicacoes Absolutas:
+    - Doenca oncologica ativa nao controlada (tumor residual ou metastases)
+    - Expectativa de vida inferior a 12 meses
+    - Infeccao ativa no sitio cirurgico
+    - Risco cirurgico ASA V
+    - Radioterapia em andamento (aguardar minimo 6 meses pos-termino)
+
+    Documentacao Obrigatoria:
+    - Laudo histopatologico confirmando mastectomia oncologica ou profilatica
+    - Estadiamento oncologico atual (TNM)
+    - Parecer do oncologista liberando para reconstrucao
+    - Avaliacao de risco cirurgico (ASA)
+    - Fotografias clinicas pre-operatorias
+    - Consentimento informado
+
+    Referencias Normativas:
+    - ASPS Evidence-Based Clinical Practice Guideline: Breast Reconstruction (2024)
+    - Lei 12.802/2013 - Reconstrucao Mamaria pelo SUS
+    - RN 465/2021 ANS - Rol de Procedimentos
+    - DUT ANS 2024 - Diretrizes de Utilizacao
+    - SBCP 2024 - Reconstrucao Mamaria Pos-Mastectomia
+  -->
+
+  <decision id="Decision_30601011" name="Criterios de Autorizacao - Reconstrucao Mamaria Pos-Mastectomia">
+    <decisionTable id="DecisionTable_30601011" hitPolicy="FIRST">
+
+      <!-- Input 1: Condicao do Paciente -->
+      <input id="Input_condicaoPaciente" label="Condicao Clinica do Paciente">
+        <inputExpression id="InputExpr_condicaoPaciente" typeRef="string">
+          <text>condicaoPaciente</text>
+        </inputExpression>
+        <inputValues id="InputValues_condicaoPaciente">
+          <text>"mastectomia_oncologica","mastectomia_profilatica_brca","sequela_radioterapia","recidiva_local","doenca_ativa_metastatica","outro"</text>
+        </inputValues>
+      </input>
+
+      <!-- Input 2: Historico Clinico -->
+      <input id="Input_historicoClinico" label="Historico Clinico Oncologico">
+        <inputExpression id="InputExpr_historicoClinico" typeRef="string">
+          <text>historicoClinico</text>
+        </inputExpression>
+        <inputValues id="InputValues_historicoClinico">
+          <text>"tratamento_oncologico_completo","em_tratamento_adjuvante","livre_doenca_5anos","recidiva_controlada","progressao_doenca","sem_historico_oncologico"</text>
+        </inputValues>
+      </input>
+
+      <!-- Input 3: Classe de Indicacao -->
+      <input id="Input_classeIndicacao" label="Classe de Indicacao Clinica">
+        <inputExpression id="InputExpr_classeIndicacao" typeRef="string">
+          <text>classeIndicacao</text>
+        </inputExpression>
+        <inputValues id="InputValues_classeIndicacao">
+          <text>"classe_I_indicacao_absoluta","classe_II_indicacao_relativa","classe_III_beneficio_incerto","classe_IV_contraindicado"</text>
+        </inputValues>
+      </input>
+
+      <!-- Input 4: Exames Comprobatorios -->
+      <input id="Input_examesComprobatorios" label="Exames Comprobatorios Completos">
+        <inputExpression id="InputExpr_examesComprobatorios" typeRef="boolean">
+          <text>examesComprobatorios</text>
+        </inputExpression>
+      </input>
+
+      <!-- Input 5: Expectativa de Vida Superior a 1 Ano -->
+      <input id="Input_expectativaVida" label="Expectativa de Vida Superior a 1 Ano">
+        <inputExpression id="InputExpr_expectativaVida" typeRef="boolean">
+          <text>expectativaVidaSuperior1Ano</text>
+        </inputExpression>
+      </input>
+
+      <!-- Output 1: Resultado -->
+      <output id="Output_resultado" label="Resultado" name="resultado" typeRef="string">
+        <outputValues id="OutputValues_resultado">
+          <text>"Aprovado","Reprovado","Pendente"</text>
+        </outputValues>
+      </output>
+
+      <!-- Output 2: Observacao -->
+      <output id="Output_observacao" label="Observacao Clinica" name="observacao" typeRef="string" />
+
+      <!-- Output 3: Fundamentacao -->
+      <output id="Output_fundamentacao" label="Fundamentacao Legal/Tecnica" name="fundamentacao" typeRef="string" />
+
+      <output id="Output_alertasDesperdicio" name="alertasDesperdicio" typeRef="string">
+        <outputValues>
+          <text>"NENHUM","DUP","FREQ","ESC","DOC","PROT","MULTI"</text>
+        </outputValues>
+      </output>
+
+      <output id="Output_acaoRecomendada" name="acaoRecomendada" typeRef="string">
+        <outputValues>
+          <text>"APROVAR","NEGAR","SOLICITAR_INFO","AGUARDAR_PRAZO","SUGERIR_ALTERNATIVA"</text>
+        </outputValues>
+      </output>
+
+      <!-- ============================================== -->
+      <!-- REGRAS DE REPROVACAO (PRIORIDADE MAXIMA)      -->
+      <!-- ============================================== -->
+
+      <rule id="Rule_30601011_Reprovacao_DoencaAtiva">
+        <description>Reprovacao - Doenca oncologica ativa com metastases</description>
+        <inputEntry id="IE_Rep1_1"><text>"doenca_ativa_metastatica"</text></inputEntry>
+        <inputEntry id="IE_Rep1_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_Rep1_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_Rep1_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_Rep1_5"><text>-</text></inputEntry>
+        <outputEntry id="OE_Rep1_1"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OE_Rep1_2"><text>"Doenca oncologica ativa com metastases. Reconstrucao mamaria contraindicada ate controle da doenca sistemica. Priorizar tratamento oncologico."</text></outputEntry>
+        <outputEntry id="OE_Rep1_3"><text>"ASPS 2024 - Contraindicacoes para Reconstrucao Mamaria; NCCN Guidelines 2024"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_30601011_Reprovacao_ProgressaoDoenca">
+        <description>Reprovacao - Progressao de doenca oncologica</description>
+        <inputEntry id="IE_Rep2_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_Rep2_2"><text>"progressao_doenca"</text></inputEntry>
+        <inputEntry id="IE_Rep2_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_Rep2_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_Rep2_5"><text>-</text></inputEntry>
+        <outputEntry id="OE_Rep2_1"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OE_Rep2_2"><text>"Progressao documentada da doenca oncologica. Reconstrucao mamaria nao indicada em pacientes com doenca em progressao. Reavaliar apos estabilizacao."</text></outputEntry>
+        <outputEntry id="OE_Rep2_3"><text>"SBCP 2024 - Criterios de Selecao para Reconstrucao Mamaria"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_30601011_Reprovacao_ExpectativaVida">
+        <description>Reprovacao - Expectativa de vida inferior a 1 ano</description>
+        <inputEntry id="IE_Rep3_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_Rep3_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_Rep3_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_Rep3_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_Rep3_5"><text>false</text></inputEntry>
+        <outputEntry id="OE_Rep3_1"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OE_Rep3_2"><text>"Expectativa de vida inferior a 12 meses. Procedimento eletivo reconstrutivo nao indicado. Priorizar cuidados paliativos e qualidade de vida."</text></outputEntry>
+        <outputEntry id="OE_Rep3_3"><text>"ASPS 2024 - Patient Selection Criteria; Principios de Beneficencia"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_30601011_Reprovacao_ClasseIV">
+        <description>Reprovacao - Contraindicacao formal (Classe IV)</description>
+        <inputEntry id="IE_Rep4_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_Rep4_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_Rep4_3"><text>"classe_IV_contraindicado"</text></inputEntry>
+        <inputEntry id="IE_Rep4_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_Rep4_5"><text>-</text></inputEntry>
+        <outputEntry id="OE_Rep4_1"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OE_Rep4_2"><text>"Classificacao Classe IV - contraindicacao formal para reconstrucao mamaria. Risco supera beneficio potencial."</text></outputEntry>
+        <outputEntry id="OE_Rep4_3"><text>"Classificacao de Indicacao Cirurgica - Classe IV Contraindicado"</text></outputEntry>
+      </rule>
+
+      <!-- ============================================== -->
+      <!-- REGRAS DE APROVACAO                           -->
+      <!-- ============================================== -->
+
+      <rule id="Rule_30601011_Aprovacao_MastectomiaOncologica">
+        <description>Aprovacao - Mastectomia oncologica com tratamento completo</description>
+        <inputEntry id="IE_Aprov1_1"><text>"mastectomia_oncologica"</text></inputEntry>
+        <inputEntry id="IE_Aprov1_2"><text>"tratamento_oncologico_completo","livre_doenca_5anos"</text></inputEntry>
+        <inputEntry id="IE_Aprov1_3"><text>"classe_I_indicacao_absoluta","classe_II_indicacao_relativa"</text></inputEntry>
+        <inputEntry id="IE_Aprov1_4"><text>true</text></inputEntry>
+        <inputEntry id="IE_Aprov1_5"><text>true</text></inputEntry>
+        <outputEntry id="OE_Aprov1_1"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OE_Aprov1_2"><text>"Reconstrucao mamaria pos-mastectomia oncologica aprovada. Tratamento oncologico concluido, documentacao completa, expectativa de vida adequada. Direito garantido por lei."</text></outputEntry>
+        <outputEntry id="OE_Aprov1_3"><text>"Lei 12.802/2013; ASPS 2024 Breast Reconstruction Guidelines; RN 465/2021 ANS"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_30601011_Aprovacao_BRCA">
+        <description>Aprovacao - Mastectomia profilatica por mutacao BRCA</description>
+        <inputEntry id="IE_Aprov2_1"><text>"mastectomia_profilatica_brca"</text></inputEntry>
+        <inputEntry id="IE_Aprov2_2"><text>"sem_historico_oncologico","tratamento_oncologico_completo"</text></inputEntry>
+        <inputEntry id="IE_Aprov2_3"><text>"classe_I_indicacao_absoluta"</text></inputEntry>
+        <inputEntry id="IE_Aprov2_4"><text>true</text></inputEntry>
+        <inputEntry id="IE_Aprov2_5"><text>true</text></inputEntry>
+        <outputEntry id="OE_Aprov2_1"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OE_Aprov2_2"><text>"Reconstrucao mamaria apos mastectomia profilatica por mutacao BRCA1/BRCA2 aprovada. Teste genetico documentado, indicacao preventiva validada."</text></outputEntry>
+        <outputEntry id="OE_Aprov2_3"><text>"NCCN Guidelines BRCA 2024; ASPS 2024; DUT ANS 2024"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_30601011_Aprovacao_SequelaTratamento">
+        <description>Aprovacao - Sequela de tratamento oncologico</description>
+        <inputEntry id="IE_Aprov3_1"><text>"sequela_radioterapia"</text></inputEntry>
+        <inputEntry id="IE_Aprov3_2"><text>"tratamento_oncologico_completo","recidiva_controlada"</text></inputEntry>
+        <inputEntry id="IE_Aprov3_3"><text>"classe_I_indicacao_absoluta","classe_II_indicacao_relativa"</text></inputEntry>
+        <inputEntry id="IE_Aprov3_4"><text>true</text></inputEntry>
+        <inputEntry id="IE_Aprov3_5"><text>true</text></inputEntry>
+        <outputEntry id="OE_Aprov3_1"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OE_Aprov3_2"><text>"Reconstrucao mamaria por sequela de radioterapia aprovada. Tecnicas com retalho autologico recomendadas devido a comprometimento tissular por radiacao."</text></outputEntry>
+        <outputEntry id="OE_Aprov3_3"><text>"ASPS 2024 - Post-Radiation Reconstruction; SBCP 2024"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_30601011_Aprovacao_Adjuvante">
+        <description>Aprovacao - Em tratamento adjuvante estavel</description>
+        <inputEntry id="IE_Aprov4_1"><text>"mastectomia_oncologica"</text></inputEntry>
+        <inputEntry id="IE_Aprov4_2"><text>"em_tratamento_adjuvante"</text></inputEntry>
+        <inputEntry id="IE_Aprov4_3"><text>"classe_II_indicacao_relativa"</text></inputEntry>
+        <inputEntry id="IE_Aprov4_4"><text>true</text></inputEntry>
+        <inputEntry id="IE_Aprov4_5"><text>true</text></inputEntry>
+        <outputEntry id="OE_Aprov4_1"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OE_Aprov4_2"><text>"Reconstrucao mamaria aprovada durante tratamento adjuvante hormonal. Quimioterapia deve estar concluida. Coordenar com equipe oncologica."</text></outputEntry>
+        <outputEntry id="OE_Aprov4_3"><text>"ASPS 2024 - Timing of Reconstruction; Consenso Brasileiro Mastologia 2024"</text></outputEntry>
+      </rule>
+
+      <!-- ============================================== -->
+      <!-- REGRAS DE PENDENCIA                           -->
+      <!-- ============================================== -->
+
+      <rule id="Rule_30601011_Pendente_SemExames">
+        <description>Pendente - Documentacao incompleta</description>
+        <inputEntry id="IE_Pend1_1"><text>"mastectomia_oncologica","mastectomia_profilatica_brca","sequela_radioterapia"</text></inputEntry>
+        <inputEntry id="IE_Pend1_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_Pend1_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_Pend1_4"><text>false</text></inputEntry>
+        <inputEntry id="IE_Pend1_5"><text>true</text></inputEntry>
+        <outputEntry id="OE_Pend1_1"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OE_Pend1_2"><text>"Documentacao incompleta. Anexar: laudo histopatologico, estadiamento TNM, parecer oncologista, avaliacao risco cirurgico (ASA), fotografias clinicas."</text></outputEntry>
+        <outputEntry id="OE_Pend1_3"><text>"RN 465/2021 Art. 5 - Documentacao Minima Obrigatoria"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_30601011_Pendente_ClasseIII">
+        <description>Pendente - Beneficio incerto requer avaliacao</description>
+        <inputEntry id="IE_Pend2_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_Pend2_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_Pend2_3"><text>"classe_III_beneficio_incerto"</text></inputEntry>
+        <inputEntry id="IE_Pend2_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_Pend2_5"><text>true</text></inputEntry>
+        <outputEntry id="OE_Pend2_1"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OE_Pend2_2"><text>"Classificacao Classe III - beneficio incerto. Encaminhar para Junta Medica com parecer de cirurgiao plastico e oncologista para decisao colegiada."</text></outputEntry>
+        <outputEntry id="OE_Pend2_3"><text>"RN 424/2017 - Junta Medica; Principios de Proporcionalidade Terapeutica"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_30601011_Pendente_RecidivaLocal">
+        <description>Pendente - Recidiva local requer avaliacao oncologica</description>
+        <inputEntry id="IE_Pend3_1"><text>"recidiva_local"</text></inputEntry>
+        <inputEntry id="IE_Pend3_2"><text>"recidiva_controlada"</text></inputEntry>
+        <inputEntry id="IE_Pend3_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_Pend3_4"><text>true</text></inputEntry>
+        <inputEntry id="IE_Pend3_5"><text>true</text></inputEntry>
+        <outputEntry id="OE_Pend3_1"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OE_Pend3_2"><text>"Recidiva local controlada. Necessario parecer atualizado do oncologista (< 30 dias) confirmando ausencia de doenca ativa e liberacao para procedimento."</text></outputEntry>
+        <outputEntry id="OE_Pend3_3"><text>"NCCN Guidelines 2024 - Follow-up After Local Recurrence"</text></outputEntry>
+      </rule>
+
+      <!-- ============================================== -->
+      <!-- REGRA FALLBACK                                -->
+      <!-- ============================================== -->
+
+      <rule id="Rule_Fallback_30601011">
+        <description>Regra padrao - Casos nao cobertos requerem analise por auditor especializado</description>
+        <inputEntry id="IE_Fallback_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_Fallback_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_Fallback_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_Fallback_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_Fallback_5"><text>-</text></inputEntry>
+        <outputEntry id="OE_Fallback_1"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OE_Fallback_2"><text>"Caso nao enquadrado nos criterios automaticos. Encaminhar para auditoria medica especializada em cirurgia plastica reconstrutiva."</text></outputEntry>
+        <outputEntry id="OE_Fallback_3"><text>"RN 428/2017 - Auditoria Medica; Lei 12.802/2013 - Direito a Reconstrucao Mamaria"</text></outputEntry>
+      </rule>
+
+    </decisionTable>
+  </decision>
+</definitions>

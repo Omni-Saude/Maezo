@@ -1,0 +1,245 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Versao: 3.1.0-LEAN-TIER2 (2026-02-08) -->
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/" xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/" xmlns:dc="http://www.omg.org/spec/DMN/20180521/DC/" xmlns:modeler="http://camunda.org/schema/modeler/1.0" id="Definitions_ONQ_BIO_008" name="DRD" namespace="http://camunda.org/schema/1.0/dmn" exporter="Camunda Modeler" exporterVersion="5.14.0" modeler:executionPlatform="Camunda Cloud" modeler:executionPlatformVersion="8.2.0">
+  <decision id="Decision_ONQ_BIO_008" name="ONQ-BIO-008: BCR-ABL for CML [LEAN TIER-2]">
+    <decisionTable id="DecisionTable_ONQ_BIO_008" hitPolicy="FIRST">
+      <input id="Input_diagnosis" label="Diagnosis">
+        <inputExpression id="InputExpression_diagnosis" typeRef="string">
+          <text>diagnosis</text>
+        </inputExpression>
+      </input>
+      <input id="Input_test_type" label="Test Type">
+        <inputExpression id="InputExpression_test_type" typeRef="string">
+          <text>testType</text>
+        </inputExpression>
+      </input>
+      <input id="Input_treatment_phase" label="Treatment Phase">
+        <inputExpression id="InputExpression_treatment_phase" typeRef="string">
+          <text>treatmentPhase</text>
+        </inputExpression>
+      </input>
+      <!-- Input: Dias desde ultimo procedimento (DUP detection) -->
+      <input id="Input_ultimoProcedimentoDias" label="Dias Desde Ultimo Procedimento">
+        <inputExpression id="InputExpression_ultimoProcedimentoDias" typeRef="number">
+          <text>ultimoProcedimentoDias</text>
+        </inputExpression>
+      </input>
+
+      <output id="Output_resultado" label="Resultado" name="resultado" typeRef="string">
+        <outputValues id="UnaryTests_resultado">
+          <text>"Aprovado","Reprovado","Pendente"</text>
+        </outputValues>
+      </output>
+      <output id="Output_observacao" label="Observação" name="observacao" typeRef="string" />
+      <output id="Output_fundamentacao" label="Fundamentação" name="fundamentacao" typeRef="string" />
+      <output id="Output_alertasDesperdicio" label="Alertas de Desperdicio" name="alertasDesperdicio" typeRef="string">
+        <outputValues id="OutputValues_alertasDesperdicio">
+          <text>"NENHUM","DUP","FREQ","ESC","DOC","PROT","MULTI"</text>
+        </outputValues>
+      </output>
+      <output id="Output_acaoRecomendada" label="Acao Recomendada" name="acaoRecomendada" typeRef="string">
+        <outputValues id="OutputValues_acaoRecomendada">
+          <text>"APROVAR","NEGAR","SOLICITAR_INFO","AGUARDAR_PRAZO","SUGERIR_ALTERNATIVA"</text>
+        </outputValues>
+      </output>
+      <rule id="DecisionRule_reject_wrong_diagnosis">
+        <inputEntry id="InputEntry_diagnosis_reject">
+          <text>not("CML","suspected_CML")</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_test_type_reject">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_treatment_phase_reject">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="IE_DecisionRule_reject_wrong_diagnosis_ultimo"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_resultado_reject">
+          <text>"Reprovado"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_observacao_reject">
+          <text>"Teste BCR-ABL nao indicado para diagnostico nao-CML"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_fundamentacao_reject">
+          <text>"Fusao BCR-ABL e patognomonica para CML (presente em 95% dos casos segundo WHO)"</text>
+        </outputEntry>
+        <outputEntry id="OE_reject_alertasDesperdicio">
+          <text>"PROT"</text>
+        </outputEntry>
+        <outputEntry id="OE_reject_acaoRecomendada">
+          <text>"NEGAR"</text>
+        </outputEntry>
+      </rule>
+
+      <!-- WASTE DETECTION: DUP -->
+      <rule id="Rule_40501302_DUP">
+        <description>DUP - Reteste BCR-ABL em menos de 90 dias</description>
+        <inputEntry id="IE_DUP_40501302_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_DUP_40501302_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_DUP_40501302_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_DUP_40501302_ultimo"><text>&lt; 90</text></inputEntry>
+        <outputEntry id="OE_DUP_40501302_resultado"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OE_DUP_40501302_observacao"><text>"Reteste BCR-ABL em menos de 90 dias"</text></outputEntry>
+        <outputEntry id="OE_DUP_40501302_fundamentacao"><text>"NCCN CML 2024: Monitoramento BCR-ABL a cada 3 meses minimo"</text></outputEntry>
+        <outputEntry id="OE_DUP_40501302_alertasDesperdicio"><text>"DUP"</text></outputEntry>
+        <outputEntry id="OE_DUP_40501302_acaoRecomendada"><text>"AGUARDAR_PRAZO"</text></outputEntry>
+      </rule>
+
+      <!-- WASTE DETECTION: FREQ -->
+      <rule id="Rule_40501302_FREQ">
+        <description>FREQ - Monitoramento BCR-ABL muito frequente em resposta molecular maior</description>
+        <inputEntry id="IE_FREQ_40501302_1"><text>"CML"</text></inputEntry>
+        <inputEntry id="IE_FREQ_40501302_2"><text>"quantitative_RT-PCR"</text></inputEntry>
+        <inputEntry id="IE_FREQ_40501302_3"><text>"monitoring"</text></inputEntry>
+        <inputEntry id="IE_FREQ_40501302_ultimo"><text>&lt; 180</text></inputEntry>
+        <outputEntry id="OE_FREQ_40501302_resultado"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OE_FREQ_40501302_observacao"><text>"Paciente com MMR: monitoramento a cada 6 meses suficiente"</text></outputEntry>
+        <outputEntry id="OE_FREQ_40501302_fundamentacao"><text>"ELN 2020: Apos MMR, monitoramento a cada 6 meses adequado"</text></outputEntry>
+        <outputEntry id="OE_FREQ_40501302_alertasDesperdicio"><text>"FREQ"</text></outputEntry>
+        <outputEntry id="OE_FREQ_40501302_acaoRecomendada"><text>"AGUARDAR_PRAZO"</text></outputEntry>
+      </rule>
+
+      <rule id="DecisionRule_approve_diagnostic">
+        <inputEntry id="InputEntry_diagnosis_diagnostic">
+          <text>"suspected_CML"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_test_type_diagnostic">
+          <text>"qualitative_PCR","FISH","cytogenetics"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_treatment_phase_diagnostic">
+          <text>"diagnostic"</text>
+        </inputEntry>
+        <inputEntry id="IE_DecisionRule_approve_diagnostic_ultimo"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_resultado_diagnostic">
+          <text>"Aprovado"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_observacao_diagnostic">
+          <text>"Teste diagnostico BCR-ABL aprovado. Deteccao qualitativa requerida para diagnostico de CML"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_fundamentacao_diagnostic">
+          <text>"Cromossomo Ph/BCR-ABL1 requerido para diagnostico de CML segundo diretrizes NCCN/SBHH 2024"</text>
+        </outputEntry>
+        <outputEntry id="OE_diagnostic_alertasDesperdicio">
+          <text>"NENHUM"</text>
+        </outputEntry>
+        <outputEntry id="OE_diagnostic_acaoRecomendada">
+          <text>"APROVAR"</text>
+        </outputEntry>
+      </rule>
+      <rule id="DecisionRule_approve_monitoring">
+        <inputEntry id="InputEntry_diagnosis_monitoring">
+          <text>"CML"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_test_type_monitoring">
+          <text>"quantitative_RT-PCR"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_treatment_phase_monitoring">
+          <text>"on_TKI","monitoring"</text>
+        </inputEntry>
+        <inputEntry id="IE_DecisionRule_approve_monitoring_ultimo"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_resultado_monitoring">
+          <text>"Aprovado"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_observacao_monitoring">
+          <text>"Monitoramento quantitativo de BCR-ABL1 IS% aprovado (trimestral ate RMM, depois semestral)"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_fundamentacao_monitoring">
+          <text>"Monitoramento molecular requerido conforme recomendacoes ELN 2020 para detectar falha/resistencia ao tratamento"</text>
+        </outputEntry>
+        <outputEntry id="OE_monitoring_alertasDesperdicio">
+          <text>"NENHUM"</text>
+        </outputEntry>
+        <outputEntry id="OE_monitoring_acaoRecomendada">
+          <text>"APROVAR"</text>
+        </outputEntry>
+      </rule>
+      <rule id="DecisionRule_approve_resistance">
+        <inputEntry id="InputEntry_diagnosis_resistance">
+          <text>"CML"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_test_type_resistance">
+          <text>"mutation_analysis"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_treatment_phase_resistance">
+          <text>"resistance","failure"</text>
+        </inputEntry>
+        <inputEntry id="IE_DecisionRule_approve_resistance_ultimo"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_resultado_resistance">
+          <text>"Aprovado"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_observacao_resistance">
+          <text>"Analise de mutacoes no dominio quinase de BCR-ABL1 aprovada para resistencia a TKI"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_fundamentacao_resistance">
+          <text>"Rastreamento de mutacoes (T315I, F317L, etc.) orienta selecao de TKI de segunda linha conforme NCCN 2024"</text>
+        </outputEntry>
+        <outputEntry id="OE_resistance_alertasDesperdicio">
+          <text>"NENHUM"</text>
+        </outputEntry>
+        <outputEntry id="OE_resistance_acaoRecomendada">
+          <text>"APROVAR"</text>
+        </outputEntry>
+      </rule>
+      <rule id="DecisionRule_pending">
+        <inputEntry id="InputEntry_diagnosis_pending">
+          <text>"CML","suspected_CML"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_test_type_pending">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_treatment_phase_pending">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="IE_DecisionRule_pending_ultimo"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_resultado_pending">
+          <text>"Pendente"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_observacao_pending">
+          <text>"Tipo de teste e fase de tratamento requeridos. Especificar qualitativo (diagnostico) ou quantitativo (monitoramento)"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_fundamentacao_pending">
+          <text>"Indicacao do teste depende do contexto clinico segundo diretrizes ELN/NCCN 2024"</text>
+        </outputEntry>
+        <outputEntry id="OE_pending_alertasDesperdicio">
+          <text>"DOC"</text>
+        </outputEntry>
+        <outputEntry id="OE_pending_acaoRecomendada">
+          <text>"SOLICITAR_INFO"</text>
+        </outputEntry>
+      </rule>
+      <rule id="DecisionRule_fallback">
+        <inputEntry id="InputEntry_diagnosis_fallback">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_test_type_fallback">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_treatment_phase_fallback">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="IE_DecisionRule_fallback_ultimo"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_resultado_fallback">
+          <text>"Pendente"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_observacao_fallback">
+          <text>"Informacoes clinicas insuficientes para autorizacao do teste BCR-ABL"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_fundamentacao_fallback">
+          <text>"Consulta hematologica recomendada para estrategia apropriada de teste"</text>
+        </outputEntry>
+        <outputEntry id="OE_fallback_alertasDesperdicio">
+          <text>"NENHUM"</text>
+        </outputEntry>
+        <outputEntry id="OE_fallback_acaoRecomendada">
+          <text>"SOLICITAR_INFO"</text>
+        </outputEntry>
+      </rule>
+    </decisionTable>
+  </decision>
+  <dmndi:DMNDI>
+    <dmndi:DMNDiagram>
+      <dmndi:DMNShape dmnElementRef="Decision_ONQ_BIO_008">
+        <dc:Bounds height="80" width="180" x="160" y="100" />
+      </dmndi:DMNShape>
+    </dmndi:DMNDiagram>
+  </dmndi:DMNDI>
+</definitions>

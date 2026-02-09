@@ -1,0 +1,355 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             xmlns:camunda="http://camunda.org/schema/1.0/dmn"
+             id="Definitions_30803115"
+             name="TOR-LUN-006 Cirurgia Redutora de Volume Pulmonar"
+             namespace="http://camunda.org/schema/1.0/dmn">
+
+  <!--
+    ===============================================================================
+    TUSS: 30803115
+    Procedimento: Cirurgia Redutora de Volume Pulmonar (LVRS)
+    Especialidade: Cirurgia Toracica
+    Codigo Regra: TOR-LUN-006
+    Versao: 3.0.0-LEAN-TIER2
+    Data: 2026-02-07
+    ===============================================================================
+
+    INDICACOES CLINICAS (Criterios NETT - National Emphysema Treatment Trial):
+    - DPOC grave com enfisema (VEF1 20-45% do previsto)
+    - Hiperinsuflacao pulmonar (CPT maior 100%, VR maior 150%)
+    - Enfisema heterogeneo com predomínio em lobos superiores
+    - Capacidade de exercicio limitada (6MWT maior 140m)
+    - Nao fumante ha pelo menos 4-6 meses
+    - Falha de tratamento clinico otimizado
+    - Reabilitacao pulmonar previa (minimo 6-10 semanas)
+
+    CONTRAINDICACOES (Alto Risco - NETT):
+    - VEF1 menor 20% E DLCO menor 20% OU enfisema homogeneo
+    - Enfisema homogeneo com baixa capacidade de exercicio
+    - Hipercapnia significativa (PaCO2 maior 55-60 mmHg)
+    - Hipertensao pulmonar grave (PAPm maior 35 mmHg)
+    - Insuficiencia cardiaca ou coronariopatia grave
+    - Outras comorbidades limitantes (cirrose, insuficiencia renal)
+    - Fumante ativo
+    - Nao aderencia a reabilitacao pulmonar
+
+    REFERENCIAS TECNICAS:
+    - NETT Trial (NEJM 2003) - Criterios de Selecao
+    - GOLD Guidelines 2024 - DPOC
+    - ATS/ERS Statement on LVRS
+    - SBPT/SBCT 2023 - Tratamento Cirurgico da DPOC
+    ===============================================================================
+  -->
+
+  <decision id="Decision_30803115" name="Regra Clinica - LVRS (Cirurgia Redutora Volume)">
+    <decisionTable id="DecisionTable_30803115" hitPolicy="FIRST">
+
+      <!-- ========== INPUTS (5) - Padrao TIER-1 Cirurgia Toracica ========== -->
+
+      <input id="Input_diagnosticoPulmonar" label="Caracterizacao do Enfisema" camunda:inputVariable="diagnosticoPulmonar">
+        <inputExpression id="InputExpression_diagnosticoPulmonar" typeRef="string">
+          <text>diagnosticoPulmonar</text>
+        </inputExpression>
+        <inputValues id="InputValues_diagnosticoPulmonar">
+          <text>"HETEROGENEO_LOBOS_SUPERIORES","HETEROGENEO_LOBOS_INFERIORES","HOMOGENEO","NAO_CARACTERIZADO"</text>
+        </inputValues>
+      </input>
+
+      <input id="Input_estadiamentoTNM" label="Funcao Pulmonar (VEF1/DLCO)" camunda:inputVariable="estadiamentoTNM">
+        <inputExpression id="InputExpression_estadiamentoTNM" typeRef="string">
+          <text>estadiamentoTNM</text>
+        </inputExpression>
+        <inputValues id="InputValues_estadiamentoTNM">
+          <text>"VEF1_20_45_DLCO_MAIOR_20","VEF1_MENOR_20_DLCO_MAIOR_20","VEF1_20_45_DLCO_MENOR_20","VEF1_MENOR_20_DLCO_MENOR_20","NAO_AVALIADO"</text>
+        </inputValues>
+      </input>
+
+      <input id="Input_funcaoPulmonar" label="Hiperinsuflacao e Gasometria" camunda:inputVariable="funcaoPulmonar">
+        <inputExpression id="InputExpression_funcaoPulmonar" typeRef="string">
+          <text>funcaoPulmonar</text>
+        </inputExpression>
+        <inputValues id="InputValues_funcaoPulmonar">
+          <text>"HIPERINSUFLADO_NORMOCAPNIA","HIPERINSUFLADO_HIPERCAPNIA_LEVE","HIPERCAPNIA_GRAVE","SEM_HIPERINSUFLACAO","NAO_AVALIADA"</text>
+        </inputValues>
+      </input>
+
+      <input id="Input_comorbidades" label="Comorbidades e Status de Tabagismo" camunda:inputVariable="comorbidades">
+        <inputExpression id="InputExpression_comorbidades" typeRef="string">
+          <text>comorbidades</text>
+        </inputExpression>
+        <inputValues id="InputValues_comorbidades">
+          <text>"SEM_COMORBIDADES_GRAVES_NAO_FUMANTE","NAO_FUMANTE_COMORBIDADES_LEVES","COMORBIDADES_GRAVES","FUMANTE_ATIVO","HAP_GRAVE"</text>
+        </inputValues>
+      </input>
+
+      <input id="Input_documentacaoClinica" label="Reabilitacao Pulmonar e Documentacao" camunda:inputVariable="documentacaoClinica">
+        <inputExpression id="InputExpression_documentacaoClinica" typeRef="string">
+          <text>documentacaoClinica</text>
+        </inputExpression>
+        <inputValues id="InputValues_documentacaoClinica">
+          <text>"COMPLETA_COM_REAB_6SEM","COMPLETA_SEM_REAB","PARCIAL_SEM_TC_QUANTITATIVA","INCOMPLETA"</text>
+        </inputValues>
+      </input>
+
+      <!-- ========== OUTPUTS (3) - Padrao TIER-1 ========== -->
+
+      <output id="Output_resultado" label="Resultado" name="resultado" typeRef="string">
+        <outputValues id="OutputValues_resultado">
+          <text>"Aprovado","Reprovado","Pendente"</text>
+        </outputValues>
+      </output>
+
+      <output id="Output_observacao" label="Observacao Clinica" name="observacao" typeRef="string" />
+
+      <output id="Output_fundamentacao" label="Fundamentacao Tecnica" name="fundamentacao" typeRef="string" />
+
+      <output id="Output_alertasDesperdicio" name="alertasDesperdicio" typeRef="string">
+        <outputValues>
+          <text>"NENHUM","DUP","FREQ","ESC","DOC","PROT","MULTI"</text>
+        </outputValues>
+      </output>
+
+      <output id="Output_acaoRecomendada" name="acaoRecomendada" typeRef="string">
+        <outputValues>
+          <text>"APROVAR","NEGAR","SOLICITAR_INFO","AGUARDAR_PRAZO","SUGERIR_ALTERNATIVA"</text>
+        </outputValues>
+      </output>
+
+      <!-- ========== REGRAS - Ordem: Reprovado, Aprovado, Pendente, Fallback ========== -->
+
+      <!-- REPROVACOES (Alto Risco NETT) -->
+
+      <rule id="Rule_Reprovado_AltoRisco_NETT">
+        <description>Reprovado: Grupo de alto risco NETT (VEF1 menor 20% + DLCO menor 20%)</description>
+        <inputEntry id="InputEntry_Rep_NETT_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Rep_NETT_2"><text>"VEF1_MENOR_20_DLCO_MENOR_20"</text></inputEntry>
+        <inputEntry id="InputEntry_Rep_NETT_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Rep_NETT_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Rep_NETT_5"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_Rep_NETT_resultado"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_Rep_NETT_observacao"><text>"LVRS contraindicada - criterio de alto risco NETT. VEF1 menor 20% com DLCO menor 20% apresenta mortalidade operatoria inaceitavel."</text></outputEntry>
+        <outputEntry id="OutputEntry_Rep_NETT_fundamentacao"><text>"NETT Trial 2003: Subgrupo com VEF1 menor 20% e DLCO menor 20% teve mortalidade 30 dias de 16% vs 0% no grupo controle. LVRS contraindicada."</text></outputEntry>
+        <outputEntry id="OutputEntry_Reprovado_AltoRisco_NETT_alertasDesperdicio"><text>"PROT"</text></outputEntry>
+        <outputEntry id="OutputEntry_Reprovado_AltoRisco_NETT_acaoRecomendada"><text>"NEGAR"</text></outputEntry>
+        <outputEntry id="OutputEntry_Reprovado_AltoRisco_NETT_alertasDesperdicio"><text>"PROT"</text></outputEntry>
+        <outputEntry id="OutputEntry_Reprovado_AltoRisco_NETT_acaoRecomendada"><text>"NEGAR"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Reprovado_Homogeneo_AltoRisco">
+        <description>Reprovado: Enfisema homogeneo com funcao muito reduzida</description>
+        <inputEntry id="InputEntry_Rep_Homo_1"><text>"HOMOGENEO"</text></inputEntry>
+        <inputEntry id="InputEntry_Rep_Homo_2"><text>"VEF1_MENOR_20_DLCO_MAIOR_20","VEF1_MENOR_20_DLCO_MENOR_20"</text></inputEntry>
+        <inputEntry id="InputEntry_Rep_Homo_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Rep_Homo_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Rep_Homo_5"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_Rep_Homo_resultado"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_Rep_Homo_observacao"><text>"LVRS contraindicada - enfisema homogeneo com funcao gravemente reduzida. Grupo de alto risco sem beneficio de sobrevida."</text></outputEntry>
+        <outputEntry id="OutputEntry_Rep_Homo_fundamentacao"><text>"NETT: Enfisema homogeneo com baixa capacidade de exercicio nao beneficia de LVRS. Considerar transplante pulmonar."</text></outputEntry>
+        <outputEntry id="OutputEntry_Reprovado_Homogeneo_AltoRisco_alertasDesperdicio"><text>"PROT"</text></outputEntry>
+        <outputEntry id="OutputEntry_Reprovado_Homogeneo_AltoRisco_acaoRecomendada"><text>"NEGAR"</text></outputEntry>
+        <outputEntry id="OutputEntry_Reprovado_Homogeneo_AltoRisco_alertasDesperdicio"><text>"PROT"</text></outputEntry>
+        <outputEntry id="OutputEntry_Reprovado_Homogeneo_AltoRisco_acaoRecomendada"><text>"NEGAR"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Reprovado_Hipercapnia_Grave">
+        <description>Reprovado: Hipercapnia grave (PaCO2 maior 55-60 mmHg)</description>
+        <inputEntry id="InputEntry_Rep_CO2_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Rep_CO2_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Rep_CO2_3"><text>"HIPERCAPNIA_GRAVE"</text></inputEntry>
+        <inputEntry id="InputEntry_Rep_CO2_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Rep_CO2_5"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_Rep_CO2_resultado"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_Rep_CO2_observacao"><text>"LVRS contraindicada - hipercapnia grave indica insuficiencia respiratoria avancada com alto risco de falencia pos-operatoria."</text></outputEntry>
+        <outputEntry id="OutputEntry_Rep_CO2_fundamentacao"><text>"NETT, ATS/ERS: PaCO2 maior 55-60 mmHg e criterio de exclusao para LVRS. Risco de dependencia ventilatoria pos-operatoria."</text></outputEntry>
+        <outputEntry id="OutputEntry_Reprovado_Hipercapnia_Grave_alertasDesperdicio"><text>"PROT"</text></outputEntry>
+        <outputEntry id="OutputEntry_Reprovado_Hipercapnia_Grave_acaoRecomendada"><text>"NEGAR"</text></outputEntry>
+        <outputEntry id="OutputEntry_Reprovado_Hipercapnia_Grave_alertasDesperdicio"><text>"PROT"</text></outputEntry>
+        <outputEntry id="OutputEntry_Reprovado_Hipercapnia_Grave_acaoRecomendada"><text>"NEGAR"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Reprovado_HAP_Grave">
+        <description>Reprovado: Hipertensao arterial pulmonar grave</description>
+        <inputEntry id="InputEntry_Rep_HAP_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Rep_HAP_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Rep_HAP_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Rep_HAP_4"><text>"HAP_GRAVE"</text></inputEntry>
+        <inputEntry id="InputEntry_Rep_HAP_5"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_Rep_HAP_resultado"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_Rep_HAP_observacao"><text>"LVRS contraindicada - hipertensao pulmonar grave (PAPm maior 35 mmHg). Risco de insuficiencia ventricular direita pos-operatoria."</text></outputEntry>
+        <outputEntry id="OutputEntry_Rep_HAP_fundamentacao"><text>"NETT, SBPT: HAP grave e contraindicacao absoluta. Cateterismo direito obrigatorio na avaliacao pre-operatoria."</text></outputEntry>
+        <outputEntry id="OutputEntry_Reprovado_HAP_Grave_alertasDesperdicio"><text>"PROT"</text></outputEntry>
+        <outputEntry id="OutputEntry_Reprovado_HAP_Grave_acaoRecomendada"><text>"NEGAR"</text></outputEntry>
+        <outputEntry id="OutputEntry_Reprovado_HAP_Grave_alertasDesperdicio"><text>"PROT"</text></outputEntry>
+        <outputEntry id="OutputEntry_Reprovado_HAP_Grave_acaoRecomendada"><text>"NEGAR"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Reprovado_Fumante">
+        <description>Reprovado: Fumante ativo</description>
+        <inputEntry id="InputEntry_Rep_Fum_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Rep_Fum_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Rep_Fum_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Rep_Fum_4"><text>"FUMANTE_ATIVO"</text></inputEntry>
+        <inputEntry id="InputEntry_Rep_Fum_5"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_Rep_Fum_resultado"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_Rep_Fum_observacao"><text>"LVRS contraindicada em fumante ativo. Cessacao de tabagismo por minimo 4-6 meses e obrigatoria."</text></outputEntry>
+        <outputEntry id="OutputEntry_Rep_Fum_fundamentacao"><text>"NETT, GOLD 2024: Tabagismo ativo anula beneficios da LVRS e aumenta complicacoes. Cessacao documentada e pre-requisito."</text></outputEntry>
+        <outputEntry id="OutputEntry_Reprovado_Fumante_alertasDesperdicio"><text>"PROT"</text></outputEntry>
+        <outputEntry id="OutputEntry_Reprovado_Fumante_acaoRecomendada"><text>"NEGAR"</text></outputEntry>
+        <outputEntry id="OutputEntry_Reprovado_Fumante_alertasDesperdicio"><text>"PROT"</text></outputEntry>
+        <outputEntry id="OutputEntry_Reprovado_Fumante_acaoRecomendada"><text>"NEGAR"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Reprovado_ComorbidadesGraves">
+        <description>Reprovado: Comorbidades graves limitantes</description>
+        <inputEntry id="InputEntry_Rep_Comorb_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Rep_Comorb_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Rep_Comorb_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Rep_Comorb_4"><text>"COMORBIDADES_GRAVES"</text></inputEntry>
+        <inputEntry id="InputEntry_Rep_Comorb_5"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_Rep_Comorb_resultado"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_Rep_Comorb_observacao"><text>"LVRS contraindicada - comorbidades graves (ICC, cirrose, IRC, coronariopatia). Risco cirurgico proibitivo."</text></outputEntry>
+        <outputEntry id="OutputEntry_Rep_Comorb_fundamentacao"><text>"NETT: Comorbidades significativas aumentam mortalidade e anulam beneficios funcionais. Avaliacao cardiovascular rigorosa obrigatoria."</text></outputEntry>
+        <outputEntry id="OutputEntry_Reprovado_ComorbidadesGraves_alertasDesperdicio"><text>"PROT"</text></outputEntry>
+        <outputEntry id="OutputEntry_Reprovado_ComorbidadesGraves_acaoRecomendada"><text>"NEGAR"</text></outputEntry>
+        <outputEntry id="OutputEntry_Reprovado_ComorbidadesGraves_alertasDesperdicio"><text>"PROT"</text></outputEntry>
+        <outputEntry id="OutputEntry_Reprovado_ComorbidadesGraves_acaoRecomendada"><text>"NEGAR"</text></outputEntry>
+      </rule>
+
+      <!-- APROVACOES -->
+
+      <rule id="Rule_Aprovado_Ideal_Superior">
+        <description>Aprovado: Candidato ideal - enfisema heterogeneo de lobos superiores</description>
+        <inputEntry id="InputEntry_Apr_Ideal_1"><text>"HETEROGENEO_LOBOS_SUPERIORES"</text></inputEntry>
+        <inputEntry id="InputEntry_Apr_Ideal_2"><text>"VEF1_20_45_DLCO_MAIOR_20"</text></inputEntry>
+        <inputEntry id="InputEntry_Apr_Ideal_3"><text>"HIPERINSUFLADO_NORMOCAPNIA"</text></inputEntry>
+        <inputEntry id="InputEntry_Apr_Ideal_4"><text>"SEM_COMORBIDADES_GRAVES_NAO_FUMANTE"</text></inputEntry>
+        <inputEntry id="InputEntry_Apr_Ideal_5"><text>"COMPLETA_COM_REAB_6SEM"</text></inputEntry>
+        <outputEntry id="OutputEntry_Apr_Ideal_resultado"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_Apr_Ideal_observacao"><text>"LVRS aprovada - candidato ideal NETT. Enfisema heterogeneo de lobos superiores com reabilitacao completada. Melhor subgrupo para beneficio."</text></outputEntry>
+        <outputEntry id="OutputEntry_Apr_Ideal_fundamentacao"><text>"NETT 2003: Enfisema lobo superior + baixa capacidade exercicio tem melhor beneficio de sobrevida (54% vs 39% em 5 anos). Indicacao classe I."</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprovado_Ideal_Superior_alertasDesperdicio"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprovado_Ideal_Superior_acaoRecomendada"><text>"APROVAR"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprovado_Ideal_Superior_alertasDesperdicio"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprovado_Ideal_Superior_acaoRecomendada"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Aprovado_Superior_Hipercapnia_Leve">
+        <description>Aprovado: Lobos superiores com hipercapnia leve controlada</description>
+        <inputEntry id="InputEntry_Apr_HipLev_1"><text>"HETEROGENEO_LOBOS_SUPERIORES"</text></inputEntry>
+        <inputEntry id="InputEntry_Apr_HipLev_2"><text>"VEF1_20_45_DLCO_MAIOR_20"</text></inputEntry>
+        <inputEntry id="InputEntry_Apr_HipLev_3"><text>"HIPERINSUFLADO_HIPERCAPNIA_LEVE"</text></inputEntry>
+        <inputEntry id="InputEntry_Apr_HipLev_4"><text>"SEM_COMORBIDADES_GRAVES_NAO_FUMANTE","NAO_FUMANTE_COMORBIDADES_LEVES"</text></inputEntry>
+        <inputEntry id="InputEntry_Apr_HipLev_5"><text>"COMPLETA_COM_REAB_6SEM"</text></inputEntry>
+        <outputEntry id="OutputEntry_Apr_HipLev_resultado"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_Apr_HipLev_observacao"><text>"LVRS aprovada com ressalvas. Hipercapnia leve (PaCO2 45-55) nao e contraindicacao absoluta em candidatos favoraveis."</text></outputEntry>
+        <outputEntry id="OutputEntry_Apr_HipLev_fundamentacao"><text>"ATS/ERS, SBPT: Hipercapnia leve pode melhorar apos LVRS pela reducao de hiperinsuflacao. Monitoracao pos-operatoria intensiva."</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprovado_Superior_Hipercapnia_Leve_alertasDesperdicio"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprovado_Superior_Hipercapnia_Leve_acaoRecomendada"><text>"APROVAR"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprovado_Superior_Hipercapnia_Leve_alertasDesperdicio"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprovado_Superior_Hipercapnia_Leve_acaoRecomendada"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <!-- PENDENCIAS -->
+
+      <rule id="Rule_Pendente_SemReabilitacao">
+        <description>Pendente: Reabilitacao pulmonar nao completada</description>
+        <inputEntry id="InputEntry_Pend_Reab_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Pend_Reab_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Pend_Reab_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Pend_Reab_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Pend_Reab_5"><text>"COMPLETA_SEM_REAB"</text></inputEntry>
+        <outputEntry id="OutputEntry_Pend_Reab_resultado"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OutputEntry_Pend_Reab_observacao"><text>"Reabilitacao pulmonar obrigatoria antes de LVRS. Programa de minimo 6-10 semanas para otimizar condicao pre-operatoria."</text></outputEntry>
+        <outputEntry id="OutputEntry_Pend_Reab_fundamentacao"><text>"NETT, GOLD 2024: Reabilitacao pre-operatoria e criterio de inclusao. Melhora desfechos e permite selecao de pacientes comprometidos."</text></outputEntry>
+        <outputEntry id="OutputEntry_Pendente_SemReabilitacao_alertasDesperdicio"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_Pendente_SemReabilitacao_acaoRecomendada"><text>"SOLICITAR_INFO"</text></outputEntry>
+        <outputEntry id="OutputEntry_Pendente_SemReabilitacao_alertasDesperdicio"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_Pendente_SemReabilitacao_acaoRecomendada"><text>"SOLICITAR_INFO"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Pendente_SemTC_Quantitativa">
+        <description>Pendente: TC quantitativa nao realizada</description>
+        <inputEntry id="InputEntry_Pend_TC_1"><text>"NAO_CARACTERIZADO"</text></inputEntry>
+        <inputEntry id="InputEntry_Pend_TC_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Pend_TC_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Pend_TC_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Pend_TC_5"><text>"PARCIAL_SEM_TC_QUANTITATIVA"</text></inputEntry>
+        <outputEntry id="OutputEntry_Pend_TC_resultado"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OutputEntry_Pend_TC_observacao"><text>"TC de alta resolucao com quantificacao de enfisema necessaria. Definir distribuicao (heterogenea vs homogenea) e lobos predominantes."</text></outputEntry>
+        <outputEntry id="OutputEntry_Pend_TC_fundamentacao"><text>"NETT: Selecao de candidatos requer caracterizacao tomografica do enfisema. TC quantitativa define elegibilidade e planeja area-alvo."</text></outputEntry>
+        <outputEntry id="OutputEntry_Pendente_SemTC_Quantitativa_alertasDesperdicio"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_Pendente_SemTC_Quantitativa_acaoRecomendada"><text>"SOLICITAR_INFO"</text></outputEntry>
+        <outputEntry id="OutputEntry_Pendente_SemTC_Quantitativa_alertasDesperdicio"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_Pendente_SemTC_Quantitativa_acaoRecomendada"><text>"SOLICITAR_INFO"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Pendente_Lobos_Inferiores">
+        <description>Pendente: Enfisema de lobos inferiores - beneficio limitado</description>
+        <inputEntry id="InputEntry_Pend_Inf_1"><text>"HETEROGENEO_LOBOS_INFERIORES"</text></inputEntry>
+        <inputEntry id="InputEntry_Pend_Inf_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Pend_Inf_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Pend_Inf_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Pend_Inf_5"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_Pend_Inf_resultado"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OutputEntry_Pend_Inf_observacao"><text>"Enfisema predominante em lobos inferiores - beneficio de LVRS menos estabelecido. Discussao em centro especializado."</text></outputEntry>
+        <outputEntry id="OutputEntry_Pend_Inf_fundamentacao"><text>"NETT: Enfisema de lobos inferiores teve resultados inferiores. Pode beneficiar subgrupo com alta capacidade de exercicio."</text></outputEntry>
+        <outputEntry id="OutputEntry_Pendente_Lobos_Inferiores_alertasDesperdicio"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_Pendente_Lobos_Inferiores_acaoRecomendada"><text>"SOLICITAR_INFO"</text></outputEntry>
+        <outputEntry id="OutputEntry_Pendente_Lobos_Inferiores_alertasDesperdicio"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_Pendente_Lobos_Inferiores_acaoRecomendada"><text>"SOLICITAR_INFO"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Pendente_SemHiperinsuflacao">
+        <description>Pendente: Ausencia de hiperinsuflacao significativa</description>
+        <inputEntry id="InputEntry_Pend_Hiper_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Pend_Hiper_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Pend_Hiper_3"><text>"SEM_HIPERINSUFLACAO"</text></inputEntry>
+        <inputEntry id="InputEntry_Pend_Hiper_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Pend_Hiper_5"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_Pend_Hiper_resultado"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OutputEntry_Pend_Hiper_observacao"><text>"Hiperinsuflacao e mecanismo de beneficio da LVRS. Sem hiperinsuflacao (VR menor 150%), beneficio e incerto."</text></outputEntry>
+        <outputEntry id="OutputEntry_Pend_Hiper_fundamentacao"><text>"NETT: LVRS reduz hiperinsuflacao e melhora mecanica respiratoria. CPT e VR elevados sao indicadores de beneficio."</text></outputEntry>
+        <outputEntry id="OutputEntry_Pendente_SemHiperinsuflacao_alertasDesperdicio"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_Pendente_SemHiperinsuflacao_acaoRecomendada"><text>"SOLICITAR_INFO"</text></outputEntry>
+        <outputEntry id="OutputEntry_Pendente_SemHiperinsuflacao_alertasDesperdicio"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_Pendente_SemHiperinsuflacao_acaoRecomendada"><text>"SOLICITAR_INFO"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Pendente_DocumentacaoIncompleta">
+        <description>Pendente: Documentacao incompleta</description>
+        <inputEntry id="InputEntry_Pend_Doc_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Pend_Doc_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Pend_Doc_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Pend_Doc_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Pend_Doc_5"><text>"INCOMPLETA"</text></inputEntry>
+        <outputEntry id="OutputEntry_Pend_Doc_resultado"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OutputEntry_Pend_Doc_observacao"><text>"Documentacao incompleta. Necessario: TC quantitativa, espirometria completa, pletismografia, DLCO, gasometria, ecocardiograma, teste de caminhada 6min."</text></outputEntry>
+        <outputEntry id="OutputEntry_Pend_Doc_fundamentacao"><text>"NETT, SBPT: Avaliacao pre-LVRS e complexa e multidisciplinar. Documentacao completa e essencial para selecao adequada."</text></outputEntry>
+        <outputEntry id="OutputEntry_Pendente_DocumentacaoIncompleta_alertasDesperdicio"><text>"DOC"</text></outputEntry>
+        <outputEntry id="OutputEntry_Pendente_DocumentacaoIncompleta_acaoRecomendada"><text>"SOLICITAR_INFO"</text></outputEntry>
+        <outputEntry id="OutputEntry_Pendente_DocumentacaoIncompleta_alertasDesperdicio"><text>"DOC"</text></outputEntry>
+        <outputEntry id="OutputEntry_Pendente_DocumentacaoIncompleta_acaoRecomendada"><text>"SOLICITAR_INFO"</text></outputEntry>
+      </rule>
+
+      <!-- FALLBACK -->
+
+      <rule id="Rule_Fallback_30803115">
+        <description>Fallback: Caso requer avaliacao em centro especializado</description>
+        <inputEntry id="InputEntry_Fallback_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Fallback_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Fallback_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Fallback_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Fallback_5"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_Fallback_resultado"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OutputEntry_Fallback_observacao"><text>"LVRS e procedimento altamente seletivo. Encaminhar para centro de referencia em DPOC avancada para avaliacao multidisciplinar completa."</text></outputEntry>
+        <outputEntry id="OutputEntry_Fallback_fundamentacao"><text>"GOLD 2024, SBPT: LVRS deve ser realizada em centros com experiencia. Selecao criteriosa e fundamental para beneficio e seguranca."</text></outputEntry>
+        <outputEntry id="OutputEntry_Fallback_30803115_alertasDesperdicio"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_Fallback_30803115_acaoRecomendada"><text>"SOLICITAR_INFO"</text></outputEntry>
+        <outputEntry id="OutputEntry_Fallback_30803115_alertasDesperdicio"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_Fallback_30803115_acaoRecomendada"><text>"SOLICITAR_INFO"</text></outputEntry>
+      </rule>
+
+    </decisionTable>
+  </decision>
+</definitions>

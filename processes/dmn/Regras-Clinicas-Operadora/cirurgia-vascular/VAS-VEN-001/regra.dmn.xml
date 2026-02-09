@@ -1,0 +1,232 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/"
+             xmlns:dc="http://www.omg.org/spec/DD/20100524/DC/"
+             xmlns:di="http://www.omg.org/spec/DD/20100524/DI/"
+             id="Definitions_VAS_VEN_001"
+             name="Trombose Venosa Profunda - Duracao de Anticoagulacao"
+             namespace="http://camunda.org/schema/1.0/dmn"
+             exporter="Camunda Modeler"
+             exporterVersion="5.0.0">
+  <!--
+    VAS-VEN-001 - Trombose Venosa Profunda - Duracao de Anticoagulacao
+    Versao: 1.0.0 (2026-02-07)
+    Especialidade: Cirurgia Vascular / Angiologia / Hematologia
+    Categoria: Doenca Venosa Tromboembolica
+    TUSS Relacionados: 40402029, 40402037, 40307093
+
+    Classificacao de TVP:
+    - Provocada: fator de risco identificavel e removivel
+    - Nao-provocada (idiopatica): sem fator de risco identificavel
+    - Recorrente: segundo episodio ou mais
+
+    Duracao de Anticoagulacao (CHEST 2016 / ISTH 2020):
+    - TVP provocada por fator removivel: 3 meses
+    - TVP nao-provocada primeiro episodio: 3-6 meses, avaliar extensao indefinida
+    - TVP recorrente: anticoagulacao indefinida
+    - Cancer ativo: anticoagulacao enquanto cancer ativo
+
+    Fatores de Risco para Recorrencia:
+    - Sexo masculino
+    - D-dimero elevado apos anticoagulacao
+    - TVP proximal vs distal
+    - Trombofilia de alto risco
+
+    Opcoes de Anticoagulacao:
+    - DOACs: preferidos em maioria dos casos
+    - Warfarina: valvula mecanica, SAF
+    - HBPM: cancer, gestacao
+
+    Referencias Normativas:
+    - CHEST 2016 Antithrombotic Guidelines
+    - ISTH 2020 Extended Anticoagulation
+    - ASH 2020 VTE Guidelines
+    - DUT ANS 2024
+  -->
+
+  <decision id="Decision_VAS_VEN_001" name="Criterios de Anticoagulacao - TVP">
+    <decisionTable id="DecisionTable_VAS_VEN_001" hitPolicy="FIRST">
+
+      <!-- Input 1: Tipo de TVP -->
+      <input id="Input_tipoTVP" label="Tipo de TVP (Provocada/Nao-Provocada)">
+        <inputExpression id="InputExpr_tipoTVP" typeRef="string">
+          <text>tipoTVP</text>
+        </inputExpression>
+        <inputValues id="InputValues_tipoTVP">
+          <text>"Provocada_Fator_Removivel","Provocada_Cancer_Ativo","Nao_Provocada_Primeiro","Nao_Provocada_Recorrente"</text>
+        </inputValues>
+      </input>
+
+      <!-- Input 2: Localizacao da Trombose -->
+      <input id="Input_localizacao" label="Localizacao da Trombose">
+        <inputExpression id="InputExpr_localizacao" typeRef="string">
+          <text>localizacaoTrombose</text>
+        </inputExpression>
+        <inputValues id="InputValues_localizacao">
+          <text>"Distal_Panturrilha","Proximal_Poplitea","Proximal_Femoral","Iliofemoral","Cava_Inferior"</text>
+        </inputValues>
+      </input>
+
+      <!-- Input 3: Risco de Sangramento -->
+      <input id="Input_sangramento" label="Risco de Sangramento (HAS-BLED/VTE-BLEED)">
+        <inputExpression id="InputExpr_sangramento" typeRef="string">
+          <text>riscoSangramento</text>
+        </inputExpression>
+        <inputValues id="InputValues_sangramento">
+          <text>"Baixo","Moderado","Alto","Muito_Alto"</text>
+        </inputValues>
+      </input>
+
+      <!-- Input 4: D-Dimero Pos-Tratamento -->
+      <input id="Input_ddimero" label="D-Dimero Apos 3-6 Meses">
+        <inputExpression id="InputExpr_ddimero" typeRef="string">
+          <text>ddimeroPosAnticoagulacao</text>
+        </inputExpression>
+        <inputValues id="InputValues_ddimero">
+          <text>"Normal","Elevado","Nao_Realizado"</text>
+        </inputValues>
+      </input>
+
+      <!-- Input 5: Documentacao -->
+      <input id="Input_documentacao" label="Exames de Imagem + Laboratoriais Documentados">
+        <inputExpression id="InputExpr_documentacao" typeRef="boolean">
+          <text>documentacaoCompleta</text>
+        </inputExpression>
+      </input>
+
+      <!-- Outputs -->
+      <output id="Output_resultado" label="Resultado" name="resultado" typeRef="string">
+        <outputValues id="OutputValues_resultado">
+          <text>"Aprovado","Reprovado","Pendente"</text>
+        </outputValues>
+      </output>
+      <output id="Output_observacao" label="Observacao Clinica" name="observacao" typeRef="string" />
+      <output id="Output_fundamentacao" label="Fundamentacao Legal/Tecnica" name="fundamentacao" typeRef="string" />
+
+      <output id="Output_alertasDesperdicio" name="alertasDesperdicio" typeRef="string">
+        <outputValues>
+          <text>"NENHUM","DUP","FREQ","ESC","DOC","PROT","MULTI"</text>
+        </outputValues>
+      </output>
+
+      <output id="Output_acaoRecomendada" name="acaoRecomendada" typeRef="string">
+        <outputValues>
+          <text>"APROVAR","NEGAR","SOLICITAR_INFO","AGUARDAR_PRAZO","SUGERIR_ALTERNATIVA"</text>
+        </outputValues>
+      </output>
+
+      <!-- ============================================== -->
+      <!-- REGRAS DE REPROVACAO                          -->
+      <!-- ============================================== -->
+
+      <rule id="Rule_VAS_VEN_001_Reprovacao_SemDoc">
+        <description>Reprovacao - Documentacao incompleta</description>
+        <inputEntry id="IE_Rep1_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_Rep1_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_Rep1_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_Rep1_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_Rep1_5"><text>false</text></inputEntry>
+        <outputEntry id="OE_Rep1_1"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OE_Rep1_2"><text>"Documentacao incompleta - duplex venoso + laboratoriais (D-dimero, coagulograma) obrigatorios para definir duracao de anticoagulacao"</text></outputEntry>
+        <outputEntry id="OE_Rep1_3"><text>"CHEST 2016 - Diagnostico por imagem obrigatorio antes de iniciar anticoagulacao"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_VAS_VEN_001_Reprovacao_Indefinido_AltoRisco">
+        <description>Reprovacao - Anticoagulacao indefinida com alto risco de sangramento</description>
+        <inputEntry id="IE_Rep2_1"><text>"Provocada_Fator_Removivel"</text></inputEntry>
+        <inputEntry id="IE_Rep2_2"><text>"Distal_Panturrilha"</text></inputEntry>
+        <inputEntry id="IE_Rep2_3"><text>"Alto","Muito_Alto"</text></inputEntry>
+        <inputEntry id="IE_Rep2_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_Rep2_5"><text>true</text></inputEntry>
+        <outputEntry id="OE_Rep2_1"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OE_Rep2_2"><text>"Anticoagulacao prolongada NAO indicada - TVP distal provocada com alto risco de sangramento - 3 meses suficientes"</text></outputEntry>
+        <outputEntry id="OE_Rep2_3"><text>"CHEST 2016 - Balanco risco-beneficio desfavoravel para anticoagulacao prolongada"</text></outputEntry>
+      </rule>
+
+      <!-- ============================================== -->
+      <!-- REGRAS DE APROVACAO - ANTICOAGULACAO          -->
+      <!-- ============================================== -->
+
+      <rule id="Rule_VAS_VEN_001_Aprovacao_Cancer">
+        <description>Aprovacao - Cancer ativo requer anticoagulacao indefinida</description>
+        <inputEntry id="IE_Apr1_1"><text>"Provocada_Cancer_Ativo"</text></inputEntry>
+        <inputEntry id="IE_Apr1_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_Apr1_3"><text>"Baixo","Moderado"</text></inputEntry>
+        <inputEntry id="IE_Apr1_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_Apr1_5"><text>true</text></inputEntry>
+        <outputEntry id="OE_Apr1_1"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OE_Apr1_2"><text>"Anticoagulacao INDEFINIDA APROVADA - TVP associada a cancer ativo - HBPM ou DOAC preferidos - continuar enquanto cancer ativo"</text></outputEntry>
+        <outputEntry id="OE_Apr1_3"><text>"CHEST 2016 / ISTH 2020 - Anticoagulacao por tempo indeterminado em cancer ativo"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_VAS_VEN_001_Aprovacao_Recorrente">
+        <description>Aprovacao - TVP recorrente requer anticoagulacao indefinida</description>
+        <inputEntry id="IE_Apr2_1"><text>"Nao_Provocada_Recorrente"</text></inputEntry>
+        <inputEntry id="IE_Apr2_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_Apr2_3"><text>"Baixo","Moderado"</text></inputEntry>
+        <inputEntry id="IE_Apr2_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_Apr2_5"><text>true</text></inputEntry>
+        <outputEntry id="OE_Apr2_1"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OE_Apr2_2"><text>"Anticoagulacao INDEFINIDA APROVADA - TVP recorrente nao-provocada - alto risco de nova recorrencia sem anticoagulacao"</text></outputEntry>
+        <outputEntry id="OE_Apr2_3"><text>"CHEST 2016 Classe I - Anticoagulacao indefinida em TVP recorrente nao-provocada"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_VAS_VEN_001_Aprovacao_3Meses">
+        <description>Aprovacao - TVP provocada por fator removivel - 3 meses</description>
+        <inputEntry id="IE_Apr3_1"><text>"Provocada_Fator_Removivel"</text></inputEntry>
+        <inputEntry id="IE_Apr3_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_Apr3_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_Apr3_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_Apr3_5"><text>true</text></inputEntry>
+        <outputEntry id="OE_Apr3_1"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OE_Apr3_2"><text>"Anticoagulacao por 3 MESES APROVADA - TVP provocada por fator de risco transitorio (cirurgia, imobilizacao) - suspender apos 3 meses"</text></outputEntry>
+        <outputEntry id="OE_Apr3_3"><text>"CHEST 2016 Classe I - 3 meses de anticoagulacao para TVP provocada"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_VAS_VEN_001_Aprovacao_NaoProvocada_Extensa">
+        <description>Aprovacao - TVP nao-provocada proximal com D-dimero elevado</description>
+        <inputEntry id="IE_Apr4_1"><text>"Nao_Provocada_Primeiro"</text></inputEntry>
+        <inputEntry id="IE_Apr4_2"><text>"Proximal_Femoral","Iliofemoral","Cava_Inferior"</text></inputEntry>
+        <inputEntry id="IE_Apr4_3"><text>"Baixo","Moderado"</text></inputEntry>
+        <inputEntry id="IE_Apr4_4"><text>"Elevado"</text></inputEntry>
+        <inputEntry id="IE_Apr4_5"><text>true</text></inputEntry>
+        <outputEntry id="OE_Apr4_1"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OE_Apr4_2"><text>"Anticoagulacao ESTENDIDA APROVADA - TVP proximal nao-provocada com D-dimero elevado - considerar anticoagulacao indefinida com reavaliacao anual"</text></outputEntry>
+        <outputEntry id="OE_Apr4_3"><text>"ISTH 2020 - D-dimero elevado pos-tratamento indica alto risco de recorrencia"</text></outputEntry>
+      </rule>
+
+      <!-- ============================================== -->
+      <!-- REGRAS DE PENDENCIA                           -->
+      <!-- ============================================== -->
+
+      <rule id="Rule_VAS_VEN_001_Pendente_DDimero">
+        <description>Pendente - D-dimero nao realizado para decisao de extensao</description>
+        <inputEntry id="IE_Pend1_1"><text>"Nao_Provocada_Primeiro"</text></inputEntry>
+        <inputEntry id="IE_Pend1_2"><text>"Proximal_Poplitea","Proximal_Femoral","Iliofemoral"</text></inputEntry>
+        <inputEntry id="IE_Pend1_3"><text>"Baixo","Moderado"</text></inputEntry>
+        <inputEntry id="IE_Pend1_4"><text>"Nao_Realizado"</text></inputEntry>
+        <inputEntry id="IE_Pend1_5"><text>true</text></inputEntry>
+        <outputEntry id="OE_Pend1_1"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OE_Pend1_2"><text>"Aguardar D-dimero apos 3-6 meses para definir necessidade de anticoagulacao estendida - D-dimero elevado indica extensao"</text></outputEntry>
+        <outputEntry id="OE_Pend1_3"><text>"ISTH 2020 - D-dimero auxilia decisao de extensao de anticoagulacao"</text></outputEntry>
+      </rule>
+
+      <!-- ============================================== -->
+      <!-- REGRA FALLBACK                                -->
+      <!-- ============================================== -->
+
+      <rule id="Rule_Fallback_VAS_VEN_001">
+        <description>Fallback - Casos nao cobertos requerem analise manual</description>
+        <inputEntry id="IE_Fallback_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_Fallback_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_Fallback_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_Fallback_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_Fallback_5"><text>-</text></inputEntry>
+        <outputEntry id="OE_Fallback_1"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OE_Fallback_2"><text>"Caso requer analise por hematologista/angiologista para definir duracao de anticoagulacao"</text></outputEntry>
+        <outputEntry id="OE_Fallback_3"><text>"Auditoria especializada conforme RN 428/2017"</text></outputEntry>
+      </rule>
+
+    </decisionTable>
+  </decision>
+</definitions>

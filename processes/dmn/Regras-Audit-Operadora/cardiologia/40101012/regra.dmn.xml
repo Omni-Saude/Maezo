@@ -1,0 +1,331 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             xmlns:camunda="http://camunda.org/schema/1.0/dmn"
+             id="Definitions_40101012"
+             name="Teste Ergometrico - LEAN Anti-Desperdicio"
+             namespace="http://camunda.org/schema/1.0/dmn">
+
+  <!--
+    ===============================================================================
+    TUSS: 40101012
+    Procedimento: Teste Ergometrico (Teste de Esforco)
+    Versao: 1.0.0-LEAN-TIER2
+    Data: 2026-02-07
+    ===============================================================================
+
+    INDICACOES CLINICAS (DUT/ANS + ACC AUC 2024):
+    - Avaliacao de DAC em PTP baixo-intermediario
+    - Estratificacao de risco pos-IAM
+    - Avaliacao de capacidade funcional
+    - Prescricao de exercicio
+    - Avaliacao de arritmias induzidas
+
+    CONTRAINDICACOES:
+    - IAM recente (menos de 48-72h)
+    - Angina instavel nao estabilizada
+    - Estenose aortica grave sintomatica
+    - Arritmia nao controlada
+    - TEP agudo
+    - Miocardite/pericardite aguda
+
+    REFERENCIAS TECNICAS:
+    ACC/AHA Exercise Testing 2024, SBC 2023, ESC CCS 2024
+
+    ALERTAS DE DESPERDICIO (LEAN TIER-2):
+    - NENHUM: Sem alertas identificados
+    - DUP: Duplicidade (teste em menos de 180 dias sem mudanca clinica)
+    - FREQ: Frequencia excessiva (multiplos testes no ano)
+    - ESC: Escalonamento inadequado (screening baixo risco)
+    - DOC: Documentacao insuficiente
+    - PROT: Protocolo nao seguido (sem ECG previo)
+    - MULTI: Multiplos alertas combinados
+
+    ===============================================================================
+  -->
+
+  <decision id="Decision_40101012" name="Regra Clinica LEAN - Teste Ergometrico">
+    <decisionTable id="DecisionTable_40101012" hitPolicy="FIRST">
+
+      <!-- ========== INPUTS (6 - Padrao LEAN TIER-2 Cardiologia) ========== -->
+
+      <input id="Input_indicacaoClinica" label="Indicacao Clinica" camunda:inputVariable="indicacaoClinica">
+        <inputExpression id="InputExpression_indicacaoClinica" typeRef="string">
+          <text>indicacaoClinica</text>
+        </inputExpression>
+        <inputValues id="InputValues_indicacaoClinica">
+          <text>"AvaliacaoDAC","EstratificacaoPosIAM","CapacidadeFuncional","PrescricaoExercicio","AvaliacaoArritmia","ScreeningAssintomatico","FollowUpRotina"</text>
+        </inputValues>
+      </input>
+
+      <input id="Input_classeIndicacao" label="Classe de Indicacao (ACC/AHA)" camunda:inputVariable="classeIndicacao">
+        <inputExpression id="InputExpression_classeIndicacao" typeRef="string">
+          <text>classeIndicacao</text>
+        </inputExpression>
+        <inputValues id="InputValues_classeIndicacao">
+          <text>"Classe I","Classe IIa","Classe IIb","Classe III"</text>
+        </inputValues>
+      </input>
+
+      <input id="Input_historicoClinico" label="Historico Clinico" camunda:inputVariable="historicoClinico">
+        <inputExpression id="InputExpression_historicoClinico" typeRef="string">
+          <text>historicoClinico</text>
+        </inputExpression>
+        <inputValues id="InputValues_historicoClinico">
+          <text>"Adequado","Incompleto","NaoDocumentado"</text>
+        </inputValues>
+      </input>
+
+      <input id="Input_ultimoProcedimentoDias" label="Dias desde Ultimo Teste Ergometrico" camunda:inputVariable="ultimoProcedimentoDias">
+        <inputExpression id="InputExpression_ultimoProcedimentoDias" typeRef="integer">
+          <text>ultimoProcedimentoDias</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_ecgRepouso" label="ECG de Repouso Realizado" camunda:inputVariable="ecgRepouso">
+        <inputExpression id="InputExpression_ecgRepouso" typeRef="string">
+          <text>ecgRepouso</text>
+        </inputExpression>
+        <inputValues id="InputValues_ecgRepouso">
+          <text>"Normal_Interpretavel","Alterado_NaoInterpretavel","NaoRealizado"</text>
+        </inputValues>
+      </input>
+
+      <input id="Input_capacidadeExercicio" label="Capacidade de Exercicio" camunda:inputVariable="capacidadeExercicio">
+        <inputExpression id="InputExpression_capacidadeExercicio" typeRef="string">
+          <text>capacidadeExercicio</text>
+        </inputExpression>
+        <inputValues id="InputValues_capacidadeExercicio">
+          <text>"Preservada","Limitada","Incapaz"</text>
+        </inputValues>
+      </input>
+
+      <!-- ========== OUTPUTS (5 - Padrao LEAN TIER-2) ========== -->
+
+      <output id="Output_resultado" label="Resultado" name="resultado" typeRef="string">
+        <outputValues id="OutputValues_resultado">
+          <text>"Aprovado","Reprovado","Pendente"</text>
+        </outputValues>
+      </output>
+
+      <output id="Output_observacao" label="Observacao Clinica" name="observacao" typeRef="string" />
+
+      <output id="Output_fundamentacao" label="Fundamentacao Tecnica" name="fundamentacao" typeRef="string" />
+
+      <output id="Output_alertasDesperdicio" label="Alertas de Desperdicio" name="alertasDesperdicio" typeRef="string">
+        <outputValues id="OutputValues_alertasDesperdicio">
+          <text>"NENHUM","DUP","FREQ","ESC","DOC","PROT","MULTI"</text>
+        </outputValues>
+      </output>
+
+      <output id="Output_acaoRecomendada" label="Acao Recomendada" name="acaoRecomendada" typeRef="string">
+        <outputValues id="OutputValues_acaoRecomendada">
+          <text>"APROVAR","NEGAR","SOLICITAR_INFO","AGUARDAR_PRAZO","SUGERIR_ALTERNATIVA"</text>
+        </outputValues>
+      </output>
+
+      <!-- ========== RULES - CONTRAINDICACOES ========== -->
+
+      <rule id="Rule_Reprovado_ClasseIII">
+        <description>Reprovado: Classe III - Teste ergometrico nao indicado</description>
+        <inputEntry id="InputEntry_CIII_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_CIII_2"><text>"Classe III"</text></inputEntry>
+        <inputEntry id="InputEntry_CIII_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_CIII_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_CIII_5"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_CIII_6"><text>-</text></inputEntry>
+        <outputEntry id="OE_CIII_resultado"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OE_CIII_observacao"><text>"Classe III - Teste ergometrico nao indicado para esta situacao clinica"</text></outputEntry>
+        <outputEntry id="OE_CIII_fundamentacao"><text>"ACC/AHA 2024: Classe III indica que o procedimento nao e benefico ou pode ser prejudicial"</text></outputEntry>
+        <outputEntry id="OE_CIII_alerta"><text>"PROT"</text></outputEntry>
+        <outputEntry id="OE_CIII_acao"><text>"NEGAR"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Reprovado_Incapaz">
+        <description>Reprovado: Paciente incapaz de exercicio</description>
+        <inputEntry id="InputEntry_Inc_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Inc_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Inc_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Inc_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Inc_5"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Inc_6"><text>"Incapaz"</text></inputEntry>
+        <outputEntry id="OE_Inc_resultado"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OE_Inc_observacao"><text>"Paciente incapaz de realizar exercicio - teste farmacologico e a alternativa indicada"</text></outputEntry>
+        <outputEntry id="OE_Inc_fundamentacao"><text>"ACC AUC 2024: Pacientes incapazes de exercicio devem realizar teste farmacologico (Eco/Cintilo com dobutamina ou dipiridamol)"</text></outputEntry>
+        <outputEntry id="OE_Inc_alerta"><text>"ESC"</text></outputEntry>
+        <outputEntry id="OE_Inc_acao"><text>"SUGERIR_ALTERNATIVA"</text></outputEntry>
+      </rule>
+
+      <!-- ========== RULES - ALERTAS DE DESPERDICIO ========== -->
+
+      <rule id="Rule_Reprovado_DUP_Recente">
+        <description>Reprovado DUP: Teste ergometrico ha menos de 180 dias sem mudanca clinica</description>
+        <inputEntry id="InputEntry_DUP_1"><text>"FollowUpRotina"</text></inputEntry>
+        <inputEntry id="InputEntry_DUP_2"><text>"Classe IIb","Classe III"</text></inputEntry>
+        <inputEntry id="InputEntry_DUP_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_DUP_4"><text>&lt; 180</text></inputEntry>
+        <inputEntry id="InputEntry_DUP_5"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_DUP_6"><text>-</text></inputEntry>
+        <outputEntry id="OE_DUP_resultado"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OE_DUP_observacao"><text>"Teste ergometrico realizado ha menos de 180 dias. Sem indicacao de repeticao para follow-up de rotina"</text></outputEntry>
+        <outputEntry id="OE_DUP_fundamentacao"><text>"ACC/AHA 2024: Repeticao de teste em menos de 6 meses requer justificativa clinica (mudanca sintomas ou evento)"</text></outputEntry>
+        <outputEntry id="OE_DUP_alerta"><text>"DUP"</text></outputEntry>
+        <outputEntry id="OE_DUP_acao"><text>"AGUARDAR_PRAZO"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Reprovado_ESC_ScreeningBaixoRisco">
+        <description>Reprovado ESC: Screening em assintomaticos de muito baixo risco</description>
+        <inputEntry id="InputEntry_ESC_1"><text>"ScreeningAssintomatico"</text></inputEntry>
+        <inputEntry id="InputEntry_ESC_2"><text>"Classe IIb","Classe III"</text></inputEntry>
+        <inputEntry id="InputEntry_ESC_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_ESC_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_ESC_5"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_ESC_6"><text>-</text></inputEntry>
+        <outputEntry id="OE_ESC_resultado"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OE_ESC_observacao"><text>"Teste de esforco nao indicado para rastreamento em assintomaticos de muito baixo risco. Avaliacao clinica e escore de risco sao suficientes"</text></outputEntry>
+        <outputEntry id="OE_ESC_fundamentacao"><text>"ACC AUC 2024: Raramente apropriado para rastreamento em muito baixo risco (ASCVD menor 5%)"</text></outputEntry>
+        <outputEntry id="OE_ESC_alerta"><text>"ESC"</text></outputEntry>
+        <outputEntry id="OE_ESC_acao"><text>"NEGAR"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Pendente_PROT_SemECG">
+        <description>Pendente PROT: ECG de repouso nao realizado</description>
+        <inputEntry id="InputEntry_PROT_1"><text>"AvaliacaoDAC"</text></inputEntry>
+        <inputEntry id="InputEntry_PROT_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_PROT_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_PROT_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_PROT_5"><text>"NaoRealizado"</text></inputEntry>
+        <inputEntry id="InputEntry_PROT_6"><text>-</text></inputEntry>
+        <outputEntry id="OE_PROT_resultado"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OE_PROT_observacao"><text>"ECG de repouso deve ser realizado antes do teste de esforco para referencia basal"</text></outputEntry>
+        <outputEntry id="OE_PROT_fundamentacao"><text>"ACC/AHA 2024: ECG basal necessario para interpretacao adequada do teste de esforco"</text></outputEntry>
+        <outputEntry id="OE_PROT_alerta"><text>"PROT"</text></outputEntry>
+        <outputEntry id="OE_PROT_acao"><text>"SOLICITAR_INFO"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Pendente_ESC_ECGNaoInterpretavel">
+        <description>Pendente ESC: ECG nao interpretavel - considerar teste de imagem</description>
+        <inputEntry id="InputEntry_ECG_NI_1"><text>"AvaliacaoDAC"</text></inputEntry>
+        <inputEntry id="InputEntry_ECG_NI_2"><text>"Classe IIa","Classe IIb"</text></inputEntry>
+        <inputEntry id="InputEntry_ECG_NI_3"><text>"Adequado"</text></inputEntry>
+        <inputEntry id="InputEntry_ECG_NI_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_ECG_NI_5"><text>"Alterado_NaoInterpretavel"</text></inputEntry>
+        <inputEntry id="InputEntry_ECG_NI_6"><text>"Preservada"</text></inputEntry>
+        <outputEntry id="OE_ECG_NI_resultado"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OE_ECG_NI_observacao"><text>"ECG basal nao interpretavel para isquemia (BRE, MP, Digitalis, ST anormal). Teste de imagem oferece maior acuracia"</text></outputEntry>
+        <outputEntry id="OE_ECG_NI_fundamentacao"><text>"ACC AUC 2024: Com ECG nao interpretavel, cintilografia ou eco de estresse tem maior sensibilidade/especificidade"</text></outputEntry>
+        <outputEntry id="OE_ECG_NI_alerta"><text>"ESC"</text></outputEntry>
+        <outputEntry id="OE_ECG_NI_acao"><text>"SUGERIR_ALTERNATIVA"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Pendente_DOC_Incompleto">
+        <description>Pendente DOC: Documentacao clinica incompleta</description>
+        <inputEntry id="InputEntry_DOC_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_DOC_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_DOC_3"><text>"Incompleto"</text></inputEntry>
+        <inputEntry id="InputEntry_DOC_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_DOC_5"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_DOC_6"><text>-</text></inputEntry>
+        <outputEntry id="OE_DOC_resultado"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OE_DOC_observacao"><text>"Documentacao incompleta - solicitar historico clinico, sintomas, fatores de risco, indicacao especifica"</text></outputEntry>
+        <outputEntry id="OE_DOC_fundamentacao"><text>"ANS RN 465/2021 - Documentacao completa necessaria para autorizacao"</text></outputEntry>
+        <outputEntry id="OE_DOC_alerta"><text>"DOC"</text></outputEntry>
+        <outputEntry id="OE_DOC_acao"><text>"SOLICITAR_INFO"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Reprovado_DOC_Ausente">
+        <description>Reprovado DOC: Documentacao clinica ausente</description>
+        <inputEntry id="InputEntry_DOC_Aus_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_DOC_Aus_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_DOC_Aus_3"><text>"NaoDocumentado"</text></inputEntry>
+        <inputEntry id="InputEntry_DOC_Aus_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_DOC_Aus_5"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_DOC_Aus_6"><text>-</text></inputEntry>
+        <outputEntry id="OE_DOC_Aus_resultado"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OE_DOC_Aus_observacao"><text>"Documentacao clinica essencial ausente - impossivel avaliar indicacao"</text></outputEntry>
+        <outputEntry id="OE_DOC_Aus_fundamentacao"><text>"ANS RN 465/2021, CPC 25 - Autorizacao impossivel sem documentacao minima"</text></outputEntry>
+        <outputEntry id="OE_DOC_Aus_alerta"><text>"DOC"</text></outputEntry>
+        <outputEntry id="OE_DOC_Aus_acao"><text>"NEGAR"</text></outputEntry>
+      </rule>
+
+      <!-- ========== RULES - APROVACOES ========== -->
+
+      <rule id="Rule_Aprovado_DAC_PTPBaixoInterm">
+        <description>Aprovado: DAC sintomatica com PTP baixo-intermediario e ECG interpretavel</description>
+        <inputEntry id="InputEntry_DACBaixa_1"><text>"AvaliacaoDAC"</text></inputEntry>
+        <inputEntry id="InputEntry_DACBaixa_2"><text>"Classe I","Classe IIa"</text></inputEntry>
+        <inputEntry id="InputEntry_DACBaixa_3"><text>"Adequado"</text></inputEntry>
+        <inputEntry id="InputEntry_DACBaixa_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_DACBaixa_5"><text>"Normal_Interpretavel"</text></inputEntry>
+        <inputEntry id="InputEntry_DACBaixa_6"><text>"Preservada"</text></inputEntry>
+        <outputEntry id="OE_DACBaixa_resultado"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OE_DACBaixa_observacao"><text>"DAC sintomatica com PTP baixo-intermediario - teste ergometrico e primeira linha por custo-efetividade"</text></outputEntry>
+        <outputEntry id="OE_DACBaixa_fundamentacao"><text>"ACC AUC 2024, ESC CCS 2024: Teste de esforco e opcao mais custo-efetiva em pacientes capazes com ECG interpretavel"</text></outputEntry>
+        <outputEntry id="OE_DACBaixa_alerta"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_DACBaixa_acao"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Aprovado_PosIAM">
+        <description>Aprovado: Estratificacao pos-IAM</description>
+        <inputEntry id="InputEntry_PosIAM_1"><text>"EstratificacaoPosIAM"</text></inputEntry>
+        <inputEntry id="InputEntry_PosIAM_2"><text>"Classe I","Classe IIa"</text></inputEntry>
+        <inputEntry id="InputEntry_PosIAM_3"><text>"Adequado"</text></inputEntry>
+        <inputEntry id="InputEntry_PosIAM_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_PosIAM_5"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_PosIAM_6"><text>"Preservada","Limitada"</text></inputEntry>
+        <outputEntry id="OE_PosIAM_resultado"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OE_PosIAM_observacao"><text>"Estratificacao pos-IAM - teste ergometrico indicado para avaliacao de risco e prescricao de exercicio"</text></outputEntry>
+        <outputEntry id="OE_PosIAM_fundamentacao"><text>"ACC/AHA 2024: Teste de esforco apos IAM para estratificacao de risco e reabilitacao cardiaca"</text></outputEntry>
+        <outputEntry id="OE_PosIAM_alerta"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_PosIAM_acao"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Aprovado_CapacidadeFuncional">
+        <description>Aprovado: Avaliacao de capacidade funcional</description>
+        <inputEntry id="InputEntry_CapFunc_1"><text>"CapacidadeFuncional","PrescricaoExercicio"</text></inputEntry>
+        <inputEntry id="InputEntry_CapFunc_2"><text>"Classe I","Classe IIa"</text></inputEntry>
+        <inputEntry id="InputEntry_CapFunc_3"><text>"Adequado"</text></inputEntry>
+        <inputEntry id="InputEntry_CapFunc_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_CapFunc_5"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_CapFunc_6"><text>"Preservada","Limitada"</text></inputEntry>
+        <outputEntry id="OE_CapFunc_resultado"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OE_CapFunc_observacao"><text>"Avaliacao de capacidade funcional ou prescricao de exercicio - teste ergometrico indicado"</text></outputEntry>
+        <outputEntry id="OE_CapFunc_fundamentacao"><text>"ACC/AHA 2024: Teste de esforco e padrao para avaliacao de capacidade funcional e prescricao de exercicio"</text></outputEntry>
+        <outputEntry id="OE_CapFunc_alerta"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_CapFunc_acao"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Aprovado_Arritmia">
+        <description>Aprovado: Avaliacao de arritmia induzida por exercicio</description>
+        <inputEntry id="InputEntry_Arr_1"><text>"AvaliacaoArritmia"</text></inputEntry>
+        <inputEntry id="InputEntry_Arr_2"><text>"Classe I","Classe IIa"</text></inputEntry>
+        <inputEntry id="InputEntry_Arr_3"><text>"Adequado"</text></inputEntry>
+        <inputEntry id="InputEntry_Arr_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Arr_5"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Arr_6"><text>"Preservada"</text></inputEntry>
+        <outputEntry id="OE_Arr_resultado"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OE_Arr_observacao"><text>"Avaliacao de arritmia relacionada ao exercicio - teste ergometrico indicado"</text></outputEntry>
+        <outputEntry id="OE_Arr_fundamentacao"><text>"ACC/AHA 2024: Teste de esforco para reproducao de arritmias desencadeadas por exercicio"</text></outputEntry>
+        <outputEntry id="OE_Arr_alerta"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_Arr_acao"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <!-- ========== FALLBACK RULE ========== -->
+
+      <rule id="Rule_Fallback_40101012">
+        <description>Regra padrao - Analise clinica adicional necessaria</description>
+        <inputEntry id="InputEntry_FB_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_FB_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_FB_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_FB_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_FB_5"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_FB_6"><text>-</text></inputEntry>
+        <outputEntry id="OE_FB_resultado"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OE_FB_observacao"><text>"Caso requer analise clinica adicional - verificar indicacao, ECG basal e capacidade de exercicio"</text></outputEntry>
+        <outputEntry id="OE_FB_fundamentacao"><text>"ACC/AHA 2024: Avaliacao individualizada necessaria conforme complexidade clinica"</text></outputEntry>
+        <outputEntry id="OE_FB_alerta"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_FB_acao"><text>"SOLICITAR_INFO"</text></outputEntry>
+      </rule>
+
+    </decisionTable>
+  </decision>
+</definitions>

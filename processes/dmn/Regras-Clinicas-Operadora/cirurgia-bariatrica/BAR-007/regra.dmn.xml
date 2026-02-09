@@ -1,0 +1,241 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             xmlns:camunda="http://camunda.org/schema/1.0/dmn"
+             id="Definitions_BAR007"
+             name="Hernia Interna Pos-Bypass"
+             namespace="http://camunda.org/schema/1.0/dmn">
+
+  <!--
+    ===============================================================================
+    TUSS: BAR-007
+    Procedimento: Correcao de Hernia Interna Pos-Bypass Gastrico
+    Especialidade: Cirurgia Bariatrica
+    Versao: 3.0.0-TIER1
+    Data: 2026-02-07
+    ===============================================================================
+
+    INDICACOES CLINICAS (SBCBM 2022, ASMBS 2021):
+    - Dor abdominal cronica pos-bypass (espaco de Petersen/mesenterico)
+    - Obstrucao intestinal parcial ou completa
+    - Isquemia de alca intestinal
+    - Achado incidental de hernia em imagem
+
+    LOCALIZACOES:
+    - Espaco de Petersen (mais comum)
+    - Defeito mesocolico
+    - Espaco entre alca jejunal
+
+    REFERENCIAS TECNICAS:
+    - SBCBM 2022 - Complicacoes Tardias do Bypass
+    - ASMBS 2021 - Internal Hernia Management
+    - SAGES 2019 - Laparoscopic Repair Guidelines
+
+    ===============================================================================
+  -->
+
+  <decision id="Decision_BAR007" name="Regra Clinica - Hernia Interna Pos-Bypass">
+    <decisionTable id="DecisionTable_BAR007" hitPolicy="FIRST">
+
+      <!-- ========== INPUTS (5) ========== -->
+
+      <input id="Input_apresentacaoClinica" label="Apresentacao Clinica" camunda:inputVariable="apresentacaoClinica">
+        <inputExpression id="InputExpression_apresentacaoClinica" typeRef="string">
+          <text>apresentacaoClinica</text>
+        </inputExpression>
+        <inputValues id="InputValues_apresentacaoClinica">
+          <text>"ObstrucaoCompleta","ObstrucaoParcial","DorCronica","IsquemiaIntestinal","AchadoIncidental"</text>
+        </inputValues>
+      </input>
+
+      <input id="Input_confirmacaoImagem" label="Confirmacao por Imagem" camunda:inputVariable="confirmacaoImagem">
+        <inputExpression id="InputExpression_confirmacaoImagem" typeRef="string">
+          <text>confirmacaoImagem</text>
+        </inputExpression>
+        <inputValues id="InputValues_confirmacaoImagem">
+          <text>"HerniaConfirmada","SugestivaSemConfirmacao","ImagemNormal","NaoRealizada"</text>
+        </inputValues>
+      </input>
+
+      <input id="Input_sinaisIsquemia" label="Sinais de Isquemia" camunda:inputVariable="sinaisIsquemia">
+        <inputExpression id="InputExpression_sinaisIsquemia" typeRef="boolean">
+          <text>sinaisIsquemia</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_estabilidadeHemodinamica" label="Estabilidade Hemodinamica" camunda:inputVariable="estabilidadeHemodinamica">
+        <inputExpression id="InputExpression_estabilidadeHemodinamica" typeRef="string">
+          <text>estabilidadeHemodinamica</text>
+        </inputExpression>
+        <inputValues id="InputValues_estabilidadeHemodinamica">
+          <text>"Estavel","InstabilidadeLeve","Choque"</text>
+        </inputValues>
+      </input>
+
+      <input id="Input_tempoSintomasHoras" label="Tempo de Sintomas (horas)" camunda:inputVariable="tempoSintomasHoras">
+        <inputExpression id="InputExpression_tempoSintomasHoras" typeRef="number">
+          <text>tempoSintomasHoras</text>
+        </inputExpression>
+      </input>
+
+      <!-- ========== OUTPUTS (3 - Padrao TIER-1) ========== -->
+
+      <output id="Output_resultado" label="Resultado" name="resultado" typeRef="string">
+        <outputValues id="OutputValues_resultado">
+          <text>"Aprovado","Reprovado","Pendente"</text>
+        </outputValues>
+      </output>
+
+      <output id="Output_observacao" label="Observacao Clinica" name="observacao" typeRef="string" />
+
+      <output id="Output_fundamentacao" label="Fundamentacao Tecnica" name="fundamentacao" typeRef="string" />
+
+      <!-- Output 4: Alertas Desperdicio -->
+      <output id="Output_alertasDesperdicio" label="Alertas de Desperdicio" name="alertasDesperdicio" typeRef="string">
+        <outputValues id="OutputValues_alertasDesperdicio">
+          <text>"NENHUM","DUP","FREQ","ESC","DOC","PROT","MULTI"</text>
+        </outputValues>
+      </output>
+
+      <!-- Output 5: Acao Recomendada -->
+      <output id="Output_acaoRecomendada" label="Acao Recomendada" name="acaoRecomendada" typeRef="string">
+        <outputValues id="OutputValues_acaoRecomendada">
+          <text>"APROVAR","NEGAR","SOLICITAR_INFO","AGUARDAR_PRAZO","SUGERIR_ALTERNATIVA"</text>
+        </outputValues>
+      </output>
+
+      <!-- ========== RULES ========== -->
+
+      <!-- APROVACOES EMERGENCIAIS -->
+      <rule id="Rule_Aprovado_Choque">
+        <description>Aprovado Emergencial: Choque - provavel necrose intestinal</description>
+        <inputEntry id="InputEntry_CH_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_CH_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_CH_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_CH_4"><text>"Choque"</text></inputEntry>
+        <inputEntry id="InputEntry_CH_5"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_CH_resultado"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_CH_observacao"><text>"EMERGENCIA ABSOLUTA - Choque indica isquemia/necrose intestinal - laparotomia imediata"</text></outputEntry>
+        <outputEntry id="OutputEntry_CH_fundamentacao"><text>"SBCBM 2022, ASMBS 2021 - Hernia interna com instabilidade e risco de morte sem intervencao imediata"</text></outputEntry>
+      <outputEntry id="OE_Aprovado_Choque_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_Aprovado_Choque_5"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Aprovado_IsquemiaIntestinal">
+        <description>Aprovado Urgente: Isquemia intestinal confirmada</description>
+        <inputEntry id="InputEntry_II_1"><text>"IsquemiaIntestinal"</text></inputEntry>
+        <inputEntry id="InputEntry_II_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_II_3"><text>true</text></inputEntry>
+        <inputEntry id="InputEntry_II_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_II_5"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_II_resultado"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_II_observacao"><text>"URGENTE - Sinais de isquemia intestinal - cirurgia em ate 6 horas"</text></outputEntry>
+        <outputEntry id="OutputEntry_II_fundamentacao"><text>"SBCBM 2022 - Isquemia intestinal por hernia interna requer reducao e avaliacao de viabilidade de alca"</text></outputEntry>
+      <outputEntry id="OE_Aprovado_IsquemiaIntestinal_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_Aprovado_IsquemiaIntestinal_5"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Aprovado_ObstrucaoCompleta">
+        <description>Aprovado Urgente: Obstrucao intestinal completa</description>
+        <inputEntry id="InputEntry_OC_1"><text>"ObstrucaoCompleta"</text></inputEntry>
+        <inputEntry id="InputEntry_OC_2"><text>"HerniaConfirmada","SugestivaSemConfirmacao"</text></inputEntry>
+        <inputEntry id="InputEntry_OC_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_OC_4"><text>"Estavel","InstabilidadeLeve"</text></inputEntry>
+        <inputEntry id="InputEntry_OC_5"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_OC_resultado"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_OC_observacao"><text>"Obstrucao intestinal completa por hernia interna - cirurgia urgente indicada"</text></outputEntry>
+        <outputEntry id="OutputEntry_OC_fundamentacao"><text>"ASMBS 2021, SAGES 2019 - Obstrucao completa nao resolve espontaneamente e requer reducao cirurgica"</text></outputEntry>
+      <outputEntry id="OE_Aprovado_ObstrucaoCompleta_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_Aprovado_ObstrucaoCompleta_5"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <!-- APROVACOES ELETIVAS -->
+      <rule id="Rule_Aprovado_ObstrucaoParcialRefrataria">
+        <description>Aprovado: Obstrucao parcial persistente</description>
+        <inputEntry id="InputEntry_OP_1"><text>"ObstrucaoParcial"</text></inputEntry>
+        <inputEntry id="InputEntry_OP_2"><text>"HerniaConfirmada"</text></inputEntry>
+        <inputEntry id="InputEntry_OP_3"><text>false</text></inputEntry>
+        <inputEntry id="InputEntry_OP_4"><text>"Estavel"</text></inputEntry>
+        <inputEntry id="InputEntry_OP_5"><text>&gt; 24</text></inputEntry>
+        <outputEntry id="OutputEntry_OP_resultado"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_OP_observacao"><text>"Obstrucao parcial persistente &gt;24h com hernia confirmada - correcao cirurgica indicada"</text></outputEntry>
+        <outputEntry id="OutputEntry_OP_fundamentacao"><text>"SBCBM 2022 - Obstrucao parcial que nao resolve com medidas conservadoras requer cirurgia"</text></outputEntry>
+      <outputEntry id="OE_Aprovado_ObstrucaoParcialRefrataria_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_Aprovado_ObstrucaoParcialRefrataria_5"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Aprovado_DorCronicaConfirmada">
+        <description>Aprovado: Dor cronica com hernia confirmada</description>
+        <inputEntry id="InputEntry_DC_1"><text>"DorCronica"</text></inputEntry>
+        <inputEntry id="InputEntry_DC_2"><text>"HerniaConfirmada"</text></inputEntry>
+        <inputEntry id="InputEntry_DC_3"><text>false</text></inputEntry>
+        <inputEntry id="InputEntry_DC_4"><text>"Estavel"</text></inputEntry>
+        <inputEntry id="InputEntry_DC_5"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_DC_resultado"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_DC_observacao"><text>"Dor abdominal cronica pos-bypass com hernia interna confirmada - correcao eletiva indicada"</text></outputEntry>
+        <outputEntry id="OutputEntry_DC_fundamentacao"><text>"ASMBS 2021 - Fechamento de espacos herniarios previne episodios agudos futuros"</text></outputEntry>
+      <outputEntry id="OE_Aprovado_DorCronicaConfirmada_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_Aprovado_DorCronicaConfirmada_5"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Aprovado_AchadoIncidental">
+        <description>Aprovado: Hernia incidental com potencial de complicacao</description>
+        <inputEntry id="InputEntry_AI_1"><text>"AchadoIncidental"</text></inputEntry>
+        <inputEntry id="InputEntry_AI_2"><text>"HerniaConfirmada"</text></inputEntry>
+        <inputEntry id="InputEntry_AI_3"><text>false</text></inputEntry>
+        <inputEntry id="InputEntry_AI_4"><text>"Estavel"</text></inputEntry>
+        <inputEntry id="InputEntry_AI_5"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_AI_resultado"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_AI_observacao"><text>"Hernia interna assintomatica - correcao eletiva preventiva recomendada"</text></outputEntry>
+        <outputEntry id="OutputEntry_AI_fundamentacao"><text>"SAGES 2019 - Fechamento profilatico de espacos herniarios reduz risco de obstrucao futura"</text></outputEntry>
+      <outputEntry id="OE_Aprovado_AchadoIncidental_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_Aprovado_AchadoIncidental_5"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <!-- PENDENTE -->
+      <rule id="Rule_Pendente_SugestivaSemConfirmacao">
+        <description>Pendente: Imagem sugestiva requer confirmacao</description>
+        <inputEntry id="InputEntry_SC_1"><text>"DorCronica","ObstrucaoParcial"</text></inputEntry>
+        <inputEntry id="InputEntry_SC_2"><text>"SugestivaSemConfirmacao"</text></inputEntry>
+        <inputEntry id="InputEntry_SC_3"><text>false</text></inputEntry>
+        <inputEntry id="InputEntry_SC_4"><text>"Estavel"</text></inputEntry>
+        <inputEntry id="InputEntry_SC_5"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_SC_resultado"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OutputEntry_SC_observacao"><text>"Realizar TC com protocolo para hernia interna ou laparoscopia diagnostica"</text></outputEntry>
+        <outputEntry id="OutputEntry_SC_fundamentacao"><text>"SBCBM 2022 - Confirmacao diagnostica necessaria para indicacao cirurgica eletiva"</text></outputEntry>
+      <outputEntry id="OE_Pendente_SugestivaSemConfirmacao_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_Pendente_SugestivaSemConfirmacao_5"><text>"SOLICITAR_INFO"</text></outputEntry>
+      </rule>
+
+      <!-- REPROVADO -->
+      <rule id="Rule_Reprovado_ImagemNormal">
+        <description>Reprovado: Imagem normal sem evidencia de hernia</description>
+        <inputEntry id="InputEntry_IN_1"><text>"DorCronica"</text></inputEntry>
+        <inputEntry id="InputEntry_IN_2"><text>"ImagemNormal"</text></inputEntry>
+        <inputEntry id="InputEntry_IN_3"><text>false</text></inputEntry>
+        <inputEntry id="InputEntry_IN_4"><text>"Estavel"</text></inputEntry>
+        <inputEntry id="InputEntry_IN_5"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_IN_resultado"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_IN_observacao"><text>"TC normal - investigar outras causas de dor abdominal antes de indicar cirurgia"</text></outputEntry>
+        <outputEntry id="OutputEntry_IN_fundamentacao"><text>"ASMBS 2021 - Dor abdominal pos-bypass pode ter outras etiologias alem de hernia interna"</text></outputEntry>
+      <outputEntry id="OE_Reprovado_ImagemNormal_4"><text>"PROT"</text></outputEntry>
+        <outputEntry id="OE_Reprovado_ImagemNormal_5"><text>"NEGAR"</text></outputEntry>
+      </rule>
+
+      <!-- FALLBACK RULE -->
+      <rule id="Rule_Fallback_BAR007">
+        <description>Regra padrao - Analise adicional necessaria</description>
+        <inputEntry id="InputEntry_Fallback_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Fallback_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Fallback_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Fallback_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Fallback_5"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_Fallback_resultado"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OutputEntry_Fallback_observacao"><text>"Avaliar caso com equipe de cirurgia bariatrica - considerar laparoscopia diagnostica"</text></outputEntry>
+        <outputEntry id="OutputEntry_Fallback_fundamentacao"><text>"SBCBM 2022 - Dor abdominal pos-bypass pode requerer exploracao laparoscopica diagnostica"</text></outputEntry>
+      <outputEntry id="OE_Fallback_BAR007_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_Fallback_BAR007_5"><text>"SOLICITAR_INFO"</text></outputEntry>
+      </rule>
+
+    </decisionTable>
+  </decision>
+</definitions>

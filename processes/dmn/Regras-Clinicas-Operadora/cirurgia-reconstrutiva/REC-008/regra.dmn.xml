@@ -1,0 +1,262 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             xmlns:camunda="http://camunda.org/schema/1.0/dmn"
+             id="Definitions_REC008"
+             name="Reconstrucao Paralisia Facial"
+             namespace="http://camunda.org/schema/1.0/dmn">
+
+  <!--
+    ===============================================================================
+    TUSS: REC-008
+    Procedimento: Reconstrucao em Paralisia Facial
+    Especialidade: Cirurgia Reconstrutiva / Cirurgia Plastica
+    Versao: 3.0.0-TIER1
+    Data: 2026-02-07
+    ===============================================================================
+
+    INDICACOES CLINICAS (SBCP 2022, AAO-HNS 2021):
+    - Paralisia facial de Bell persistente
+    - Paralisia facial traumatica
+    - Paralisia facial pos-resseccao tumoral
+    - Paralisia facial congenita (Mobius)
+    - Lagoftalmo com risco ocular
+
+    CLASSIFICACAO:
+    - AGUDA: Reparacao nervosa direta (ate 72h)
+    - SUBAGUDA: Enxerto de nervo (ate 18 meses)
+    - CRONICA: Transferencia muscular (apos 18 meses)
+
+    REFERENCIAS TECNICAS:
+    - SBCP 2022 - Paralisia Facial
+    - AAO-HNS 2021 - Facial Nerve Guidelines
+    - Facial Nerve Grading Scale (House-Brackmann)
+    - ASPS 2023 - Facial Reanimation
+
+    ===============================================================================
+  -->
+
+  <decision id="Decision_REC008" name="Regra Clinica - Reconstrucao Paralisia Facial">
+    <decisionTable id="DecisionTable_REC008" hitPolicy="FIRST">
+
+      <!-- ========== INPUTS (5) ========== -->
+
+      <input id="Input_etiologiaParalisia" label="Etiologia da Paralisia" camunda:inputVariable="etiologiaParalisia">
+        <inputExpression id="InputExpression_etiologiaParalisia" typeRef="string">
+          <text>etiologiaParalisia</text>
+        </inputExpression>
+        <inputValues id="InputValues_etiologiaParalisia">
+          <text>"Bell","Traumatica","PosResseccaoTumoral","Congenita","Infecciosa","Idiopatica"</text>
+        </inputValues>
+      </input>
+
+      <input id="Input_tempoParalisia" label="Tempo de Paralisia (meses)" camunda:inputVariable="tempoParalisia">
+        <inputExpression id="InputExpression_tempoParalisia" typeRef="number">
+          <text>tempoParalisia</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_grauHouseBrackmann" label="Grau House-Brackmann" camunda:inputVariable="grauHouseBrackmann">
+        <inputExpression id="InputExpression_grauHouseBrackmann" typeRef="string">
+          <text>grauHouseBrackmann</text>
+        </inputExpression>
+        <inputValues id="InputValues_grauHouseBrackmann">
+          <text>"I","II","III","IV","V","VI"</text>
+        </inputValues>
+      </input>
+
+      <input id="Input_complicacaoOcular" label="Complicacao Ocular" camunda:inputVariable="complicacaoOcular">
+        <inputExpression id="InputExpression_complicacaoOcular" typeRef="string">
+          <text>complicacaoOcular</text>
+        </inputExpression>
+        <inputValues id="InputValues_complicacaoOcular">
+          <text>"Lagoftalmo","ExposicaoCorneana","UlceraCorneana","Nenhuma"</text>
+        </inputValues>
+      </input>
+
+      <input id="Input_procedimentoProposto" label="Procedimento Proposto" camunda:inputVariable="procedimentoProposto">
+        <inputExpression id="InputExpression_procedimentoProposto" typeRef="string">
+          <text>procedimentoProposto</text>
+        </inputExpression>
+        <inputValues id="InputValues_procedimentoProposto">
+          <text>"ReparacaoNervoDireto","EnxertoNervo","TransferenciaNervo","TransferenciaMuscular","Tarsorrafia","SuspensaoEstatica","PesoOuro"</text>
+        </inputValues>
+      </input>
+
+      <!-- ========== OUTPUTS (3 - Padrao TIER-1) ========== -->
+
+      <output id="Output_resultado" label="Resultado" name="resultado" typeRef="string">
+        <outputValues id="OutputValues_resultado">
+          <text>"Aprovado","Reprovado","Pendente"</text>
+        </outputValues>
+      </output>
+
+      <output id="Output_observacao" label="Observacao Clinica" name="observacao" typeRef="string" />
+
+      <output id="Output_fundamentacao" label="Fundamentacao Tecnica" name="fundamentacao" typeRef="string" />
+
+      <!-- Output 4: Alertas Desperdicio -->
+      <output id="Output_alertasDesperdicio" label="Alertas de Desperdicio" name="alertasDesperdicio" typeRef="string">
+        <outputValues id="OutputValues_alertasDesperdicio">
+          <text>"NENHUM","DUP","FREQ","ESC","DOC","PROT","MULTI"</text>
+        </outputValues>
+      </output>
+
+      <!-- Output 5: Acao Recomendada -->
+      <output id="Output_acaoRecomendada" label="Acao Recomendada" name="acaoRecomendada" typeRef="string">
+        <outputValues id="OutputValues_acaoRecomendada">
+          <text>"APROVAR","NEGAR","SOLICITAR_INFO","AGUARDAR_PRAZO","SUGERIR_ALTERNATIVA"</text>
+        </outputValues>
+      </output>
+
+      <!-- ========== RULES ========== -->
+
+      <!-- APROVACOES URGENTES - PROTECAO OCULAR -->
+      <rule id="Rule_Aprovado_UlceraCorneana">
+        <description>Aprovado Urgente: Ulcera corneana</description>
+        <inputEntry id="InputEntry_UC_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_UC_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_UC_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_UC_4"><text>"UlceraCorneana"</text></inputEntry>
+        <inputEntry id="InputEntry_UC_5"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_UC_resultado"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_UC_observacao"><text>"URGENTE - Ulcera corneana por lagoftalmo - protecao ocular imediata"</text></outputEntry>
+        <outputEntry id="OutputEntry_UC_fundamentacao"><text>"AAO-HNS 2021 - Ulcera corneana e emergencia oftalmologica"</text></outputEntry>
+      <outputEntry id="OE_Aprovado_UlceraCorneana_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_Aprovado_UlceraCorneana_5"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Aprovado_ExposicaoCorneana">
+        <description>Aprovado Urgente: Exposicao corneana</description>
+        <inputEntry id="InputEntry_EC_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_EC_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_EC_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_EC_4"><text>"ExposicaoCorneana"</text></inputEntry>
+        <inputEntry id="InputEntry_EC_5"><text>"Tarsorrafia","PesoOuro"</text></inputEntry>
+        <outputEntry id="OutputEntry_EC_resultado"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_EC_observacao"><text>"Exposicao corneana por lagoftalmo - protecao palpebral indicada"</text></outputEntry>
+        <outputEntry id="OutputEntry_EC_fundamentacao"><text>"SBCP 2022, AAO-HNS 2021 - Peso de ouro ou tarsorrafia para prevenir ulceracao"</text></outputEntry>
+      <outputEntry id="OE_Aprovado_ExposicaoCorneana_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_Aprovado_ExposicaoCorneana_5"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <!-- APROVACOES - REPARACAO NERVOSA -->
+      <rule id="Rule_Aprovado_ReparacaoDireta">
+        <description>Aprovado: Reparacao nervosa direta (aguda)</description>
+        <inputEntry id="InputEntry_RD_1"><text>"Traumatica","PosResseccaoTumoral"</text></inputEntry>
+        <inputEntry id="InputEntry_RD_2"><text>&lt;= 1</text></inputEntry>
+        <inputEntry id="InputEntry_RD_3"><text>"VI"</text></inputEntry>
+        <inputEntry id="InputEntry_RD_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_RD_5"><text>"ReparacaoNervoDireto"</text></inputEntry>
+        <outputEntry id="OutputEntry_RD_resultado"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_RD_observacao"><text>"Reparacao nervosa direta em lesao aguda - melhor prognostico"</text></outputEntry>
+        <outputEntry id="OutputEntry_RD_fundamentacao"><text>"AAO-HNS 2021 - Reparacao direta ideal ate 72h, aceitavel ate 30 dias"</text></outputEntry>
+      <outputEntry id="OE_Aprovado_ReparacaoDireta_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_Aprovado_ReparacaoDireta_5"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Aprovado_EnxertoNervo">
+        <description>Aprovado: Enxerto de nervo (subaguda)</description>
+        <inputEntry id="InputEntry_EN_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_EN_2"><text>[1..18]</text></inputEntry>
+        <inputEntry id="InputEntry_EN_3"><text>"V","VI"</text></inputEntry>
+        <inputEntry id="InputEntry_EN_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_EN_5"><text>"EnxertoNervo","TransferenciaNervo"</text></inputEntry>
+        <outputEntry id="OutputEntry_EN_resultado"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_EN_observacao"><text>"Enxerto ou transferencia de nervo em fase subaguda - musculatura ainda viavel"</text></outputEntry>
+        <outputEntry id="OutputEntry_EN_fundamentacao"><text>"SBCP 2022 - Reinervacao possivel ate 18 meses de desnervacao"</text></outputEntry>
+      <outputEntry id="OE_Aprovado_EnxertoNervo_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_Aprovado_EnxertoNervo_5"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <!-- APROVACOES - TRANSFERENCIA MUSCULAR -->
+      <rule id="Rule_Aprovado_TransferenciaMuscular">
+        <description>Aprovado: Transferencia muscular (cronica)</description>
+        <inputEntry id="InputEntry_TM_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_TM_2"><text>&gt; 18</text></inputEntry>
+        <inputEntry id="InputEntry_TM_3"><text>"V","VI"</text></inputEntry>
+        <inputEntry id="InputEntry_TM_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_TM_5"><text>"TransferenciaMuscular"</text></inputEntry>
+        <outputEntry id="OutputEntry_TM_resultado"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_TM_observacao"><text>"Transferencia muscular (gracilis livre) para paralisia cronica"</text></outputEntry>
+        <outputEntry id="OutputEntry_TM_fundamentacao"><text>"ASPS 2023, SBCP 2022 - Apos 18 meses, musculatura facial atrofica requer transferencia"</text></outputEntry>
+      <outputEntry id="OE_Aprovado_TransferenciaMuscular_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_Aprovado_TransferenciaMuscular_5"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Aprovado_ParalisiaCongenita">
+        <description>Aprovado: Paralisia facial congenita</description>
+        <inputEntry id="InputEntry_PC_1"><text>"Congenita"</text></inputEntry>
+        <inputEntry id="InputEntry_PC_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_PC_3"><text>"V","VI"</text></inputEntry>
+        <inputEntry id="InputEntry_PC_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_PC_5"><text>"TransferenciaMuscular"</text></inputEntry>
+        <outputEntry id="OutputEntry_PC_resultado"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_PC_observacao"><text>"Reanimacao facial para paralisia congenita (Sindrome de Mobius)"</text></outputEntry>
+        <outputEntry id="OutputEntry_PC_fundamentacao"><text>"SBCP 2022 - Paralisia congenita requer transferencia muscular livre"</text></outputEntry>
+      <outputEntry id="OE_Aprovado_ParalisiaCongenita_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_Aprovado_ParalisiaCongenita_5"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <!-- APROVACOES - SUSPENSAO ESTATICA -->
+      <rule id="Rule_Aprovado_SuspensaoEstatica">
+        <description>Aprovado: Suspensao estatica para paciente idoso ou comorbido</description>
+        <inputEntry id="InputEntry_SE_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_SE_2"><text>&gt; 18</text></inputEntry>
+        <inputEntry id="InputEntry_SE_3"><text>"IV","V","VI"</text></inputEntry>
+        <inputEntry id="InputEntry_SE_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_SE_5"><text>"SuspensaoEstatica"</text></inputEntry>
+        <outputEntry id="OutputEntry_SE_resultado"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_SE_observacao"><text>"Suspensao estatica facial para simetria em repouso"</text></outputEntry>
+        <outputEntry id="OutputEntry_SE_fundamentacao"><text>"SBCP 2022 - Suspensao estatica e opcao para pacientes nao candidatos a dinamica"</text></outputEntry>
+      <outputEntry id="OE_Aprovado_SuspensaoEstatica_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_Aprovado_SuspensaoEstatica_5"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <!-- REPROVACOES -->
+      <rule id="Rule_Reprovado_ParalisiaModeradaRecuperando">
+        <description>Reprovado: Paralisia moderada em recuperacao</description>
+        <inputEntry id="InputEntry_PMR_1"><text>"Bell"</text></inputEntry>
+        <inputEntry id="InputEntry_PMR_2"><text>&lt; 6</text></inputEntry>
+        <inputEntry id="InputEntry_PMR_3"><text>"III","IV"</text></inputEntry>
+        <inputEntry id="InputEntry_PMR_4"><text>"Nenhuma"</text></inputEntry>
+        <inputEntry id="InputEntry_PMR_5"><text>"TransferenciaMuscular"</text></inputEntry>
+        <outputEntry id="OutputEntry_PMR_resultado"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_PMR_observacao"><text>"Paralisia de Bell em fase de recuperacao - aguardar 12 meses para definicao"</text></outputEntry>
+        <outputEntry id="OutputEntry_PMR_fundamentacao"><text>"AAO-HNS 2021 - 85% dos Bell recuperam em 3-6 meses, aguardar estabilizacao"</text></outputEntry>
+      <outputEntry id="OE_Reprovado_ParalisiaModeradaRecuperando_4"><text>"PROT"</text></outputEntry>
+        <outputEntry id="OE_Reprovado_ParalisiaModeradaRecuperando_5"><text>"NEGAR"</text></outputEntry>
+      </rule>
+
+      <!-- PENDENTE -->
+      <rule id="Rule_Pendente_AvaliacaoEletroneuromiografia">
+        <description>Pendente: Requer eletroneuromiografia</description>
+        <inputEntry id="InputEntry_ENMG_1"><text>"Traumatica","Idiopatica"</text></inputEntry>
+        <inputEntry id="InputEntry_ENMG_2"><text>[3..12]</text></inputEntry>
+        <inputEntry id="InputEntry_ENMG_3"><text>"V","VI"</text></inputEntry>
+        <inputEntry id="InputEntry_ENMG_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_ENMG_5"><text>"EnxertoNervo","TransferenciaNervo"</text></inputEntry>
+        <outputEntry id="OutputEntry_ENMG_resultado"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OutputEntry_ENMG_observacao"><text>"Realizar eletroneuromiografia para definir viabilidade de reinervacao"</text></outputEntry>
+        <outputEntry id="OutputEntry_ENMG_fundamentacao"><text>"SBCP 2022 - ENMG define potencial de recuperacao e escolha de tecnica"</text></outputEntry>
+      <outputEntry id="OE_Pendente_AvaliacaoEletroneuromiografia_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_Pendente_AvaliacaoEletroneuromiografia_5"><text>"SOLICITAR_INFO"</text></outputEntry>
+      </rule>
+
+      <!-- FALLBACK RULE -->
+      <rule id="Rule_Fallback_REC008">
+        <description>Regra padrao - Analise adicional necessaria</description>
+        <inputEntry id="InputEntry_Fallback_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Fallback_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Fallback_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Fallback_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Fallback_5"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_Fallback_resultado"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OutputEntry_Fallback_observacao"><text>"Avaliar com centro de referencia em paralisia facial"</text></outputEntry>
+        <outputEntry id="OutputEntry_Fallback_fundamentacao"><text>"SBCP 2022, AAO-HNS 2021 - Paralisia facial requer avaliacao especializada"</text></outputEntry>
+      <outputEntry id="OE_Fallback_REC008_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_Fallback_REC008_5"><text>"SOLICITAR_INFO"</text></outputEntry>
+      </rule>
+
+    </decisionTable>
+  </decision>
+</definitions>

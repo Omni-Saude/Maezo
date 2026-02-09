@@ -1,0 +1,157 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  ============================================================================
+  PRIOR-TRACK-003 - Taxa Aprovacao por Tipo Procedimento
+  ============================================================================
+  Versao: 1.0.0 (2026-02-08)
+  Categoria: PRIOR-TRACK
+  Perspectiva: HOSPITAL (Faturamento/Auditoria)
+
+  ============================================================================
+  INDICACOES (Quando PROSSEGUIR):
+  ============================================================================
+  - Taxa de aprovacao acima da meta
+  - Tipo de procedimento com historico favoravel
+  - Documentacao adequada
+
+  ============================================================================
+  CONTRAINDICACOES (Quando BLOQUEAR):
+  ============================================================================
+  - Taxa de aprovacao critica (<50%)
+  - Procedimento com alto indice de negacao
+  - Requer revisao de estrategia
+
+  ============================================================================
+  REFERENCIAS NORMATIVAS:
+  ============================================================================
+  - RN 424/2017 (Autorizacao Previa)
+  - RN 465/2021 (Procedimentos Regulados)
+  - RN 395/2016 (Monitoramento de Negativas)
+  - Lei 9.656/1998 Art. 12 (Cobertura Obrigatoria)
+  ============================================================================
+-->
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/"
+             xmlns:dc="http://www.omg.org/spec/DMN/20180521/DC/"
+             id="Definitions_PRIOR_TRACK_003"
+             name="Taxa Aprovacao por Tipo Procedimento"
+             targetNamespace="http://camunda.org/schema/1.0/dmn">
+
+  <decision id="Decision_PRIOR_TRACK_003" name="Verificar Taxa Aprovacao por Tipo Procedimento">
+    <decisionTable id="DecisionTable_PRIOR_TRACK_003" hitPolicy="FIRST">
+
+      <!-- ========== INPUTS ========== -->
+      <input id="Input_1" label="Taxa Aprovacao (%)">
+        <inputExpression id="InputExpression_1" typeRef="integer">
+          <text>taxaAprovacao</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_2" label="Tipo Procedimento">
+        <inputExpression id="InputExpression_2" typeRef="string">
+          <text>tipoProcedimento</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_3" label="Meta Aprovacao (%)">
+        <inputExpression id="InputExpression_3" typeRef="integer">
+          <text>metaAprovacao</text>
+        </inputExpression>
+      </input>
+
+      <!-- ========== OUTPUTS (5 STANDARD) ========== -->
+      <output id="Output_1" label="Resultado" name="resultado" typeRef="string">
+        <outputValues><text>"Prosseguir", "Bloquear", "Alertar", "Revisar"</text></outputValues>
+      </output>
+
+      <output id="Output_2" label="Observacao" name="observacao" typeRef="string"/>
+
+      <output id="Output_3" label="Acao Recomendada" name="acaoRecomendada" typeRef="string"/>
+
+      <output id="Output_4" label="Alertas Conformidade" name="alertasConformidade" typeRef="string">
+        <outputValues><text>"NENHUM", "DUP", "FREQ", "PRAZO", "DOC", "VALOR", "CRED", "CONTRATO"</text></outputValues>
+      </output>
+
+      <output id="Output_5" label="Risco Denial" name="riscoDenial" typeRef="string">
+        <outputValues><text>"BAIXO", "MEDIO", "ALTO", "CRITICO"</text></outputValues>
+      </output>
+
+      <!-- ========== RULES ========== -->
+
+      <!-- REGRA B1: Bloqueio - Taxa critica de aprovacao -->
+      <rule id="Rule_Bloqueio_1">
+        <description>Taxa de aprovacao critica (abaixo de 50%)</description>
+        <inputEntry id="InputEntry_B1_1"><text>&lt; 50</text></inputEntry>
+        <inputEntry id="InputEntry_B1_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_B1_3"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_B1_1"><text>"Bloquear"</text></outputEntry>
+        <outputEntry id="OutputEntry_B1_2"><text>"Taxa de aprovacao critica (abaixo de 50%) para este tipo de procedimento."</text></outputEntry>
+        <outputEntry id="OutputEntry_B1_3"><text>"URGENTE: Revisar estrategia de solicitacao. Reforcar documentacao, justificativas e protocolos clinicos."</text></outputEntry>
+        <outputEntry id="OutputEntry_B1_4"><text>"DOC"</text></outputEntry>
+        <outputEntry id="OutputEntry_B1_5"><text>"CRITICO"</text></outputEntry>
+      </rule>
+
+      <!-- REGRA A1: Alerta - Taxa baixa de aprovacao -->
+      <rule id="Rule_Alerta_1">
+        <description>Taxa de aprovacao baixa (50-70%)</description>
+        <inputEntry id="InputEntry_A1_1"><text>[50..70]</text></inputEntry>
+        <inputEntry id="InputEntry_A1_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_A1_3"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_A1_1"><text>"Alertar"</text></outputEntry>
+        <outputEntry id="OutputEntry_A1_2"><text>"Taxa de aprovacao baixa (50-70%) para este tipo de procedimento."</text></outputEntry>
+        <outputEntry id="OutputEntry_A1_3"><text>"Reforcar qualidade das solicitacoes. Avaliar motivos de negacao mais frequentes."</text></outputEntry>
+        <outputEntry id="OutputEntry_A1_4"><text>"DOC"</text></outputEntry>
+        <outputEntry id="OutputEntry_A1_5"><text>"ALTO"</text></outputEntry>
+      </rule>
+
+      <!-- REGRA A2: Alerta - Abaixo da meta interna -->
+      <rule id="Rule_Alerta_2">
+        <description>Taxa abaixo da meta interna do hospital</description>
+        <inputEntry id="InputEntry_A2_1"><text>&lt; metaAprovacao</text></inputEntry>
+        <inputEntry id="InputEntry_A2_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_A2_3"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_A2_1"><text>"Alertar"</text></outputEntry>
+        <outputEntry id="OutputEntry_A2_2"><text>"Taxa de aprovacao abaixo da meta interna do hospital para este procedimento."</text></outputEntry>
+        <outputEntry id="OutputEntry_A2_3"><text>"Avaliar gaps de documentacao. Treinar equipe em justificativas clinicas."</text></outputEntry>
+        <outputEntry id="OutputEntry_A2_4"><text>"DOC"</text></outputEntry>
+        <outputEntry id="OutputEntry_A2_5"><text>"MEDIO"</text></outputEntry>
+      </rule>
+
+      <!-- REGRA P1: Aprovado - Taxa acima da meta -->
+      <rule id="Rule_Aprovado_1">
+        <description>Taxa de aprovacao acima da meta</description>
+        <inputEntry id="InputEntry_P1_1"><text>&gt;= metaAprovacao</text></inputEntry>
+        <inputEntry id="InputEntry_P1_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_P1_3"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_P1_1"><text>"Prosseguir"</text></outputEntry>
+        <outputEntry id="OutputEntry_P1_2"><text>"Taxa de aprovacao acima da meta para este tipo de procedimento. Desempenho adequado."</text></outputEntry>
+        <outputEntry id="OutputEntry_P1_3"><text>"Continuar monitorando taxa de aprovacao por tipo de procedimento."</text></outputEntry>
+        <outputEntry id="OutputEntry_P1_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_P1_5"><text>"BAIXO"</text></outputEntry>
+      </rule>
+
+      <!-- REGRA F: Fallback - Requer revisao manual -->
+      <rule id="Rule_Fallback_PRIOR_TRACK_003">
+        <description>Regra padrao - Requer avaliacao manual</description>
+        <inputEntry id="InputEntry_F_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_F_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_F_3"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_F_1"><text>"Revisar"</text></outputEntry>
+        <outputEntry id="OutputEntry_F_2"><text>"Situacao de taxa de aprovacao requer analise manual."</text></outputEntry>
+        <outputEntry id="OutputEntry_F_3"><text>"Encaminhar para auditoria avaliar taxa de aprovacao por tipo de procedimento."</text></outputEntry>
+        <outputEntry id="OutputEntry_F_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_F_5"><text>"MEDIO"</text></outputEntry>
+      </rule>
+
+    </decisionTable>
+  </decision>
+
+  <dmndi:DMNDI>
+    <dmndi:DMNDiagram id="DMNDiagram_PRIOR_TRACK_003">
+      <dmndi:DMNShape id="DMNShape_Decision_PRIOR_TRACK_003" dmnElementRef="Decision_PRIOR_TRACK_003">
+        <dc:Bounds height="80" width="180" x="160" y="100"/>
+      </dmndi:DMNShape>
+    </dmndi:DMNDiagram>
+  </dmndi:DMNDI>
+
+</definitions>

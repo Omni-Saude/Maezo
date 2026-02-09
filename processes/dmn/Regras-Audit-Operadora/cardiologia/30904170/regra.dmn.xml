@@ -1,0 +1,275 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             xmlns:camunda="http://camunda.org/schema/1.0/dmn"
+             id="Definitions_30904170"
+             name="Transplante Cardiaco Ortotopico"
+             namespace="http://camunda.org/schema/1.0/dmn">
+
+  <!--
+    ===============================================================================
+    TUSS: 30904170
+    Procedimento: Transplante Cardiaco Ortotopico
+    Versao: 1.0.0-LEAN-TIER2
+    Data: 2026-02-07
+    ===============================================================================
+
+    INDICACOES CLINICAS (ISHLT 2024):
+    - IC estagio D refrataria a terapia medica otimizada (Classe I)
+    - VO2 pico menor 12 mL/kg/min em paciente em betabloqueio (Classe I)
+    - VO2 pico menor 14 mL/kg/min sem betabloqueio (Classe I)
+    - Dependencia inotorpica ou suporte mecanico (Classe I)
+    - Arritmias ventriculares refratarias com risco vida (Classe I)
+    - Cardiopatia isquemica sem possibilidade revascularizacao (Classe I)
+    - Miocardiopatia restritiva/hipertrofica sintomatica refrataria (Classe IIa)
+
+    CONTRAINDICACOES ABSOLUTAS:
+    - Neoplasia ativa ou historico neoplasia com alto risco recorrencia
+    - Doenca sistemica com comprometimento orgao vital
+    - Hipertensao pulmonar irreversivel (PVR maior 5 UW)
+    - Infeccao ativa nao controlada
+    - Uso ativo substancias ilicitas ou alcoolismo
+    - Instabilidade psicossocial grave
+
+    REFERENCIAS TECNICAS:
+    - ISHLT (International Society Heart Lung Transplantation) 2024
+    - SBC Diretriz IC Avancada 2023
+    - UNOS/SNT Criterios Alocacao
+
+    ALERTAS DE DESPERDICIO (LEAN TIER-2):
+    - DUP: Duplicidade - Reavaliacao recente sem mudanca de status
+    - ESC: Escalonamento inadequado - Transplante sem avaliacao multidisciplinar
+    - DOC: Documentacao insuficiente - Falta criterios ISHLT
+    - PROT: Protocolo nao seguido - Contraindicacao absoluta presente
+
+    ===============================================================================
+  -->
+
+  <decision id="Decision_30904170" name="Regra Clinica - Transplante Cardiaco">
+    <decisionTable id="DecisionTable_30904170" hitPolicy="FIRST">
+
+      <!-- ========== INPUTS (6 - Padrao LEAN TIER-2) ========== -->
+
+      <input id="Input_perfil" label="Perfil Hemodinamico INTERMACS" camunda:inputVariable="perfil">
+        <inputExpression id="InputExpression_perfil" typeRef="string">
+          <text>perfil</text>
+        </inputExpression>
+        <inputValues id="InputValues_perfil">
+          <text>"INTERMACS_1","INTERMACS_2","INTERMACS_3","INTERMACS_4_7","Ambulatorial_Estavel"</text>
+        </inputValues>
+      </input>
+
+      <input id="Input_vo2Pico" label="VO2 Pico (mL/kg/min)" camunda:inputVariable="vo2Pico">
+        <inputExpression id="InputExpression_vo2Pico" typeRef="string">
+          <text>vo2Pico</text>
+        </inputExpression>
+        <inputValues id="InputValues_vo2Pico">
+          <text>"Menor10","Entre10e12","Entre12e14","Maior14","NaoRealizado"</text>
+        </inputValues>
+      </input>
+
+      <input id="Input_pvr" label="Resistencia Vascular Pulmonar (UW)" camunda:inputVariable="pvr">
+        <inputExpression id="InputExpression_pvr" typeRef="string">
+          <text>pvr</text>
+        </inputExpression>
+        <inputValues id="InputValues_pvr">
+          <text>"Menor3","Entre3e5","Maior5_Reversivel","Maior5_Irreversivel","NaoAvaliada"</text>
+        </inputValues>
+      </input>
+
+      <input id="Input_contraindicacao" label="Contraindicacao Absoluta Presente" camunda:inputVariable="contraindicacao">
+        <inputExpression id="InputExpression_contraindicacao" typeRef="string">
+          <text>contraindicacao</text>
+        </inputExpression>
+        <inputValues id="InputValues_contraindicacao">
+          <text>"Nenhuma","Neoplasia_Ativa","HP_Irreversivel","Infeccao_Ativa","Substancias_Ilicitas","Instabilidade_Psicossocial","Multiplas"</text>
+        </inputValues>
+      </input>
+
+      <input id="Input_avaliacaoMultidisciplinar" label="Avaliacao Multidisciplinar Completa" camunda:inputVariable="avaliacaoMultidisciplinar">
+        <inputExpression id="InputExpression_avaliacaoMultidisciplinar" typeRef="boolean">
+          <text>avaliacaoMultidisciplinar</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_ultimoProcedimentoDias" label="Dias desde ultima avaliacao transplante" camunda:inputVariable="ultimoProcedimentoDias">
+        <inputExpression id="InputExpression_ultimoProcedimentoDias" typeRef="integer">
+          <text>ultimoProcedimentoDias</text>
+        </inputExpression>
+      </input>
+
+      <!-- ========== OUTPUTS (5 - Padrao LEAN TIER-2) ========== -->
+
+      <output id="Output_resultado" label="Resultado" name="resultado" typeRef="string">
+        <outputValues id="OutputValues_resultado">
+          <text>"Aprovado","Reprovado","Pendente"</text>
+        </outputValues>
+      </output>
+
+      <output id="Output_observacao" label="Observacao Clinica" name="observacao" typeRef="string" />
+
+      <output id="Output_fundamentacao" label="Fundamentacao Tecnica" name="fundamentacao" typeRef="string" />
+
+      <output id="Output_alertasDesperdicio" label="Alertas de Desperdicio" name="alertasDesperdicio" typeRef="string">
+        <outputValues id="OutputValues_alertasDesperdicio">
+          <text>"NENHUM","DUP","FREQ","ESC","DOC","PROT","MULTI"</text>
+        </outputValues>
+      </output>
+
+      <output id="Output_acaoRecomendada" label="Acao Recomendada" name="acaoRecomendada" typeRef="string">
+        <outputValues id="OutputValues_acaoRecomendada">
+          <text>"APROVAR","NEGAR","SOLICITAR_INFO","AGUARDAR_PRAZO","SUGERIR_ALTERNATIVA"</text>
+        </outputValues>
+      </output>
+
+      <!-- ========== RULES - REPROVACOES (Waste Detection First) ========== -->
+
+      <!-- RULE 1: Contraindicacao - Neoplasia ativa -->
+      <rule id="Rule_Reprovado_Neoplasia">
+        <description>Reprovado: Neoplasia ativa - contraindicacao absoluta</description>
+        <inputEntry id="InputEntry_R1_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_R1_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_R1_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_R1_4"><text>"Neoplasia_Ativa"</text></inputEntry>
+        <inputEntry id="InputEntry_R1_5"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_R1_6"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_R1_resultado"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_R1_observacao"><text>"Neoplasia ativa contraindica transplante. Imunossupressao acelera progressao tumoral. Aguardar periodo livre 5 anos"</text></outputEntry>
+        <outputEntry id="OutputEntry_R1_fundamentacao"><text>"ISHLT 2024: Neoplasia ativa ou recente (menor 5 anos) contraindica transplante. Alternativa: LVAD destination therapy"</text></outputEntry>
+        <outputEntry id="OutputEntry_R1_alertasDesperdicio"><text>"PROT"</text></outputEntry>
+        <outputEntry id="OutputEntry_R1_acaoRecomendada"><text>"NEGAR"</text></outputEntry>
+      </rule>
+
+      <!-- RULE 2: Contraindicacao - HP irreversivel -->
+      <rule id="Rule_Reprovado_HP_Irreversivel">
+        <description>Reprovado: Hipertensao pulmonar irreversivel - contraindicacao</description>
+        <inputEntry id="InputEntry_R2_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_R2_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_R2_3"><text>"Maior5_Irreversivel"</text></inputEntry>
+        <inputEntry id="InputEntry_R2_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_R2_5"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_R2_6"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_R2_resultado"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_R2_observacao"><text>"HP fixa com PVR maior 5 UW irreversivel - risco falencia VD pos-transplante. Alternativa: LVAD para reversao"</text></outputEntry>
+        <outputEntry id="OutputEntry_R2_fundamentacao"><text>"ISHLT 2024: PVR maior 5 UW irreversivel contraindica transplante isolado. Opcoes: LVAD 3-6 meses para reversao ou transplante cardiopulmonar"</text></outputEntry>
+        <outputEntry id="OutputEntry_R2_alertasDesperdicio"><text>"PROT"</text></outputEntry>
+        <outputEntry id="OutputEntry_R2_acaoRecomendada"><text>"SUGERIR_ALTERNATIVA"</text></outputEntry>
+      </rule>
+
+      <!-- RULE 3: Contraindicacao - Multiplas -->
+      <rule id="Rule_Reprovado_Multiplas">
+        <description>Reprovado: Multiplas contraindicacoes absolutas</description>
+        <inputEntry id="InputEntry_R3_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_R3_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_R3_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_R3_4"><text>"Multiplas"</text></inputEntry>
+        <inputEntry id="InputEntry_R3_5"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_R3_6"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_R3_resultado"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_R3_observacao"><text>"Multiplas contraindicacoes absolutas - transplante nao indicado"</text></outputEntry>
+        <outputEntry id="OutputEntry_R3_fundamentacao"><text>"ISHLT 2024: Multiplas contraindicacoes absolutas. Considerar: LVAD destination therapy ou cuidados paliativos"</text></outputEntry>
+        <outputEntry id="OutputEntry_R3_alertasDesperdicio"><text>"MULTI"</text></outputEntry>
+        <outputEntry id="OutputEntry_R3_acaoRecomendada"><text>"NEGAR"</text></outputEntry>
+      </rule>
+
+      <!-- RULE 4: ESC - Avaliacao multidisciplinar ausente -->
+      <rule id="Rule_Pendente_SemAvaliacao">
+        <description>Pendente: Avaliacao multidisciplinar transplante nao concluida</description>
+        <inputEntry id="InputEntry_R4_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_R4_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_R4_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_R4_4"><text>"Nenhuma"</text></inputEntry>
+        <inputEntry id="InputEntry_R4_5"><text>false</text></inputEntry>
+        <inputEntry id="InputEntry_R4_6"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_R4_resultado"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OutputEntry_R4_observacao"><text>"Avaliacao multidisciplinar obrigatoria: cardiologia, cirurgia, nefrologia, pneumo, infecto, psico, social, nutricao"</text></outputEntry>
+        <outputEntry id="OutputEntry_R4_fundamentacao"><text>"ISHLT 2024: Avaliacao pre-transplante multidisciplinar mandatoria. Inclui sorologias, painel anticorpos, avaliacao psicossocial"</text></outputEntry>
+        <outputEntry id="OutputEntry_R4_alertasDesperdicio"><text>"ESC"</text></outputEntry>
+        <outputEntry id="OutputEntry_R4_acaoRecomendada"><text>"SOLICITAR_INFO"</text></outputEntry>
+      </rule>
+
+      <!-- RULE 5: DOC - VO2 nao realizado em ambulatorial -->
+      <rule id="Rule_Pendente_SemVO2">
+        <description>Pendente: VO2 pico nao realizado em paciente ambulatorial</description>
+        <inputEntry id="InputEntry_R5_1"><text>"INTERMACS_4_7","Ambulatorial_Estavel"</text></inputEntry>
+        <inputEntry id="InputEntry_R5_2"><text>"NaoRealizado"</text></inputEntry>
+        <inputEntry id="InputEntry_R5_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_R5_4"><text>"Nenhuma"</text></inputEntry>
+        <inputEntry id="InputEntry_R5_5"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_R5_6"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_R5_resultado"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OutputEntry_R5_observacao"><text>"CPET com VO2 pico obrigatorio para paciente ambulatorial - criterio de indicacao ISHLT"</text></outputEntry>
+        <outputEntry id="OutputEntry_R5_fundamentacao"><text>"ISHLT 2024 Classe I: VO2 pico menor 12 em betabloqueio ou menor 14 sem betabloqueio indica transplante"</text></outputEntry>
+        <outputEntry id="OutputEntry_R5_alertasDesperdicio"><text>"DOC"</text></outputEntry>
+        <outputEntry id="OutputEntry_R5_acaoRecomendada"><text>"SOLICITAR_INFO"</text></outputEntry>
+      </rule>
+
+      <!-- ========== RULES - APROVACOES ========== -->
+
+      <!-- RULE 6: Aprovado URGENTE - INTERMACS 1-2 -->
+      <rule id="Rule_Aprovado_INTERMACS_1_2">
+        <description>Aprovado URGENTE: INTERMACS 1-2 (choque cardiogenico)</description>
+        <inputEntry id="InputEntry_R6_1"><text>"INTERMACS_1","INTERMACS_2"</text></inputEntry>
+        <inputEntry id="InputEntry_R6_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_R6_3"><text>"Menor3","Entre3e5","Maior5_Reversivel"</text></inputEntry>
+        <inputEntry id="InputEntry_R6_4"><text>"Nenhuma"</text></inputEntry>
+        <inputEntry id="InputEntry_R6_5"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_R6_6"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_R6_resultado"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_R6_observacao"><text>"INTERMACS 1-2 - Listagem URGENTE Status 1A/1B. LVAD como ponte se espera prolongada"</text></outputEntry>
+        <outputEntry id="OutputEntry_R6_fundamentacao"><text>"ISHLT 2024 e SNT: Choque cardiogenico indica transplante urgente. Mortalidade maior 50% em 30 dias sem intervencao"</text></outputEntry>
+        <outputEntry id="OutputEntry_R6_alertasDesperdicio"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_R6_acaoRecomendada"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <!-- RULE 7: Aprovado - INTERMACS 3 com VO2 baixo -->
+      <rule id="Rule_Aprovado_INTERMACS_3_VO2">
+        <description>Aprovado: INTERMACS 3 com VO2 pico menor 12</description>
+        <inputEntry id="InputEntry_R7_1"><text>"INTERMACS_3"</text></inputEntry>
+        <inputEntry id="InputEntry_R7_2"><text>"Menor10","Entre10e12"</text></inputEntry>
+        <inputEntry id="InputEntry_R7_3"><text>"Menor3","Entre3e5"</text></inputEntry>
+        <inputEntry id="InputEntry_R7_4"><text>"Nenhuma"</text></inputEntry>
+        <inputEntry id="InputEntry_R7_5"><text>true</text></inputEntry>
+        <inputEntry id="InputEntry_R7_6"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_R7_resultado"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_R7_observacao"><text>"INTERMACS 3 com VO2 pico menor 12 e avaliacao completa - indicacao Classe I"</text></outputEntry>
+        <outputEntry id="OutputEntry_R7_fundamentacao"><text>"ISHLT 2024 Classe I: VO2 pico menor 12 em betabloqueio com GDMT otimizado indica transplante"</text></outputEntry>
+        <outputEntry id="OutputEntry_R7_alertasDesperdicio"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_R7_acaoRecomendada"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <!-- RULE 8: Aprovado - Ambulatorial com VO2 muito baixo -->
+      <rule id="Rule_Aprovado_Ambulatorial_VO2Baixo">
+        <description>Aprovado: Ambulatorial com VO2 pico menor 10</description>
+        <inputEntry id="InputEntry_R8_1"><text>"INTERMACS_4_7","Ambulatorial_Estavel"</text></inputEntry>
+        <inputEntry id="InputEntry_R8_2"><text>"Menor10"</text></inputEntry>
+        <inputEntry id="InputEntry_R8_3"><text>"Menor3","Entre3e5"</text></inputEntry>
+        <inputEntry id="InputEntry_R8_4"><text>"Nenhuma"</text></inputEntry>
+        <inputEntry id="InputEntry_R8_5"><text>true</text></inputEntry>
+        <inputEntry id="InputEntry_R8_6"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_R8_resultado"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_R8_observacao"><text>"VO2 pico muito baixo (menor 10) com avaliacao completa - prognostico reservado, indicacao clara"</text></outputEntry>
+        <outputEntry id="OutputEntry_R8_fundamentacao"><text>"ISHLT 2024 Classe I: VO2 pico menor 10 indica prognostico muito reservado e beneficio claro do transplante"</text></outputEntry>
+        <outputEntry id="OutputEntry_R8_alertasDesperdicio"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_R8_acaoRecomendada"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <!-- ========== FALLBACK RULE ========== -->
+
+      <rule id="Rule_Fallback_30904170">
+        <description>Regra padrao - Encaminhar centro transplante</description>
+        <inputEntry id="InputEntry_Fallback_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Fallback_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Fallback_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Fallback_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Fallback_5"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Fallback_6"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_Fallback_resultado"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OutputEntry_Fallback_observacao"><text>"Encaminhar centro transplante cardiaco credenciado SNT para avaliacao completa"</text></outputEntry>
+        <outputEntry id="OutputEntry_Fallback_fundamentacao"><text>"Transplante cardiaco requer avaliacao multidisciplinar em centro especializado conforme ISHLT 2024"</text></outputEntry>
+        <outputEntry id="OutputEntry_Fallback_alertasDesperdicio"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_Fallback_acaoRecomendada"><text>"SOLICITAR_INFO"</text></outputEntry>
+      </rule>
+
+    </decisionTable>
+  </decision>
+</definitions>

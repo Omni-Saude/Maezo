@@ -1,0 +1,269 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/"
+             xmlns:dc="http://www.omg.org/spec/DD/20100524/DC/"
+             xmlns:di="http://www.omg.org/spec/DD/20100524/DI/"
+             id="Definitions_40503011"
+             name="Teste BRCA1/BRCA2 Germinativo"
+             namespace="http://camunda.org/schema/1.0/dmn"
+             exporter="Camunda Modeler"
+             exporterVersion="5.0.0">
+  <!--
+    TUSS 40503011 - Teste BRCA1/BRCA2 Germinativo
+    Versao: 3.1.0-LEAN-TIER2 (2026-02-08)
+    Especialidade: Oncologia Clinica / Oncogenetica
+    Categoria: Diagnostico Molecular Oncogenetica
+
+    Indicacoes Clinicas (DUT ANS 2024):
+    - Mama triplo-negativo diagnosticado antes dos 60 anos
+    - Ovario epitelial (todas as pacientes independente de idade)
+    - Mama HER2-negativo com historia familiar criterios NCCN
+    - Pancreas ou prostata metastatico para terapia-alvo
+    - Criterios NCCN para testagem genetica hereditaria
+
+    Contraindicacoes:
+    - Mama esporadica diagnosticada apos 60 anos sem historia familiar
+    - Teste BRCA ja realizado previamente sem indicacao de reteste
+    - Ausencia de indicacao clinica especifica conforme diretrizes
+    - Tumor sem implicacao terapeutica para resultado BRCA
+
+    Documentacao Obrigatoria:
+    - Diagnostico confirmado (CID-10) com laudo anatomopatologico detalhado
+    - Imunohistoquimica completa (ER, PR, HER2, Ki-67) para mama
+    - Historia familiar detalhada (>=3 geracoes) com heredograma
+    - Laudo de indicacao assinado por oncologista ou geneticista
+    - Termo de consentimento informado assinado
+    - Aconselhamento genetico pre-teste documentado
+
+    Referencias Normativas:
+    - SBOC/SBM Diretrizes Oncogenetica 2023
+    - NCCN Genetic/Familial High-Risk Assessment Guidelines v2.2024
+    - INCA Diretrizes Brasileiras para Rastreamento Oncogenetico
+    - Hereditary Cancer Guidelines ESMO 2023
+  -->
+
+  <decision id="Decision_40503011" name="Criterios de Autorizacao - Teste BRCA Germinativo [LEAN TIER-2]">
+    <decisionTable id="DecisionTable_40503011" hitPolicy="FIRST">
+
+      <!-- Input 1: Diagnostico Oncologico -->
+      <input id="Input_diagnosticoOncologico" label="Diagnostico Oncologico">
+        <inputExpression id="InputExpr_diagnosticoOncologico" typeRef="string">
+          <text>diagnosticoOncologico</text>
+        </inputExpression>
+        <inputValues id="InputValues_diagnosticoOncologico">
+          <text>"Mama_Triplo_Negativo","Ovario_Epitelial","Mama_HER2_Neg","Pancreas","Prostata_Metastatico"</text>
+        </inputValues>
+      </input>
+
+      <!-- Input 2: Estadiamento TNM -->
+      <input id="Input_estadiamentoTNM" label="Estadiamento TNM">
+        <inputExpression id="InputExpr_estadiamentoTNM" typeRef="string">
+          <text>estadiamentoTNM</text>
+        </inputExpression>
+      </input>
+
+      <!-- Input 3: Idade Paciente -->
+      <input id="Input_idadePaciente" label="Idade Paciente">
+        <inputExpression id="InputExpr_idadePaciente" typeRef="integer">
+          <text>idadePaciente</text>
+        </inputExpression>
+      </input>
+
+      <!-- Input 4: Historia Familiar -->
+      <input id="Input_historiaFamiliar" label="Historia Familiar Criterios NCCN">
+        <inputExpression id="InputExpr_historiaFamiliar" typeRef="boolean">
+          <text>historiaFamiliar</text>
+        </inputExpression>
+      </input>
+
+      <!-- Input 5: Indicacao Teste Genetico -->
+      <input id="Input_indicacaoTesteGenetico" label="Indicacao Teste Genetico">
+        <inputExpression id="InputExpr_indicacaoTesteGenetico" typeRef="boolean">
+          <text>indicacaoTesteGenetico</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_ultimoProcedimentoDias" label="Dias Desde Ultimo Procedimento">
+        <inputExpression id="InputExpression_ultimoProcedimentoDias" typeRef="number">
+          <text>ultimoProcedimentoDias</text>
+        </inputExpression>
+      </input>
+
+      <!-- Output 1: Resultado -->
+      <output id="Output_resultado" label="Resultado" name="resultado" typeRef="string">
+        <outputValues id="OutputValues_resultado">
+          <text>"Aprovado","Reprovado","Pendente"</text>
+        </outputValues>
+      </output>
+
+      <!-- Output 2: Observacao -->
+      <output id="Output_observacao" label="Observacao Clinica" name="observacao" typeRef="string" />
+
+      <!-- Output 3: Fundamentacao -->
+      <output id="Output_fundamentacao" label="Fundamentacao Legal/Tecnica" name="fundamentacao" typeRef="string" />
+
+      <!-- Output 4: Alertas de Desperdicio -->
+      <output id="Output_alertasDesperdicio" label="Alertas de Desperdicio" name="alertasDesperdicio" typeRef="string">
+        <outputValues id="OutputValues_alertasDesperdicio">
+          <text>"NENHUM","DUP","FREQ","ESC","DOC","PROT","MULTI"</text>
+        </outputValues>
+      </output>
+
+      <!-- Output 5: Acao Recomendada -->
+      <output id="Output_acaoRecomendada" label="Acao Recomendada" name="acaoRecomendada" typeRef="string">
+        <outputValues id="OutputValues_acaoRecomendada">
+          <text>"APROVAR","NEGAR","SOLICITAR_INFO","AGUARDAR_PRAZO","SUGERIR_ALTERNATIVA"</text>
+        </outputValues>
+      </output>
+
+      <!-- ============================================== -->
+      <!-- CONTRAINDICATION RULES (FIRST PRIORITY)       -->
+      <!-- ============================================== -->
+
+      <rule id="Rule_40503011_Contraindicacao_1">
+        <description>Mama esporadica >60 anos sem historia familiar: baixa probabilidade mutacao</description>
+        <inputEntry id="IE_Contra1_1"><text>"Mama_HER2_Neg"</text></inputEntry>
+        <inputEntry id="IE_Contra1_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_Contra1_3"><text>&gt;60</text></inputEntry>
+        <inputEntry id="IE_Contra1_4"><text>false</text></inputEntry>
+        <inputEntry id="IE_Contra1_5"><text>-</text></inputEntry>
+        <inputEntry id="IE_Contra1_6"><text>-</text></inputEntry>
+        <outputEntry id="OE_Contra1_1"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OE_Contra1_2"><text>"Mama esporadica >60 anos sem historia familiar: baixa probabilidade mutacao"</text></outputEntry>
+        <outputEntry id="OE_Contra1_3"><text>"NCCN: teste BRCA indicado mama <60a OU historia familiar independente idade"</text></outputEntry>
+        <outputEntry id="OE_Contra1_4"><text>"PROT"</text></outputEntry>
+        <outputEntry id="OE_Contra1_5"><text>"NEGAR"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_40503011_Contraindicacao_2">
+        <description>Teste BRCA ja realizado previamente ou ausencia indicacao clinica</description>
+        <inputEntry id="IE_Contra2_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_Contra2_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_Contra2_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_Contra2_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_Contra2_5"><text>false</text></inputEntry>
+        <inputEntry id="IE_Contra2_6"><text>-</text></inputEntry>
+        <outputEntry id="OE_Contra2_1"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OE_Contra2_2"><text>"Teste BRCA ja realizado previamente ou ausencia indicacao clinica"</text></outputEntry>
+        <outputEntry id="OE_Contra2_3"><text>"SBM/SBOC: teste duplicado sem valor clinico, indicacao restrita criterios"</text></outputEntry>
+        <outputEntry id="OE_Contra2_4"><text>"DUP"</text></outputEntry>
+        <outputEntry id="OE_Contra2_5"><text>"NEGAR"</text></outputEntry>
+      </rule>
+
+      <!-- WASTE DETECTION: DUP -->
+      <rule id="Rule_40503011_DUP">
+        <description>DUP - Reteste BRCA germinativo em menos de 90 dias. Resultado permanente</description>
+        <inputEntry id="IE_DUP_40503011_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_DUP_40503011_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_DUP_40503011_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_DUP_40503011_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_DUP_40503011_5"><text>-</text></inputEntry>
+        <inputEntry id="IE_DUP_40503011_ultimo"><text>&lt; 90</text></inputEntry>
+        <outputEntry id="OE_DUP_40503011_resultado"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OE_DUP_40503011_observacao"><text>"Reteste BRCA germinativo em menos de 90 dias. Resultado permanente"</text></outputEntry>
+        <outputEntry id="OE_DUP_40503011_fundamentacao"><text>"NCCN Genetic 2024: BRCA germinativo 1x/vida. Resultado definitivo"</text></outputEntry>
+        <outputEntry id="OE_DUP_40503011_alertasDesperdicio"><text>"DUP"</text></outputEntry>
+        <outputEntry id="OE_DUP_40503011_acaoRecomendada"><text>"AGUARDAR_PRAZO"</text></outputEntry>
+      </rule>
+
+
+      <rule id="Rule_40503011_FREQ_lifetime">
+        <description>FREQ - Teste BRCA germinativo limitado a 1x/vida</description>
+        <inputEntry id="IE_FREQ_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_FREQ_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_FREQ_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_FREQ_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_FREQ_5"><text>-</text></inputEntry>
+        <inputEntry id="IE_FREQ_6"><text>-</text></inputEntry>
+        <outputEntry id="OE_FREQ_1"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OE_FREQ_2"><text>"Teste BRCA germinativo limitado a 1x/vida. Resultado permanente"</text></outputEntry>
+        <outputEntry id="OE_FREQ_3"><text>"NCCN Genetic 2024: Teste BRCA germinativo 1x/vida. Resultado permanente"</text></outputEntry>
+        <outputEntry id="OE_FREQ_4"><text>"FREQ"</text></outputEntry>
+        <outputEntry id="OE_FREQ_5"><text>"NEGAR"</text></outputEntry>
+      </rule>
+
+      <!-- ============================================== -->
+      <!-- APPROVAL RULES (AFTER CONTRAINDICATIONS)      -->
+      <!-- ============================================== -->
+
+      <rule id="Rule_40503011_Aprovacao_1">
+        <description>Mama triplo-negativo <60 anos: indicacao teste BRCA germinativo</description>
+        <inputEntry id="IE_Aprov1_1"><text>"Mama_Triplo_Negativo"</text></inputEntry>
+        <inputEntry id="IE_Aprov1_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_Aprov1_3"><text>&lt;60</text></inputEntry>
+        <inputEntry id="IE_Aprov1_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_Aprov1_5"><text>true</text></inputEntry>
+        <inputEntry id="IE_Aprov1_6"><text>-</text></inputEntry>
+        <outputEntry id="OE_Aprov1_1"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OE_Aprov1_2"><text>"Mama triplo-negativo <60 anos: indicacao teste BRCA germinativo"</text></outputEntry>
+        <outputEntry id="OE_Aprov1_3"><text>"NCCN: TNBC <60a tem 10-20% prevalencia mutacao BRCA, indicacao olaparib"</text></outputEntry>
+        <outputEntry id="OE_Aprov1_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_Aprov1_5"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_40503011_Aprovacao_2">
+        <description>Ovario epitelial: teste BRCA indicado para todas pacientes</description>
+        <inputEntry id="IE_Aprov2_1"><text>"Ovario_Epitelial"</text></inputEntry>
+        <inputEntry id="IE_Aprov2_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_Aprov2_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_Aprov2_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_Aprov2_5"><text>true</text></inputEntry>
+        <inputEntry id="IE_Aprov2_6"><text>-</text></inputEntry>
+        <outputEntry id="OE_Aprov2_1"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OE_Aprov2_2"><text>"Ovario epitelial: teste BRCA indicado para todas pacientes"</text></outputEntry>
+        <outputEntry id="OE_Aprov2_3"><text>"NCCN/ESMO: 15-20% ovario tem mutacao BRCA, impacta PARPi manutencao"</text></outputEntry>
+        <outputEntry id="OE_Aprov2_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_Aprov2_5"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_40503011_Aprovacao_3">
+        <description>Mama com historia familiar criterios NCCN: teste BRCA indicado</description>
+        <inputEntry id="IE_Aprov3_1"><text>"Mama_HER2_Neg"</text></inputEntry>
+        <inputEntry id="IE_Aprov3_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_Aprov3_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_Aprov3_4"><text>true</text></inputEntry>
+        <inputEntry id="IE_Aprov3_5"><text>true</text></inputEntry>
+        <inputEntry id="IE_Aprov3_6"><text>-</text></inputEntry>
+        <outputEntry id="OE_Aprov3_1"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OE_Aprov3_2"><text>"Mama com historia familiar criterios NCCN: teste BRCA indicado"</text></outputEntry>
+        <outputEntry id="OE_Aprov3_3"><text>"NCCN: >=2 parentes 1grau mama/ovario, ou 1 parente <50a, ou bilateral"</text></outputEntry>
+        <outputEntry id="OE_Aprov3_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_Aprov3_5"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_40503011_Aprovacao_4">
+        <description>Pancreas ou prostata metastatico: teste BRCA para terapia-alvo</description>
+        <inputEntry id="IE_Aprov4_1"><text>"Pancreas","Prostata_Metastatico"</text></inputEntry>
+        <inputEntry id="IE_Aprov4_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_Aprov4_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_Aprov4_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_Aprov4_5"><text>true</text></inputEntry>
+        <inputEntry id="IE_Aprov4_6"><text>-</text></inputEntry>
+        <outputEntry id="OE_Aprov4_1"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OE_Aprov4_2"><text>"Pancreas ou prostata metastatico: teste BRCA para terapia-alvo"</text></outputEntry>
+        <outputEntry id="OE_Aprov4_3"><text>"FDA/ANVISA: olaparib pancreas BRCA+, PARPi prostata mCRPC BRCA+"</text></outputEntry>
+        <outputEntry id="OE_Aprov4_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_Aprov4_5"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <!-- ============================================== -->
+      <!-- FALLBACK RULE - Casos nao cobertos            -->
+      <!-- ============================================== -->
+      <rule id="Rule_Fallback_40503011">
+        <description>Regra padrao - Casos nao cobertos requerem analise manual por auditor medico especializado</description>
+        <inputEntry id="IE_Fallback_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_Fallback_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_Fallback_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_Fallback_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_Fallback_5"><text>-</text></inputEntry>
+        <inputEntry id="IE_Fallback_6"><text>-</text></inputEntry>
+        <outputEntry id="OE_Fallback_1"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OE_Fallback_2"><text>"Dados incompletos para avaliacao teste BRCA"</text></outputEntry>
+        <outputEntry id="OE_Fallback_3"><text>"Documentacao obrigatoria: laudo AP, idade, historia familiar detalhada, criterios NCCN"</text></outputEntry>
+        <outputEntry id="OE_Fallback_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_Fallback_5"><text>"SOLICITAR_INFO"</text></outputEntry>
+      </rule>
+
+    </decisionTable>
+  </decision>
+</definitions>

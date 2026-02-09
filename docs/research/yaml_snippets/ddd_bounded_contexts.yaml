@@ -1,0 +1,488 @@
+# Domain-Driven Design Bounded Contexts Snippet
+# Copy this into architecture documentation for DDD implementation
+
+ddd_bounded_contexts:
+  healthcare_system_architecture:
+    philosophy: "Each bounded context reflects a real clinical or administrative process"
+    benefits:
+      - maintainability: "Intuitive structure matching business processes"
+      - auditability: "Clear boundaries enable comprehensive audit trails"
+      - compliance: "Aggregates enforce LGPD-compliant data handling"
+      - flexibility: "Independent evolution of clinical and financial systems"
+      - security: "Encapsulated data with enforced privacy rules"
+
+  contexts:
+    patient_management:
+      responsibility: "Patient registration, demographics, medical history"
+      aggregate_root: Patient
+
+      entities:
+        - name: Patient
+          identity: CPF
+          attributes:
+            - cpf: string
+            - name: string
+            - birth_date: date
+            - contact_information: ContactInfo
+          invariants:
+            - "Must have valid CPF format"
+            - "Must have at least one contact method"
+
+        - name: MedicalHistory
+          identity: history_id
+          attributes:
+            - history_id: uuid
+            - patient_id: reference
+            - entries: List<HistoryEntry>
+          invariants:
+            - "Entries are immutable once created"
+            - "Must maintain chronological order"
+
+        - name: EmergencyContact
+          identity: contact_id
+          attributes:
+            - contact_id: uuid
+            - patient_id: reference
+            - name: string
+            - relationship: string
+            - phone: string
+
+      value_objects:
+        - ContactInfo
+        - CPF
+        - Address
+        - PhoneNumber
+
+      domain_events:
+        - event: PatientRegistered
+          payload: [patient_id, cpf, registration_date]
+          triggers: [CreateMedicalRecord, InitializeAppointmentSchedule]
+
+        - event: PatientUpdated
+          payload: [patient_id, updated_fields, timestamp]
+          triggers: [SyncWithExternalSystems]
+
+        - event: MedicalHistoryAdded
+          payload: [patient_id, history_entry_id, entry_date]
+          triggers: [NotifyPrimaryCarePhysician]
+
+      repositories:
+        - PatientRepository
+        - MedicalHistoryRepository
+
+      services:
+        - PatientRegistrationService
+        - MedicalHistoryService
+
+      lgpd_considerations:
+        access_control: "Professional secrecy for intra-institutional access"
+        consent_required: "Written consent for inter-institutional access"
+        audit_level: HIGH
+
+    appointment_scheduling:
+      responsibility: "Appointment booking, rescheduling, cancellations"
+      aggregate_root: Appointment
+
+      entities:
+        - name: Appointment
+          identity: appointment_id
+          attributes:
+            - appointment_id: uuid
+            - patient_id: reference
+            - physician_id: reference
+            - scheduled_time: datetime
+            - duration: integer
+            - status: AppointmentStatus
+          invariants:
+            - "Cannot overlap with existing appointments"
+            - "Must be scheduled during business hours"
+            - "Cancellation requires minimum 24h notice"
+
+        - name: Schedule
+          identity: schedule_id
+          attributes:
+            - schedule_id: uuid
+            - physician_id: reference
+            - available_slots: List<TimeSlot>
+
+        - name: TimeSlot
+          identity: slot_id
+          attributes:
+            - slot_id: uuid
+            - start_time: datetime
+            - end_time: datetime
+            - is_available: boolean
+
+      value_objects:
+        - AppointmentStatus
+        - TimeRange
+        - Duration
+
+      domain_events:
+        - event: AppointmentScheduled
+          payload: [appointment_id, patient_id, physician_id, scheduled_time]
+          triggers: [SendConfirmationEmail, BlockTimeSlot, CreateMedicalRecordEntry]
+
+        - event: AppointmentRescheduled
+          payload: [appointment_id, old_time, new_time]
+          triggers: [SendNotification, UpdateSchedule]
+
+        - event: AppointmentCancelled
+          payload: [appointment_id, cancellation_reason, cancelled_by]
+          triggers: [ReleaseTimeSlot, SendNotification]
+
+      repositories:
+        - AppointmentRepository
+        - ScheduleRepository
+
+      services:
+        - AppointmentSchedulingService
+        - SlotAvailabilityService
+
+    medical_records:
+      responsibility: "Clinical documentation, diagnoses, treatments"
+      aggregate_root: MedicalRecord
+
+      entities:
+        - name: MedicalRecord
+          identity: record_id
+          attributes:
+            - record_id: uuid
+            - patient_id: reference
+            - created_date: datetime
+            - entries: List<RecordEntry>
+          invariants:
+            - "Cannot be deleted, only marked inactive"
+            - "All entries must have physician signature"
+            - "20-year retention period required"
+
+        - name: Diagnosis
+          identity: diagnosis_id
+          attributes:
+            - diagnosis_id: uuid
+            - record_id: reference
+            - icd10_code: string
+            - description: string
+            - diagnosed_by: reference
+            - diagnosed_date: datetime
+
+        - name: Treatment
+          identity: treatment_id
+          attributes:
+            - treatment_id: uuid
+            - diagnosis_id: reference
+            - treatment_plan: text
+            - start_date: datetime
+            - end_date: datetime
+
+        - name: Prescription
+          identity: prescription_id
+          attributes:
+            - prescription_id: uuid
+            - treatment_id: reference
+            - medication: string
+            - dosage: string
+            - frequency: string
+            - duration: integer
+
+      value_objects:
+        - ICD10Code
+        - Dosage
+        - Frequency
+
+      domain_events:
+        - event: RecordCreated
+          payload: [record_id, patient_id, created_by, timestamp]
+          triggers: [InitializeRecordTemplate, NotifyBillingContext]
+          lgpd: "Do not include sensitive clinical data in event payload"
+
+        - event: DiagnosisAdded
+          payload: [record_id, diagnosis_id, icd10_code]
+          triggers: [UpdateTreatmentPlan, NotifyInsurance]
+
+        - event: TreatmentPrescribed
+          payload: [record_id, treatment_id, prescription_ids]
+          triggers: [SendToPharmacy, UpdateBillingContext]
+
+      repositories:
+        - MedicalRecordRepository
+        - DiagnosisRepository
+        - PrescriptionRepository
+
+      services:
+        - ClinicalDocumentationService
+        - DiagnosisService
+        - PrescriptionService
+
+      lgpd_considerations:
+        sensitivity: CRITICAL
+        retention: 20_years
+        access_logging: "Every access must be logged with justification"
+        anonymization: "For research purposes, anonymize before export"
+
+    billing_claims:
+      responsibility: "Financial processing, insurance claims, TISS integration"
+      aggregate_root: Claim
+
+      entities:
+        - name: Claim
+          identity: claim_id
+          attributes:
+            - claim_id: uuid
+            - patient_id: reference
+            - insurance_id: reference
+            - claim_date: datetime
+            - total_amount: Money
+            - status: ClaimStatus
+            - line_items: List<ClaimLineItem>
+          invariants:
+            - "Must have all TISS 4.0 mandatory fields"
+            - "Total amount must match sum of line items"
+            - "Glosas can only be applied to approved claims"
+
+        - name: Invoice
+          identity: invoice_id
+          attributes:
+            - invoice_id: uuid
+            - claim_id: reference
+            - invoice_date: datetime
+            - due_date: datetime
+            - amount: Money
+
+        - name: Payment
+          identity: payment_id
+          attributes:
+            - payment_id: uuid
+            - invoice_id: reference
+            - payment_date: datetime
+            - amount_paid: Money
+            - payment_method: string
+
+        - name: Glosa
+          identity: glosa_id
+          attributes:
+            - glosa_id: uuid
+            - claim_id: reference
+            - glosa_code: string
+            - glosa_amount: Money
+            - justification: text
+
+      value_objects:
+        - Money
+        - ClaimStatus
+        - TissCode
+        - GlosaCode
+
+      domain_events:
+        - event: ClaimSubmitted
+          payload: [claim_id, insurance_id, submission_date, tiss_transaction_id]
+          triggers: [ValidateTissFormat, SendToInsurance, CreateFinancialProvision]
+          tiss_requirement: "Must include TISS transaction ID"
+
+        - event: ClaimApproved
+          payload: [claim_id, approval_date, approved_amount]
+          triggers: [UpdateFinancialProvision, GenerateInvoice, NotifyPatient]
+
+        - event: GlosaApplied
+          payload: [claim_id, glosa_id, glosa_code, glosa_amount, justification]
+          triggers: [RecalculateClaimAmount, TriggerSagaCompensation, NotifyReviewQueue]
+          audit_requirement: "Record glosa justification and responsible party"
+
+        - event: PaymentReceived
+          payload: [invoice_id, payment_id, amount_paid, payment_date]
+          triggers: [UpdateAccountsReceivable, CloseInvoice]
+
+      repositories:
+        - ClaimRepository
+        - InvoiceRepository
+        - PaymentRepository
+        - GlosaRepository
+
+      services:
+        - ClaimValidationService
+        - FinancialProvisionService
+        - GlosaProcessingService
+        - TissXmlService
+
+      tiss_4_0_integration:
+        mandatory_fields:
+          - unidade_medida
+          - codigo_despesa
+          - data_realizacao
+          - quantidade
+          - codigo_item_assistencial
+        validation: "XML schema validation before submission"
+        communication: "Web services (SOAP/REST) with XML payload"
+
+    authorization_audit:
+      responsibility: "Procedure authorization, compliance, audit trails"
+      aggregate_root: Authorization
+
+      entities:
+        - name: Authorization
+          identity: authorization_id
+          attributes:
+            - authorization_id: uuid
+            - patient_id: reference
+            - procedure_code: string
+            - requested_by: reference
+            - requested_date: datetime
+            - status: AuthorizationStatus
+            - expiration_date: datetime
+          invariants:
+            - "Cannot modify after approval"
+            - "Expiration date must be future date"
+            - "Requires valid procedure code from ANS Rol"
+
+        - name: AuditLog
+          identity: log_id
+          attributes:
+            - log_id: uuid
+            - user_id: reference
+            - action: string
+            - resource_type: string
+            - resource_id: reference
+            - timestamp: datetime
+            - justification: text
+          invariants:
+            - "Immutable once created"
+            - "Cannot be deleted"
+            - "Retention per LGPD DPIA"
+
+        - name: ComplianceCheck
+          identity: check_id
+          attributes:
+            - check_id: uuid
+            - check_type: string
+            - performed_date: datetime
+            - result: CheckResult
+            - findings: text
+
+      value_objects:
+        - AuthorizationStatus
+        - CheckResult
+        - AuditAction
+
+      domain_events:
+        - event: AuthorizationRequested
+          payload: [authorization_id, patient_id, procedure_code, requested_by]
+          triggers: [ValidateAgainstRol, CheckPatientEligibility, NotifyInsurance]
+
+        - event: AuthorizationGranted
+          payload: [authorization_id, approved_by, approval_date, expiration_date]
+          triggers: [NotifyPatient, NotifyProvider, EnableProcedureExecution]
+
+        - event: AuditLogCreated
+          payload: [log_id, user_id, action, resource_type, timestamp]
+          triggers: [AnalyzeForAnomalies, StoreInLongTermArchive]
+
+      repositories:
+        - AuthorizationRepository
+        - AuditLogRepository
+        - ComplianceCheckRepository
+
+      services:
+        - AuthorizationService
+        - AuditLoggingService
+        - ComplianceMonitoringService
+
+      lgpd_considerations:
+        audit_all_access: true
+        retention_period: "Per DPIA analysis"
+        immutability: "Logs cannot be modified or deleted"
+        encryption: "Logs encrypted at rest"
+
+  context_mapping:
+    partnership:
+      - relationship: "Patient Management ↔ Medical Records"
+        shared_concept: "Patient identity (CPF)"
+        integration: shared_kernel
+
+      - relationship: "Medical Records ↔ Billing"
+        shared_concept: "Procedure codes (TUSS)"
+        integration: shared_kernel
+
+    customer_supplier:
+      - relationship: "Authorization (upstream) → Billing (downstream)"
+        dependency: "Authorization approval required before billing"
+        integration: conformist
+
+      - relationship: "Medical Records (upstream) → Claims (downstream)"
+        dependency: "Clinical data feeds claim generation"
+        integration: conformist
+
+    conformist:
+      - relationship: "All contexts → TISS 4.0 Standard"
+        standard: "ANS specifications"
+        compliance: mandatory
+
+      - relationship: "All contexts → LGPD"
+        standard: "ANPD regulations"
+        compliance: mandatory
+
+    anticorruption_layer:
+      - relationship: "Internal domain model ↔ TISS XML"
+        acl_purpose: "Transform between domain objects and TISS format"
+        location: "TissXmlService in Billing context"
+
+      - relationship: "Internal domain model ↔ External insurance APIs"
+        acl_purpose: "Protect domain from external API changes"
+        location: "InsuranceIntegrationService"
+
+  ubiquitous_language:
+    clinical_terms:
+      portuguese: ["Paciente", "Atendimento", "Diagnóstico", "Procedimento", "Prescrição"]
+      english: ["Patient", "Appointment", "Diagnosis", "Procedure", "Prescription"]
+
+    financial_terms:
+      portuguese: ["Fatura", "Glosa", "Provisão Financeira", "Ressarcimento"]
+      english: ["Invoice", "Glosa (claim denial)", "Financial Provision", "Reimbursement"]
+
+    tiss_terms:
+      portuguese: ["Guia", "Lote", "Demonstrativo", "TUSS", "OPME"]
+      english: ["Guide (claim form)", "Batch", "Statement", "Unified Terminology", "Prosthetics & Materials"]
+
+    compliance_terms:
+      portuguese: ["Auditoria", "Autorização", "Conformidade", "Sigilo Profissional"]
+      english: ["Audit", "Authorization", "Compliance", "Professional Secrecy"]
+
+  tactical_patterns:
+    entities:
+      description: "Objects with identity that persist over time"
+      examples:
+        - name: Patient
+          identity: CPF
+
+        - name: Claim
+          identity: TISS_transaction_ID
+
+        - name: Authorization
+          identity: protocol_number
+
+    value_objects:
+      description: "Immutable objects defined by attributes, no identity"
+      examples:
+        - Address
+        - CPF
+        - Money
+        - DateRange
+        - TissCode
+
+    domain_services:
+      description: "Operations that don't naturally belong to entities or value objects"
+      examples:
+        - name: ClaimValidationService
+          responsibility: "Validates TISS XML against ANS schemas"
+
+        - name: FinancialProvisionService
+          responsibility: "Calculates financial provisions based on claim data"
+
+        - name: LgpdComplianceService
+          responsibility: "Checks data access permissions and logs access"
+
+    repositories:
+      description: "Abstractions for aggregate persistence and retrieval"
+      examples:
+        - PatientRepository
+        - ClaimRepository
+        - AuditLogRepository

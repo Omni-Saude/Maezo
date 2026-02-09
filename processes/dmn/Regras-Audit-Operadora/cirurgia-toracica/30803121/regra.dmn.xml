@@ -1,0 +1,339 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             xmlns:camunda="http://camunda.org/schema/1.0/dmn"
+             id="Definitions_30803121"
+             name="TOR-PLE-002 Decorticacao Pulmonar"
+             namespace="http://camunda.org/schema/1.0/dmn">
+
+  <!--
+    ===============================================================================
+    TUSS: 30803121
+    Procedimento: Decorticacao Pulmonar (Empiema)
+    Especialidade: Cirurgia Toracica
+    Codigo Regra: TOR-PLE-002
+    Versao: 3.0.0-LEAN-TIER2
+    Data: 2026-02-07
+    ===============================================================================
+
+    INDICACOES CLINICAS:
+    - Empiema fase II (fibrinopurulenta) - VATS ou toracotomia
+    - Empiema fase III (organizacao) - decorticacao obrigatoria
+    - Pulmao encarcerado (trapped lung) por fibrotorax
+    - Falha de drenagem fechada apos 7-10 dias
+    - Loculacoes pleurais nao responsivas a fibrinoliticos
+    - Espessamento pleural maior 5mm impedindo expansao
+
+    CLASSIFICACAO DE LIGHT (Empiema Pleural):
+    - Fase I (Exsudativa): Drenagem fechada
+    - Fase II (Fibrinopurulenta): VATS precoce ou fibrinoliticos
+    - Fase III (Organizacao): Decorticacao cirurgica
+
+    CONTRAINDICACOES RELATIVAS:
+    - Debilidade clinica extrema (considerar drenagem aberta)
+    - Comorbidades cardiopulmonares graves
+    - Expectativa de vida muito limitada
+    - Sepse nao controlada (estabilizar antes)
+
+    REFERENCIAS TECNICAS:
+    - BTS Guidelines Pleural Infection 2023
+    - ACCP/AATS Statement Empyema Management
+    - MIST2 Trial - Fibrinoliticos
+    - SBCT 2023 - Empiema Pleural
+    ===============================================================================
+  -->
+
+  <decision id="Decision_30803121" name="Regra Clinica - Decorticacao Pulmonar">
+    <decisionTable id="DecisionTable_30803121" hitPolicy="FIRST">
+
+      <!-- ========== INPUTS (5) - Padrao TIER-1 Cirurgia Toracica ========== -->
+
+      <input id="Input_diagnosticoPulmonar" label="Fase do Empiema (Light)" camunda:inputVariable="diagnosticoPulmonar">
+        <inputExpression id="InputExpression_diagnosticoPulmonar" typeRef="string">
+          <text>diagnosticoPulmonar</text>
+        </inputExpression>
+        <inputValues id="InputValues_diagnosticoPulmonar">
+          <text>"FASE_I_EXSUDATIVA","FASE_II_FIBRINOPURULENTA","FASE_III_ORGANIZACAO","FIBROTORAX_CRONICO","NAO_ESTADIADO"</text>
+        </inputValues>
+      </input>
+
+      <input id="Input_estadiamentoTNM" label="Resposta ao Tratamento Inicial" camunda:inputVariable="estadiamentoTNM">
+        <inputExpression id="InputExpression_estadiamentoTNM" typeRef="string">
+          <text>estadiamentoTNM</text>
+        </inputExpression>
+        <inputValues id="InputValues_estadiamentoTNM">
+          <text>"FALHA_DRENAGEM_7_10D","LOCULACOES_REFRATARIAS","FIBRINOLITICOS_FALHARAM","EXPANSAO_PULMONAR_IMPEDIDA","NAO_TRATADO_PREVIAMENTE"</text>
+        </inputValues>
+      </input>
+
+      <input id="Input_funcaoPulmonar" label="Funcao Pulmonar e Reserva" camunda:inputVariable="funcaoPulmonar">
+        <inputExpression id="InputExpression_funcaoPulmonar" typeRef="string">
+          <text>funcaoPulmonar</text>
+        </inputExpression>
+        <inputValues id="InputValues_funcaoPulmonar">
+          <text>"ADEQUADA_PARA_CIRURGIA","LIMITADA_ACEITA_RISCO","INSUFICIENTE_ALTO_RISCO","NAO_AVALIADA"</text>
+        </inputValues>
+      </input>
+
+      <input id="Input_comorbidades" label="Estado Clinico e Comorbidades" camunda:inputVariable="comorbidades">
+        <inputExpression id="InputExpression_comorbidades" typeRef="string">
+          <text>comorbidades</text>
+        </inputExpression>
+        <inputValues id="InputValues_comorbidades">
+          <text>"ESTAVEL_SEM_SEPSE","SEPSE_CONTROLADA","SEPSE_NAO_CONTROLADA","DEBILIDADE_EXTREMA","COMORBIDADES_GRAVES"</text>
+        </inputValues>
+      </input>
+
+      <input id="Input_documentacaoClinica" label="Documentacao Clinica" camunda:inputVariable="documentacaoClinica">
+        <inputExpression id="InputExpression_documentacaoClinica" typeRef="string">
+          <text>documentacaoClinica</text>
+        </inputExpression>
+        <inputValues id="InputValues_documentacaoClinica">
+          <text>"COMPLETA_TC_CULTURAS","PARCIAL_SEM_TC","PARCIAL_SEM_CULTURAS","INCOMPLETA"</text>
+        </inputValues>
+      </input>
+
+      <!-- ========== OUTPUTS (3) - Padrao TIER-1 ========== -->
+
+      <output id="Output_resultado" label="Resultado" name="resultado" typeRef="string">
+        <outputValues id="OutputValues_resultado">
+          <text>"Aprovado","Reprovado","Pendente"</text>
+        </outputValues>
+      </output>
+
+      <output id="Output_observacao" label="Observacao Clinica" name="observacao" typeRef="string" />
+
+      <output id="Output_fundamentacao" label="Fundamentacao Tecnica" name="fundamentacao" typeRef="string" />
+
+      <output id="Output_alertasDesperdicio" name="alertasDesperdicio" typeRef="string">
+        <outputValues>
+          <text>"NENHUM","DUP","FREQ","ESC","DOC","PROT","MULTI"</text>
+        </outputValues>
+      </output>
+
+      <output id="Output_acaoRecomendada" name="acaoRecomendada" typeRef="string">
+        <outputValues>
+          <text>"APROVAR","NEGAR","SOLICITAR_INFO","AGUARDAR_PRAZO","SUGERIR_ALTERNATIVA"</text>
+        </outputValues>
+      </output>
+
+      <!-- ========== REGRAS - Ordem: Reprovado, Aprovado, Pendente, Fallback ========== -->
+
+      <!-- REPROVACOES -->
+
+      <rule id="Rule_Reprovado_SepseNaoControlada">
+        <description>Reprovado: Sepse nao controlada - estabilizar antes de cirurgia</description>
+        <inputEntry id="InputEntry_Rep_Sepse_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Rep_Sepse_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Rep_Sepse_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Rep_Sepse_4"><text>"SEPSE_NAO_CONTROLADA"</text></inputEntry>
+        <inputEntry id="InputEntry_Rep_Sepse_5"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_Rep_Sepse_resultado"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_Rep_Sepse_observacao"><text>"Decorticacao contraindicada em sepse nao controlada. Estabilizar com antibioticos e drenagem fechada. Cirurgia apos melhora clinica."</text></outputEntry>
+        <outputEntry id="OutputEntry_Rep_Sepse_fundamentacao"><text>"BTS 2023, AATS: Cirurgia em paciente septico instavel aumenta mortalidade. Controle de fonte e estabilizacao sao prioridade."</text></outputEntry>
+        <outputEntry id="OutputEntry_Reprovado_SepseNaoControlada_alertasDesperdicio"><text>"PROT"</text></outputEntry>
+        <outputEntry id="OutputEntry_Reprovado_SepseNaoControlada_acaoRecomendada"><text>"NEGAR"</text></outputEntry>
+        <outputEntry id="OutputEntry_Reprovado_SepseNaoControlada_alertasDesperdicio"><text>"PROT"</text></outputEntry>
+        <outputEntry id="OutputEntry_Reprovado_SepseNaoControlada_acaoRecomendada"><text>"NEGAR"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Reprovado_FaseI">
+        <description>Reprovado: Empiema fase I - drenagem fechada e tratamento inicial</description>
+        <inputEntry id="InputEntry_Rep_F1_1"><text>"FASE_I_EXSUDATIVA"</text></inputEntry>
+        <inputEntry id="InputEntry_Rep_F1_2"><text>"NAO_TRATADO_PREVIAMENTE"</text></inputEntry>
+        <inputEntry id="InputEntry_Rep_F1_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Rep_F1_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Rep_F1_5"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_Rep_F1_resultado"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_Rep_F1_observacao"><text>"Decorticacao nao indicada em empiema fase I. Iniciar com drenagem fechada e antibioticoterapia. Maioria resolve sem cirurgia."</text></outputEntry>
+        <outputEntry id="OutputEntry_Rep_F1_fundamentacao"><text>"BTS 2023: Fase exsudativa responde a drenagem simples em 70-80% dos casos. Cirurgia reservada para falha ou progressao."</text></outputEntry>
+        <outputEntry id="OutputEntry_Reprovado_FaseI_alertasDesperdicio"><text>"PROT"</text></outputEntry>
+        <outputEntry id="OutputEntry_Reprovado_FaseI_acaoRecomendada"><text>"NEGAR"</text></outputEntry>
+        <outputEntry id="OutputEntry_Reprovado_FaseI_alertasDesperdicio"><text>"PROT"</text></outputEntry>
+        <outputEntry id="OutputEntry_Reprovado_FaseI_acaoRecomendada"><text>"NEGAR"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Reprovado_DebilidadeExtrema">
+        <description>Reprovado: Debilidade clinica extrema - considerar alternativas</description>
+        <inputEntry id="InputEntry_Rep_Debil_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Rep_Debil_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Rep_Debil_3"><text>"INSUFICIENTE_ALTO_RISCO"</text></inputEntry>
+        <inputEntry id="InputEntry_Rep_Debil_4"><text>"DEBILIDADE_EXTREMA"</text></inputEntry>
+        <inputEntry id="InputEntry_Rep_Debil_5"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_Rep_Debil_resultado"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_Rep_Debil_observacao"><text>"Decorticacao de alto risco em paciente debilitado. Considerar drenagem aberta (janela pleural) ou toracostomia como alternativa."</text></outputEntry>
+        <outputEntry id="OutputEntry_Rep_Debil_fundamentacao"><text>"AATS: Em pacientes muito debilitados, procedimentos de salvamento (janela pleural, Eloesser) sao alternativas com menor morbimortalidade."</text></outputEntry>
+        <outputEntry id="OutputEntry_Reprovado_DebilidadeExtrema_alertasDesperdicio"><text>"PROT"</text></outputEntry>
+        <outputEntry id="OutputEntry_Reprovado_DebilidadeExtrema_acaoRecomendada"><text>"NEGAR"</text></outputEntry>
+        <outputEntry id="OutputEntry_Reprovado_DebilidadeExtrema_alertasDesperdicio"><text>"PROT"</text></outputEntry>
+        <outputEntry id="OutputEntry_Reprovado_DebilidadeExtrema_acaoRecomendada"><text>"NEGAR"</text></outputEntry>
+      </rule>
+
+      <!-- APROVACOES -->
+
+      <rule id="Rule_Aprovado_FaseIII">
+        <description>Aprovado: Empiema fase III (organizacao) - decorticacao indicada</description>
+        <inputEntry id="InputEntry_Apr_F3_1"><text>"FASE_III_ORGANIZACAO"</text></inputEntry>
+        <inputEntry id="InputEntry_Apr_F3_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Apr_F3_3"><text>"ADEQUADA_PARA_CIRURGIA","LIMITADA_ACEITA_RISCO"</text></inputEntry>
+        <inputEntry id="InputEntry_Apr_F3_4"><text>"ESTAVEL_SEM_SEPSE","SEPSE_CONTROLADA"</text></inputEntry>
+        <inputEntry id="InputEntry_Apr_F3_5"><text>"COMPLETA_TC_CULTURAS"</text></inputEntry>
+        <outputEntry id="OutputEntry_Apr_F3_resultado"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_Apr_F3_observacao"><text>"Decorticacao aprovada para empiema fase III. Fibrotorax organizado requer remocao da casca pleural para expansao pulmonar."</text></outputEntry>
+        <outputEntry id="OutputEntry_Apr_F3_fundamentacao"><text>"BTS 2023, AATS: Fase de organizacao (maior 2-4 semanas) tem casca pleural espessa. Decorticacao e unico tratamento efetivo."</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprovado_FaseIII_alertasDesperdicio"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprovado_FaseIII_acaoRecomendada"><text>"APROVAR"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprovado_FaseIII_alertasDesperdicio"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprovado_FaseIII_acaoRecomendada"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Aprovado_Fibrotorax">
+        <description>Aprovado: Fibrotorax cronico com encarceramento pulmonar</description>
+        <inputEntry id="InputEntry_Apr_Fibro_1"><text>"FIBROTORAX_CRONICO"</text></inputEntry>
+        <inputEntry id="InputEntry_Apr_Fibro_2"><text>"EXPANSAO_PULMONAR_IMPEDIDA"</text></inputEntry>
+        <inputEntry id="InputEntry_Apr_Fibro_3"><text>"ADEQUADA_PARA_CIRURGIA"</text></inputEntry>
+        <inputEntry id="InputEntry_Apr_Fibro_4"><text>"ESTAVEL_SEM_SEPSE"</text></inputEntry>
+        <inputEntry id="InputEntry_Apr_Fibro_5"><text>"COMPLETA_TC_CULTURAS"</text></inputEntry>
+        <outputEntry id="OutputEntry_Apr_Fibro_resultado"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_Apr_Fibro_observacao"><text>"Decorticacao aprovada para fibrotorax cronico sintomatico. Liberacao do pulmao pode recuperar funcao pulmonar significativa."</text></outputEntry>
+        <outputEntry id="OutputEntry_Apr_Fibro_fundamentacao"><text>"SBCT 2023: Fibrotorax com restricao funcional e indicacao de decorticacao. Melhora de VEF1 de 20-30% esperada apos recuperacao."</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprovado_Fibrotorax_alertasDesperdicio"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprovado_Fibrotorax_acaoRecomendada"><text>"APROVAR"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprovado_Fibrotorax_alertasDesperdicio"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprovado_Fibrotorax_acaoRecomendada"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Aprovado_FalhaFibrinoliticos">
+        <description>Aprovado: Falha de fibrinoliticos intrapleurais</description>
+        <inputEntry id="InputEntry_Apr_Fibri_1"><text>"FASE_II_FIBRINOPURULENTA"</text></inputEntry>
+        <inputEntry id="InputEntry_Apr_Fibri_2"><text>"FIBRINOLITICOS_FALHARAM"</text></inputEntry>
+        <inputEntry id="InputEntry_Apr_Fibri_3"><text>"ADEQUADA_PARA_CIRURGIA","LIMITADA_ACEITA_RISCO"</text></inputEntry>
+        <inputEntry id="InputEntry_Apr_Fibri_4"><text>"ESTAVEL_SEM_SEPSE","SEPSE_CONTROLADA"</text></inputEntry>
+        <inputEntry id="InputEntry_Apr_Fibri_5"><text>"COMPLETA_TC_CULTURAS"</text></inputEntry>
+        <outputEntry id="OutputEntry_Apr_Fibri_resultado"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_Apr_Fibri_observacao"><text>"Decorticacao/VATS aprovada apos falha de fibrinoliticos. Intervencao cirurgica precoce previne progressao para fase III."</text></outputEntry>
+        <outputEntry id="OutputEntry_Apr_Fibri_fundamentacao"><text>"MIST2 Trial, BTS: Se fibrinoliticos (tPA + DNase) falham apos 3 dias, intervencao cirurgica (VATS ou toracotomia) esta indicada."</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprovado_FalhaFibrinoliticos_alertasDesperdicio"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprovado_FalhaFibrinoliticos_acaoRecomendada"><text>"APROVAR"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprovado_FalhaFibrinoliticos_alertasDesperdicio"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprovado_FalhaFibrinoliticos_acaoRecomendada"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Aprovado_FalhaDrenagem">
+        <description>Aprovado: Falha de drenagem fechada apos 7-10 dias</description>
+        <inputEntry id="InputEntry_Apr_Dren_1"><text>"FASE_II_FIBRINOPURULENTA","FASE_III_ORGANIZACAO"</text></inputEntry>
+        <inputEntry id="InputEntry_Apr_Dren_2"><text>"FALHA_DRENAGEM_7_10D","LOCULACOES_REFRATARIAS"</text></inputEntry>
+        <inputEntry id="InputEntry_Apr_Dren_3"><text>"ADEQUADA_PARA_CIRURGIA","LIMITADA_ACEITA_RISCO"</text></inputEntry>
+        <inputEntry id="InputEntry_Apr_Dren_4"><text>"ESTAVEL_SEM_SEPSE","SEPSE_CONTROLADA"</text></inputEntry>
+        <inputEntry id="InputEntry_Apr_Dren_5"><text>"COMPLETA_TC_CULTURAS","PARCIAL_SEM_CULTURAS"</text></inputEntry>
+        <outputEntry id="OutputEntry_Apr_Dren_resultado"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_Apr_Dren_observacao"><text>"Decorticacao aprovada - falha de tratamento conservador. Persistencia de colecao, febre ou sepse apos 7-10 dias indica cirurgia."</text></outputEntry>
+        <outputEntry id="OutputEntry_Apr_Dren_fundamentacao"><text>"BTS 2023: Drenagem inefetiva apos 7 dias indica loculacao ou organizacao. Intervencao precoce melhora desfechos."</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprovado_FalhaDrenagem_alertasDesperdicio"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprovado_FalhaDrenagem_acaoRecomendada"><text>"APROVAR"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprovado_FalhaDrenagem_alertasDesperdicio"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprovado_FalhaDrenagem_acaoRecomendada"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Aprovado_FaseII_VATS">
+        <description>Aprovado: Empiema fase II - VATS precoce</description>
+        <inputEntry id="InputEntry_Apr_F2_1"><text>"FASE_II_FIBRINOPURULENTA"</text></inputEntry>
+        <inputEntry id="InputEntry_Apr_F2_2"><text>"LOCULACOES_REFRATARIAS","NAO_TRATADO_PREVIAMENTE"</text></inputEntry>
+        <inputEntry id="InputEntry_Apr_F2_3"><text>"ADEQUADA_PARA_CIRURGIA"</text></inputEntry>
+        <inputEntry id="InputEntry_Apr_F2_4"><text>"ESTAVEL_SEM_SEPSE"</text></inputEntry>
+        <inputEntry id="InputEntry_Apr_F2_5"><text>"COMPLETA_TC_CULTURAS"</text></inputEntry>
+        <outputEntry id="OutputEntry_Apr_F2_resultado"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_Apr_F2_observacao"><text>"VATS debridamento aprovada para empiema fase II. Abordagem precoce (primeiros 7-14 dias) tem melhores resultados que tratamento tardio."</text></outputEntry>
+        <outputEntry id="OutputEntry_Apr_F2_fundamentacao"><text>"BTS 2023: VATS precoce na fase II reduz tempo de internacao e necessidade de toracotomia. Considerar como primeira linha em loculacoes."</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprovado_FaseII_VATS_alertasDesperdicio"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprovado_FaseII_VATS_acaoRecomendada"><text>"APROVAR"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprovado_FaseII_VATS_alertasDesperdicio"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprovado_FaseII_VATS_acaoRecomendada"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <!-- PENDENCIAS -->
+
+      <rule id="Rule_Pendente_NaoEstadiado">
+        <description>Pendente: Fase do empiema nao definida</description>
+        <inputEntry id="InputEntry_Pend_Est_1"><text>"NAO_ESTADIADO"</text></inputEntry>
+        <inputEntry id="InputEntry_Pend_Est_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Pend_Est_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Pend_Est_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Pend_Est_5"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_Pend_Est_resultado"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OutputEntry_Pend_Est_observacao"><text>"Classificar fase do empiema (Light) para definir tratamento. TC de torax com contraste e essencial para estadiamento."</text></outputEntry>
+        <outputEntry id="OutputEntry_Pend_Est_fundamentacao"><text>"BTS 2023: Tratamento depende da fase. Fase I = drenagem, Fase II = fibrinoliticos ou VATS, Fase III = decorticacao."</text></outputEntry>
+        <outputEntry id="OutputEntry_Pendente_NaoEstadiado_alertasDesperdicio"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_Pendente_NaoEstadiado_acaoRecomendada"><text>"SOLICITAR_INFO"</text></outputEntry>
+        <outputEntry id="OutputEntry_Pendente_NaoEstadiado_alertasDesperdicio"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_Pendente_NaoEstadiado_acaoRecomendada"><text>"SOLICITAR_INFO"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Pendente_SemTC">
+        <description>Pendente: TC de torax nao realizada</description>
+        <inputEntry id="InputEntry_Pend_TC_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Pend_TC_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Pend_TC_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Pend_TC_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Pend_TC_5"><text>"PARCIAL_SEM_TC","INCOMPLETA"</text></inputEntry>
+        <outputEntry id="OutputEntry_Pend_TC_resultado"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OutputEntry_Pend_TC_observacao"><text>"TC de torax com contraste obrigatoria para planejamento cirurgico. Definir extensao, loculacoes, espessamento pleural e posicao do dreno."</text></outputEntry>
+        <outputEntry id="OutputEntry_Pend_TC_fundamentacao"><text>"BTS, AATS: TC e exame padrao para avaliacao de empiema. Define anatomia, estagio e viabilidade de abordagem por VATS."</text></outputEntry>
+        <outputEntry id="OutputEntry_Pendente_SemTC_alertasDesperdicio"><text>"DOC"</text></outputEntry>
+        <outputEntry id="OutputEntry_Pendente_SemTC_acaoRecomendada"><text>"SOLICITAR_INFO"</text></outputEntry>
+        <outputEntry id="OutputEntry_Pendente_SemTC_alertasDesperdicio"><text>"DOC"</text></outputEntry>
+        <outputEntry id="OutputEntry_Pendente_SemTC_acaoRecomendada"><text>"SOLICITAR_INFO"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Pendente_FuncaoNaoAvaliada">
+        <description>Pendente: Funcao pulmonar nao avaliada para cirurgia maior</description>
+        <inputEntry id="InputEntry_Pend_Func_1"><text>"FASE_III_ORGANIZACAO","FIBROTORAX_CRONICO"</text></inputEntry>
+        <inputEntry id="InputEntry_Pend_Func_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Pend_Func_3"><text>"NAO_AVALIADA"</text></inputEntry>
+        <inputEntry id="InputEntry_Pend_Func_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Pend_Func_5"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_Pend_Func_resultado"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OutputEntry_Pend_Func_observacao"><text>"Decorticacao e cirurgia de medio/grande porte. Espirometria para avaliar reserva funcional e risco cirurgico."</text></outputEntry>
+        <outputEntry id="OutputEntry_Pend_Func_fundamentacao"><text>"SBCT: Fibrotorax cronico pode ter funcao pulmonar ja comprometida. Avaliar beneficio esperado vs risco cirurgico."</text></outputEntry>
+        <outputEntry id="OutputEntry_Pendente_FuncaoNaoAvaliada_alertasDesperdicio"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_Pendente_FuncaoNaoAvaliada_acaoRecomendada"><text>"SOLICITAR_INFO"</text></outputEntry>
+        <outputEntry id="OutputEntry_Pendente_FuncaoNaoAvaliada_alertasDesperdicio"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_Pendente_FuncaoNaoAvaliada_acaoRecomendada"><text>"SOLICITAR_INFO"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Pendente_ComorbidadesGraves">
+        <description>Pendente: Comorbidades graves - avaliar alternativas</description>
+        <inputEntry id="InputEntry_Pend_Comorb_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Pend_Comorb_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Pend_Comorb_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Pend_Comorb_4"><text>"COMORBIDADES_GRAVES"</text></inputEntry>
+        <inputEntry id="InputEntry_Pend_Comorb_5"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_Pend_Comorb_resultado"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OutputEntry_Pend_Comorb_observacao"><text>"Comorbidades graves. Avaliar risco-beneficio de decorticacao vs alternativas menos invasivas (drenagem prolongada, janela pleural)."</text></outputEntry>
+        <outputEntry id="OutputEntry_Pend_Comorb_fundamentacao"><text>"AATS: Em pacientes de alto risco, procedimentos de salvamento podem ser preferidos a decorticacao formal."</text></outputEntry>
+        <outputEntry id="OutputEntry_Pendente_ComorbidadesGraves_alertasDesperdicio"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_Pendente_ComorbidadesGraves_acaoRecomendada"><text>"SOLICITAR_INFO"</text></outputEntry>
+        <outputEntry id="OutputEntry_Pendente_ComorbidadesGraves_alertasDesperdicio"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_Pendente_ComorbidadesGraves_acaoRecomendada"><text>"SOLICITAR_INFO"</text></outputEntry>
+      </rule>
+
+      <!-- FALLBACK -->
+
+      <rule id="Rule_Fallback_30803121">
+        <description>Fallback: Caso requer avaliacao pelo cirurgiao toracico</description>
+        <inputEntry id="InputEntry_Fallback_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Fallback_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Fallback_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Fallback_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Fallback_5"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_Fallback_resultado"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OutputEntry_Fallback_observacao"><text>"Indicacao de decorticacao requer avaliacao individualizada. Timing, abordagem (VATS vs toracotomia) e extensao dependem de avaliacao especializada."</text></outputEntry>
+        <outputEntry id="OutputEntry_Fallback_fundamentacao"><text>"BTS 2023: Manejo de empiema e complexo. Decisao entre VATS, toracotomia ou procedimentos de salvamento deve ser individualizada."</text></outputEntry>
+        <outputEntry id="OutputEntry_Fallback_30803121_alertasDesperdicio"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_Fallback_30803121_acaoRecomendada"><text>"AGUARDAR_PRAZO"</text></outputEntry>
+        <outputEntry id="OutputEntry_Fallback_30803121_alertasDesperdicio"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_Fallback_30803121_acaoRecomendada"><text>"AGUARDAR_PRAZO"</text></outputEntry>
+      </rule>
+
+    </decisionTable>
+  </decision>
+</definitions>

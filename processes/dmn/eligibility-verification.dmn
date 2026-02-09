@@ -1,0 +1,310 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/"
+             xmlns:dc="http://www.omg.org/spec/DD/20100524/DC/"
+             xmlns:camunda="http://camunda.org/schema/1.0/dmn"
+             id="eligibility-verification-definitions"
+             name="Eligibility Verification Decision"
+             namespace="http://hospital.com/dmn/eligibility"
+             exporter="Camunda Modeler"
+             exporterVersion="5.20.0">
+
+  <decision id="eligibility-verification" name="Verificação de Elegibilidade">
+
+    <decisionTable id="eligibility-table" hitPolicy="FIRST">
+
+      <!-- ===== INPUT DEFINITIONS ===== -->
+      <input id="input-insurance-type" label="Tipo de Convênio" camunda:inputVariable="insuranceType">
+        <inputExpression id="input-expr-1" typeRef="string">
+          <text>insuranceType</text>
+        </inputExpression>
+        <inputValues id="input-values-1">
+          <text>"SUS","PARTICULAR","PLANO_SAUDE","CONVENIO_EMPRESA","INTERNACIONAL"</text>
+        </inputValues>
+      </input>
+
+      <input id="input-coverage-status" label="Status da Cobertura" camunda:inputVariable="coverageStatus">
+        <inputExpression id="input-expr-2" typeRef="string">
+          <text>coverageStatus</text>
+        </inputExpression>
+        <inputValues id="input-values-2">
+          <text>"ACTIVE","SUSPENDED","EXPIRED","PENDING","BLOCKED"</text>
+        </inputValues>
+      </input>
+
+      <input id="input-emergency" label="Emergência Médica" camunda:inputVariable="isEmergency">
+        <inputExpression id="input-expr-3" typeRef="boolean">
+          <text>isEmergency</text>
+        </inputExpression>
+      </input>
+
+      <input id="input-contract-active" label="Contrato Ativo" camunda:inputVariable="hasActiveContract">
+        <inputExpression id="input-expr-4" typeRef="boolean">
+          <text>hasActiveContract</text>
+        </inputExpression>
+      </input>
+
+      <!-- ===== OUTPUT DEFINITIONS ===== -->
+      <output id="output-eligible" label="Elegível" name="eligible" typeRef="boolean" />
+
+      <output id="output-reason" label="Motivo" name="reason" typeRef="string">
+        <outputValues id="output-values-1">
+          <text>"EMERGENCY_OVERRIDE","COVERED","SUSPENDED_COVERAGE","EXPIRED_CONTRACT","NO_COVERAGE","BLOCKED_INSURANCE","PENDING_VERIFICATION"</text>
+        </outputValues>
+      </output>
+
+      <output id="output-priority" label="Prioridade" name="priority" typeRef="integer">
+        <outputValues id="output-values-2">
+          <text>1,2,3,4,5</text>
+        </outputValues>
+      </output>
+
+      <output id="output-requires-manual-review" label="Revisão Manual" name="requiresManualReview" typeRef="boolean" />
+
+      <!-- ===== DECISION RULES ===== -->
+
+      <!-- RULE 1: Emergência sempre aprova (prioridade máxima) -->
+      <rule id="rule-emergency">
+        <description>Emergências médicas são sempre elegíveis independente do status do convênio</description>
+        <inputEntry id="rule1-input1">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="rule1-input2">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="rule1-input3">
+          <text>true</text>
+        </inputEntry>
+        <inputEntry id="rule1-input4">
+          <text>-</text>
+        </inputEntry>
+        <outputEntry id="rule1-output1">
+          <text>true</text>
+        </outputEntry>
+        <outputEntry id="rule1-output2">
+          <text>"EMERGENCY_OVERRIDE"</text>
+        </outputEntry>
+        <outputEntry id="rule1-output3">
+          <text>1</text>
+        </outputEntry>
+        <outputEntry id="rule1-output4">
+          <text>false</text>
+        </outputEntry>
+      </rule>
+
+      <!-- RULE 2: SUS com contrato ativo -->
+      <rule id="rule-sus-active">
+        <description>SUS com cobertura ativa é elegível</description>
+        <inputEntry id="rule2-input1">
+          <text>"SUS"</text>
+        </inputEntry>
+        <inputEntry id="rule2-input2">
+          <text>"ACTIVE"</text>
+        </inputEntry>
+        <inputEntry id="rule2-input3">
+          <text>false</text>
+        </inputEntry>
+        <inputEntry id="rule2-input4">
+          <text>true</text>
+        </inputEntry>
+        <outputEntry id="rule2-output1">
+          <text>true</text>
+        </outputEntry>
+        <outputEntry id="rule2-output2">
+          <text>"COVERED"</text>
+        </outputEntry>
+        <outputEntry id="rule2-output3">
+          <text>2</text>
+        </outputEntry>
+        <outputEntry id="rule2-output4">
+          <text>false</text>
+        </outputEntry>
+      </rule>
+
+      <!-- RULE 3: Plano de saúde ativo -->
+      <rule id="rule-plano-active">
+        <description>Plano de saúde com cobertura ativa</description>
+        <inputEntry id="rule3-input1">
+          <text>"PLANO_SAUDE","CONVENIO_EMPRESA"</text>
+        </inputEntry>
+        <inputEntry id="rule3-input2">
+          <text>"ACTIVE"</text>
+        </inputEntry>
+        <inputEntry id="rule3-input3">
+          <text>false</text>
+        </inputEntry>
+        <inputEntry id="rule3-input4">
+          <text>true</text>
+        </inputEntry>
+        <outputEntry id="rule3-output1">
+          <text>true</text>
+        </outputEntry>
+        <outputEntry id="rule3-output2">
+          <text>"COVERED"</text>
+        </outputEntry>
+        <outputEntry id="rule3-output3">
+          <text>2</text>
+        </outputEntry>
+        <outputEntry id="rule3-output4">
+          <text>false</text>
+        </outputEntry>
+      </rule>
+
+      <!-- RULE 4: Convênio internacional requer revisão -->
+      <rule id="rule-international-review">
+        <description>Convênios internacionais requerem análise manual</description>
+        <inputEntry id="rule4-input1">
+          <text>"INTERNACIONAL"</text>
+        </inputEntry>
+        <inputEntry id="rule4-input2">
+          <text>"ACTIVE","PENDING"</text>
+        </inputEntry>
+        <inputEntry id="rule4-input3">
+          <text>false</text>
+        </inputEntry>
+        <inputEntry id="rule4-input4">
+          <text>-</text>
+        </inputEntry>
+        <outputEntry id="rule4-output1">
+          <text>false</text>
+        </outputEntry>
+        <outputEntry id="rule4-output2">
+          <text>"PENDING_VERIFICATION"</text>
+        </outputEntry>
+        <outputEntry id="rule4-output3">
+          <text>3</text>
+        </outputEntry>
+        <outputEntry id="rule4-output4">
+          <text>true</text>
+        </outputEntry>
+      </rule>
+
+      <!-- RULE 5: Cobertura suspensa -->
+      <rule id="rule-suspended">
+        <description>Cobertura suspensa não é elegível</description>
+        <inputEntry id="rule5-input1">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="rule5-input2">
+          <text>"SUSPENDED"</text>
+        </inputEntry>
+        <inputEntry id="rule5-input3">
+          <text>false</text>
+        </inputEntry>
+        <inputEntry id="rule5-input4">
+          <text>-</text>
+        </inputEntry>
+        <outputEntry id="rule5-output1">
+          <text>false</text>
+        </outputEntry>
+        <outputEntry id="rule5-output2">
+          <text>"SUSPENDED_COVERAGE"</text>
+        </outputEntry>
+        <outputEntry id="rule5-output3">
+          <text>4</text>
+        </outputEntry>
+        <outputEntry id="rule5-output4">
+          <text>true</text>
+        </outputEntry>
+      </rule>
+
+      <!-- RULE 6: Cobertura expirada -->
+      <rule id="rule-expired">
+        <description>Cobertura expirada não é elegível</description>
+        <inputEntry id="rule6-input1">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="rule6-input2">
+          <text>"EXPIRED"</text>
+        </inputEntry>
+        <inputEntry id="rule6-input3">
+          <text>false</text>
+        </inputEntry>
+        <inputEntry id="rule6-input4">
+          <text>-</text>
+        </inputEntry>
+        <outputEntry id="rule6-output1">
+          <text>false</text>
+        </outputEntry>
+        <outputEntry id="rule6-output2">
+          <text>"EXPIRED_CONTRACT"</text>
+        </outputEntry>
+        <outputEntry id="rule6-output3">
+          <text>5</text>
+        </outputEntry>
+        <outputEntry id="rule6-output4">
+          <text>false</text>
+        </outputEntry>
+      </rule>
+
+      <!-- RULE 7: Convênio bloqueado -->
+      <rule id="rule-blocked">
+        <description>Convênio bloqueado não é elegível</description>
+        <inputEntry id="rule7-input1">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="rule7-input2">
+          <text>"BLOCKED"</text>
+        </inputEntry>
+        <inputEntry id="rule7-input3">
+          <text>false</text>
+        </inputEntry>
+        <inputEntry id="rule7-input4">
+          <text>-</text>
+        </inputEntry>
+        <outputEntry id="rule7-output1">
+          <text>false</text>
+        </outputEntry>
+        <outputEntry id="rule7-output2">
+          <text>"BLOCKED_INSURANCE"</text>
+        </outputEntry>
+        <outputEntry id="rule7-output3">
+          <text>5</text>
+        </outputEntry>
+        <outputEntry id="rule7-output4">
+          <text>false</text>
+        </outputEntry>
+      </rule>
+
+      <!-- RULE 8: Fallback - negar por segurança -->
+      <rule id="rule-default-deny">
+        <description>Casos não mapeados são negados por padrão</description>
+        <inputEntry id="rule8-input1">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="rule8-input2">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="rule8-input3">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="rule8-input4">
+          <text>-</text>
+        </inputEntry>
+        <outputEntry id="rule8-output1">
+          <text>false</text>
+        </outputEntry>
+        <outputEntry id="rule8-output2">
+          <text>"NO_COVERAGE"</text>
+        </outputEntry>
+        <outputEntry id="rule8-output3">
+          <text>5</text>
+        </outputEntry>
+        <outputEntry id="rule8-output4">
+          <text>true</text>
+        </outputEntry>
+      </rule>
+
+    </decisionTable>
+  </decision>
+
+  <!-- ===== DIAGRAM LAYOUT ===== -->
+  <dmndi:DMNDI>
+    <dmndi:DMNDiagram id="DMNDiagram_eligibility">
+      <dmndi:DMNShape id="DMNShape_eligibility" dmnElementRef="eligibility-verification">
+        <dc:Bounds height="80" width="180" x="160" y="100" />
+      </dmndi:DMNShape>
+    </dmndi:DMNDiagram>
+  </dmndi:DMNDI>
+
+</definitions>

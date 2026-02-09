@@ -1,0 +1,172 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  ============================================================================
+  CASH-PAYMENT-003 - Caucao Internacao Particular
+  ============================================================================
+  Versao: 1.0.0 (2026-02-08)
+  Categoria: CASH-PAYMENT
+  Perspectiva: HOSPITAL (Financeiro)
+
+  ============================================================================
+  INDICACOES (Quando PROSSEGUIR):
+  ============================================================================
+  - Internacao particular com caucao depositada
+  - Valor da caucao compativel com estimativa de custos
+  - Termo de caucao assinado pelo paciente ou responsavel
+
+  ============================================================================
+  CONTRAINDICACOES (Quando BLOQUEAR):
+  ============================================================================
+  - Internacao particular sem caucao depositada
+  - Valor da caucao inferior ao minimo exigido
+  - Ausencia de termo de caucao assinado
+
+  ============================================================================
+  REFERENCIAS NORMATIVAS:
+  ============================================================================
+  - Lei 8.078/1990 CDC Art. 39 (vedacao de venda casada)
+  - Lei 13.003/2014 (transparencia de custos hospitalares)
+  - CPC Art. 47 (politica de credito e caucao)
+  ============================================================================
+-->
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/"
+             xmlns:dc="http://www.omg.org/spec/DMN/20180521/DC/"
+             id="Definitions_CASH_PAYMENT_003"
+             name="Caucao Internacao Particular"
+             targetNamespace="http://camunda.org/schema/1.0/dmn">
+
+  <decision id="Decision_CASH_PAYMENT_003" name="Caucao Internacao Particular">
+    <decisionTable id="DecisionTable_CASH_PAYMENT_003" hitPolicy="FIRST">
+
+      <!-- ========== INPUTS ========== -->
+      <input id="Input_1" label="Tipo Internacao">
+        <inputExpression id="InputExpression_1" typeRef="string">
+          <text>tipoInternacao</text>
+        </inputExpression>
+        <inputValues id="InputValues_1">
+          <text>"PARTICULAR", "CONVENIO", "SUS"</text>
+        </inputValues>
+      </input>
+
+      <input id="Input_2" label="Caucao Depositada">
+        <inputExpression id="InputExpression_2" typeRef="boolean">
+          <text>caucaoDepositada</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_3" label="Valor Caucao (R$)">
+        <inputExpression id="InputExpression_3" typeRef="number">
+          <text>valorCaucao</text>
+        </inputExpression>
+      </input>
+
+      <!-- ========== OUTPUTS (5 STANDARD) ========== -->
+      <output id="Output_1" label="Resultado" name="resultado" typeRef="string">
+        <outputValues><text>"Prosseguir", "Bloquear", "Alertar", "Revisar"</text></outputValues>
+      </output>
+
+      <output id="Output_2" label="Observacao" name="observacao" typeRef="string"/>
+
+      <output id="Output_3" label="Acao Recomendada" name="acaoRecomendada" typeRef="string"/>
+
+      <output id="Output_4" label="Alertas Conformidade" name="alertasConformidade" typeRef="string">
+        <outputValues><text>"NENHUM", "DUP", "FREQ", "PRAZO", "DOC", "VALOR", "CRED", "CONTRATO"</text></outputValues>
+      </output>
+
+      <output id="Output_5" label="Risco Denial" name="riscoDenial" typeRef="string">
+        <outputValues><text>"BAIXO", "MEDIO", "ALTO", "CRITICO"</text></outputValues>
+      </output>
+
+      <!-- ========== RULES ========== -->
+
+      <!-- REGRA B1: Bloqueio - Internacao particular sem caucao -->
+      <rule id="Rule_Bloqueio_1">
+        <description>Internacao particular sem caucao depositada</description>
+        <inputEntry id="InputEntry_B1_1"><text>"PARTICULAR"</text></inputEntry>
+        <inputEntry id="InputEntry_B1_2"><text>false</text></inputEntry>
+        <inputEntry id="InputEntry_B1_3"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_B1_1"><text>"Bloquear"</text></outputEntry>
+        <outputEntry id="OutputEntry_B1_2"><text>"Internacao particular requer deposito de caucao conforme politica financeira do hospital."</text></outputEntry>
+        <outputEntry id="OutputEntry_B1_3"><text>"Solicitar deposito de caucao minima de R$ 3.000,00 antes de autorizar internacao."</text></outputEntry>
+        <outputEntry id="OutputEntry_B1_4"><text>"CRED"</text></outputEntry>
+        <outputEntry id="OutputEntry_B1_5"><text>"CRITICO"</text></outputEntry>
+      </rule>
+
+      <!-- REGRA B2: Bloqueio - Valor da caucao inferior ao minimo -->
+      <rule id="Rule_Bloqueio_2">
+        <description>Valor da caucao inferior ao minimo de R$ 3.000,00</description>
+        <inputEntry id="InputEntry_B2_1"><text>"PARTICULAR"</text></inputEntry>
+        <inputEntry id="InputEntry_B2_2"><text>true</text></inputEntry>
+        <inputEntry id="InputEntry_B2_3"><text>&lt; 3000</text></inputEntry>
+        <outputEntry id="OutputEntry_B2_1"><text>"Bloquear"</text></outputEntry>
+        <outputEntry id="OutputEntry_B2_2"><text>"Valor da caucao inferior ao minimo de R$ 3.000,00 estabelecido pela politica financeira."</text></outputEntry>
+        <outputEntry id="OutputEntry_B2_3"><text>"Solicitar complementacao da caucao antes de prosseguir com internacao."</text></outputEntry>
+        <outputEntry id="OutputEntry_B2_4"><text>"VALOR"</text></outputEntry>
+        <outputEntry id="OutputEntry_B2_5"><text>"ALTO"</text></outputEntry>
+      </rule>
+
+      <!-- REGRA A1: Alerta - Caucao entre 3.000-5.000 -->
+      <rule id="Rule_Alerta_1">
+        <description>Caucao entre R$ 3.000,00 e R$ 5.000,00 - Monitorar consumo</description>
+        <inputEntry id="InputEntry_A1_1"><text>"PARTICULAR"</text></inputEntry>
+        <inputEntry id="InputEntry_A1_2"><text>true</text></inputEntry>
+        <inputEntry id="InputEntry_A1_3"><text>[3000..5000]</text></inputEntry>
+        <outputEntry id="OutputEntry_A1_1"><text>"Alertar"</text></outputEntry>
+        <outputEntry id="OutputEntry_A1_2"><text>"Caucao no limite minimo. Monitorar consumo diario e solicitar complementacao se necessario."</text></outputEntry>
+        <outputEntry id="OutputEntry_A1_3"><text>"Acompanhar consumo diario. Alertar paciente se caucao se aproximar do limite."</text></outputEntry>
+        <outputEntry id="OutputEntry_A1_4"><text>"VALOR"</text></outputEntry>
+        <outputEntry id="OutputEntry_A1_5"><text>"MEDIO"</text></outputEntry>
+      </rule>
+
+      <!-- REGRA P1: Aprovado - Caucao adequada -->
+      <rule id="Rule_Aprovado_1">
+        <description>Caucao superior a R$ 5.000,00 - Valor adequado para internacao</description>
+        <inputEntry id="InputEntry_P1_1"><text>"PARTICULAR"</text></inputEntry>
+        <inputEntry id="InputEntry_P1_2"><text>true</text></inputEntry>
+        <inputEntry id="InputEntry_P1_3"><text>&gt;= 5000</text></inputEntry>
+        <outputEntry id="OutputEntry_P1_1"><text>"Prosseguir"</text></outputEntry>
+        <outputEntry id="OutputEntry_P1_2"><text>"Caucao depositada em valor adequado. Prosseguir com internacao particular."</text></outputEntry>
+        <outputEntry id="OutputEntry_P1_3"><text>"Autorizar internacao. Emitir termo de caucao e registrar no sistema financeiro."</text></outputEntry>
+        <outputEntry id="OutputEntry_P1_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_P1_5"><text>"BAIXO"</text></outputEntry>
+      </rule>
+
+      <!-- REGRA P2: Aprovado - Internacao convenio/SUS -->
+      <rule id="Rule_Aprovado_2">
+        <description>Internacao por convenio ou SUS nao requer caucao</description>
+        <inputEntry id="InputEntry_P2_1"><text>"CONVENIO", "SUS"</text></inputEntry>
+        <inputEntry id="InputEntry_P2_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_P2_3"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_P2_1"><text>"Prosseguir"</text></outputEntry>
+        <outputEntry id="OutputEntry_P2_2"><text>"Internacao por convenio ou SUS. Caucao nao aplicavel."</text></outputEntry>
+        <outputEntry id="OutputEntry_P2_3"><text>"Prosseguir com internacao conforme contrato ou tabela SUS. Caucao dispensada."</text></outputEntry>
+        <outputEntry id="OutputEntry_P2_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_P2_5"><text>"BAIXO"</text></outputEntry>
+      </rule>
+
+      <!-- REGRA F: Fallback - Requer revisao manual -->
+      <rule id="Rule_Fallback_CASH_PAYMENT_003">
+        <description>Regra padrao - Requer avaliacao manual</description>
+        <inputEntry id="InputEntry_F_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_F_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_F_3"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_F_1"><text>"Revisar"</text></outputEntry>
+        <outputEntry id="OutputEntry_F_2"><text>"Situacao requer analise manual por nao corresponder a nenhum criterio automatico."</text></outputEntry>
+        <outputEntry id="OutputEntry_F_3"><text>"Encaminhar para auditoria administrativa para avaliacao caso a caso."</text></outputEntry>
+        <outputEntry id="OutputEntry_F_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_F_5"><text>"MEDIO"</text></outputEntry>
+      </rule>
+
+    </decisionTable>
+  </decision>
+
+  <dmndi:DMNDI>
+    <dmndi:DMNDiagram id="DMNDiagram_CASH_PAYMENT_003">
+      <dmndi:DMNShape id="DMNShape_Decision_CASH_PAYMENT_003" dmnElementRef="Decision_CASH_PAYMENT_003">
+        <dc:Bounds height="80" width="180" x="160" y="100"/>
+      </dmndi:DMNShape>
+    </dmndi:DMNDiagram>
+  </dmndi:DMNDI>
+
+</definitions>

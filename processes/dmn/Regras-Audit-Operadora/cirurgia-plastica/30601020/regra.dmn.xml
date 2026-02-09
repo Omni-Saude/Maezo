@@ -1,0 +1,279 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/"
+             xmlns:dc="http://www.omg.org/spec/DD/20100524/DC/"
+             xmlns:di="http://www.omg.org/spec/DD/20100524/DI/"
+             id="Definitions_30601020"
+             name="Reconstrucao Mamaria com Expansor Tecidual"
+             namespace="http://camunda.org/schema/1.0/dmn"
+             exporter="Camunda Modeler"
+             exporterVersion="5.0.0">
+  <!--
+    TUSS 30601020 - Reconstrucao mamaria com expansor tecidual
+    Versao: 3.0.0 (2026-02-07)
+    Especialidade: Cirurgia Plastica Reconstrutiva
+    Categoria: Reconstrucao Mamaria - Tecnica com Expansor
+
+    Indicacoes Clinicas (ASPS 2024 / SBCP 2024):
+    - Primeira etapa de reconstrucao mamaria em duas fases
+    - Pacientes com envelope cutaneo adequado mas insuficiente
+    - Mastectomia poupadora de pele (skin-sparing) ou poupadora de mamilo (nipple-sparing)
+    - Pacientes que preferem evitar morbidade de sitio doador
+    - Reconstrucao bilateral simetrica
+
+    Contraindicacoes Absolutas:
+    - Radioterapia previa ou planejada (relativa - preferir autologous)
+    - Tabagismo ativo (alto risco de extrusao e necrose)
+    - Envelope cutaneo muito fino ou comprometido
+    - Infeccao ativa ou cronica na parede toracica
+    - Doenca oncologica ativa
+
+    Documentacao Obrigatoria:
+    - Laudo histopatologico da mastectomia
+    - Avaliacao do envelope cutaneo pelo cirurgiao plastico
+    - Parecer oncologico sobre radioterapia adjuvante
+    - Status de tabagismo (cessacao minimo 4 semanas)
+    - Avaliacao de risco cirurgico (ASA I-III)
+
+    Referencias Normativas:
+    - ASPS Evidence-Based Guidelines: Tissue Expander Reconstruction (2024)
+    - SBCP 2024 - Reconstrucao com Expansor/Implante
+    - FDA Guidance - Breast Implants (2023)
+    - RN 465/2021 ANS - Rol de Procedimentos
+  -->
+
+  <decision id="Decision_30601020" name="Criterios de Autorizacao - Reconstrucao Mamaria com Expansor">
+    <decisionTable id="DecisionTable_30601020" hitPolicy="FIRST">
+
+      <!-- Input 1: Condicao do Paciente -->
+      <input id="Input_condicaoPaciente" label="Condicao do Envelope Cutaneo e Parede Toracica">
+        <inputExpression id="InputExpr_condicaoPaciente" typeRef="string">
+          <text>condicaoPaciente</text>
+        </inputExpression>
+        <inputValues id="InputValues_condicaoPaciente">
+          <text>"envelope_adequado_sem_radiacao","envelope_pos_radiacao","envelope_comprometido","pele_muito_fina","infeccao_cronica","tabagismo_ativo"</text>
+        </inputValues>
+      </input>
+
+      <!-- Input 2: Historico Clinico -->
+      <input id="Input_historicoClinico" label="Historico de Tratamento e Comorbidades">
+        <inputExpression id="InputExpr_historicoClinico" typeRef="string">
+          <text>historicoClinico</text>
+        </inputExpression>
+        <inputValues id="InputValues_historicoClinico">
+          <text>"mastectomia_recente_sem_rxt","mastectomia_com_rxt_planejada","mastectomia_com_rxt_concluida","reconstrucao_falha_previa","doenca_autoimune_controlada","doenca_ativa"</text>
+        </inputValues>
+      </input>
+
+      <!-- Input 3: Classe de Indicacao -->
+      <input id="Input_classeIndicacao" label="Classe de Indicacao para Expansor">
+        <inputExpression id="InputExpr_classeIndicacao" typeRef="string">
+          <text>classeIndicacao</text>
+        </inputExpression>
+        <inputValues id="InputValues_classeIndicacao">
+          <text>"classe_I_indicacao_absoluta","classe_II_indicacao_relativa","classe_III_beneficio_incerto","classe_IV_contraindicado"</text>
+        </inputValues>
+      </input>
+
+      <!-- Input 4: Exames Comprobatorios -->
+      <input id="Input_examesComprobatorios" label="Documentacao Clinica Completa">
+        <inputExpression id="InputExpr_examesComprobatorios" typeRef="boolean">
+          <text>examesComprobatorios</text>
+        </inputExpression>
+      </input>
+
+      <!-- Input 5: Expectativa de Vida Superior a 1 Ano -->
+      <input id="Input_expectativaVida" label="Expectativa de Vida Superior a 1 Ano">
+        <inputExpression id="InputExpr_expectativaVida" typeRef="boolean">
+          <text>expectativaVidaSuperior1Ano</text>
+        </inputExpression>
+      </input>
+
+      <!-- Output 1: Resultado -->
+      <output id="Output_resultado" label="Resultado" name="resultado" typeRef="string">
+        <outputValues id="OutputValues_resultado">
+          <text>"Aprovado","Reprovado","Pendente"</text>
+        </outputValues>
+      </output>
+
+      <!-- Output 2: Observacao -->
+      <output id="Output_observacao" label="Observacao Clinica" name="observacao" typeRef="string" />
+
+      <!-- Output 3: Fundamentacao -->
+      <output id="Output_fundamentacao" label="Fundamentacao Legal/Tecnica" name="fundamentacao" typeRef="string" />
+
+      <output id="Output_alertasDesperdicio" name="alertasDesperdicio" typeRef="string">
+        <outputValues>
+          <text>"NENHUM","DUP","FREQ","ESC","DOC","PROT","MULTI"</text>
+        </outputValues>
+      </output>
+
+      <output id="Output_acaoRecomendada" name="acaoRecomendada" typeRef="string">
+        <outputValues>
+          <text>"APROVAR","NEGAR","SOLICITAR_INFO","AGUARDAR_PRAZO","SUGERIR_ALTERNATIVA"</text>
+        </outputValues>
+      </output>
+
+      <!-- ============================================== -->
+      <!-- REGRAS DE REPROVACAO (PRIORIDADE MAXIMA)      -->
+      <!-- ============================================== -->
+
+      <rule id="Rule_30601020_Reprovacao_Tabagismo">
+        <description>Reprovacao - Tabagismo ativo aumenta risco de complicacoes</description>
+        <inputEntry id="IE_Rep1_1"><text>"tabagismo_ativo"</text></inputEntry>
+        <inputEntry id="IE_Rep1_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_Rep1_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_Rep1_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_Rep1_5"><text>-</text></inputEntry>
+        <outputEntry id="OE_Rep1_1"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OE_Rep1_2"><text>"Tabagismo ativo. Risco elevado de extrusao do expansor, necrose cutanea e infeccao. Necessaria cessacao tabagica minima de 4 semanas antes de reavaliar."</text></outputEntry>
+        <outputEntry id="OE_Rep1_3"><text>"ASPS 2024 - Smoking Cessation Requirements; SBCP 2024 - Fatores de Risco"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_30601020_Reprovacao_InfeccaoCronica">
+        <description>Reprovacao - Infeccao cronica contraindica implante</description>
+        <inputEntry id="IE_Rep2_1"><text>"infeccao_cronica"</text></inputEntry>
+        <inputEntry id="IE_Rep2_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_Rep2_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_Rep2_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_Rep2_5"><text>-</text></inputEntry>
+        <outputEntry id="OE_Rep2_1"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OE_Rep2_2"><text>"Infeccao cronica na parede toracica. Contraindicacao absoluta para expansor/implante. Tratar infeccao e considerar reconstrucao autologa apos resolucao."</text></outputEntry>
+        <outputEntry id="OE_Rep2_3"><text>"ASPS 2024 - Contraindications for Implant Reconstruction"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_30601020_Reprovacao_DoencaAtiva">
+        <description>Reprovacao - Doenca oncologica ativa</description>
+        <inputEntry id="IE_Rep3_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_Rep3_2"><text>"doenca_ativa"</text></inputEntry>
+        <inputEntry id="IE_Rep3_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_Rep3_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_Rep3_5"><text>-</text></inputEntry>
+        <outputEntry id="OE_Rep3_1"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OE_Rep3_2"><text>"Doenca oncologica ativa. Reconstrucao eletiva contraindicada. Priorizar tratamento oncologico e reavaliar apos controle da doenca."</text></outputEntry>
+        <outputEntry id="OE_Rep3_3"><text>"NCCN Breast Cancer Guidelines 2024; ASPS 2024"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_30601020_Reprovacao_ExpectativaVida">
+        <description>Reprovacao - Expectativa de vida insuficiente</description>
+        <inputEntry id="IE_Rep4_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_Rep4_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_Rep4_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_Rep4_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_Rep4_5"><text>false</text></inputEntry>
+        <outputEntry id="OE_Rep4_1"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OE_Rep4_2"><text>"Expectativa de vida inferior a 12 meses. Reconstrucao em duas fases com expansor nao indicada. Considerar outras abordagens se beneficio for justificado."</text></outputEntry>
+        <outputEntry id="OE_Rep4_3"><text>"Principios de Proporcionalidade Terapeutica; ASPS Patient Selection"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_30601020_Reprovacao_ClasseIV">
+        <description>Reprovacao - Classificacao Classe IV contraindicado</description>
+        <inputEntry id="IE_Rep5_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_Rep5_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_Rep5_3"><text>"classe_IV_contraindicado"</text></inputEntry>
+        <inputEntry id="IE_Rep5_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_Rep5_5"><text>-</text></inputEntry>
+        <outputEntry id="OE_Rep5_1"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OE_Rep5_2"><text>"Contraindicacao formal para expansor (Classe IV). Risco supera beneficio. Considerar reconstrucao autologa ou prótese externa."</text></outputEntry>
+        <outputEntry id="OE_Rep5_3"><text>"Classificacao de Indicacao - Classe IV"</text></outputEntry>
+      </rule>
+
+      <!-- ============================================== -->
+      <!-- REGRAS DE APROVACAO                           -->
+      <!-- ============================================== -->
+
+      <rule id="Rule_30601020_Aprovacao_Ideal">
+        <description>Aprovacao - Candidata ideal para expansor</description>
+        <inputEntry id="IE_Aprov1_1"><text>"envelope_adequado_sem_radiacao"</text></inputEntry>
+        <inputEntry id="IE_Aprov1_2"><text>"mastectomia_recente_sem_rxt"</text></inputEntry>
+        <inputEntry id="IE_Aprov1_3"><text>"classe_I_indicacao_absoluta"</text></inputEntry>
+        <inputEntry id="IE_Aprov1_4"><text>true</text></inputEntry>
+        <inputEntry id="IE_Aprov1_5"><text>true</text></inputEntry>
+        <outputEntry id="OE_Aprov1_1"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OE_Aprov1_2"><text>"Candidata ideal para reconstrucao com expansor. Envelope cutaneo adequado, sem radioterapia previa ou planejada, documentacao completa. Primeira fase da reconstrucao em duas etapas aprovada."</text></outputEntry>
+        <outputEntry id="OE_Aprov1_3"><text>"ASPS 2024 - Tissue Expander Reconstruction; Lei 12.802/2013"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_30601020_Aprovacao_RXTPlanejada">
+        <description>Aprovacao condicional - RXT planejada com expansor inicial</description>
+        <inputEntry id="IE_Aprov2_1"><text>"envelope_adequado_sem_radiacao"</text></inputEntry>
+        <inputEntry id="IE_Aprov2_2"><text>"mastectomia_com_rxt_planejada"</text></inputEntry>
+        <inputEntry id="IE_Aprov2_3"><text>"classe_II_indicacao_relativa"</text></inputEntry>
+        <inputEntry id="IE_Aprov2_4"><text>true</text></inputEntry>
+        <inputEntry id="IE_Aprov2_5"><text>true</text></inputEntry>
+        <outputEntry id="OE_Aprov2_1"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OE_Aprov2_2"><text>"Expansor aprovado pre-radioterapia. Estrategia de reconstrucao em duas fases com troca para implante definitivo ou conversao autologa pos-RXT. Acompanhamento conjunto com radio-oncologia."</text></outputEntry>
+        <outputEntry id="OE_Aprov2_3"><text>"ASPS 2024 - Delayed-Immediate Reconstruction; SBCP 2024"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_30601020_Aprovacao_FalhaPrevia">
+        <description>Aprovacao - Segunda tentativa apos falha corrigida</description>
+        <inputEntry id="IE_Aprov3_1"><text>"envelope_adequado_sem_radiacao"</text></inputEntry>
+        <inputEntry id="IE_Aprov3_2"><text>"reconstrucao_falha_previa"</text></inputEntry>
+        <inputEntry id="IE_Aprov3_3"><text>"classe_II_indicacao_relativa"</text></inputEntry>
+        <inputEntry id="IE_Aprov3_4"><text>true</text></inputEntry>
+        <inputEntry id="IE_Aprov3_5"><text>true</text></inputEntry>
+        <outputEntry id="OE_Aprov3_1"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OE_Aprov3_2"><text>"Nova tentativa com expansor aprovada apos correcao de fatores de falha previa (tabagismo cessado, infeccao tratada, nutricao otimizada). Documentar causa da falha anterior."</text></outputEntry>
+        <outputEntry id="OE_Aprov3_3"><text>"ASPS 2024 - Revision Surgery; SBCP 2024 - Complicacoes"</text></outputEntry>
+      </rule>
+
+      <!-- ============================================== -->
+      <!-- REGRAS DE PENDENCIA                           -->
+      <!-- ============================================== -->
+
+      <rule id="Rule_30601020_Pendente_RXTConcluida">
+        <description>Pendente - Pos-RXT requer avaliacao tecido</description>
+        <inputEntry id="IE_Pend1_1"><text>"envelope_pos_radiacao"</text></inputEntry>
+        <inputEntry id="IE_Pend1_2"><text>"mastectomia_com_rxt_concluida"</text></inputEntry>
+        <inputEntry id="IE_Pend1_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_Pend1_4"><text>true</text></inputEntry>
+        <inputEntry id="IE_Pend1_5"><text>true</text></inputEntry>
+        <outputEntry id="OE_Pend1_1"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OE_Pend1_2"><text>"Tecido pos-radioterapia requer avaliacao especializada. Expansor tem maior risco de complicacoes em tecido irradiado. Considerar reconstrucao autologa (TRAM/DIEP) como alternativa preferencial."</text></outputEntry>
+        <outputEntry id="OE_Pend1_3"><text>"ASPS 2024 - Post-Radiation Reconstruction; Evidencia Nivel IB"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_30601020_Pendente_SemDocumentacao">
+        <description>Pendente - Documentacao incompleta</description>
+        <inputEntry id="IE_Pend2_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_Pend2_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_Pend2_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_Pend2_4"><text>false</text></inputEntry>
+        <inputEntry id="IE_Pend2_5"><text>true</text></inputEntry>
+        <outputEntry id="OE_Pend2_1"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OE_Pend2_2"><text>"Documentacao incompleta para expansor. Anexar: laudo histopatologico, avaliacao envelope cutaneo, parecer oncologia (RXT), status tabagismo, risco cirurgico ASA."</text></outputEntry>
+        <outputEntry id="OE_Pend2_3"><text>"RN 465/2021 Art. 5 - Documentacao Obrigatoria"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_30601020_Pendente_ClasseIII">
+        <description>Pendente - Beneficio incerto requer junta</description>
+        <inputEntry id="IE_Pend3_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_Pend3_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_Pend3_3"><text>"classe_III_beneficio_incerto"</text></inputEntry>
+        <inputEntry id="IE_Pend3_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_Pend3_5"><text>true</text></inputEntry>
+        <outputEntry id="OE_Pend3_1"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OE_Pend3_2"><text>"Classificacao Classe III - beneficio incerto para tecnica com expansor. Encaminhar para Junta Medica. Avaliar alternativas (autologa, prótese direta)."</text></outputEntry>
+        <outputEntry id="OE_Pend3_3"><text>"RN 424/2017 - Junta Medica; Decisao Compartilhada"</text></outputEntry>
+      </rule>
+
+      <!-- ============================================== -->
+      <!-- REGRA FALLBACK                                -->
+      <!-- ============================================== -->
+
+      <rule id="Rule_Fallback_30601020">
+        <description>Regra padrao - Casos nao cobertos</description>
+        <inputEntry id="IE_Fallback_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_Fallback_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_Fallback_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_Fallback_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_Fallback_5"><text>-</text></inputEntry>
+        <outputEntry id="OE_Fallback_1"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OE_Fallback_2"><text>"Caso nao enquadrado nos criterios automaticos. Auditoria especializada em cirurgia plastica reconstrutiva necessaria."</text></outputEntry>
+        <outputEntry id="OE_Fallback_3"><text>"RN 428/2017 - Auditoria Medica Especializada"</text></outputEntry>
+      </rule>
+
+    </decisionTable>
+  </decision>
+</definitions>

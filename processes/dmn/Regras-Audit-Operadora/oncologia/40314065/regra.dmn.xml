@@ -1,0 +1,203 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             xmlns:camunda="http://camunda.org/schema/1.0/dmn"
+             id="Definitions_40314065"
+             name="ONQ-BIO-001: HER2 Testing Before Trastuzumab"
+             namespace="http://camunda.org/schema/1.0/dmn">
+  <!--
+    Version: 3.1.0-LEAN-TIER2
+    Last Updated: 2026-02-08
+    Objective: Require documented HER2 overexpression (IHC 3+ or FISH+) before trastuzumab/pertuzumab authorization
+    References: NCCN Breast Cancer Guidelines 2024, ASCO HER2 Testing Update 2024
+    Clinical Rationale: HER2-targeted therapy only effective in HER2+ tumors (IHC 3+ or ISH amplified)
+    Waste Prevention Impact: Prevents ineffective treatment in HER2-negative patients ($100k+ per year)
+  -->
+  <decision id="Decision_40314065" name="HER2 Testing Requirement for Trastuzumab [LEAN TIER-2]">
+    <decisionTable id="DecisionTable_40314065" hitPolicy="FIRST">
+      <input id="Input_her2Status" label="HER2 Status">
+        <inputExpression typeRef="string">
+          <text>her2Status</text>
+        </inputExpression>
+        <inputValues>
+          <text>"IHC_3_PLUS","IHC_2_PLUS_FISH_POSITIVE","IHC_0_1_PLUS","IHC_2_PLUS_FISH_NEGATIVE","NOT_TESTED","EQUIVOCAL"</text>
+        </inputValues>
+      </input>
+      <input id="Input_tumorType" label="Tumor Type">
+        <inputExpression typeRef="string">
+          <text>tumorType</text>
+        </inputExpression>
+        <inputValues>
+          <text>"BREAST_INVASIVE","BREAST_METASTATIC","GASTRIC","GASTROESOPHAGEAL","OTHER"</text>
+        </inputValues>
+      </input>
+      <input id="Input_testDate" label="Test Date (days ago)">
+        <inputExpression typeRef="integer">
+          <text>testDate</text>
+        </inputExpression>
+      </input>
+      <input id="Input_priorTrastuzumab" label="Prior Trastuzumab Use">
+        <inputExpression typeRef="boolean">
+          <text>priorTrastuzumab</text>
+        </inputExpression>
+      </input>
+      <input id="Input_ultimoProcedimentoDias" label="Dias Desde Ultimo Procedimento">
+        <inputExpression id="InputExpression_ultimoProcedimentoDias" typeRef="number">
+          <text>ultimoProcedimentoDias</text>
+        </inputExpression>
+      </input>
+
+      <output id="Output_resultado" name="resultado" typeRef="string">
+        <outputValues>
+          <text>"Aprovado","Reprovado","Pendente"</text>
+        </outputValues>
+      </output>
+      <output id="Output_observacao" name="observacao" typeRef="string"/>
+      <output id="Output_fundamentacao" name="fundamentacao" typeRef="string"/>
+      <output id="Output_alertasDesperdicio" name="alertasDesperdicio" typeRef="string">
+        <outputValues>
+          <text>"NENHUM","DUP","FREQ","ESC","DOC","PROT","MULTI"</text>
+        </outputValues>
+      </output>
+      <output id="Output_acaoRecomendada" name="acaoRecomendada" typeRef="string">
+        <outputValues>
+          <text>"APROVAR","NEGAR","SOLICITAR_INFO","AGUARDAR_PRAZO","SUGERIR_ALTERNATIVA"</text>
+        </outputValues>
+      </output>
+
+      <!-- WASTE DETECTION: DUP - Reteste molecular duplicado -->
+      <rule id="Rule_40314065_DUP_reteste">
+        <description>DUP - Reteste molecular em menos de 90 dias sem justificativa clinica</description>
+        <inputEntry><text>-</text></inputEntry>
+        <inputEntry><text>-</text></inputEntry>
+        <inputEntry><text>-</text></inputEntry>
+        <inputEntry><text>-</text></inputEntry>
+        <inputEntry><text>&lt; 90</text></inputEntry>
+        <outputEntry><text>"Reprovado"</text></outputEntry>
+        <outputEntry><text>"Teste molecular repetido em menos de 90 dias. Resultado anterior ainda valido clinicamente"</text></outputEntry>
+        <outputEntry><text>"NCCN 2024: Reteste molecular so indicado se progressao, novo primario ou mudanca terapeutica. Intervalo minimo 90 dias"</text></outputEntry>
+        <outputEntry id="OE_40314065_DUP_alerta"><text>"DUP"</text></outputEntry>
+        <outputEntry id="OE_40314065_DUP_acao"><text>"NEGAR"</text></outputEntry>
+      </rule>
+
+      <!-- WASTE DETECTION: FREQ - Frequencia excessiva teste molecular -->
+      <rule id="Rule_40314065_FREQ_excessivo">
+        <description>FREQ - Avaliacao genetica limitada conforme protocolo NCCN/ESMO</description>
+        <inputEntry><text>-</text></inputEntry>
+        <inputEntry><text>-</text></inputEntry>
+        <inputEntry><text>-</text></inputEntry>
+        <inputEntry><text>-</text></inputEntry>
+        <inputEntry><text>-</text></inputEntry>
+        <outputEntry><text>"Pendente"</text></outputEntry>
+        <outputEntry><text>"Verificar frequencia de solicitacao deste teste. Limite: 2/ano salvo progressao documentada"</text></outputEntry>
+        <outputEntry><text>"NCCN/ESMO 2024: Reteste molecular limitado a progressao de doenca ou mudanca de linha terapeutica"</text></outputEntry>
+        <outputEntry id="OE_40314065_FREQ_alerta"><text>"FREQ"</text></outputEntry>
+        <outputEntry id="OE_40314065_FREQ_acao"><text>"SOLICITAR_INFO"</text></outputEntry>
+      </rule>
+
+      <!-- REPROVADO Rules -->
+      <rule id="Rule_HER2_Negative">
+        <inputEntry>
+          <text>"IHC_0_1_PLUS","IHC_2_PLUS_FISH_NEGATIVE"</text>
+        </inputEntry>
+        <inputEntry><text></text></inputEntry>
+        <inputEntry><text></text></inputEntry>
+        <inputEntry><text></text></inputEntry>
+        <inputEntry><text>-</text></inputEntry>
+        <outputEntry><text>"Reprovado"</text></outputEntry>
+        <outputEntry><text>"HER2 negativo: trastuzumab não indicado"</text></outputEntry>
+        <outputEntry><text>"NCCN Guidelines: HER2-targeted therapy only for HER2+ (IHC 3+ or ISH amplified)"</text></outputEntry>
+        <outputEntry id="OE_Rule_HER2_Negative_alerta"><text>"PROT"</text></outputEntry>
+        <outputEntry id="OE_Rule_HER2_Negative_acao"><text>"NEGAR"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Not_Tested">
+        <inputEntry><text>"NOT_TESTED"</text></inputEntry>
+        <inputEntry><text></text></inputEntry>
+        <inputEntry><text></text></inputEntry>
+        <inputEntry><text></text></inputEntry>
+        <inputEntry><text>-</text></inputEntry>
+        <outputEntry><text>"Reprovado"</text></outputEntry>
+        <outputEntry><text>"Status HER2 não documentado"</text></outputEntry>
+        <outputEntry><text>"Teste HER2 obrigatório (IHC + FISH se IHC 2+) antes de anti-HER2"</text></outputEntry>
+        <outputEntry id="OE_Rule_Not_Tested_alerta"><text>"DOC"</text></outputEntry>
+        <outputEntry id="OE_Rule_Not_Tested_acao"><text>"SOLICITAR_INFO"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Test_Too_Old">
+        <inputEntry>
+          <text>"IHC_3_PLUS","IHC_2_PLUS_FISH_POSITIVE"</text>
+        </inputEntry>
+        <inputEntry><text></text></inputEntry>
+        <inputEntry><text>&gt; 730</text></inputEntry>
+        <inputEntry><text>false</text></inputEntry>
+        <inputEntry id="IE_Rule_Test_Too_Old_ultimo"><text>-</text></inputEntry>
+        <outputEntry><text>"Reprovado"</text></outputEntry>
+        <outputEntry><text>"Teste HER2 com mais de 2 anos: necessário reteste"</text></outputEntry>
+        <outputEntry><text>"ASCO: Retesting recomendado se >2 anos desde teste original em doença recorrente"</text></outputEntry>
+        <outputEntry id="OE_Rule_Test_Too_Old_alerta"><text>"FREQ"</text></outputEntry>
+        <outputEntry id="OE_Rule_Test_Too_Old_acao"><text>"NEGAR"</text></outputEntry>
+      </rule>
+
+      <!-- PENDENTE Rules -->
+      <rule id="Rule_Equivocal_Needs_FISH">
+        <inputEntry><text>"EQUIVOCAL"</text></inputEntry>
+        <inputEntry><text></text></inputEntry>
+        <inputEntry><text></text></inputEntry>
+        <inputEntry><text></text></inputEntry>
+        <inputEntry><text>-</text></inputEntry>
+        <outputEntry><text>"Pendente"</text></outputEntry>
+        <outputEntry><text>"Resultado equívoco: solicitar FISH/ISH"</text></outputEntry>
+        <outputEntry><text>"ASCO/CAP Guidelines: IHC 2+ requer teste reflexo por ISH"</text></outputEntry>
+        <outputEntry id="OE_Rule_Equivocal_Needs_FISH_alerta"><text>"DOC"</text></outputEntry>
+        <outputEntry id="OE_Rule_Equivocal_Needs_FISH_acao"><text>"SOLICITAR_INFO"</text></outputEntry>
+      </rule>
+
+      <!-- APROVADO Rules -->
+      <rule id="Rule_HER2_Positive_Recent">
+        <inputEntry>
+          <text>"IHC_3_PLUS","IHC_2_PLUS_FISH_POSITIVE"</text>
+        </inputEntry>
+        <inputEntry>
+          <text>"BREAST_INVASIVE","BREAST_METASTATIC","GASTRIC","GASTROESOPHAGEAL"</text>
+        </inputEntry>
+        <inputEntry><text>&lt;= 730</text></inputEntry>
+        <inputEntry><text></text></inputEntry>
+        <inputEntry><text>-</text></inputEntry>
+        <outputEntry><text>"Aprovado"</text></outputEntry>
+        <outputEntry><text>"HER2+ documentado: trastuzumab autorizado"</text></outputEntry>
+        <outputEntry><text>"NCCN Breast/Gastric Guidelines: Anti-HER2 therapy indicated for HER2+ tumors"</text></outputEntry>
+        <outputEntry id="OE_Rule_HER2_Positive_Recent_alerta"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_Rule_HER2_Positive_Recent_acao"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Continuation_Therapy">
+        <inputEntry>
+          <text>"IHC_3_PLUS","IHC_2_PLUS_FISH_POSITIVE"</text>
+        </inputEntry>
+        <inputEntry><text></text></inputEntry>
+        <inputEntry><text></text></inputEntry>
+        <inputEntry><text>true</text></inputEntry>
+        <inputEntry id="IE_Rule_Continuation_Therapy_ultimo"><text>-</text></inputEntry>
+        <outputEntry><text>"Aprovado"</text></outputEntry>
+        <outputEntry><text>"Continuação de tratamento HER2+ estabelecido"</text></outputEntry>
+        <outputEntry><text>"Paciente em uso prévio de trastuzumab: manter terapia se sem progressão"</text></outputEntry>
+        <outputEntry id="OE_Rule_Continuation_Therapy_alerta"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_Rule_Continuation_Therapy_acao"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <!-- DEFAULT FALLBACK -->
+      <rule id="Rule_Default_Fallback">
+        <inputEntry><text></text></inputEntry>
+        <inputEntry><text></text></inputEntry>
+        <inputEntry><text></text></inputEntry>
+        <inputEntry><text></text></inputEntry>
+        <inputEntry><text>-</text></inputEntry>
+        <outputEntry><text>"Pendente"</text></outputEntry>
+        <outputEntry><text>"Caso requer avaliação individual: documentação incompleta"</text></outputEntry>
+        <outputEntry><text>"Enviar: laudo anatomopatológico com IHC HER2 e FISH (se IHC 2+)"</text></outputEntry>
+        <outputEntry id="OE_Rule_Default_Fallback_alerta"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_Rule_Default_Fallback_acao"><text>"SOLICITAR_INFO"</text></outputEntry>
+      </rule>
+    </decisionTable>
+  </decision>
+</definitions>

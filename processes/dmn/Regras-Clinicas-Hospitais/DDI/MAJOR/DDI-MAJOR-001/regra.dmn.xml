@@ -1,0 +1,100 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- ============================================================================
+     DDI-MAJOR-001: Varfarina + Antibioticos/Antifungicos - Hemorragia
+
+     EVIDENCIA CLINICA:
+     - Holbrook AM et al. Chest. 2012;141:e52S-88S (ACCP Guidelines)
+     - Schelleman H et al. Arch Intern Med. 2010;170:1513-9
+     - Lane MA et al. Am J Med. 2014;127:657-63
+
+     MECANISMO: Antibioticos/antifungicos inibem CYP2C9 (metaboliza S-varfarina) ou
+     destroem flora intestinal produtora de vitamina K. Metronidazol, fluconazol,
+     sulfametoxazol sao os mais potentes. Aumento INR 2-5x em dias.
+
+     INCIDENCIA: Sangramento maior em 3-5% em 30 dias de uso concomitante
+     ============================================================================ -->
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/" xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/" xmlns:dc="http://www.omg.org/spec/DMN/20180521/DC/" xmlns:di="http://www.omg.org/spec/DMN/20180521/DI/" id="DDI_MAJOR_001" name="DDI-MAJOR-001: Varfarina + Antibioticos" namespace="http://camunda.org/schema/1.0/dmn">
+  <decision id="ddi_major_001_decision" name="Varfarina + Antibioticos/Antifungicos - Hemorragia">
+    <decisionTable id="ddi_major_001_table" hitPolicy="FIRST">
+      <input id="input_medicamentos_ativos" label="Medicamentos Ativos">
+        <inputExpression id="input_expr_medicamentos" typeRef="string">
+          <text>medicamentosAtivos</text>
+        </inputExpression>
+      </input>
+      <input id="input_medicamento_novo" label="Medicamento Novo">
+        <inputExpression id="input_expr_novo" typeRef="string">
+          <text>medicamentoNovo</text>
+        </inputExpression>
+      </input>
+      <input id="input_inr_atual" label="INR Atual">
+        <inputExpression id="input_expr_inr" typeRef="number">
+          <text>inrAtual</text>
+        </inputExpression>
+      </input>
+
+      <output id="output_nivel_alerta" name="nivelAlerta" typeRef="string">
+        <outputValues><text>"Alerta","Atencao","Informativo","OK"</text></outputValues>
+      </output>
+      <output id="output_acao_requerida" name="acaoRequerida" typeRef="string" />
+      <output id="output_justificativa" name="justificativaCientifica" typeRef="string" />
+
+      <!-- Rule 1: Varfarina + Inibidor CYP2C9 potente + INR alto -->
+      <rule id="rule_varfarina_cyp2c9_alto">
+        <inputEntry id="ie_varfarina_ativa">
+          <text>list contains(medicamentosAtivos, "VARFARINA") or list contains(medicamentosAtivos, "MAREVAN")</text>
+        </inputEntry>
+        <inputEntry id="ie_inibidor_potente">
+          <text>"METRONIDAZOL" or "FLUCONAZOL" or "SULFAMETOXAZOL" or "MICONAZOL" or "VORICONAZOL"</text>
+        </inputEntry>
+        <inputEntry id="ie_inr_alto">
+          <text>&gt; 3.0</text>
+        </inputEntry>
+        <outputEntry id="oe_alerta_alto"><text>"Alerta"</text></outputEntry>
+        <outputEntry id="oe_acao_alto"><text>"RISCO HEMORRAGICO IMINENTE. INR >3 + inibidor CYP2C9. REDUZIR varfarina 25-50% empiricamente. Medir INR em 3-5 dias. Vigiar sinais sangramento (hematuria, melena, epistaxe). Considerar alternativa ao antibiotico se possivel."</text></outputEntry>
+        <outputEntry id="oe_just_alto"><text>"Metronidazol/fluconazol aumentam INR 2-3x em 5-7 dias. Alto risco hemorragia maior. Holbrook AM, Chest 2012."</text></outputEntry>
+      </rule>
+
+      <!-- Rule 2: Varfarina + Inibidor CYP2C9 potente + INR normal -->
+      <rule id="rule_varfarina_cyp2c9_normal">
+        <inputEntry id="ie_varfarina_ativa2">
+          <text>list contains(medicamentosAtivos, "VARFARINA") or list contains(medicamentosAtivos, "MAREVAN")</text>
+        </inputEntry>
+        <inputEntry id="ie_inibidor_potente2">
+          <text>"METRONIDAZOL" or "FLUCONAZOL" or "SULFAMETOXAZOL" or "VORICONAZOL"</text>
+        </inputEntry>
+        <inputEntry id="ie_inr_normal">
+          <text>[2.0..3.0]</text>
+        </inputEntry>
+        <outputEntry id="oe_atencao_normal"><text>"Atencao"</text></outputEntry>
+        <outputEntry id="oe_acao_normal"><text>"Considerar reducao profilatica de varfarina 10-25%. Medir INR em 5-7 dias obrigatoriamente. Orientar sinais de sangramento. Se antibiotico por >7 dias, monitorar INR semanalmente."</text></outputEntry>
+        <outputEntry id="oe_just_normal"><text>"Interacao previsivel. Ajuste proativo previne supraterapia. Lane MA, Am J Med 2014."</text></outputEntry>
+      </rule>
+
+      <!-- Rule 3: Varfarina + Antibiotico de menor risco -->
+      <rule id="rule_varfarina_antibiotico_menor">
+        <inputEntry id="ie_varfarina_ativa3">
+          <text>list contains(medicamentosAtivos, "VARFARINA") or list contains(medicamentosAtivos, "MAREVAN")</text>
+        </inputEntry>
+        <inputEntry id="ie_antibiotico_menor">
+          <text>"AMOXICILINA" or "AZITROMICINA" or "CIPROFLOXACINO" or "CLARITROMICINA" or "LEVOFLOXACINO"</text>
+        </inputEntry>
+        <inputEntry id="ie_inr_any">
+          <text>-</text>
+        </inputEntry>
+        <outputEntry id="oe_atencao_menor"><text>"Atencao"</text></outputEntry>
+        <outputEntry id="oe_acao_menor"><text>"Risco moderado de aumento INR (flora intestinal). Manter dose varfarina, monitorar INR em 7-10 dias se uso prolongado. Orientar sinais de sangramento."</text></outputEntry>
+        <outputEntry id="oe_just_menor"><text>"Antibioticos de espectro amplo reduzem flora produtora de vitamina K. Risco menor que inibidores CYP."</text></outputEntry>
+      </rule>
+
+      <!-- Fallback Rule -->
+      <rule id="Rule_Fallback">
+        <inputEntry id="ie_fallback1"><text>-</text></inputEntry>
+        <inputEntry id="ie_fallback2"><text>-</text></inputEntry>
+        <inputEntry id="ie_fallback3"><text>-</text></inputEntry>
+        <outputEntry id="oe_fallback1"><text>"OK"</text></outputEntry>
+        <outputEntry id="oe_fallback2"><text>""</text></outputEntry>
+        <outputEntry id="oe_fallback3"><text>""</text></outputEntry>
+      </rule>
+    </decisionTable>
+  </decision>
+</definitions>

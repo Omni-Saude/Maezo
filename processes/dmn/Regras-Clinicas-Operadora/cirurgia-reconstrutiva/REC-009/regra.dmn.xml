@@ -1,0 +1,262 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             xmlns:camunda="http://camunda.org/schema/1.0/dmn"
+             id="Definitions_REC009"
+             name="Reconstrucao de Mao"
+             namespace="http://camunda.org/schema/1.0/dmn">
+
+  <!--
+    ===============================================================================
+    TUSS: REC-009
+    Procedimento: Reconstrucao de Mao e Dedos
+    Especialidade: Cirurgia Reconstrutiva / Cirurgia da Mao
+    Versao: 3.0.0-TIER1
+    Data: 2026-02-07
+    ===============================================================================
+
+    INDICACOES CLINICAS (SBCM 2022, ASSH 2021):
+    - Reimplante de dedos/mao
+    - Reconstrucao de polegar
+    - Transferencia de dedo do pe
+    - Reconstrucao de polpa digital
+    - Cobertura de defeitos complexos
+
+    URGENCIA:
+    - EMERGENCIA: Reimplante (ate 6-12h)
+    - URGENTE: Cobertura de estruturas nobres
+    - ELETIVO: Reconstrucao funcional tardia
+
+    REFERENCIAS TECNICAS:
+    - SBCM 2022 - Sociedade Brasileira de Cirurgia da Mao
+    - ASSH 2021 - American Society for Surgery of the Hand
+    - IFSSH 2022 - International Federation
+    - SBCP 2022 - Microcirurgia
+
+    ===============================================================================
+  -->
+
+  <decision id="Decision_REC009" name="Regra Clinica - Reconstrucao de Mao">
+    <decisionTable id="DecisionTable_REC009" hitPolicy="FIRST">
+
+      <!-- ========== INPUTS (5) ========== -->
+
+      <input id="Input_tipoLesao" label="Tipo de Lesao" camunda:inputVariable="tipoLesao">
+        <inputExpression id="InputExpression_tipoLesao" typeRef="string">
+          <text>tipoLesao</text>
+        </inputExpression>
+        <inputValues id="InputValues_tipoLesao">
+          <text>"AmputacaoPolegar","AmputacaoDedosMultiplos","AmputacaoDedoUnico","PerdaPolpaDigital","LesaoNervoDigital","DefeitoCompostoMao","Luva"</text>
+        </inputValues>
+      </input>
+
+      <input id="Input_tempoLesao" label="Tempo desde Lesao" camunda:inputVariable="tempoLesao">
+        <inputExpression id="InputExpression_tempoLesao" typeRef="string">
+          <text>tempoLesao</text>
+        </inputExpression>
+        <inputValues id="InputValues_tempoLesao">
+          <text>"Agudo6h","Agudo12h","Agudo24h","Subagudo","Cronico"</text>
+        </inputValues>
+      </input>
+
+      <input id="Input_estruturasComprometidas" label="Estruturas Comprometidas" camunda:inputVariable="estruturasComprometidas">
+        <inputExpression id="InputExpression_estruturasComprometidas" typeRef="string">
+          <text>estruturasComprometidas</text>
+        </inputExpression>
+        <inputValues id="InputValues_estruturasComprometidas">
+          <text>"ApenasPele","OssoTendao","NervoVaso","ComplexoTotal"</text>
+        </inputValues>
+      </input>
+
+      <input id="Input_nivelAmputacao" label="Nivel de Amputacao" camunda:inputVariable="nivelAmputacao">
+        <inputExpression id="InputExpression_nivelAmputacao" typeRef="string">
+          <text>nivelAmputacao</text>
+        </inputExpression>
+        <inputValues id="InputValues_nivelAmputacao">
+          <text>"DistalIF","MediaIFP","ProximalMF","Transmetacarpo","Punho","NaoAplicavel"</text>
+        </inputValues>
+      </input>
+
+      <input id="Input_procedimentoProposto" label="Procedimento Proposto" camunda:inputVariable="procedimentoProposto">
+        <inputExpression id="InputExpression_procedimentoProposto" typeRef="string">
+          <text>procedimentoProposto</text>
+        </inputExpression>
+        <inputValues id="InputValues_procedimentoProposto">
+          <text>"Reimplante","TransferenciaDedoPe","Pollicizacao","RetalhoLocal","RetalhoLivre","EnxertoPele","RegularizacaoCoto"</text>
+        </inputValues>
+      </input>
+
+      <!-- ========== OUTPUTS (3 - Padrao TIER-1) ========== -->
+
+      <output id="Output_resultado" label="Resultado" name="resultado" typeRef="string">
+        <outputValues id="OutputValues_resultado">
+          <text>"Aprovado","Reprovado","Pendente"</text>
+        </outputValues>
+      </output>
+
+      <output id="Output_observacao" label="Observacao Clinica" name="observacao" typeRef="string" />
+
+      <output id="Output_fundamentacao" label="Fundamentacao Tecnica" name="fundamentacao" typeRef="string" />
+
+      <!-- Output 4: Alertas Desperdicio -->
+      <output id="Output_alertasDesperdicio" label="Alertas de Desperdicio" name="alertasDesperdicio" typeRef="string">
+        <outputValues id="OutputValues_alertasDesperdicio">
+          <text>"NENHUM","DUP","FREQ","ESC","DOC","PROT","MULTI"</text>
+        </outputValues>
+      </output>
+
+      <!-- Output 5: Acao Recomendada -->
+      <output id="Output_acaoRecomendada" label="Acao Recomendada" name="acaoRecomendada" typeRef="string">
+        <outputValues id="OutputValues_acaoRecomendada">
+          <text>"APROVAR","NEGAR","SOLICITAR_INFO","AGUARDAR_PRAZO","SUGERIR_ALTERNATIVA"</text>
+        </outputValues>
+      </output>
+
+      <!-- ========== RULES ========== -->
+
+      <!-- APROVACOES EMERGENCIAIS - REIMPLANTE -->
+      <rule id="Rule_Aprovado_ReimplantePolegar">
+        <description>Aprovado Emergencia: Reimplante de polegar</description>
+        <inputEntry id="InputEntry_RP_1"><text>"AmputacaoPolegar"</text></inputEntry>
+        <inputEntry id="InputEntry_RP_2"><text>"Agudo6h","Agudo12h"</text></inputEntry>
+        <inputEntry id="InputEntry_RP_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_RP_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_RP_5"><text>"Reimplante"</text></inputEntry>
+        <outputEntry id="OutputEntry_RP_resultado"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_RP_observacao"><text>"EMERGENCIA - Reimplante de polegar - indicacao absoluta"</text></outputEntry>
+        <outputEntry id="OutputEntry_RP_fundamentacao"><text>"SBCM 2022, ASSH 2021 - Polegar representa 50% da funcao da mao, reimplante prioritario"</text></outputEntry>
+      <outputEntry id="OE_Aprovado_ReimplantePolegar_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_Aprovado_ReimplantePolegar_5"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Aprovado_ReimplanteDedosMultiplos">
+        <description>Aprovado Emergencia: Reimplante de dedos multiplos</description>
+        <inputEntry id="InputEntry_RDM_1"><text>"AmputacaoDedosMultiplos"</text></inputEntry>
+        <inputEntry id="InputEntry_RDM_2"><text>"Agudo6h","Agudo12h"</text></inputEntry>
+        <inputEntry id="InputEntry_RDM_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_RDM_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_RDM_5"><text>"Reimplante"</text></inputEntry>
+        <outputEntry id="OutputEntry_RDM_resultado"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_RDM_observacao"><text>"EMERGENCIA - Reimplante de multiplos dedos para preservar funcao de preensao"</text></outputEntry>
+        <outputEntry id="OutputEntry_RDM_fundamentacao"><text>"IFSSH 2022 - Amputacoes multiplas sao indicacao absoluta de reimplante"</text></outputEntry>
+      <outputEntry id="OE_Aprovado_ReimplanteDedosMultiplos_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_Aprovado_ReimplanteDedosMultiplos_5"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Aprovado_Luva">
+        <description>Aprovado Emergencia: Lesao em luva (degloving)</description>
+        <inputEntry id="InputEntry_LUV_1"><text>"Luva"</text></inputEntry>
+        <inputEntry id="InputEntry_LUV_2"><text>"Agudo6h","Agudo12h","Agudo24h"</text></inputEntry>
+        <inputEntry id="InputEntry_LUV_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_LUV_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_LUV_5"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_LUV_resultado"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_LUV_observacao"><text>"EMERGENCIA - Lesao em luva requer microcirurgia para revascularizacao"</text></outputEntry>
+        <outputEntry id="OutputEntry_LUV_fundamentacao"><text>"SBCM 2022 - Degloving e emergencia microcirurgica"</text></outputEntry>
+      <outputEntry id="OE_Aprovado_Luva_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_Aprovado_Luva_5"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <!-- APROVACOES ELETIVAS -->
+      <rule id="Rule_Aprovado_TransferenciaDedoPe">
+        <description>Aprovado: Transferencia de dedo do pe para polegar</description>
+        <inputEntry id="InputEntry_TDP_1"><text>"AmputacaoPolegar"</text></inputEntry>
+        <inputEntry id="InputEntry_TDP_2"><text>"Cronico"</text></inputEntry>
+        <inputEntry id="InputEntry_TDP_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_TDP_4"><text>"ProximalMF","Transmetacarpo"</text></inputEntry>
+        <inputEntry id="InputEntry_TDP_5"><text>"TransferenciaDedoPe"</text></inputEntry>
+        <outputEntry id="OutputEntry_TDP_resultado"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_TDP_observacao"><text>"Transferencia de segundo artelho para reconstrucao de polegar"</text></outputEntry>
+        <outputEntry id="OutputEntry_TDP_fundamentacao"><text>"SBCM 2022, ASSH 2021 - Padrao-ouro para reconstrucao de polegar em nivel proximal"</text></outputEntry>
+      <outputEntry id="OE_Aprovado_TransferenciaDedoPe_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_Aprovado_TransferenciaDedoPe_5"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Aprovado_Pollicizacao">
+        <description>Aprovado: Pollicizacao de dedo indicador</description>
+        <inputEntry id="InputEntry_POL_1"><text>"AmputacaoPolegar"</text></inputEntry>
+        <inputEntry id="InputEntry_POL_2"><text>"Cronico"</text></inputEntry>
+        <inputEntry id="InputEntry_POL_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_POL_4"><text>"Transmetacarpo"</text></inputEntry>
+        <inputEntry id="InputEntry_POL_5"><text>"Pollicizacao"</text></inputEntry>
+        <outputEntry id="OutputEntry_POL_resultado"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_POL_observacao"><text>"Pollicizacao do indicador para reconstrucao funcional do polegar"</text></outputEntry>
+        <outputEntry id="OutputEntry_POL_fundamentacao"><text>"IFSSH 2022 - Pollicizacao e alternativa quando transferencia de pe contraindicada"</text></outputEntry>
+      <outputEntry id="OE_Aprovado_Pollicizacao_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_Aprovado_Pollicizacao_5"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Aprovado_RetalhoPolpa">
+        <description>Aprovado: Retalho para reconstrucao de polpa digital</description>
+        <inputEntry id="InputEntry_RPD_1"><text>"PerdaPolpaDigital"</text></inputEntry>
+        <inputEntry id="InputEntry_RPD_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_RPD_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_RPD_4"><text>"DistalIF"</text></inputEntry>
+        <inputEntry id="InputEntry_RPD_5"><text>"RetalhoLocal"</text></inputEntry>
+        <outputEntry id="OutputEntry_RPD_resultado"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_RPD_observacao"><text>"Retalho local (homodigital, heterodigital, Moberg) para cobertura de polpa"</text></outputEntry>
+        <outputEntry id="OutputEntry_RPD_fundamentacao"><text>"SBCM 2022 - Preservacao de comprimento e sensibilidade prioritaria"</text></outputEntry>
+      <outputEntry id="OE_Aprovado_RetalhoPolpa_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_Aprovado_RetalhoPolpa_5"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Aprovado_DefeitoComposto">
+        <description>Aprovado: Reconstrucao de defeito composto</description>
+        <inputEntry id="InputEntry_DC_1"><text>"DefeitoCompostoMao"</text></inputEntry>
+        <inputEntry id="InputEntry_DC_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_DC_3"><text>"ComplexoTotal"</text></inputEntry>
+        <inputEntry id="InputEntry_DC_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_DC_5"><text>"RetalhoLivre"</text></inputEntry>
+        <outputEntry id="OutputEntry_DC_resultado"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_DC_observacao"><text>"Retalho livre para cobertura de defeito complexo de mao"</text></outputEntry>
+        <outputEntry id="OutputEntry_DC_fundamentacao"><text>"SBCP 2022 - Defeitos compostos requerem tecido vascularizado"</text></outputEntry>
+      <outputEntry id="OE_Aprovado_DefeitoComposto_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_Aprovado_DefeitoComposto_5"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <!-- REPROVACOES -->
+      <rule id="Rule_Reprovado_ReimplanteTardio">
+        <description>Reprovado: Reimplante fora da janela terapeutica</description>
+        <inputEntry id="InputEntry_RT_1"><text>"AmputacaoDedoUnico"</text></inputEntry>
+        <inputEntry id="InputEntry_RT_2"><text>"Subagudo","Cronico"</text></inputEntry>
+        <inputEntry id="InputEntry_RT_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_RT_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_RT_5"><text>"Reimplante"</text></inputEntry>
+        <outputEntry id="OutputEntry_RT_resultado"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_RT_observacao"><text>"Reimplante fora da janela terapeutica (&gt;24h) - tecido inviavel"</text></outputEntry>
+        <outputEntry id="OutputEntry_RT_fundamentacao"><text>"SBCM 2022 - Isquemia quente &gt;12h inviabiliza reimplante de dedo unico"</text></outputEntry>
+      <outputEntry id="OE_Reprovado_ReimplanteTardio_4"><text>"PROT"</text></outputEntry>
+        <outputEntry id="OE_Reprovado_ReimplanteTardio_5"><text>"NEGAR"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Reprovado_DedoUnicoZona2">
+        <description>Reprovado relativo: Dedo unico em zona de terra de ninguem</description>
+        <inputEntry id="InputEntry_DUZ_1"><text>"AmputacaoDedoUnico"</text></inputEntry>
+        <inputEntry id="InputEntry_DUZ_2"><text>"Agudo6h","Agudo12h"</text></inputEntry>
+        <inputEntry id="InputEntry_DUZ_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_DUZ_4"><text>"MediaIFP"</text></inputEntry>
+        <inputEntry id="InputEntry_DUZ_5"><text>"Reimplante"</text></inputEntry>
+        <outputEntry id="OutputEntry_DUZ_resultado"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OutputEntry_DUZ_observacao"><text>"Dedo unico zona II - discutir risco/beneficio do reimplante"</text></outputEntry>
+        <outputEntry id="OutputEntry_DUZ_fundamentacao"><text>"ASSH 2021 - Reimplante zona II tem resultado funcional variavel, individualizar"</text></outputEntry>
+      <outputEntry id="OE_Reprovado_DedoUnicoZona2_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_Reprovado_DedoUnicoZona2_5"><text>"SOLICITAR_INFO"</text></outputEntry>
+      </rule>
+
+      <!-- FALLBACK RULE -->
+      <rule id="Rule_Fallback_REC009">
+        <description>Regra padrao - Analise adicional necessaria</description>
+        <inputEntry id="InputEntry_Fallback_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Fallback_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Fallback_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Fallback_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Fallback_5"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_Fallback_resultado"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OutputEntry_Fallback_observacao"><text>"Avaliar com servico de cirurgia da mao/microcirurgia"</text></outputEntry>
+        <outputEntry id="OutputEntry_Fallback_fundamentacao"><text>"SBCM 2022, ASSH 2021 - Lesoes complexas de mao requerem avaliacao especializada"</text></outputEntry>
+      <outputEntry id="OE_Fallback_REC009_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_Fallback_REC009_5"><text>"SOLICITAR_INFO"</text></outputEntry>
+      </rule>
+
+    </decisionTable>
+  </decision>
+</definitions>

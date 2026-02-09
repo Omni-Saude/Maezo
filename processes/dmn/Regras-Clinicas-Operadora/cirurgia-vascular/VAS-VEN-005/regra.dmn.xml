@@ -1,0 +1,247 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/"
+             xmlns:dc="http://www.omg.org/spec/DD/20100524/DC/"
+             xmlns:di="http://www.omg.org/spec/DD/20100524/DI/"
+             id="Definitions_VAS_VEN_005"
+             name="Ulcera Venosa - Compressao e Ablacao"
+             namespace="http://camunda.org/schema/1.0/dmn"
+             exporter="Camunda Modeler"
+             exporterVersion="5.0.0">
+  <!--
+    VAS-VEN-005 - Ulcera Venosa - Compressao e Ablacao
+    Versao: 1.0.0 (2026-02-07)
+    Especialidade: Cirurgia Vascular / Angiologia / Dermatologia
+    Categoria: Doenca Venosa Cronica
+    TUSS Relacionados: 30907039, 30907047, 20103042
+
+    Ulcera Venosa de Membro Inferior:
+    - Causa mais comum de ulcera de perna (70-80%)
+    - Localizacao tipica: maleolar medial
+    - Recorrencia alta sem tratamento adequado (70%)
+    - Impacto significativo em qualidade de vida
+
+    Tratamento de Base (ESVS 2015 / Cochrane 2020):
+    - Compressao: tratamento fundamental
+      * Multicomponente > monocomponente
+      * 30-40 mmHg ou mais
+      * Obrigatoria exceto se DAP significativa
+    - Ablacao de refluxo superficial: acelera cicatrizacao e previne recorrencia
+
+    Estudo EVRA (2018):
+    - Ablacao precoce (< 2 semanas) vs tardia
+    - Cicatrizacao mais rapida com ablacao precoce
+    - Recomendacao: ablacao dentro de 2 semanas se possivel
+
+    Avaliacao de DAP Associada:
+    - ITB obrigatorio antes de compressao
+    - ITB > 0.8: compressao plena
+    - ITB 0.5-0.8: compressao modificada
+    - ITB < 0.5: compressao contraindicada
+
+    Referencias Normativas:
+    - ESVS 2015 - Chronic Venous Disease
+    - EVRA Trial 2018
+    - Cochrane 2020 - Compression for Venous Ulcers
+    - NICE 2021 - Leg Ulcer Guidelines
+    - DUT ANS 2024
+  -->
+
+  <decision id="Decision_VAS_VEN_005" name="Criterios de Manejo - Ulcera Venosa">
+    <decisionTable id="DecisionTable_VAS_VEN_005" hitPolicy="FIRST">
+
+      <!-- Input 1: Duracao da Ulcera -->
+      <input id="Input_duracao" label="Duracao da Ulcera">
+        <inputExpression id="InputExpr_duracao" typeRef="string">
+          <text>duracaoUlcera</text>
+        </inputExpression>
+        <inputValues id="InputValues_duracao">
+          <text>"Menor_6_Semanas","6_Semanas_6_Meses","6_12_Meses","Maior_12_Meses"</text>
+        </inputValues>
+      </input>
+
+      <!-- Input 2: Tamanho da Ulcera -->
+      <input id="Input_tamanho" label="Tamanho da Ulcera">
+        <inputExpression id="InputExpr_tamanho" typeRef="string">
+          <text>tamanhoUlcera</text>
+        </inputExpression>
+        <inputValues id="InputValues_tamanho">
+          <text>"Pequena_Menor_5cm2","Media_5_20cm2","Grande_Maior_20cm2"</text>
+        </inputValues>
+      </input>
+
+      <!-- Input 3: ITB -->
+      <input id="Input_itb" label="Indice Tornozelo-Braco (ITB)">
+        <inputExpression id="InputExpr_itb" typeRef="string">
+          <text>indiceTornozeloBraco</text>
+        </inputExpression>
+        <inputValues id="InputValues_itb">
+          <text>"Normal_Maior_0.9","Leve_0.8_0.9","Moderado_0.5_0.8","Severo_Menor_0.5","Nao_Avaliado"</text>
+        </inputValues>
+      </input>
+
+      <!-- Input 4: Refluxo Superficial -->
+      <input id="Input_refluxo" label="Refluxo Superficial Documentado">
+        <inputExpression id="InputExpr_refluxo" typeRef="string">
+          <text>refluxoSuperficial</text>
+        </inputExpression>
+        <inputValues id="InputValues_refluxo">
+          <text>"Ausente","Presente_Safena_Magna","Presente_Safena_Parva","Presente_Perfurantes","Nao_Avaliado"</text>
+        </inputValues>
+      </input>
+
+      <!-- Input 5: Documentacao -->
+      <input id="Input_documentacao" label="Duplex Venoso + ITB Documentados">
+        <inputExpression id="InputExpr_documentacao" typeRef="boolean">
+          <text>documentacaoCompleta</text>
+        </inputExpression>
+      </input>
+
+      <!-- Outputs -->
+      <output id="Output_resultado" label="Resultado" name="resultado" typeRef="string">
+        <outputValues id="OutputValues_resultado">
+          <text>"Aprovado","Reprovado","Pendente"</text>
+        </outputValues>
+      </output>
+      <output id="Output_observacao" label="Observacao Clinica" name="observacao" typeRef="string" />
+      <output id="Output_fundamentacao" label="Fundamentacao Legal/Tecnica" name="fundamentacao" typeRef="string" />
+
+      <output id="Output_alertasDesperdicio" name="alertasDesperdicio" typeRef="string">
+        <outputValues>
+          <text>"NENHUM","DUP","FREQ","ESC","DOC","PROT","MULTI"</text>
+        </outputValues>
+      </output>
+
+      <output id="Output_acaoRecomendada" name="acaoRecomendada" typeRef="string">
+        <outputValues>
+          <text>"APROVAR","NEGAR","SOLICITAR_INFO","AGUARDAR_PRAZO","SUGERIR_ALTERNATIVA"</text>
+        </outputValues>
+      </output>
+
+      <!-- ============================================== -->
+      <!-- REGRAS DE REPROVACAO                          -->
+      <!-- ============================================== -->
+
+      <rule id="Rule_VAS_VEN_005_Reprovacao_SemDoc">
+        <description>Reprovacao - Documentacao incompleta</description>
+        <inputEntry id="IE_Rep1_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_Rep1_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_Rep1_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_Rep1_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_Rep1_5"><text>false</text></inputEntry>
+        <outputEntry id="OE_Rep1_1"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OE_Rep1_2"><text>"Documentacao incompleta - duplex venoso + ITB obrigatorios para definir tratamento de ulcera venosa"</text></outputEntry>
+        <outputEntry id="OE_Rep1_3"><text>"ESVS 2015 - ITB obrigatorio antes de compressao"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_VAS_VEN_005_Reprovacao_DAP_Severa">
+        <description>Reprovacao Compressao - DAP severa</description>
+        <inputEntry id="IE_Rep2_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_Rep2_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_Rep2_3"><text>"Severo_Menor_0.5"</text></inputEntry>
+        <inputEntry id="IE_Rep2_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_Rep2_5"><text>true</text></inputEntry>
+        <outputEntry id="OE_Rep2_1"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OE_Rep2_2"><text>"Compressao CONTRAINDICADA - ITB menor 0.5 indica DAP severa - priorizar revascularizacao arterial antes de tratar componente venoso"</text></outputEntry>
+        <outputEntry id="OE_Rep2_3"><text>"ESVS 2015 - Compressao contraindicada em ITB menor 0.5"</text></outputEntry>
+      </rule>
+
+      <!-- ============================================== -->
+      <!-- REGRAS DE APROVACAO                           -->
+      <!-- ============================================== -->
+
+      <rule id="Rule_VAS_VEN_005_Aprovacao_Ablacao_Precoce">
+        <description>Aprovacao - Ablacao precoce em ulcera nova com refluxo</description>
+        <inputEntry id="IE_Apr1_1"><text>"Menor_6_Semanas"</text></inputEntry>
+        <inputEntry id="IE_Apr1_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_Apr1_3"><text>"Normal_Maior_0.9","Leve_0.8_0.9"</text></inputEntry>
+        <inputEntry id="IE_Apr1_4"><text>"Presente_Safena_Magna","Presente_Safena_Parva"</text></inputEntry>
+        <inputEntry id="IE_Apr1_5"><text>true</text></inputEntry>
+        <outputEntry id="OE_Apr1_1"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OE_Apr1_2"><text>"Ablacao PRECOCE APROVADA - ulcera venosa nova com refluxo - ablacao dentro de 2 semanas acelera cicatrizacao (EVRA trial)"</text></outputEntry>
+        <outputEntry id="OE_Apr1_3"><text>"EVRA 2018 Classe I - Ablacao precoce superior a tardia"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_VAS_VEN_005_Aprovacao_Ablacao_Cronica">
+        <description>Aprovacao - Ablacao em ulcera cronica refrataria</description>
+        <inputEntry id="IE_Apr2_1"><text>"6_12_Meses","Maior_12_Meses"</text></inputEntry>
+        <inputEntry id="IE_Apr2_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_Apr2_3"><text>"Normal_Maior_0.9","Leve_0.8_0.9"</text></inputEntry>
+        <inputEntry id="IE_Apr2_4"><text>"Presente_Safena_Magna","Presente_Safena_Parva","Presente_Perfurantes"</text></inputEntry>
+        <inputEntry id="IE_Apr2_5"><text>true</text></inputEntry>
+        <outputEntry id="OE_Apr2_1"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OE_Apr2_2"><text>"Ablacao APROVADA - ulcera cronica refrataria com refluxo documentado - ablacao + compressao para cicatrizacao e prevencao de recorrencia"</text></outputEntry>
+        <outputEntry id="OE_Apr2_3"><text>"ESVS 2015 Classe I - Ablacao indicada em ulcera venosa com refluxo superficial"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_VAS_VEN_005_Aprovacao_Compressao_Isolada">
+        <description>Aprovacao - Compressao isolada quando sem refluxo corrigivel</description>
+        <inputEntry id="IE_Apr3_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_Apr3_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_Apr3_3"><text>"Normal_Maior_0.9"</text></inputEntry>
+        <inputEntry id="IE_Apr3_4"><text>"Ausente"</text></inputEntry>
+        <inputEntry id="IE_Apr3_5"><text>true</text></inputEntry>
+        <outputEntry id="OE_Apr3_1"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OE_Apr3_2"><text>"Terapia compressiva APROVADA - ulcera venosa sem refluxo superficial corrigivel - compressao multicomponente 30-40 mmHg"</text></outputEntry>
+        <outputEntry id="OE_Apr3_3"><text>"Cochrane 2020 - Compressao eh tratamento fundamental de ulcera venosa"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_VAS_VEN_005_Aprovacao_Compressao_Modificada">
+        <description>Aprovacao - Compressao modificada em DAP moderada</description>
+        <inputEntry id="IE_Apr4_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_Apr4_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_Apr4_3"><text>"Moderado_0.5_0.8"</text></inputEntry>
+        <inputEntry id="IE_Apr4_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_Apr4_5"><text>true</text></inputEntry>
+        <outputEntry id="OE_Apr4_1"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OE_Apr4_2"><text>"Compressao MODIFICADA APROVADA - ulcera mista com DAP moderada - compressao reduzida (20-25 mmHg) com monitoramento"</text></outputEntry>
+        <outputEntry id="OE_Apr4_3"><text>"ESVS 2015 - Compressao modificada em ITB 0.5-0.8 com supervisao"</text></outputEntry>
+      </rule>
+
+      <!-- ============================================== -->
+      <!-- REGRAS DE PENDENCIA                           -->
+      <!-- ============================================== -->
+
+      <rule id="Rule_VAS_VEN_005_Pendente_ITB">
+        <description>Pendente - ITB nao avaliado</description>
+        <inputEntry id="IE_Pend1_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_Pend1_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_Pend1_3"><text>"Nao_Avaliado"</text></inputEntry>
+        <inputEntry id="IE_Pend1_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_Pend1_5"><text>true</text></inputEntry>
+        <outputEntry id="OE_Pend1_1"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OE_Pend1_2"><text>"ITB obrigatorio antes de iniciar compressao - realizar ITB para excluir DAP significativa"</text></outputEntry>
+        <outputEntry id="OE_Pend1_3"><text>"ESVS 2015 - ITB obrigatorio em ulcera de perna"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_VAS_VEN_005_Pendente_Refluxo">
+        <description>Pendente - Refluxo nao avaliado</description>
+        <inputEntry id="IE_Pend2_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_Pend2_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_Pend2_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_Pend2_4"><text>"Nao_Avaliado"</text></inputEntry>
+        <inputEntry id="IE_Pend2_5"><text>true</text></inputEntry>
+        <outputEntry id="OE_Pend2_1"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OE_Pend2_2"><text>"Refluxo nao avaliado - realizar duplex venoso para identificar refluxo corrigivel e planejar ablacao"</text></outputEntry>
+        <outputEntry id="OE_Pend2_3"><text>"EVRA 2018 - Mapeamento de refluxo essencial para indicar ablacao"</text></outputEntry>
+      </rule>
+
+      <!-- ============================================== -->
+      <!-- REGRA FALLBACK                                -->
+      <!-- ============================================== -->
+
+      <rule id="Rule_Fallback_VAS_VEN_005">
+        <description>Fallback - Casos nao cobertos requerem analise manual</description>
+        <inputEntry id="IE_Fallback_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_Fallback_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_Fallback_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_Fallback_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_Fallback_5"><text>-</text></inputEntry>
+        <outputEntry id="OE_Fallback_1"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OE_Fallback_2"><text>"Caso requer analise por equipe multidisciplinar de feridas cronicas"</text></outputEntry>
+        <outputEntry id="OE_Fallback_3"><text>"Auditoria especializada conforme RN 428/2017"</text></outputEntry>
+      </rule>
+
+    </decisionTable>
+  </decision>
+</definitions>

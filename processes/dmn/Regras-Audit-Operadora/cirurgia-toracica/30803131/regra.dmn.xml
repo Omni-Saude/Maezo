@@ -1,0 +1,357 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             xmlns:camunda="http://camunda.org/schema/1.0/dmn"
+             id="Definitions_30803131"
+             name="TOR-MED-002 Biopsia de Massa Mediastinal"
+             namespace="http://camunda.org/schema/1.0/dmn">
+
+  <!--
+    ===============================================================================
+    TUSS: 30803131
+    Procedimento: Biopsia de Massa Mediastinal - Selecao de Abordagem
+    Especialidade: Cirurgia Toracica
+    Codigo Regra: TOR-MED-002
+    Versao: 3.0.0-LEAN-TIER2
+    Data: 2026-02-07
+    ===============================================================================
+
+    INDICACOES CLINICAS:
+    - Massa mediastinal de etiologia indeterminada
+    - Suspeita de linfoma (biopsia obrigatoria antes de tratamento)
+    - Tumores germinativos extragonadais (marcadores antes de biopsia)
+    - Timoma suspeito (resseccao preferivel, biopsia se irressecavel)
+    - Estadiamento de neoplasia com adenopatia mediastinal
+
+    SELECAO DE ABORDAGEM:
+    - Mediastinoscopia: Massas paratraqueais, subcarinais (estacoes 2R, 2L, 4R, 4L, 7)
+    - Mediastinotomia anterior (Chamberlain): Janela aortopulmonar (estacao 5, 6)
+    - EBUS-TBNA: Alternativa menos invasiva para linfonodos acessiveis
+    - VATS: Massas anteriores, posteriores ou perifericas
+    - Biopsia percutanea (PAAF/core): Lesoes acessiveis por TC
+
+    CONTRAINDICACOES:
+    - Marcadores tumorais positivos em tumor germinativo (tratar sem biopsia)
+    - Compressao de veia cava superior grave (risco de biopsia)
+    - Timoma claramente ressecavel (resseccao preferivel a biopsia)
+    - Coagulopatia nao corrigida
+    - Aneurisma de aorta ou vasos nao identificados
+
+    REFERENCIAS TECNICAS:
+    - ACCP/AATS Guidelines Mediastinal Masses
+    - NCCN Thymoma, Lymphoma Guidelines
+    - ESTS Staging Guidelines
+    - SBCT 2023 - Massas Mediastinais
+    ===============================================================================
+  -->
+
+  <decision id="Decision_30803131" name="Regra Clinica - Biopsia Massa Mediastinal">
+    <decisionTable id="DecisionTable_30803131" hitPolicy="FIRST">
+
+      <!-- ========== INPUTS (5) - Padrao TIER-1 Cirurgia Toracica ========== -->
+
+      <input id="Input_diagnosticoPulmonar" label="Localizacao e Suspeita Diagnostica" camunda:inputVariable="diagnosticoPulmonar">
+        <inputExpression id="InputExpression_diagnosticoPulmonar" typeRef="string">
+          <text>diagnosticoPulmonar</text>
+        </inputExpression>
+        <inputValues id="InputValues_diagnosticoPulmonar">
+          <text>"ANTERIOR_SUSPEITA_TIMOMA","ANTERIOR_SUSPEITA_LINFOMA","ANTERIOR_SUSPEITA_GERMINATIVO","MEDIO_LINFONODOMEGALIA","POSTERIOR_NEUROGENICO","INDETERMINADA"</text>
+        </inputValues>
+      </input>
+
+      <input id="Input_estadiamentoTNM" label="Estadiamento e Ressecabilidade" camunda:inputVariable="estadiamentoTNM">
+        <inputExpression id="InputExpression_estadiamentoTNM" typeRef="string">
+          <text>estadiamentoTNM</text>
+        </inputExpression>
+        <inputValues id="InputValues_estadiamentoTNM">
+          <text>"RESSECAVEL_UPFRONT","POTENCIALMENTE_RESSECAVEL","IRRESSECAVEL","ESTADIAMENTO_NEOPLASIA","MARCADORES_POSITIVOS","NAO_AVALIADO"</text>
+        </inputValues>
+      </input>
+
+      <input id="Input_funcaoPulmonar" label="Condicao Clinica e Urgencia" camunda:inputVariable="funcaoPulmonar">
+        <inputExpression id="InputExpression_funcaoPulmonar" typeRef="string">
+          <text>funcaoPulmonar</text>
+        </inputExpression>
+        <inputValues id="InputValues_funcaoPulmonar">
+          <text>"ESTAVEL_ELETIVO","SINDROME_VCS_LEVE","SINDROME_VCS_GRAVE","COMPRESSAO_TRAQUEAL","NAO_AVALIADA"</text>
+        </inputValues>
+      </input>
+
+      <input id="Input_comorbidades" label="Comorbidades e Risco Cirurgico" camunda:inputVariable="comorbidades">
+        <inputExpression id="InputExpression_comorbidades" typeRef="string">
+          <text>comorbidades</text>
+        </inputExpression>
+        <inputValues id="InputValues_comorbidades">
+          <text>"BAIXO_RISCO","RISCO_MODERADO","ALTO_RISCO_CIRURGICO","COAGULOPATIA","ANESTESIA_CONTRAINDICADA"</text>
+        </inputValues>
+      </input>
+
+      <input id="Input_documentacaoClinica" label="Documentacao e Exames Previos" camunda:inputVariable="documentacaoClinica">
+        <inputExpression id="InputExpression_documentacaoClinica" typeRef="string">
+          <text>documentacaoClinica</text>
+        </inputExpression>
+        <inputValues id="InputValues_documentacaoClinica">
+          <text>"COMPLETA_TC_PET_MARCADORES","PARCIAL_SEM_MARCADORES","PARCIAL_SEM_PET","INCOMPLETA"</text>
+        </inputValues>
+      </input>
+
+      <!-- ========== OUTPUTS (3) - Padrao TIER-1 ========== -->
+
+      <output id="Output_resultado" label="Resultado" name="resultado" typeRef="string">
+        <outputValues id="OutputValues_resultado">
+          <text>"Aprovado","Reprovado","Pendente"</text>
+        </outputValues>
+      </output>
+
+      <output id="Output_observacao" label="Observacao Clinica" name="observacao" typeRef="string" />
+
+      <output id="Output_fundamentacao" label="Fundamentacao Tecnica" name="fundamentacao" typeRef="string" />
+
+      <output id="Output_alertasDesperdicio" name="alertasDesperdicio" typeRef="string">
+        <outputValues>
+          <text>"NENHUM","DUP","FREQ","ESC","DOC","PROT","MULTI"</text>
+        </outputValues>
+      </output>
+
+      <output id="Output_acaoRecomendada" name="acaoRecomendada" typeRef="string">
+        <outputValues>
+          <text>"APROVAR","NEGAR","SOLICITAR_INFO","AGUARDAR_PRAZO","SUGERIR_ALTERNATIVA"</text>
+        </outputValues>
+      </output>
+
+      <!-- ========== REGRAS - Ordem: Reprovado, Aprovado, Pendente, Fallback ========== -->
+
+      <!-- REPROVACOES -->
+
+      <rule id="Rule_Reprovado_Germinativo_Marcadores">
+        <description>Reprovado: Tumor germinativo com marcadores positivos - tratar sem biopsia</description>
+        <inputEntry id="InputEntry_Rep_Germ_1"><text>"ANTERIOR_SUSPEITA_GERMINATIVO"</text></inputEntry>
+        <inputEntry id="InputEntry_Rep_Germ_2"><text>"MARCADORES_POSITIVOS"</text></inputEntry>
+        <inputEntry id="InputEntry_Rep_Germ_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Rep_Germ_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Rep_Germ_5"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_Rep_Germ_resultado"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_Rep_Germ_observacao"><text>"Biopsia nao indicada - tumor germinativo mediastinal com AFP e/ou beta-hCG elevados. Iniciar quimioterapia baseado em marcadores."</text></outputEntry>
+        <outputEntry id="OutputEntry_Rep_Germ_fundamentacao"><text>"NCCN Testicular, IGCCCG: Tumores germinativos extragonadais com marcadores elevados podem ser tratados sem biopsia. Diagnostico clinico."</text></outputEntry>
+        <outputEntry id="OutputEntry_Reprovado_Germinativo_Marcadores_alertasDesperdicio"><text>"PROT"</text></outputEntry>
+        <outputEntry id="OutputEntry_Reprovado_Germinativo_Marcadores_acaoRecomendada"><text>"NEGAR"</text></outputEntry>
+        <outputEntry id="OutputEntry_Reprovado_Germinativo_Marcadores_alertasDesperdicio"><text>"PROT"</text></outputEntry>
+        <outputEntry id="OutputEntry_Reprovado_Germinativo_Marcadores_acaoRecomendada"><text>"NEGAR"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Reprovado_Timoma_Ressecavel">
+        <description>Reprovado: Timoma claramente ressecavel - resseccao preferivel</description>
+        <inputEntry id="InputEntry_Rep_Tim_1"><text>"ANTERIOR_SUSPEITA_TIMOMA"</text></inputEntry>
+        <inputEntry id="InputEntry_Rep_Tim_2"><text>"RESSECAVEL_UPFRONT"</text></inputEntry>
+        <inputEntry id="InputEntry_Rep_Tim_3"><text>"ESTAVEL_ELETIVO"</text></inputEntry>
+        <inputEntry id="InputEntry_Rep_Tim_4"><text>"BAIXO_RISCO","RISCO_MODERADO"</text></inputEntry>
+        <inputEntry id="InputEntry_Rep_Tim_5"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_Rep_Tim_resultado"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_Rep_Tim_observacao"><text>"Biopsia de timoma ressecavel nao recomendada. Risco de disseminacao pleural. Resseccao cirurgica primaria indicada."</text></outputEntry>
+        <outputEntry id="OutputEntry_Rep_Tim_fundamentacao"><text>"ITMIG, NCCN Thymoma: Timoma ressecavel deve ser ressecado sem biopsia. Biopsia aumenta risco de implantes pleurais."</text></outputEntry>
+        <outputEntry id="OutputEntry_Reprovado_Timoma_Ressecavel_alertasDesperdicio"><text>"PROT"</text></outputEntry>
+        <outputEntry id="OutputEntry_Reprovado_Timoma_Ressecavel_acaoRecomendada"><text>"NEGAR"</text></outputEntry>
+        <outputEntry id="OutputEntry_Reprovado_Timoma_Ressecavel_alertasDesperdicio"><text>"PROT"</text></outputEntry>
+        <outputEntry id="OutputEntry_Reprovado_Timoma_Ressecavel_acaoRecomendada"><text>"NEGAR"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Reprovado_VCS_Grave">
+        <description>Reprovado: Sindrome de VCS grave - alto risco de procedimento</description>
+        <inputEntry id="InputEntry_Rep_VCS_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Rep_VCS_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Rep_VCS_3"><text>"SINDROME_VCS_GRAVE"</text></inputEntry>
+        <inputEntry id="InputEntry_Rep_VCS_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Rep_VCS_5"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_Rep_VCS_resultado"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_Rep_VCS_observacao"><text>"Biopsia invasiva contraindicada em sindrome de VCS grave. Risco de sangramento e descompensacao. Considerar RT empirica ou biopsia periferica."</text></outputEntry>
+        <outputEntry id="OutputEntry_Rep_VCS_fundamentacao"><text>"Oncology Emergency: SVCS grave pode requerer tratamento empirico (RT ou QT) antes de diagnostico histologico. Biopsia periferica se disponivel."</text></outputEntry>
+        <outputEntry id="OutputEntry_Reprovado_VCS_Grave_alertasDesperdicio"><text>"PROT"</text></outputEntry>
+        <outputEntry id="OutputEntry_Reprovado_VCS_Grave_acaoRecomendada"><text>"NEGAR"</text></outputEntry>
+        <outputEntry id="OutputEntry_Reprovado_VCS_Grave_alertasDesperdicio"><text>"PROT"</text></outputEntry>
+        <outputEntry id="OutputEntry_Reprovado_VCS_Grave_acaoRecomendada"><text>"NEGAR"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Reprovado_Coagulopatia">
+        <description>Reprovado: Coagulopatia nao corrigida</description>
+        <inputEntry id="InputEntry_Rep_Coag_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Rep_Coag_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Rep_Coag_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Rep_Coag_4"><text>"COAGULOPATIA"</text></inputEntry>
+        <inputEntry id="InputEntry_Rep_Coag_5"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_Rep_Coag_resultado"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_Rep_Coag_observacao"><text>"Biopsia mediastinal contraindicada em coagulopatia. Corrigir INR menor 1.5, plaquetas maior 50.000 antes de procedimento."</text></outputEntry>
+        <outputEntry id="OutputEntry_Rep_Coag_fundamentacao"><text>"Mediastino e regiao ricamente vascularizada. Sangramento pos-biopsia pode ser catastrofico. Correcao de coagulopatia e obrigatoria."</text></outputEntry>
+        <outputEntry id="OutputEntry_Reprovado_Coagulopatia_alertasDesperdicio"><text>"PROT"</text></outputEntry>
+        <outputEntry id="OutputEntry_Reprovado_Coagulopatia_acaoRecomendada"><text>"NEGAR"</text></outputEntry>
+        <outputEntry id="OutputEntry_Reprovado_Coagulopatia_alertasDesperdicio"><text>"PROT"</text></outputEntry>
+        <outputEntry id="OutputEntry_Reprovado_Coagulopatia_acaoRecomendada"><text>"NEGAR"</text></outputEntry>
+      </rule>
+
+      <!-- APROVACOES -->
+
+      <rule id="Rule_Aprovado_Linfoma_Suspeito">
+        <description>Aprovado: Suspeita de linfoma - biopsia obrigatoria</description>
+        <inputEntry id="InputEntry_Apr_Linf_1"><text>"ANTERIOR_SUSPEITA_LINFOMA","MEDIO_LINFONODOMEGALIA"</text></inputEntry>
+        <inputEntry id="InputEntry_Apr_Linf_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Apr_Linf_3"><text>"ESTAVEL_ELETIVO","SINDROME_VCS_LEVE"</text></inputEntry>
+        <inputEntry id="InputEntry_Apr_Linf_4"><text>"BAIXO_RISCO","RISCO_MODERADO"</text></inputEntry>
+        <inputEntry id="InputEntry_Apr_Linf_5"><text>"COMPLETA_TC_PET_MARCADORES","PARCIAL_SEM_MARCADORES"</text></inputEntry>
+        <outputEntry id="OutputEntry_Apr_Linf_resultado"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_Apr_Linf_observacao"><text>"Biopsia aprovada - linfoma requer material adequado para subtipagem. Core biopsy ou biopsia cirurgica conforme acessibilidade."</text></outputEntry>
+        <outputEntry id="OutputEntry_Apr_Linf_fundamentacao"><text>"NCCN Lymphoma: Linfoma requer classificacao WHO detalhada. PAAF isolada e insuficiente. Core biopsy ou biopsia excisional necessarias."</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprovado_Linfoma_Suspeito_alertasDesperdicio"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprovado_Linfoma_Suspeito_acaoRecomendada"><text>"APROVAR"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprovado_Linfoma_Suspeito_alertasDesperdicio"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprovado_Linfoma_Suspeito_acaoRecomendada"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Aprovado_Timoma_Irressecavel">
+        <description>Aprovado: Timoma irressecavel - biopsia para planejamento</description>
+        <inputEntry id="InputEntry_Apr_TimIrr_1"><text>"ANTERIOR_SUSPEITA_TIMOMA"</text></inputEntry>
+        <inputEntry id="InputEntry_Apr_TimIrr_2"><text>"IRRESSECAVEL","POTENCIALMENTE_RESSECAVEL"</text></inputEntry>
+        <inputEntry id="InputEntry_Apr_TimIrr_3"><text>"ESTAVEL_ELETIVO"</text></inputEntry>
+        <inputEntry id="InputEntry_Apr_TimIrr_4"><text>"BAIXO_RISCO","RISCO_MODERADO"</text></inputEntry>
+        <inputEntry id="InputEntry_Apr_TimIrr_5"><text>"COMPLETA_TC_PET_MARCADORES"</text></inputEntry>
+        <outputEntry id="OutputEntry_Apr_TimIrr_resultado"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_Apr_TimIrr_observacao"><text>"Biopsia aprovada - timoma irressecavel ou borderline requer confirmacao histologica para neoadjuvancia. Core biopsia preferivel a PAAF."</text></outputEntry>
+        <outputEntry id="OutputEntry_Apr_TimIrr_fundamentacao"><text>"ITMIG, NCCN: Timoma irressecavel ou Masaoka-Koga III-IVa pode receber neoadjuvancia. Confirmacao histologica necessaria."</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprovado_Timoma_Irressecavel_alertasDesperdicio"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprovado_Timoma_Irressecavel_acaoRecomendada"><text>"APROVAR"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprovado_Timoma_Irressecavel_alertasDesperdicio"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprovado_Timoma_Irressecavel_acaoRecomendada"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Aprovado_Estadiamento">
+        <description>Aprovado: Estadiamento de neoplasia com adenopatia mediastinal</description>
+        <inputEntry id="InputEntry_Apr_Estad_1"><text>"MEDIO_LINFONODOMEGALIA"</text></inputEntry>
+        <inputEntry id="InputEntry_Apr_Estad_2"><text>"ESTADIAMENTO_NEOPLASIA"</text></inputEntry>
+        <inputEntry id="InputEntry_Apr_Estad_3"><text>"ESTAVEL_ELETIVO"</text></inputEntry>
+        <inputEntry id="InputEntry_Apr_Estad_4"><text>"BAIXO_RISCO","RISCO_MODERADO"</text></inputEntry>
+        <inputEntry id="InputEntry_Apr_Estad_5"><text>"COMPLETA_TC_PET_MARCADORES","PARCIAL_SEM_PET"</text></inputEntry>
+        <outputEntry id="OutputEntry_Apr_Estad_resultado"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_Apr_Estad_observacao"><text>"Biopsia mediastinal aprovada para estadiamento. EBUS-TBNA como primeira linha. Mediastinoscopia se EBUS inconclusivo."</text></outputEntry>
+        <outputEntry id="OutputEntry_Apr_Estad_fundamentacao"><text>"ESTS, NCCN: Confirmacao patologica de N2 e mandatoria antes de decisao terapeutica em CPNPC. EBUS ou mediastinoscopia."</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprovado_Estadiamento_alertasDesperdicio"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprovado_Estadiamento_acaoRecomendada"><text>"APROVAR"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprovado_Estadiamento_alertasDesperdicio"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprovado_Estadiamento_acaoRecomendada"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Aprovado_Indeterminada">
+        <description>Aprovado: Massa mediastinal indeterminada requerendo diagnostico</description>
+        <inputEntry id="InputEntry_Apr_Indet_1"><text>"INDETERMINADA","POSTERIOR_NEUROGENICO"</text></inputEntry>
+        <inputEntry id="InputEntry_Apr_Indet_2"><text>"NAO_AVALIADO","POTENCIALMENTE_RESSECAVEL"</text></inputEntry>
+        <inputEntry id="InputEntry_Apr_Indet_3"><text>"ESTAVEL_ELETIVO"</text></inputEntry>
+        <inputEntry id="InputEntry_Apr_Indet_4"><text>"BAIXO_RISCO","RISCO_MODERADO"</text></inputEntry>
+        <inputEntry id="InputEntry_Apr_Indet_5"><text>"COMPLETA_TC_PET_MARCADORES","PARCIAL_SEM_PET"</text></inputEntry>
+        <outputEntry id="OutputEntry_Apr_Indet_resultado"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_Apr_Indet_observacao"><text>"Biopsia aprovada para massa indeterminada. Diagnostico histologico necessario para planejamento. Abordagem conforme localizacao."</text></outputEntry>
+        <outputEntry id="OutputEntry_Apr_Indet_fundamentacao"><text>"ACCP/AATS: Massa mediastinal sem diagnostico requer confirmacao patologica. Via de acesso baseada em localizacao e acessibilidade."</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprovado_Indeterminada_alertasDesperdicio"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprovado_Indeterminada_acaoRecomendada"><text>"APROVAR"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprovado_Indeterminada_alertasDesperdicio"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprovado_Indeterminada_acaoRecomendada"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Aprovado_Alto_Risco_PAAF">
+        <description>Aprovado: Paciente alto risco - PAAF guiada por TC</description>
+        <inputEntry id="InputEntry_Apr_PAAF_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Apr_PAAF_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Apr_PAAF_3"><text>"ESTAVEL_ELETIVO"</text></inputEntry>
+        <inputEntry id="InputEntry_Apr_PAAF_4"><text>"ALTO_RISCO_CIRURGICO"</text></inputEntry>
+        <inputEntry id="InputEntry_Apr_PAAF_5"><text>"COMPLETA_TC_PET_MARCADORES"</text></inputEntry>
+        <outputEntry id="OutputEntry_Apr_PAAF_resultado"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_Apr_PAAF_observacao"><text>"Biopsia percutanea aprovada para paciente de alto risco cirurgico. PAAF ou core biopsy guiada por TC e menos invasiva."</text></outputEntry>
+        <outputEntry id="OutputEntry_Apr_PAAF_fundamentacao"><text>"ACCP: Biopsia percutanea e alternativa segura quando abordagem cirurgica e de alto risco. Rendimento diagnostico de 80-90%."</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprovado_Alto_Risco_PAAF_alertasDesperdicio"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprovado_Alto_Risco_PAAF_acaoRecomendada"><text>"APROVAR"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprovado_Alto_Risco_PAAF_alertasDesperdicio"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprovado_Alto_Risco_PAAF_acaoRecomendada"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <!-- PENDENCIAS -->
+
+      <rule id="Rule_Pendente_SemMarcadores">
+        <description>Pendente: Marcadores tumorais nao dosados</description>
+        <inputEntry id="InputEntry_Pend_Marc_1"><text>"ANTERIOR_SUSPEITA_GERMINATIVO"</text></inputEntry>
+        <inputEntry id="InputEntry_Pend_Marc_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Pend_Marc_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Pend_Marc_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Pend_Marc_5"><text>"PARCIAL_SEM_MARCADORES","INCOMPLETA"</text></inputEntry>
+        <outputEntry id="OutputEntry_Pend_Marc_resultado"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OutputEntry_Pend_Marc_observacao"><text>"Dosar AFP e beta-hCG antes de biopsia em massa mediastinal anterior em homem jovem. Marcadores elevados podem dispensar biopsia."</text></outputEntry>
+        <outputEntry id="OutputEntry_Pend_Marc_fundamentacao"><text>"NCCN: Tumor germinativo e diagnostico diferencial de massa mediastinal anterior. Marcadores devem ser dosados em todos os casos."</text></outputEntry>
+        <outputEntry id="OutputEntry_Pendente_SemMarcadores_alertasDesperdicio"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_Pendente_SemMarcadores_acaoRecomendada"><text>"SOLICITAR_INFO"</text></outputEntry>
+        <outputEntry id="OutputEntry_Pendente_SemMarcadores_alertasDesperdicio"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_Pendente_SemMarcadores_acaoRecomendada"><text>"SOLICITAR_INFO"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Pendente_CompressaoTraqueal">
+        <description>Pendente: Compressao traqueal - avaliar risco anestesico</description>
+        <inputEntry id="InputEntry_Pend_Traq_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Pend_Traq_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Pend_Traq_3"><text>"COMPRESSAO_TRAQUEAL"</text></inputEntry>
+        <inputEntry id="InputEntry_Pend_Traq_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Pend_Traq_5"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_Pend_Traq_resultado"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OutputEntry_Pend_Traq_observacao"><text>"Compressao traqueal aumenta risco anestesico. Avaliar diametro traqueal, curva fluxo-volume. Anestesia local pode ser necessaria."</text></outputEntry>
+        <outputEntry id="OutputEntry_Pend_Traq_fundamentacao"><text>"Anesthesia Guidelines: Massa mediastinal anterior com compressao traqueal requer planejamento anestesico cuidadoso. Colapso pos-inducao e risco."</text></outputEntry>
+        <outputEntry id="OutputEntry_Pendente_CompressaoTraqueal_alertasDesperdicio"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_Pendente_CompressaoTraqueal_acaoRecomendada"><text>"SOLICITAR_INFO"</text></outputEntry>
+        <outputEntry id="OutputEntry_Pendente_CompressaoTraqueal_alertasDesperdicio"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_Pendente_CompressaoTraqueal_acaoRecomendada"><text>"SOLICITAR_INFO"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Pendente_NaoAvaliado">
+        <description>Pendente: Ressecabilidade nao avaliada</description>
+        <inputEntry id="InputEntry_Pend_Res_1"><text>"ANTERIOR_SUSPEITA_TIMOMA"</text></inputEntry>
+        <inputEntry id="InputEntry_Pend_Res_2"><text>"NAO_AVALIADO"</text></inputEntry>
+        <inputEntry id="InputEntry_Pend_Res_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Pend_Res_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Pend_Res_5"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_Pend_Res_resultado"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OutputEntry_Pend_Res_observacao"><text>"Definir ressecabilidade antes de indicar biopsia de timoma. Se ressecavel, cirurgia primaria preferivel. Biopsia so se irressecavel."</text></outputEntry>
+        <outputEntry id="OutputEntry_Pend_Res_fundamentacao"><text>"ITMIG: Ressecabilidade de timoma deve ser determinada por cirurgiao toracico experiente antes de decisao de biopsia vs cirurgia."</text></outputEntry>
+        <outputEntry id="OutputEntry_Pendente_NaoAvaliado_alertasDesperdicio"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_Pendente_NaoAvaliado_acaoRecomendada"><text>"SOLICITAR_INFO"</text></outputEntry>
+        <outputEntry id="OutputEntry_Pendente_NaoAvaliado_alertasDesperdicio"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_Pendente_NaoAvaliado_acaoRecomendada"><text>"SOLICITAR_INFO"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Pendente_DocumentacaoIncompleta">
+        <description>Pendente: Documentacao incompleta</description>
+        <inputEntry id="InputEntry_Pend_Doc_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Pend_Doc_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Pend_Doc_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Pend_Doc_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Pend_Doc_5"><text>"INCOMPLETA"</text></inputEntry>
+        <outputEntry id="OutputEntry_Pend_Doc_resultado"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OutputEntry_Pend_Doc_observacao"><text>"Documentacao incompleta. Anexar: TC de torax com contraste, PET-CT se indicado, marcadores tumorais, avaliacao de ressecabilidade."</text></outputEntry>
+        <outputEntry id="OutputEntry_Pend_Doc_fundamentacao"><text>"Planejamento de biopsia mediastinal requer imagem de qualidade e avaliacao sistematica para escolha de abordagem ideal."</text></outputEntry>
+        <outputEntry id="OutputEntry_Pendente_DocumentacaoIncompleta_alertasDesperdicio"><text>"DOC"</text></outputEntry>
+        <outputEntry id="OutputEntry_Pendente_DocumentacaoIncompleta_acaoRecomendada"><text>"SOLICITAR_INFO"</text></outputEntry>
+        <outputEntry id="OutputEntry_Pendente_DocumentacaoIncompleta_alertasDesperdicio"><text>"DOC"</text></outputEntry>
+        <outputEntry id="OutputEntry_Pendente_DocumentacaoIncompleta_acaoRecomendada"><text>"SOLICITAR_INFO"</text></outputEntry>
+      </rule>
+
+      <!-- FALLBACK -->
+
+      <rule id="Rule_Fallback_30803131">
+        <description>Fallback: Caso requer discussao multidisciplinar</description>
+        <inputEntry id="InputEntry_Fallback_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Fallback_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Fallback_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Fallback_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Fallback_5"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_Fallback_resultado"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OutputEntry_Fallback_observacao"><text>"Massas mediastinais requerem abordagem multidisciplinar. Discutir entre radiologista, cirurgiao toracico e oncologista para definir melhor estrategia diagnostica."</text></outputEntry>
+        <outputEntry id="OutputEntry_Fallback_fundamentacao"><text>"ACCP/AATS: Manejo de massas mediastinais e complexo. Via de acesso, timing e indicacao devem ser individualizados."</text></outputEntry>
+        <outputEntry id="OutputEntry_Fallback_30803131_alertasDesperdicio"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_Fallback_30803131_acaoRecomendada"><text>"AGUARDAR_PRAZO"</text></outputEntry>
+        <outputEntry id="OutputEntry_Fallback_30803131_alertasDesperdicio"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_Fallback_30803131_acaoRecomendada"><text>"AGUARDAR_PRAZO"</text></outputEntry>
+      </rule>
+
+    </decisionTable>
+  </decision>
+</definitions>

@@ -1,0 +1,377 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             xmlns:camunda="http://camunda.org/schema/1.0/dmn"
+             id="Definitions_40101040"
+             name="Holter 24 horas"
+             namespace="http://camunda.org/schema/1.0/dmn">
+
+  <!--
+    ===============================================================================
+    TUSS: 40101040
+    Procedimento: Holter 24 horas (Monitorização Eletrocardiográfica Ambulatorial)
+    Versão: 3.0.0-LEAN-TIER2
+    Data: 2026-02-07
+    ===============================================================================
+
+    INDICAÇÕES CLÍNICAS (DUT/ANS):
+    - Investigação de síncope, pré-síncope, palpitações
+    - Avaliação de arritmias suspeitadas ou documentadas
+    - Controle terapêutico de antiarrítmicos
+    - Avaliação pós-ablação ou pós-implante de dispositivos
+    - Estratificação de risco em cardiopatas
+
+    CONTRAINDICAÇÕES:
+    - Exame recente (<180 dias) sem novos sintomas
+    - Ausência de indicação clínica documentada
+    - Sintomas esporádicos (>1 semana) - preferir monitor de eventos
+
+    ALERTAS DE DESPERDÍCIO:
+    - DUP: Duplicidade (<180 dias sem novos sintomas)
+    - FREQ: Frequência excessiva (>2 exames/ano mesma queixa)
+    - DOC: Documentação incompleta
+    - ESC: Escalonamento inadequado
+    - PROT: Fora de protocolo
+
+    REFERÊNCIAS TÉCNICAS:
+    - SBC/SOBRAC Monitorização Ambulatorial ECG 2024
+    - HRS Expert Consensus on Ambulatory ECG Monitoring 2023
+    - ANS RN 465/2021 - Rol de Procedimentos
+
+    SISTEMA DE CLASSIFICAÇÃO SBC/ACC/AHA:
+    - Classe I: Procedimento indicado e essencial (Nível de Evidência A/B)
+    - Classe IIa: Procedimento provavelmente útil e razoável (Evidência B)
+    - Classe IIb: Procedimento pode ser considerado (Evidência C)
+    - Classe III: Procedimento não indicado ou potencialmente prejudicial
+
+    ===============================================================================
+  -->
+
+  <decision id="Decision_40101040" name="Regra Clínica LEAN TIER-2 - Holter 24 horas">
+    <decisionTable id="DecisionTable_40101040" hitPolicy="FIRST">
+
+      <!-- ========== INPUTS (5 - Padrão LEAN TIER-2) ========== -->
+
+      <input id="Input_condicaoPaciente" label="Condição do Paciente" camunda:inputVariable="condicaoPaciente">
+        <inputExpression id="InputExpression_condicaoPaciente" typeRef="string">
+          <text>condicaoPaciente</text>
+        </inputExpression>
+        <inputValues id="InputValues_condicaoPaciente">
+          <text>"Sincope","PreSincope","Palpitacoes","ArritmiaSuspeitada","ArritimiaDocumentada","ControleAntiarritmico","PosAblacao","PosImplanteDispositivo","EstratificacaoRisco","Assintomatico","SintomasEsporadicos"</text>
+        </inputValues>
+      </input>
+
+      <input id="Input_historicoClinico" label="Histórico Clínico" camunda:inputVariable="historicoClinico">
+        <inputExpression id="InputExpression_historicoClinico" typeRef="string">
+          <text>historicoClinico</text>
+        </inputExpression>
+        <inputValues id="InputValues_historicoClinico">
+          <text>"Adequado","Incompleto","NaoDocumentado"</text>
+        </inputValues>
+      </input>
+
+      <input id="Input_classeIndicacao" label="Classe de Indicação (SBC/ACC/AHA)" camunda:inputVariable="classeIndicacao">
+        <inputExpression id="InputExpression_classeIndicacao" typeRef="string">
+          <text>classeIndicacao</text>
+        </inputExpression>
+        <inputValues id="InputValues_classeIndicacao">
+          <text>"Classe I","Classe IIa","Classe IIb","Classe III"</text>
+        </inputValues>
+      </input>
+
+      <input id="Input_ultimoProcedimentoDias" label="Último Procedimento Similar (dias)" camunda:inputVariable="ultimoProcedimentoDias">
+        <inputExpression id="InputExpression_ultimoProcedimentoDias" typeRef="integer">
+          <text>ultimoProcedimentoDias</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_examesComprobatorios" label="Exames Comprobatórios" camunda:inputVariable="examesComprobatorios">
+        <inputExpression id="InputExpression_examesComprobatorios" typeRef="string">
+          <text>examesComprobatorios</text>
+        </inputExpression>
+        <inputValues id="InputValues_examesComprobatorios">
+          <text>"ECGAlterado","ECGNormal","ECGNaoRealizado","DescricaoSintomasPresente","DescricaoSintomasAusente","RelatorioMedicoCompleto","RelatorioMedicoIncompleto"</text>
+        </inputValues>
+      </input>
+
+      <!-- ========== OUTPUTS (5 - Padrão LEAN TIER-2) ========== -->
+
+      <output id="Output_resultado" label="Resultado" name="resultado" typeRef="string">
+        <outputValues id="OutputValues_resultado">
+          <text>"Aprovado","Reprovado","Pendente"</text>
+        </outputValues>
+      </output>
+
+      <output id="Output_observacao" label="Observação Clínica" name="observacao" typeRef="string" />
+
+      <output id="Output_fundamentacao" label="Fundamentação Técnica" name="fundamentacao" typeRef="string" />
+
+      <output id="Output_alertasDesperdicio" label="Alertas de Desperdício" name="alertasDesperdicio" typeRef="string">
+        <outputValues id="OutputValues_alertasDesperdicio">
+          <text>"NENHUM","DUP","FREQ","ESC","DOC","PROT","MULTI"</text>
+        </outputValues>
+      </output>
+
+      <output id="Output_acaoRecomendada" label="Ação Recomendada" name="acaoRecomendada" typeRef="string">
+        <outputValues id="OutputValues_acaoRecomendada">
+          <text>"APROVAR","NEGAR","SOLICITAR_INFO","AGUARDAR_PRAZO","SUGERIR_ALTERNATIVA"</text>
+        </outputValues>
+      </output>
+
+      <!-- =============================================================== -->
+      <!-- REGRAS DE REPROVAÇÃO (Prioridade Máxima - Waste Detection)      -->
+      <!-- =============================================================== -->
+
+      <!-- REGRA 1: DUP - Duplicidade <180 dias sem novos sintomas -->
+      <rule id="Rule_DUP_MenosDe180Dias">
+        <description>WASTE DUP: Holter realizado há menos de 180 dias sem novos sintomas</description>
+        <inputEntry id="InputEntry_DUP_1"><text>"Assintomatico"</text></inputEntry>
+        <inputEntry id="InputEntry_DUP_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_DUP_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_DUP_4"><text>&lt; 180</text></inputEntry>
+        <inputEntry id="InputEntry_DUP_5"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_DUP_resultado"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_DUP_observacao"><text>"Exame duplicado - Holter realizado há menos de 180 dias sem surgimento de novos sintomas"</text></outputEntry>
+        <outputEntry id="OutputEntry_DUP_fundamentacao"><text>"SBC/SOBRAC 2024: Repetição de Holter requer intervalo mínimo de 180 dias ou surgimento de nova sintomatologia"</text></outputEntry>
+        <outputEntry id="OutputEntry_DUP_alertasDesperdicio"><text>"DUP"</text></outputEntry>
+        <outputEntry id="OutputEntry_DUP_acaoRecomendada"><text>"AGUARDAR_PRAZO"</text></outputEntry>
+      </rule>
+
+      <!-- REGRA 2: DUP - Duplicidade com mesmos sintomas -->
+      <rule id="Rule_DUP_MesmosSintomas">
+        <description>WASTE DUP: Holter recente (<90 dias) com mesma queixa clínica</description>
+        <inputEntry id="InputEntry_DUP2_1"><text>"Palpitacoes","PreSincope"</text></inputEntry>
+        <inputEntry id="InputEntry_DUP2_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_DUP2_3"><text>"Classe IIb","Classe III"</text></inputEntry>
+        <inputEntry id="InputEntry_DUP2_4"><text>&lt; 90</text></inputEntry>
+        <inputEntry id="InputEntry_DUP2_5"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_DUP2_resultado"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_DUP2_observacao"><text>"Duplicidade identificada - Holter com mesma indicação realizado nos últimos 90 dias"</text></outputEntry>
+        <outputEntry id="OutputEntry_DUP2_fundamentacao"><text>"SBC/SOBRAC 2024, HRS 2023: Repetição precoce sem mudança clínica não altera conduta terapêutica"</text></outputEntry>
+        <outputEntry id="OutputEntry_DUP2_alertasDesperdicio"><text>"DUP"</text></outputEntry>
+        <outputEntry id="OutputEntry_DUP2_acaoRecomendada"><text>"AGUARDAR_PRAZO"</text></outputEntry>
+      </rule>
+
+      <!-- REGRA 3: Classe III - Procedimento não indicado -->
+      <rule id="Rule_ClasseIII_NaoIndicado">
+        <description>Contraindicação: Procedimento Classe III (não indicado)</description>
+        <inputEntry id="InputEntry_CIII_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_CIII_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_CIII_3"><text>"Classe III"</text></inputEntry>
+        <inputEntry id="InputEntry_CIII_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_CIII_5"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_CIII_resultado"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_CIII_observacao"><text>"Procedimento classificado como Classe III - sem indicação clínica estabelecida"</text></outputEntry>
+        <outputEntry id="OutputEntry_CIII_fundamentacao"><text>"SBC/SOBRAC 2024, HRS 2023: Classe III indica procedimento não benéfico ou potencialmente prejudicial"</text></outputEntry>
+        <outputEntry id="OutputEntry_CIII_alertasDesperdicio"><text>"PROT"</text></outputEntry>
+        <outputEntry id="OutputEntry_CIII_acaoRecomendada"><text>"NEGAR"</text></outputEntry>
+      </rule>
+
+      <!-- REGRA 4: ESC - Escalonamento inadequado (sintomas esporádicos) -->
+      <rule id="Rule_ESC_SintomasEsporadicos">
+        <description>WASTE ESC: Sintomas esporádicos - monitor de eventos mais apropriado</description>
+        <inputEntry id="InputEntry_ESC_1"><text>"SintomasEsporadicos"</text></inputEntry>
+        <inputEntry id="InputEntry_ESC_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_ESC_3"><text>"Classe IIb"</text></inputEntry>
+        <inputEntry id="InputEntry_ESC_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_ESC_5"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_ESC_resultado"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_ESC_observacao"><text>"Sintomas esporádicos (&gt;1x/semana) - Holter 24h tem baixa sensibilidade para eventos infrequentes"</text></outputEntry>
+        <outputEntry id="OutputEntry_ESC_fundamentacao"><text>"HRS 2023: Para sintomas esporádicos, monitor de eventos (7-30 dias) ou loop recorder apresentam maior rendimento diagnóstico"</text></outputEntry>
+        <outputEntry id="OutputEntry_ESC_alertasDesperdicio"><text>"ESC"</text></outputEntry>
+        <outputEntry id="OutputEntry_ESC_acaoRecomendada"><text>"SUGERIR_ALTERNATIVA"</text></outputEntry>
+      </rule>
+
+      <!-- REGRA 5: DOC - Ausência de descrição de sintomas -->
+      <rule id="Rule_DOC_SemDescricaoSintomas">
+        <description>WASTE DOC: Ausência de descrição clínica dos sintomas</description>
+        <inputEntry id="InputEntry_DOC1_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_DOC1_2"><text>"NaoDocumentado"</text></inputEntry>
+        <inputEntry id="InputEntry_DOC1_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_DOC1_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_DOC1_5"><text>"DescricaoSintomasAusente"</text></inputEntry>
+        <outputEntry id="OutputEntry_DOC1_resultado"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OutputEntry_DOC1_observacao"><text>"Documentação insuficiente - ausência de descrição dos sintomas e histórico clínico"</text></outputEntry>
+        <outputEntry id="OutputEntry_DOC1_fundamentacao"><text>"ANS RN 465/2021, SBC/SOBRAC 2024: Solicitação deve conter descrição clínica detalhada para análise de indicação"</text></outputEntry>
+        <outputEntry id="OutputEntry_DOC1_alertasDesperdicio"><text>"DOC"</text></outputEntry>
+        <outputEntry id="OutputEntry_DOC1_acaoRecomendada"><text>"SOLICITAR_INFO"</text></outputEntry>
+      </rule>
+
+      <!-- REGRA 6: DOC - Sem ECG prévio para comparação -->
+      <rule id="Rule_DOC_SemECG">
+        <description>WASTE DOC: ECG basal não realizado para comparação</description>
+        <inputEntry id="InputEntry_DOC2_1"><text>"ArritmiaSuspeitada","Palpitacoes"</text></inputEntry>
+        <inputEntry id="InputEntry_DOC2_2"><text>"Incompleto"</text></inputEntry>
+        <inputEntry id="InputEntry_DOC2_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_DOC2_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_DOC2_5"><text>"ECGNaoRealizado"</text></inputEntry>
+        <outputEntry id="OutputEntry_DOC2_resultado"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OutputEntry_DOC2_observacao"><text>"ECG de repouso não realizado - necessário para avaliação basal antes do Holter"</text></outputEntry>
+        <outputEntry id="OutputEntry_DOC2_fundamentacao"><text>"SBC/SOBRAC 2024: ECG de 12 derivações em repouso é passo inicial obrigatório na investigação de arritmias"</text></outputEntry>
+        <outputEntry id="OutputEntry_DOC2_alertasDesperdicio"><text>"DOC"</text></outputEntry>
+        <outputEntry id="OutputEntry_DOC2_acaoRecomendada"><text>"SOLICITAR_INFO"</text></outputEntry>
+      </rule>
+
+      <!-- REGRA 7: FREQ - Frequência excessiva (>2/ano) -->
+      <rule id="Rule_FREQ_MaisDe2PorAno">
+        <description>WASTE FREQ: Mais de 2 Holters no ano para mesma queixa</description>
+        <inputEntry id="InputEntry_FREQ_1"><text>"Palpitacoes","PreSincope"</text></inputEntry>
+        <inputEntry id="InputEntry_FREQ_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_FREQ_3"><text>"Classe IIb"</text></inputEntry>
+        <inputEntry id="InputEntry_FREQ_4"><text>&lt; 120</text></inputEntry>
+        <inputEntry id="InputEntry_FREQ_5"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_FREQ_resultado"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OutputEntry_FREQ_observacao"><text>"Frequência elevada de exames - 3º Holter em menos de 12 meses para mesma indicação"</text></outputEntry>
+        <outputEntry id="OutputEntry_FREQ_fundamentacao"><text>"HRS 2023: Repetição frequente sem mudança de conduta sugere necessidade de método de monitorização prolongada"</text></outputEntry>
+        <outputEntry id="OutputEntry_FREQ_alertasDesperdicio"><text>"FREQ"</text></outputEntry>
+        <outputEntry id="OutputEntry_FREQ_acaoRecomendada"><text>"SUGERIR_ALTERNATIVA"</text></outputEntry>
+      </rule>
+
+      <!-- =============================================================== -->
+      <!-- REGRAS DE APROVAÇÃO (Indicações Classe I e IIa)                 -->
+      <!-- =============================================================== -->
+
+      <!-- REGRA 8: Aprovado - Síncope Classe I -->
+      <rule id="Rule_Aprovado_Sincope_ClasseI">
+        <description>Aprovado: Síncope com indicação Classe I</description>
+        <inputEntry id="InputEntry_Aprov1_1"><text>"Sincope"</text></inputEntry>
+        <inputEntry id="InputEntry_Aprov1_2"><text>"Adequado"</text></inputEntry>
+        <inputEntry id="InputEntry_Aprov1_3"><text>"Classe I"</text></inputEntry>
+        <inputEntry id="InputEntry_Aprov1_4"><text>&gt;= 180</text></inputEntry>
+        <inputEntry id="InputEntry_Aprov1_5"><text>"ECGAlterado","ECGNormal","DescricaoSintomasPresente"</text></inputEntry>
+        <outputEntry id="OutputEntry_Aprov1_resultado"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprov1_observacao"><text>"Investigação de síncope - indicação Classe I com documentação adequada"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprov1_fundamentacao"><text>"SBC/SOBRAC 2024, HRS 2023: Holter é exame de primeira linha na investigação de síncope de origem cardíaca suspeitada"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprov1_alertasDesperdicio"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprov1_acaoRecomendada"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <!-- REGRA 9: Aprovado - Arritmia documentada Classe I -->
+      <rule id="Rule_Aprovado_ArritmiaDOC_ClasseI">
+        <description>Aprovado: Arritmia documentada com indicação Classe I</description>
+        <inputEntry id="InputEntry_Aprov2_1"><text>"ArritimiaDocumentada"</text></inputEntry>
+        <inputEntry id="InputEntry_Aprov2_2"><text>"Adequado"</text></inputEntry>
+        <inputEntry id="InputEntry_Aprov2_3"><text>"Classe I"</text></inputEntry>
+        <inputEntry id="InputEntry_Aprov2_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Aprov2_5"><text>"ECGAlterado","RelatorioMedicoCompleto"</text></inputEntry>
+        <outputEntry id="OutputEntry_Aprov2_resultado"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprov2_observacao"><text>"Avaliação de arritmia previamente documentada - quantificação e caracterização"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprov2_fundamentacao"><text>"SBC/SOBRAC 2024: Holter indicado para quantificação de arritmias já identificadas em ECG de repouso"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprov2_alertasDesperdicio"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprov2_acaoRecomendada"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <!-- REGRA 10: Aprovado - Controle antiarrítmico Classe I -->
+      <rule id="Rule_Aprovado_ControleAntiarritmico">
+        <description>Aprovado: Controle de terapia antiarrítmica</description>
+        <inputEntry id="InputEntry_Aprov3_1"><text>"ControleAntiarritmico"</text></inputEntry>
+        <inputEntry id="InputEntry_Aprov3_2"><text>"Adequado"</text></inputEntry>
+        <inputEntry id="InputEntry_Aprov3_3"><text>"Classe I","Classe IIa"</text></inputEntry>
+        <inputEntry id="InputEntry_Aprov3_4"><text>&gt;= 30</text></inputEntry>
+        <inputEntry id="InputEntry_Aprov3_5"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_Aprov3_resultado"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprov3_observacao"><text>"Monitorização de eficácia e segurança de terapia antiarrítmica em curso"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprov3_fundamentacao"><text>"SBC/SOBRAC 2024, HRS 2023: Avaliação de controle arrítmico e efeitos pró-arrítmicos de medicamentos é indicação Classe I"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprov3_alertasDesperdicio"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprov3_acaoRecomendada"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <!-- REGRA 11: Aprovado - Pós-ablação Classe I -->
+      <rule id="Rule_Aprovado_PosAblacao">
+        <description>Aprovado: Avaliação pós-ablação de arritmia</description>
+        <inputEntry id="InputEntry_Aprov4_1"><text>"PosAblacao"</text></inputEntry>
+        <inputEntry id="InputEntry_Aprov4_2"><text>"Adequado"</text></inputEntry>
+        <inputEntry id="InputEntry_Aprov4_3"><text>"Classe I","Classe IIa"</text></inputEntry>
+        <inputEntry id="InputEntry_Aprov4_4"><text>&gt;= 30</text></inputEntry>
+        <inputEntry id="InputEntry_Aprov4_5"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_Aprov4_resultado"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprov4_observacao"><text>"Avaliação de sucesso terapêutico pós-ablação de arritmia"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprov4_fundamentacao"><text>"HRS 2023, SBC/SOBRAC 2024: Holter faz parte do protocolo de seguimento pós-ablação para detecção de recorrências"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprov4_alertasDesperdicio"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprov4_acaoRecomendada"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <!-- REGRA 12: Aprovado - Pós-implante de dispositivo -->
+      <rule id="Rule_Aprovado_PosImplante">
+        <description>Aprovado: Avaliação pós-implante de marcapasso/CDI</description>
+        <inputEntry id="InputEntry_Aprov5_1"><text>"PosImplanteDispositivo"</text></inputEntry>
+        <inputEntry id="InputEntry_Aprov5_2"><text>"Adequado"</text></inputEntry>
+        <inputEntry id="InputEntry_Aprov5_3"><text>"Classe I","Classe IIa"</text></inputEntry>
+        <inputEntry id="InputEntry_Aprov5_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Aprov5_5"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_Aprov5_resultado"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprov5_observacao"><text>"Avaliação de funcionamento de dispositivo cardíaco implantado e detecção de arritmias"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprov5_fundamentacao"><text>"SBC/SOBRAC 2024: Holter complementa interrogação de dispositivo para análise de eventos arrítmicos"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprov5_alertasDesperdicio"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprov5_acaoRecomendada"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <!-- REGRA 13: Aprovado - Classe IIa geral com documentação -->
+      <rule id="Rule_Aprovado_ClasseIIa_Geral">
+        <description>Aprovado: Indicação Classe IIa com documentação completa</description>
+        <inputEntry id="InputEntry_Aprov6_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Aprov6_2"><text>"Adequado"</text></inputEntry>
+        <inputEntry id="InputEntry_Aprov6_3"><text>"Classe IIa"</text></inputEntry>
+        <inputEntry id="InputEntry_Aprov6_4"><text>&gt;= 180</text></inputEntry>
+        <inputEntry id="InputEntry_Aprov6_5"><text>"RelatorioMedicoCompleto","DescricaoSintomasPresente"</text></inputEntry>
+        <outputEntry id="OutputEntry_Aprov6_resultado"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprov6_observacao"><text>"Indicação Classe IIa - procedimento razoável com documentação clínica adequada"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprov6_fundamentacao"><text>"SBC/SOBRAC 2024, HRS 2023: Classe IIa indica procedimento provavelmente útil com evidência favorável"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprov6_alertasDesperdicio"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprov6_acaoRecomendada"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <!-- =============================================================== -->
+      <!-- REGRAS PENDENTES (Documentação Incompleta)                      -->
+      <!-- =============================================================== -->
+
+      <!-- REGRA 14: Pendente - Histórico incompleto mas sintomas relevantes -->
+      <rule id="Rule_Pendente_HistoricoIncompleto">
+        <description>Pendente: Sintomas relevantes mas histórico incompleto</description>
+        <inputEntry id="InputEntry_Pend1_1"><text>"Sincope","Palpitacoes","ArritmiaSuspeitada"</text></inputEntry>
+        <inputEntry id="InputEntry_Pend1_2"><text>"Incompleto"</text></inputEntry>
+        <inputEntry id="InputEntry_Pend1_3"><text>"Classe I","Classe IIa"</text></inputEntry>
+        <inputEntry id="InputEntry_Pend1_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Pend1_5"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_Pend1_resultado"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OutputEntry_Pend1_observacao"><text>"Sintomatologia sugere indicação, porém histórico clínico está incompleto"</text></outputEntry>
+        <outputEntry id="OutputEntry_Pend1_fundamentacao"><text>"ANS RN 465/2021: Completar documentação clínica para fundamentar adequadamente a indicação"</text></outputEntry>
+        <outputEntry id="OutputEntry_Pend1_alertasDesperdicio"><text>"DOC"</text></outputEntry>
+        <outputEntry id="OutputEntry_Pend1_acaoRecomendada"><text>"SOLICITAR_INFO"</text></outputEntry>
+      </rule>
+
+      <!-- REGRA 15: Pendente - Classe IIb requer justificativa adicional -->
+      <rule id="Rule_Pendente_ClasseIIb">
+        <description>Pendente: Indicação Classe IIb requer justificativa adicional</description>
+        <inputEntry id="InputEntry_Pend2_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Pend2_2"><text>"Adequado"</text></inputEntry>
+        <inputEntry id="InputEntry_Pend2_3"><text>"Classe IIb"</text></inputEntry>
+        <inputEntry id="InputEntry_Pend2_4"><text>&gt;= 180</text></inputEntry>
+        <inputEntry id="InputEntry_Pend2_5"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_Pend2_resultado"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OutputEntry_Pend2_observacao"><text>"Indicação Classe IIb - benefício incerto, necessária justificativa clínica adicional"</text></outputEntry>
+        <outputEntry id="OutputEntry_Pend2_fundamentacao"><text>"SBC/SOBRAC 2024: Classe IIb requer análise individualizada - benefício pode não superar riscos/custos"</text></outputEntry>
+        <outputEntry id="OutputEntry_Pend2_alertasDesperdicio"><text>"PROT"</text></outputEntry>
+        <outputEntry id="OutputEntry_Pend2_acaoRecomendada"><text>"SOLICITAR_INFO"</text></outputEntry>
+      </rule>
+
+      <!-- =============================================================== -->
+      <!-- FALLBACK RULE (Captura todos os casos não cobertos)             -->
+      <!-- =============================================================== -->
+
+      <rule id="Rule_Fallback_40101040">
+        <description>Regra padrão - Caso requer análise clínica individualizada</description>
+        <inputEntry id="InputEntry_Fallback_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Fallback_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Fallback_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Fallback_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Fallback_5"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_Fallback_resultado"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OutputEntry_Fallback_observacao"><text>"Caso requer análise clínica individualizada - critérios padrão não totalmente atendidos"</text></outputEntry>
+        <outputEntry id="OutputEntry_Fallback_fundamentacao"><text>"SBC/SOBRAC 2024, HRS 2023, ANS RN 465/2021: Avaliação por médico auditor para casos não contemplados nos critérios automatizados"</text></outputEntry>
+        <outputEntry id="OutputEntry_Fallback_alertasDesperdicio"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_Fallback_acaoRecomendada"><text>"SOLICITAR_INFO"</text></outputEntry>
+      </rule>
+
+    </decisionTable>
+  </decision>
+</definitions>

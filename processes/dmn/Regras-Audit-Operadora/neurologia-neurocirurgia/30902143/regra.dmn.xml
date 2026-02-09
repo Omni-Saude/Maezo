@@ -1,0 +1,366 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/"
+             xmlns:dc="http://www.omg.org/spec/DD/20100524/DC/"
+             xmlns:di="http://www.omg.org/spec/DD/20100524/DI/"
+             id="Definitions_30902143"
+             name="Estimulador Medular (SCS)"
+             namespace="http://camunda.org/schema/1.0/dmn"
+             exporter="Camunda Modeler"
+             exporterVersion="5.0.0">
+  <!--
+    TUSS 30902143 - Implante de Estimulador Medular (Spinal Cord Stimulation - SCS)
+    Versao: 3.1.0-LEAN-TIER2 (2026-02-08)
+    Especialidade: Neurologia/Neurocirurgia
+    Categoria: Neurocirurgia Funcional - Dor Cronica
+
+    ENRIQUECIMENTO LEAN TIER-2:
+    - Input 6: ultimoProcedimentoDias (frequencia/duplicacao)
+    - 3 Regras de desperdicio: ESC (neuromodulacao sem falha medicamentosa), DUP (troca precoce), DOC (sem trial/psico/RNM)
+    - 5 outputs padronizados: resultado, observacao, fundamentacao, alertasDesperdicio, acaoRecomendada
+
+    Indicacoes Clinicas (AANS/CNS Neuromodulation Guidelines 2022):
+    - Sindrome de dor regional complexa (CRPS) tipo I e II
+    - Failed Back Surgery Syndrome (FBSS) com dor radicular predominante
+    - Neuropatia diabetica dolorosa refrataria
+    - Angina refrataria (off-label com evidencia)
+    - Doenca vascular periferica com dor isquemica (Buerger)
+
+    Contraindicacoes:
+    - Dor de origem psicogenica primaria
+    - Coagulopatia nao corrigida
+    - Infeccao ativa
+    - Teste de triagem negativo (trial <50% alivio)
+    - Incapacidade de operar dispositivo
+
+    Documentacao Obrigatoria:
+    - Avaliacao de dor multidisciplinar
+    - RNM de coluna (espaco epidural adequado)
+    - Avaliacao psicologica (exclusao de somatizacao)
+    - Resultado do trial (>50% alivio por 7-14 dias)
+    - Documentacao de falha de tratamento conservador
+
+    Referencias Normativas:
+    - AANS/CNS Neuromodulation Guidelines (2022)
+    - NICE TA159 - Spinal Cord Stimulation (atualizado 2023)
+    - Sociedade Brasileira para Estudo da Dor (SBED)
+    - ANS RN 465/2021, DUT ANS 2024
+  -->
+
+  <decision id="Decision_30902143" name="Criterios de Autorizacao - Estimulador Medular SCS">
+    <decisionTable id="DecisionTable_30902143" hitPolicy="FIRST">
+
+      <!-- Input 1: Condicao Paciente -->
+      <input id="Input_condicaoPaciente" label="Condicao Clinica do Paciente">
+        <inputExpression id="InputExpr_condicaoPaciente" typeRef="string">
+          <text>condicaoPaciente</text>
+        </inputExpression>
+        <inputValues id="InputValues_condicaoPaciente">
+          <text>"CRPS tipo I/II","FBSS com radiculopatia","Neuropatia diabetica refrataria","Angina refrataria","DVP com dor isquemica","Trial positivo documentado","Trial negativo","Dor psicogenica","Infeccao ativa","Outra"</text>
+        </inputValues>
+      </input>
+
+      <!-- Input 2: Historico Clinico -->
+      <input id="Input_historicoClinico" label="Historico Clinico Documentado">
+        <inputExpression id="InputExpr_historicoClinico" typeRef="string">
+          <text>historicoClinico</text>
+        </inputExpression>
+        <inputValues id="InputValues_historicoClinico">
+          <text>"Adequado","Incompleto","NaoDocumentado"</text>
+        </inputValues>
+      </input>
+
+      <!-- Input 3: Classe Indicacao -->
+      <input id="Input_classeIndicacao" label="Classe de Indicacao">
+        <inputExpression id="InputExpr_classeIndicacao" typeRef="string">
+          <text>classeIndicacao</text>
+        </inputExpression>
+        <inputValues id="InputValues_classeIndicacao">
+          <text>"Classe I","Classe IIa","Classe IIb","Classe III"</text>
+        </inputValues>
+      </input>
+
+      <!-- Input 4: Exames Comprobatorios -->
+      <input id="Input_examesComprobatorios" label="Exames Comprobatorios">
+        <inputExpression id="InputExpr_examesComprobatorios" typeRef="string">
+          <text>examesComprobatorios</text>
+        </inputExpression>
+        <inputValues id="InputValues_examesComprobatorios">
+          <text>"Trial positivo + psico + RNM","Trial positivo + RNM","Trial positivo isolado","RNM sem trial","Exames incompletos","Sem exames"</text>
+        </inputValues>
+      </input>
+
+      <!-- Input 5: Expectativa de Vida -->
+      <input id="Input_expectativaVida" label="Expectativa de Vida Superior a 1 Ano">
+        <inputExpression id="InputExpr_expectativaVida" typeRef="boolean">
+          <text>expectativaVidaSuperior1Ano</text>
+        </inputExpression>
+      </input>
+
+      <!-- Input 6: Dias desde ultimo procedimento -->
+      <input id="Input_ultimoProcedimentoDias" label="Dias Desde Ultimo Procedimento" camunda:inputVariable="ultimoProcedimentoDias">
+        <inputExpression id="InputExpression_ultimoProcedimentoDias" typeRef="integer">
+          <text>ultimoProcedimentoDias</text>
+        </inputExpression>
+      </input>
+
+      <!-- Output 1: Resultado -->
+      <output id="Output_resultado" label="Resultado" name="resultado" typeRef="string">
+        <outputValues id="OutputValues_resultado">
+          <text>"Aprovado","Reprovado","Pendente"</text>
+        </outputValues>
+      </output>
+
+      <!-- Output 2: Observacao -->
+      <output id="Output_observacao" label="Observacao Clinica" name="observacao" typeRef="string" />
+
+      <!-- Output 3: Fundamentacao -->
+      <output id="Output_fundamentacao" label="Fundamentacao Legal/Tecnica" name="fundamentacao" typeRef="string" />
+      <!-- Output 4: Alertas de Desperdicio -->
+      <output id="Output_alertasDesperdicio" label="Alertas de Desperdicio" name="alertasDesperdicio" typeRef="string">
+        <outputValues id="OutputValues_alertasDesperdicio">
+          <text>"NENHUM","DUP","FREQ","ESC","DOC","PROT","MULTI"</text>
+        </outputValues>
+      </output>
+
+      <!-- Output 5: Acao Recomendada -->
+      <output id="Output_acaoRecomendada" label="Acao Recomendada" name="acaoRecomendada" typeRef="string">
+        <outputValues id="OutputValues_acaoRecomendada">
+          <text>"APROVAR","NEGAR","SOLICITAR_INFO","AGUARDAR_PRAZO","SUGERIR_ALTERNATIVA"</text>
+        </outputValues>
+      </output>
+
+
+      <!-- CONTRAINDICATION RULES -->
+      <rule id="Rule_30902143_Contraindicacao_1">
+        <description>Contraindicacao - Classe III</description>
+        <inputEntry id="IE_Contra1_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_Contra1_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_Contra1_3"><text>"Classe III"</text></inputEntry>
+        <inputEntry id="IE_Contra1_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_Contra1_5"><text>-</text></inputEntry>
+        <inputEntry id="IE_Contra1_6"><text>-</text></inputEntry>
+        <outputEntry id="OE_Contra1_1"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OE_Contra1_2"><text>"Procedimento classificado como Classe III - contraindicado"</text></outputEntry>
+        <outputEntry id="OE_Contra1_3"><text>"AANS/CNS Neuromodulation 2022 - Classe III"</text></outputEntry>
+        <outputEntry id="OE_Rule_30902143_Contraindicacao_1_4"><text>"PROT"</text></outputEntry>
+        <outputEntry id="OE_Rule_30902143_Contraindicacao_1_5"><text>"NEGAR"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_30902143_Contraindicacao_2">
+        <description>Contraindicacao - Trial negativo</description>
+        <inputEntry id="IE_Contra2_1"><text>"Trial negativo"</text></inputEntry>
+        <inputEntry id="IE_Contra2_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_Contra2_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_Contra2_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_Contra2_5"><text>-</text></inputEntry>
+        <inputEntry id="IE_Contra2_6"><text>-</text></inputEntry>
+        <outputEntry id="OE_Contra2_1"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OE_Contra2_2"><text>"Trial de estimulacao negativo (&lt;50% alivio da dor). Paciente nao respondedor a SCS. Implante definitivo nao indicado. Considerar outras opcoes terapeuticas"</text></outputEntry>
+        <outputEntry id="OE_Contra2_3"><text>"AANS/CNS 2022 - trial positivo mandatorio (≥50% alivio por 7-14 dias)"</text></outputEntry>
+        <outputEntry id="OE_Rule_30902143_Contraindicacao_2_4"><text>"PROT"</text></outputEntry>
+        <outputEntry id="OE_Rule_30902143_Contraindicacao_2_5"><text>"NEGAR"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_30902143_Contraindicacao_3">
+        <description>Contraindicacao - Dor psicogenica</description>
+        <inputEntry id="IE_Contra3_1"><text>"Dor psicogenica"</text></inputEntry>
+        <inputEntry id="IE_Contra3_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_Contra3_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_Contra3_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_Contra3_5"><text>-</text></inputEntry>
+        <inputEntry id="IE_Contra3_6"><text>-</text></inputEntry>
+        <outputEntry id="OE_Contra3_1"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OE_Contra3_2"><text>"Dor de origem psicogenica primaria ou somatizacao importante. SCS nao e eficaz neste contexto. Encaminhar para tratamento psiquiatrico/psicologico"</text></outputEntry>
+        <outputEntry id="OE_Contra3_3"><text>"Avaliacao psicologica obrigatoria para excluir somatizacao"</text></outputEntry>
+        <outputEntry id="OE_Rule_30902143_Contraindicacao_3_4"><text>"PROT"</text></outputEntry>
+        <outputEntry id="OE_Rule_30902143_Contraindicacao_3_5"><text>"NEGAR"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_30902143_Contraindicacao_4">
+        <description>Contraindicacao - Infeccao ativa</description>
+        <inputEntry id="IE_Contra4_1"><text>"Infeccao ativa"</text></inputEntry>
+        <inputEntry id="IE_Contra4_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_Contra4_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_Contra4_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_Contra4_5"><text>-</text></inputEntry>
+        <inputEntry id="IE_Contra4_6"><text>-</text></inputEntry>
+        <outputEntry id="OE_Contra4_1"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OE_Contra4_2"><text>"Infeccao ativa contraindica implante de dispositivo. Risco de infeccao de sistema com consequencias graves"</text></outputEntry>
+        <outputEntry id="OE_Contra4_3"><text>"Implante eletivo contraindicado em vigencia de infeccao"</text></outputEntry>
+        <outputEntry id="OE_Rule_30902143_Contraindicacao_4_4"><text>"PROT"</text></outputEntry>
+        <outputEntry id="OE_Rule_30902143_Contraindicacao_4_5"><text>"NEGAR"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_30902143_Contraindicacao_5">
+        <description>Contraindicacao - Expectativa de vida limitada</description>
+        <inputEntry id="IE_Contra5_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_Contra5_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_Contra5_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_Contra5_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_Contra5_5"><text>false</text></inputEntry>
+        <inputEntry id="IE_Contra5_6"><text>-</text></inputEntry>
+        <outputEntry id="OE_Contra5_1"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OE_Contra5_2"><text>"Expectativa de vida inferior a 1 ano. Dispositivo de alto custo requer sobrevida adequada para justificar investimento"</text></outputEntry>
+        <outputEntry id="OE_Contra5_3"><text>"Custo-beneficio desfavoravel em sobrevida muito limitada"</text></outputEntry>
+        <outputEntry id="OE_Rule_30902143_Contraindicacao_5_4"><text>"PROT"</text></outputEntry>
+        <outputEntry id="OE_Rule_30902143_Contraindicacao_5_5"><text>"NEGAR"</text></outputEntry>
+      </rule>
+
+      <!-- WASTE RULES (LEAN TIER-2) -->
+      <rule id="Rule_30902143_ESC_Neuromod">
+        <description>ESC: Neuromodulacao sem falha de tratamento medicamentoso</description>
+        <inputEntry id="IE_30902143_ESC_NM_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_30902143_ESC_NM_2"><text>"Incompleto","NaoDocumentado"</text></inputEntry>
+        <inputEntry id="IE_30902143_ESC_NM_3"><text>"Classe IIa","Classe IIb"</text></inputEntry>
+        <inputEntry id="IE_30902143_ESC_NM_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_30902143_ESC_NM_5"><text>-</text></inputEntry>
+        <inputEntry id="IE_30902143_ESC_NM_6"><text>-</text></inputEntry>
+        <outputEntry id="OE_30902143_ESC_NM_1"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OE_30902143_ESC_NM_2"><text>"Neuromodulacao requer documentacao de falha terapeutica medicamentosa"</text></outputEntry>
+        <outputEntry id="OE_30902143_ESC_NM_3"><text>"AANS/CNS 2024 - Neuromodulacao indicada apos falha de terapia medicamentosa"</text></outputEntry>
+        <outputEntry id="OE_30902143_ESC_NM_4"><text>"ESC"</text></outputEntry>
+        <outputEntry id="OE_30902143_ESC_NM_5"><text>"SUGERIR_ALTERNATIVA"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_30902143_DUP_Implante">
+        <description>DUP: Troca de dispositivo em menos de 365 dias sem defeito</description>
+        <inputEntry id="IE_30902143_DUP_IMP_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_30902143_DUP_IMP_2"><text>"Incompleto","NaoDocumentado"</text></inputEntry>
+        <inputEntry id="IE_30902143_DUP_IMP_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_30902143_DUP_IMP_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_30902143_DUP_IMP_5"><text>-</text></inputEntry>
+        <inputEntry id="IE_30902143_DUP_IMP_6"><text>&lt; 365</text></inputEntry>
+        <outputEntry id="OE_30902143_DUP_IMP_1"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OE_30902143_DUP_IMP_2"><text>"Troca de dispositivo em menos de 1 ano. Documentar defeito ou complicacao"</text></outputEntry>
+        <outputEntry id="OE_30902143_DUP_IMP_3"><text>"ANS RN 465/2021 - Troca precoce requer justificativa tecnica"</text></outputEntry>
+        <outputEntry id="OE_30902143_DUP_IMP_4"><text>"DUP"</text></outputEntry>
+        <outputEntry id="OE_30902143_DUP_IMP_5"><text>"SOLICITAR_INFO"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_30902143_DOC_Neurofunc">
+        <description>DOC: Implante sem laudo neurofisiologico</description>
+        <inputEntry id="IE_30902143_DOC_NF_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_30902143_DOC_NF_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_30902143_DOC_NF_3"><text>"Classe I","Classe IIa"</text></inputEntry>
+        <inputEntry id="IE_30902143_DOC_NF_4"><text>"RNM sem trial","Exames incompletos","Sem exames"</text></inputEntry>
+        <inputEntry id="IE_30902143_DOC_NF_5"><text>-</text></inputEntry>
+        <inputEntry id="IE_30902143_DOC_NF_6"><text>-</text></inputEntry>
+        <outputEntry id="OE_30902143_DOC_NF_1"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OE_30902143_DOC_NF_2"><text>"Implante requer laudo neurofisiologico e escala funcional"</text></outputEntry>
+        <outputEntry id="OE_30902143_DOC_NF_3"><text>"AANS/CNS 2024 - Avaliacao neurofisiologica obrigatoria"</text></outputEntry>
+        <outputEntry id="OE_30902143_DOC_NF_4"><text>"DOC"</text></outputEntry>
+        <outputEntry id="OE_30902143_DOC_NF_5"><text>"SOLICITAR_INFO"</text></outputEntry>
+      </rule>
+
+      <!-- APPROVAL RULES -->
+      <rule id="Rule_30902143_Aprovacao_1">
+        <description>Aprovacao - CRPS com trial positivo</description>
+        <inputEntry id="IE_Aprov1_1"><text>"CRPS tipo I/II","Trial positivo documentado"</text></inputEntry>
+        <inputEntry id="IE_Aprov1_2"><text>"Adequado"</text></inputEntry>
+        <inputEntry id="IE_Aprov1_3"><text>"Classe I"</text></inputEntry>
+        <inputEntry id="IE_Aprov1_4"><text>"Trial positivo + psico + RNM","Trial positivo + RNM"</text></inputEntry>
+        <inputEntry id="IE_Aprov1_5"><text>true</text></inputEntry>
+        <inputEntry id="IE_Aprov1_6"><text>-</text></inputEntry>
+        <outputEntry id="OE_Aprov1_1"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OE_Aprov1_2"><text>"CRPS (Sindrome de Dor Regional Complexa) com trial positivo (≥50% alivio). Melhor evidencia para SCS. Implante definitivo indicado"</text></outputEntry>
+        <outputEntry id="OE_Aprov1_3"><text>"AANS/CNS 2022, NICE TA159 - Classe I para CRPS apos trial positivo"</text></outputEntry>
+        <outputEntry id="OE_Rule_30902143_Aprovacao_1_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_Rule_30902143_Aprovacao_1_5"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_30902143_Aprovacao_2">
+        <description>Aprovacao - FBSS com radiculopatia</description>
+        <inputEntry id="IE_Aprov2_1"><text>"FBSS com radiculopatia"</text></inputEntry>
+        <inputEntry id="IE_Aprov2_2"><text>"Adequado"</text></inputEntry>
+        <inputEntry id="IE_Aprov2_3"><text>"Classe I"</text></inputEntry>
+        <inputEntry id="IE_Aprov2_4"><text>"Trial positivo + psico + RNM","Trial positivo + RNM"</text></inputEntry>
+        <inputEntry id="IE_Aprov2_5"><text>true</text></inputEntry>
+        <inputEntry id="IE_Aprov2_6"><text>-</text></inputEntry>
+        <outputEntry id="OE_Aprov2_1"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OE_Aprov2_2"><text>"Failed Back Surgery Syndrome com dor radicular predominante, nao candidato a reoperacao. Trial positivo confirma beneficio. SCS superior a reoperacao para FBSS"</text></outputEntry>
+        <outputEntry id="OE_Aprov2_3"><text>"NICE TA159 - SCS custo-efetivo para FBSS apos falha de tratamentos convencionais"</text></outputEntry>
+        <outputEntry id="OE_Rule_30902143_Aprovacao_2_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_Rule_30902143_Aprovacao_2_5"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_30902143_Aprovacao_3">
+        <description>Aprovacao - Neuropatia diabetica refrataria</description>
+        <inputEntry id="IE_Aprov3_1"><text>"Neuropatia diabetica refrataria"</text></inputEntry>
+        <inputEntry id="IE_Aprov3_2"><text>"Adequado"</text></inputEntry>
+        <inputEntry id="IE_Aprov3_3"><text>"Classe IIa"</text></inputEntry>
+        <inputEntry id="IE_Aprov3_4"><text>"Trial positivo + psico + RNM","Trial positivo + RNM"</text></inputEntry>
+        <inputEntry id="IE_Aprov3_5"><text>true</text></inputEntry>
+        <inputEntry id="IE_Aprov3_6"><text>-</text></inputEntry>
+        <outputEntry id="OE_Aprov3_1"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OE_Aprov3_2"><text>"Neuropatia diabetica dolorosa refrataria a tratamento farmacologico otimizado. Evidencias crescentes de beneficio com SCS de alta frequencia"</text></outputEntry>
+        <outputEntry id="OE_Aprov3_3"><text>"Estudos SENZA-PDN, Nivel B de evidencia para neuropatia diabetica"</text></outputEntry>
+        <outputEntry id="OE_Rule_30902143_Aprovacao_3_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_Rule_30902143_Aprovacao_3_5"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_30902143_Aprovacao_4">
+        <description>Aprovacao - Angina refrataria</description>
+        <inputEntry id="IE_Aprov4_1"><text>"Angina refrataria"</text></inputEntry>
+        <inputEntry id="IE_Aprov4_2"><text>"Adequado"</text></inputEntry>
+        <inputEntry id="IE_Aprov4_3"><text>"Classe IIa"</text></inputEntry>
+        <inputEntry id="IE_Aprov4_4"><text>"Trial positivo + psico + RNM","Trial positivo + RNM"</text></inputEntry>
+        <inputEntry id="IE_Aprov4_5"><text>true</text></inputEntry>
+        <inputEntry id="IE_Aprov4_6"><text>-</text></inputEntry>
+        <outputEntry id="OE_Aprov4_1"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OE_Aprov4_2"><text>"Angina refrataria nao candidata a revascularizacao, com tratamento medicamentoso otimizado. SCS cervical melhora frequencia de crises e qualidade de vida"</text></outputEntry>
+        <outputEntry id="OE_Aprov4_3"><text>"ESC Guidelines - SCS opcao para angina refrataria selecionada"</text></outputEntry>
+        <outputEntry id="OE_Rule_30902143_Aprovacao_4_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_Rule_30902143_Aprovacao_4_5"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <!-- PENDING RULES -->
+      <rule id="Rule_30902143_Pendente_1">
+        <description>Pendente - Sem trial documentado</description>
+        <inputEntry id="IE_Pend1_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_Pend1_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_Pend1_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_Pend1_4"><text>"RNM sem trial","Exames incompletos"</text></inputEntry>
+        <inputEntry id="IE_Pend1_5"><text>-</text></inputEntry>
+        <inputEntry id="IE_Pend1_6"><text>-</text></inputEntry>
+        <outputEntry id="OE_Pend1_1"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OE_Pend1_2"><text>"Trial de estimulacao nao documentado. Implante definitivo requer trial positivo previo (≥50% alivio por 7-14 dias). Solicitar realizacao de trial"</text></outputEntry>
+        <outputEntry id="OE_Pend1_3"><text>"AANS/CNS 2022 - trial mandatorio antes de implante definitivo"</text></outputEntry>
+        <outputEntry id="OE_Rule_30902143_Pendente_1_4"><text>"DOC"</text></outputEntry>
+        <outputEntry id="OE_Rule_30902143_Pendente_1_5"><text>"SOLICITAR_INFO"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_30902143_Pendente_2">
+        <description>Pendente - Historico incompleto</description>
+        <inputEntry id="IE_Pend2_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_Pend2_2"><text>"Incompleto"</text></inputEntry>
+        <inputEntry id="IE_Pend2_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_Pend2_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_Pend2_5"><text>-</text></inputEntry>
+        <inputEntry id="IE_Pend2_6"><text>-</text></inputEntry>
+        <outputEntry id="OE_Pend2_1"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OE_Pend2_2"><text>"Documentacao incompleta. Solicitar: diagnostico detalhado, tratamentos previos, avaliacao psicologica, resultado do trial com percentual de alivio"</text></outputEntry>
+        <outputEntry id="OE_Pend2_3"><text>"RN 428/2017 - documentacao multidisciplinar para neuromodulacao"</text></outputEntry>
+        <outputEntry id="OE_Rule_30902143_Pendente_2_4"><text>"DOC"</text></outputEntry>
+        <outputEntry id="OE_Rule_30902143_Pendente_2_5"><text>"SOLICITAR_INFO"</text></outputEntry>
+      </rule>
+
+      <!-- FALLBACK -->
+      <rule id="Rule_Fallback_30902143">
+        <description>Regra padrao - analise manual</description>
+        <inputEntry id="IE_Fallback_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_Fallback_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_Fallback_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_Fallback_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_Fallback_5"><text>-</text></inputEntry>
+        <inputEntry id="IE_Fallback_6"><text>-</text></inputEntry>
+        <outputEntry id="OE_Fallback_1"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OE_Fallback_2"><text>"Caso requer analise manual por auditor especializado em dor cronica/neuromodulacao"</text></outputEntry>
+        <outputEntry id="OE_Fallback_3"><text>"Auditoria medica conforme RN 428/2017 e DUT ANS 2024"</text></outputEntry>
+        <outputEntry id="OE_Rule_Fallback_30902143_4"><text>"DOC"</text></outputEntry>
+        <outputEntry id="OE_Rule_Fallback_30902143_5"><text>"SOLICITAR_INFO"</text></outputEntry>
+      </rule>
+
+    </decisionTable>
+  </decision>
+</definitions>

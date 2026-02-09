@@ -1,0 +1,259 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  ============================================================================
+  EWS-qSOFA-001: qSOFA Positive (>=2) - SEPSIS SCREENING
+  ============================================================================
+
+  Quick Sequential Organ Failure Assessment (qSOFA) for sepsis screening.
+  This rule identifies patients at risk for sepsis outside the ICU.
+
+  Evidence Base: Sepsis-3 Consensus (Singer et al., JAMA 2016)
+  qSOFA Criteria (1 point each):
+  - Respiratory Rate >= 22/min
+  - Altered mentation (GCS < 15)
+  - Systolic BP <= 100 mmHg
+
+  qSOFA >= 2: High risk for sepsis, poor outcomes
+
+  ============================================================================
+-->
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/"
+             xmlns:dc="http://www.omg.org/spec/DMN/20180521/DC/"
+             id="Definitions_EWS_qSOFA_001"
+             name="qSOFA Sepsis Screening"
+             targetNamespace="http://camunda.org/schema/1.0/dmn">
+
+  <!--
+    ═══════════════════════════════════════════════════════════════════════════
+    EWS-qSOFA-001: qSOFA Positive Alert (>=2 criteria)
+    Version: 1.0.0 (2026-02-06)
+    Clinical Domain: Infectious Disease / Critical Care / Emergency Medicine
+    ═══════════════════════════════════════════════════════════════════════════
+
+    TRIGGER CONDITIONS:
+    - qSOFA score >= 2 points (2 or 3 criteria present)
+    - Indicates high risk for sepsis-related mortality
+
+    CLINICAL ACTIONS REQUIRED:
+    - Immediate sepsis workup
+    - Lactate level
+    - Blood cultures before antibiotics
+    - Broad spectrum antibiotics within 1 hour
+    - Fluid resuscitation if hypotensive
+
+    EVIDENCE BASE:
+    - Sepsis-3 Consensus Definition (2016)
+    - qSOFA >= 2: mortality rate 24% vs 3% if qSOFA < 2
+    - Specificity 98% for in-hospital mortality
+    ═══════════════════════════════════════════════════════════════════════════
+  -->
+
+  <decision id="Decision_EWS_qSOFA_001" name="qSOFA Sepsis Screening Evaluation">
+    <decisionTable id="DecisionTable_EWS_qSOFA_001" hitPolicy="FIRST">
+
+      <!-- INPUT 1: qSOFA Score Total (0-3) -->
+      <input id="Input_1" label="qSOFA Score">
+        <inputExpression id="InputExpression_1" typeRef="number">
+          <text>qsofaScore</text>
+        </inputExpression>
+      </input>
+
+      <!-- INPUT 2: Suspected Infection -->
+      <input id="Input_2" label="Suspeita Infeccao">
+        <inputExpression id="InputExpression_2" typeRef="boolean">
+          <text>suspeitaInfeccao</text>
+        </inputExpression>
+      </input>
+
+      <!-- INPUT 3: Lactate Level (mmol/L) -->
+      <input id="Input_3" label="Lactato">
+        <inputExpression id="InputExpression_3" typeRef="number">
+          <text>lactato</text>
+        </inputExpression>
+      </input>
+
+      <!-- INPUT 4: Already in ICU -->
+      <input id="Input_4" label="Em UTI">
+        <inputExpression id="InputExpression_4" typeRef="boolean">
+          <text>emUTI</text>
+        </inputExpression>
+      </input>
+
+      <!-- OUTPUT 1: Alert Level -->
+      <output id="Output_1" label="Nivel Alerta" name="nivelAlerta" typeRef="string">
+        <outputValues id="OutputValues_1">
+          <text>"Alerta", "Atencao", "Informativo", "OK", "Revisar"</text>
+        </outputValues>
+      </output>
+
+      <!-- OUTPUT 2: Urgency -->
+      <output id="Output_2" label="Urgencia" name="urgencia" typeRef="string">
+        <outputValues id="OutputValues_2">
+          <text>"IMEDIATA", "URGENTE", "ROTINA", "INFORMATIVA"</text>
+        </outputValues>
+      </output>
+
+      <!-- OUTPUT 3: Required Action -->
+      <output id="Output_3" label="Acao Requerida" name="acaoRequerida" typeRef="string"/>
+
+      <!-- OUTPUT 4: Clinical Justification -->
+      <output id="Output_4" label="Justificativa Cientifica" name="justificativaCientifica" typeRef="string"/>
+
+      <!-- RULE 1: CRITICAL - qSOFA 3 with infection (Septic Shock likely) -->
+      <rule id="Rule_Critical_qSOFA3_Infection">
+        <description>All 3 qSOFA criteria with infection - septic shock likely</description>
+        <inputEntry id="InputEntry_1_1">
+          <text>3</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_1_2">
+          <text>true</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_1_3">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_1_4">
+          <text>-</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_1_1">
+          <text>"Alerta"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_1_2">
+          <text>"IMEDIATA"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_1_3">
+          <text>"CHOQUE SEPTICO PROVAVEL. Ativar protocolo sepse hora-1. Hemoculturas 2 sets ANTES do antibiotico. Antibiotico amplo espectro em ATE 1 HORA. Ressuscitacao volemica 30ml/kg cristaloide. Lactato imediato. Considerar vasopressores se refratario. Transferir para UTI."</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_1_4">
+          <text>"qSOFA 3/3 com infeccao confirmada/suspeita indica sepse grave com alta probabilidade de choque septico. Mortalidade 35-40% sem tratamento precoce. Surviving Sepsis Campaign: cada hora de atraso aumenta mortalidade em 7.6%."</text>
+        </outputEntry>
+      </rule>
+
+      <!-- RULE 2: CRITICAL - qSOFA >=2 with Hyperlactatemia -->
+      <rule id="Rule_Critical_qSOFA2_Lactate">
+        <description>qSOFA >=2 with elevated lactate confirms sepsis</description>
+        <inputEntry id="InputEntry_2_1">
+          <text>&gt;= 2</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_2_2">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_2_3">
+          <text>&gt; 2</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_2_4">
+          <text>-</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_2_1">
+          <text>"Alerta"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_2_2">
+          <text>"IMEDIATA"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_2_3">
+          <text>"SEPSE CONFIRMADA por qSOFA positivo + lactato elevado. Iniciar bundle sepse hora-1. Hemoculturas urgentes. Antibiotico em ate 1 hora. Bolus de cristaloide 30ml/kg. Re-dosar lactato em 2-4 horas. Avaliar necessidade de UTI."</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_2_4">
+          <text>"qSOFA >=2 com lactato >2mmol/L confirma disfuncao organica relacionada a sepse (criterio Sepsis-3). Lactato elevado indica metabolismo anaerobico por hipoperfusao. Mortalidade 20-30% mesmo com tratamento otimo."</text>
+        </outputEntry>
+      </rule>
+
+      <!-- RULE 3: HIGH RISK - qSOFA >=2 with suspected infection -->
+      <rule id="Rule_HighRisk_qSOFA2_Infection">
+        <description>qSOFA >=2 with infection - high sepsis probability</description>
+        <inputEntry id="InputEntry_3_1">
+          <text>&gt;= 2</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_3_2">
+          <text>true</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_3_3">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_3_4">
+          <text>false</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_3_1">
+          <text>"Alerta"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_3_2">
+          <text>"IMEDIATA"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_3_3">
+          <text>"qSOFA POSITIVO em paciente com infeccao. Alto risco de sepse. Colher lactato URGENTE. Hemoculturas antes do antibiotico. Iniciar antibiotico empirico em ate 1 hora. Monitorar resposta. Avaliar transferencia para UTI se instavel."</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_3_4">
+          <text>"qSOFA >=2 em pacientes com infeccao tem valor preditivo positivo de 70% para sepse. Mortalidade hospitalar 3-10x maior que qSOFA negativo. Ferramenta validada para triagem rapida fora da UTI (Sepsis-3)."</text>
+        </outputEntry>
+      </rule>
+
+      <!-- RULE 4: ATTENTION - qSOFA >=2 without clear infection -->
+      <rule id="Rule_Attention_qSOFA2_NoInfection">
+        <description>qSOFA >=2 without clear infection - investigate</description>
+        <inputEntry id="InputEntry_4_1">
+          <text>&gt;= 2</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_4_2">
+          <text>false</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_4_3">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_4_4">
+          <text>-</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_4_1">
+          <text>"Atencao"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_4_2">
+          <text>"URGENTE"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_4_3">
+          <text>"qSOFA positivo sem foco infeccioso claro. Investigar ativamente fonte de infeccao oculta. Considerar diagnosticos diferenciais (hemorragia, TEP, cardiogenico). Colher lactato, hemograma, PCR. Monitorar de perto. Reavaliacao em 2 horas."</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_4_4">
+          <text>"qSOFA pode ser positivo em condicoes nao-infecciosas (choque cardiogenico, hemorragia, embolia). Se infeccao nao identificada, buscar ativamente foco oculto (abdominal, urinario, pele). Idosos podem ter infeccao sem febre."</text>
+        </outputEntry>
+      </rule>
+
+      <!-- RULE 5: FALLBACK - qSOFA <2 or data incomplete -->
+      <rule id="Rule_Fallback_EWS_qSOFA_001">
+        <description>qSOFA negativo ou dados incompletos</description>
+        <inputEntry id="InputEntry_F_1">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_F_2">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_F_3">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_F_4">
+          <text>-</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_F_1">
+          <text>"Revisar"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_F_2">
+          <text>"ROTINA"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_F_3">
+          <text>"qSOFA negativo (&lt;2) ou dados incompletos. Se suspeita clinica de infeccao, nao descartar sepse apenas por qSOFA negativo. Manter vigilancia. Repetir avaliacao se houver mudanca clinica."</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_F_4">
+          <text>"qSOFA tem alta especificidade (98%) mas sensibilidade moderada (30%). qSOFA negativo NAO exclui sepse. Usar em conjunto com avaliacao clinica. Se suspeita alta, proceder com workup completo independente do qSOFA."</text>
+        </outputEntry>
+      </rule>
+
+    </decisionTable>
+  </decision>
+
+  <dmndi:DMNDI>
+    <dmndi:DMNDiagram id="DMNDiagram_EWS_qSOFA_001">
+      <dmndi:DMNShape id="DMNShape_Decision_EWS_qSOFA_001" dmnElementRef="Decision_EWS_qSOFA_001">
+        <dc:Bounds height="80" width="180" x="160" y="100"/>
+      </dmndi:DMNShape>
+    </dmndi:DMNDiagram>
+  </dmndi:DMNDI>
+
+</definitions>

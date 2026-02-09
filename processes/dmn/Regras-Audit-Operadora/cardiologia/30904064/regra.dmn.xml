@@ -1,0 +1,349 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             xmlns:camunda="http://camunda.org/schema/1.0/dmn"
+             id="Definitions_30904064"
+             name="Cateterismo Cardiaco Diagnostico"
+             namespace="http://camunda.org/schema/1.0/dmn">
+
+  <!--
+    ===============================================================================
+    TUSS: 30904064
+    Procedimento: Cateterismo Cardiaco Diagnostico
+    Versao: 3.0.0-LEAN-TIER2
+    Data: 2026-02-07
+    ===============================================================================
+
+    INDICACOES CLINICAS (DUT/ANS):
+    Avaliacao de DAC, valvulopatia, cardiopatia congenita, hipertensao pulmonar,
+    cardiomiopatia, pre-operatorio cirurgia cardiaca
+
+    CONTRAINDICACOES:
+    Classe III, instabilidade hemodinamica nao controlada, coagulopatia grave nao corrigida,
+    insuficiencia renal grave sem preparo, alergia grave a contraste sem profilaxia
+
+    REFERENCIAS TECNICAS:
+    SBC/SBHCI Diretrizes Cateterismo 2024, ACC/AHA Cardiac Cath Guidelines 2023
+
+    SISTEMA DE CLASSIFICACAO SBC/ACC/AHA:
+    - Classe I: Procedimento indicado e essencial (Nivel de Evidencia A/B)
+    - Classe IIa: Procedimento provavelmente util e razoavel (Evidencia B)
+    - Classe IIb: Procedimento pode ser considerado (Evidencia C)
+    - Classe III: Procedimento nao indicado ou potencialmente prejudicial
+
+    ALERTAS DE DESPERDICIO (LEAN TIER-2):
+    - NENHUM: Sem alertas
+    - DUP: Duplicidade de procedimento
+    - FREQ: Frequencia inadequada
+    - ESC: Escalonamento inadequado (sem exames nao invasivos previos)
+    - DOC: Documentacao insuficiente
+    - PROT: Fora de protocolo clinico
+    - MULTI: Multiplos alertas combinados
+
+    ===============================================================================
+  -->
+
+  <decision id="Decision_30904064" name="Regra Clinica - Cateterismo Cardiaco Diagnostico">
+    <decisionTable id="DecisionTable_30904064" hitPolicy="FIRST">
+
+      <!-- ========== INPUTS (5 - Padrao LEAN TIER-2 Cardiologia) ========== -->
+
+      <input id="Input_condicaoPaciente" label="Condicao do Paciente" camunda:inputVariable="condicaoPaciente">
+        <inputExpression id="InputExpression_condicaoPaciente" typeRef="string">
+          <text>condicaoPaciente</text>
+        </inputExpression>
+        <inputValues id="InputValues_condicaoPaciente">
+          <text>"DACSuspeitaAltoRisco","DACConhecida","ValvulopatiaGrave","CardiopatiaCongenita","HipertensaoPulmonar","Cardiomiopatia","PreOperatorioCardiaco","SCAInstavel","AngaEstavel","Assintomatico"</text>
+        </inputValues>
+      </input>
+
+      <input id="Input_historicoClinico" label="Historico Clinico" camunda:inputVariable="historicoClinico">
+        <inputExpression id="InputExpression_historicoClinico" typeRef="string">
+          <text>historicoClinico</text>
+        </inputExpression>
+        <inputValues id="InputValues_historicoClinico">
+          <text>"Adequado","Incompleto","NaoDocumentado"</text>
+        </inputValues>
+      </input>
+
+      <input id="Input_classeIndicacao" label="Classe de Indicacao (SBC/ACC/AHA)" camunda:inputVariable="classeIndicacao">
+        <inputExpression id="InputExpression_classeIndicacao" typeRef="string">
+          <text>classeIndicacao</text>
+        </inputExpression>
+        <inputValues id="InputValues_classeIndicacao">
+          <text>"Classe I","Classe IIa","Classe IIb","Classe III"</text>
+        </inputValues>
+      </input>
+
+      <input id="Input_ultimoProcedimentoDias" label="Ultimo Procedimento Similar (dias)" camunda:inputVariable="ultimoProcedimentoDias">
+        <inputExpression id="InputExpression_ultimoProcedimentoDias" typeRef="integer">
+          <text>ultimoProcedimentoDias</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_examesComprobatorios" label="Exames Comprobatorios Previos" camunda:inputVariable="examesComprobatorios">
+        <inputExpression id="InputExpression_examesComprobatorios" typeRef="string">
+          <text>examesComprobatorios</text>
+        </inputExpression>
+        <inputValues id="InputValues_examesComprobatorios">
+          <text>"ECGEstressePositivo","EcoEstressePositivo","CintilografiaPositiva","AngioTCPositiva","MultiplosPositivos","ECGRepouso","EcoRepouso","NenhumNaoInvasivo","NaoInformado"</text>
+        </inputValues>
+      </input>
+
+      <!-- ========== OUTPUTS (5 - Padrao LEAN TIER-2) ========== -->
+
+      <output id="Output_resultado" label="Resultado" name="resultado" typeRef="string">
+        <outputValues id="OutputValues_resultado">
+          <text>"Aprovado","Reprovado","Pendente"</text>
+        </outputValues>
+      </output>
+
+      <output id="Output_observacao" label="Observacao Clinica" name="observacao" typeRef="string" />
+
+      <output id="Output_fundamentacao" label="Fundamentacao Tecnica" name="fundamentacao" typeRef="string" />
+
+      <output id="Output_alertasDesperdicio" label="Alertas de Desperdicio" name="alertasDesperdicio" typeRef="string">
+        <outputValues id="OutputValues_alertasDesperdicio">
+          <text>"NENHUM","DUP","FREQ","ESC","DOC","PROT","MULTI"</text>
+        </outputValues>
+      </output>
+
+      <output id="Output_acaoRecomendada" label="Acao Recomendada" name="acaoRecomendada" typeRef="string">
+        <outputValues id="OutputValues_acaoRecomendada">
+          <text>"APROVAR","NEGAR","SOLICITAR_INFO","AGUARDAR_PRAZO","SUGERIR_ALTERNATIVA"</text>
+        </outputValues>
+      </output>
+
+      <!-- ========== RULES - REPROVACOES (Primeiro na ordem FIRST) ========== -->
+
+      <!-- CONTRAINDICACAO: Classe III -->
+      <rule id="Rule_Reprovado_ClasseIII">
+        <description>Contraindicacao: Procedimento Classe III (nao indicado)</description>
+        <inputEntry id="InputEntry_Reprovado_ClasseIII_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Reprovado_ClasseIII_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Reprovado_ClasseIII_3"><text>"Classe III"</text></inputEntry>
+        <inputEntry id="InputEntry_Reprovado_ClasseIII_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Reprovado_ClasseIII_5"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_Reprovado_ClasseIII_resultado"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_Reprovado_ClasseIII_observacao"><text>"Procedimento nao indicado conforme classificacao Classe III - risco supera beneficio"</text></outputEntry>
+        <outputEntry id="OutputEntry_Reprovado_ClasseIII_fundamentacao"><text>"SBC/SBHCI 2024, ACC/AHA Cath Guidelines 2023 - Classe III: Procedimento nao indicado ou potencialmente prejudicial"</text></outputEntry>
+        <outputEntry id="OutputEntry_Reprovado_ClasseIII_alertas"><text>"PROT"</text></outputEntry>
+        <outputEntry id="OutputEntry_Reprovado_ClasseIII_acao"><text>"NEGAR"</text></outputEntry>
+      </rule>
+
+      <!-- REPROVADO: Duplicidade recente (<30 dias) -->
+      <rule id="Rule_Reprovado_Duplicidade">
+        <description>Reprovado: Cateterismo realizado ha menos de 30 dias sem justificativa</description>
+        <inputEntry id="InputEntry_Reprovado_Dup_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Reprovado_Dup_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Reprovado_Dup_3"><text>"Classe IIa","Classe IIb"</text></inputEntry>
+        <inputEntry id="InputEntry_Reprovado_Dup_4"><text>&lt; 30</text></inputEntry>
+        <inputEntry id="InputEntry_Reprovado_Dup_5"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_Reprovado_Dup_resultado"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_Reprovado_Dup_observacao"><text>"Cateterismo realizado recentemente - duplicidade sem justificativa clinica"</text></outputEntry>
+        <outputEntry id="OutputEntry_Reprovado_Dup_fundamentacao"><text>"SBC/SBHCI 2024 - Repeticao de cateterismo em menos de 30 dias requer justificativa clinica robusta"</text></outputEntry>
+        <outputEntry id="OutputEntry_Reprovado_Dup_alertas"><text>"DUP"</text></outputEntry>
+        <outputEntry id="OutputEntry_Reprovado_Dup_acao"><text>"NEGAR"</text></outputEntry>
+      </rule>
+
+      <!-- REPROVADO: Paciente assintomatico sem indicacao clara -->
+      <rule id="Rule_Reprovado_Assintomatico">
+        <description>Reprovado: Paciente assintomatico sem indicacao Classe I</description>
+        <inputEntry id="InputEntry_Reprovado_Assint_1"><text>"Assintomatico"</text></inputEntry>
+        <inputEntry id="InputEntry_Reprovado_Assint_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Reprovado_Assint_3"><text>"Classe IIb"</text></inputEntry>
+        <inputEntry id="InputEntry_Reprovado_Assint_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Reprovado_Assint_5"><text>"ECGRepouso","EcoRepouso","NenhumNaoInvasivo"</text></inputEntry>
+        <outputEntry id="OutputEntry_Reprovado_Assint_resultado"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_Reprovado_Assint_observacao"><text>"Paciente assintomatico com indicacao fraca e sem exames funcionais previos"</text></outputEntry>
+        <outputEntry id="OutputEntry_Reprovado_Assint_fundamentacao"><text>"ACC/AHA Cath Guidelines 2023 - Cateterismo diagnostico em assintomaticos requer evidencia de isquemia em teste funcional"</text></outputEntry>
+        <outputEntry id="OutputEntry_Reprovado_Assint_alertas"><text>"MULTI"</text></outputEntry>
+        <outputEntry id="OutputEntry_Reprovado_Assint_acao"><text>"NEGAR"</text></outputEntry>
+      </rule>
+
+      <!-- ========== RULES - APROVACOES ========== -->
+
+      <!-- APROVADO: SCA Instavel - Urgencia -->
+      <rule id="Rule_Aprovado_SCAInstavel">
+        <description>Aprovado: Sindrome Coronariana Aguda Instavel - Indicacao Classe I urgente</description>
+        <inputEntry id="InputEntry_Aprovado_SCA_1"><text>"SCAInstavel"</text></inputEntry>
+        <inputEntry id="InputEntry_Aprovado_SCA_2"><text>"Adequado","Incompleto"</text></inputEntry>
+        <inputEntry id="InputEntry_Aprovado_SCA_3"><text>"Classe I"</text></inputEntry>
+        <inputEntry id="InputEntry_Aprovado_SCA_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Aprovado_SCA_5"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_Aprovado_SCA_resultado"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprovado_SCA_observacao"><text>"SCA instavel - cateterismo de urgencia indicado independente de exames previos"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprovado_SCA_fundamentacao"><text>"SBC/SBHCI 2024, ACC/AHA Cath Guidelines 2023 - Classe I: Cateterismo urgente em SCA de medio/alto risco"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprovado_SCA_alertas"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprovado_SCA_acao"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <!-- APROVADO: Classe I com exames nao-invasivos positivos -->
+      <rule id="Rule_Aprovado_ClasseI_ExamesPositivos">
+        <description>Aprovado: Classe I com evidencia de isquemia em teste funcional</description>
+        <inputEntry id="InputEntry_Aprovado_CI_Exames_1"><text>"DACSuspeitaAltoRisco","DACConhecida","AngaEstavel"</text></inputEntry>
+        <inputEntry id="InputEntry_Aprovado_CI_Exames_2"><text>"Adequado"</text></inputEntry>
+        <inputEntry id="InputEntry_Aprovado_CI_Exames_3"><text>"Classe I"</text></inputEntry>
+        <inputEntry id="InputEntry_Aprovado_CI_Exames_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Aprovado_CI_Exames_5"><text>"ECGEstressePositivo","EcoEstressePositivo","CintilografiaPositiva","AngioTCPositiva","MultiplosPositivos"</text></inputEntry>
+        <outputEntry id="OutputEntry_Aprovado_CI_Exames_resultado"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprovado_CI_Exames_observacao"><text>"Indicacao Classe I com isquemia documentada - escalonamento adequado"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprovado_CI_Exames_fundamentacao"><text>"SBC/SBHCI 2024, ACC/AHA Cath Guidelines 2023 - Classe I: Cateterismo apos teste funcional positivo para isquemia"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprovado_CI_Exames_alertas"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprovado_CI_Exames_acao"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <!-- APROVADO: Valvulopatia grave pre-cirurgica -->
+      <rule id="Rule_Aprovado_ValvulopatiaGrave">
+        <description>Aprovado: Valvulopatia grave para avaliacao pre-operatoria</description>
+        <inputEntry id="InputEntry_Aprovado_Valv_1"><text>"ValvulopatiaGrave"</text></inputEntry>
+        <inputEntry id="InputEntry_Aprovado_Valv_2"><text>"Adequado"</text></inputEntry>
+        <inputEntry id="InputEntry_Aprovado_Valv_3"><text>"Classe I","Classe IIa"</text></inputEntry>
+        <inputEntry id="InputEntry_Aprovado_Valv_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Aprovado_Valv_5"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_Aprovado_Valv_resultado"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprovado_Valv_observacao"><text>"Valvulopatia grave com indicacao cirurgica - cateterismo pre-operatorio indicado"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprovado_Valv_fundamentacao"><text>"SBC Valvulopatias 2024, ACC/AHA VHD Guidelines 2023 - Classe I/IIa: Cateterismo em valvulopatia grave para avaliacao coronariana pre-operatoria"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprovado_Valv_alertas"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprovado_Valv_acao"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <!-- APROVADO: Pre-operatorio cardiaco -->
+      <rule id="Rule_Aprovado_PreOperatorio">
+        <description>Aprovado: Pre-operatorio de cirurgia cardiaca</description>
+        <inputEntry id="InputEntry_Aprovado_PreOp_1"><text>"PreOperatorioCardiaco"</text></inputEntry>
+        <inputEntry id="InputEntry_Aprovado_PreOp_2"><text>"Adequado"</text></inputEntry>
+        <inputEntry id="InputEntry_Aprovado_PreOp_3"><text>"Classe I","Classe IIa"</text></inputEntry>
+        <inputEntry id="InputEntry_Aprovado_PreOp_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Aprovado_PreOp_5"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_Aprovado_PreOp_resultado"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprovado_PreOp_observacao"><text>"Pre-operatorio cardiaco - cateterismo para avaliacao coronariana indicado"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprovado_PreOp_fundamentacao"><text>"SBC/SBHCI 2024 - Classe I: Cateterismo pre-operatorio em cirurgia cardiaca para pacientes com fatores de risco"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprovado_PreOp_alertas"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprovado_PreOp_acao"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <!-- APROVADO: Classe IIa com documentacao adequada -->
+      <rule id="Rule_Aprovado_ClasseIIa">
+        <description>Aprovado: Classe IIa com exames positivos e documentacao</description>
+        <inputEntry id="InputEntry_Aprovado_CIIa_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Aprovado_CIIa_2"><text>"Adequado"</text></inputEntry>
+        <inputEntry id="InputEntry_Aprovado_CIIa_3"><text>"Classe IIa"</text></inputEntry>
+        <inputEntry id="InputEntry_Aprovado_CIIa_4"><text>&gt;= 90</text></inputEntry>
+        <inputEntry id="InputEntry_Aprovado_CIIa_5"><text>"ECGEstressePositivo","EcoEstressePositivo","CintilografiaPositiva","AngioTCPositiva","MultiplosPositivos"</text></inputEntry>
+        <outputEntry id="OutputEntry_Aprovado_CIIa_resultado"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprovado_CIIa_observacao"><text>"Indicacao Classe IIa com exames funcionais positivos - procedimento razoavel"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprovado_CIIa_fundamentacao"><text>"SBC/SBHCI 2024, ACC/AHA Cath Guidelines 2023 - Classe IIa: Beneficio provavel, procedimento razoavel"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprovado_CIIa_alertas"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprovado_CIIa_acao"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <!-- ========== RULES - PENDENTES (Alertas de Desperdicio) ========== -->
+
+      <!-- PENDENTE: ESC - Escalonamento inadequado -->
+      <rule id="Rule_Pendente_ESC_SemNaoInvasivos">
+        <description>Pendente: Cateterismo sem exames nao-invasivos previos</description>
+        <inputEntry id="InputEntry_Pendente_ESC_1"><text>"DACSuspeitaAltoRisco","DACConhecida","AngaEstavel"</text></inputEntry>
+        <inputEntry id="InputEntry_Pendente_ESC_2"><text>"Adequado"</text></inputEntry>
+        <inputEntry id="InputEntry_Pendente_ESC_3"><text>"Classe IIa","Classe IIb"</text></inputEntry>
+        <inputEntry id="InputEntry_Pendente_ESC_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Pendente_ESC_5"><text>"NenhumNaoInvasivo","NaoInformado"</text></inputEntry>
+        <outputEntry id="OutputEntry_Pendente_ESC_resultado"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OutputEntry_Pendente_ESC_observacao"><text>"Cateterismo solicitado sem exames nao-invasivos previos - realizar ECG estresse, eco estresse ou cintilografia primeiro"</text></outputEntry>
+        <outputEntry id="OutputEntry_Pendente_ESC_fundamentacao"><text>"SBC/SBHCI 2024, ACC/AHA Appropriate Use Criteria 2023 - Cateterismo eletivo deve ser precedido por estratificacao funcional"</text></outputEntry>
+        <outputEntry id="OutputEntry_Pendente_ESC_alertas"><text>"ESC"</text></outputEntry>
+        <outputEntry id="OutputEntry_Pendente_ESC_acao"><text>"SUGERIR_ALTERNATIVA"</text></outputEntry>
+      </rule>
+
+      <!-- PENDENTE: ESC - Apenas ECG/Eco de repouso -->
+      <rule id="Rule_Pendente_ESC_ApenasRepouso">
+        <description>Pendente: Apenas exames de repouso disponiveis</description>
+        <inputEntry id="InputEntry_Pendente_ESC_Rep_1"><text>"DACSuspeitaAltoRisco","DACConhecida","AngaEstavel"</text></inputEntry>
+        <inputEntry id="InputEntry_Pendente_ESC_Rep_2"><text>"Adequado"</text></inputEntry>
+        <inputEntry id="InputEntry_Pendente_ESC_Rep_3"><text>"Classe IIa","Classe IIb"</text></inputEntry>
+        <inputEntry id="InputEntry_Pendente_ESC_Rep_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Pendente_ESC_Rep_5"><text>"ECGRepouso","EcoRepouso"</text></inputEntry>
+        <outputEntry id="OutputEntry_Pendente_ESC_Rep_resultado"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OutputEntry_Pendente_ESC_Rep_observacao"><text>"Exames de repouso nao documentam isquemia - realizar teste funcional com estresse"</text></outputEntry>
+        <outputEntry id="OutputEntry_Pendente_ESC_Rep_fundamentacao"><text>"ACC/AHA Cath Guidelines 2023 - Exames de repouso tem baixa sensibilidade para deteccao de isquemia"</text></outputEntry>
+        <outputEntry id="OutputEntry_Pendente_ESC_Rep_alertas"><text>"ESC"</text></outputEntry>
+        <outputEntry id="OutputEntry_Pendente_ESC_Rep_acao"><text>"SUGERIR_ALTERNATIVA"</text></outputEntry>
+      </rule>
+
+      <!-- PENDENTE: DOC - Documentacao incompleta -->
+      <rule id="Rule_Pendente_DOC_Incompleto">
+        <description>Pendente: Documentacao clinica incompleta</description>
+        <inputEntry id="InputEntry_Pendente_DOC_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Pendente_DOC_2"><text>"Incompleto"</text></inputEntry>
+        <inputEntry id="InputEntry_Pendente_DOC_3"><text>"Classe I","Classe IIa"</text></inputEntry>
+        <inputEntry id="InputEntry_Pendente_DOC_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Pendente_DOC_5"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_Pendente_DOC_resultado"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OutputEntry_Pendente_DOC_observacao"><text>"Documentacao clinica incompleta - anexar justificativa detalhada e exames complementares"</text></outputEntry>
+        <outputEntry id="OutputEntry_Pendente_DOC_fundamentacao"><text>"ANS RN 465/2021 - Necessaria documentacao clinica adequada para autorizacao de procedimentos de alta complexidade"</text></outputEntry>
+        <outputEntry id="OutputEntry_Pendente_DOC_alertas"><text>"DOC"</text></outputEntry>
+        <outputEntry id="OutputEntry_Pendente_DOC_acao"><text>"SOLICITAR_INFO"</text></outputEntry>
+      </rule>
+
+      <!-- PENDENTE: DOC - Documentacao nao documentada -->
+      <rule id="Rule_Pendente_DOC_NaoDocumentado">
+        <description>Pendente: Ausencia de documentacao clinica</description>
+        <inputEntry id="InputEntry_Pendente_DOC_ND_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Pendente_DOC_ND_2"><text>"NaoDocumentado"</text></inputEntry>
+        <inputEntry id="InputEntry_Pendente_DOC_ND_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Pendente_DOC_ND_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Pendente_DOC_ND_5"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_Pendente_DOC_ND_resultado"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OutputEntry_Pendente_DOC_ND_observacao"><text>"Ausencia de documentacao clinica - solicitar historico completo, indicacao e exames"</text></outputEntry>
+        <outputEntry id="OutputEntry_Pendente_DOC_ND_fundamentacao"><text>"ANS RN 465/2021 - Procedimentos de alta complexidade requerem documentacao clinica obrigatoria"</text></outputEntry>
+        <outputEntry id="OutputEntry_Pendente_DOC_ND_alertas"><text>"DOC"</text></outputEntry>
+        <outputEntry id="OutputEntry_Pendente_DOC_ND_acao"><text>"SOLICITAR_INFO"</text></outputEntry>
+      </rule>
+
+      <!-- PENDENTE: FREQ - Frequencia inadequada (30-90 dias) -->
+      <rule id="Rule_Pendente_FREQ_Recente">
+        <description>Pendente: Cateterismo em intervalo curto (30-90 dias)</description>
+        <inputEntry id="InputEntry_Pendente_FREQ_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Pendente_FREQ_2"><text>"Adequado"</text></inputEntry>
+        <inputEntry id="InputEntry_Pendente_FREQ_3"><text>"Classe IIa","Classe IIb"</text></inputEntry>
+        <inputEntry id="InputEntry_Pendente_FREQ_4"><text>[30..90]</text></inputEntry>
+        <inputEntry id="InputEntry_Pendente_FREQ_5"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_Pendente_FREQ_resultado"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OutputEntry_Pendente_FREQ_observacao"><text>"Cateterismo recente (30-90 dias) - justificar necessidade de repeticao"</text></outputEntry>
+        <outputEntry id="OutputEntry_Pendente_FREQ_fundamentacao"><text>"SBC/SBHCI 2024 - Repeticao de cateterismo em menos de 90 dias requer justificativa de mudanca clinica"</text></outputEntry>
+        <outputEntry id="OutputEntry_Pendente_FREQ_alertas"><text>"FREQ"</text></outputEntry>
+        <outputEntry id="OutputEntry_Pendente_FREQ_acao"><text>"SOLICITAR_INFO"</text></outputEntry>
+      </rule>
+
+      <!-- PENDENTE: PROT - Classe IIb sem justificativa robusta -->
+      <rule id="Rule_Pendente_PROT_ClasseIIb">
+        <description>Pendente: Classe IIb requer justificativa clinica adicional</description>
+        <inputEntry id="InputEntry_Pendente_PROT_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Pendente_PROT_2"><text>"Adequado"</text></inputEntry>
+        <inputEntry id="InputEntry_Pendente_PROT_3"><text>"Classe IIb"</text></inputEntry>
+        <inputEntry id="InputEntry_Pendente_PROT_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Pendente_PROT_5"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_Pendente_PROT_resultado"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OutputEntry_Pendente_PROT_observacao"><text>"Indicacao Classe IIb - beneficio incerto, justificar com parecer especializado"</text></outputEntry>
+        <outputEntry id="OutputEntry_Pendente_PROT_fundamentacao"><text>"SBC/SBHCI 2024, ACC/AHA Cath Guidelines 2023 - Classe IIb: Beneficio incerto, requer discussao individualizada"</text></outputEntry>
+        <outputEntry id="OutputEntry_Pendente_PROT_alertas"><text>"PROT"</text></outputEntry>
+        <outputEntry id="OutputEntry_Pendente_PROT_acao"><text>"SOLICITAR_INFO"</text></outputEntry>
+      </rule>
+
+      <!-- ========== FALLBACK RULE ========== -->
+      <rule id="Rule_Fallback_30904064">
+        <description>Regra padrao - Analise adicional necessaria</description>
+        <inputEntry id="InputEntry_Fallback_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Fallback_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Fallback_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Fallback_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Fallback_5"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_Fallback_resultado"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OutputEntry_Fallback_observacao"><text>"Caso requer analise clinica adicional - criterios nao totalmente atendidos"</text></outputEntry>
+        <outputEntry id="OutputEntry_Fallback_fundamentacao"><text>"Avaliacao individualizada necessaria conforme complexidade clinica e diretrizes SBC/SBHCI 2024"</text></outputEntry>
+        <outputEntry id="OutputEntry_Fallback_alertas"><text>"DOC"</text></outputEntry>
+        <outputEntry id="OutputEntry_Fallback_acao"><text>"SOLICITAR_INFO"</text></outputEntry>
+      </rule>
+
+    </decisionTable>
+  </decision>
+</definitions>

@@ -1,0 +1,156 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  ============================================================================
+  CRED-PROVIDER-002 - Especialidade RQE Compatível com Procedimento
+  ============================================================================
+  Versao: 1.0.0 (2026-02-08)
+  Categoria: CRED-PROVIDER
+  Perspectiva: HOSPITAL (Administrativo - Credenciamento Médico)
+
+  ============================================================================
+  INDICACOES (Quando PROSSEGUIR):
+  ============================================================================
+  - Médico possui RQE na especialidade requerida
+  - Especialidade RQE corresponde ao procedimento executado
+  - Habilitação técnica adequada ao procedimento
+
+  ============================================================================
+  CONTRAINDICACOES (Quando BLOQUEAR):
+  ============================================================================
+  - Médico sem RQE na especialidade requerida
+  - RQE incompatível com o procedimento
+  - Procedimento requer especialização não comprovada
+
+  ============================================================================
+  REFERENCIAS NORMATIVAS:
+  ============================================================================
+  - Resolução CFM 2.221/2018 - RQE
+  - Lei 12.842/2013 - Ato médico
+  - Resolução CFM específica por especialidade
+  ============================================================================
+-->
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/"
+             xmlns:dc="http://www.omg.org/spec/DMN/20180521/DC/"
+             id="Definitions_CRED_PROVIDER_002"
+             name="Especialidade RQE Compatível com Procedimento"
+             targetNamespace="http://camunda.org/schema/1.0/dmn">
+
+  <decision id="Decision_CRED_PROVIDER_002" name="Especialidade RQE Compatível">
+    <decisionTable id="DecisionTable_CRED_PROVIDER_002" hitPolicy="FIRST">
+
+      <!-- ========== INPUTS ========== -->
+      <input id="Input_1" label="Tem RQE">
+        <inputExpression id="InputExpression_1" typeRef="boolean">
+          <text>temRQE</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_2" label="Especialidade RQE">
+        <inputExpression id="InputExpression_2" typeRef="string">
+          <text>especialidadeRQE</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_3" label="Procedimento Requer">
+        <inputExpression id="InputExpression_3" typeRef="string">
+          <text>procedimentoRequer</text>
+        </inputExpression>
+      </input>
+
+      <!-- ========== OUTPUTS (5 STANDARD) ========== -->
+      <output id="Output_1" label="Resultado" name="resultado" typeRef="string">
+        <outputValues><text>"Prosseguir", "Bloquear", "Alertar", "Revisar"</text></outputValues>
+      </output>
+
+      <output id="Output_2" label="Observacao" name="observacao" typeRef="string"/>
+
+      <output id="Output_3" label="Acao Recomendada" name="acaoRecomendada" typeRef="string"/>
+
+      <output id="Output_4" label="Alertas Conformidade" name="alertasConformidade" typeRef="string">
+        <outputValues><text>"NENHUM", "DUP", "FREQ", "PRAZO", "DOC", "VALOR", "CRED", "CONTRATO"</text></outputValues>
+      </output>
+
+      <output id="Output_5" label="Risco Denial" name="riscoDenial" typeRef="string">
+        <outputValues><text>"BAIXO", "MEDIO", "ALTO", "CRITICO"</text></outputValues>
+      </output>
+
+      <!-- ========== RULES ========== -->
+
+      <!-- REGRA B1: Bloqueio - Sem RQE para procedimento que requer -->
+      <rule id="Rule_Bloqueio_1">
+        <description>Médico sem RQE e procedimento requer especialização</description>
+        <inputEntry id="InputEntry_B1_1"><text>false</text></inputEntry>
+        <inputEntry id="InputEntry_B1_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_B1_3"><text>not(null), not("")</text></inputEntry>
+        <outputEntry id="OutputEntry_B1_1"><text>"Bloquear"</text></outputEntry>
+        <outputEntry id="OutputEntry_B1_2"><text>"Médico não possui RQE na especialidade requerida para o procedimento."</text></outputEntry>
+        <outputEntry id="OutputEntry_B1_3"><text>"Designar médico com RQE compatível ou não faturar procedimento como especializado."</text></outputEntry>
+        <outputEntry id="OutputEntry_B1_4"><text>"CRED"</text></outputEntry>
+        <outputEntry id="OutputEntry_B1_5"><text>"CRITICO"</text></outputEntry>
+      </rule>
+
+      <!-- REGRA B2: Bloqueio - RQE incompatível -->
+      <rule id="Rule_Bloqueio_2">
+        <description>RQE do médico não corresponde ao requerido</description>
+        <inputEntry id="InputEntry_B2_1"><text>true</text></inputEntry>
+        <inputEntry id="InputEntry_B2_2"><text>not(procedimentoRequer)</text></inputEntry>
+        <inputEntry id="InputEntry_B2_3"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_B2_1"><text>"Bloquear"</text></outputEntry>
+        <outputEntry id="OutputEntry_B2_2"><text>"Especialidade RQE do médico não é compatível com a especialidade requerida."</text></outputEntry>
+        <outputEntry id="OutputEntry_B2_3"><text>"Substituir médico ou ajustar faturamento para especialidade compatível."</text></outputEntry>
+        <outputEntry id="OutputEntry_B2_4"><text>"CRED"</text></outputEntry>
+        <outputEntry id="OutputEntry_B2_5"><text>"ALTO"</text></outputEntry>
+      </rule>
+
+      <!-- REGRA P1: Aprovado - RQE compatível -->
+      <rule id="Rule_Aprovado_1">
+        <description>Médico com RQE compatível ao procedimento</description>
+        <inputEntry id="InputEntry_P1_1"><text>true</text></inputEntry>
+        <inputEntry id="InputEntry_P1_2"><text>procedimentoRequer</text></inputEntry>
+        <inputEntry id="InputEntry_P1_3"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_P1_1"><text>"Prosseguir"</text></outputEntry>
+        <outputEntry id="OutputEntry_P1_2"><text>"Médico possui RQE na especialidade compatível com o procedimento executado."</text></outputEntry>
+        <outputEntry id="OutputEntry_P1_3"><text>"Prosseguir com faturamento conforme procedimento padrão."</text></outputEntry>
+        <outputEntry id="OutputEntry_P1_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_P1_5"><text>"BAIXO"</text></outputEntry>
+      </rule>
+
+      <!-- REGRA P2: Aprovado - Procedimento não requer RQE -->
+      <rule id="Rule_Aprovado_2">
+        <description>Procedimento não exige RQE específico</description>
+        <inputEntry id="InputEntry_P2_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_P2_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_P2_3"><text>null, ""</text></inputEntry>
+        <outputEntry id="OutputEntry_P2_1"><text>"Prosseguir"</text></outputEntry>
+        <outputEntry id="OutputEntry_P2_2"><text>"Procedimento não requer RQE específico. Médico habilitado."</text></outputEntry>
+        <outputEntry id="OutputEntry_P2_3"><text>"Prosseguir com faturamento conforme procedimento padrão."</text></outputEntry>
+        <outputEntry id="OutputEntry_P2_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_P2_5"><text>"BAIXO"</text></outputEntry>
+      </rule>
+
+      <!-- REGRA F: Fallback - Requer revisão manual -->
+      <rule id="Rule_Fallback_CRED_PROVIDER_002">
+        <description>Regra padrão - Requer avaliação manual</description>
+        <inputEntry id="InputEntry_F_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_F_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_F_3"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_F_1"><text>"Revisar"</text></outputEntry>
+        <outputEntry id="OutputEntry_F_2"><text>"Situação requer análise manual por não corresponder a nenhum critério automático."</text></outputEntry>
+        <outputEntry id="OutputEntry_F_3"><text>"Encaminhar para auditoria administrativa para avaliação caso a caso."</text></outputEntry>
+        <outputEntry id="OutputEntry_F_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_F_5"><text>"MEDIO"</text></outputEntry>
+      </rule>
+
+    </decisionTable>
+  </decision>
+
+  <dmndi:DMNDI>
+    <dmndi:DMNDiagram id="DMNDiagram_CRED_PROVIDER_002">
+      <dmndi:DMNShape id="DMNShape_Decision_CRED_PROVIDER_002" dmnElementRef="Decision_CRED_PROVIDER_002">
+        <dc:Bounds height="80" width="180" x="160" y="100"/>
+      </dmndi:DMNShape>
+    </dmndi:DMNDiagram>
+  </dmndi:DMNDI>
+
+</definitions>

@@ -1,0 +1,340 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             xmlns:camunda="http://camunda.org/schema/1.0/dmn"
+             id="Definitions_30904015"
+             name="Revascularizacao Miocardica (CABG)"
+             namespace="http://camunda.org/schema/1.0/dmn">
+
+  <!--
+    ===============================================================================
+    TUSS: 30904015
+    Procedimento: Revascularizacao Miocardica (CABG - Coronary Artery Bypass Grafting)
+    Versao: 1.0.0-LEAN-TIER2
+    Data: 2026-02-07
+    ===============================================================================
+
+    INDICACOES CLINICAS (DUT/ANS + STS 2024):
+    - Doenca coronariana triarterial com FEVE reduzida (Classe I)
+    - Lesao de tronco de coronaria esquerda (TCE) >= 50% (Classe I)
+    - DAC multiarterial com diabetes mellitus (Classe I - FREEDOM Trial)
+    - Angina refrataria a tratamento clinico otimizado (Classe I)
+    - Estenose significativa DA proximal com isquemia documentada (Classe I)
+    - SYNTAX Score >= 33 (alta complexidade anatomica, CABG superior ICP)
+
+    CONTRAINDICACOES:
+    - STS Score mortalidade >= 15% sem beneficio demonstravel
+    - Comorbidades graves com expectativa vida < 1 ano
+    - DAC uniarterial sem TCE/DA proximal (preferir ICP)
+    - Ausencia de isquemia documentada em territorios revascularizaveis
+
+    REFERENCIAS TECNICAS:
+    - STS Adult Cardiac Surgery Database 2024
+    - ACC/AHA Coronary Revascularization Guidelines 2024
+    - ESC Myocardial Revascularization Guidelines 2023
+    - FREEDOM Trial (CABG vs PCI in DM)
+    - SYNTAX Trial (SYNTAX Score stratification)
+
+    ALERTAS DE DESPERDICIO (LEAN TIER-2):
+    - DUP: Duplicidade - CABG em paciente com revascularizacao recente
+    - FREQ: Frequencia excessiva - Reoperacao prematura
+    - ESC: Escalonamento inadequado - CABG sem cateterismo ou Heart Team
+    - DOC: Documentacao insuficiente - Falta SYNTAX, STS Score, cateterismo
+    - PROT: Protocolo nao seguido - STS maior 15% sem justificativa
+    - MULTI: Multiplos alertas combinados
+
+    ===============================================================================
+  -->
+
+  <decision id="Decision_30904015" name="Regra Clinica - Revascularizacao Miocardica (CABG)">
+    <decisionTable id="DecisionTable_30904015" hitPolicy="FIRST">
+
+      <!-- ========== INPUTS (6 - Padrao LEAN TIER-2 Cardiologia Cirurgica) ========== -->
+
+      <input id="Input_condicaoPaciente" label="Condicao do Paciente" camunda:inputVariable="condicaoPaciente">
+        <inputExpression id="InputExpression_condicaoPaciente" typeRef="string">
+          <text>condicaoPaciente</text>
+        </inputExpression>
+        <inputValues id="InputValues_condicaoPaciente">
+          <text>"DAC_Triarterial","Lesao_TCE","DAC_Multiarterial_DM","Angina_Refrataria","DAC_DA_Proximal","DAC_Uniarterial"</text>
+        </inputValues>
+      </input>
+
+      <input id="Input_historicoClinico" label="Historico Clinico" camunda:inputVariable="historicoClinico">
+        <inputExpression id="InputExpression_historicoClinico" typeRef="string">
+          <text>historicoClinico</text>
+        </inputExpression>
+        <inputValues id="InputValues_historicoClinico">
+          <text>"Adequado","Incompleto","NaoDocumentado"</text>
+        </inputValues>
+      </input>
+
+      <input id="Input_stsScore" label="STS Score Mortalidade (%)" camunda:inputVariable="stsScore">
+        <inputExpression id="InputExpression_stsScore" typeRef="string">
+          <text>stsScore</text>
+        </inputExpression>
+        <inputValues id="InputValues_stsScore">
+          <text>"Menor2","Entre2e5","Entre5e10","Maior10","Maior15","NaoCalculado"</text>
+        </inputValues>
+      </input>
+
+      <input id="Input_syntaxScore" label="SYNTAX Score" camunda:inputVariable="syntaxScore">
+        <inputExpression id="InputExpression_syntaxScore" typeRef="string">
+          <text>syntaxScore</text>
+        </inputExpression>
+        <inputValues id="InputValues_syntaxScore">
+          <text>"Baixo_0_22","Intermediario_23_32","Alto_33_plus","NaoCalculado"</text>
+        </inputValues>
+      </input>
+
+      <input id="Input_cateterismoRecente" label="Cateterismo Coronario Recente (6m)" camunda:inputVariable="cateterismoRecente">
+        <inputExpression id="InputExpression_cateterismoRecente" typeRef="boolean">
+          <text>cateterismoRecente</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_ultimoProcedimentoDias" label="Dias desde ultima revascularizacao" camunda:inputVariable="ultimoProcedimentoDias">
+        <inputExpression id="InputExpression_ultimoProcedimentoDias" typeRef="integer">
+          <text>ultimoProcedimentoDias</text>
+        </inputExpression>
+      </input>
+
+      <!-- ========== OUTPUTS (5 - Padrao LEAN TIER-2) ========== -->
+
+      <output id="Output_resultado" label="Resultado" name="resultado" typeRef="string">
+        <outputValues id="OutputValues_resultado">
+          <text>"Aprovado","Reprovado","Pendente"</text>
+        </outputValues>
+      </output>
+
+      <output id="Output_observacao" label="Observacao Clinica" name="observacao" typeRef="string" />
+
+      <output id="Output_fundamentacao" label="Fundamentacao Tecnica" name="fundamentacao" typeRef="string" />
+
+      <output id="Output_alertasDesperdicio" label="Alertas de Desperdicio" name="alertasDesperdicio" typeRef="string">
+        <outputValues id="OutputValues_alertasDesperdicio">
+          <text>"NENHUM","DUP","FREQ","ESC","DOC","PROT","MULTI"</text>
+        </outputValues>
+      </output>
+
+      <output id="Output_acaoRecomendada" label="Acao Recomendada" name="acaoRecomendada" typeRef="string">
+        <outputValues id="OutputValues_acaoRecomendada">
+          <text>"APROVAR","NEGAR","SOLICITAR_INFO","AGUARDAR_PRAZO","SUGERIR_ALTERNATIVA"</text>
+        </outputValues>
+      </output>
+
+      <!-- ========== RULES - REPROVACOES (Waste Detection First) ========== -->
+
+      <!-- RULE 1: PROT - STS Score maior 15% (risco proibitivo) -->
+      <rule id="Rule_Reprovado_PROT_STSAlto">
+        <description>Reprovado: STS Score maior 15% indica risco proibitivo</description>
+        <inputEntry id="InputEntry_R1_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_R1_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_R1_3"><text>"Maior15"</text></inputEntry>
+        <inputEntry id="InputEntry_R1_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_R1_5"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_R1_6"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_R1_resultado"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_R1_observacao"><text>"STS Score maior 15% indica risco proibitivo para cirurgia. Considerar alternativas menos invasivas"</text></outputEntry>
+        <outputEntry id="OutputEntry_R1_fundamentacao"><text>"STS Adult Cardiac Surgery Database 2024: mortalidade operatoria maior 15% define risco proibitivo. ACC/AHA 2024: Heart Team deve avaliar alternativas"</text></outputEntry>
+        <outputEntry id="OutputEntry_R1_alertasDesperdicio"><text>"PROT"</text></outputEntry>
+        <outputEntry id="OutputEntry_R1_acaoRecomendada"><text>"SUGERIR_ALTERNATIVA"</text></outputEntry>
+      </rule>
+
+      <!-- RULE 2: PROT - DAC uniarterial sem indicacao -->
+      <rule id="Rule_Reprovado_PROT_Uniarterial">
+        <description>Reprovado: DAC uniarterial sem TCE/DA proximal - preferir ICP</description>
+        <inputEntry id="InputEntry_R2_1"><text>"DAC_Uniarterial"</text></inputEntry>
+        <inputEntry id="InputEntry_R2_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_R2_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_R2_4"><text>"Baixo_0_22"</text></inputEntry>
+        <inputEntry id="InputEntry_R2_5"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_R2_6"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_R2_resultado"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_R2_observacao"><text>"DAC uniarterial com SYNTAX baixo - ICP preferivel a CABG"</text></outputEntry>
+        <outputEntry id="OutputEntry_R2_fundamentacao"><text>"ACC/AHA 2024 - DAC uniarterial sem TCE ou DA proximal: ICP e opcao preferencial"</text></outputEntry>
+        <outputEntry id="OutputEntry_R2_alertasDesperdicio"><text>"ESC"</text></outputEntry>
+        <outputEntry id="OutputEntry_R2_acaoRecomendada"><text>"SUGERIR_ALTERNATIVA"</text></outputEntry>
+      </rule>
+
+      <!-- RULE 3: DUP - Reoperacao em menos de 1 ano -->
+      <rule id="Rule_Reprovado_DUP_ReoperacaoRecente">
+        <description>Reprovado: Reoperacao coronariana em menos de 1 ano sem justificativa</description>
+        <inputEntry id="InputEntry_R3_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_R3_2"><text>"Adequado"</text></inputEntry>
+        <inputEntry id="InputEntry_R3_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_R3_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_R3_5"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_R3_6"><text>&lt; 365</text></inputEntry>
+        <outputEntry id="OutputEntry_R3_resultado"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_R3_observacao"><text>"Revascularizacao realizada ha menos de 1 ano - reoperacao prematura sem justificativa emergencial"</text></outputEntry>
+        <outputEntry id="OutputEntry_R3_fundamentacao"><text>"STS 2024 - Reoperacao em menos de 1 ano aumenta significativamente morbimortalidade sem beneficio demonstrado"</text></outputEntry>
+        <outputEntry id="OutputEntry_R3_alertasDesperdicio"><text>"DUP"</text></outputEntry>
+        <outputEntry id="OutputEntry_R3_acaoRecomendada"><text>"AGUARDAR_PRAZO"</text></outputEntry>
+      </rule>
+
+      <!-- RULE 4: ESC - Cateterismo nao realizado -->
+      <rule id="Rule_Pendente_ESC_SemCateterismo">
+        <description>Pendente: Cateterismo coronario obrigatorio para CABG</description>
+        <inputEntry id="InputEntry_R4_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_R4_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_R4_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_R4_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_R4_5"><text>false</text></inputEntry>
+        <inputEntry id="InputEntry_R4_6"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_R4_resultado"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OutputEntry_R4_observacao"><text>"Cateterismo coronario obrigatorio para definir anatomia e indicacao cirurgica"</text></outputEntry>
+        <outputEntry id="OutputEntry_R4_fundamentacao"><text>"ACC/AHA 2024: coronariografia invasiva mandatoria antes de CABG para definir extensao doenca e SYNTAX Score"</text></outputEntry>
+        <outputEntry id="OutputEntry_R4_alertasDesperdicio"><text>"ESC"</text></outputEntry>
+        <outputEntry id="OutputEntry_R4_acaoRecomendada"><text>"SOLICITAR_INFO"</text></outputEntry>
+      </rule>
+
+      <!-- RULE 5: DOC - Documentacao ausente -->
+      <rule id="Rule_Pendente_DOC_Ausente">
+        <description>Pendente: Documentacao clinica nao documentada</description>
+        <inputEntry id="InputEntry_R5_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_R5_2"><text>"NaoDocumentado"</text></inputEntry>
+        <inputEntry id="InputEntry_R5_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_R5_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_R5_5"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_R5_6"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_R5_resultado"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OutputEntry_R5_observacao"><text>"Historico clinico nao documentado - necessario anexar cateterismo, STS Score, SYNTAX Score"</text></outputEntry>
+        <outputEntry id="OutputEntry_R5_fundamentacao"><text>"ANS RN 465/2021 - Documentacao completa obrigatoria para cirurgia cardiaca"</text></outputEntry>
+        <outputEntry id="OutputEntry_R5_alertasDesperdicio"><text>"DOC"</text></outputEntry>
+        <outputEntry id="OutputEntry_R5_acaoRecomendada"><text>"SOLICITAR_INFO"</text></outputEntry>
+      </rule>
+
+      <!-- RULE 6: DOC - Documentacao incompleta -->
+      <rule id="Rule_Pendente_DOC_Incompleta">
+        <description>Pendente: Documentacao clinica incompleta</description>
+        <inputEntry id="InputEntry_R6_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_R6_2"><text>"Incompleto"</text></inputEntry>
+        <inputEntry id="InputEntry_R6_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_R6_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_R6_5"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_R6_6"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_R6_resultado"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OutputEntry_R6_observacao"><text>"Documentacao incompleta - complementar cateterismo, STS Score, SYNTAX Score, avaliacao Heart Team"</text></outputEntry>
+        <outputEntry id="OutputEntry_R6_fundamentacao"><text>"ACC/AHA 2024 - Heart Team e documentacao completa obrigatorios para decisao de revascularizacao"</text></outputEntry>
+        <outputEntry id="OutputEntry_R6_alertasDesperdicio"><text>"DOC"</text></outputEntry>
+        <outputEntry id="OutputEntry_R6_acaoRecomendada"><text>"SOLICITAR_INFO"</text></outputEntry>
+      </rule>
+
+      <!-- RULE 7: DOC - STS Score nao calculado -->
+      <rule id="Rule_Pendente_DOC_STSNaoCalculado">
+        <description>Pendente: STS Score nao calculado</description>
+        <inputEntry id="InputEntry_R7_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_R7_2"><text>"Adequado"</text></inputEntry>
+        <inputEntry id="InputEntry_R7_3"><text>"NaoCalculado"</text></inputEntry>
+        <inputEntry id="InputEntry_R7_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_R7_5"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_R7_6"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_R7_resultado"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OutputEntry_R7_observacao"><text>"STS Score nao calculado - obrigatorio para estratificacao de risco cirurgico"</text></outputEntry>
+        <outputEntry id="OutputEntry_R7_fundamentacao"><text>"STS Adult Cardiac Surgery 2024 - STS Score obrigatorio para CABG eletiva"</text></outputEntry>
+        <outputEntry id="OutputEntry_R7_alertasDesperdicio"><text>"DOC"</text></outputEntry>
+        <outputEntry id="OutputEntry_R7_acaoRecomendada"><text>"SOLICITAR_INFO"</text></outputEntry>
+      </rule>
+
+      <!-- RULE 8: DOC - SYNTAX Score nao calculado -->
+      <rule id="Rule_Pendente_DOC_SYNTAXNaoCalculado">
+        <description>Pendente: SYNTAX Score nao calculado</description>
+        <inputEntry id="InputEntry_R8_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_R8_2"><text>"Adequado"</text></inputEntry>
+        <inputEntry id="InputEntry_R8_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_R8_4"><text>"NaoCalculado"</text></inputEntry>
+        <inputEntry id="InputEntry_R8_5"><text>true</text></inputEntry>
+        <inputEntry id="InputEntry_R8_6"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_R8_resultado"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OutputEntry_R8_observacao"><text>"SYNTAX Score nao calculado - obrigatorio para comparacao CABG vs ICP"</text></outputEntry>
+        <outputEntry id="OutputEntry_R8_fundamentacao"><text>"SYNTAX Trial - SYNTAX Score determina melhor estrategia de revascularizacao"</text></outputEntry>
+        <outputEntry id="OutputEntry_R8_alertasDesperdicio"><text>"DOC"</text></outputEntry>
+        <outputEntry id="OutputEntry_R8_acaoRecomendada"><text>"SOLICITAR_INFO"</text></outputEntry>
+      </rule>
+
+      <!-- ========== RULES - APROVACOES ========== -->
+
+      <!-- RULE 9: Aprovado TCE com STS baixo -->
+      <rule id="Rule_Aprovado_TCE">
+        <description>Aprovado: Lesao TCE >= 50% - Classe I para CABG</description>
+        <inputEntry id="InputEntry_R9_1"><text>"Lesao_TCE"</text></inputEntry>
+        <inputEntry id="InputEntry_R9_2"><text>"Adequado"</text></inputEntry>
+        <inputEntry id="InputEntry_R9_3"><text>"Menor2","Entre2e5"</text></inputEntry>
+        <inputEntry id="InputEntry_R9_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_R9_5"><text>true</text></inputEntry>
+        <inputEntry id="InputEntry_R9_6"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_R9_resultado"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_R9_observacao"><text>"Lesao TCE >= 50% com STS baixo - Indicacao Classe I para CABG"</text></outputEntry>
+        <outputEntry id="OutputEntry_R9_fundamentacao"><text>"ACC/AHA 2024 Classe I Nivel A: CABG preferivel para lesao TCE. Beneficio sobrevida comprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_R9_alertasDesperdicio"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_R9_acaoRecomendada"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <!-- RULE 10: Aprovado DAC Triarterial -->
+      <rule id="Rule_Aprovado_Triarterial">
+        <description>Aprovado: DAC triarterial - Classe I para CABG</description>
+        <inputEntry id="InputEntry_R10_1"><text>"DAC_Triarterial"</text></inputEntry>
+        <inputEntry id="InputEntry_R10_2"><text>"Adequado"</text></inputEntry>
+        <inputEntry id="InputEntry_R10_3"><text>"Menor2","Entre2e5","Entre5e10"</text></inputEntry>
+        <inputEntry id="InputEntry_R10_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_R10_5"><text>true</text></inputEntry>
+        <inputEntry id="InputEntry_R10_6"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_R10_resultado"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_R10_observacao"><text>"DAC triarterial com STS aceitavel - CABG indicada"</text></outputEntry>
+        <outputEntry id="OutputEntry_R10_fundamentacao"><text>"STICH Trial, ACC/AHA 2024 Classe I: CABG em DAC triarterial reduz mortalidade"</text></outputEntry>
+        <outputEntry id="OutputEntry_R10_alertasDesperdicio"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_R10_acaoRecomendada"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <!-- RULE 11: Aprovado DAC Multiarterial DM -->
+      <rule id="Rule_Aprovado_Multiarterial_DM">
+        <description>Aprovado: DAC multiarterial em diabetico - Classe I (FREEDOM Trial)</description>
+        <inputEntry id="InputEntry_R11_1"><text>"DAC_Multiarterial_DM"</text></inputEntry>
+        <inputEntry id="InputEntry_R11_2"><text>"Adequado"</text></inputEntry>
+        <inputEntry id="InputEntry_R11_3"><text>"Menor2","Entre2e5","Entre5e10"</text></inputEntry>
+        <inputEntry id="InputEntry_R11_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_R11_5"><text>true</text></inputEntry>
+        <inputEntry id="InputEntry_R11_6"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_R11_resultado"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_R11_observacao"><text>"DAC multiarterial em diabetico - CABG superior ICP (FREEDOM Trial)"</text></outputEntry>
+        <outputEntry id="OutputEntry_R11_fundamentacao"><text>"FREEDOM Trial: CABG vs ICP em diabeticos - CABG reduz morte/IAM/AVC. ACC/AHA 2024 Classe I"</text></outputEntry>
+        <outputEntry id="OutputEntry_R11_alertasDesperdicio"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_R11_acaoRecomendada"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <!-- RULE 12: Aprovado SYNTAX Alto -->
+      <rule id="Rule_Aprovado_SYNTAX_Alto">
+        <description>Aprovado: SYNTAX Score Alto >= 33 - Classe I para CABG</description>
+        <inputEntry id="InputEntry_R12_1"><text>"DAC_Triarterial","Lesao_TCE"</text></inputEntry>
+        <inputEntry id="InputEntry_R12_2"><text>"Adequado"</text></inputEntry>
+        <inputEntry id="InputEntry_R12_3"><text>"Menor2","Entre2e5","Entre5e10"</text></inputEntry>
+        <inputEntry id="InputEntry_R12_4"><text>"Alto_33_plus"</text></inputEntry>
+        <inputEntry id="InputEntry_R12_5"><text>true</text></inputEntry>
+        <inputEntry id="InputEntry_R12_6"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_R12_resultado"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_R12_observacao"><text>"SYNTAX Score >= 33 - alta complexidade anatomica, CABG superior ICP"</text></outputEntry>
+        <outputEntry id="OutputEntry_R12_fundamentacao"><text>"SYNTAX Trial: SYNTAX >= 33 - CABG superior ICP (MACCE 26.8% vs 44.0%). ACC/AHA 2024 Classe I"</text></outputEntry>
+        <outputEntry id="OutputEntry_R12_alertasDesperdicio"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_R12_acaoRecomendada"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <!-- ========== FALLBACK RULE ========== -->
+
+      <rule id="Rule_Fallback_30904015">
+        <description>Fallback - Caso nao coberto requer analise Heart Team</description>
+        <inputEntry id="InputEntry_Fallback_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Fallback_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Fallback_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Fallback_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Fallback_5"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Fallback_6"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_Fallback_resultado"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OutputEntry_Fallback_observacao"><text>"Caso requer analise individualizada por Heart Team e auditor cardiologista"</text></outputEntry>
+        <outputEntry id="OutputEntry_Fallback_fundamentacao"><text>"ACC/AHA 2024 - Heart Team obrigatorio para decisao de revascularizacao complexa"</text></outputEntry>
+        <outputEntry id="OutputEntry_Fallback_alertasDesperdicio"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_Fallback_acaoRecomendada"><text>"SOLICITAR_INFO"</text></outputEntry>
+      </rule>
+
+    </decisionTable>
+  </decision>
+</definitions>

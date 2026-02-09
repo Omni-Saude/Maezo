@@ -1,0 +1,216 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             xmlns:camunda="http://camunda.org/schema/1.0/dmn"
+             id="Definitions_GEN_EME_005"
+             name="Hemorragia Digestiva - Criterios Intervencao Cirurgica"
+             namespace="http://camunda.org/schema/1.0/dmn">
+
+  <!--
+    ===============================================================================
+    CODIGO: GEN-EME-005
+    Procedimento: Hemorragia Digestiva - Intervencao Cirurgica
+    Especialidade: Cirurgia Geral - Emergencia
+    Versao: 3.0.0-TIER1
+    Data: 2026-02-07
+    ===============================================================================
+
+    INDICACOES CIRURGICAS:
+    - Hemorragia massiva com instabilidade hemodinamica refrataria
+    - Falha de tratamento endoscopico (2 tentativas)
+    - Ressangramento apos hemostasia endoscopica
+    - Ulcera visivel com vaso sangrante refratario
+    - Hemorragia por lesao nao acessivel endoscopicamente
+
+    CONTRAINDICACOES:
+    - Hemorragia controlada por tratamento endoscopico
+    - Hemorragia por varizes esofagicas (tratamento especifico)
+    - Sangramento de origem obscura sem localizacao
+
+    REFERENCIAS TECNICAS:
+    - ACG Clinical Guideline 2021 - Upper GI Bleeding
+    - ESGE Guidelines 2021 - Non-variceal Upper GI Bleeding
+    - BSG Guidelines 2019 - Acute Lower GI Bleeding
+
+    ===============================================================================
+  -->
+
+  <decision id="Decision_GEN_EME_005" name="Regra Clinica - Hemorragia Digestiva">
+    <decisionTable id="DecisionTable_GEN_EME_005" hitPolicy="FIRST">
+
+      <!-- ========== INPUTS (5) ========== -->
+
+      <input id="Input_localSangramento" label="Local do Sangramento" camunda:inputVariable="localSangramento">
+        <inputExpression id="InputExpression_localSangramento" typeRef="string">
+          <text>localSangramento</text>
+        </inputExpression>
+        <inputValues id="InputValues_localSangramento">
+          <text>"Esofago","Estomago","Duodeno","IntestinoDelgado","Colon","Reto","NaoIdentificado"</text>
+        </inputValues>
+      </input>
+
+      <input id="Input_statusHemodinamico" label="Status Hemodinamico" camunda:inputVariable="statusHemodinamico">
+        <inputExpression id="InputExpression_statusHemodinamico" typeRef="string">
+          <text>statusHemodinamico</text>
+        </inputExpression>
+        <inputValues id="InputValues_statusHemodinamico">
+          <text>"Estavel","InstabilidadeLeve","InstabilidadeModerada","ChoqueFranco","Refratario"</text>
+        </inputValues>
+      </input>
+
+      <input id="Input_tratamentoEndoscopico" label="Resultado Endoscopia" camunda:inputVariable="tratamentoEndoscopico">
+        <inputExpression id="InputExpression_tratamentoEndoscopico" typeRef="string">
+          <text>tratamentoEndoscopico</text>
+        </inputExpression>
+        <inputValues id="InputValues_tratamentoEndoscopico">
+          <text>"Sucesso","Falha1Tentativa","Falha2Tentativas","Ressangramento","NaoRealizada","Contraindicada"</text>
+        </inputValues>
+      </input>
+
+      <input id="Input_transfusoes" label="Concentrados de Hemacias Transfundidos" camunda:inputVariable="transfusoes">
+        <inputExpression id="InputExpression_transfusoes" typeRef="number">
+          <text>transfusoes</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_classificacaoForrest" label="Classificacao Forrest (se ulcera)" camunda:inputVariable="classificacaoForrest">
+        <inputExpression id="InputExpression_classificacaoForrest" typeRef="string">
+          <text>classificacaoForrest</text>
+        </inputExpression>
+        <inputValues id="InputValues_classificacaoForrest">
+          <text>"Ia","Ib","IIa","IIb","IIc","III","NaoAplicavel"</text>
+        </inputValues>
+      </input>
+
+      <!-- ========== OUTPUTS (3) ========== -->
+
+      <output id="Output_resultado" label="Resultado" name="resultado" typeRef="string">
+        <outputValues id="OutputValues_resultado">
+          <text>"Aprovado","Reprovado","Pendente"</text>
+        </outputValues>
+      </output>
+
+      <output id="Output_observacao" label="Observacao Clinica" name="observacao" typeRef="string" />
+
+      <output id="Output_fundamentacao" label="Fundamentacao Tecnica" name="fundamentacao" typeRef="string" />
+
+      <!-- Output 4: Alertas Desperdicio -->
+      <output id="Output_alertasDesperdicio" label="Alertas de Desperdicio" name="alertasDesperdicio" typeRef="string">
+        <outputValues id="OutputValues_alertasDesperdicio">
+          <text>"NENHUM","DUP","FREQ","ESC","DOC","PROT","MULTI"</text>
+        </outputValues>
+      </output>
+
+      <!-- Output 5: Acao Recomendada -->
+      <output id="Output_acaoRecomendada" label="Acao Recomendada" name="acaoRecomendada" typeRef="string">
+        <outputValues id="OutputValues_acaoRecomendada">
+          <text>"APROVAR","NEGAR","SOLICITAR_INFO","AGUARDAR_PRAZO","SUGERIR_ALTERNATIVA"</text>
+        </outputValues>
+      </output>
+
+      <!-- ========== REGRAS DE REPROVACAO ========== -->
+
+      <rule id="Rule_Reprovado_EndoscopiaSucesso">
+        <description>Reprovado: Hemostasia endoscopica bem sucedida</description>
+        <inputEntry id="IE_Rep1_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_Rep1_2"><text>"Estavel","InstabilidadeLeve"</text></inputEntry>
+        <inputEntry id="IE_Rep1_3"><text>"Sucesso"</text></inputEntry>
+        <inputEntry id="IE_Rep1_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_Rep1_5"><text>-</text></inputEntry>
+        <outputEntry id="OE_Rep1_1"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OE_Rep1_2"><text>"Hemostasia endoscopica bem sucedida com paciente estavel - cirurgia nao indicada"</text></outputEntry>
+        <outputEntry id="OE_Rep1_3"><text>"ACG Clinical Guideline 2021 - Tratamento endoscopico e primeira linha"</text></outputEntry>
+      <outputEntry id="OE_Reprovado_EndoscopiaSucesso_4"><text>"PROT"</text></outputEntry>
+        <outputEntry id="OE_Reprovado_EndoscopiaSucesso_5"><text>"NEGAR"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Reprovado_SemLocalizacao">
+        <description>Reprovado: Sangramento sem localizacao definida</description>
+        <inputEntry id="IE_Rep2_1"><text>"NaoIdentificado"</text></inputEntry>
+        <inputEntry id="IE_Rep2_2"><text>"Estavel"</text></inputEntry>
+        <inputEntry id="IE_Rep2_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_Rep2_4"><text>&lt; 4</text></inputEntry>
+        <inputEntry id="IE_Rep2_5"><text>-</text></inputEntry>
+        <outputEntry id="OE_Rep2_1"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OE_Rep2_2"><text>"Sangramento de origem obscura em paciente estavel - investigacao adicional antes de cirurgia"</text></outputEntry>
+        <outputEntry id="OE_Rep2_3"><text>"BSG Guidelines 2019 - Capsula endoscopica ou angiografia antes de cirurgia exploradora"</text></outputEntry>
+      <outputEntry id="OE_Reprovado_SemLocalizacao_4"><text>"PROT"</text></outputEntry>
+        <outputEntry id="OE_Reprovado_SemLocalizacao_5"><text>"NEGAR"</text></outputEntry>
+      </rule>
+
+      <!-- ========== REGRAS DE APROVACAO ========== -->
+
+      <rule id="Rule_Aprovado_ChoqueRefratario">
+        <description>Aprovado: Choque hemorragico refratario</description>
+        <inputEntry id="IE_Apr1_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_Apr1_2"><text>"Refratario"</text></inputEntry>
+        <inputEntry id="IE_Apr1_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_Apr1_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_Apr1_5"><text>-</text></inputEntry>
+        <outputEntry id="OE_Apr1_1"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OE_Apr1_2"><text>"Choque hemorragico refratario a ressuscitacao - laparotomia de emergencia para controle de sangramento"</text></outputEntry>
+        <outputEntry id="OE_Apr1_3"><text>"ACG Clinical Guideline 2021 - Cirurgia de emergencia em hemorragia incontrolavel"</text></outputEntry>
+      <outputEntry id="OE_Aprovado_ChoqueRefratario_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_Aprovado_ChoqueRefratario_5"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Aprovado_FalhaEndoscopica">
+        <description>Aprovado: Falha de tratamento endoscopico (2 tentativas)</description>
+        <inputEntry id="IE_Apr2_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_Apr2_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_Apr2_3"><text>"Falha2Tentativas"</text></inputEntry>
+        <inputEntry id="IE_Apr2_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_Apr2_5"><text>-</text></inputEntry>
+        <outputEntry id="OE_Apr2_1"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OE_Apr2_2"><text>"Falha de hemostasia endoscopica apos duas tentativas - indicacao cirurgica ou angioembolizacao"</text></outputEntry>
+        <outputEntry id="OE_Apr2_3"><text>"ESGE Guidelines 2021 - Resgate cirurgico apos falha endoscopica"</text></outputEntry>
+      <outputEntry id="OE_Aprovado_FalhaEndoscopica_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_Aprovado_FalhaEndoscopica_5"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Aprovado_Ressangramento">
+        <description>Aprovado: Ressangramento apos hemostasia</description>
+        <inputEntry id="IE_Apr3_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_Apr3_2"><text>"InstabilidadeModerada","ChoqueFranco"</text></inputEntry>
+        <inputEntry id="IE_Apr3_3"><text>"Ressangramento"</text></inputEntry>
+        <inputEntry id="IE_Apr3_4"><text>&gt;= 4</text></inputEntry>
+        <inputEntry id="IE_Apr3_5"><text>-</text></inputEntry>
+        <outputEntry id="OE_Apr3_1"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OE_Apr3_2"><text>"Ressangramento significativo apos hemostasia endoscopica - intervencao cirurgica indicada"</text></outputEntry>
+        <outputEntry id="OE_Apr3_3"><text>"ACG Clinical Guideline 2021 - Ressangramento com instabilidade requer resgate cirurgico"</text></outputEntry>
+      <outputEntry id="OE_Aprovado_Ressangramento_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_Aprovado_Ressangramento_5"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Aprovado_ForrestIa">
+        <description>Aprovado: Forrest Ia refratario com instabilidade</description>
+        <inputEntry id="IE_Apr4_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_Apr4_2"><text>"InstabilidadeModerada","ChoqueFranco"</text></inputEntry>
+        <inputEntry id="IE_Apr4_3"><text>"Falha1Tentativa"</text></inputEntry>
+        <inputEntry id="IE_Apr4_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_Apr4_5"><text>"Ia"</text></inputEntry>
+        <outputEntry id="OE_Apr4_1"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OE_Apr4_2"><text>"Sangramento arterial ativo (Forrest Ia) refratario com instabilidade - intervencao urgente"</text></outputEntry>
+        <outputEntry id="OE_Apr4_3"><text>"ESGE Guidelines 2021 - Forrest Ia com falha endoscopica e alto risco"</text></outputEntry>
+      <outputEntry id="OE_Aprovado_ForrestIa_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_Aprovado_ForrestIa_5"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <!-- ========== REGRA FALLBACK ========== -->
+
+      <rule id="Rule_Fallback_GEN_EME_005">
+        <description>Pendente: Avaliacao multidisciplinar necessaria</description>
+        <inputEntry id="IE_FB_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_FB_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_FB_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_FB_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_FB_5"><text>-</text></inputEntry>
+        <outputEntry id="OE_FB_1"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OE_FB_2"><text>"Avaliacao multidisciplinar necessaria - discutir com endoscopia e radiologia intervencionista"</text></outputEntry>
+        <outputEntry id="OE_FB_3"><text>"Abordagem individualizada conforme recursos disponiveis e quadro clinico"</text></outputEntry>
+      <outputEntry id="OE_Fallback_GEN_EME_005_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_Fallback_GEN_EME_005_5"><text>"SOLICITAR_INFO"</text></outputEntry>
+      </rule>
+
+    </decisionTable>
+  </decision>
+</definitions>

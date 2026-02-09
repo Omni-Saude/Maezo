@@ -1,0 +1,365 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/"
+             xmlns:dc="http://www.omg.org/spec/DD/20100524/DC/"
+             xmlns:camunda="http://camunda.org/schema/1.0/dmn"
+             id="authorization-approval-definitions"
+             name="Authorization Approval Decision"
+             namespace="http://hospital.com/dmn/authorization"
+             exporter="Camunda Modeler"
+             exporterVersion="5.20.0">
+
+  <decision id="authorization-approval" name="Aprovação de Autorização Prévia">
+
+    <decisionTable id="authorization-table" hitPolicy="FIRST">
+
+      <!-- ===== INPUT DEFINITIONS ===== -->
+      <input id="input-procedure-type" label="Tipo de Procedimento" camunda:inputVariable="procedureType">
+        <inputExpression id="input-expr-1" typeRef="string">
+          <text>procedureType</text>
+        </inputExpression>
+        <inputValues id="input-values-1">
+          <text>"SURGICAL","CLINICAL","DIAGNOSTIC","THERAPEUTIC","EMERGENCY"</text>
+        </inputValues>
+      </input>
+
+      <input id="input-procedure-complexity" label="Complexidade" camunda:inputVariable="procedureComplexity">
+        <inputExpression id="input-expr-2" typeRef="string">
+          <text>procedureComplexity</text>
+        </inputExpression>
+        <inputValues id="input-values-2">
+          <text>"LOW","MEDIUM","HIGH","CRITICAL"</text>
+        </inputValues>
+      </input>
+
+      <input id="input-has-medical-justification" label="Justificativa Médica" camunda:inputVariable="hasMedicalJustification">
+        <inputExpression id="input-expr-3" typeRef="boolean">
+          <text>hasMedicalJustification</text>
+        </inputExpression>
+      </input>
+
+      <input id="input-estimated-cost" label="Custo Estimado" camunda:inputVariable="estimatedCost">
+        <inputExpression id="input-expr-4" typeRef="double">
+          <text>estimatedCost</text>
+        </inputExpression>
+      </input>
+
+      <input id="input-insurance-coverage-level" label="Nível de Cobertura" camunda:inputVariable="insuranceCoverageLevel">
+        <inputExpression id="input-expr-5" typeRef="string">
+          <text>insuranceCoverageLevel</text>
+        </inputExpression>
+        <inputValues id="input-values-3">
+          <text>"BASIC","STANDARD","PREMIUM","VIP"</text>
+        </inputValues>
+      </input>
+
+      <!-- ===== OUTPUT DEFINITIONS ===== -->
+      <output id="output-approved" label="Aprovado" name="approved" typeRef="boolean" />
+
+      <output id="output-approval-type" label="Tipo de Aprovação" name="approvalType" typeRef="string">
+        <outputValues id="output-values-1">
+          <text>"AUTOMATIC","CONDITIONAL","MANUAL_REVIEW","DENIED"</text>
+        </outputValues>
+      </output>
+
+      <output id="output-max-authorized-amount" label="Valor Máximo Autorizado" name="maxAuthorizedAmount" typeRef="double" />
+
+      <output id="output-requires-second-opinion" label="Requer Segunda Opinião" name="requiresSecondOpinion" typeRef="boolean" />
+
+      <output id="output-approval-reason" label="Motivo da Decisão" name="approvalReason" typeRef="string" />
+
+      <!-- ===== DECISION RULES ===== -->
+
+      <!-- RULE 1: Emergência - aprovação automática -->
+      <rule id="rule-emergency-auto">
+        <description>Procedimentos de emergência são automaticamente aprovados</description>
+        <inputEntry id="rule1-input1">
+          <text>"EMERGENCY"</text>
+        </inputEntry>
+        <inputEntry id="rule1-input2">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="rule1-input3">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="rule1-input4">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="rule1-input5">
+          <text>-</text>
+        </inputEntry>
+        <outputEntry id="rule1-output1">
+          <text>true</text>
+        </outputEntry>
+        <outputEntry id="rule1-output2">
+          <text>"AUTOMATIC"</text>
+        </outputEntry>
+        <outputEntry id="rule1-output3">
+          <text>999999.99</text>
+        </outputEntry>
+        <outputEntry id="rule1-output4">
+          <text>false</text>
+        </outputEntry>
+        <outputEntry id="rule1-output5">
+          <text>"Emergency procedure - automatic approval"</text>
+        </outputEntry>
+      </rule>
+
+      <!-- RULE 2: Procedimento de baixa complexidade com cobertura VIP -->
+      <rule id="rule-low-complexity-vip">
+        <description>Baixa complexidade com cobertura VIP - aprovação automática</description>
+        <inputEntry id="rule2-input1">
+          <text>"CLINICAL","DIAGNOSTIC"</text>
+        </inputEntry>
+        <inputEntry id="rule2-input2">
+          <text>"LOW"</text>
+        </inputEntry>
+        <inputEntry id="rule2-input3">
+          <text>true</text>
+        </inputEntry>
+        <inputEntry id="rule2-input4">
+          <text>&lt; 5000</text>
+        </inputEntry>
+        <inputEntry id="rule2-input5">
+          <text>"VIP","PREMIUM"</text>
+        </inputEntry>
+        <outputEntry id="rule2-output1">
+          <text>true</text>
+        </outputEntry>
+        <outputEntry id="rule2-output2">
+          <text>"AUTOMATIC"</text>
+        </outputEntry>
+        <outputEntry id="rule2-output3">
+          <text>estimatedCost</text>
+        </outputEntry>
+        <outputEntry id="rule2-output4">
+          <text>false</text>
+        </outputEntry>
+        <outputEntry id="rule2-output5">
+          <text>"Low complexity with premium coverage"</text>
+        </outputEntry>
+      </rule>
+
+      <!-- RULE 3: Procedimento cirúrgico de média complexidade -->
+      <rule id="rule-surgical-medium">
+        <description>Cirurgia de média complexidade com justificativa</description>
+        <inputEntry id="rule3-input1">
+          <text>"SURGICAL"</text>
+        </inputEntry>
+        <inputEntry id="rule3-input2">
+          <text>"MEDIUM"</text>
+        </inputEntry>
+        <inputEntry id="rule3-input3">
+          <text>true</text>
+        </inputEntry>
+        <inputEntry id="rule3-input4">
+          <text>&lt; 20000</text>
+        </inputEntry>
+        <inputEntry id="rule3-input5">
+          <text>"STANDARD","PREMIUM","VIP"</text>
+        </inputEntry>
+        <outputEntry id="rule3-output1">
+          <text>true</text>
+        </outputEntry>
+        <outputEntry id="rule3-output2">
+          <text>"CONDITIONAL"</text>
+        </outputEntry>
+        <outputEntry id="rule3-output3">
+          <text>estimatedCost * 0.9</text>
+        </outputEntry>
+        <outputEntry id="rule3-output4">
+          <text>false</text>
+        </outputEntry>
+        <outputEntry id="rule3-output5">
+          <text>"Medium complexity surgery - conditional approval"</text>
+        </outputEntry>
+      </rule>
+
+      <!-- RULE 4: Alta complexidade requer segunda opinião -->
+      <rule id="rule-high-complexity-review">
+        <description>Alta complexidade requer avaliação adicional</description>
+        <inputEntry id="rule4-input1">
+          <text>"SURGICAL","THERAPEUTIC"</text>
+        </inputEntry>
+        <inputEntry id="rule4-input2">
+          <text>"HIGH","CRITICAL"</text>
+        </inputEntry>
+        <inputEntry id="rule4-input3">
+          <text>true</text>
+        </inputEntry>
+        <inputEntry id="rule4-input4">
+          <text>&gt;= 20000</text>
+        </inputEntry>
+        <inputEntry id="rule4-input5">
+          <text>-</text>
+        </inputEntry>
+        <outputEntry id="rule4-output1">
+          <text>false</text>
+        </outputEntry>
+        <outputEntry id="rule4-output2">
+          <text>"MANUAL_REVIEW"</text>
+        </outputEntry>
+        <outputEntry id="rule4-output3">
+          <text>0</text>
+        </outputEntry>
+        <outputEntry id="rule4-output4">
+          <text>true</text>
+        </outputEntry>
+        <outputEntry id="rule4-output5">
+          <text>"High complexity requires medical board review"</text>
+        </outputEntry>
+      </rule>
+
+      <!-- RULE 5: Cobertura básica com alta complexidade -->
+      <rule id="rule-basic-coverage-high">
+        <description>Cobertura básica não autoriza alta complexidade</description>
+        <inputEntry id="rule5-input1">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="rule5-input2">
+          <text>"HIGH","CRITICAL"</text>
+        </inputEntry>
+        <inputEntry id="rule5-input3">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="rule5-input4">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="rule5-input5">
+          <text>"BASIC"</text>
+        </inputEntry>
+        <outputEntry id="rule5-output1">
+          <text>false</text>
+        </outputEntry>
+        <outputEntry id="rule5-output2">
+          <text>"DENIED"</text>
+        </outputEntry>
+        <outputEntry id="rule5-output3">
+          <text>0</text>
+        </outputEntry>
+        <outputEntry id="rule5-output4">
+          <text>false</text>
+        </outputEntry>
+        <outputEntry id="rule5-output5">
+          <text>"Basic coverage does not include high complexity procedures"</text>
+        </outputEntry>
+      </rule>
+
+      <!-- RULE 6: Sem justificativa médica -->
+      <rule id="rule-no-justification">
+        <description>Procedimentos sem justificativa médica são negados</description>
+        <inputEntry id="rule6-input1">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="rule6-input2">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="rule6-input3">
+          <text>false</text>
+        </inputEntry>
+        <inputEntry id="rule6-input4">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="rule6-input5">
+          <text>-</text>
+        </inputEntry>
+        <outputEntry id="rule6-output1">
+          <text>false</text>
+        </outputEntry>
+        <outputEntry id="rule6-output2">
+          <text>"DENIED"</text>
+        </outputEntry>
+        <outputEntry id="rule6-output3">
+          <text>0</text>
+        </outputEntry>
+        <outputEntry id="rule6-output4">
+          <text>false</text>
+        </outputEntry>
+        <outputEntry id="rule6-output5">
+          <text>"Missing medical justification"</text>
+        </outputEntry>
+      </rule>
+
+      <!-- RULE 7: Procedimento padrão com cobertura standard -->
+      <rule id="rule-standard-procedure">
+        <description>Procedimento padrão com cobertura adequada</description>
+        <inputEntry id="rule7-input1">
+          <text>"CLINICAL","DIAGNOSTIC","THERAPEUTIC"</text>
+        </inputEntry>
+        <inputEntry id="rule7-input2">
+          <text>"LOW","MEDIUM"</text>
+        </inputEntry>
+        <inputEntry id="rule7-input3">
+          <text>true</text>
+        </inputEntry>
+        <inputEntry id="rule7-input4">
+          <text>&lt; 10000</text>
+        </inputEntry>
+        <inputEntry id="rule7-input5">
+          <text>"STANDARD","PREMIUM","VIP"</text>
+        </inputEntry>
+        <outputEntry id="rule7-output1">
+          <text>true</text>
+        </outputEntry>
+        <outputEntry id="rule7-output2">
+          <text>"AUTOMATIC"</text>
+        </outputEntry>
+        <outputEntry id="rule7-output3">
+          <text>estimatedCost</text>
+        </outputEntry>
+        <outputEntry id="rule7-output4">
+          <text>false</text>
+        </outputEntry>
+        <outputEntry id="rule7-output5">
+          <text>"Standard procedure with adequate coverage"</text>
+        </outputEntry>
+      </rule>
+
+      <!-- RULE 8: Fallback - revisão manual -->
+      <rule id="rule-default-review">
+        <description>Casos não mapeados requerem análise manual</description>
+        <inputEntry id="rule8-input1">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="rule8-input2">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="rule8-input3">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="rule8-input4">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="rule8-input5">
+          <text>-</text>
+        </inputEntry>
+        <outputEntry id="rule8-output1">
+          <text>false</text>
+        </outputEntry>
+        <outputEntry id="rule8-output2">
+          <text>"MANUAL_REVIEW"</text>
+        </outputEntry>
+        <outputEntry id="rule8-output3">
+          <text>0</text>
+        </outputEntry>
+        <outputEntry id="rule8-output4">
+          <text>true</text>
+        </outputEntry>
+        <outputEntry id="rule8-output5">
+          <text>"Case requires manual review"</text>
+        </outputEntry>
+      </rule>
+
+    </decisionTable>
+  </decision>
+
+  <!-- ===== DIAGRAM LAYOUT ===== -->
+  <dmndi:DMNDI>
+    <dmndi:DMNDiagram id="DMNDiagram_authorization">
+      <dmndi:DMNShape id="DMNShape_authorization" dmnElementRef="authorization-approval">
+        <dc:Bounds height="80" width="180" x="160" y="100" />
+      </dmndi:DMNShape>
+    </dmndi:DMNDiagram>
+  </dmndi:DMNDI>
+
+</definitions>

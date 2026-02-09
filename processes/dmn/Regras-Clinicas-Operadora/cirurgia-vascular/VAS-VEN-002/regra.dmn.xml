@@ -1,0 +1,244 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/"
+             xmlns:dc="http://www.omg.org/spec/DD/20100524/DC/"
+             xmlns:di="http://www.omg.org/spec/DD/20100524/DI/"
+             id="Definitions_VAS_VEN_002"
+             name="Filtro de Veia Cava Inferior - Indicacoes"
+             namespace="http://camunda.org/schema/1.0/dmn"
+             exporter="Camunda Modeler"
+             exporterVersion="5.0.0">
+  <!--
+    VAS-VEN-002 - Filtro de Veia Cava Inferior - Indicacoes
+    Versao: 1.0.0 (2026-02-07)
+    Especialidade: Cirurgia Vascular / Radiologia Intervencionista
+    Categoria: Doenca Venosa Tromboembolica
+    TUSS Relacionados: 40907089, 40907097
+
+    Indicacoes de Filtro de VCI (SIR/ACR 2020):
+    - Absolutas:
+      * Contraindicacao a anticoagulacao + TVP/TEP agudo
+      * Falha de anticoagulacao (recorrencia sob tratamento)
+      * Complicacao de anticoagulacao (sangramento major)
+    - Relativas:
+      * TVP iliofemoral extensa com trombo flutuante
+      * Reserva cardiopulmonar limitada
+      * Profilaxia pre-operatoria de alto risco (controverso)
+
+    Tipos de Filtro:
+    - Permanente: indicacao definitiva de anticoagulacao contraindicada
+    - Recuperavel/Opcional: indicacao temporaria, remover quando possivel
+
+    Tempo de Remocao:
+    - Ideal: 4-6 semanas apos implante
+    - Maximo seguro: depende do modelo (ate 12-24 meses em alguns)
+
+    Complicacoes:
+    - Migracao, fratura, perfuracao, trombose do filtro
+    - Sindrome pos-filtro (edema cronico)
+
+    Referencias Normativas:
+    - SIR/ACR 2020 - IVC Filter Guidelines
+    - CHEST 2016 - Antithrombotic Guidelines
+    - ASH 2020 VTE Guidelines
+    - DUT ANS 2024
+  -->
+
+  <decision id="Decision_VAS_VEN_002" name="Criterios de Indicacao - Filtro de VCI">
+    <decisionTable id="DecisionTable_VAS_VEN_002" hitPolicy="FIRST">
+
+      <!-- Input 1: Indicacao Principal -->
+      <input id="Input_indicacao" label="Indicacao para Filtro de VCI">
+        <inputExpression id="InputExpr_indicacao" typeRef="string">
+          <text>indicacaoPrincipal</text>
+        </inputExpression>
+        <inputValues id="InputValues_indicacao">
+          <text>"Contraindicacao_Anticoagulacao","Falha_Anticoagulacao","Sangramento_Major","TVP_Flutuante","Profilaxia_PreOp","Reserva_Cardiopulmonar_Baixa"</text>
+        </inputValues>
+      </input>
+
+      <!-- Input 2: Tipo de Evento Tromboembolico -->
+      <input id="Input_evento" label="Evento Tromboembolico Atual">
+        <inputExpression id="InputExpr_evento" typeRef="string">
+          <text>eventoTromboembolico</text>
+        </inputExpression>
+        <inputValues id="InputValues_evento">
+          <text>"TVP_Distal","TVP_Proximal","TVP_Iliofemoral","TEP_Subsegmentar","TEP_Segmentar","TEP_Macico"</text>
+        </inputValues>
+      </input>
+
+      <!-- Input 3: Temporalidade da Indicacao -->
+      <input id="Input_temporalidade" label="Indicacao Temporaria ou Definitiva">
+        <inputExpression id="InputExpr_temporalidade" typeRef="string">
+          <text>temporalidadeIndicacao</text>
+        </inputExpression>
+        <inputValues id="InputValues_temporalidade">
+          <text>"Temporaria_Semanas","Temporaria_Meses","Definitiva","Indeterminada"</text>
+        </inputValues>
+      </input>
+
+      <!-- Input 4: Tipo de Filtro Solicitado -->
+      <input id="Input_tipoFiltro" label="Tipo de Filtro Solicitado">
+        <inputExpression id="InputExpr_tipoFiltro" typeRef="string">
+          <text>tipoFiltroSolicitado</text>
+        </inputExpression>
+        <inputValues id="InputValues_tipoFiltro">
+          <text>"Recuperavel","Permanente","Nao_Especificado"</text>
+        </inputValues>
+      </input>
+
+      <!-- Input 5: Documentacao -->
+      <input id="Input_documentacao" label="Imagem de TVP/TEP + Justificativa Documentada">
+        <inputExpression id="InputExpr_documentacao" typeRef="boolean">
+          <text>documentacaoCompleta</text>
+        </inputExpression>
+      </input>
+
+      <!-- Outputs -->
+      <output id="Output_resultado" label="Resultado" name="resultado" typeRef="string">
+        <outputValues id="OutputValues_resultado">
+          <text>"Aprovado","Reprovado","Pendente"</text>
+        </outputValues>
+      </output>
+      <output id="Output_observacao" label="Observacao Clinica" name="observacao" typeRef="string" />
+      <output id="Output_fundamentacao" label="Fundamentacao Legal/Tecnica" name="fundamentacao" typeRef="string" />
+
+      <output id="Output_alertasDesperdicio" name="alertasDesperdicio" typeRef="string">
+        <outputValues>
+          <text>"NENHUM","DUP","FREQ","ESC","DOC","PROT","MULTI"</text>
+        </outputValues>
+      </output>
+
+      <output id="Output_acaoRecomendada" name="acaoRecomendada" typeRef="string">
+        <outputValues>
+          <text>"APROVAR","NEGAR","SOLICITAR_INFO","AGUARDAR_PRAZO","SUGERIR_ALTERNATIVA"</text>
+        </outputValues>
+      </output>
+
+      <!-- ============================================== -->
+      <!-- REGRAS DE REPROVACAO                          -->
+      <!-- ============================================== -->
+
+      <rule id="Rule_VAS_VEN_002_Reprovacao_SemDoc">
+        <description>Reprovacao - Documentacao incompleta</description>
+        <inputEntry id="IE_Rep1_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_Rep1_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_Rep1_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_Rep1_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_Rep1_5"><text>false</text></inputEntry>
+        <outputEntry id="OE_Rep1_1"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OE_Rep1_2"><text>"Documentacao incompleta - imagem confirmando TVP/TEP + justificativa para contraindicacao de anticoagulacao obrigatorios"</text></outputEntry>
+        <outputEntry id="OE_Rep1_3"><text>"SIR/ACR 2020 - Documentacao de indicacao obrigatoria"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_VAS_VEN_002_Reprovacao_Profilaxia">
+        <description>Reprovacao - Profilaxia isolada sem TVP/TEP</description>
+        <inputEntry id="IE_Rep2_1"><text>"Profilaxia_PreOp"</text></inputEntry>
+        <inputEntry id="IE_Rep2_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_Rep2_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_Rep2_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_Rep2_5"><text>true</text></inputEntry>
+        <outputEntry id="OE_Rep2_1"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OE_Rep2_2"><text>"Filtro profilatico NAO indicado rotineiramente - evidencia nao suporta uso profilatico mesmo em alto risco sem TVP/TEP documentado"</text></outputEntry>
+        <outputEntry id="OE_Rep2_3"><text>"SIR/ACR 2020 - Filtro profilatico nao recomendado (Classe III)"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_VAS_VEN_002_Reprovacao_TVP_Distal">
+        <description>Reprovacao - TVP distal isolada sem TEP</description>
+        <inputEntry id="IE_Rep3_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_Rep3_2"><text>"TVP_Distal"</text></inputEntry>
+        <inputEntry id="IE_Rep3_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_Rep3_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_Rep3_5"><text>true</text></inputEntry>
+        <outputEntry id="OE_Rep3_1"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OE_Rep3_2"><text>"Filtro NAO indicado para TVP distal isolada - baixo risco de TEP - vigilancia ou anticoagulacao se extensao proximal"</text></outputEntry>
+        <outputEntry id="OE_Rep3_3"><text>"CHEST 2016 - TVP distal tem baixo risco de embolizacao"</text></outputEntry>
+      </rule>
+
+      <!-- ============================================== -->
+      <!-- REGRAS DE APROVACAO                           -->
+      <!-- ============================================== -->
+
+      <rule id="Rule_VAS_VEN_002_Aprovacao_Contraindicacao">
+        <description>Aprovacao - Contraindicacao absoluta a anticoagulacao + TVP proximal/TEP</description>
+        <inputEntry id="IE_Apr1_1"><text>"Contraindicacao_Anticoagulacao"</text></inputEntry>
+        <inputEntry id="IE_Apr1_2"><text>"TVP_Proximal","TVP_Iliofemoral","TEP_Segmentar","TEP_Macico"</text></inputEntry>
+        <inputEntry id="IE_Apr1_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_Apr1_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_Apr1_5"><text>true</text></inputEntry>
+        <outputEntry id="OE_Apr1_1"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OE_Apr1_2"><text>"Filtro de VCI APROVADO - contraindicacao absoluta a anticoagulacao com TVP proximal ou TEP - indicacao classica de filtro"</text></outputEntry>
+        <outputEntry id="OE_Apr1_3"><text>"SIR/ACR 2020 Classe I - Contraindicacao a anticoagulacao + TEV agudo"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_VAS_VEN_002_Aprovacao_Falha">
+        <description>Aprovacao - Falha de anticoagulacao adequada</description>
+        <inputEntry id="IE_Apr2_1"><text>"Falha_Anticoagulacao"</text></inputEntry>
+        <inputEntry id="IE_Apr2_2"><text>"TVP_Proximal","TVP_Iliofemoral","TEP_Segmentar","TEP_Macico"</text></inputEntry>
+        <inputEntry id="IE_Apr2_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_Apr2_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_Apr2_5"><text>true</text></inputEntry>
+        <outputEntry id="OE_Apr2_1"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OE_Apr2_2"><text>"Filtro de VCI APROVADO - recorrencia de TEV apesar de anticoagulacao adequada - indicacao absoluta"</text></outputEntry>
+        <outputEntry id="OE_Apr2_3"><text>"SIR/ACR 2020 Classe I - Falha de anticoagulacao"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_VAS_VEN_002_Aprovacao_Sangramento">
+        <description>Aprovacao - Sangramento major durante anticoagulacao</description>
+        <inputEntry id="IE_Apr3_1"><text>"Sangramento_Major"</text></inputEntry>
+        <inputEntry id="IE_Apr3_2"><text>"TVP_Proximal","TVP_Iliofemoral","TEP_Segmentar","TEP_Macico"</text></inputEntry>
+        <inputEntry id="IE_Apr3_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_Apr3_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_Apr3_5"><text>true</text></inputEntry>
+        <outputEntry id="OE_Apr3_1"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OE_Apr3_2"><text>"Filtro de VCI APROVADO - complicacao hemorragica major requer suspensao de anticoagulacao - filtro para prevencao de TEP"</text></outputEntry>
+        <outputEntry id="OE_Apr3_3"><text>"SIR/ACR 2020 Classe I - Sangramento major durante anticoagulacao"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_VAS_VEN_002_Aprovacao_Flutuante">
+        <description>Aprovacao - Trombo iliofemoral flutuante</description>
+        <inputEntry id="IE_Apr4_1"><text>"TVP_Flutuante"</text></inputEntry>
+        <inputEntry id="IE_Apr4_2"><text>"TVP_Iliofemoral"</text></inputEntry>
+        <inputEntry id="IE_Apr4_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_Apr4_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_Apr4_5"><text>true</text></inputEntry>
+        <outputEntry id="OE_Apr4_1"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OE_Apr4_2"><text>"Filtro de VCI APROVADO - trombo iliofemoral flutuante com alto risco de embolizacao - considerar filtro recuperavel"</text></outputEntry>
+        <outputEntry id="OE_Apr4_3"><text>"SIR/ACR 2020 Classe IIa - Trombo flutuante como indicacao relativa"</text></outputEntry>
+      </rule>
+
+      <!-- ============================================== -->
+      <!-- REGRAS DE PENDENCIA                           -->
+      <!-- ============================================== -->
+
+      <rule id="Rule_VAS_VEN_002_Pendente_Temporaria">
+        <description>Pendente - Indicacao temporaria sem plano de remocao</description>
+        <inputEntry id="IE_Pend1_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_Pend1_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_Pend1_3"><text>"Temporaria_Semanas","Temporaria_Meses"</text></inputEntry>
+        <inputEntry id="IE_Pend1_4"><text>"Permanente"</text></inputEntry>
+        <inputEntry id="IE_Pend1_5"><text>true</text></inputEntry>
+        <outputEntry id="OE_Pend1_1"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OE_Pend1_2"><text>"Indicacao temporaria com filtro permanente - recomendar filtro recuperavel com plano de remocao em 4-12 semanas"</text></outputEntry>
+        <outputEntry id="OE_Pend1_3"><text>"SIR/ACR 2020 - Filtro recuperavel preferido quando indicacao temporaria"</text></outputEntry>
+      </rule>
+
+      <!-- ============================================== -->
+      <!-- REGRA FALLBACK                                -->
+      <!-- ============================================== -->
+
+      <rule id="Rule_Fallback_VAS_VEN_002">
+        <description>Fallback - Casos nao cobertos requerem analise manual</description>
+        <inputEntry id="IE_Fallback_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_Fallback_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_Fallback_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_Fallback_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_Fallback_5"><text>-</text></inputEntry>
+        <outputEntry id="OE_Fallback_1"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OE_Fallback_2"><text>"Caso requer analise por radiologista intervencionista ou cirurgiao vascular"</text></outputEntry>
+        <outputEntry id="OE_Fallback_3"><text>"Auditoria especializada conforme RN 428/2017"</text></outputEntry>
+      </rule>
+
+    </decisionTable>
+  </decision>
+</definitions>

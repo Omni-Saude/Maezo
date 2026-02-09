@@ -1,0 +1,156 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  ============================================================================
+  BILL-TAXA-002 - Taxa Uso Equipamento
+  ============================================================================
+  Versao: 1.0.0 (2026-02-08)
+  Categoria: BILL-TAXA
+  Perspectiva: HOSPITAL (Faturamento/Equipamentos)
+
+  ============================================================================
+  INDICACOES (Quando PROSSEGUIR):
+  ============================================================================
+  - Equipamento especial utilizado e documentado (laser, videolaparoscopia, microscopia)
+  - Taxa compativel com tabela TUSS/AMB para o equipamento
+  - Registro de uso do equipamento no sistema de centro cirurgico
+
+  ============================================================================
+  CONTRAINDICACOES (Quando BLOQUEAR):
+  ============================================================================
+  - Cobranca de taxa de equipamento nao utilizado
+  - Equipamento ja incluso na taxa de sala cirurgica
+  - Ausencia de documentacao de uso do equipamento
+
+  ============================================================================
+  REFERENCIAS NORMATIVAS:
+  ============================================================================
+  - AMB CBHPM 7a Ed. (taxas de equipamentos especiais)
+  - ANS RN 465/2021 (cobertura de equipamentos)
+  - TISS 4.01.00 (codificacao de taxas)
+  ============================================================================
+-->
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/"
+             xmlns:dc="http://www.omg.org/spec/DMN/20180521/DC/"
+             id="Definitions_BILL_TAXA_002"
+             name="Taxa Uso Equipamento"
+             targetNamespace="http://camunda.org/schema/1.0/dmn">
+
+  <decision id="Decision_BILL_TAXA_002" name="Taxa Uso Equipamento">
+    <decisionTable id="DecisionTable_BILL_TAXA_002" hitPolicy="FIRST">
+
+      <!-- ========== INPUTS ========== -->
+      <input id="Input_1" label="Equipamento Utilizado">
+        <inputExpression id="InputExpression_1" typeRef="boolean">
+          <text>equipamentoUtilizado</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_2" label="Uso Documentado">
+        <inputExpression id="InputExpression_2" typeRef="boolean">
+          <text>usoDocumentado</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_3" label="Incluso Taxa Sala">
+        <inputExpression id="InputExpression_3" typeRef="boolean">
+          <text>inclusoTaxaSala</text>
+        </inputExpression>
+      </input>
+
+      <!-- ========== OUTPUTS (5 STANDARD) ========== -->
+      <output id="Output_1" label="Resultado" name="resultado" typeRef="string">
+        <outputValues><text>"Prosseguir", "Bloquear", "Alertar", "Revisar"</text></outputValues>
+      </output>
+
+      <output id="Output_2" label="Observacao" name="observacao" typeRef="string"/>
+
+      <output id="Output_3" label="Acao Recomendada" name="acaoRecomendada" typeRef="string"/>
+
+      <output id="Output_4" label="Alertas Conformidade" name="alertasConformidade" typeRef="string">
+        <outputValues><text>"NENHUM", "DUP", "FREQ", "PRAZO", "DOC", "VALOR", "CRED", "CONTRATO"</text></outputValues>
+      </output>
+
+      <output id="Output_5" label="Risco Denial" name="riscoDenial" typeRef="string">
+        <outputValues><text>"BAIXO", "MEDIO", "ALTO", "CRITICO"</text></outputValues>
+      </output>
+
+      <!-- ========== RULES ========== -->
+
+      <!-- REGRA B1: Bloqueio - Equipamento nao utilizado -->
+      <rule id="Rule_Bloqueio_1">
+        <description>Cobranca de taxa de equipamento que nao foi utilizado</description>
+        <inputEntry id="InputEntry_B1_1"><text>false</text></inputEntry>
+        <inputEntry id="InputEntry_B1_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_B1_3"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_B1_1"><text>"Bloquear"</text></outputEntry>
+        <outputEntry id="OutputEntry_B1_2"><text>"Cobranca de taxa de equipamento nao utilizado. Configuracao de fraude."</text></outputEntry>
+        <outputEntry id="OutputEntry_B1_3"><text>"Bloquear cobranca imediatamente. Revisar processo de faturamento e aplicar medidas disciplinares."</text></outputEntry>
+        <outputEntry id="OutputEntry_B1_4"><text>"VALOR"</text></outputEntry>
+        <outputEntry id="OutputEntry_B1_5"><text>"CRITICO"</text></outputEntry>
+      </rule>
+
+      <!-- REGRA B2: Bloqueio - Equipamento sem documentacao -->
+      <rule id="Rule_Bloqueio_2">
+        <description>Uso de equipamento sem documentacao comprobatoria</description>
+        <inputEntry id="InputEntry_B2_1"><text>true</text></inputEntry>
+        <inputEntry id="InputEntry_B2_2"><text>false</text></inputEntry>
+        <inputEntry id="InputEntry_B2_3"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_B2_1"><text>"Bloquear"</text></outputEntry>
+        <outputEntry id="OutputEntry_B2_2"><text>"Uso de equipamento sem documentacao. Impossivel comprovar utilizacao para auditoria."</text></outputEntry>
+        <outputEntry id="OutputEntry_B2_3"><text>"Bloquear faturamento. Solicitar registro de uso no sistema de centro cirurgico."</text></outputEntry>
+        <outputEntry id="OutputEntry_B2_4"><text>"DOC"</text></outputEntry>
+        <outputEntry id="OutputEntry_B2_5"><text>"ALTO"</text></outputEntry>
+      </rule>
+
+      <!-- REGRA B3: Bloqueio - Equipamento ja incluso na taxa de sala -->
+      <rule id="Rule_Bloqueio_3">
+        <description>Cobranca duplicada - Equipamento ja incluso na taxa de sala cirurgica</description>
+        <inputEntry id="InputEntry_B3_1"><text>true</text></inputEntry>
+        <inputEntry id="InputEntry_B3_2"><text>true</text></inputEntry>
+        <inputEntry id="InputEntry_B3_3"><text>true</text></inputEntry>
+        <outputEntry id="OutputEntry_B3_1"><text>"Bloquear"</text></outputEntry>
+        <outputEntry id="OutputEntry_B3_2"><text>"Equipamento ja incluso na taxa de sala cirurgica. Cobranca duplicada vedada por ANS."</text></outputEntry>
+        <outputEntry id="OutputEntry_B3_3"><text>"Bloquear cobranca duplicada. Revisar composicao da taxa de sala cirurgica."</text></outputEntry>
+        <outputEntry id="OutputEntry_B3_4"><text>"DUP"</text></outputEntry>
+        <outputEntry id="OutputEntry_B3_5"><text>"ALTO"</text></outputEntry>
+      </rule>
+
+      <!-- REGRA P1: Aprovado - Equipamento utilizado e documentado -->
+      <rule id="Rule_Aprovado_1">
+        <description>Taxa de equipamento utilizado, documentado e nao incluso na taxa de sala</description>
+        <inputEntry id="InputEntry_P1_1"><text>true</text></inputEntry>
+        <inputEntry id="InputEntry_P1_2"><text>true</text></inputEntry>
+        <inputEntry id="InputEntry_P1_3"><text>false</text></inputEntry>
+        <outputEntry id="OutputEntry_P1_1"><text>"Prosseguir"</text></outputEntry>
+        <outputEntry id="OutputEntry_P1_2"><text>"Taxa de equipamento especial devidamente documentada e justificada."</text></outputEntry>
+        <outputEntry id="OutputEntry_P1_3"><text>"Prosseguir com faturamento. Anexar registro de uso do equipamento para auditoria."</text></outputEntry>
+        <outputEntry id="OutputEntry_P1_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_P1_5"><text>"BAIXO"</text></outputEntry>
+      </rule>
+
+      <!-- REGRA F: Fallback - Requer revisao manual -->
+      <rule id="Rule_Fallback_BILL_TAXA_002">
+        <description>Regra padrao - Requer avaliacao manual</description>
+        <inputEntry id="InputEntry_F_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_F_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_F_3"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_F_1"><text>"Revisar"</text></outputEntry>
+        <outputEntry id="OutputEntry_F_2"><text>"Situacao requer analise manual por nao corresponder a nenhum criterio automatico."</text></outputEntry>
+        <outputEntry id="OutputEntry_F_3"><text>"Encaminhar para auditoria administrativa para avaliacao caso a caso."</text></outputEntry>
+        <outputEntry id="OutputEntry_F_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_F_5"><text>"MEDIO"</text></outputEntry>
+      </rule>
+
+    </decisionTable>
+  </decision>
+
+  <dmndi:DMNDI>
+    <dmndi:DMNDiagram id="DMNDiagram_BILL_TAXA_002">
+      <dmndi:DMNShape id="DMNShape_Decision_BILL_TAXA_002" dmnElementRef="Decision_BILL_TAXA_002">
+        <dc:Bounds height="80" width="180" x="160" y="100"/>
+      </dmndi:DMNShape>
+    </dmndi:DMNDiagram>
+  </dmndi:DMNDI>
+
+</definitions>

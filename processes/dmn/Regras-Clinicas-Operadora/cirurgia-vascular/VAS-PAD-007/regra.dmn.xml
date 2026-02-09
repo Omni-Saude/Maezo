@@ -1,0 +1,248 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/"
+             xmlns:dc="http://www.omg.org/spec/DD/20100524/DC/"
+             xmlns:di="http://www.omg.org/spec/DD/20100524/DI/"
+             id="Definitions_VAS_PAD_007"
+             name="Aneurisma Popliteo - Limiares de Intervencao"
+             namespace="http://camunda.org/schema/1.0/dmn"
+             exporter="Camunda Modeler"
+             exporterVersion="5.0.0">
+  <!--
+    VAS-PAD-007 - Aneurisma Popliteo - Limiares de Intervencao
+    Versao: 1.0.0 (2026-02-07)
+    Especialidade: Cirurgia Vascular
+    Categoria: Aneurismas Perifericos
+    TUSS Relacionados: 30907141, 30907150
+
+    Epidemiologia:
+    - Aneurisma periferico mais comum
+    - 50% bilaterais
+    - 40% associados a AAA
+    - Alto risco de complicacoes tromboembolicas
+
+    Indicacoes de Intervencao (SVS/ESVS 2019):
+    - Sintomatico (qualquer tamanho): embolizacao, trombose, ruptura rara
+    - Assintomatico maior 2.0cm
+    - Trombo mural com runoff comprometido
+    - Crescimento documentado maior 0.3cm/ano
+
+    Metodos de Reparo:
+    - Bypass com veia: padrao-ouro, melhor patencia
+    - Endovascular: em pacientes de alto risco cirurgico
+    - Ligadura + bypass: quando bypass nao eh viavel distalmente
+
+    Documentacao Obrigatoria:
+    - Duplex arterial com medicao do aneurisma
+    - Avaliacao de runoff distal (3 vasos)
+    - Pesquisa de outros aneurismas (contralateral, AAA)
+    - Mapeamento de veia safena se bypass planejado
+
+    Referencias Normativas:
+    - SVS/ESVS 2019 - Peripheral Artery Aneurysms
+    - SBACV 2020
+    - DUT ANS 2024
+  -->
+
+  <decision id="Decision_VAS_PAD_007" name="Criterios de Intervencao - Aneurisma Popliteo">
+    <decisionTable id="DecisionTable_VAS_PAD_007" hitPolicy="FIRST">
+
+      <!-- Input 1: Diametro do Aneurisma -->
+      <input id="Input_diametro" label="Diametro do Aneurisma Popliteo (cm)">
+        <inputExpression id="InputExpr_diametro" typeRef="string">
+          <text>diametroAneurisma</text>
+        </inputExpression>
+        <inputValues id="InputValues_diametro">
+          <text>"Menor_2.0","Entre_2.0_3.0","Maior_3.0"</text>
+        </inputValues>
+      </input>
+
+      <!-- Input 2: Status Sintomatico -->
+      <input id="Input_sintomas" label="Sintomas Relacionados ao Aneurisma">
+        <inputExpression id="InputExpr_sintomas" typeRef="string">
+          <text>statusSintomatico</text>
+        </inputExpression>
+        <inputValues id="InputValues_sintomas">
+          <text>"Assintomatico","Embolizacao_Distal","Trombose_Aguda","Compressao_Nervosa","Ruptura"</text>
+        </inputValues>
+      </input>
+
+      <!-- Input 3: Status do Runoff -->
+      <input id="Input_runoff" label="Runoff Distal (Vasos Tibiais Patentes)">
+        <inputExpression id="InputExpr_runoff" typeRef="string">
+          <text>statusRunoff</text>
+        </inputExpression>
+        <inputValues id="InputValues_runoff">
+          <text>"Tres_Vasos","Dois_Vasos","Um_Vaso","Sem_Runoff"</text>
+        </inputValues>
+      </input>
+
+      <!-- Input 4: Presenca de Trombo -->
+      <input id="Input_trombo" label="Presenca de Trombo Mural">
+        <inputExpression id="InputExpr_trombo" typeRef="string">
+          <text>presencaTrombo</text>
+        </inputExpression>
+        <inputValues id="InputValues_trombo">
+          <text>"Ausente","Parcial_Menor_50","Extenso_Maior_50"</text>
+        </inputValues>
+      </input>
+
+      <!-- Input 5: Documentacao -->
+      <input id="Input_documentacao" label="Duplex + Pesquisa de Outros Aneurismas">
+        <inputExpression id="InputExpr_documentacao" typeRef="boolean">
+          <text>documentacaoCompleta</text>
+        </inputExpression>
+      </input>
+
+      <!-- Outputs -->
+      <output id="Output_resultado" label="Resultado" name="resultado" typeRef="string">
+        <outputValues id="OutputValues_resultado">
+          <text>"Aprovado","Reprovado","Pendente"</text>
+        </outputValues>
+      </output>
+      <output id="Output_observacao" label="Observacao Clinica" name="observacao" typeRef="string" />
+      <output id="Output_fundamentacao" label="Fundamentacao Legal/Tecnica" name="fundamentacao" typeRef="string" />
+
+      <output id="Output_alertasDesperdicio" name="alertasDesperdicio" typeRef="string">
+        <outputValues>
+          <text>"NENHUM","DUP","FREQ","ESC","DOC","PROT","MULTI"</text>
+        </outputValues>
+      </output>
+
+      <output id="Output_acaoRecomendada" name="acaoRecomendada" typeRef="string">
+        <outputValues>
+          <text>"APROVAR","NEGAR","SOLICITAR_INFO","AGUARDAR_PRAZO","SUGERIR_ALTERNATIVA"</text>
+        </outputValues>
+      </output>
+
+      <!-- ============================================== -->
+      <!-- REGRAS DE REPROVACAO                          -->
+      <!-- ============================================== -->
+
+      <rule id="Rule_VAS_PAD_007_Reprovacao_Pequeno">
+        <description>Reprovacao - Aneurisma menor 2cm assintomatico sem trombo</description>
+        <inputEntry id="IE_Rep1_1"><text>"Menor_2.0"</text></inputEntry>
+        <inputEntry id="IE_Rep1_2"><text>"Assintomatico"</text></inputEntry>
+        <inputEntry id="IE_Rep1_3"><text>"Tres_Vasos","Dois_Vasos"</text></inputEntry>
+        <inputEntry id="IE_Rep1_4"><text>"Ausente","Parcial_Menor_50"</text></inputEntry>
+        <inputEntry id="IE_Rep1_5"><text>true</text></inputEntry>
+        <outputEntry id="OE_Rep1_1"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OE_Rep1_2"><text>"Intervencao NAO indicada - aneurisma popliteo menor 2cm assintomatico com runoff preservado - vigilancia com duplex semestral"</text></outputEntry>
+        <outputEntry id="OE_Rep1_3"><text>"SVS/ESVS 2019 - Vigilancia para aneurisma popliteo menor 2cm assintomatico"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_VAS_PAD_007_Reprovacao_SemDoc">
+        <description>Reprovacao - Documentacao incompleta</description>
+        <inputEntry id="IE_Rep2_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_Rep2_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_Rep2_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_Rep2_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_Rep2_5"><text>false</text></inputEntry>
+        <outputEntry id="OE_Rep2_1"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OE_Rep2_2"><text>"Documentacao incompleta - duplex com medicao, avaliacao de runoff e pesquisa de AAA/contralateral sao obrigatorios"</text></outputEntry>
+        <outputEntry id="OE_Rep2_3"><text>"SVS/ESVS 2019 - Pesquisa de outros aneurismas obrigatoria em aneurisma popliteo"</text></outputEntry>
+      </rule>
+
+      <!-- ============================================== -->
+      <!-- REGRAS DE APROVACAO - EMERGENCIA              -->
+      <!-- ============================================== -->
+
+      <rule id="Rule_VAS_PAD_007_Aprovacao_Trombose">
+        <description>Aprovacao Emergencia - Trombose aguda do aneurisma</description>
+        <inputEntry id="IE_Apr1_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_Apr1_2"><text>"Trombose_Aguda"</text></inputEntry>
+        <inputEntry id="IE_Apr1_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_Apr1_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_Apr1_5"><text>true</text></inputEntry>
+        <outputEntry id="OE_Apr1_1"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OE_Apr1_2"><text>"Revascularizacao EMERGENCIAL APROVADA - trombose aguda de aneurisma popliteo - trombolise ou trombectomia + exclusao do aneurisma"</text></outputEntry>
+        <outputEntry id="OE_Apr1_3"><text>"SVS/ESVS 2019 Classe I - Trombose aguda requer intervencao emergencial"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_VAS_PAD_007_Aprovacao_Ruptura">
+        <description>Aprovacao Emergencia - Ruptura (rara)</description>
+        <inputEntry id="IE_Apr2_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_Apr2_2"><text>"Ruptura"</text></inputEntry>
+        <inputEntry id="IE_Apr2_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_Apr2_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_Apr2_5"><text>true</text></inputEntry>
+        <outputEntry id="OE_Apr2_1"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OE_Apr2_2"><text>"Cirurgia EMERGENCIAL APROVADA - ruptura de aneurisma popliteo - ligadura e bypass com veia"</text></outputEntry>
+        <outputEntry id="OE_Apr2_3"><text>"SVS/ESVS 2019 Classe I - Ruptura requer intervencao imediata"</text></outputEntry>
+      </rule>
+
+      <!-- ============================================== -->
+      <!-- REGRAS DE APROVACAO - ELETIVA                 -->
+      <!-- ============================================== -->
+
+      <rule id="Rule_VAS_PAD_007_Aprovacao_Embolizacao">
+        <description>Aprovacao - Embolizacao distal sintomatica</description>
+        <inputEntry id="IE_Apr3_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_Apr3_2"><text>"Embolizacao_Distal"</text></inputEntry>
+        <inputEntry id="IE_Apr3_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_Apr3_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_Apr3_5"><text>true</text></inputEntry>
+        <outputEntry id="OE_Apr3_1"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OE_Apr3_2"><text>"Reparo do aneurisma APROVADO - embolizacao distal indica alto risco de perda de membro - bypass com veia preferencial"</text></outputEntry>
+        <outputEntry id="OE_Apr3_3"><text>"SVS/ESVS 2019 Classe I - Intervencao indicada em aneurisma sintomatico"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_VAS_PAD_007_Aprovacao_Maior2cm">
+        <description>Aprovacao - Aneurisma maior 2cm assintomatico</description>
+        <inputEntry id="IE_Apr4_1"><text>"Entre_2.0_3.0","Maior_3.0"</text></inputEntry>
+        <inputEntry id="IE_Apr4_2"><text>"Assintomatico"</text></inputEntry>
+        <inputEntry id="IE_Apr4_3"><text>"Tres_Vasos","Dois_Vasos"</text></inputEntry>
+        <inputEntry id="IE_Apr4_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_Apr4_5"><text>true</text></inputEntry>
+        <outputEntry id="OE_Apr4_1"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OE_Apr4_2"><text>"Reparo eletivo do aneurisma APROVADO - aneurisma popliteo maior 2cm tem alto risco de complicacoes tromboembolicas"</text></outputEntry>
+        <outputEntry id="OE_Apr4_3"><text>"SVS/ESVS 2019 Classe IIa - Reparo eletivo indicado para aneurisma maior 2cm"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_VAS_PAD_007_Aprovacao_TromboExtenso">
+        <description>Aprovacao - Trombo mural extenso com runoff comprometido</description>
+        <inputEntry id="IE_Apr5_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_Apr5_2"><text>"Assintomatico"</text></inputEntry>
+        <inputEntry id="IE_Apr5_3"><text>"Um_Vaso"</text></inputEntry>
+        <inputEntry id="IE_Apr5_4"><text>"Extenso_Maior_50"</text></inputEntry>
+        <inputEntry id="IE_Apr5_5"><text>true</text></inputEntry>
+        <outputEntry id="OE_Apr5_1"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OE_Apr5_2"><text>"Reparo do aneurisma APROVADO - trombo extenso com runoff comprometido (1 vaso) - alto risco de oclusao completa e isquemia aguda"</text></outputEntry>
+        <outputEntry id="OE_Apr5_3"><text>"SVS/ESVS 2019 Classe I - Intervencao urgente quando runoff comprometido"</text></outputEntry>
+      </rule>
+
+      <!-- ============================================== -->
+      <!-- REGRAS DE PENDENCIA                           -->
+      <!-- ============================================== -->
+
+      <rule id="Rule_VAS_PAD_007_Pendente_Limtrofe">
+        <description>Pendente - Aneurisma menor 2cm com trombo parcial</description>
+        <inputEntry id="IE_Pend1_1"><text>"Menor_2.0"</text></inputEntry>
+        <inputEntry id="IE_Pend1_2"><text>"Assintomatico"</text></inputEntry>
+        <inputEntry id="IE_Pend1_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_Pend1_4"><text>"Parcial_Menor_50"</text></inputEntry>
+        <inputEntry id="IE_Pend1_5"><text>true</text></inputEntry>
+        <outputEntry id="OE_Pend1_1"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OE_Pend1_2"><text>"Aneurisma menor 2cm com trombo parcial - caso limtrofe - considerar vigilancia frequente vs intervencao precoce baseado em caracteristicas da placa"</text></outputEntry>
+        <outputEntry id="OE_Pend1_3"><text>"SVS/ESVS 2019 - Decisao individualizada em casos limtrofes"</text></outputEntry>
+      </rule>
+
+      <!-- ============================================== -->
+      <!-- REGRA FALLBACK                                -->
+      <!-- ============================================== -->
+
+      <rule id="Rule_Fallback_VAS_PAD_007">
+        <description>Fallback - Casos nao cobertos requerem analise manual</description>
+        <inputEntry id="IE_Fallback_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_Fallback_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_Fallback_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_Fallback_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_Fallback_5"><text>-</text></inputEntry>
+        <outputEntry id="OE_Fallback_1"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OE_Fallback_2"><text>"Caso requer analise por especialista em aneurismas perifericos"</text></outputEntry>
+        <outputEntry id="OE_Fallback_3"><text>"Auditoria especializada conforme RN 428/2017"</text></outputEntry>
+      </rule>
+
+    </decisionTable>
+  </decision>
+</definitions>

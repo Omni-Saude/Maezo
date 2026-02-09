@@ -1,0 +1,100 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- ============================================================================
+     DDI-HEPATO-007: Antiretrovirais + Hepatotoxicos - Hepatotoxicidade em HIV
+
+     EVIDENCIA CLINICA:
+     - DHHS Guidelines for ART in Adults
+     - Sulkowski MS et al. JAMA. 2000;283:74-80
+     - Nunez M et al. Hepatology. 2005;42:687-95
+
+     MECANISMO: Muitos ARVs sao hepatotoxicos (nevirapina, efavirenz, atazanavir,
+     tipranavir). Coinfeccao HCV/HBV aumenta risco 5-10x. Combinacao com outros
+     hepatotoxicos (azolicos, macrolideos, TB drugs) potencializa lesao.
+
+     INCIDENCIA: Hepatotoxicidade grau 3-4 em 5-15% dos pacientes HIV+
+     ============================================================================ -->
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/" xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/" xmlns:dc="http://www.omg.org/spec/DMN/20180521/DC/" xmlns:di="http://www.omg.org/spec/DMN/20180521/DI/" id="DDI_HEPATO_007" name="DDI-HEPATO-007: Antiretrovirais + Hepatotoxicos" namespace="http://camunda.org/schema/1.0/dmn">
+  <decision id="ddi_hepato_007_decision" name="Antiretrovirais + Hepatotoxicos - HIV">
+    <decisionTable id="ddi_hepato_007_table" hitPolicy="FIRST">
+      <input id="input_medicamentos_ativos" label="Medicamentos Ativos">
+        <inputExpression id="input_expr_medicamentos" typeRef="string">
+          <text>medicamentosAtivos</text>
+        </inputExpression>
+      </input>
+      <input id="input_medicamento_novo" label="Medicamento Novo">
+        <inputExpression id="input_expr_novo" typeRef="string">
+          <text>medicamentoNovo</text>
+        </inputExpression>
+      </input>
+      <input id="input_coinfeccao" label="Coinfeccao HCV ou HBV">
+        <inputExpression id="input_expr_coinfeccao" typeRef="boolean">
+          <text>coinfeccaoHepatite</text>
+        </inputExpression>
+      </input>
+
+      <output id="output_nivel_alerta" name="nivelAlerta" typeRef="string">
+        <outputValues><text>"Alerta","Atencao","Informativo","OK"</text></outputValues>
+      </output>
+      <output id="output_acao_requerida" name="acaoRequerida" typeRef="string" />
+      <output id="output_justificativa" name="justificativaCientifica" typeRef="string" />
+
+      <!-- Rule 1: ARV hepatotoxico + TB drugs + Coinfeccao -->
+      <rule id="rule_arv_tb_coinfeccao">
+        <inputEntry id="ie_arv_ativo">
+          <text>list contains(medicamentosAtivos, "NEVIRAPINA") or list contains(medicamentosAtivos, "EFAVIRENZ") or list contains(medicamentosAtivos, "ATAZANAVIR")</text>
+        </inputEntry>
+        <inputEntry id="ie_tb_novo">
+          <text>"RIFAMPICINA" or "ISONIAZIDA" or "PIRAZINAMIDA"</text>
+        </inputEntry>
+        <inputEntry id="ie_coinfeccao_sim">
+          <text>true</text>
+        </inputEntry>
+        <outputEntry id="oe_alerta_coinfeccao"><text>"Alerta"</text></outputEntry>
+        <outputEntry id="oe_acao_coinfeccao"><text>"ALTO RISCO hepatotoxicidade (20-30%). Coinfeccao HCV/HBV + ARV + TB drugs = sinergismo toxico. Monitorar TGO/TGP SEMANAL por 4 semanas, depois quinzenal. Considerar rifabutina em vez de rifampicina. Se TGO&gt; 5x LSN, suspender TB drugs e reavaliar."</text></outputEntry>
+        <outputEntry id="oe_just_coinfeccao"><text>"Coinfeccao aumenta hepatotoxicidade de ARV 5-10x. Sulkowski MS, JAMA 2000. Nunez M, Hepatology 2005."</text></outputEntry>
+      </rule>
+
+      <!-- Rule 2: Nevirapina inicio + CD4 alto -->
+      <rule id="rule_nevirapina_cd4">
+        <inputEntry id="ie_nevirapina_nova">
+          <text>"NEVIRAPINA"</text>
+        </inputEntry>
+        <inputEntry id="ie_novo_inicio">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="ie_coinfeccao_any">
+          <text>-</text>
+        </inputEntry>
+        <outputEntry id="oe_alerta_nevirapina"><text>"Alerta"</text></outputEntry>
+        <outputEntry id="oe_acao_nevirapina"><text>"NEVIRAPINA: verificar CD4 antes de iniciar. Contraindicada em mulheres com CD4&gt; 250 ou homens CD4 >400 (risco hepatite fulminante). Usar dose escalonada (lead-in) por 14 dias. Monitorar TGO/TGP semanas 2, 4, 8, 12."</text></outputEntry>
+        <outputEntry id="oe_just_nevirapina"><text>"FDA Black Box: nevirapina causa hepatotoxicidade severa dose-dependente, maior em pacientes com CD4 alto."</text></outputEntry>
+      </rule>
+
+      <!-- Rule 3: ARV + Fluconazol dose alta -->
+      <rule id="rule_arv_fluconazol">
+        <inputEntry id="ie_arv_ativo2">
+          <text>list contains(medicamentosAtivos, "EFAVIRENZ") or list contains(medicamentosAtivos, "NEVIRAPINA") or list contains(medicamentosAtivos, "ATAZANAVIR") or list contains(medicamentosAtivos, "LOPINAVIR")</text>
+        </inputEntry>
+        <inputEntry id="ie_fluconazol_novo">
+          <text>"FLUCONAZOL" or "ITRACONAZOL" or "VORICONAZOL"</text>
+        </inputEntry>
+        <inputEntry id="ie_coinfeccao_any2">
+          <text>-</text>
+        </inputEntry>
+        <outputEntry id="oe_atencao_azol"><text>"Atencao"</text></outputEntry>
+        <outputEntry id="oe_acao_azol"><text>"Azolicos: interacoes CYP + hepatotoxicidade aditiva. Preferir fluconazol dose baixa (&lt; 400mg) se possivel. Monitorar TGO/TGP semana 2 e 4. Ajustar doses de ARV se necessario (efavirenz/nevirapina podem ter niveis alterados)."</text></outputEntry>
+        <outputEntry id="oe_just_azol"><text>"Inibidores CYP (azolicos) aumentam niveis de muitos ARVs e tem hepatotoxicidade propria. DHHS Guidelines."</text></outputEntry>
+      </rule>
+
+      <!-- Fallback Rule -->
+      <rule id="Rule_Fallback">
+        <inputEntry id="ie_fallback1"><text>-</text></inputEntry>
+        <inputEntry id="ie_fallback2"><text>-</text></inputEntry>
+        <inputEntry id="ie_fallback3"><text>-</text></inputEntry>
+        <outputEntry id="oe_fallback1"><text>"OK"</text></outputEntry>
+        <outputEntry id="oe_fallback2"><text>""</text></outputEntry>
+        <outputEntry id="oe_fallback3"><text>""</text></outputEntry>
+      </rule>
+    </decisionTable>
+  </decision>
+</definitions>

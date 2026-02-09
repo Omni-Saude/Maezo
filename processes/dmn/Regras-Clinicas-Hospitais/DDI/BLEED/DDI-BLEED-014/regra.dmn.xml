@@ -1,0 +1,165 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/" xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/" xmlns:dc="http://www.omg.org/spec/DMN/20180521/DC/" xmlns:di="http://www.omg.org/spec/DMN/20180521/DI/" id="DDI_BLEED_014" name="DDI-BLEED-014: Prasugrel + Anticoagulantes" namespace="http://camunda.org/schema/1.0/dmn">
+  <decision id="ddi_bleed_014_decision" name="Prasugrel + Anticoagulants Bleeding Risk">
+    <decisionTable id="ddi_bleed_014_table" hitPolicy="FIRST">
+      <input id="input_medicamentos_ativos" label="Medicamentos Ativos">
+        <inputExpression id="input_expr_medicamentos_ativos" typeRef="string">
+          <text>medicamentosAtivos</text>
+        </inputExpression>
+      </input>
+      <input id="input_medicamento_novo" label="Medicamento Novo">
+        <inputExpression id="input_expr_medicamento_novo" typeRef="string">
+          <text>medicamentoNovo</text>
+        </inputExpression>
+      </input>
+      <input id="input_idade" label="Idade (anos)">
+        <inputExpression id="input_expr_idade" typeRef="number">
+          <text>idade</text>
+        </inputExpression>
+      </input>
+      <input id="input_historico_avc" label="Histórico AVC/AIT">
+        <inputExpression id="input_expr_historico" typeRef="boolean">
+          <text>historicoAVC</text>
+        </inputExpression>
+      </input>
+
+      <output id="output_nivel_alerta" name="nivelAlerta" typeRef="string">
+        <outputValues>
+          <text>"Alerta","Atencao","Informativo","OK"</text>
+        </outputValues>
+      </output>
+      <output id="output_urgencia" name="urgencia" typeRef="string">
+        <outputValues>
+          <text>"IMEDIATA","URGENTE","ROTINA"</text>
+        </outputValues>
+      </output>
+      <output id="output_medicamentos_conflitantes" name="medicamentosConflitantes" typeRef="string" />
+      <output id="output_mecanismo_interacao" name="mecanismoInteracao" typeRef="string" />
+      <output id="output_acao_requerida" name="acaoRequerida" typeRef="string" />
+
+      <!-- Rule 1: Prasugrel + Anticoagulante com contraindicação absoluta (idade ≥75 ou AVC prévio) -->
+      <rule id="rule_prasugrel_anticoag_contraindicado">
+        <inputEntry id="input_medicamentos_pras">
+          <text>list contains(medicamentosAtivos, "PRASUGREL")</text>
+        </inputEntry>
+        <inputEntry id="input_novo_anticoag">
+          <text>"VARFARINA" or "WARFARIN" or "APIXABANA" or "RIVAROXABANA" or "DABIGATRANA" or "EDOXABANA" or "HEPARINA" or "ENOXAPARINA"</text>
+        </inputEntry>
+        <inputEntry id="input_idade_ou_avc">
+          <text>&gt;= 75</text>
+        </inputEntry>
+        <inputEntry id="input_avc_sim">
+          <text>true</text>
+        </inputEntry>
+        <outputEntry id="output_alerta_contra">
+          <text>"Alerta"</text>
+        </outputEntry>
+        <outputEntry id="output_urgencia_contra">
+          <text>"IMEDIATA"</text>
+        </outputEntry>
+        <outputEntry id="output_conflitantes_contra">
+          <text>"Prasugrel + Anticoagulante (CONTRAINDICADO: idade ≥75 + AVC prévio)"</text>
+        </outputEntry>
+        <outputEntry id="output_mecanismo_contra">
+          <text>"CONTRAINDICAÇÃO ABSOLUTA: Prasugrel MAIS POTENTE que clopidogrel (inibição P2Y12 irreversível, dose loading 60mg) + anticoagulante = risco sangramento INTRACRANIANO 3-4x aumentado. TRITON-TIMI 38: prasugrel em ≥75 anos OU história AVC/AIT = RISCO SUPERIOR AO BENEFÍCIO (sangramento fatal aumentado, sem redução eventos isquêmicos)."</text>
+        </outputEntry>
+        <outputEntry id="output_acao_contra">
+          <text>"SUBSTITUIR prasugrel IMEDIATAMENTE: (1) Switch para clopidogrel 75mg/dia (MENOS potente, mais seguro com anticoagulante), (2) OU ticagrelor 90mg 12/12h se necessário P2Y12 potente (reversível, sem contraindicação AVC), (3) Anticoagulante: ajustar dose mínima efetiva (warfarin INR 2.0-2.5, apixabana 2.5mg 12/12h se critérios), (4) IBP obrigatório (omeprazol 20-40mg/dia), (5) Monitorar Hb semanalmente primeiras 4 semanas."</text>
+        </outputEntry>
+      </rule>
+
+      <!-- Rule 2: Prasugrel + Anticoagulante em adultos <75 anos sem AVC prévio -->
+      <rule id="rule_prasugrel_anticoag_adulto">
+        <inputEntry id="input_medicamentos_pras_ad">
+          <text>list contains(medicamentosAtivos, "PRASUGREL")</text>
+        </inputEntry>
+        <inputEntry id="input_novo_anticoag_ad">
+          <text>"VARFARINA" or "WARFARIN" or "APIXABANA" or "RIVAROXABANA" or "DABIGATRANA" or "EDOXABANA" or "HEPARINA" or "ENOXAPARINA"</text>
+        </inputEntry>
+        <inputEntry id="input_idade_normal">
+          <text>&lt; 75</text>
+        </inputEntry>
+        <inputEntry id="input_avc_nao">
+          <text>false</text>
+        </inputEntry>
+        <outputEntry id="output_alerta_adulto">
+          <text>"Alerta"</text>
+        </outputEntry>
+        <outputEntry id="output_urgencia_adulto">
+          <text>"IMEDIATA"</text>
+        </outputEntry>
+        <outputEntry id="output_conflitantes_adulto">
+          <text>"Prasugrel + Anticoagulante"</text>
+        </outputEntry>
+        <outputEntry id="output_mecanismo_adulto">
+          <text>"Risco sangramento MAIOR 4-5x aumentado vs clopidogrel + anticoagulante. Prasugrel mais potente (inibição P2Y12 70-80% vs clopidogrel 40-60%) → maior risco hemorrágico quando combinado anticoagulação. Indicação RARA (FA + SCA recente)."</text>
+        </outputEntry>
+        <outputEntry id="output_acao_adulto">
+          <text>"REAVALIAR necessidade prasugrel vs clopidogrel: (1) PREFERIR clopidogrel 75mg/dia (mais seguro com anticoagulante, risco sangramento 30-40% menor), (2) Se prasugrel ESSENCIAL (stent complicado, trombose stent prévia): (a) Duração MÍNIMA (1-3 meses → switch clopidogrel), (b) Dose anticoagulante REDUZIDA (INR 2.0-2.5, apixabana 2.5mg 12/12h), (c) IBP dose PLENA (omeprazol 40mg/dia), (d) Monitorar Hb SEMANAL, (3) Evitar tripla terapia >1 mês se possível."</text>
+        </outputEntry>
+      </rule>
+
+      <!-- Rule 3: Prasugrel sozinho (sem anticoagulante) - alerta informativo -->
+      <rule id="rule_prasugrel_sem_anticoag">
+        <inputEntry id="input_medicamentos_pras_sa">
+          <text>list contains(medicamentosAtivos, "PRASUGREL")</text>
+        </inputEntry>
+        <inputEntry id="input_novo_nao_anticoag">
+          <text>not("VARFARINA" or "WARFARIN" or "APIXABANA" or "RIVAROXABANA" or "DABIGATRANA" or "EDOXABANA" or "HEPARINA" or "ENOXAPARINA")</text>
+        </inputEntry>
+        <inputEntry id="input_idade_ou_avc_sa">
+          <text>&gt;= 75</text>
+        </inputEntry>
+        <inputEntry id="input_avc_sim_sa">
+          <text>true</text>
+        </inputEntry>
+        <outputEntry id="output_alerta_sa">
+          <text>"Atencao"</text>
+        </outputEntry>
+        <outputEntry id="output_urgencia_sa">
+          <text>"ROTINA"</text>
+        </outputEntry>
+        <outputEntry id="output_conflitantes_sa">
+          <text>"Prasugrel em paciente ≥75 anos OU AVC prévio"</text>
+        </outputEntry>
+        <outputEntry id="output_mecanismo_sa">
+          <text>"CONTRAINDICAÇÃO RELATIVA prasugrel: Idade ≥75 anos OU história AVC/AIT = risco sangramento aumentado sem benefício adicional vs clopidogrel (TRITON-TIMI 38 subgrupo)."</text>
+        </outputEntry>
+        <outputEntry id="output_acao_sa">
+          <text>"CONSIDERAR switch para clopidogrel 75mg/dia (eficácia similar, menos sangramento em ≥75 anos) OU ticagrelor 90mg 12/12h (sem contraindicação AVC). Prasugrel manter APENAS se stent muito alto risco (anatomia complexa, trombose prévia) E benefício supera risco documentado."</text>
+        </outputEntry>
+      </rule>
+
+      <!-- Fallback Rule -->
+      <rule id="rule_fallback">
+        <inputEntry id="input_fallback_1">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="input_fallback_2">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="input_fallback_3">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="input_fallback_4">
+          <text>-</text>
+        </inputEntry>
+        <outputEntry id="output_fallback_1">
+          <text>"OK"</text>
+        </outputEntry>
+        <outputEntry id="output_fallback_2">
+          <text>"ROTINA"</text>
+        </outputEntry>
+        <outputEntry id="output_fallback_3">
+          <text>""</text>
+        </outputEntry>
+        <outputEntry id="output_fallback_4">
+          <text>""</text>
+        </outputEntry>
+        <outputEntry id="output_fallback_5">
+          <text>""</text>
+        </outputEntry>
+      </rule>
+    </decisionTable>
+  </decision>
+</definitions>

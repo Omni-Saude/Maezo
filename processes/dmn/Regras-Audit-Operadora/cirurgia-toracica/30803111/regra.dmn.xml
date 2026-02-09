@@ -1,0 +1,307 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             xmlns:camunda="http://camunda.org/schema/1.0/dmn"
+             id="Definitions_30803111"
+             name="TOR-LUN-002 Pneumonectomia"
+             namespace="http://camunda.org/schema/1.0/dmn">
+
+  <!--
+    ===============================================================================
+    TUSS: 30803111
+    Procedimento: Pneumonectomia (Resseccao Pulmonar Total)
+    Especialidade: Cirurgia Toracica
+    Codigo Regra: TOR-LUN-002
+    Versao: 3.0.0-LEAN-TIER2
+    Data: 2026-02-07
+    ===============================================================================
+
+    INDICACOES CLINICAS:
+    - CPNPC centralmente localizado com envolvimento do bronquio principal
+    - Tumor atravessando a fissura com envolvimento de multiplos lobos
+    - CPNPC estadio I-IIIA quando lobectomia nao e tecnicamente possivel
+    - VEF1 previsto pos-operatorio (ppo) maior que 40% do previsto
+    - DLCO ppo maior que 40%
+    - VO2max maior que 15 mL/kg/min
+    - Performance status ECOG 0-1
+
+    CONTRAINDICACOES:
+    - VEF1 ppo menor que 40% (alto risco de insuficiencia respiratoria)
+    - DLCO menor que 40%
+    - VO2max menor que 10 mL/kg/min (mortalidade elevada)
+    - Idade maior 70 anos com comorbidades (avaliacao individual)
+    - Performance status ECOG 3-4
+    - Doenca cardiaca grave (fração de ejecao menor 45%)
+    - Hipertensao pulmonar significativa
+    - Estadio IV ou N3
+
+    REFERENCIAS TECNICAS:
+    - ACCP Evidence-Based Guidelines for Lung Cancer 2024
+    - SBCT 2023 - Avaliacao Funcional Pre-operatoria
+    - NCCN NSCLC 2024 - Surgical Principles
+    - ERS/ESTS Guidelines for Fitness Assessment
+    ===============================================================================
+  -->
+
+  <decision id="Decision_30803111" name="Regra Clinica - Pneumonectomia">
+    <decisionTable id="DecisionTable_30803111" hitPolicy="FIRST">
+
+      <!-- ========== INPUTS (5) - Padrao TIER-1 Cirurgia Toracica ========== -->
+
+      <input id="Input_diagnosticoPulmonar" label="Diagnostico Pulmonar" camunda:inputVariable="diagnosticoPulmonar">
+        <inputExpression id="InputExpression_diagnosticoPulmonar" typeRef="string">
+          <text>diagnosticoPulmonar</text>
+        </inputExpression>
+        <inputValues id="InputValues_diagnosticoPulmonar">
+          <text>"CPNPC_CONFIRMADO","CPNPC_CENTRAL","MESOTELIOMA","CARCINOIDE_ATIPICO","NAO_INFORMADO"</text>
+        </inputValues>
+      </input>
+
+      <input id="Input_estadiamentoTNM" label="Estadiamento TNM" camunda:inputVariable="estadiamentoTNM">
+        <inputExpression id="InputExpression_estadiamentoTNM" typeRef="string">
+          <text>estadiamentoTNM</text>
+        </inputExpression>
+        <inputValues id="InputValues_estadiamentoTNM">
+          <text>"IA1","IA2","IA3","IB","IIA","IIB","IIIA","IIIB","IIIC","IVA","IVB","NAO_ESTADIADO"</text>
+        </inputValues>
+      </input>
+
+      <input id="Input_funcaoPulmonar" label="Funcao Pulmonar (VEF1/DLCO/VO2max)" camunda:inputVariable="funcaoPulmonar">
+        <inputExpression id="InputExpression_funcaoPulmonar" typeRef="string">
+          <text>funcaoPulmonar</text>
+        </inputExpression>
+        <inputValues id="InputValues_funcaoPulmonar">
+          <text>"EXCELENTE_VEF1_MAIOR_80","ADEQUADA_VEF1_60_80","LIMITROFE_VEF1_40_60","INSUFICIENTE_VEF1_MENOR_40","NAO_AVALIADA"</text>
+        </inputValues>
+      </input>
+
+      <input id="Input_comorbidades" label="Comorbidades e Risco Cardiaco" camunda:inputVariable="comorbidades">
+        <inputExpression id="InputExpression_comorbidades" typeRef="string">
+          <text>comorbidades</text>
+        </inputExpression>
+        <inputValues id="InputValues_comorbidades">
+          <text>"BAIXO_RISCO","RISCO_MODERADO","ALTO_RISCO_CARDIACO","FEVE_MENOR_45","ASA_IV_V"</text>
+        </inputValues>
+      </input>
+
+      <input id="Input_documentacaoClinica" label="Documentacao Clinica" camunda:inputVariable="documentacaoClinica">
+        <inputExpression id="InputExpression_documentacaoClinica" typeRef="string">
+          <text>documentacaoClinica</text>
+        </inputExpression>
+        <inputValues id="InputValues_documentacaoClinica">
+          <text>"COMPLETA_COM_VO2MAX","COMPLETA_SEM_VO2MAX","PARCIAL","INCOMPLETA"</text>
+        </inputValues>
+      </input>
+
+      <!-- ========== OUTPUTS (3) - Padrao TIER-1 ========== -->
+
+      <output id="Output_resultado" label="Resultado" name="resultado" typeRef="string">
+        <outputValues id="OutputValues_resultado">
+          <text>"Aprovado","Reprovado","Pendente"</text>
+        </outputValues>
+      </output>
+
+      <output id="Output_observacao" label="Observacao Clinica" name="observacao" typeRef="string" />
+
+      <output id="Output_fundamentacao" label="Fundamentacao Tecnica" name="fundamentacao" typeRef="string" />
+
+      <output id="Output_alertasDesperdicio" name="alertasDesperdicio" typeRef="string">
+        <outputValues>
+          <text>"NENHUM","DUP","FREQ","ESC","DOC","PROT","MULTI"</text>
+        </outputValues>
+      </output>
+
+      <output id="Output_acaoRecomendada" name="acaoRecomendada" typeRef="string">
+        <outputValues>
+          <text>"APROVAR","NEGAR","SOLICITAR_INFO","AGUARDAR_PRAZO","SUGERIR_ALTERNATIVA"</text>
+        </outputValues>
+      </output>
+
+      <!-- ========== REGRAS - Ordem: Reprovado, Aprovado, Pendente, Fallback ========== -->
+
+      <!-- REPROVACOES -->
+
+      <rule id="Rule_Reprovado_FuncaoInsuficiente">
+        <description>Reprovado: Funcao pulmonar insuficiente para pneumonectomia</description>
+        <inputEntry id="InputEntry_Rep_Func_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Rep_Func_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Rep_Func_3"><text>"INSUFICIENTE_VEF1_MENOR_40"</text></inputEntry>
+        <inputEntry id="InputEntry_Rep_Func_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Rep_Func_5"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_Rep_Func_resultado"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_Rep_Func_observacao"><text>"VEF1 ppo menor que 40%. Pneumonectomia contraindicada - alto risco de insuficiencia respiratoria pos-operatoria e mortalidade."</text></outputEntry>
+        <outputEntry id="OutputEntry_Rep_Func_fundamentacao"><text>"ACCP Guidelines, ERS/ESTS: VEF1 ppo menor 40% e DLCO ppo menor 40% conferem risco proibitivo para pneumonectomia. Mortalidade maior 15%."</text></outputEntry>
+        <outputEntry id="OutputEntry_Reprovado_FuncaoInsuficiente_alertasDesperdicio"><text>"PROT"</text></outputEntry>
+        <outputEntry id="OutputEntry_Reprovado_FuncaoInsuficiente_acaoRecomendada"><text>"NEGAR"</text></outputEntry>
+        <outputEntry id="OutputEntry_Reprovado_FuncaoInsuficiente_alertasDesperdicio"><text>"PROT"</text></outputEntry>
+        <outputEntry id="OutputEntry_Reprovado_FuncaoInsuficiente_acaoRecomendada"><text>"NEGAR"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Reprovado_RiscoCardiaco">
+        <description>Reprovado: Alto risco cardiaco ou FEVE reduzida</description>
+        <inputEntry id="InputEntry_Rep_Card_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Rep_Card_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Rep_Card_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Rep_Card_4"><text>"FEVE_MENOR_45","ASA_IV_V"</text></inputEntry>
+        <inputEntry id="InputEntry_Rep_Card_5"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_Rep_Card_resultado"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_Rep_Card_observacao"><text>"Disfuncao cardiaca significativa (FEVE menor 45%) ou ASA IV-V. Pneumonectomia apresenta risco cardiaco proibitivo."</text></outputEntry>
+        <outputEntry id="OutputEntry_Rep_Card_fundamentacao"><text>"SBCT 2023, ACC/AHA Perioperative Guidelines: FEVE reduzida aumenta risco de IC direita pos-pneumonectomia. Mortalidade cardiaca elevada."</text></outputEntry>
+        <outputEntry id="OutputEntry_Reprovado_RiscoCardiaco_alertasDesperdicio"><text>"PROT"</text></outputEntry>
+        <outputEntry id="OutputEntry_Reprovado_RiscoCardiaco_acaoRecomendada"><text>"NEGAR"</text></outputEntry>
+        <outputEntry id="OutputEntry_Reprovado_RiscoCardiaco_alertasDesperdicio"><text>"PROT"</text></outputEntry>
+        <outputEntry id="OutputEntry_Reprovado_RiscoCardiaco_acaoRecomendada"><text>"NEGAR"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Reprovado_Metastase">
+        <description>Reprovado: Estadio IV - Metastases a distancia</description>
+        <inputEntry id="InputEntry_Rep_Meta_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Rep_Meta_2"><text>"IVA","IVB"</text></inputEntry>
+        <inputEntry id="InputEntry_Rep_Meta_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Rep_Meta_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Rep_Meta_5"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_Rep_Meta_resultado"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_Rep_Meta_observacao"><text>"Estadio IV com metastases. Pneumonectomia nao indicada em doenca sistemica - tratamento oncologico sistemico."</text></outputEntry>
+        <outputEntry id="OutputEntry_Rep_Meta_fundamentacao"><text>"NCCN NSCLC 2024: Resseccao nao recomendada em estadio IV exceto em situacoes altamente selecionadas (oligometastatico)."</text></outputEntry>
+        <outputEntry id="OutputEntry_Reprovado_Metastase_alertasDesperdicio"><text>"PROT"</text></outputEntry>
+        <outputEntry id="OutputEntry_Reprovado_Metastase_acaoRecomendada"><text>"NEGAR"</text></outputEntry>
+        <outputEntry id="OutputEntry_Reprovado_Metastase_alertasDesperdicio"><text>"PROT"</text></outputEntry>
+        <outputEntry id="OutputEntry_Reprovado_Metastase_acaoRecomendada"><text>"NEGAR"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Reprovado_EstadioIIIBC">
+        <description>Reprovado: Estadio IIIB/IIIC irressecavel</description>
+        <inputEntry id="InputEntry_Rep_IIIBC_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Rep_IIIBC_2"><text>"IIIB","IIIC"</text></inputEntry>
+        <inputEntry id="InputEntry_Rep_IIIBC_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Rep_IIIBC_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Rep_IIIBC_5"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_Rep_IIIBC_resultado"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_Rep_IIIBC_observacao"><text>"Estadio IIIB/IIIC. Doenca localmente avancada geralmente irressecavel - quimiorradioterapia definitiva."</text></outputEntry>
+        <outputEntry id="OutputEntry_Rep_IIIBC_fundamentacao"><text>"NCCN NSCLC 2024: Pneumonectomia em IIIB-C tem morbimortalidade inaceitavel e beneficio questionavel."</text></outputEntry>
+        <outputEntry id="OutputEntry_Reprovado_EstadioIIIBC_alertasDesperdicio"><text>"PROT"</text></outputEntry>
+        <outputEntry id="OutputEntry_Reprovado_EstadioIIIBC_acaoRecomendada"><text>"NEGAR"</text></outputEntry>
+        <outputEntry id="OutputEntry_Reprovado_EstadioIIIBC_alertasDesperdicio"><text>"PROT"</text></outputEntry>
+        <outputEntry id="OutputEntry_Reprovado_EstadioIIIBC_acaoRecomendada"><text>"NEGAR"</text></outputEntry>
+      </rule>
+
+      <!-- APROVACOES -->
+
+      <rule id="Rule_Aprovado_EstadioI_II">
+        <description>Aprovado: CPNPC central estadio I-II com funcao excelente</description>
+        <inputEntry id="InputEntry_Apr_EI_1"><text>"CPNPC_CONFIRMADO","CPNPC_CENTRAL"</text></inputEntry>
+        <inputEntry id="InputEntry_Apr_EI_2"><text>"IA1","IA2","IA3","IB","IIA","IIB"</text></inputEntry>
+        <inputEntry id="InputEntry_Apr_EI_3"><text>"EXCELENTE_VEF1_MAIOR_80","ADEQUADA_VEF1_60_80"</text></inputEntry>
+        <inputEntry id="InputEntry_Apr_EI_4"><text>"BAIXO_RISCO","RISCO_MODERADO"</text></inputEntry>
+        <inputEntry id="InputEntry_Apr_EI_5"><text>"COMPLETA_COM_VO2MAX","COMPLETA_SEM_VO2MAX"</text></inputEntry>
+        <outputEntry id="OutputEntry_Apr_EI_resultado"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_Apr_EI_observacao"><text>"CPNPC central estadio I-II com funcao cardiopulmonar adequada. Pneumonectomia indicada quando lobectomia nao e tecnicamente possivel."</text></outputEntry>
+        <outputEntry id="OutputEntry_Apr_EI_fundamentacao"><text>"NCCN NSCLC 2024, SBCT 2023: Pneumonectomia e opcao curativa quando tumor central impede resseccao lobar anatomica. VEF1 maior 60% ideal."</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprovado_EstadioI_II_alertasDesperdicio"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprovado_EstadioI_II_acaoRecomendada"><text>"APROVAR"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprovado_EstadioI_II_alertasDesperdicio"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprovado_EstadioI_II_acaoRecomendada"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Aprovado_EstadioIIIA">
+        <description>Aprovado: CPNPC estadio IIIA selecionado pos-neoadjuvancia</description>
+        <inputEntry id="InputEntry_Apr_IIIA_1"><text>"CPNPC_CONFIRMADO","CPNPC_CENTRAL"</text></inputEntry>
+        <inputEntry id="InputEntry_Apr_IIIA_2"><text>"IIIA"</text></inputEntry>
+        <inputEntry id="InputEntry_Apr_IIIA_3"><text>"EXCELENTE_VEF1_MAIOR_80"</text></inputEntry>
+        <inputEntry id="InputEntry_Apr_IIIA_4"><text>"BAIXO_RISCO"</text></inputEntry>
+        <inputEntry id="InputEntry_Apr_IIIA_5"><text>"COMPLETA_COM_VO2MAX"</text></inputEntry>
+        <outputEntry id="OutputEntry_Apr_IIIA_resultado"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_Apr_IIIA_observacao"><text>"CPNPC estadio IIIA com resposta a neoadjuvancia e funcao cardiopulmonar excelente. Pneumonectomia possivel em centro especializado."</text></outputEntry>
+        <outputEntry id="OutputEntry_Apr_IIIA_fundamentacao"><text>"NCCN 2024, SBCT 2023: IIIA selecionado pode ser ressecavel. Pneumonectomia aceitavel se VEF1 maior 80% e VO2max maior 20 mL/kg/min."</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprovado_EstadioIIIA_alertasDesperdicio"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprovado_EstadioIIIA_acaoRecomendada"><text>"APROVAR"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprovado_EstadioIIIA_alertasDesperdicio"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprovado_EstadioIIIA_acaoRecomendada"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <!-- PENDENCIAS -->
+
+      <rule id="Rule_Pendente_FuncaoLimitrofe">
+        <description>Pendente: Funcao pulmonar limitrofe - requer avaliacao complementar</description>
+        <inputEntry id="InputEntry_Pend_Func_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Pend_Func_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Pend_Func_3"><text>"LIMITROFE_VEF1_40_60"</text></inputEntry>
+        <inputEntry id="InputEntry_Pend_Func_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Pend_Func_5"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_Pend_Func_resultado"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OutputEntry_Pend_Func_observacao"><text>"VEF1 entre 40-60%. Para pneumonectomia, necessario teste de exercicio cardiopulmonar (VO2max) e avaliacao cardiologica completa."</text></outputEntry>
+        <outputEntry id="OutputEntry_Pend_Func_fundamentacao"><text>"ACCP, ERS/ESTS: VEF1 limitrofe requer VO2max para estratificacao. VO2max maior 15 mL/kg/min permite pneumonectomia; menor 10 contraindica."</text></outputEntry>
+        <outputEntry id="OutputEntry_Pendente_FuncaoLimitrofe_alertasDesperdicio"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_Pendente_FuncaoLimitrofe_acaoRecomendada"><text>"SOLICITAR_INFO"</text></outputEntry>
+        <outputEntry id="OutputEntry_Pendente_FuncaoLimitrofe_alertasDesperdicio"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_Pendente_FuncaoLimitrofe_acaoRecomendada"><text>"SOLICITAR_INFO"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Pendente_SemVO2max">
+        <description>Pendente: Avaliacao funcional sem VO2max</description>
+        <inputEntry id="InputEntry_Pend_VO2_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Pend_VO2_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Pend_VO2_3"><text>"ADEQUADA_VEF1_60_80"</text></inputEntry>
+        <inputEntry id="InputEntry_Pend_VO2_4"><text>"RISCO_MODERADO","ALTO_RISCO_CARDIACO"</text></inputEntry>
+        <inputEntry id="InputEntry_Pend_VO2_5"><text>"COMPLETA_SEM_VO2MAX"</text></inputEntry>
+        <outputEntry id="OutputEntry_Pend_VO2_resultado"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OutputEntry_Pend_VO2_observacao"><text>"Pneumonectomia requer VO2max para estratificacao de risco quando VEF1 entre 60-80% e/ou risco cardiaco moderado/alto."</text></outputEntry>
+        <outputEntry id="OutputEntry_Pend_VO2_fundamentacao"><text>"ERS/ESTS Guidelines: VO2max e o melhor preditor de mortalidade pos-pneumonectomia. Obrigatorio em pacientes com reserva funcional limitrofe."</text></outputEntry>
+        <outputEntry id="OutputEntry_Pendente_SemVO2max_alertasDesperdicio"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_Pendente_SemVO2max_acaoRecomendada"><text>"SOLICITAR_INFO"</text></outputEntry>
+        <outputEntry id="OutputEntry_Pendente_SemVO2max_alertasDesperdicio"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_Pendente_SemVO2max_acaoRecomendada"><text>"SOLICITAR_INFO"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Pendente_DocumentacaoIncompleta">
+        <description>Pendente: Documentacao incompleta</description>
+        <inputEntry id="InputEntry_Pend_Doc_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Pend_Doc_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Pend_Doc_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Pend_Doc_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Pend_Doc_5"><text>"PARCIAL","INCOMPLETA"</text></inputEntry>
+        <outputEntry id="OutputEntry_Pend_Doc_resultado"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OutputEntry_Pend_Doc_observacao"><text>"Documentacao incompleta para pneumonectomia. Anexar: estadiamento completo, espirometria com DLCO, ecocardiograma, VO2max se indicado."</text></outputEntry>
+        <outputEntry id="OutputEntry_Pend_Doc_fundamentacao"><text>"SBCT 2023: Pneumonectomia e procedimento de alto risco. Avaliacao pre-operatoria completa e mandatoria."</text></outputEntry>
+        <outputEntry id="OutputEntry_Pendente_DocumentacaoIncompleta_alertasDesperdicio"><text>"DOC"</text></outputEntry>
+        <outputEntry id="OutputEntry_Pendente_DocumentacaoIncompleta_acaoRecomendada"><text>"SOLICITAR_INFO"</text></outputEntry>
+        <outputEntry id="OutputEntry_Pendente_DocumentacaoIncompleta_alertasDesperdicio"><text>"DOC"</text></outputEntry>
+        <outputEntry id="OutputEntry_Pendente_DocumentacaoIncompleta_acaoRecomendada"><text>"SOLICITAR_INFO"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Pendente_NaoEstadiado">
+        <description>Pendente: Estadiamento incompleto</description>
+        <inputEntry id="InputEntry_Pend_Est_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Pend_Est_2"><text>"NAO_ESTADIADO"</text></inputEntry>
+        <inputEntry id="InputEntry_Pend_Est_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Pend_Est_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Pend_Est_5"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_Pend_Est_resultado"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OutputEntry_Pend_Est_observacao"><text>"Estadiamento TNM nao realizado. Para pneumonectomia, necessario PET-CT e avaliacao de mediastino (EBUS/mediastinoscopia se N2 suspeito)."</text></outputEntry>
+        <outputEntry id="OutputEntry_Pend_Est_fundamentacao"><text>"NCCN 2024: Estadiamento invasivo do mediastino recomendado antes de pneumonectomia para excluir N2 multiestacional."</text></outputEntry>
+        <outputEntry id="OutputEntry_Pendente_NaoEstadiado_alertasDesperdicio"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_Pendente_NaoEstadiado_acaoRecomendada"><text>"SOLICITAR_INFO"</text></outputEntry>
+        <outputEntry id="OutputEntry_Pendente_NaoEstadiado_alertasDesperdicio"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_Pendente_NaoEstadiado_acaoRecomendada"><text>"SOLICITAR_INFO"</text></outputEntry>
+      </rule>
+
+      <!-- FALLBACK -->
+
+      <rule id="Rule_Fallback_30803111">
+        <description>Fallback: Caso atipico requer analise individualizada</description>
+        <inputEntry id="InputEntry_Fallback_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Fallback_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Fallback_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Fallback_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Fallback_5"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_Fallback_resultado"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OutputEntry_Fallback_observacao"><text>"Caso requer analise por equipe multidisciplinar de cirurgia toracica. Pneumonectomia e procedimento de alto risco que demanda avaliacao criteriosa."</text></outputEntry>
+        <outputEntry id="OutputEntry_Fallback_fundamentacao"><text>"SBCT 2023, NCCN 2024: Decisao de pneumonectomia deve ser tomada em tumor board com participacao de pneumologista, oncologista e cirurgiao toracico."</text></outputEntry>
+        <outputEntry id="OutputEntry_Fallback_30803111_alertasDesperdicio"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_Fallback_30803111_acaoRecomendada"><text>"SOLICITAR_INFO"</text></outputEntry>
+        <outputEntry id="OutputEntry_Fallback_30803111_alertasDesperdicio"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_Fallback_30803111_acaoRecomendada"><text>"SOLICITAR_INFO"</text></outputEntry>
+      </rule>
+
+    </decisionTable>
+  </decision>
+</definitions>

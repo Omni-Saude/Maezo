@@ -1,0 +1,260 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             xmlns:camunda="http://camunda.org/schema/1.0/dmn"
+             id="Definitions_BAR018"
+             name="Hiperinsulinemia Nesidioblastose"
+             namespace="http://camunda.org/schema/1.0/dmn">
+
+  <!--
+    ===============================================================================
+    TUSS: BAR-018
+    Procedimento: Investigacao e Tratamento de Hiperinsulinismo Pos-Bariatrico
+    Especialidade: Cirurgia Bariatrica / Endocrinologia
+    Versao: 3.0.0-TIER1
+    Data: 2026-02-07
+    ===============================================================================
+
+    INDICACOES CLINICAS (Endocrine Society 2022, ASMBS 2020):
+    - Hipoglicemia pos-prandial severa recorrente
+    - Hiperinsulinismo endogeno documentado
+    - Nesidioblastose (hiperplasia de celulas beta) pos-bariatrica
+    - Neuroglicoprnia recorrente
+    - Refratariedade ao tratamento clinico otimizado
+
+    CRITERIOS DIAGNOSTICOS:
+    - Hipoglicemia (<55 mg/dL) com sintomas
+    - Insulina e peptideo C inapropriadamente elevados
+    - Resolucao com glicose
+
+    REFERENCIAS TECNICAS:
+    - Endocrine Society 2022 - Hypoglycemia Post-Bariatric
+    - ASMBS 2020 - Nesidioblastosis Management
+    - SBCBM 2022 - Complicacoes Metabolicas
+
+    ===============================================================================
+  -->
+
+  <decision id="Decision_BAR018" name="Regra Clinica - Hiperinsulinemia Nesidioblastose">
+    <decisionTable id="DecisionTable_BAR018" hitPolicy="FIRST">
+
+      <!-- ========== INPUTS (5) ========== -->
+
+      <input id="Input_diagnosticoConfirmado" label="Diagnostico Confirmado" camunda:inputVariable="diagnosticoConfirmado">
+        <inputExpression id="InputExpression_diagnosticoConfirmado" typeRef="string">
+          <text>diagnosticoConfirmado</text>
+        </inputExpression>
+        <inputValues id="InputValues_diagnosticoConfirmado">
+          <text>"NesidioblastoseConfirmada","HiperinsulinismoEndogeno","SuspeitaClinica","EmInvestigacao"</text>
+        </inputValues>
+      </input>
+
+      <input id="Input_gravidadeHipoglicemia" label="Gravidade da Hipoglicemia" camunda:inputVariable="gravidadeHipoglicemia">
+        <inputExpression id="InputExpression_gravidadeHipoglicemia" typeRef="string">
+          <text>gravidadeHipoglicemia</text>
+        </inputExpression>
+        <inputValues id="InputValues_gravidadeHipoglicemia">
+          <text>"Neuroglicoprnia","GraveRecorrente","Moderada","Leve"</text>
+        </inputValues>
+      </input>
+
+      <input id="Input_tratamentoClinico" label="Tratamento Clinico Previo" camunda:inputVariable="tratamentoClinico">
+        <inputExpression id="InputExpression_tratamentoClinico" typeRef="string">
+          <text>tratamentoClinico</text>
+        </inputExpression>
+        <inputValues id="InputValues_tratamentoClinico">
+          <text>"DietaAcarboseOctreotideFalha","DietaAcarboseFalha","DietaFalha","EmTratamento","NaoIniciado"</text>
+        </inputValues>
+      </input>
+
+      <input id="Input_internacoesPorHipoglicemia" label="Internacoes por Hipoglicemia (ultimos 12 meses)" camunda:inputVariable="internacoesPorHipoglicemia">
+        <inputExpression id="InputExpression_internacoesPorHipoglicemia" typeRef="number">
+          <text>internacoesPorHipoglicemia</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_procedimentoSolicitado" label="Procedimento Solicitado" camunda:inputVariable="procedimentoSolicitado">
+        <inputExpression id="InputExpression_procedimentoSolicitado" typeRef="string">
+          <text>procedimentoSolicitado</text>
+        </inputExpression>
+        <inputValues id="InputValues_procedimentoSolicitado">
+          <text>"InvestigacaoCompleta","PancreatectomiaPartial","ReversaoBypass","BombaDiazoxide","ConsultaEspecializada"</text>
+        </inputValues>
+      </input>
+
+      <!-- ========== OUTPUTS (3 - Padrao TIER-1) ========== -->
+
+      <output id="Output_resultado" label="Resultado" name="resultado" typeRef="string">
+        <outputValues id="OutputValues_resultado">
+          <text>"Aprovado","Reprovado","Pendente"</text>
+        </outputValues>
+      </output>
+
+      <output id="Output_observacao" label="Observacao Clinica" name="observacao" typeRef="string" />
+
+      <output id="Output_fundamentacao" label="Fundamentacao Tecnica" name="fundamentacao" typeRef="string" />
+
+      <!-- Output 4: Alertas Desperdicio -->
+      <output id="Output_alertasDesperdicio" label="Alertas de Desperdicio" name="alertasDesperdicio" typeRef="string">
+        <outputValues id="OutputValues_alertasDesperdicio">
+          <text>"NENHUM","DUP","FREQ","ESC","DOC","PROT","MULTI"</text>
+        </outputValues>
+      </output>
+
+      <!-- Output 5: Acao Recomendada -->
+      <output id="Output_acaoRecomendada" label="Acao Recomendada" name="acaoRecomendada" typeRef="string">
+        <outputValues id="OutputValues_acaoRecomendada">
+          <text>"APROVAR","NEGAR","SOLICITAR_INFO","AGUARDAR_PRAZO","SUGERIR_ALTERNATIVA"</text>
+        </outputValues>
+      </output>
+
+      <!-- ========== RULES ========== -->
+
+      <!-- APROVACOES URGENTES -->
+      <rule id="Rule_Aprovado_Neuroglicoprnia">
+        <description>Aprovado Urgente: Neuroglicoprnia recorrente</description>
+        <inputEntry id="InputEntry_NG_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_NG_2"><text>"Neuroglicoprnia"</text></inputEntry>
+        <inputEntry id="InputEntry_NG_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_NG_4"><text>&gt;= 1</text></inputEntry>
+        <inputEntry id="InputEntry_NG_5"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_NG_resultado"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_NG_observacao"><text>"URGENTE - Neuroglicoprnia recorrente - risco de dano cerebral permanente"</text></outputEntry>
+        <outputEntry id="OutputEntry_NG_fundamentacao"><text>"Endocrine Society 2022 - Neuroglicoprnia e emergencia que requer tratamento imediato"</text></outputEntry>
+      <outputEntry id="OE_Aprovado_Neuroglicoprnia_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_Aprovado_Neuroglicoprnia_5"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <!-- APROVACOES - INVESTIGACAO -->
+      <rule id="Rule_Aprovado_InvestigacaoCompleta">
+        <description>Aprovado: Investigacao completa para suspeita clinica</description>
+        <inputEntry id="InputEntry_IC_1"><text>"SuspeitaClinica","EmInvestigacao"</text></inputEntry>
+        <inputEntry id="InputEntry_IC_2"><text>"GraveRecorrente","Moderada"</text></inputEntry>
+        <inputEntry id="InputEntry_IC_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_IC_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_IC_5"><text>"InvestigacaoCompleta"</text></inputEntry>
+        <outputEntry id="OutputEntry_IC_resultado"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_IC_observacao"><text>"Investigacao de hiperinsulinismo: teste de jejum, peptideo C, insulina, imagem pancreatica"</text></outputEntry>
+        <outputEntry id="OutputEntry_IC_fundamentacao"><text>"Endocrine Society 2022 - Investigacao completa necessaria para confirmar hiperinsulinismo endogeno"</text></outputEntry>
+      <outputEntry id="OE_Aprovado_InvestigacaoCompleta_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_Aprovado_InvestigacaoCompleta_5"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Aprovado_ConsultaEspecializada">
+        <description>Aprovado: Consulta endocrinologica especializada</description>
+        <inputEntry id="InputEntry_CE_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_CE_2"><text>not("Leve")</text></inputEntry>
+        <inputEntry id="InputEntry_CE_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_CE_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_CE_5"><text>"ConsultaEspecializada"</text></inputEntry>
+        <outputEntry id="OutputEntry_CE_resultado"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_CE_observacao"><text>"Avaliacao por endocrinologista especializado em hipoglicemia pos-bariatrica"</text></outputEntry>
+        <outputEntry id="OutputEntry_CE_fundamentacao"><text>"ASMBS 2020 - Centro especializado necessario para casos complexos"</text></outputEntry>
+      <outputEntry id="OE_Aprovado_ConsultaEspecializada_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_Aprovado_ConsultaEspecializada_5"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <!-- APROVACOES - TRATAMENTO AVANCADO -->
+      <rule id="Rule_Aprovado_PancreatectomiaPartial">
+        <description>Aprovado: Pancreatectomia parcial para nesidioblastose confirmada</description>
+        <inputEntry id="InputEntry_PP_1"><text>"NesidioblastoseConfirmada"</text></inputEntry>
+        <inputEntry id="InputEntry_PP_2"><text>"Neuroglicoprnia","GraveRecorrente"</text></inputEntry>
+        <inputEntry id="InputEntry_PP_3"><text>"DietaAcarboseOctreotideFalha"</text></inputEntry>
+        <inputEntry id="InputEntry_PP_4"><text>&gt;= 2</text></inputEntry>
+        <inputEntry id="InputEntry_PP_5"><text>"PancreatectomiaPartial"</text></inputEntry>
+        <outputEntry id="OutputEntry_PP_resultado"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_PP_observacao"><text>"Pancreatectomia parcial para nesidioblastose refrataria a todo tratamento clinico"</text></outputEntry>
+        <outputEntry id="OutputEntry_PP_fundamentacao"><text>"ASMBS 2020, Endocrine Society 2022 - Cirurgia pancreatica indicada em casos refratarios graves"</text></outputEntry>
+      <outputEntry id="OE_Aprovado_PancreatectomiaPartial_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_Aprovado_PancreatectomiaPartial_5"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Aprovado_ReversaoBypass">
+        <description>Aprovado: Reversao de bypass para hiperinsulinismo refratario</description>
+        <inputEntry id="InputEntry_RB_1"><text>"HiperinsulinismoEndogeno","NesidioblastoseConfirmada"</text></inputEntry>
+        <inputEntry id="InputEntry_RB_2"><text>"Neuroglicoprnia","GraveRecorrente"</text></inputEntry>
+        <inputEntry id="InputEntry_RB_3"><text>"DietaAcarboseOctreotideFalha"</text></inputEntry>
+        <inputEntry id="InputEntry_RB_4"><text>&gt;= 3</text></inputEntry>
+        <inputEntry id="InputEntry_RB_5"><text>"ReversaoBypass"</text></inputEntry>
+        <outputEntry id="OutputEntry_RB_resultado"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_RB_observacao"><text>"Reversao de bypass para restaurar transito intestinal e reduzir hiperinsulinismo"</text></outputEntry>
+        <outputEntry id="OutputEntry_RB_fundamentacao"><text>"ASMBS 2020 - Reversao pode ser considerada antes de pancreatectomia em casos selecionados"</text></outputEntry>
+      <outputEntry id="OE_Aprovado_ReversaoBypass_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_Aprovado_ReversaoBypass_5"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Aprovado_Diazoxide">
+        <description>Aprovado: Bomba de diazoxide para casos graves</description>
+        <inputEntry id="InputEntry_DZ_1"><text>"NesidioblastoseConfirmada","HiperinsulinismoEndogeno"</text></inputEntry>
+        <inputEntry id="InputEntry_DZ_2"><text>"GraveRecorrente"</text></inputEntry>
+        <inputEntry id="InputEntry_DZ_3"><text>"DietaAcarboseFalha"</text></inputEntry>
+        <inputEntry id="InputEntry_DZ_4"><text>&gt;= 1</text></inputEntry>
+        <inputEntry id="InputEntry_DZ_5"><text>"BombaDiazoxide"</text></inputEntry>
+        <outputEntry id="OutputEntry_DZ_resultado"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_DZ_observacao"><text>"Diazoxide para supressao de secrecao insulinica em casos refratarios"</text></outputEntry>
+        <outputEntry id="OutputEntry_DZ_fundamentacao"><text>"Endocrine Society 2022 - Diazoxide e opcao medicamentosa para hiperinsulinismo grave"</text></outputEntry>
+      <outputEntry id="OE_Aprovado_Diazoxide_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_Aprovado_Diazoxide_5"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <!-- REPROVACOES -->
+      <rule id="Rule_Reprovado_TratamentoClinicNaoOtimizado">
+        <description>Reprovado: Tratamento clinico nao otimizado para cirurgia</description>
+        <inputEntry id="InputEntry_TC_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_TC_2"><text>"Moderada","Leve"</text></inputEntry>
+        <inputEntry id="InputEntry_TC_3"><text>"DietaFalha","EmTratamento","NaoIniciado"</text></inputEntry>
+        <inputEntry id="InputEntry_TC_4"><text>&lt;= 1</text></inputEntry>
+        <inputEntry id="InputEntry_TC_5"><text>"PancreatectomiaPartial","ReversaoBypass"</text></inputEntry>
+        <outputEntry id="OutputEntry_TC_resultado"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_TC_observacao"><text>"Otimizar tratamento clinico (acarbose, octreotide) antes de considerar cirurgia"</text></outputEntry>
+        <outputEntry id="OutputEntry_TC_fundamentacao"><text>"ASMBS 2020 - Cirurgia reservada para falha comprovada do tratamento clinico maximo"</text></outputEntry>
+      <outputEntry id="OE_Reprovado_TratamentoClinicNaoOtimizado_4"><text>"PROT"</text></outputEntry>
+        <outputEntry id="OE_Reprovado_TratamentoClinicNaoOtimizado_5"><text>"NEGAR"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Reprovado_DiagnosticoNaoConfirmado">
+        <description>Reprovado: Diagnostico nao confirmado para tratamento avancado</description>
+        <inputEntry id="InputEntry_DNC_1"><text>"SuspeitaClinica","EmInvestigacao"</text></inputEntry>
+        <inputEntry id="InputEntry_DNC_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_DNC_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_DNC_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_DNC_5"><text>"PancreatectomiaPartial","ReversaoBypass","BombaDiazoxide"</text></inputEntry>
+        <outputEntry id="OutputEntry_DNC_resultado"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_DNC_observacao"><text>"Confirmar diagnostico de hiperinsulinismo endogeno antes de tratamento avancado"</text></outputEntry>
+        <outputEntry id="OutputEntry_DNC_fundamentacao"><text>"Endocrine Society 2022 - Confirmacao diagnostica e mandatoria antes de tratamento invasivo"</text></outputEntry>
+      <outputEntry id="OE_Reprovado_DiagnosticoNaoConfirmado_4"><text>"PROT"</text></outputEntry>
+        <outputEntry id="OE_Reprovado_DiagnosticoNaoConfirmado_5"><text>"NEGAR"</text></outputEntry>
+      </rule>
+
+      <!-- PENDENTE -->
+      <rule id="Rule_Pendente_AguardandoResultados">
+        <description>Pendente: Aguardando resultados de investigacao</description>
+        <inputEntry id="InputEntry_AR_1"><text>"EmInvestigacao"</text></inputEntry>
+        <inputEntry id="InputEntry_AR_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_AR_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_AR_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_AR_5"><text>not("InvestigacaoCompleta","ConsultaEspecializada")</text></inputEntry>
+        <outputEntry id="OutputEntry_AR_resultado"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OutputEntry_AR_observacao"><text>"Aguardar resultados da investigacao diagnostica em andamento"</text></outputEntry>
+        <outputEntry id="OutputEntry_AR_fundamentacao"><text>"Endocrine Society 2022 - Decisao terapeutica apos confirmacao diagnostica"</text></outputEntry>
+      <outputEntry id="OE_Pendente_AguardandoResultados_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_Pendente_AguardandoResultados_5"><text>"SOLICITAR_INFO"</text></outputEntry>
+      </rule>
+
+      <!-- FALLBACK RULE -->
+      <rule id="Rule_Fallback_BAR018">
+        <description>Regra padrao - Analise adicional necessaria</description>
+        <inputEntry id="InputEntry_Fallback_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Fallback_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Fallback_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Fallback_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Fallback_5"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_Fallback_resultado"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OutputEntry_Fallback_observacao"><text>"Encaminhar para centro de referencia em hipoglicemia pos-bariatrica"</text></outputEntry>
+        <outputEntry id="OutputEntry_Fallback_fundamentacao"><text>"Endocrine Society 2022, ASMBS 2020 - Casos complexos requerem centro especializado"</text></outputEntry>
+      <outputEntry id="OE_Fallback_BAR018_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_Fallback_BAR018_5"><text>"SOLICITAR_INFO"</text></outputEntry>
+      </rule>
+
+    </decisionTable>
+  </decision>
+</definitions>

@@ -1,0 +1,230 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             xmlns:camunda="http://camunda.org/schema/1.0/dmn"
+             id="Definitions_BAR005"
+             name="Revisao Bypass para Duodenal Switch"
+             namespace="http://camunda.org/schema/1.0/dmn">
+
+  <!--
+    ===============================================================================
+    TUSS: BAR-005
+    Procedimento: Revisao de Bypass Gastrico para Duodenal Switch/SADI-S
+    Especialidade: Cirurgia Bariatrica
+    Versao: 3.0.0-TIER1
+    Data: 2026-02-07
+    ===============================================================================
+
+    INDICACOES CLINICAS (SBCBM 2022, IFSO 2023):
+    - Super-obesidade persistente (IMC >50) apos bypass
+    - Falha de perda de peso (EWL <25% apos 3 anos)
+    - Diabetes tipo 2 refratario apos bypass
+    - Sindrome metabolica nao controlada
+
+    CONTRAINDICACOES:
+    - Doenca hepatica avancada (Child-Pugh B/C)
+    - Desnutricao proteico-calorica
+    - Nao adesao ao seguimento nutricional
+    - Expectativa de vida < 2 anos
+
+    REFERENCIAS TECNICAS:
+    - SBCBM 2022 - Indicacoes de Cirurgia Revisional
+    - IFSO 2023 - Guidelines for Complex Revisions
+    - ASMBS Position Statement on DS/SADI-S 2021
+
+    ===============================================================================
+  -->
+
+  <decision id="Decision_BAR005" name="Regra Clinica - Revisao Bypass para DS/SADI-S">
+    <decisionTable id="DecisionTable_BAR005" hitPolicy="FIRST">
+
+      <!-- ========== INPUTS (5) ========== -->
+
+      <input id="Input_indicacaoRevisaoDS" label="Indicacao para DS/SADI-S" camunda:inputVariable="indicacaoRevisaoDS">
+        <inputExpression id="InputExpression_indicacaoRevisaoDS" typeRef="string">
+          <text>indicacaoRevisaoDS</text>
+        </inputExpression>
+        <inputValues id="InputValues_indicacaoRevisaoDS">
+          <text>"SuperObesidade","FalhaPerdaPeso","DiabetesRefratario","SindromeMetabolicaNaoControlada"</text>
+        </inputValues>
+      </input>
+
+      <input id="Input_imcAtual" label="IMC Atual" camunda:inputVariable="imcAtual">
+        <inputExpression id="InputExpression_imcAtual" typeRef="number">
+          <text>imcAtual</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_funcaoHepatica" label="Funcao Hepatica (Child-Pugh)" camunda:inputVariable="funcaoHepatica">
+        <inputExpression id="InputExpression_funcaoHepatica" typeRef="string">
+          <text>funcaoHepatica</text>
+        </inputExpression>
+        <inputValues id="InputValues_funcaoHepatica">
+          <text>"A","B","C","NaoAvaliada"</text>
+        </inputValues>
+      </input>
+
+      <input id="Input_estadoNutricional" label="Estado Nutricional" camunda:inputVariable="estadoNutricional">
+        <inputExpression id="InputExpression_estadoNutricional" typeRef="string">
+          <text>estadoNutricional</text>
+        </inputExpression>
+        <inputValues id="InputValues_estadoNutricional">
+          <text>"Adequado","DeficienciaLeve","DeficienciaGrave","Desnutricao"</text>
+        </inputValues>
+      </input>
+
+      <input id="Input_adesaoSeguimento" label="Adesao ao Seguimento" camunda:inputVariable="adesaoSeguimento">
+        <inputExpression id="InputExpression_adesaoSeguimento" typeRef="string">
+          <text>adesaoSeguimento</text>
+        </inputExpression>
+        <inputValues id="InputValues_adesaoSeguimento">
+          <text>"Excelente","Boa","Regular","Ruim"</text>
+        </inputValues>
+      </input>
+
+      <!-- ========== OUTPUTS (3 - Padrao TIER-1) ========== -->
+
+      <output id="Output_resultado" label="Resultado" name="resultado" typeRef="string">
+        <outputValues id="OutputValues_resultado">
+          <text>"Aprovado","Reprovado","Pendente"</text>
+        </outputValues>
+      </output>
+
+      <output id="Output_observacao" label="Observacao Clinica" name="observacao" typeRef="string" />
+
+      <output id="Output_fundamentacao" label="Fundamentacao Tecnica" name="fundamentacao" typeRef="string" />
+
+      <!-- Output 4: Alertas Desperdicio -->
+      <output id="Output_alertasDesperdicio" label="Alertas de Desperdicio" name="alertasDesperdicio" typeRef="string">
+        <outputValues id="OutputValues_alertasDesperdicio">
+          <text>"NENHUM","DUP","FREQ","ESC","DOC","PROT","MULTI"</text>
+        </outputValues>
+      </output>
+
+      <!-- Output 5: Acao Recomendada -->
+      <output id="Output_acaoRecomendada" label="Acao Recomendada" name="acaoRecomendada" typeRef="string">
+        <outputValues id="OutputValues_acaoRecomendada">
+          <text>"APROVAR","NEGAR","SOLICITAR_INFO","AGUARDAR_PRAZO","SUGERIR_ALTERNATIVA"</text>
+        </outputValues>
+      </output>
+
+      <!-- ========== RULES ========== -->
+
+      <!-- CONTRAINDICACOES -->
+      <rule id="Rule_Contraind_HepatopatiaGrave">
+        <description>Contraindicacao: Doenca hepatica avancada</description>
+        <inputEntry id="InputEntry_HG_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_HG_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_HG_3"><text>"B","C"</text></inputEntry>
+        <inputEntry id="InputEntry_HG_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_HG_5"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_HG_resultado"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_HG_observacao"><text>"Hepatopatia Child-Pugh B/C contraindica procedimentos malabsortivos"</text></outputEntry>
+        <outputEntry id="OutputEntry_HG_fundamentacao"><text>"SBCBM 2022, IFSO 2023 - DS/SADI-S contraindicado em hepatopatia avancada pelo risco de insuficiencia hepatica"</text></outputEntry>
+      <outputEntry id="OE_Contraind_HepatopatiaGrave_4"><text>"PROT"</text></outputEntry>
+        <outputEntry id="OE_Contraind_HepatopatiaGrave_5"><text>"NEGAR"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Contraind_Desnutricao">
+        <description>Contraindicacao: Desnutricao proteico-calorica</description>
+        <inputEntry id="InputEntry_DN_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_DN_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_DN_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_DN_4"><text>"Desnutricao"</text></inputEntry>
+        <inputEntry id="InputEntry_DN_5"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_DN_resultado"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_DN_observacao"><text>"Desnutricao previa contraindica procedimento malabsortivo"</text></outputEntry>
+        <outputEntry id="OutputEntry_DN_fundamentacao"><text>"SBCBM 2022 - Corrigir desnutricao antes de considerar DS/SADI-S"</text></outputEntry>
+      <outputEntry id="OE_Contraind_Desnutricao_4"><text>"PROT"</text></outputEntry>
+        <outputEntry id="OE_Contraind_Desnutricao_5"><text>"NEGAR"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Contraind_MaAdesao">
+        <description>Contraindicacao: Ma adesao ao seguimento</description>
+        <inputEntry id="InputEntry_MA_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_MA_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_MA_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_MA_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_MA_5"><text>"Ruim"</text></inputEntry>
+        <outputEntry id="OutputEntry_MA_resultado"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_MA_observacao"><text>"DS/SADI-S requer adesao rigorosa ao acompanhamento nutricional"</text></outputEntry>
+        <outputEntry id="OutputEntry_MA_fundamentacao"><text>"IFSO 2023 - Procedimentos malabsortivos exigem adesao ao seguimento para prevenir deficiencias graves"</text></outputEntry>
+      <outputEntry id="OE_Contraind_MaAdesao_4"><text>"PROT"</text></outputEntry>
+        <outputEntry id="OE_Contraind_MaAdesao_5"><text>"NEGAR"</text></outputEntry>
+      </rule>
+
+      <!-- APROVACOES -->
+      <rule id="Rule_Aprovado_SuperObesidade">
+        <description>Aprovado: Super-obesidade persistente apos bypass</description>
+        <inputEntry id="InputEntry_SO_1"><text>"SuperObesidade"</text></inputEntry>
+        <inputEntry id="InputEntry_SO_2"><text>&gt;= 50</text></inputEntry>
+        <inputEntry id="InputEntry_SO_3"><text>"A"</text></inputEntry>
+        <inputEntry id="InputEntry_SO_4"><text>"Adequado","DeficienciaLeve"</text></inputEntry>
+        <inputEntry id="InputEntry_SO_5"><text>"Excelente","Boa"</text></inputEntry>
+        <outputEntry id="OutputEntry_SO_resultado"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_SO_observacao"><text>"Super-obesidade (IMC &gt;=50) persistente - indicacao de procedimento malabsortivo"</text></outputEntry>
+        <outputEntry id="OutputEntry_SO_fundamentacao"><text>"SBCBM 2022, ASMBS 2021 - DS/SADI-S indicado para super-obesidade refrataria ao bypass"</text></outputEntry>
+      <outputEntry id="OE_Aprovado_SuperObesidade_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_Aprovado_SuperObesidade_5"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Aprovado_FalhaPeso">
+        <description>Aprovado: Falha de perda de peso significativa</description>
+        <inputEntry id="InputEntry_FP_1"><text>"FalhaPerdaPeso"</text></inputEntry>
+        <inputEntry id="InputEntry_FP_2"><text>&gt;= 40</text></inputEntry>
+        <inputEntry id="InputEntry_FP_3"><text>"A"</text></inputEntry>
+        <inputEntry id="InputEntry_FP_4"><text>"Adequado","DeficienciaLeve"</text></inputEntry>
+        <inputEntry id="InputEntry_FP_5"><text>"Excelente","Boa"</text></inputEntry>
+        <outputEntry id="OutputEntry_FP_resultado"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_FP_observacao"><text>"EWL &lt;25% apos 3 anos de bypass - indicacao de conversao para DS/SADI-S"</text></outputEntry>
+        <outputEntry id="OutputEntry_FP_fundamentacao"><text>"IFSO 2023 - Falha de perda ponderal com IMC residual elevado justifica conversao malabsortiva"</text></outputEntry>
+      <outputEntry id="OE_Aprovado_FalhaPeso_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_Aprovado_FalhaPeso_5"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Aprovado_DiabetesRefratario">
+        <description>Aprovado: Diabetes refratario apos bypass</description>
+        <inputEntry id="InputEntry_DR_1"><text>"DiabetesRefratario"</text></inputEntry>
+        <inputEntry id="InputEntry_DR_2"><text>&gt;= 35</text></inputEntry>
+        <inputEntry id="InputEntry_DR_3"><text>"A"</text></inputEntry>
+        <inputEntry id="InputEntry_DR_4"><text>"Adequado","DeficienciaLeve"</text></inputEntry>
+        <inputEntry id="InputEntry_DR_5"><text>"Excelente","Boa"</text></inputEntry>
+        <outputEntry id="OutputEntry_DR_resultado"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_DR_observacao"><text>"Diabetes tipo 2 descompensado apos bypass - DS/SADI-S oferece maior efeito metabolico"</text></outputEntry>
+        <outputEntry id="OutputEntry_DR_fundamentacao"><text>"SBCBM 2022 - DS/SADI-S superior ao bypass para controle de DM2 refratario"</text></outputEntry>
+      <outputEntry id="OE_Aprovado_DiabetesRefratario_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_Aprovado_DiabetesRefratario_5"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <!-- PENDENTE -->
+      <rule id="Rule_Pendente_DeficienciaLeve">
+        <description>Pendente: Deficiencia nutricional leve requer correcao</description>
+        <inputEntry id="InputEntry_DL_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_DL_2"><text>&gt;= 40</text></inputEntry>
+        <inputEntry id="InputEntry_DL_3"><text>"A"</text></inputEntry>
+        <inputEntry id="InputEntry_DL_4"><text>"DeficienciaLeve"</text></inputEntry>
+        <inputEntry id="InputEntry_DL_5"><text>"Regular"</text></inputEntry>
+        <outputEntry id="OutputEntry_DL_resultado"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OutputEntry_DL_observacao"><text>"Corrigir deficiencias nutricionais e melhorar adesao ao seguimento"</text></outputEntry>
+        <outputEntry id="OutputEntry_DL_fundamentacao"><text>"SBCBM 2022 - Otimizar estado nutricional antes de procedimento malabsortivo"</text></outputEntry>
+      <outputEntry id="OE_Pendente_DeficienciaLeve_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_Pendente_DeficienciaLeve_5"><text>"SOLICITAR_INFO"</text></outputEntry>
+      </rule>
+
+      <!-- FALLBACK RULE -->
+      <rule id="Rule_Fallback_BAR005">
+        <description>Regra padrao - Analise adicional necessaria</description>
+        <inputEntry id="InputEntry_Fallback_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Fallback_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Fallback_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Fallback_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Fallback_5"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_Fallback_resultado"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OutputEntry_Fallback_observacao"><text>"Caso complexo requer avaliacao por centro de referencia em cirurgia revisional"</text></outputEntry>
+        <outputEntry id="OutputEntry_Fallback_fundamentacao"><text>"SBCBM 2022, IFSO 2023 - Revisoes complexas devem ser realizadas em centros especializados"</text></outputEntry>
+      <outputEntry id="OE_Fallback_BAR005_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_Fallback_BAR005_5"><text>"SOLICITAR_INFO"</text></outputEntry>
+      </rule>
+
+    </decisionTable>
+  </decision>
+</definitions>

@@ -1,0 +1,277 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             xmlns:camunda="http://camunda.org/schema/1.0/dmn"
+             id="Definitions_BAR019"
+             name="Deficiencia Vitaminica Grave"
+             namespace="http://camunda.org/schema/1.0/dmn">
+
+  <!--
+    ===============================================================================
+    TUSS: BAR-019
+    Procedimento: Tratamento de Deficiencias Vitaminicas Graves Pos-Bariatrica
+    Especialidade: Cirurgia Bariatrica / Nutrologia
+    Versao: 3.0.0-TIER1
+    Data: 2026-02-07
+    ===============================================================================
+
+    INDICACOES CLINICAS (ASMBS 2020, SBCBM 2022):
+    - Deficiencia grave de vitamina B12 (neuropatia, anemia megaloblastica)
+    - Deficiencia grave de tiamina (B1) - encefalopatia de Wernicke
+    - Deficiencia grave de ferro (anemia ferropriva grave)
+    - Deficiencia grave de vitamina D (osteomalacia)
+    - Deficiencia de zinco/cobre grave
+    - Desnutricao proteico-calorica
+
+    EMERGENCIAS NUTRICIONAIS:
+    - Encefalopatia de Wernicke (tiamina)
+    - Neuropatia periferica/mielopatia (B12)
+    - Anemia sintomatica (transfusao indicada)
+
+    REFERENCIAS TECNICAS:
+    - ASMBS Nutritional Guidelines 2020
+    - SBCBM 2022 - Deficiencias Nutricionais
+    - Endocrine Society 2019 - Vitamin D
+
+    ===============================================================================
+  -->
+
+  <decision id="Decision_BAR019" name="Regra Clinica - Deficiencia Vitaminica Grave">
+    <decisionTable id="DecisionTable_BAR019" hitPolicy="FIRST">
+
+      <!-- ========== INPUTS (5) ========== -->
+
+      <input id="Input_tipoDeficiencia" label="Tipo de Deficiencia" camunda:inputVariable="tipoDeficiencia">
+        <inputExpression id="InputExpression_tipoDeficiencia" typeRef="string">
+          <text>tipoDeficiencia</text>
+        </inputExpression>
+        <inputValues id="InputValues_tipoDeficiencia">
+          <text>"TiaminaB1","VitaminaB12","Ferro","VitaminaD","Zinco","Cobre","ProteicoCaloric","Multipla"</text>
+        </inputValues>
+      </input>
+
+      <input id="Input_gravidadeDeficiencia" label="Gravidade" camunda:inputVariable="gravidadeDeficiencia">
+        <inputExpression id="InputExpression_gravidadeDeficiencia" typeRef="string">
+          <text>gravidadeDeficiencia</text>
+        </inputExpression>
+        <inputValues id="InputValues_gravidadeDeficiencia">
+          <text>"Emergencia","Grave","Moderada","Leve"</text>
+        </inputValues>
+      </input>
+
+      <input id="Input_manifestacaoClinica" label="Manifestacao Clinica" camunda:inputVariable="manifestacaoClinica">
+        <inputExpression id="InputExpression_manifestacaoClinica" typeRef="string">
+          <text>manifestacaoClinica</text>
+        </inputExpression>
+        <inputValues id="InputValues_manifestacaoClinica">
+          <text>"EncefalopatiaWernicke","NeuropatiaGrave","AnemiaGrave","Osteomalacia","SintomasLeves","Assintomatico"</text>
+        </inputValues>
+      </input>
+
+      <input id="Input_suplementacaoOral" label="Suplementacao Oral Previa" camunda:inputVariable="suplementacaoOral">
+        <inputExpression id="InputExpression_suplementacaoOral" typeRef="string">
+          <text>suplementacaoOral</text>
+        </inputExpression>
+        <inputValues id="InputValues_suplementacaoOral">
+          <text>"Falha","Parcial","NaoTentada","Contraindicada"</text>
+        </inputValues>
+      </input>
+
+      <input id="Input_tratamentoSolicitado" label="Tratamento Solicitado" camunda:inputVariable="tratamentoSolicitado">
+        <inputExpression id="InputExpression_tratamentoSolicitado" typeRef="string">
+          <text>tratamentoSolicitado</text>
+        </inputExpression>
+        <inputValues id="InputValues_tratamentoSolicitado">
+          <text>"InternacaoUTI","ReposicaoParenteral","InfusaoFerroIV","VitDParenteral","NutricaoParenteral","ConsultaNutrologia"</text>
+        </inputValues>
+      </input>
+
+      <!-- ========== OUTPUTS (3 - Padrao TIER-1) ========== -->
+
+      <output id="Output_resultado" label="Resultado" name="resultado" typeRef="string">
+        <outputValues id="OutputValues_resultado">
+          <text>"Aprovado","Reprovado","Pendente"</text>
+        </outputValues>
+      </output>
+
+      <output id="Output_observacao" label="Observacao Clinica" name="observacao" typeRef="string" />
+
+      <output id="Output_fundamentacao" label="Fundamentacao Tecnica" name="fundamentacao" typeRef="string" />
+
+      <!-- Output 4: Alertas Desperdicio -->
+      <output id="Output_alertasDesperdicio" label="Alertas de Desperdicio" name="alertasDesperdicio" typeRef="string">
+        <outputValues id="OutputValues_alertasDesperdicio">
+          <text>"NENHUM","DUP","FREQ","ESC","DOC","PROT","MULTI"</text>
+        </outputValues>
+      </output>
+
+      <!-- Output 5: Acao Recomendada -->
+      <output id="Output_acaoRecomendada" label="Acao Recomendada" name="acaoRecomendada" typeRef="string">
+        <outputValues id="OutputValues_acaoRecomendada">
+          <text>"APROVAR","NEGAR","SOLICITAR_INFO","AGUARDAR_PRAZO","SUGERIR_ALTERNATIVA"</text>
+        </outputValues>
+      </output>
+
+      <!-- ========== RULES ========== -->
+
+      <!-- APROVACOES EMERGENCIAIS -->
+      <rule id="Rule_Aprovado_EncefalopatiaWernicke">
+        <description>Aprovado Emergencial: Encefalopatia de Wernicke</description>
+        <inputEntry id="InputEntry_EW_1"><text>"TiaminaB1"</text></inputEntry>
+        <inputEntry id="InputEntry_EW_2"><text>"Emergencia"</text></inputEntry>
+        <inputEntry id="InputEntry_EW_3"><text>"EncefalopatiaWernicke"</text></inputEntry>
+        <inputEntry id="InputEntry_EW_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_EW_5"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_EW_resultado"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_EW_observacao"><text>"EMERGENCIA - Encefalopatia de Wernicke - tiamina IV imediata, internacao"</text></outputEntry>
+        <outputEntry id="OutputEntry_EW_fundamentacao"><text>"ASMBS 2020 - Encefalopatia de Wernicke e emergencia com risco de dano cerebral permanente"</text></outputEntry>
+      <outputEntry id="OE_Aprovado_EncefalopatiaWernicke_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_Aprovado_EncefalopatiaWernicke_5"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Aprovado_NeuropatiaB12Grave">
+        <description>Aprovado Urgente: Neuropatia grave por deficiencia B12</description>
+        <inputEntry id="InputEntry_NB_1"><text>"VitaminaB12"</text></inputEntry>
+        <inputEntry id="InputEntry_NB_2"><text>"Grave","Emergencia"</text></inputEntry>
+        <inputEntry id="InputEntry_NB_3"><text>"NeuropatiaGrave"</text></inputEntry>
+        <inputEntry id="InputEntry_NB_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_NB_5"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_NB_resultado"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_NB_observacao"><text>"Neuropatia grave por B12 - reposicao parenteral urgente para prevenir dano permanente"</text></outputEntry>
+        <outputEntry id="OutputEntry_NB_fundamentacao"><text>"ASMBS 2020 - Mielopatia por B12 pode ser irreversivel se nao tratada precocemente"</text></outputEntry>
+      <outputEntry id="OE_Aprovado_NeuropatiaB12Grave_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_Aprovado_NeuropatiaB12Grave_5"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Aprovado_AnemiaGrave">
+        <description>Aprovado Urgente: Anemia grave sintomatica</description>
+        <inputEntry id="InputEntry_AG_1"><text>"Ferro","VitaminaB12"</text></inputEntry>
+        <inputEntry id="InputEntry_AG_2"><text>"Grave","Emergencia"</text></inputEntry>
+        <inputEntry id="InputEntry_AG_3"><text>"AnemiaGrave"</text></inputEntry>
+        <inputEntry id="InputEntry_AG_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_AG_5"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_AG_resultado"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_AG_observacao"><text>"Anemia grave sintomatica - transfusao e/ou ferro IV indicados"</text></outputEntry>
+        <outputEntry id="OutputEntry_AG_fundamentacao"><text>"SBCBM 2022, ASMBS 2020 - Anemia grave pos-bariatrica pode necessitar transfusao e ferro IV"</text></outputEntry>
+      <outputEntry id="OE_Aprovado_AnemiaGrave_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_Aprovado_AnemiaGrave_5"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <!-- APROVACOES - TRATAMENTOS ESPECIFICOS -->
+      <rule id="Rule_Aprovado_FerroIV">
+        <description>Aprovado: Infusao de ferro IV</description>
+        <inputEntry id="InputEntry_FIV_1"><text>"Ferro"</text></inputEntry>
+        <inputEntry id="InputEntry_FIV_2"><text>"Grave","Moderada"</text></inputEntry>
+        <inputEntry id="InputEntry_FIV_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_FIV_4"><text>"Falha","Contraindicada"</text></inputEntry>
+        <inputEntry id="InputEntry_FIV_5"><text>"InfusaoFerroIV"</text></inputEntry>
+        <outputEntry id="OutputEntry_FIV_resultado"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_FIV_observacao"><text>"Ferro IV indicado para deficiencia refrataria a suplementacao oral"</text></outputEntry>
+        <outputEntry id="OutputEntry_FIV_fundamentacao"><text>"ASMBS 2020 - Ferro IV e tratamento de escolha em ma absorcao pos-bariatrica"</text></outputEntry>
+      <outputEntry id="OE_Aprovado_FerroIV_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_Aprovado_FerroIV_5"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Aprovado_B12Parenteral">
+        <description>Aprovado: B12 parenteral para deficiencia grave</description>
+        <inputEntry id="InputEntry_B12_1"><text>"VitaminaB12"</text></inputEntry>
+        <inputEntry id="InputEntry_B12_2"><text>"Grave"</text></inputEntry>
+        <inputEntry id="InputEntry_B12_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_B12_4"><text>"Falha","Parcial"</text></inputEntry>
+        <inputEntry id="InputEntry_B12_5"><text>"ReposicaoParenteral"</text></inputEntry>
+        <outputEntry id="OutputEntry_B12_resultado"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_B12_observacao"><text>"B12 intramuscular/subcutanea para deficiencia grave refrataria"</text></outputEntry>
+        <outputEntry id="OutputEntry_B12_fundamentacao"><text>"SBCBM 2022, ASMBS 2020 - B12 parenteral necessaria quando oral e insuficiente"</text></outputEntry>
+      <outputEntry id="OE_Aprovado_B12Parenteral_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_Aprovado_B12Parenteral_5"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Aprovado_VitDParenteral">
+        <description>Aprovado: Vitamina D parenteral para osteomalacia</description>
+        <inputEntry id="InputEntry_VD_1"><text>"VitaminaD"</text></inputEntry>
+        <inputEntry id="InputEntry_VD_2"><text>"Grave"</text></inputEntry>
+        <inputEntry id="InputEntry_VD_3"><text>"Osteomalacia"</text></inputEntry>
+        <inputEntry id="InputEntry_VD_4"><text>"Falha"</text></inputEntry>
+        <inputEntry id="InputEntry_VD_5"><text>"VitDParenteral"</text></inputEntry>
+        <outputEntry id="OutputEntry_VD_resultado"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_VD_observacao"><text>"Vitamina D parenteral para osteomalacia refrataria a suplementacao oral"</text></outputEntry>
+        <outputEntry id="OutputEntry_VD_fundamentacao"><text>"Endocrine Society 2019, ASMBS 2020 - Vitamina D parenteral para casos refratarios graves"</text></outputEntry>
+      <outputEntry id="OE_Aprovado_VitDParenteral_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_Aprovado_VitDParenteral_5"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Aprovado_NutricaoParenteral">
+        <description>Aprovado: Nutricao parenteral para desnutricao grave</description>
+        <inputEntry id="InputEntry_NP_1"><text>"ProteicoCaloric","Multipla"</text></inputEntry>
+        <inputEntry id="InputEntry_NP_2"><text>"Grave","Emergencia"</text></inputEntry>
+        <inputEntry id="InputEntry_NP_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_NP_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_NP_5"><text>"NutricaoParenteral"</text></inputEntry>
+        <outputEntry id="OutputEntry_NP_resultado"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_NP_observacao"><text>"Nutricao parenteral para desnutricao proteico-calorica grave"</text></outputEntry>
+        <outputEntry id="OutputEntry_NP_fundamentacao"><text>"SBCBM 2022 - NPT indicada em desnutricao grave pos-bariatrica"</text></outputEntry>
+      <outputEntry id="OE_Aprovado_NutricaoParenteral_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_Aprovado_NutricaoParenteral_5"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Aprovado_ConsultaNutrologia">
+        <description>Aprovado: Consulta nutrologia para deficiencia moderada</description>
+        <inputEntry id="InputEntry_CN_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_CN_2"><text>"Moderada","Grave"</text></inputEntry>
+        <inputEntry id="InputEntry_CN_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_CN_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_CN_5"><text>"ConsultaNutrologia"</text></inputEntry>
+        <outputEntry id="OutputEntry_CN_resultado"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_CN_observacao"><text>"Avaliacao nutrologica para otimizacao de suplementacao"</text></outputEntry>
+        <outputEntry id="OutputEntry_CN_fundamentacao"><text>"CFM 2.131/2015, SBCBM 2022 - Nutrologia faz parte da equipe obrigatoria pos-bariatrica"</text></outputEntry>
+      <outputEntry id="OE_Aprovado_ConsultaNutrologia_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_Aprovado_ConsultaNutrologia_5"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <!-- REPROVACOES -->
+      <rule id="Rule_Reprovado_DeficienciaLeve">
+        <description>Reprovado: Deficiencia leve para tratamento parenteral</description>
+        <inputEntry id="InputEntry_DL_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_DL_2"><text>"Leve"</text></inputEntry>
+        <inputEntry id="InputEntry_DL_3"><text>"SintomasLeves","Assintomatico"</text></inputEntry>
+        <inputEntry id="InputEntry_DL_4"><text>"NaoTentada"</text></inputEntry>
+        <inputEntry id="InputEntry_DL_5"><text>"InfusaoFerroIV","ReposicaoParenteral","VitDParenteral"</text></inputEntry>
+        <outputEntry id="OutputEntry_DL_resultado"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_DL_observacao"><text>"Deficiencia leve - iniciar suplementacao oral antes de considerar parenteral"</text></outputEntry>
+        <outputEntry id="OutputEntry_DL_fundamentacao"><text>"ASMBS 2020 - Tratamento oral e primeira linha para deficiencias leves/moderadas"</text></outputEntry>
+      <outputEntry id="OE_Reprovado_DeficienciaLeve_4"><text>"PROT"</text></outputEntry>
+        <outputEntry id="OE_Reprovado_DeficienciaLeve_5"><text>"NEGAR"</text></outputEntry>
+      </rule>
+
+      <!-- PENDENTE -->
+      <rule id="Rule_Pendente_AvaliacaoIncompleta">
+        <description>Pendente: Avaliacao laboratorial incompleta</description>
+        <inputEntry id="InputEntry_AI_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_AI_2"><text>"Moderada"</text></inputEntry>
+        <inputEntry id="InputEntry_AI_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_AI_4"><text>"Parcial"</text></inputEntry>
+        <inputEntry id="InputEntry_AI_5"><text>"InfusaoFerroIV","ReposicaoParenteral"</text></inputEntry>
+        <outputEntry id="OutputEntry_AI_resultado"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OutputEntry_AI_observacao"><text>"Documentar falha da suplementacao oral antes de indicar parenteral"</text></outputEntry>
+        <outputEntry id="OutputEntry_AI_fundamentacao"><text>"SBCBM 2022 - Confirmacao de refratariedade ao oral necessaria para autorizacao de parenteral"</text></outputEntry>
+      <outputEntry id="OE_Pendente_AvaliacaoIncompleta_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_Pendente_AvaliacaoIncompleta_5"><text>"SOLICITAR_INFO"</text></outputEntry>
+      </rule>
+
+      <!-- FALLBACK RULE -->
+      <rule id="Rule_Fallback_BAR019">
+        <description>Regra padrao - Analise adicional necessaria</description>
+        <inputEntry id="InputEntry_Fallback_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Fallback_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Fallback_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Fallback_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Fallback_5"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_Fallback_resultado"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OutputEntry_Fallback_observacao"><text>"Avaliar caso com equipe de nutrologia e bariatrica"</text></outputEntry>
+        <outputEntry id="OutputEntry_Fallback_fundamentacao"><text>"ASMBS 2020, SBCBM 2022 - Deficiencias nutricionais requerem abordagem individualizada"</text></outputEntry>
+      <outputEntry id="OE_Fallback_BAR019_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_Fallback_BAR019_5"><text>"SOLICITAR_INFO"</text></outputEntry>
+      </rule>
+
+    </decisionTable>
+  </decision>
+</definitions>

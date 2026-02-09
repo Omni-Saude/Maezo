@@ -1,0 +1,96 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/" xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/" xmlns:dc="http://www.omg.org/spec/DMN/20180521/DC/" xmlns:modeler="http://camunda.org/schema/modeler/1.0" id="Definitions_HCLV008" name="DRD" namespace="http://camunda.org/schema/1.0/dmn" exporter="Camunda Modeler" exporterVersion="5.0.0" modeler:executionPlatform="Camunda Cloud" modeler:executionPlatformVersion="8.0.0">
+  <decision id="Decision_HCLV008" name="HCLV-008: Infusão Domiciliar vs Hospitalar">
+    <decisionTable id="DecisionTable_HCLV008" hitPolicy="FIRST">
+      <input id="Input_medicamento" label="Medicamento"><inputExpression id="InputExpression_medicamento" typeRef="string"><text>medicamento</text></inputExpression></input>
+      <input id="Input_viaAdministracao" label="Via Administração"><inputExpression id="InputExpression_viaAdministracao" typeRef="string"><text>viaAdministracao</text></inputExpression></input>
+      <input id="Input_duracaoInfusao" label="Duração Infusão (horas)"><inputExpression id="InputExpression_duracaoInfusao" typeRef="number"><text>duracaoInfusao</text></inputExpression></input>
+      <input id="Input_monitoramentoIntensivo" label="Monitoramento Intensivo Necessário"><inputExpression id="InputExpression_monitoramentoIntensivo" typeRef="boolean"><text>monitoramentoIntensivo</text></inputExpression></input>
+      <output id="Output_resultado" label="Resultado" name="resultado" typeRef="string"><outputValues id="UnaryTests_resultado"><text>"Aprovado","Reprovado","Pendente"</text></outputValues></output>
+      <output id="Output_observacao" label="Observação" name="observacao" typeRef="string" />
+      <output id="Output_fundamentacao" label="Fundamentação" name="fundamentacao" typeRef="string" />
+      <!-- Output 4: Alertas de Desperdicio -->
+      <output id="Output_alertasDesperdicio" label="Alertas de Desperdicio" name="alertasDesperdicio" typeRef="string">
+        <outputValues id="OutputValues_alertasDesperdicio">
+          <text>"NENHUM","DUP","FREQ","ESC","DOC","PROT","MULTI"</text>
+        </outputValues>
+      </output>
+
+      <!-- Output 5: Acao Recomendada -->
+      <output id="Output_acaoRecomendada" label="Acao Recomendada" name="acaoRecomendada" typeRef="string">
+        <outputValues id="OutputValues_acaoRecomendada">
+          <text>"APROVAR","NEGAR","SOLICITAR_INFO","AGUARDAR_PRAZO","SUGERIR_ALTERNATIVA"</text>
+        </outputValues>
+      </output>
+
+
+      <rule id="DecisionRule_R001">
+        <inputEntry id="UnaryTests_R001_med"><text>"Antibiótico IV","Ferro IV","Imunoglobulina"</text></inputEntry>
+        <inputEntry id="UnaryTests_R001_via"><text>"Endovenosa"</text></inputEntry>
+        <inputEntry id="UnaryTests_R001_duracao"><text>&lt;= 2</text></inputEntry>
+        <inputEntry id="UnaryTests_R001_monitor"><text>false</text></inputEntry>
+        <outputEntry id="LiteralExpression_R001_resultado"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="LiteralExpression_R001_observacao"><text>"Infusão curta (≤2h) sem monitoramento intensivo: pode ser domiciliar (economia 60-80%)"</text></outputEntry>
+        <outputEntry id="LiteralExpression_R001_fundamentacao"><text>"SBIM/ANS: ATB IV, ferro, IVIG de baixo risco podem ser domiciliares com enfermagem treinada"</text></outputEntry>
+        <outputEntry id="OE_DecisionRule_R001_4"><text>"PROT"</text></outputEntry>
+        <outputEntry id="OE_DecisionRule_R001_5"><text>"NEGAR"</text></outputEntry>
+      </rule>
+
+      <rule id="DecisionRule_R002">
+        <inputEntry id="UnaryTests_R002_med"><text>"Quimioterápico","Biológico"</text></inputEntry>
+        <inputEntry id="UnaryTests_R002_via"><text>"Endovenosa"</text></inputEntry>
+        <inputEntry id="UnaryTests_R002_duracao"><text>&gt; 4</text></inputEntry>
+        <inputEntry id="UnaryTests_R002_monitor"><text>true</text></inputEntry>
+        <outputEntry id="LiteralExpression_R002_resultado"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="LiteralExpression_R002_observacao"><text>"Infusão prolongada com monitoramento: ambiente hospitalar/ambulatorial especializado indicado"</text></outputEntry>
+        <outputEntry id="LiteralExpression_R002_fundamentacao"><text>"SBOC: Quimioterapia com infusão >4h ou risco de reações graves requer ambiente com suporte médico"</text></outputEntry>
+        <outputEntry id="OE_DecisionRule_R002_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_DecisionRule_R002_5"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <rule id="DecisionRule_R003">
+        <inputEntry id="UnaryTests_R003_med"><text>-</text></inputEntry>
+        <inputEntry id="UnaryTests_R003_via"><text>"Subcutânea","Intramuscular"</text></inputEntry>
+        <inputEntry id="UnaryTests_R003_duracao"><text>-</text></inputEntry>
+        <inputEntry id="UnaryTests_R003_monitor"><text>false</text></inputEntry>
+        <outputEntry id="LiteralExpression_R003_resultado"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="LiteralExpression_R003_observacao"><text>"Via SC/IM: administração domiciliar ou auto-aplicação possível (economia >70%)"</text></outputEntry>
+        <outputEntry id="LiteralExpression_R003_fundamentacao"><text>"Medicamentos SC/IM (insulina, heparina, biológicos SC) não requerem ambiente hospitalar"</text></outputEntry>
+        <outputEntry id="OE_DecisionRule_R003_4"><text>"PROT"</text></outputEntry>
+        <outputEntry id="OE_DecisionRule_R003_5"><text>"NEGAR"</text></outputEntry>
+      </rule>
+
+      <rule id="DecisionRule_R004">
+        <inputEntry id="UnaryTests_R004_med"><text>-</text></inputEntry>
+        <inputEntry id="UnaryTests_R004_via"><text>"Endovenosa"</text></inputEntry>
+        <inputEntry id="UnaryTests_R004_duracao"><text>[2..4]</text></inputEntry>
+        <inputEntry id="UnaryTests_R004_monitor"><text>false</text></inputEntry>
+        <outputEntry id="LiteralExpression_R004_resultado"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="LiteralExpression_R004_observacao"><text>"Infusão intermediária: avaliar viabilidade domiciliar vs ambulatorial"</text></outputEntry>
+        <outputEntry id="LiteralExpression_R004_fundamentacao"><text>"Infusões 2-4h podem ser domiciliares se estrutura adequada (enfermagem, acesso venoso)"</text></outputEntry>
+        <outputEntry id="OE_DecisionRule_R004_4"><text>"DOC"</text></outputEntry>
+        <outputEntry id="OE_DecisionRule_R004_5"><text>"SOLICITAR_INFO"</text></outputEntry>
+      </rule>
+
+      <rule id="DecisionRule_Fallback">
+        <inputEntry id="UnaryTests_Fallback_med"><text>-</text></inputEntry>
+        <inputEntry id="UnaryTests_Fallback_via"><text>-</text></inputEntry>
+        <inputEntry id="UnaryTests_Fallback_duracao"><text>-</text></inputEntry>
+        <inputEntry id="UnaryTests_Fallback_monitor"><text>-</text></inputEntry>
+        <outputEntry id="LiteralExpression_Fallback_resultado"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="LiteralExpression_Fallback_observacao"><text>"Análise manual necessária"</text></outputEntry>
+        <outputEntry id="LiteralExpression_Fallback_fundamentacao"><text>"Avaliação por equipe de home care requerida"</text></outputEntry>
+        <outputEntry id="OE_DecisionRule_Fallback_4"><text>"DOC"</text></outputEntry>
+        <outputEntry id="OE_DecisionRule_Fallback_5"><text>"SOLICITAR_INFO"</text></outputEntry>
+      </rule>
+    </decisionTable>
+  </decision>
+
+  <dmndi:DMNDI>
+    <dmndi:DMNDiagram>
+      <dmndi:DMNShape dmnElementRef="Decision_HCLV008">
+        <dc:Bounds height="80" width="180" x="160" y="100" />
+      </dmndi:DMNShape>
+    </dmndi:DMNDiagram>
+  </dmndi:DMNDI>
+</definitions>

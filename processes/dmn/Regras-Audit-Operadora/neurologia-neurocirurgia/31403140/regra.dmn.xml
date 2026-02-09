@@ -1,0 +1,152 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             id="Definitions_31403140" name="Estimulacao_Nervo_Vago" targetNamespace="http://camunda.org/schema/1.0/dmn">
+  <!--
+    TUSS 31403140 - Estimulação do Nervo Vago (VNS) para Epilepsia
+    Versao: 3.1.0-LEAN-TIER2 (2026-02-08)
+
+    ENRIQUECIMENTO LEAN TIER-2:
+    - Input 6: ultimoProcedimentoDias (frequencia/duplicacao)
+    - 3 Regras de desperdicio: ESC (neuromodulacao sem falha medicamentosa), DUP (troca precoce), DOC (sem laudo/exames)
+    - 5 outputs padronizados: resultado, observacao, fundamentacao, alertasDesperdicio, acaoRecomendada
+
+    Indicacoes Clinicas: Epilepsia refratária (≥2 crises/mês após ≥3 DAE), Contraindicação para cirurgia ressectiva, Epilepsia generalizada ou multifocal
+    Referencias: RN ANS 465/2021
+  -->
+  <decision id="Decision_31403140" name="Indicacao para Estimulacao_Nervo_Vago">
+    <decisionTable id="DecisionTable_31403140" hitPolicy="FIRST">
+      <input id="Input_1" label="Tipoepilepsia">
+        <inputExpression id="InputExpression_1" typeRef="string"><text>tipoEpilepsia</text></inputExpression>
+        <inputValues id="InputValues_1">
+          <text>"focal_nao_ressecavel","generalizada","multifocal","outra"</text>
+        </inputValues>
+      </input>
+      <input id="Input_2" label="Numerodaefalhas">
+        <inputExpression id="InputExpression_2" typeRef="number"><text>numeroDaeFalhas</text></inputExpression>
+      </input>
+      <input id="Input_3" label="Frequenciacrises">
+        <inputExpression id="InputExpression_3" typeRef="number"><text>frequenciaCrises</text></inputExpression>
+      </input>
+      <input id="Input_4" label="Laudoneurologico">
+        <inputExpression id="InputExpression_4" typeRef="boolean"><text>laudoNeurologico</text></inputExpression>
+      </input>
+      <input id="Input_5" label="Expectativa de Vida Superior a 1 Ano">
+        <inputExpression id="InputExpression_5" typeRef="boolean"><text>expectativaVidaSuperior1Ano</text></inputExpression>
+      </input>
+      <!-- Input 6: Dias desde ultimo procedimento -->
+      <input id="Input_ultimoProcedimentoDias" label="Dias Desde Ultimo Procedimento" camunda:inputVariable="ultimoProcedimentoDias">
+        <inputExpression id="InputExpression_ultimoProcedimentoDias" typeRef="integer">
+          <text>ultimoProcedimentoDias</text>
+        </inputExpression>
+      </input>
+      <output id="Output_1" label="Resultado" name="resultado" typeRef="string">
+        <outputValues id="OutputValues_1">
+          <text>"Aprovado","Reprovado","Pendente"</text>
+        </outputValues>
+      </output>
+      <output id="Output_2" label="Observacao" name="observacao" typeRef="string"/>
+      <output id="Output_3" label="Fundamentacao" name="fundamentacao" typeRef="string"/>
+      <!-- Output 4: Alertas de Desperdicio -->
+      <output id="Output_4" label="Alertas de Desperdicio" name="alertasDesperdicio" typeRef="string">
+        <outputValues>
+          <text>"NENHUM","DUP","FREQ","ESC","DOC","PROT","MULTI"</text>
+        </outputValues>
+      </output>
+
+      <!-- Output 5: Acao Recomendada -->
+      <output id="Output_5" label="Acao Recomendada" name="acaoRecomendada" typeRef="string">
+        <outputValues>
+          <text>"APROVAR","NEGAR","SOLICITAR_INFO","AGUARDAR_PRAZO","SUGERIR_ALTERNATIVA"</text>
+        </outputValues>
+      </output>
+
+
+      <rule id="Rule_Contraindicacao_DAE_Insuficiente">
+        <inputEntry id="IE_1_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_1_2"><text>&lt; 3</text></inputEntry>
+        <inputEntry id="IE_1_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_1_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_1_5"><text>-</text></inputEntry>
+        <inputEntry id="IE_1_6"><text>-</text></inputEntry>
+        <outputEntry id="OE_1_1"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OE_1_2"><text>"Número insuficiente de DAE (&lt;3). VNS indicado apenas após refratariedade a ≥3 drogas."</text></outputEntry>
+        <outputEntry id="OE_1_3"><text>"ILAE Guidelines 2023"</text></outputEntry>
+        <outputEntry id="OE_Rule_Contraindicacao_DAE_Insuficiente_4"><text>"PROT"</text></outputEntry>
+        <outputEntry id="OE_Rule_Contraindicacao_DAE_Insuficiente_5"><text>"NEGAR"</text></outputEntry>
+      </rule>
+
+      <!-- WASTE RULES (LEAN TIER-2) -->
+      <rule id="Rule_31403140_ESC_Neuromod">
+        <description>ESC: Neuromodulacao sem falha de tratamento medicamentoso</description>
+        <inputEntry id="IE_31403140_ESC_NM_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_31403140_ESC_NM_2"><text>&lt; 3</text></inputEntry>
+        <inputEntry id="IE_31403140_ESC_NM_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_31403140_ESC_NM_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_31403140_ESC_NM_5"><text>-</text></inputEntry>
+        <inputEntry id="IE_31403140_ESC_NM_6"><text>-</text></inputEntry>
+        <outputEntry id="OE_31403140_ESC_NM_1"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OE_31403140_ESC_NM_2"><text>"Neuromodulacao requer documentacao de falha terapeutica medicamentosa"</text></outputEntry>
+        <outputEntry id="OE_31403140_ESC_NM_3"><text>"AANS/CNS 2024 - Neuromodulacao indicada apos falha de terapia medicamentosa"</text></outputEntry>
+        <outputEntry id="OE_31403140_ESC_NM_4"><text>"ESC"</text></outputEntry>
+        <outputEntry id="OE_31403140_ESC_NM_5"><text>"SUGERIR_ALTERNATIVA"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_31403140_DUP_Implante">
+        <description>DUP: Troca de dispositivo em menos de 365 dias sem defeito</description>
+        <inputEntry id="IE_31403140_DUP_IMP_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_31403140_DUP_IMP_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_31403140_DUP_IMP_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_31403140_DUP_IMP_4"><text>false</text></inputEntry>
+        <inputEntry id="IE_31403140_DUP_IMP_5"><text>-</text></inputEntry>
+        <inputEntry id="IE_31403140_DUP_IMP_6"><text>&lt; 365</text></inputEntry>
+        <outputEntry id="OE_31403140_DUP_IMP_1"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OE_31403140_DUP_IMP_2"><text>"Troca de dispositivo em menos de 1 ano. Documentar defeito ou complicacao"</text></outputEntry>
+        <outputEntry id="OE_31403140_DUP_IMP_3"><text>"ANS RN 465/2021 - Troca precoce requer justificativa tecnica"</text></outputEntry>
+        <outputEntry id="OE_31403140_DUP_IMP_4"><text>"DUP"</text></outputEntry>
+        <outputEntry id="OE_31403140_DUP_IMP_5"><text>"SOLICITAR_INFO"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_31403140_DOC_Neurofunc">
+        <description>DOC: Implante sem laudo neurofisiologico</description>
+        <inputEntry id="IE_31403140_DOC_NF_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_31403140_DOC_NF_2"><text>&gt;= 3</text></inputEntry>
+        <inputEntry id="IE_31403140_DOC_NF_3"><text>&gt;= 2</text></inputEntry>
+        <inputEntry id="IE_31403140_DOC_NF_4"><text>false</text></inputEntry>
+        <inputEntry id="IE_31403140_DOC_NF_5"><text>-</text></inputEntry>
+        <inputEntry id="IE_31403140_DOC_NF_6"><text>-</text></inputEntry>
+        <outputEntry id="OE_31403140_DOC_NF_1"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OE_31403140_DOC_NF_2"><text>"Implante requer laudo neurofisiologico e escala funcional"</text></outputEntry>
+        <outputEntry id="OE_31403140_DOC_NF_3"><text>"AANS/CNS 2024 - Avaliacao neurofisiologica obrigatoria"</text></outputEntry>
+        <outputEntry id="OE_31403140_DOC_NF_4"><text>"DOC"</text></outputEntry>
+        <outputEntry id="OE_31403140_DOC_NF_5"><text>"SOLICITAR_INFO"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Aprovado_EpilepsiaRefrataria">
+        <inputEntry id="IE_2_1"><text>"focal_nao_ressecavel","generalizada","multifocal"</text></inputEntry>
+        <inputEntry id="IE_2_2"><text>&gt;= 3</text></inputEntry>
+        <inputEntry id="IE_2_3"><text>&gt;= 2</text></inputEntry>
+        <inputEntry id="IE_2_4"><text>true</text></inputEntry>
+        <inputEntry id="IE_2_5"><text>-</text></inputEntry>
+        <inputEntry id="IE_2_6"><text>-</text></inputEntry>
+        <outputEntry id="OE_2_1"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OE_2_2"><text>"Epilepsia refratária (≥2 crises/mês, ≥3 DAE falhas). VNS indicado como terapia adjuvante."</text></outputEntry>
+        <outputEntry id="OE_2_3"><text>"Diretrizes ABN/LBE 2024 + RN ANS 465/2021"</text></outputEntry>
+        <outputEntry id="OE_Rule_Aprovado_EpilepsiaRefrataria_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_Rule_Aprovado_EpilepsiaRefrataria_5"><text>"APROVAR"</text></outputEntry>
+      </rule>
+      <rule id="Rule_Fallback_31403140">
+        <inputEntry id="IE_3_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_3_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_3_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_3_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_3_5"><text>-</text></inputEntry>
+        <inputEntry id="IE_3_6"><text>-</text></inputEntry>
+        <outputEntry id="OE_3_1"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OE_3_2"><text>"Requer avaliação por especialista e auditor médico."</text></outputEntry>
+        <outputEntry id="OE_3_3"><text>"Análise caso a caso conforme RN ANS 465/2021"</text></outputEntry>
+        <outputEntry id="OE_Rule_Fallback_31403140_4"><text>"DOC"</text></outputEntry>
+        <outputEntry id="OE_Rule_Fallback_31403140_5"><text>"SOLICITAR_INFO"</text></outputEntry>
+      </rule>
+    </decisionTable>
+  </decision>
+</definitions>

@@ -1,0 +1,380 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  TUSS: 40314090 - Pesquisa de Expressão PD-L1 por IHC
+
+  INDICAÇÕES CLÍNICAS:
+  - Tumores sólidos avançados candidatos a imunoterapia
+  - Principais indicações: NSCLC, carcinoma urotelial, câncer gástrico, carcinoma renal
+  - Antes de iniciar tratamento com anti-PD-1/PD-L1 (pembrolizumabe, nivolumabe, atezolizumabe)
+  - Estadio avançado (III irressecável ou IV)
+
+  CONTRAINDICAÇÕES:
+  - Tumores sem indicação estabelecida de imunoterapia baseada em PD-L1
+  - Performance status ECOG 4 (cuidados paliativos exclusivos)
+  - Já em uso de imunoterapia sem teste prévio (teste tardio)
+  - Carência de material histológico ou citológico adequado
+
+  FUNDAMENTAÇÃO TÉCNICA:
+  - PD-L1 IHC é biomarcador preditivo para inibidores checkpoint imune
+  - Expressão &amp;gt;50% TC em NSCLC: monoterapia pembrolizumabe 1ª linha
+  - Expressão variável em urotelial: orienta combinação vs monoterapia
+  - Cutoffs variam conforme tumor e droga (1%, 5%, 10%, 50%)
+
+  REFERÊNCIAS:
+  - SBOC Diretrizes Imunoterapia 2024
+  - NCCN NSCLC Guidelines v2.2024
+  - NCCN Bladder Cancer Guidelines v1.2024
+  - ASCO PD-L1 Testing Guideline 2024
+-->
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/" xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/" xmlns:dc="http://www.omg.org/spec/DMN/20180521/DC/" xmlns:modeler="http://camunda.org/schema/modeler/1.0" id="Definitions_PDL1_IHC" name="DRD" namespace="http://camunda.org/schema/1.0/dmn" exporter="Camunda Modeler" exporterVersion="5.20.0" modeler:executionPlatform="Camunda Cloud" modeler:executionPlatformVersion="8.4.0">
+  <decision id="Decision_PDL1_40314090" name="Autorização PD-L1 IHC [LEAN TIER-2]">
+    <decisionTable id="DecisionTable_PDL1_40314090" hitPolicy="FIRST">
+      <input id="Input_diagnostico_PDL1" label="Diagnóstico Oncológico">
+        <inputExpression id="InputExpression_diagnostico_PDL1" typeRef="string">
+          <text>diagnosticoOncologico</text>
+        </inputExpression>
+        <inputValues id="UnaryTests_diagnostico_PDL1">
+          <text>"C34.0","C34.1","C34.2","C34.3","C34.9","C67.0","C67.1","C67.2","C67.3","C67.4","C67.5","C67.6","C67.7","C67.8","C67.9","C64","C16.0","C16.1","C16.2","C16.3","C16.4","C16.5","C16.6","C16.8","C16.9"</text>
+        </inputValues>
+      </input>
+      <input id="Input_estadiamento_PDL1" label="Estadiamento TNM">
+        <inputExpression id="InputExpression_estadiamento_PDL1" typeRef="string">
+          <text>estadiamentoTNM</text>
+        </inputExpression>
+        <inputValues id="UnaryTests_estadiamento_PDL1">
+          <text>"T0","T1","T2","T3","T4","Tis","TX"</text>
+        </inputValues>
+      </input>
+      <input id="Input_ecog_PDL1" label="Performance Status ECOG">
+        <inputExpression id="InputExpression_ecog_PDL1" typeRef="string">
+          <text>performanceStatusECOG</text>
+        </inputExpression>
+        <inputValues id="UnaryTests_ecog_PDL1">
+          <text>"0","1","2","3","4"</text>
+        </inputValues>
+      </input>
+      <input id="Input_linhas_PDL1" label="Linhas Tratamento Prévias">
+        <inputExpression id="InputExpression_linhas_PDL1" typeRef="string">
+          <text>linhasTratamentoPrevias</text>
+        </inputExpression>
+        <inputValues id="UnaryTests_linhas_PDL1">
+          <text>"0","1","2","3+"</text>
+        </inputValues>
+      </input>
+      <input id="Input_protocolo_PDL1" label="Protocolo Terapêutico Definido">
+        <inputExpression id="InputExpression_protocolo_PDL1" typeRef="boolean">
+          <text>protocoloTerapeutico</text>
+        </inputExpression>
+      </input>
+      <!-- Input: Dias desde ultimo procedimento (DUP detection) -->
+      <input id="Input_ultimoProcedimentoDias" label="Dias Desde Ultimo Procedimento">
+        <inputExpression id="InputExpression_ultimoProcedimentoDias" typeRef="number">
+          <text>ultimoProcedimentoDias</text>
+        </inputExpression>
+      </input>
+
+      <output id="Output_resultado_PDL1" label="Resultado" name="resultado" typeRef="string" />
+      <output id="Output_observacao_PDL1" label="Observação" name="observacao" typeRef="string" />
+      <output id="Output_fundamentacao_PDL1" label="Fundamentação" name="fundamentacao" typeRef="string" />
+      <output id="Output_alertasDesperdicio_PDL1" label="Alertas de Desperdicio" name="alertasDesperdicio" typeRef="string">
+        <outputValues id="OutputValues_alertasDesperdicio_PDL1">
+          <text>"NENHUM","DUP","FREQ","ESC","DOC","PROT","MULTI"</text>
+        </outputValues>
+      </output>
+      <output id="Output_acaoRecomendada_PDL1" label="Acao Recomendada" name="acaoRecomendada" typeRef="string">
+        <outputValues id="OutputValues_acaoRecomendada_PDL1">
+          <text>"APROVAR","NEGAR","SOLICITAR_INFO","AGUARDAR_PRAZO","SUGERIR_ALTERNATIVA"</text>
+        </outputValues>
+      </output>
+      
+
+      <!-- WASTE DETECTION: DUP -->
+      <rule id="Rule_40314090_DUP">
+        <description>DUP - Reteste PD-L1 em menos de 90 dias. Resultado anterior ainda valido</description>
+        <inputEntry id="IE_DUP_40314090_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_DUP_40314090_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_DUP_40314090_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_DUP_40314090_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_DUP_40314090_5"><text>-</text></inputEntry>
+        <inputEntry id="IE_DUP_40314090_ultimo"><text>&lt; 90</text></inputEntry>
+        <outputEntry id="OE_DUP_40314090_resultado"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OE_DUP_40314090_observacao"><text>"Reteste PD-L1 em menos de 90 dias. Resultado anterior ainda valido"</text></outputEntry>
+        <outputEntry id="OE_DUP_40314090_fundamentacao"><text>"NCCN 2024: Reteste PD-L1 se progressao ou mudanca linha terapeutica"</text></outputEntry>
+        <outputEntry id="OE_DUP_40314090_alertasDesperdicio"><text>"DUP"</text></outputEntry>
+        <outputEntry id="OE_DUP_40314090_acaoRecomendada"><text>"AGUARDAR_PRAZO"</text></outputEntry>
+      </rule>
+<rule id="Rule_Contraind_40314090_1">
+        <description>Performance status ECOG 4 incompatível com imunoterapia</description>
+        <inputEntry id="UnaryTests_contraind_diag_1">
+          <text></text>
+        </inputEntry>
+        <inputEntry id="UnaryTests_contraind_tnm_1">
+          <text></text>
+        </inputEntry>
+        <inputEntry id="UnaryTests_contraind_ecog_1">
+          <text>"4"</text>
+        </inputEntry>
+        <inputEntry id="UnaryTests_contraind_linhas_1">
+          <text></text>
+        </inputEntry>
+        <inputEntry id="UnaryTests_contraind_protocolo_1">
+          <text></text>
+        </inputEntry>
+        <inputEntry id="IE_Rule_Contraind_40314090_1_ultimo"><text>-</text></inputEntry>
+        <outputEntry id="LiteralExpression_contraind_resultado_1">
+          <text>"NEGADO"</text>
+        </outputEntry>
+        <outputEntry id="LiteralExpression_contraind_obs_1">
+          <text>"Paciente ECOG 4 não candidato a imunoterapia"</text>
+        </outputEntry>
+        <outputEntry id="LiteralExpression_contraind_fund_1">
+          <text>"Performance status incompatível. Cuidados paliativos exclusivos indicados."</text>
+        </outputEntry>
+        <outputEntry id="OE_contraind_1_alertas">
+          <text>"PROT"</text>
+        </outputEntry>
+        <outputEntry id="OE_contraind_1_acao">
+          <text>"NEGAR"</text>
+        </outputEntry>
+      </rule>
+      <rule id="Rule_Contraind_40314090_2">
+        <description>Diagnóstico fora das indicações validadas para teste PD-L1</description>
+        <inputEntry id="UnaryTests_contraind_diag_2">
+          <text>not(list contains(["C34.0","C34.1","C34.2","C34.3","C34.9","C67.0","C67.1","C67.2","C67.3","C67.4","C67.5","C67.6","C67.7","C67.8","C67.9","C64","C16.0","C16.1","C16.2","C16.3","C16.4","C16.5","C16.6","C16.8","C16.9"], diagnosticoOncologico))</text>
+        </inputEntry>
+        <inputEntry id="UnaryTests_contraind_tnm_2">
+          <text></text>
+        </inputEntry>
+        <inputEntry id="UnaryTests_contraind_ecog_2">
+          <text></text>
+        </inputEntry>
+        <inputEntry id="UnaryTests_contraind_linhas_2">
+          <text></text>
+        </inputEntry>
+        <inputEntry id="UnaryTests_contraind_protocolo_2">
+          <text></text>
+        </inputEntry>
+        <inputEntry id="IE_Rule_Contraind_40314090_2_ultimo"><text>-</text></inputEntry>
+        <outputEntry id="LiteralExpression_contraind_resultado_2">
+          <text>"NEGADO"</text>
+        </outputEntry>
+        <outputEntry id="LiteralExpression_contraind_obs_2">
+          <text>"CID-10 fora das indicações validadas para teste PD-L1"</text>
+        </outputEntry>
+        <outputEntry id="LiteralExpression_contraind_fund_2">
+          <text>"Teste PD-L1 indicado para pulmão (C34.x), bexiga (C67.x), rim (C64), gástrico (C16.x)."</text>
+        </outputEntry>
+        <outputEntry id="OE_contraind_2_alertas">
+          <text>"PROT"</text>
+        </outputEntry>
+        <outputEntry id="OE_contraind_2_acao">
+          <text>"NEGAR"</text>
+        </outputEntry>
+      </rule>
+      <rule id="Rule_Aprovado_40314090_1">
+        <description>NSCLC avançado antes de primeira linha com imunoterapia planejada</description>
+        <inputEntry id="UnaryTests_aprovado_diag_1">
+          <text>"C34.0","C34.1","C34.2","C34.3","C34.9"</text>
+        </inputEntry>
+        <inputEntry id="UnaryTests_aprovado_tnm_1">
+          <text>"T3","T4","TX"</text>
+        </inputEntry>
+        <inputEntry id="UnaryTests_aprovado_ecog_1">
+          <text>"0","1","2"</text>
+        </inputEntry>
+        <inputEntry id="UnaryTests_aprovado_linhas_1">
+          <text>"0"</text>
+        </inputEntry>
+        <inputEntry id="UnaryTests_aprovado_protocolo_1">
+          <text>true</text>
+        </inputEntry>
+        <inputEntry id="IE_Rule_Aprovado_40314090_1_ultimo"><text>-</text></inputEntry>
+        <outputEntry id="LiteralExpression_aprovado_resultado_1">
+          <text>"APROVADO"</text>
+        </outputEntry>
+        <outputEntry id="LiteralExpression_aprovado_obs_1">
+          <text>"Teste PD-L1 autorizado para NSCLC avançado pré-imunoterapia"</text>
+        </outputEntry>
+        <outputEntry id="LiteralExpression_aprovado_fund_1">
+          <text>"KEYNOTE-024: PD-L1 &amp;gt;50% monoterapia pembrolizumabe superior a QT. NCCN: teste obrigatório."</text>
+        </outputEntry>
+        <outputEntry id="OE_aprovado_1_alertas">
+          <text>"NENHUM"</text>
+        </outputEntry>
+        <outputEntry id="OE_aprovado_1_acao">
+          <text>"APROVAR"</text>
+        </outputEntry>
+      </rule>
+      <rule id="Rule_Aprovado_40314090_2">
+        <description>Carcinoma urotelial avançado antes de imunoterapia</description>
+        <inputEntry id="UnaryTests_aprovado_diag_2">
+          <text>"C67.0","C67.1","C67.2","C67.3","C67.4","C67.5","C67.6","C67.7","C67.8","C67.9"</text>
+        </inputEntry>
+        <inputEntry id="UnaryTests_aprovado_tnm_2">
+          <text>"T3","T4","TX"</text>
+        </inputEntry>
+        <inputEntry id="UnaryTests_aprovado_ecog_2">
+          <text>"0","1","2"</text>
+        </inputEntry>
+        <inputEntry id="UnaryTests_aprovado_linhas_2">
+          <text>"0","1"</text>
+        </inputEntry>
+        <inputEntry id="UnaryTests_aprovado_protocolo_2">
+          <text>true</text>
+        </inputEntry>
+        <inputEntry id="IE_Rule_Aprovado_40314090_2_ultimo"><text>-</text></inputEntry>
+        <outputEntry id="LiteralExpression_aprovado_resultado_2">
+          <text>"APROVADO"</text>
+        </outputEntry>
+        <outputEntry id="LiteralExpression_aprovado_obs_2">
+          <text>"Teste PD-L1 autorizado para carcinoma urotelial avançado"</text>
+        </outputEntry>
+        <outputEntry id="LiteralExpression_aprovado_fund_2">
+          <text>"NCCN Bladder: PD-L1 orienta escolha entre monoterapia vs combinação em 1ª linha."</text>
+        </outputEntry>
+        <outputEntry id="OE_aprovado_2_alertas">
+          <text>"NENHUM"</text>
+        </outputEntry>
+        <outputEntry id="OE_aprovado_2_acao">
+          <text>"APROVAR"</text>
+        </outputEntry>
+      </rule>
+      <rule id="Rule_Aprovado_40314090_3">
+        <description>Câncer gástrico avançado HER2 negativo para imunoterapia</description>
+        <inputEntry id="UnaryTests_aprovado_diag_3">
+          <text>"C16.0","C16.1","C16.2","C16.3","C16.4","C16.5","C16.6","C16.8","C16.9"</text>
+        </inputEntry>
+        <inputEntry id="UnaryTests_aprovado_tnm_3">
+          <text>"T3","T4","TX"</text>
+        </inputEntry>
+        <inputEntry id="UnaryTests_aprovado_ecog_3">
+          <text>"0","1"</text>
+        </inputEntry>
+        <inputEntry id="UnaryTests_aprovado_linhas_3">
+          <text>"0"</text>
+        </inputEntry>
+        <inputEntry id="UnaryTests_aprovado_protocolo_3">
+          <text>true</text>
+        </inputEntry>
+        <inputEntry id="IE_Rule_Aprovado_40314090_3_ultimo"><text>-</text></inputEntry>
+        <outputEntry id="LiteralExpression_aprovado_resultado_3">
+          <text>"APROVADO"</text>
+        </outputEntry>
+        <outputEntry id="LiteralExpression_aprovado_obs_3">
+          <text>"Teste PD-L1 autorizado para câncer gástrico/JGE avançado"</text>
+        </outputEntry>
+        <outputEntry id="LiteralExpression_aprovado_fund_3">
+          <text>"KEYNOTE-859, CheckMate-649: PD-L1 orienta uso de nivolumabe ou pembrolizumabe 1ª linha."</text>
+        </outputEntry>
+        <outputEntry id="OE_aprovado_3_alertas">
+          <text>"NENHUM"</text>
+        </outputEntry>
+        <outputEntry id="OE_aprovado_3_acao">
+          <text>"APROVAR"</text>
+        </outputEntry>
+      </rule>
+      <rule id="Rule_Aprovado_40314090_4">
+        <description>Carcinoma renal avançado antes de imunoterapia combinada</description>
+        <inputEntry id="UnaryTests_aprovado_diag_4">
+          <text>"C64"</text>
+        </inputEntry>
+        <inputEntry id="UnaryTests_aprovado_tnm_4">
+          <text>"T3","T4","TX"</text>
+        </inputEntry>
+        <inputEntry id="UnaryTests_aprovado_ecog_4">
+          <text>"0","1"</text>
+        </inputEntry>
+        <inputEntry id="UnaryTests_aprovado_linhas_4">
+          <text>"0"</text>
+        </inputEntry>
+        <inputEntry id="UnaryTests_aprovado_protocolo_4">
+          <text>true</text>
+        </inputEntry>
+        <inputEntry id="IE_Rule_Aprovado_40314090_4_ultimo"><text>-</text></inputEntry>
+        <outputEntry id="LiteralExpression_aprovado_resultado_4">
+          <text>"APROVADO"</text>
+        </outputEntry>
+        <outputEntry id="LiteralExpression_aprovado_obs_4">
+          <text>"Teste PD-L1 autorizado para carcinoma renal avançado"</text>
+        </outputEntry>
+        <outputEntry id="LiteralExpression_aprovado_fund_4">
+          <text>"CheckMate-9ER, KEYNOTE-426: PD-L1 auxilia escolha entre nivo+cabo vs pembro+axi."</text>
+        </outputEntry>
+        <outputEntry id="OE_aprovado_4_alertas">
+          <text>"NENHUM"</text>
+        </outputEntry>
+        <outputEntry id="OE_aprovado_4_acao">
+          <text>"APROVAR"</text>
+        </outputEntry>
+      </rule>
+      <rule id="Rule_Pendente_40314090_1">
+        <description>ECOG 3 requer avaliação oncológica para elegibilidade</description>
+        <inputEntry id="UnaryTests_pendente_diag_1">
+          <text></text>
+        </inputEntry>
+        <inputEntry id="UnaryTests_pendente_tnm_1">
+          <text></text>
+        </inputEntry>
+        <inputEntry id="UnaryTests_pendente_ecog_1">
+          <text>"3"</text>
+        </inputEntry>
+        <inputEntry id="UnaryTests_pendente_linhas_1">
+          <text></text>
+        </inputEntry>
+        <inputEntry id="UnaryTests_pendente_protocolo_1">
+          <text></text>
+        </inputEntry>
+        <inputEntry id="IE_Rule_Pendente_40314090_1_ultimo"><text>-</text></inputEntry>
+        <outputEntry id="LiteralExpression_pendente_resultado_1">
+          <text>"PENDENTE"</text>
+        </outputEntry>
+        <outputEntry id="LiteralExpression_pendente_obs_1">
+          <text>"ECOG 3 limítrofe: requer parecer oncológico para imunoterapia"</text>
+        </outputEntry>
+        <outputEntry id="LiteralExpression_pendente_fund_1">
+          <text>"Avaliar se ECOG 3 é por doença (pode melhorar) ou comorbidades (contraindicação relativa)."</text>
+        </outputEntry>
+        <outputEntry id="OE_pendente_1_alertas">
+          <text>"NENHUM"</text>
+        </outputEntry>
+        <outputEntry id="OE_pendente_1_acao">
+          <text>"SOLICITAR_INFO"</text>
+        </outputEntry>
+      </rule>
+      <rule id="Rule_Fallback_40314090">
+        <description>Casos não categorizados nas regras anteriores</description>
+        <inputEntry id="UnaryTests_fallback_diag">
+          <text></text>
+        </inputEntry>
+        <inputEntry id="UnaryTests_fallback_tnm">
+          <text></text>
+        </inputEntry>
+        <inputEntry id="UnaryTests_fallback_ecog">
+          <text></text>
+        </inputEntry>
+        <inputEntry id="UnaryTests_fallback_linhas">
+          <text></text>
+        </inputEntry>
+        <inputEntry id="UnaryTests_fallback_protocolo">
+          <text></text>
+        </inputEntry>
+        <inputEntry id="IE_Rule_Fallback_40314090_ultimo"><text>-</text></inputEntry>
+        <outputEntry id="LiteralExpression_fallback_resultado">
+          <text>"PENDENTE"</text>
+        </outputEntry>
+        <outputEntry id="LiteralExpression_fallback_obs">
+          <text>"Caso requer análise manual pela auditoria médica"</text>
+        </outputEntry>
+        <outputEntry id="LiteralExpression_fallback_fund">
+          <text>"Situação clínica não prevista nas regras automatizadas. Revisão necessária."</text>
+        </outputEntry>
+        <outputEntry id="OE_fallback_alertas">
+          <text>"NENHUM"</text>
+        </outputEntry>
+        <outputEntry id="OE_fallback_acao">
+          <text>"SOLICITAR_INFO"</text>
+        </outputEntry>
+      </rule>
+    </decisionTable>
+  </decision>
+</definitions>

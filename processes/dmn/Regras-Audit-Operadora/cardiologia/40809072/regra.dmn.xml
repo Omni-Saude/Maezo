@@ -1,0 +1,303 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             xmlns:camunda="http://camunda.org/schema/1.0/dmn"
+             id="Definitions_40809072"
+             name="Cateterismo Cardiaco Diagnostico"
+             namespace="http://camunda.org/schema/1.0/dmn">
+
+  <!--
+    ===============================================================================
+    TUSS: 40809072
+    Procedimento: Cateterismo Cardiaco Diagnostico (Cineangiocoronariografia)
+    Versao: 1.0.0-LEAN-TIER2
+    Data: 2026-02-07
+    ===============================================================================
+
+    INDICACOES CLINICAS (DUT/ANS + ACC AUC 2024):
+    - SCA (STEMI, NSTEMI, angina instavel)
+    - DAC estavel com teste funcional positivo
+    - Pre-operatorio de cirurgia valvar
+    - Cardiomiopatia com indicacao de caracterizacao
+    - Avaliacao hemodinamica
+
+    CONTRAINDICACOES RELATIVAS:
+    - Coagulopatia nao corrigida
+    - DRC grave (risco de NIC)
+    - Alergia grave a contraste
+
+    REFERENCIAS TECNICAS:
+    ACC/AHA AUC 2024, ESC CCS 2024, SBC/SHB 2024
+
+    ALERTAS DE DESPERDICIO (LEAN TIER-2):
+    - DUP: Duplicidade - cateterismo recente sem mudanca clinica
+    - FREQ: Frequencia excessiva - follow-up sem indicacao
+    - ESC: Escalonamento indevido - cateterismo sem teste funcional previo
+    - DOC: Documentacao insuficiente - sem justificativa clinica adequada
+    - PROT: Protocolo inadequado - fora das diretrizes vigentes
+    - MULTI: Multiplos alertas combinados
+
+    ===============================================================================
+  -->
+
+  <decision id="Decision_40809072" name="Regra Clinica - Cateterismo Cardiaco Diagnostico">
+    <decisionTable id="DecisionTable_40809072" hitPolicy="FIRST">
+
+      <!-- ========== INPUTS (6 - Padrao LEAN TIER-2) ========== -->
+
+      <input id="Input_indicacaoClinica" label="Indicacao Clinica" camunda:inputVariable="indicacaoClinica">
+        <inputExpression id="InputExpression_indicacaoClinica" typeRef="string">
+          <text>indicacaoClinica</text>
+        </inputExpression>
+        <inputValues id="InputValues_indicacaoClinica">
+          <text>"STEMI","NSTEMI","AnginaInstavel","DACEstavelTestePositivo","PreOpValvar","Cardiomiopatia","DACEstavelSemTeste"</text>
+        </inputValues>
+      </input>
+
+      <input id="Input_classeIndicacao" label="Classe de Indicacao (ACC/AHA)" camunda:inputVariable="classeIndicacao">
+        <inputExpression id="InputExpression_classeIndicacao" typeRef="string">
+          <text>classeIndicacao</text>
+        </inputExpression>
+        <inputValues id="InputValues_classeIndicacao">
+          <text>"Classe I","Classe IIa","Classe IIb","Classe III"</text>
+        </inputValues>
+      </input>
+
+      <input id="Input_urgencia" label="Nivel de Urgencia" camunda:inputVariable="urgencia">
+        <inputExpression id="InputExpression_urgencia" typeRef="string">
+          <text>urgencia</text>
+        </inputExpression>
+        <inputValues id="InputValues_urgencia">
+          <text>"Primario_menor90min","Urgencia_menor24h","Eletivo","FollowUp"</text>
+        </inputValues>
+      </input>
+
+      <input id="Input_testeFuncionalPositivo" label="Teste Funcional Positivo" camunda:inputVariable="testeFuncionalPositivo">
+        <inputExpression id="InputExpression_testeFuncionalPositivo" typeRef="boolean">
+          <text>testeFuncionalPositivo</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_ultimoProcedimentoDias" label="Dias desde Ultimo Cateterismo" camunda:inputVariable="ultimoProcedimentoDias">
+        <inputExpression id="InputExpression_ultimoProcedimentoDias" typeRef="integer">
+          <text>ultimoProcedimentoDias</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_coagulopatia" label="Coagulopatia Nao Corrigida" camunda:inputVariable="coagulopatia">
+        <inputExpression id="InputExpression_coagulopatia" typeRef="boolean">
+          <text>coagulopatia</text>
+        </inputExpression>
+      </input>
+
+      <!-- ========== OUTPUTS (5 - Padrao LEAN TIER-2) ========== -->
+
+      <output id="Output_resultado" label="Resultado" name="resultado" typeRef="string">
+        <outputValues id="OutputValues_resultado">
+          <text>"Aprovado","Reprovado","Pendente"</text>
+        </outputValues>
+      </output>
+
+      <output id="Output_observacao" label="Observacao Clinica" name="observacao" typeRef="string" />
+
+      <output id="Output_fundamentacao" label="Fundamentacao Tecnica" name="fundamentacao" typeRef="string" />
+
+      <output id="Output_alertasDesperdicio" label="Alertas de Desperdicio" name="alertasDesperdicio" typeRef="string">
+        <outputValues id="OutputValues_alertasDesperdicio">
+          <text>"NENHUM","DUP","FREQ","ESC","DOC","PROT","MULTI"</text>
+        </outputValues>
+      </output>
+
+      <output id="Output_acaoRecomendada" label="Acao Recomendada" name="acaoRecomendada" typeRef="string">
+        <outputValues id="OutputValues_acaoRecomendada">
+          <text>"APROVAR","NEGAR","SOLICITAR_INFO","AGUARDAR_PRAZO","SUGERIR_ALTERNATIVA"</text>
+        </outputValues>
+      </output>
+
+      <!-- ========== REGRAS DE REPROVACAO (PRIORIDADE MAXIMA) ========== -->
+
+      <!-- PROT: Classe III - nao indicado -->
+      <rule id="Rule_Reprovado_ClasseIII">
+        <description>Reprovado: Procedimento Classe III - nao indicado</description>
+        <inputEntry id="InputEntry_ClasseIII_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_ClasseIII_2"><text>"Classe III"</text></inputEntry>
+        <inputEntry id="InputEntry_ClasseIII_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_ClasseIII_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_ClasseIII_5"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_ClasseIII_6"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_ClasseIII_resultado"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_ClasseIII_observacao"><text>"Indicacao Classe III - cateterismo nao indicado conforme diretrizes vigentes"</text></outputEntry>
+        <outputEntry id="OutputEntry_ClasseIII_fundamentacao"><text>"ACC AUC 2024, ESC CCS 2024 - Classe III: Procedimento nao indicado, risco supera beneficio"</text></outputEntry>
+        <outputEntry id="OutputEntry_ClasseIII_alerta"><text>"PROT"</text></outputEntry>
+        <outputEntry id="OutputEntry_ClasseIII_acao"><text>"NEGAR"</text></outputEntry>
+      </rule>
+
+      <!-- PROT: Coagulopatia nao corrigida em eletivo -->
+      <rule id="Rule_Reprovado_Coagulopatia">
+        <description>Reprovado: Coagulopatia nao corrigida em cateterismo eletivo</description>
+        <inputEntry id="InputEntry_Coag_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Coag_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Coag_3"><text>"Eletivo","FollowUp"</text></inputEntry>
+        <inputEntry id="InputEntry_Coag_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Coag_5"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Coag_6"><text>true</text></inputEntry>
+        <outputEntry id="OutputEntry_Coag_resultado"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_Coag_observacao"><text>"Coagulopatia nao corrigida - adiar cateterismo eletivo ate correcao"</text></outputEntry>
+        <outputEntry id="OutputEntry_Coag_fundamentacao"><text>"SCAI 2024: Coagulopatia grave e contraindicacao relativa. Corrigir antes do procedimento eletivo"</text></outputEntry>
+        <outputEntry id="OutputEntry_Coag_alerta"><text>"PROT"</text></outputEntry>
+        <outputEntry id="OutputEntry_Coag_acao"><text>"AGUARDAR_PRAZO"</text></outputEntry>
+      </rule>
+
+      <!-- ESC: DAC estavel sem teste funcional -->
+      <rule id="Rule_Reprovado_SemTesteFuncional">
+        <description>Reprovado: DAC estavel sem teste funcional previo - escalonamento indevido</description>
+        <inputEntry id="InputEntry_NoTeste_1"><text>"DACEstavelSemTeste"</text></inputEntry>
+        <inputEntry id="InputEntry_NoTeste_2"><text>"Classe IIb","Classe III"</text></inputEntry>
+        <inputEntry id="InputEntry_NoTeste_3"><text>"Eletivo"</text></inputEntry>
+        <inputEntry id="InputEntry_NoTeste_4"><text>false</text></inputEntry>
+        <inputEntry id="InputEntry_NoTeste_5"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_NoTeste_6"><text>false</text></inputEntry>
+        <outputEntry id="OutputEntry_NoTeste_resultado"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_NoTeste_observacao"><text>"DAC estavel sem documentacao de isquemia - teste funcional necessario antes de cateterismo invasivo"</text></outputEntry>
+        <outputEntry id="OutputEntry_NoTeste_fundamentacao"><text>"ACC AUC 2024, ISCHEMIA Trial: Revascularizacao sem isquemia documentada nao traz beneficio. Teste funcional ou anatomico requerido"</text></outputEntry>
+        <outputEntry id="OutputEntry_NoTeste_alerta"><text>"ESC"</text></outputEntry>
+        <outputEntry id="OutputEntry_NoTeste_acao"><text>"SUGERIR_ALTERNATIVA"</text></outputEntry>
+      </rule>
+
+      <!-- DUP: Cateterismo recente em follow-up sem mudanca clinica -->
+      <rule id="Rule_Reprovado_DupFollowUp">
+        <description>Reprovado: Cateterismo ha menos de 365 dias sem mudanca clinica</description>
+        <inputEntry id="InputEntry_DupFU_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_DupFU_2"><text>"Classe IIb"</text></inputEntry>
+        <inputEntry id="InputEntry_DupFU_3"><text>"FollowUp"</text></inputEntry>
+        <inputEntry id="InputEntry_DupFU_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_DupFU_5"><text>&lt; 365</text></inputEntry>
+        <inputEntry id="InputEntry_DupFU_6"><text>false</text></inputEntry>
+        <outputEntry id="OutputEntry_DupFU_resultado"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_DupFU_observacao"><text>"Cateterismo realizado ha menos de 12 meses. Follow-up invasivo requer mudanca clinica documentada"</text></outputEntry>
+        <outputEntry id="OutputEntry_DupFU_fundamentacao"><text>"ACC AUC 2024: Cateterismo de rotina para follow-up sem sintomas novos ou alteracao em teste funcional e raramente apropriado"</text></outputEntry>
+        <outputEntry id="OutputEntry_DupFU_alerta"><text>"DUP"</text></outputEntry>
+        <outputEntry id="OutputEntry_DupFU_acao"><text>"AGUARDAR_PRAZO"</text></outputEntry>
+      </rule>
+
+      <!-- ========== REGRAS DE APROVACAO CRITICAS (SCA) ========== -->
+
+      <!-- Aprovado: STEMI - Cateterismo primario -->
+      <rule id="Rule_Aprovado_STEMI">
+        <description>Aprovado: STEMI - Cateterismo primario obrigatorio em menos de 90 minutos</description>
+        <inputEntry id="InputEntry_STEMI_1"><text>"STEMI"</text></inputEntry>
+        <inputEntry id="InputEntry_STEMI_2"><text>"Classe I"</text></inputEntry>
+        <inputEntry id="InputEntry_STEMI_3"><text>"Primario_menor90min"</text></inputEntry>
+        <inputEntry id="InputEntry_STEMI_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_STEMI_5"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_STEMI_6"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_STEMI_resultado"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_STEMI_observacao"><text>"STEMI - Cateterismo primario mandatorio em menos de 90 minutos. Nao aguardar documentacao adicional"</text></outputEntry>
+        <outputEntry id="OutputEntry_STEMI_fundamentacao"><text>"ACC/AHA STEMI 2023, ESC 2023: ICP primaria e tratamento padrao-ouro para STEMI. Tempo porta-balao menor 90 minutos"</text></outputEntry>
+        <outputEntry id="OutputEntry_STEMI_alerta"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_STEMI_acao"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <!-- Aprovado: NSTEMI - Estrategia invasiva -->
+      <rule id="Rule_Aprovado_NSTEMI">
+        <description>Aprovado: NSTEMI - Estrategia invasiva em menos de 24h</description>
+        <inputEntry id="InputEntry_NSTEMI_1"><text>"NSTEMI"</text></inputEntry>
+        <inputEntry id="InputEntry_NSTEMI_2"><text>"Classe I"</text></inputEntry>
+        <inputEntry id="InputEntry_NSTEMI_3"><text>"Urgencia_menor24h"</text></inputEntry>
+        <inputEntry id="InputEntry_NSTEMI_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_NSTEMI_5"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_NSTEMI_6"><text>false</text></inputEntry>
+        <outputEntry id="OutputEntry_NSTEMI_resultado"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_NSTEMI_observacao"><text>"NSTEMI - estrategia invasiva precoce indicada. Cateterismo em menos de 24h"</text></outputEntry>
+        <outputEntry id="OutputEntry_NSTEMI_fundamentacao"><text>"ESC NSTEMI 2023: Estrategia invasiva precoce para NSTEMI de risco intermediario/alto"</text></outputEntry>
+        <outputEntry id="OutputEntry_NSTEMI_alerta"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_NSTEMI_acao"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <!-- Aprovado: Angina instavel -->
+      <rule id="Rule_Aprovado_AnginaInstavel">
+        <description>Aprovado: Angina instavel - cateterismo indicado</description>
+        <inputEntry id="InputEntry_AI_1"><text>"AnginaInstavel"</text></inputEntry>
+        <inputEntry id="InputEntry_AI_2"><text>"Classe I","Classe IIa"</text></inputEntry>
+        <inputEntry id="InputEntry_AI_3"><text>"Urgencia_menor24h"</text></inputEntry>
+        <inputEntry id="InputEntry_AI_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_AI_5"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_AI_6"><text>false</text></inputEntry>
+        <outputEntry id="OutputEntry_AI_resultado"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_AI_observacao"><text>"Angina instavel - cateterismo indicado para estratificacao e tratamento"</text></outputEntry>
+        <outputEntry id="OutputEntry_AI_fundamentacao"><text>"ACC AUC 2024: Angina instavel indica estrategia invasiva quando risco intermediario/alto"</text></outputEntry>
+        <outputEntry id="OutputEntry_AI_alerta"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_AI_acao"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <!-- ========== REGRAS DE APROVACAO ELETIVAS ========== -->
+
+      <!-- Aprovado: DAC estavel com teste positivo -->
+      <rule id="Rule_Aprovado_DACTestePositivo">
+        <description>Aprovado: DAC estavel com teste funcional positivo</description>
+        <inputEntry id="InputEntry_DACPos_1"><text>"DACEstavelTestePositivo"</text></inputEntry>
+        <inputEntry id="InputEntry_DACPos_2"><text>"Classe I","Classe IIa"</text></inputEntry>
+        <inputEntry id="InputEntry_DACPos_3"><text>"Eletivo"</text></inputEntry>
+        <inputEntry id="InputEntry_DACPos_4"><text>true</text></inputEntry>
+        <inputEntry id="InputEntry_DACPos_5"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_DACPos_6"><text>false</text></inputEntry>
+        <outputEntry id="OutputEntry_DACPos_resultado"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_DACPos_observacao"><text>"DAC estavel com teste funcional positivo - cateterismo indicado para avaliacao anatomica e decisao de revascularizacao"</text></outputEntry>
+        <outputEntry id="OutputEntry_DACPos_fundamentacao"><text>"ACC AUC 2024, ESC CCS 2024: Teste funcional positivo em DAC estavel indica avaliacao anatomica invasiva"</text></outputEntry>
+        <outputEntry id="OutputEntry_DACPos_alerta"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_DACPos_acao"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <!-- Aprovado: Pre-operatorio valvar -->
+      <rule id="Rule_Aprovado_PreOpValvar">
+        <description>Aprovado: Pre-operatorio de cirurgia valvar</description>
+        <inputEntry id="InputEntry_PreOp_1"><text>"PreOpValvar"</text></inputEntry>
+        <inputEntry id="InputEntry_PreOp_2"><text>"Classe I"</text></inputEntry>
+        <inputEntry id="InputEntry_PreOp_3"><text>"Eletivo"</text></inputEntry>
+        <inputEntry id="InputEntry_PreOp_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_PreOp_5"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_PreOp_6"><text>false</text></inputEntry>
+        <outputEntry id="OutputEntry_PreOp_resultado"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_PreOp_observacao"><text>"Pre-operatorio de cirurgia valvar - cateterismo indicado para avaliacao coronariana"</text></outputEntry>
+        <outputEntry id="OutputEntry_PreOp_fundamentacao"><text>"ACC/AHA VHD 2024: Cateterismo pre-operatorio obrigatorio em homens maior 40 e mulheres maior 50 anos"</text></outputEntry>
+        <outputEntry id="OutputEntry_PreOp_alerta"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_PreOp_acao"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <!-- ========== REGRAS DE PENDENCIA ========== -->
+
+      <!-- ESC: DAC estavel sem teste em Classe IIa -->
+      <rule id="Rule_Pendente_SemTesteClasseIIa">
+        <description>Pendente: DAC estavel sem teste funcional - realizar teste primeiro</description>
+        <inputEntry id="InputEntry_PendTeste_1"><text>"DACEstavelSemTeste"</text></inputEntry>
+        <inputEntry id="InputEntry_PendTeste_2"><text>"Classe IIa"</text></inputEntry>
+        <inputEntry id="InputEntry_PendTeste_3"><text>"Eletivo"</text></inputEntry>
+        <inputEntry id="InputEntry_PendTeste_4"><text>false</text></inputEntry>
+        <inputEntry id="InputEntry_PendTeste_5"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_PendTeste_6"><text>false</text></inputEntry>
+        <outputEntry id="OutputEntry_PendTeste_resultado"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OutputEntry_PendTeste_observacao"><text>"DAC estavel sem teste funcional. Realizar teste ergometrico, cintilografia ou CTA antes de cateterismo invasivo"</text></outputEntry>
+        <outputEntry id="OutputEntry_PendTeste_fundamentacao"><text>"ACC AUC 2024: Em DAC estavel, teste funcional ou anatomico nao-invasivo deve preceder cateterismo"</text></outputEntry>
+        <outputEntry id="OutputEntry_PendTeste_alerta"><text>"ESC"</text></outputEntry>
+        <outputEntry id="OutputEntry_PendTeste_acao"><text>"SUGERIR_ALTERNATIVA"</text></outputEntry>
+      </rule>
+
+      <!-- ========== REGRA FALLBACK ========== -->
+
+      <rule id="Rule_Fallback_40809072">
+        <description>Regra padrao - caso requer analise clinica adicional</description>
+        <inputEntry id="InputEntry_Fallback_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Fallback_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Fallback_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Fallback_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Fallback_5"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Fallback_6"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_Fallback_resultado"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OutputEntry_Fallback_observacao"><text>"Caso requer analise clinica adicional para cateterismo. Documentar indicacao especifica e exames previos"</text></outputEntry>
+        <outputEntry id="OutputEntry_Fallback_fundamentacao"><text>"ACC AUC 2024: Avaliacao individualizada necessaria. Indicacao, ECG, troponina se SCA, teste funcional se DAC estavel"</text></outputEntry>
+        <outputEntry id="OutputEntry_Fallback_alerta"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_Fallback_acao"><text>"SOLICITAR_INFO"</text></outputEntry>
+      </rule>
+
+    </decisionTable>
+  </decision>
+</definitions>

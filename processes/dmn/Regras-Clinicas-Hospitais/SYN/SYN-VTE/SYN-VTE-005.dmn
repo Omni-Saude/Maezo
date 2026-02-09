@@ -1,0 +1,337 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/"
+             xmlns:dc="http://www.omg.org/spec/DMN/20180521/DC/"
+             id="Definitions_SYN_VTE_005"
+             name="Monitoramento de Anticoagulacao - HIT e Sangramento"
+             targetNamespace="http://camunda.org/schema/1.0/dmn">
+
+  <!--
+    SYN-VTE-005 - Monitoramento de Complicacoes da Anticoagulacao
+    Versao: 1.0.0 (2026-02-06)
+    Categoria: Alerta Clinico - Seguranca do Paciente
+
+    TROMBOCITOPENIA INDUZIDA POR HEPARINA (HIT):
+
+    4T Score:
+    - Trombocitopenia:
+      - >50% queda OU nadir 20-100K: +2
+      - 30-50% queda OU nadir 10-19K: +1
+      - <30% queda OU nadir <10K: 0
+
+    - Timing:
+      - Dias 5-10 OU <=1 dia com exposicao recente: +2
+      - >10 dias OU timing incerto: +1
+      - <=4 dias sem exposicao recente: 0
+
+    - Trombose:
+      - Nova trombose confirmada: +2
+      - Trombose progressiva ou suspeita: +1
+      - Nenhuma: 0
+
+    - OuTras causas:
+      - Nenhuma evidente: +2
+      - Possivel: +1
+      - Definida: 0
+
+    ESTRATIFICACAO 4T:
+    - Score 0-3: Baixa probabilidade (<5%)
+    - Score 4-5: Probabilidade intermediaria (~14%)
+    - Score 6-8: Alta probabilidade (~64%)
+
+    SANGRAMENTO COM ANTICOAGULANTES:
+    - Maior: Hb queda >= 2g/dL, transfusao >= 2U, sangramento critico
+    - Clinicamente relevante nao maior: atendimento medico, hospitalizacao
+
+    REFERENCIAS:
+    - Lo GK et al. J Thromb Haemost 2006 (4T Score)
+    - ISTH Bleeding Definitions
+    - ASH Guidelines on HIT 2018
+  -->
+
+  <decision id="Decision_SYN_VTE_005" name="Monitoramento Anticoagulacao">
+    <decisionTable id="DecisionTable_SYN_VTE_005" hitPolicy="FIRST">
+
+      <!-- INPUT 1: 4T Score -->
+      <input id="Input_1" label="4T Score HIT">
+        <inputExpression id="InputExpression_1" typeRef="number">
+          <text>score4T</text>
+        </inputExpression>
+      </input>
+
+      <!-- INPUT 2: Queda de Plaquetas -->
+      <input id="Input_2" label="Queda Plaquetas (%)">
+        <inputExpression id="InputExpression_2" typeRef="number">
+          <text>quedaPlaquetas</text>
+        </inputExpression>
+      </input>
+
+      <!-- INPUT 3: Sangramento Ativo -->
+      <input id="Input_3" label="Sangramento Ativo">
+        <inputExpression id="InputExpression_3" typeRef="string">
+          <text>sangramentoAtivo</text>
+        </inputExpression>
+      </input>
+
+      <!-- INPUT 4: Anticoagulante em Uso -->
+      <input id="Input_4" label="Anticoagulante em Uso">
+        <inputExpression id="InputExpression_4" typeRef="string">
+          <text>anticoagulanteEmUso</text>
+        </inputExpression>
+      </input>
+
+      <!-- OUTPUTS -->
+      <output id="Output_1" label="Nivel Alerta" name="nivelAlerta" typeRef="string">
+        <outputValues id="OutputValues_1">
+          <text>"Alerta", "Atencao", "OK", "Revisar"</text>
+        </outputValues>
+      </output>
+
+      <output id="Output_2" label="Classificacao Sindrome" name="classificacaoSindrome" typeRef="string"/>
+
+      <output id="Output_3" label="Protocolo Ativado" name="protocoloAtivado" typeRef="boolean"/>
+
+      <output id="Output_4" label="Acao Requerida" name="acaoRequerida" typeRef="string"/>
+
+      <output id="Output_5" label="Urgencia" name="urgencia" typeRef="string">
+        <outputValues id="OutputValues_5">
+          <text>"CRITICA", "ALTA", "MEDIA", "BAIXA"</text>
+        </outputValues>
+      </output>
+
+      <!-- RULE 1: Sangramento Maior Ativo -->
+      <rule id="Rule_Sangramento_Maior">
+        <description>Sangramento maior ativo com anticoagulacao</description>
+        <inputEntry id="InputEntry_1_1">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_1_2">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_1_3">
+          <text>"MAIOR"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_1_4">
+          <text>-</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_1_1">
+          <text>"Alerta"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_1_2">
+          <text>"SANGRAMENTO_MAIOR"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_1_3">
+          <text>true</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_1_4">
+          <text>"SANGRAMENTO MAIOR - EMERGENCIA. SUSPENDER ANTICOAGULANTE. Reverter: Varfarina=Vit K + CCP; Heparina=Protamina; DOACs=Idarucizumabe (dabigatran) ou Andexanet (anti-Xa). Transfusao conforme necessidade. Tipagem e reserva."</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_1_5">
+          <text>"CRITICA"</text>
+        </outputEntry>
+      </rule>
+
+      <!-- RULE 2: HIT Alta Probabilidade -->
+      <rule id="Rule_HIT_Alta_Probabilidade">
+        <description>HIT alta probabilidade - 4T Score 6-8</description>
+        <inputEntry id="InputEntry_2_1">
+          <text>[6..8]</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_2_2">
+          <text>&gt;= 50</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_2_3">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_2_4">
+          <text>-</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_2_1">
+          <text>"Alerta"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_2_2">
+          <text>"HIT_ALTA_PROBABILIDADE"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_2_3">
+          <text>true</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_2_4">
+          <text>"HIT ALTA PROBABILIDADE (4T 6-8). SUSPENDER TODA HEPARINA IMEDIATAMENTE (incluindo flush de cateteres). Iniciar anticoagulante alternativo: Argatroban ou Fondaparinux. Solicitar anti-PF4/heparina. NAO transfundir plaquetas."</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_2_5">
+          <text>"CRITICA"</text>
+        </outputEntry>
+      </rule>
+
+      <!-- RULE 3: HIT Probabilidade Intermediaria -->
+      <rule id="Rule_HIT_Intermediaria">
+        <description>HIT probabilidade intermediaria - 4T Score 4-5</description>
+        <inputEntry id="InputEntry_3_1">
+          <text>[4..5]</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_3_2">
+          <text>&gt;= 30</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_3_3">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_3_4">
+          <text>-</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_3_1">
+          <text>"Alerta"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_3_2">
+          <text>"HIT_INTERMEDIARIA"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_3_3">
+          <text>true</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_3_4">
+          <text>"HIT PROBABILIDADE INTERMEDIARIA (4T 4-5). Suspender heparina. Solicitar anti-PF4/heparina URGENTE. Considerar anticoagulante alternativo enquanto aguarda resultado. Monitorar plaquetas diariamente."</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_3_5">
+          <text>"ALTA"</text>
+        </outputEntry>
+      </rule>
+
+      <!-- RULE 4: Sangramento Clinicamente Relevante -->
+      <rule id="Rule_Sangramento_CRNM">
+        <description>Sangramento clinicamente relevante nao maior</description>
+        <inputEntry id="InputEntry_4_1">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_4_2">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_4_3">
+          <text>"CRNM"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_4_4">
+          <text>-</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_4_1">
+          <text>"Atencao"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_4_2">
+          <text>"SANGRAMENTO_CRNM"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_4_3">
+          <text>false</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_4_4">
+          <text>"Sangramento clinicamente relevante. Avaliar se possivel manter anticoagulacao. Considerar reducao de dose ou suspensao temporaria. Investigar causa do sangramento. Reavaliar indicacao e risco-beneficio."</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_4_5">
+          <text>"ALTA"</text>
+        </outputEntry>
+      </rule>
+
+      <!-- RULE 5: HIT Baixa Probabilidade -->
+      <rule id="Rule_HIT_Baixa">
+        <description>HIT baixa probabilidade - 4T Score 0-3</description>
+        <inputEntry id="InputEntry_5_1">
+          <text>[0..3]</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_5_2">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_5_3">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_5_4">
+          <text>-</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_5_1">
+          <text>"OK"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_5_2">
+          <text>"HIT_IMPROVAVEL"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_5_3">
+          <text>false</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_5_4">
+          <text>"HIT improvavel (4T 0-3, VPN > 99%). Manter heparina se indicada. Investigar outras causas de trombocitopenia. Monitorar plaquetas conforme protocolo institucional."</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_5_5">
+          <text>"BAIXA"</text>
+        </outputEntry>
+      </rule>
+
+      <!-- RULE 6: Monitoramento Normal -->
+      <rule id="Rule_Monitoramento_Normal">
+        <description>Anticoagulacao sem complicacoes</description>
+        <inputEntry id="InputEntry_6_1">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_6_2">
+          <text>&lt; 30</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_6_3">
+          <text>"NENHUM"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_6_4">
+          <text>-</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_6_1">
+          <text>"OK"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_6_2">
+          <text>"ANTICOAGULACAO_SEGURA"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_6_3">
+          <text>false</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_6_4">
+          <text>"Anticoagulacao sem complicacoes aparentes. Manter monitoramento: plaquetas a cada 2-3 dias (heparina), INR/anti-Xa conforme indicado. Educar paciente sobre sinais de sangramento."</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_6_5">
+          <text>"BAIXA"</text>
+        </outputEntry>
+      </rule>
+
+      <!-- FALLBACK -->
+      <rule id="Rule_Fallback_SYN_VTE_005">
+        <description>Dados insuficientes para avaliacao</description>
+        <inputEntry id="InputEntry_F_1">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_F_2">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_F_3">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_F_4">
+          <text>-</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_F_1">
+          <text>"Revisar"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_F_2">
+          <text>"DADOS_INCOMPLETOS"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_F_3">
+          <text>false</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_F_4">
+          <text>"Dados insuficientes para monitoramento de anticoagulacao. Verificar: contagem de plaquetas serial, 4T score se queda, presenca de sangramento, anticoagulante em uso."</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_F_5">
+          <text>"MEDIA"</text>
+        </outputEntry>
+      </rule>
+
+    </decisionTable>
+  </decision>
+
+  <dmndi:DMNDI>
+    <dmndi:DMNDiagram id="DMNDiagram_SYN_VTE_005">
+      <dmndi:DMNShape id="DMNShape_Decision_SYN_VTE_005" dmnElementRef="Decision_SYN_VTE_005">
+        <dc:Bounds height="80" width="180" x="160" y="100"/>
+      </dmndi:DMNShape>
+    </dmndi:DMNDiagram>
+  </dmndi:DMNDI>
+
+</definitions>

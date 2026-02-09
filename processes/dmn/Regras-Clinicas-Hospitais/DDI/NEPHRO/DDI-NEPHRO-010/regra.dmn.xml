@@ -1,0 +1,100 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- ============================================================================
+     DDI-NEPHRO-010: Duplo Bloqueio SRAA (IECA + BRA + Alisquireno)
+
+     EVIDENCIA CLINICA:
+     - ONTARGET Trial (Yusuf S et al. N Engl J Med. 2008;358:1547-59)
+     - ALTITUDE Trial (Parving HH et al. N Engl J Med. 2012;367:2204-13)
+     - FDA Drug Safety Communication - Aliskireno
+
+     MECANISMO: Duplo bloqueio do SRAA (IECA+BRA ou com alisquireno) aumenta
+     hipercalemia, hipotensao e IRA sem beneficio cardiovascular adicional.
+     FDA contraindica alisquireno com IECA/BRA em diabeticos.
+
+     INCIDENCIA: IRA em 5-8%; hipercalemia severa em 3-5%
+     ============================================================================ -->
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/" xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/" xmlns:dc="http://www.omg.org/spec/DMN/20180521/DC/" xmlns:di="http://www.omg.org/spec/DMN/20180521/DI/" id="DDI_NEPHRO_010" name="DDI-NEPHRO-010: Duplo Bloqueio SRAA" namespace="http://camunda.org/schema/1.0/dmn">
+  <decision id="ddi_nephro_010_decision" name="Duplo Bloqueio SRAA - IRA e Hipercalemia">
+    <decisionTable id="ddi_nephro_010_table" hitPolicy="FIRST">
+      <input id="input_medicamentos_ativos" label="Medicamentos Ativos">
+        <inputExpression id="input_expr_medicamentos" typeRef="string">
+          <text>medicamentosAtivos</text>
+        </inputExpression>
+      </input>
+      <input id="input_medicamento_novo" label="Medicamento Novo">
+        <inputExpression id="input_expr_novo" typeRef="string">
+          <text>medicamentoNovo</text>
+        </inputExpression>
+      </input>
+      <input id="input_diabetico" label="Paciente Diabetico">
+        <inputExpression id="input_expr_dm" typeRef="boolean">
+          <text>pacienteDiabetico</text>
+        </inputExpression>
+      </input>
+
+      <output id="output_nivel_alerta" name="nivelAlerta" typeRef="string">
+        <outputValues><text>"Alerta","Atencao","Informativo","OK"</text></outputValues>
+      </output>
+      <output id="output_acao_requerida" name="acaoRequerida" typeRef="string" />
+      <output id="output_justificativa" name="justificativaCientifica" typeRef="string" />
+
+      <!-- Rule 1: IECA + BRA + Diabetico -->
+      <rule id="rule_ieca_bra_dm">
+        <inputEntry id="ie_ieca_ativo">
+          <text>list contains(medicamentosAtivos, "ENALAPRIL") or list contains(medicamentosAtivos, "CAPTOPRIL") or list contains(medicamentosAtivos, "LISINOPRIL") or list contains(medicamentosAtivos, "RAMIPRIL")</text>
+        </inputEntry>
+        <inputEntry id="ie_bra_novo">
+          <text>"LOSARTANA" or "VALSARTANA" or "CANDESARTANA" or "OLMESARTANA" or "IRBESARTANA" or "TELMISARTANA"</text>
+        </inputEntry>
+        <inputEntry id="ie_dm_sim">
+          <text>true</text>
+        </inputEntry>
+        <outputEntry id="oe_alerta_dm"><text>"Alerta"</text></outputEntry>
+        <outputEntry id="oe_acao_dm"><text>"CONTRAINDICADO em diabeticos (ONTARGET/ALTITUDE). Duplo bloqueio SRAA aumenta IRA 33% e hipercalemia sem beneficio CV. Manter apenas um agente (IECA OU BRA). Se refratario, associar BCC ou diuretico."</text></outputEntry>
+        <outputEntry id="oe_just_dm"><text>"ALTITUDE Trial: interrompido por excesso eventos renais e CV em diabeticos. FDA contraindica duplo bloqueio SRAA em DM. Parving HH, NEJM 2012."</text></outputEntry>
+      </rule>
+
+      <!-- Rule 2: IECA/BRA + Alisquireno -->
+      <rule id="rule_ieca_alisquireno">
+        <inputEntry id="ie_ieca_bra_ativo">
+          <text>list contains(medicamentosAtivos, "ENALAPRIL") or list contains(medicamentosAtivos, "LOSARTANA") or list contains(medicamentosAtivos, "CAPTOPRIL") or list contains(medicamentosAtivos, "VALSARTANA")</text>
+        </inputEntry>
+        <inputEntry id="ie_alisquireno_novo">
+          <text>"ALISQUIRENO"</text>
+        </inputEntry>
+        <inputEntry id="ie_dm_any">
+          <text>-</text>
+        </inputEntry>
+        <outputEntry id="oe_alerta_alis"><text>"Alerta"</text></outputEntry>
+        <outputEntry id="oe_acao_alis"><text>"CONTRAINDICADO combinar alisquireno com IECA/BRA, especialmente em DM ou DRC. Triplo bloqueio SRAA com risco inaceitavel. Escolher monoterapia ou combinar com BCC/diuretico."</text></outputEntry>
+        <outputEntry id="oe_just_alis"><text>"FDA Black Box Warning: alisquireno + IECA/BRA contraindicado em diabeticos e DRC. Aumenta IRA, hipercalemia, AVC."</text></outputEntry>
+      </rule>
+
+      <!-- Rule 3: IECA + BRA + Nao diabetico -->
+      <rule id="rule_ieca_bra_nao_dm">
+        <inputEntry id="ie_ieca_ativo2">
+          <text>list contains(medicamentosAtivos, "ENALAPRIL") or list contains(medicamentosAtivos, "CAPTOPRIL") or list contains(medicamentosAtivos, "LISINOPRIL")</text>
+        </inputEntry>
+        <inputEntry id="ie_bra_novo2">
+          <text>"LOSARTANA" or "VALSARTANA" or "CANDESARTANA" or "OLMESARTANA"</text>
+        </inputEntry>
+        <inputEntry id="ie_dm_nao">
+          <text>false</text>
+        </inputEntry>
+        <outputEntry id="oe_atencao_nao_dm"><text>"Atencao"</text></outputEntry>
+        <outputEntry id="oe_acao_nao_dm"><text>"Duplo bloqueio SRAA nao recomendado rotineiramente (ONTARGET). Sem beneficio CV adicional, maior risco renal. Excepcao: IC com FE reduzida refrataria (avaliar sacubitril/valsartana). Monitorar K e creatinina semanalmente."</text></outputEntry>
+        <outputEntry id="oe_just_nao_dm"><text>"ONTARGET: combinacao nao superior a monoterapia, mais eventos adversos renais. Yusuf S, NEJM 2008."</text></outputEntry>
+      </rule>
+
+      <!-- Fallback Rule -->
+      <rule id="Rule_Fallback">
+        <inputEntry id="ie_fallback1"><text>-</text></inputEntry>
+        <inputEntry id="ie_fallback2"><text>-</text></inputEntry>
+        <inputEntry id="ie_fallback3"><text>-</text></inputEntry>
+        <outputEntry id="oe_fallback1"><text>"OK"</text></outputEntry>
+        <outputEntry id="oe_fallback2"><text>""</text></outputEntry>
+        <outputEntry id="oe_fallback3"><text>""</text></outputEntry>
+      </rule>
+    </decisionTable>
+  </decision>
+</definitions>

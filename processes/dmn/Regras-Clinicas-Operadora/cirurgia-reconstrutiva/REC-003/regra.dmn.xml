@@ -1,0 +1,261 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             xmlns:camunda="http://camunda.org/schema/1.0/dmn"
+             id="Definitions_REC003"
+             name="Reconstrucao Mamaria Pos-Mastectomia"
+             namespace="http://camunda.org/schema/1.0/dmn">
+
+  <!--
+    ===============================================================================
+    TUSS: REC-003
+    Procedimento: Reconstrucao Mamaria Pos-Mastectomia Oncologica
+    Especialidade: Cirurgia Reconstrutiva / Cirurgia Plastica
+    Versao: 3.0.0-TIER1
+    Data: 2026-02-07
+    ===============================================================================
+
+    INDICACOES CLINICAS (Lei 12.802/2013, SBCP 2022):
+    - Mastectomia por cancer de mama
+    - Mastectomia profilatica (BRCA1/2 positivo)
+    - Reconstrucao imediata ou tardia
+    - Simetrizacao da mama contralateral
+
+    DIREITO LEGAL:
+    - Lei 12.802/2013: Reconstrucao mamaria e direito da paciente
+    - Obrigatoriedade do SUS e planos de saude
+    - Inclui simetrizacao contralateral
+
+    REFERENCIAS TECNICAS:
+    - Lei 12.802/2013 - Reconstrucao Mamaria
+    - SBCP 2022 - Diretrizes Reconstrucao Mamaria
+    - INCA 2021 - Protocolo Cancer de Mama
+    - ASPS 2023 - Breast Reconstruction Guidelines
+
+    ===============================================================================
+  -->
+
+  <decision id="Decision_REC003" name="Regra Clinica - Reconstrucao Mamaria">
+    <decisionTable id="DecisionTable_REC003" hitPolicy="FIRST">
+
+      <!-- ========== INPUTS (5) ========== -->
+
+      <input id="Input_indicacaoReconstrucao" label="Indicacao da Reconstrucao" camunda:inputVariable="indicacaoReconstrucao">
+        <inputExpression id="InputExpression_indicacaoReconstrucao" typeRef="string">
+          <text>indicacaoReconstrucao</text>
+        </inputExpression>
+        <inputValues id="InputValues_indicacaoReconstrucao">
+          <text>"MastectomiaOncologica","MastectomiaProfilatica","ReconstrucaoTardia","Simetrizacao","ComplicacaoReconstrucao"</text>
+        </inputValues>
+      </input>
+
+      <input id="Input_momentoReconstrucao" label="Momento da Reconstrucao" camunda:inputVariable="momentoReconstrucao">
+        <inputExpression id="InputExpression_momentoReconstrucao" typeRef="string">
+          <text>momentoReconstrucao</text>
+        </inputExpression>
+        <inputValues id="InputValues_momentoReconstrucao">
+          <text>"Imediata","Tardia","Secundaria"</text>
+        </inputValues>
+      </input>
+
+      <input id="Input_tecnicaProposta" label="Tecnica Proposta" camunda:inputVariable="tecnicaProposta">
+        <inputExpression id="InputExpression_tecnicaProposta" typeRef="string">
+          <text>tecnicaProposta</text>
+        </inputExpression>
+        <inputValues id="InputValues_tecnicaProposta">
+          <text>"Protese","RetalhoTRAM","RetalhoLDM","RetalhoMicrocirurgico","Expansor","LipoenxertiaExclusiva"</text>
+        </inputValues>
+      </input>
+
+      <input id="Input_estadoOncologico" label="Estado Oncologico" camunda:inputVariable="estadoOncologico">
+        <inputExpression id="InputExpression_estadoOncologico" typeRef="string">
+          <text>estadoOncologico</text>
+        </inputExpression>
+        <inputValues id="InputValues_estadoOncologico">
+          <text>"LivreDoenca","EmTratamento","RadioteraplaPendente","MetastaseDistancia"</text>
+        </inputValues>
+      </input>
+
+      <input id="Input_condicoesClinicas" label="Condicoes Clinicas" camunda:inputVariable="condicoesClinicas">
+        <inputExpression id="InputExpression_condicoesClinicas" typeRef="string">
+          <text>condicoesClinicas</text>
+        </inputExpression>
+        <inputValues id="InputValues_condicoesClinicas">
+          <text>"ASA1ou2","ASA3Compensado","ASA3Descompensado","ASA4","TabagismoAtivo"</text>
+        </inputValues>
+      </input>
+
+      <!-- ========== OUTPUTS (3 - Padrao TIER-1) ========== -->
+
+      <output id="Output_resultado" label="Resultado" name="resultado" typeRef="string">
+        <outputValues id="OutputValues_resultado">
+          <text>"Aprovado","Reprovado","Pendente"</text>
+        </outputValues>
+      </output>
+
+      <output id="Output_observacao" label="Observacao Clinica" name="observacao" typeRef="string" />
+
+      <output id="Output_fundamentacao" label="Fundamentacao Tecnica" name="fundamentacao" typeRef="string" />
+
+      <!-- Output 4: Alertas Desperdicio -->
+      <output id="Output_alertasDesperdicio" label="Alertas de Desperdicio" name="alertasDesperdicio" typeRef="string">
+        <outputValues id="OutputValues_alertasDesperdicio">
+          <text>"NENHUM","DUP","FREQ","ESC","DOC","PROT","MULTI"</text>
+        </outputValues>
+      </output>
+
+      <!-- Output 5: Acao Recomendada -->
+      <output id="Output_acaoRecomendada" label="Acao Recomendada" name="acaoRecomendada" typeRef="string">
+        <outputValues id="OutputValues_acaoRecomendada">
+          <text>"APROVAR","NEGAR","SOLICITAR_INFO","AGUARDAR_PRAZO","SUGERIR_ALTERNATIVA"</text>
+        </outputValues>
+      </output>
+
+      <!-- ========== RULES ========== -->
+
+      <!-- CONTRAINDICACOES -->
+      <rule id="Rule_Contraind_Metastase">
+        <description>Contraindicacao: Metastase a distancia ativa</description>
+        <inputEntry id="InputEntry_Met_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Met_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Met_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Met_4"><text>"MetastaseDistancia"</text></inputEntry>
+        <inputEntry id="InputEntry_Met_5"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_Met_resultado"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_Met_observacao"><text>"Metastase a distancia ativa - priorizar tratamento oncologico sistemico"</text></outputEntry>
+        <outputEntry id="OutputEntry_Met_fundamentacao"><text>"INCA 2021, SBCP 2022 - Reconstrucao contraindicada em doenca metastatica ativa"</text></outputEntry>
+      <outputEntry id="OE_Contraind_Metastase_4"><text>"PROT"</text></outputEntry>
+        <outputEntry id="OE_Contraind_Metastase_5"><text>"NEGAR"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Contraind_ASA4">
+        <description>Contraindicacao: Risco cirurgico proibitivo</description>
+        <inputEntry id="InputEntry_ASA4_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_ASA4_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_ASA4_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_ASA4_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_ASA4_5"><text>"ASA4"</text></inputEntry>
+        <outputEntry id="OutputEntry_ASA4_resultado"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_ASA4_observacao"><text>"Risco cirurgico proibitivo - procedimento eletivo contraindicado"</text></outputEntry>
+        <outputEntry id="OutputEntry_ASA4_fundamentacao"><text>"SBCP 2022 - Cirurgia reconstrutiva requer condicoes clinicas adequadas"</text></outputEntry>
+      <outputEntry id="OE_Contraind_ASA4_4"><text>"PROT"</text></outputEntry>
+        <outputEntry id="OE_Contraind_ASA4_5"><text>"NEGAR"</text></outputEntry>
+      </rule>
+
+      <!-- APROVACOES - DIREITO LEGAL -->
+      <rule id="Rule_Aprovado_MastectomiaOncologica">
+        <description>Aprovado: Direito legal - mastectomia oncologica</description>
+        <inputEntry id="InputEntry_MO_1"><text>"MastectomiaOncologica"</text></inputEntry>
+        <inputEntry id="InputEntry_MO_2"><text>"Imediata","Tardia"</text></inputEntry>
+        <inputEntry id="InputEntry_MO_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_MO_4"><text>"LivreDoenca","EmTratamento"</text></inputEntry>
+        <inputEntry id="InputEntry_MO_5"><text>"ASA1ou2","ASA3Compensado"</text></inputEntry>
+        <outputEntry id="OutputEntry_MO_resultado"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_MO_observacao"><text>"DIREITO LEGAL - Reconstrucao mamaria pos-mastectomia oncologica"</text></outputEntry>
+        <outputEntry id="OutputEntry_MO_fundamentacao"><text>"Lei 12.802/2013 - Reconstrucao mamaria e direito da paciente apos mastectomia"</text></outputEntry>
+      <outputEntry id="OE_Aprovado_MastectomiaOncologica_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_Aprovado_MastectomiaOncologica_5"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Aprovado_Simetrizacao">
+        <description>Aprovado: Direito legal - simetrizacao contralateral</description>
+        <inputEntry id="InputEntry_SIM_1"><text>"Simetrizacao"</text></inputEntry>
+        <inputEntry id="InputEntry_SIM_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_SIM_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_SIM_4"><text>"LivreDoenca"</text></inputEntry>
+        <inputEntry id="InputEntry_SIM_5"><text>"ASA1ou2","ASA3Compensado"</text></inputEntry>
+        <outputEntry id="OutputEntry_SIM_resultado"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_SIM_observacao"><text>"DIREITO LEGAL - Simetrizacao da mama contralateral incluida na lei"</text></outputEntry>
+        <outputEntry id="OutputEntry_SIM_fundamentacao"><text>"Lei 12.802/2013 - Simetrizacao e parte integrante da reconstrucao mamaria"</text></outputEntry>
+      <outputEntry id="OE_Aprovado_Simetrizacao_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_Aprovado_Simetrizacao_5"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Aprovado_MastectomiaProfilatica">
+        <description>Aprovado: Mastectomia profilatica com reconstrucao</description>
+        <inputEntry id="InputEntry_MP_1"><text>"MastectomiaProfilatica"</text></inputEntry>
+        <inputEntry id="InputEntry_MP_2"><text>"Imediata"</text></inputEntry>
+        <inputEntry id="InputEntry_MP_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_MP_4"><text>"LivreDoenca"</text></inputEntry>
+        <inputEntry id="InputEntry_MP_5"><text>"ASA1ou2","ASA3Compensado"</text></inputEntry>
+        <outputEntry id="OutputEntry_MP_resultado"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_MP_observacao"><text>"Mastectomia profilatica com reconstrucao imediata - BRCA positivo documentado"</text></outputEntry>
+        <outputEntry id="OutputEntry_MP_fundamentacao"><text>"SBCP 2022, NCCN 2023 - Reconstrucao imediata recomendada em mastectomia profilatica"</text></outputEntry>
+      <outputEntry id="OE_Aprovado_MastectomiaProfilatica_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_Aprovado_MastectomiaProfilatica_5"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Aprovado_ReconstrucaoTardia">
+        <description>Aprovado: Reconstrucao tardia apos tratamento</description>
+        <inputEntry id="InputEntry_RT_1"><text>"ReconstrucaoTardia"</text></inputEntry>
+        <inputEntry id="InputEntry_RT_2"><text>"Tardia","Secundaria"</text></inputEntry>
+        <inputEntry id="InputEntry_RT_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_RT_4"><text>"LivreDoenca"</text></inputEntry>
+        <inputEntry id="InputEntry_RT_5"><text>"ASA1ou2","ASA3Compensado"</text></inputEntry>
+        <outputEntry id="OutputEntry_RT_resultado"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_RT_observacao"><text>"Reconstrucao tardia aprovada - paciente livre de doenca"</text></outputEntry>
+        <outputEntry id="OutputEntry_RT_fundamentacao"><text>"Lei 12.802/2013, SBCP 2022 - Direito a reconstrucao tardia preservado"</text></outputEntry>
+      <outputEntry id="OE_Aprovado_ReconstrucaoTardia_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_Aprovado_ReconstrucaoTardia_5"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Aprovado_ComplicacaoReconstrucao">
+        <description>Aprovado: Revisao por complicacao de reconstrucao previa</description>
+        <inputEntry id="InputEntry_CR_1"><text>"ComplicacaoReconstrucao"</text></inputEntry>
+        <inputEntry id="InputEntry_CR_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_CR_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_CR_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_CR_5"><text>"ASA1ou2","ASA3Compensado"</text></inputEntry>
+        <outputEntry id="OutputEntry_CR_resultado"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_CR_observacao"><text>"Revisao de reconstrucao por complicacao - contratura, extrusao, infeccao"</text></outputEntry>
+        <outputEntry id="OutputEntry_CR_fundamentacao"><text>"SBCP 2022 - Complicacoes de reconstrucao requerem revisao cirurgica"</text></outputEntry>
+      <outputEntry id="OE_Aprovado_ComplicacaoReconstrucao_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_Aprovado_ComplicacaoReconstrucao_5"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <!-- PENDENTE -->
+      <rule id="Rule_Pendente_RadioterapiaPendente">
+        <description>Pendente: Radioterapia pendente</description>
+        <inputEntry id="InputEntry_RP_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_RP_2"><text>"Imediata"</text></inputEntry>
+        <inputEntry id="InputEntry_RP_3"><text>"Protese"</text></inputEntry>
+        <inputEntry id="InputEntry_RP_4"><text>"RadioteraplaPendente"</text></inputEntry>
+        <inputEntry id="InputEntry_RP_5"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_RP_resultado"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OutputEntry_RP_observacao"><text>"Radioterapia pendente - considerar expansor ou reconstrucao tardia"</text></outputEntry>
+        <outputEntry id="OutputEntry_RP_fundamentacao"><text>"SBCP 2022 - Radioterapia afeta resultados de protese, considerar alternativas"</text></outputEntry>
+      <outputEntry id="OE_Pendente_RadioterapiaPendente_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_Pendente_RadioterapiaPendente_5"><text>"SOLICITAR_INFO"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Pendente_Tabagismo">
+        <description>Pendente: Tabagismo ativo - risco de complicacoes</description>
+        <inputEntry id="InputEntry_TAB_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_TAB_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_TAB_3"><text>"RetalhoTRAM","RetalhoLDM","RetalhoMicrocirurgico"</text></inputEntry>
+        <inputEntry id="InputEntry_TAB_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_TAB_5"><text>"TabagismoAtivo"</text></inputEntry>
+        <outputEntry id="OutputEntry_TAB_resultado"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OutputEntry_TAB_observacao"><text>"Tabagismo ativo aumenta risco de necrose de retalho - cessar 4-6 semanas antes"</text></outputEntry>
+        <outputEntry id="OutputEntry_TAB_fundamentacao"><text>"ASPS 2023 - Cessacao tabagica obrigatoria para retalhos pediculados/livres"</text></outputEntry>
+      <outputEntry id="OE_Pendente_Tabagismo_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_Pendente_Tabagismo_5"><text>"SOLICITAR_INFO"</text></outputEntry>
+      </rule>
+
+      <!-- FALLBACK RULE -->
+      <rule id="Rule_Fallback_REC003">
+        <description>Regra padrao - Analise adicional necessaria</description>
+        <inputEntry id="InputEntry_Fallback_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Fallback_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Fallback_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Fallback_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Fallback_5"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_Fallback_resultado"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OutputEntry_Fallback_observacao"><text>"Avaliar caso com equipe multidisciplinar de mastologia e cirurgia plastica"</text></outputEntry>
+        <outputEntry id="OutputEntry_Fallback_fundamentacao"><text>"Lei 12.802/2013, SBCP 2022 - Reconstrucao mamaria e direito, avaliar melhor tecnica"</text></outputEntry>
+      <outputEntry id="OE_Fallback_REC003_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_Fallback_REC003_5"><text>"SOLICITAR_INFO"</text></outputEntry>
+      </rule>
+
+    </decisionTable>
+  </decision>
+</definitions>

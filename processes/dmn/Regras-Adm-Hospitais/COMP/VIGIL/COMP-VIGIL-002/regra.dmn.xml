@@ -1,0 +1,133 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  ============================================================================
+  COMP-VIGIL-002 - CNES Atualizado
+  ============================================================================
+  Versao: 1.0.0 (2026-02-08)
+  Categoria: COMP-VIGIL
+  Perspectiva: HOSPITAL (Administrativo - Cadastro)
+
+  ============================================================================
+  INDICACOES (Quando PROSSEGUIR):
+  ============================================================================
+  - CNES atualizado nos últimos 12 meses
+  - Informações cadastrais corretas e atualizadas
+  - Hospital regular no Cadastro Nacional de Estabelecimentos de Saúde
+
+  ============================================================================
+  CONTRAINDICACOES (Quando BLOQUEAR):
+  ============================================================================
+  - CNES desatualizado há mais de 24 meses
+  - Informações cadastrais desatualizadas
+  - Estabelecimento com pendências no CNES
+
+  ============================================================================
+  REFERENCIAS NORMATIVAS:
+  ============================================================================
+  - Portaria MS/GM 1646/2015 - CNES
+  - RN 412/2016 ANS - Padrão TISS (requer CNES válido)
+  - Cadastro DATASUS
+  ============================================================================
+-->
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/"
+             xmlns:dc="http://www.omg.org/spec/DMN/20180521/DC/"
+             id="Definitions_COMP_VIGIL_002"
+             name="CNES Atualizado"
+             targetNamespace="http://camunda.org/schema/1.0/dmn">
+
+  <decision id="Decision_COMP_VIGIL_002" name="CNES Atualizado">
+    <decisionTable id="DecisionTable_COMP_VIGIL_002" hitPolicy="FIRST">
+
+      <!-- ========== INPUTS ========== -->
+      <input id="Input_1" label="CNES Atualizado">
+        <inputExpression id="InputExpression_1" typeRef="boolean">
+          <text>cnesAtualizado</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_2" label="Dias desde Última Atualização">
+        <inputExpression id="InputExpression_2" typeRef="integer">
+          <text>ultimaAtualizacao</text>
+        </inputExpression>
+      </input>
+
+      <!-- ========== OUTPUTS (5 STANDARD) ========== -->
+      <output id="Output_1" label="Resultado" name="resultado" typeRef="string">
+        <outputValues><text>"Prosseguir", "Bloquear", "Alertar", "Revisar"</text></outputValues>
+      </output>
+
+      <output id="Output_2" label="Observacao" name="observacao" typeRef="string"/>
+
+      <output id="Output_3" label="Acao Recomendada" name="acaoRecomendada" typeRef="string"/>
+
+      <output id="Output_4" label="Alertas Conformidade" name="alertasConformidade" typeRef="string">
+        <outputValues><text>"NENHUM", "DUP", "FREQ", "PRAZO", "DOC", "VALOR", "CRED", "CONTRATO"</text></outputValues>
+      </output>
+
+      <output id="Output_5" label="Risco Denial" name="riscoDenial" typeRef="string">
+        <outputValues><text>"BAIXO", "MEDIO", "ALTO", "CRITICO"</text></outputValues>
+      </output>
+
+      <!-- ========== RULES ========== -->
+
+      <!-- REGRA B1: Bloqueio - CNES muito desatualizado (>730 dias = 2 anos) -->
+      <rule id="Rule_Bloqueio_1">
+        <description>CNES desatualizado há mais de 2 anos</description>
+        <inputEntry id="InputEntry_B1_1"><text>false</text></inputEntry>
+        <inputEntry id="InputEntry_B1_2"><text>&gt; 730</text></inputEntry>
+        <outputEntry id="OutputEntry_B1_1"><text>"Bloquear"</text></outputEntry>
+        <outputEntry id="OutputEntry_B1_2"><text>"CNES desatualizado há mais de 2 anos. Estabelecimento irregular no cadastro nacional."</text></outputEntry>
+        <outputEntry id="OutputEntry_B1_3"><text>"Atualizar urgentemente o CNES junto ao Ministério da Saúde (DATASUS)."</text></outputEntry>
+        <outputEntry id="OutputEntry_B1_4"><text>"CRED"</text></outputEntry>
+        <outputEntry id="OutputEntry_B1_5"><text>"CRITICO"</text></outputEntry>
+      </rule>
+
+      <!-- REGRA A1: Alerta - CNES desatualizado (>365 dias = 1 ano) -->
+      <rule id="Rule_Alerta_1">
+        <description>CNES desatualizado há mais de 1 ano</description>
+        <inputEntry id="InputEntry_A1_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_A1_2"><text>[365..730]</text></inputEntry>
+        <outputEntry id="OutputEntry_A1_1"><text>"Alertar"</text></outputEntry>
+        <outputEntry id="OutputEntry_A1_2"><text>"CNES desatualizado há mais de 1 ano. Risco de pendências cadastrais."</text></outputEntry>
+        <outputEntry id="OutputEntry_A1_3"><text>"Programar atualização do CNES nos próximos 60 dias."</text></outputEntry>
+        <outputEntry id="OutputEntry_A1_4"><text>"DOC"</text></outputEntry>
+        <outputEntry id="OutputEntry_A1_5"><text>"MEDIO"</text></outputEntry>
+      </rule>
+
+      <!-- REGRA P1: Aprovado - CNES atualizado recentemente -->
+      <rule id="Rule_Aprovado_1">
+        <description>CNES atualizado nos últimos 12 meses</description>
+        <inputEntry id="InputEntry_P1_1"><text>true</text></inputEntry>
+        <inputEntry id="InputEntry_P1_2"><text>&lt;= 365</text></inputEntry>
+        <outputEntry id="OutputEntry_P1_1"><text>"Prosseguir"</text></outputEntry>
+        <outputEntry id="OutputEntry_P1_2"><text>"CNES atualizado e regular no Cadastro Nacional de Estabelecimentos de Saúde."</text></outputEntry>
+        <outputEntry id="OutputEntry_P1_3"><text>"Prosseguir com faturamento conforme procedimento padrão."</text></outputEntry>
+        <outputEntry id="OutputEntry_P1_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_P1_5"><text>"BAIXO"</text></outputEntry>
+      </rule>
+
+      <!-- REGRA F: Fallback - Requer revisão manual -->
+      <rule id="Rule_Fallback_COMP_VIGIL_002">
+        <description>Regra padrão - Requer avaliação manual</description>
+        <inputEntry id="InputEntry_F_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_F_2"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_F_1"><text>"Revisar"</text></outputEntry>
+        <outputEntry id="OutputEntry_F_2"><text>"Situação requer análise manual por não corresponder a nenhum critério automático."</text></outputEntry>
+        <outputEntry id="OutputEntry_F_3"><text>"Encaminhar para auditoria administrativa para avaliação caso a caso."</text></outputEntry>
+        <outputEntry id="OutputEntry_F_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_F_5"><text>"MEDIO"</text></outputEntry>
+      </rule>
+
+    </decisionTable>
+  </decision>
+
+  <dmndi:DMNDI>
+    <dmndi:DMNDiagram id="DMNDiagram_COMP_VIGIL_002">
+      <dmndi:DMNShape id="DMNShape_Decision_COMP_VIGIL_002" dmnElementRef="Decision_COMP_VIGIL_002">
+        <dc:Bounds height="80" width="180" x="160" y="100"/>
+      </dmndi:DMNShape>
+    </dmndi:DMNDiagram>
+  </dmndi:DMNDI>
+
+</definitions>

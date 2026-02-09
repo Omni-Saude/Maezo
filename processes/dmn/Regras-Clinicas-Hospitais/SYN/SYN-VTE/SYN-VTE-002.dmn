@@ -1,0 +1,328 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/"
+             xmlns:dc="http://www.omg.org/spec/DMN/20180521/DC/"
+             id="Definitions_SYN_VTE_002"
+             name="Deteccao de Embolia Pulmonar - Wells PE Score"
+             targetNamespace="http://camunda.org/schema/1.0/dmn">
+
+  <!--
+    SYN-VTE-002 - Deteccao de Embolia Pulmonar (EP) via Wells PE Score
+    Versao: 1.0.0 (2026-02-06)
+    Categoria: Alerta Clinico - Sindromes Criticas
+
+    WELLS SCORE PARA EP:
+    - Sinais clinicos de TVP: +3
+    - EP e o diagnostico mais provavel: +3
+    - FC > 100 bpm: +1.5
+    - Imobilizacao > 3 dias ou cirurgia em 4 semanas: +1.5
+    - TVP ou EP previa: +1.5
+    - Hemoptise: +1
+    - Cancer (tratamento em 6 meses): +1
+
+    ESTRATIFICACAO (versao original):
+    - Score > 6: Alta probabilidade (~65%)
+    - Score 2-6: Probabilidade moderada (~23%)
+    - Score < 2: Baixa probabilidade (~4%)
+
+    ESTRATIFICACAO SIMPLIFICADA:
+    - Score > 4: EP provavel → AngioTC
+    - Score <= 4: EP improvavel → D-dimero
+
+    SINAIS DE GRAVIDADE (EP Macica):
+    - Hipotensao (PAS < 90 mmHg)
+    - Choque
+    - Disfuncao de VD no ECO
+
+    REFERENCIAS:
+    - Wells PS et al. Thromb Haemost 2000
+    - ESC Guidelines on Pulmonary Embolism 2019
+    - ACCP Guidelines 2021
+  -->
+
+  <decision id="Decision_SYN_VTE_002" name="Deteccao EP Wells Score">
+    <decisionTable id="DecisionTable_SYN_VTE_002" hitPolicy="FIRST">
+
+      <!-- INPUT 1: Wells Score PE -->
+      <input id="Input_1" label="Wells Score EP">
+        <inputExpression id="InputExpression_1" typeRef="number">
+          <text>wellsScorePE</text>
+        </inputExpression>
+      </input>
+
+      <!-- INPUT 2: Pressao Arterial Sistolica -->
+      <input id="Input_2" label="Pressao Sistolica (mmHg)">
+        <inputExpression id="InputExpression_2" typeRef="number">
+          <text>pressaoSistolica</text>
+        </inputExpression>
+      </input>
+
+      <!-- INPUT 3: D-Dimero -->
+      <input id="Input_3" label="D-Dimero (ng/mL)">
+        <inputExpression id="InputExpression_3" typeRef="number">
+          <text>dDimero</text>
+        </inputExpression>
+      </input>
+
+      <!-- INPUT 4: AngioTC Positiva -->
+      <input id="Input_4" label="AngioTC Positiva para EP">
+        <inputExpression id="InputExpression_4" typeRef="boolean">
+          <text>angioTcPositiva</text>
+        </inputExpression>
+      </input>
+
+      <!-- OUTPUTS -->
+      <output id="Output_1" label="Nivel Alerta" name="nivelAlerta" typeRef="string">
+        <outputValues id="OutputValues_1">
+          <text>"Alerta", "Atencao", "OK", "Revisar"</text>
+        </outputValues>
+      </output>
+
+      <output id="Output_2" label="Classificacao Sindrome" name="classificacaoSindrome" typeRef="string"/>
+
+      <output id="Output_3" label="Protocolo Ativado" name="protocoloAtivado" typeRef="boolean"/>
+
+      <output id="Output_4" label="Acao Requerida" name="acaoRequerida" typeRef="string"/>
+
+      <output id="Output_5" label="Urgencia" name="urgencia" typeRef="string">
+        <outputValues id="OutputValues_5">
+          <text>"CRITICA", "ALTA", "MEDIA", "BAIXA"</text>
+        </outputValues>
+      </output>
+
+      <!-- RULE 1: EP Macica com Choque -->
+      <rule id="Rule_EP_Macica_Choque">
+        <description>EP Macica de Alto Risco com Instabilidade Hemodinamica</description>
+        <inputEntry id="InputEntry_1_1">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_1_2">
+          <text>&lt; 90</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_1_3">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_1_4">
+          <text>true</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_1_1">
+          <text>"Alerta"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_1_2">
+          <text>"EP_MACICA_CHOQUE"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_1_3">
+          <text>true</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_1_4">
+          <text>"EP MACICA DE ALTO RISCO - CHOQUE. EMERGENCIA! Considerar TROMBOLISE SISTEMICA (alteplase 100mg em 2h) se nao houver contraindicacao. UTI imediata. Suporte vasopressor. Se contraindicacao a trombolise, avaliar embolectomia cirurgica ou cateter."</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_1_5">
+          <text>"CRITICA"</text>
+        </outputEntry>
+      </rule>
+
+      <!-- RULE 2: EP Confirmada estavel -->
+      <rule id="Rule_EP_Confirmada_Estavel">
+        <description>EP confirmada por AngioTC, hemodinamicamente estavel</description>
+        <inputEntry id="InputEntry_2_1">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_2_2">
+          <text>&gt;= 90</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_2_3">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_2_4">
+          <text>true</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_2_1">
+          <text>"Alerta"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_2_2">
+          <text>"EP_CONFIRMADA"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_2_3">
+          <text>true</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_2_4">
+          <text>"EP CONFIRMADA. Iniciar ANTICOAGULACAO PLENA: Enoxaparina 1mg/kg 12/12h ou Rivaroxaban 15mg 12/12h. Dosar troponina e BNP para estratificacao. ECO para avaliar disfuncao de VD. Se risco intermediario-alto, monitorar em UTI."</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_2_5">
+          <text>"CRITICA"</text>
+        </outputEntry>
+      </rule>
+
+      <!-- RULE 3: Alta probabilidade clinica -->
+      <rule id="Rule_Alta_Probabilidade_PE">
+        <description>Alta probabilidade clinica de EP - Wells > 6</description>
+        <inputEntry id="InputEntry_3_1">
+          <text>&gt; 6</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_3_2">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_3_3">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_3_4">
+          <text>false</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_3_1">
+          <text>"Alerta"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_3_2">
+          <text>"EP_ALTA_PROBABILIDADE"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_3_3">
+          <text>true</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_3_4">
+          <text>"ALTA PROBABILIDADE DE EP (Wells > 6). ANGIOTC DE TORAX URGENTE. Considerar iniciar heparina empirica enquanto aguarda imagem. O2 suplementar. Monitoracao cardiaca continua."</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_3_5">
+          <text>"ALTA"</text>
+        </outputEntry>
+      </rule>
+
+      <!-- RULE 4: EP provavel - Score > 4 -->
+      <rule id="Rule_EP_Provavel">
+        <description>EP provavel pelo score simplificado - Wells > 4</description>
+        <inputEntry id="InputEntry_4_1">
+          <text>&gt; 4</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_4_2">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_4_3">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_4_4">
+          <text>false</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_4_1">
+          <text>"Alerta"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_4_2">
+          <text>"EP_PROVAVEL"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_4_3">
+          <text>true</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_4_4">
+          <text>"EP PROVAVEL (Wells > 4). AngioTC indicada independente de D-Dimero. Se AngioTC indisponivel ou contraindicada, cintilografia V/Q ou USG de MMII."</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_4_5">
+          <text>"ALTA"</text>
+        </outputEntry>
+      </rule>
+
+      <!-- RULE 5: EP improvavel com D-Dimero elevado -->
+      <rule id="Rule_EP_Improvavel_DDimero_Alto">
+        <description>EP improvavel mas D-Dimero elevado</description>
+        <inputEntry id="InputEntry_5_1">
+          <text>&lt;= 4</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_5_2">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_5_3">
+          <text>&gt;= 500</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_5_4">
+          <text>false</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_5_1">
+          <text>"Atencao"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_5_2">
+          <text>"EP_IMPROVAVEL_DDIMERO_ALTO"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_5_3">
+          <text>false</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_5_4">
+          <text>"EP clinicamente improvavel, mas D-Dimero elevado. AngioTC de torax indicada para exclusao. Lembrar que D-Dimero pode ser elevado por outras causas (infeccao, cancer, pos-operatorio)."</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_5_5">
+          <text>"ALTA"</text>
+        </outputEntry>
+      </rule>
+
+      <!-- RULE 6: EP excluida -->
+      <rule id="Rule_EP_Excluida">
+        <description>EP excluida - baixa probabilidade + D-Dimero normal</description>
+        <inputEntry id="InputEntry_6_1">
+          <text>&lt;= 4</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_6_2">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_6_3">
+          <text>&lt; 500</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_6_4">
+          <text>false</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_6_1">
+          <text>"OK"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_6_2">
+          <text>"EP_EXCLUIDA"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_6_3">
+          <text>false</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_6_4">
+          <text>"EP EXCLUIDA com seguranca. Wells <= 4 + D-Dimero negativo tem VPN > 99%. Nao ha necessidade de AngioTC. Investigar diagnosticos alternativos para dispneia/dor toracica."</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_6_5">
+          <text>"BAIXA"</text>
+        </outputEntry>
+      </rule>
+
+      <!-- FALLBACK -->
+      <rule id="Rule_Fallback_SYN_VTE_002">
+        <description>Dados insuficientes para avaliacao</description>
+        <inputEntry id="InputEntry_F_1">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_F_2">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_F_3">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_F_4">
+          <text>-</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_F_1">
+          <text>"Revisar"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_F_2">
+          <text>"DADOS_INCOMPLETOS"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_F_3">
+          <text>false</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_F_4">
+          <text>"Dados insuficientes para calculo Wells PE. Verificar: sinais de TVP, taquicardia, imobilizacao, historico de TEV, hemoptise, cancer, diagnostico alternativo."</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_F_5">
+          <text>"MEDIA"</text>
+        </outputEntry>
+      </rule>
+
+    </decisionTable>
+  </decision>
+
+  <dmndi:DMNDI>
+    <dmndi:DMNDiagram id="DMNDiagram_SYN_VTE_002">
+      <dmndi:DMNShape id="DMNShape_Decision_SYN_VTE_002" dmnElementRef="Decision_SYN_VTE_002">
+        <dc:Bounds height="80" width="180" x="160" y="100"/>
+      </dmndi:DMNShape>
+    </dmndi:DMNDiagram>
+  </dmndi:DMNDI>
+
+</definitions>

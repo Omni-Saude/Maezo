@@ -1,0 +1,182 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  ============================================================================
+  BILL-DIARIA-005 - Acompanhante Obrigatorio (Menor/Idoso)
+  ============================================================================
+  Versao: 1.0.0 (2026-02-08)
+  Categoria: BILL-DIARIA
+  Perspectiva: HOSPITAL (Faturamento/Hotelaria)
+
+  ============================================================================
+  INDICACOES (Quando PROSSEGUIR):
+  ============================================================================
+  - Acompanhante para menor de 18 anos (direito garantido por lei)
+  - Acompanhante para maior de 60 anos (Estatuto do Idoso)
+  - Fornecimento de refeicao e acomodacao sem custo adicional ao paciente
+
+  ============================================================================
+  CONTRAINDICACOES (Quando BLOQUEAR):
+  ============================================================================
+  - Cobranca de taxa de acompanhante para menor ou idoso (vedado por lei)
+  - Cobranca de acompanhante para adulto entre 18-59 anos sem justificativa
+  - Negacao de acompanhante para menor ou idoso
+
+  ============================================================================
+  REFERENCIAS NORMATIVAS:
+  ============================================================================
+  - Lei 8.069/1990 ECA Art. 12 (direito a acompanhante para menor)
+  - Lei 10.741/2003 Estatuto Idoso Art. 16 (direito a acompanhante)
+  - ANS RN 465/2021 (vedacao de cobranca de acompanhante)
+  ============================================================================
+-->
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/"
+             xmlns:dc="http://www.omg.org/spec/DMN/20180521/DC/"
+             id="Definitions_BILL_DIARIA_005"
+             name="Acompanhante Obrigatorio (Menor/Idoso)"
+             targetNamespace="http://camunda.org/schema/1.0/dmn">
+
+  <decision id="Decision_BILL_DIARIA_005" name="Acompanhante Obrigatorio (Menor/Idoso)">
+    <decisionTable id="DecisionTable_BILL_DIARIA_005" hitPolicy="FIRST">
+
+      <!-- ========== INPUTS ========== -->
+      <input id="Input_1" label="Idade Paciente">
+        <inputExpression id="InputExpression_1" typeRef="number">
+          <text>idadePaciente</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_2" label="Acompanhante Presente">
+        <inputExpression id="InputExpression_2" typeRef="boolean">
+          <text>acompanhantePresente</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_3" label="Taxa Cobrada">
+        <inputExpression id="InputExpression_3" typeRef="boolean">
+          <text>taxaCobrada</text>
+        </inputExpression>
+      </input>
+
+      <!-- ========== OUTPUTS (5 STANDARD) ========== -->
+      <output id="Output_1" label="Resultado" name="resultado" typeRef="string">
+        <outputValues><text>"Prosseguir", "Bloquear", "Alertar", "Revisar"</text></outputValues>
+      </output>
+
+      <output id="Output_2" label="Observacao" name="observacao" typeRef="string"/>
+
+      <output id="Output_3" label="Acao Recomendada" name="acaoRecomendada" typeRef="string"/>
+
+      <output id="Output_4" label="Alertas Conformidade" name="alertasConformidade" typeRef="string">
+        <outputValues><text>"NENHUM", "DUP", "FREQ", "PRAZO", "DOC", "VALOR", "CRED", "CONTRATO"</text></outputValues>
+      </output>
+
+      <output id="Output_5" label="Risco Denial" name="riscoDenial" typeRef="string">
+        <outputValues><text>"BAIXO", "MEDIO", "ALTO", "CRITICO"</text></outputValues>
+      </output>
+
+      <!-- ========== RULES ========== -->
+
+      <!-- REGRA B1: Bloqueio - Cobranca de taxa para acompanhante de menor -->
+      <rule id="Rule_Bloqueio_1">
+        <description>Cobranca de taxa de acompanhante para menor de 18 anos (vedado por lei)</description>
+        <inputEntry id="InputEntry_B1_1"><text>&lt; 18</text></inputEntry>
+        <inputEntry id="InputEntry_B1_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_B1_3"><text>true</text></inputEntry>
+        <outputEntry id="OutputEntry_B1_1"><text>"Bloquear"</text></outputEntry>
+        <outputEntry id="OutputEntry_B1_2"><text>"Cobranca de taxa de acompanhante para menor de 18 anos e vedada por lei (ECA Art. 12)."</text></outputEntry>
+        <outputEntry id="OutputEntry_B1_3"><text>"Bloquear cobranca. Estornar taxa cobrada e notificar financeiro sobre violacao legal."</text></outputEntry>
+        <outputEntry id="OutputEntry_B1_4"><text>"CONTRATO"</text></outputEntry>
+        <outputEntry id="OutputEntry_B1_5"><text>"CRITICO"</text></outputEntry>
+      </rule>
+
+      <!-- REGRA B2: Bloqueio - Cobranca de taxa para acompanhante de idoso -->
+      <rule id="Rule_Bloqueio_2">
+        <description>Cobranca de taxa de acompanhante para maior de 60 anos (vedado por lei)</description>
+        <inputEntry id="InputEntry_B2_1"><text>&gt; 60</text></inputEntry>
+        <inputEntry id="InputEntry_B2_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_B2_3"><text>true</text></inputEntry>
+        <outputEntry id="OutputEntry_B2_1"><text>"Bloquear"</text></outputEntry>
+        <outputEntry id="OutputEntry_B2_2"><text>"Cobranca de taxa de acompanhante para idoso e vedada por lei (Estatuto do Idoso Art. 16)."</text></outputEntry>
+        <outputEntry id="OutputEntry_B2_3"><text>"Bloquear cobranca. Estornar taxa cobrada e revisar politica de cobranca."</text></outputEntry>
+        <outputEntry id="OutputEntry_B2_4"><text>"CONTRATO"</text></outputEntry>
+        <outputEntry id="OutputEntry_B2_5"><text>"CRITICO"</text></outputEntry>
+      </rule>
+
+      <!-- REGRA B3: Bloqueio - Ausencia de acompanhante para menor -->
+      <rule id="Rule_Bloqueio_3">
+        <description>Menor de 18 anos sem acompanhante (violacao de direito legal)</description>
+        <inputEntry id="InputEntry_B3_1"><text>&lt; 18</text></inputEntry>
+        <inputEntry id="InputEntry_B3_2"><text>false</text></inputEntry>
+        <inputEntry id="InputEntry_B3_3"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_B3_1"><text>"Bloquear"</text></outputEntry>
+        <outputEntry id="OutputEntry_B3_2"><text>"Menor de 18 anos sem acompanhante. ECA Art. 12 garante direito a acompanhante."</text></outputEntry>
+        <outputEntry id="OutputEntry_B3_3"><text>"Contatar responsavel legal e providenciar acompanhante imediatamente."</text></outputEntry>
+        <outputEntry id="OutputEntry_B3_4"><text>"DOC"</text></outputEntry>
+        <outputEntry id="OutputEntry_B3_5"><text>"ALTO"</text></outputEntry>
+      </rule>
+
+      <!-- REGRA A1: Alerta - Idoso sem acompanhante -->
+      <rule id="Rule_Alerta_1">
+        <description>Idoso (>60 anos) sem acompanhante - Direito legal nao exercido</description>
+        <inputEntry id="InputEntry_A1_1"><text>&gt; 60</text></inputEntry>
+        <inputEntry id="InputEntry_A1_2"><text>false</text></inputEntry>
+        <inputEntry id="InputEntry_A1_3"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_A1_1"><text>"Alertar"</text></outputEntry>
+        <outputEntry id="OutputEntry_A1_2"><text>"Idoso sem acompanhante. Estatuto do Idoso garante direito. Confirmar se foi oferecido."</text></outputEntry>
+        <outputEntry id="OutputEntry_A1_3"><text>"Contatar familia e oferecer direito a acompanhante. Documentar oferta no prontuario."</text></outputEntry>
+        <outputEntry id="OutputEntry_A1_4"><text>"DOC"</text></outputEntry>
+        <outputEntry id="OutputEntry_A1_5"><text>"MEDIO"</text></outputEntry>
+      </rule>
+
+      <!-- REGRA P1: Aprovado - Menor/Idoso com acompanhante sem custo -->
+      <rule id="Rule_Aprovado_1">
+        <description>Menor ou idoso com acompanhante sem cobranca de taxa</description>
+        <inputEntry id="InputEntry_P1_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_P1_2"><text>true</text></inputEntry>
+        <inputEntry id="InputEntry_P1_3"><text>false</text></inputEntry>
+        <outputEntry id="OutputEntry_P1_1"><text>"Prosseguir"</text></outputEntry>
+        <outputEntry id="OutputEntry_P1_2"><text>"Acompanhante presente conforme direito legal. Sem cobranca de taxa adicional."</text></outputEntry>
+        <outputEntry id="OutputEntry_P1_3"><text>"Prosseguir com internacao. Garantir acomodacao e refeicao para acompanhante sem custo."</text></outputEntry>
+        <outputEntry id="OutputEntry_P1_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_P1_5"><text>"BAIXO"</text></outputEntry>
+      </rule>
+
+      <!-- REGRA P2: Aprovado - Adulto (18-60) sem acompanhante -->
+      <rule id="Rule_Aprovado_2">
+        <description>Adulto entre 18-60 anos sem acompanhante - Nao obrigatorio</description>
+        <inputEntry id="InputEntry_P2_1"><text>[18..60]</text></inputEntry>
+        <inputEntry id="InputEntry_P2_2"><text>false</text></inputEntry>
+        <inputEntry id="InputEntry_P2_3"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_P2_1"><text>"Prosseguir"</text></outputEntry>
+        <outputEntry id="OutputEntry_P2_2"><text>"Adulto entre 18-60 anos. Acompanhante nao obrigatorio por lei."</text></outputEntry>
+        <outputEntry id="OutputEntry_P2_3"><text>"Prosseguir com internacao. Acompanhante opcional conforme desejo do paciente."</text></outputEntry>
+        <outputEntry id="OutputEntry_P2_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_P2_5"><text>"BAIXO"</text></outputEntry>
+      </rule>
+
+      <!-- REGRA F: Fallback - Requer revisao manual -->
+      <rule id="Rule_Fallback_BILL_DIARIA_005">
+        <description>Regra padrao - Requer avaliacao manual</description>
+        <inputEntry id="InputEntry_F_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_F_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_F_3"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_F_1"><text>"Revisar"</text></outputEntry>
+        <outputEntry id="OutputEntry_F_2"><text>"Situacao requer analise manual por nao corresponder a nenhum criterio automatico."</text></outputEntry>
+        <outputEntry id="OutputEntry_F_3"><text>"Encaminhar para auditoria administrativa para avaliacao caso a caso."</text></outputEntry>
+        <outputEntry id="OutputEntry_F_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_F_5"><text>"MEDIO"</text></outputEntry>
+      </rule>
+
+    </decisionTable>
+  </decision>
+
+  <dmndi:DMNDI>
+    <dmndi:DMNDiagram id="DMNDiagram_BILL_DIARIA_005">
+      <dmndi:DMNShape id="DMNShape_Decision_BILL_DIARIA_005" dmnElementRef="Decision_BILL_DIARIA_005">
+        <dc:Bounds height="80" width="180" x="160" y="100"/>
+      </dmndi:DMNShape>
+    </dmndi:DMNDiagram>
+  </dmndi:DMNDI>
+
+</definitions>

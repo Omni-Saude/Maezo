@@ -1,0 +1,357 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             xmlns:camunda="http://camunda.org/schema/1.0/dmn"
+             id="Definitions_30803130"
+             name="TOR-MED-001 Timectomia para Miastenia Gravis"
+             namespace="http://camunda.org/schema/1.0/dmn">
+
+  <!--
+    ===============================================================================
+    TUSS: 30803130
+    Procedimento: Timectomia para Miastenia Gravis
+    Especialidade: Cirurgia Toracica
+    Codigo Regra: TOR-MED-001
+    Versao: 3.0.0-LEAN-TIER2
+    Data: 2026-02-07
+    ===============================================================================
+
+    INDICACOES CLINICAS:
+    - Timoma associado a miastenia gravis (indicacao absoluta)
+    - Miastenia gravis generalizada (MGFA II-IV) com anti-AChR positivo
+    - Miastenia gravis ocular (MGFA I) refrataria a tratamento clinico
+    - Idade entre 18-65 anos (beneficio mais estabelecido)
+    - Duracao de doenca menor que 5 anos (melhor prognostico)
+
+    CLASSIFICACAO MGFA (Myasthenia Gravis Foundation of America):
+    - Classe I: Ocular
+    - Classe II: Generalizada leve (IIa: predomínio axial, IIb: predomínio apendicular)
+    - Classe III: Generalizada moderada
+    - Classe IV: Generalizada grave
+    - Classe V: Intubacao/crise miastenica
+
+    CONTRAINDICACOES:
+    - Miastenia gravis seronegativa (anti-AChR e anti-MuSK negativos)
+    - Crise miastenica nao controlada (MGFA V)
+    - Idade maior 70 anos (beneficio questionavel)
+    - Duracao maior 10 anos (menor probabilidade de remissao)
+    - Comorbidades graves que contraindicam cirurgia
+
+    REFERENCIAS TECNICAS:
+    - MGTX Trial (NEJM 2016) - Timectomia em MG
+    - MGFA Task Force Recommendations 2020
+    - AANEM/AAN Guidelines Myasthenia Gravis
+    - SBCT 2023 - Cirurgia do Timo
+    ===============================================================================
+  -->
+
+  <decision id="Decision_30803130" name="Regra Clinica - Timectomia para Miastenia Gravis">
+    <decisionTable id="DecisionTable_30803130" hitPolicy="FIRST">
+
+      <!-- ========== INPUTS (5) - Padrao TIER-1 Cirurgia Toracica ========== -->
+
+      <input id="Input_diagnosticoPulmonar" label="Diagnostico e Classificacao MGFA" camunda:inputVariable="diagnosticoPulmonar">
+        <inputExpression id="InputExpression_diagnosticoPulmonar" typeRef="string">
+          <text>diagnosticoPulmonar</text>
+        </inputExpression>
+        <inputValues id="InputValues_diagnosticoPulmonar">
+          <text>"MG_COM_TIMOMA","MG_GENERALIZADA_ANTI_ACHR_POS","MG_OCULAR","MG_SERONEGATIVA","MG_ANTI_MUSK"</text>
+        </inputValues>
+      </input>
+
+      <input id="Input_estadiamentoTNM" label="Classe MGFA e Gravidade" camunda:inputVariable="estadiamentoTNM">
+        <inputExpression id="InputExpression_estadiamentoTNM" typeRef="string">
+          <text>estadiamentoTNM</text>
+        </inputExpression>
+        <inputValues id="InputValues_estadiamentoTNM">
+          <text>"MGFA_I_OCULAR","MGFA_II_LEVE","MGFA_III_MODERADA","MGFA_IV_GRAVE","MGFA_V_CRISE","MG_ESTAVEL_MEDICACAO"</text>
+        </inputValues>
+      </input>
+
+      <input id="Input_funcaoPulmonar" label="Funcao Respiratoria e Reserva" camunda:inputVariable="funcaoPulmonar">
+        <inputExpression id="InputExpression_funcaoPulmonar" typeRef="string">
+          <text>funcaoPulmonar</text>
+        </inputExpression>
+        <inputValues id="InputValues_funcaoPulmonar">
+          <text>"ADEQUADA_CVF_NORMAL","REDUCAO_LEVE_CVF_60_80","REDUCAO_MODERADA_CVF_40_60","INSUFICIENCIA_RESP_CVF_MENOR_40","NAO_AVALIADA"</text>
+        </inputValues>
+      </input>
+
+      <input id="Input_comorbidades" label="Idade, Duracao e Comorbidades" camunda:inputVariable="comorbidades">
+        <inputExpression id="InputExpression_comorbidades" typeRef="string">
+          <text>comorbidades</text>
+        </inputExpression>
+        <inputValues id="InputValues_comorbidades">
+          <text>"IDADE_18_50_DURACAO_MENOR_5A","IDADE_50_65_DURACAO_MENOR_5A","IDADE_MAIOR_65","DURACAO_MAIOR_10A","COMORBIDADES_GRAVES"</text>
+        </inputValues>
+      </input>
+
+      <input id="Input_documentacaoClinica" label="Documentacao Clinica" camunda:inputVariable="documentacaoClinica">
+        <inputExpression id="InputExpression_documentacaoClinica" typeRef="string">
+          <text>documentacaoClinica</text>
+        </inputExpression>
+        <inputValues id="InputValues_documentacaoClinica">
+          <text>"COMPLETA_ANTICORPOS_TC","PARCIAL_SEM_TC_MEDIASTINO","PARCIAL_SEM_ANTICORPOS","INCOMPLETA"</text>
+        </inputValues>
+      </input>
+
+      <!-- ========== OUTPUTS (3) - Padrao TIER-1 ========== -->
+
+      <output id="Output_resultado" label="Resultado" name="resultado" typeRef="string">
+        <outputValues id="OutputValues_resultado">
+          <text>"Aprovado","Reprovado","Pendente"</text>
+        </outputValues>
+      </output>
+
+      <output id="Output_observacao" label="Observacao Clinica" name="observacao" typeRef="string" />
+
+      <output id="Output_fundamentacao" label="Fundamentacao Tecnica" name="fundamentacao" typeRef="string" />
+
+      <output id="Output_alertasDesperdicio" name="alertasDesperdicio" typeRef="string">
+        <outputValues>
+          <text>"NENHUM","DUP","FREQ","ESC","DOC","PROT","MULTI"</text>
+        </outputValues>
+      </output>
+
+      <output id="Output_acaoRecomendada" name="acaoRecomendada" typeRef="string">
+        <outputValues>
+          <text>"APROVAR","NEGAR","SOLICITAR_INFO","AGUARDAR_PRAZO","SUGERIR_ALTERNATIVA"</text>
+        </outputValues>
+      </output>
+
+      <!-- ========== REGRAS - Ordem: Reprovado, Aprovado, Pendente, Fallback ========== -->
+
+      <!-- REPROVACOES -->
+
+      <rule id="Rule_Reprovado_Seronegativa">
+        <description>Reprovado: Miastenia gravis seronegativa</description>
+        <inputEntry id="InputEntry_Rep_Sero_1"><text>"MG_SERONEGATIVA"</text></inputEntry>
+        <inputEntry id="InputEntry_Rep_Sero_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Rep_Sero_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Rep_Sero_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Rep_Sero_5"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_Rep_Sero_resultado"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_Rep_Sero_observacao"><text>"Timectomia nao indicada em MG seronegativa (anti-AChR e anti-MuSK negativos). Beneficio nao demonstrado nesta populacao."</text></outputEntry>
+        <outputEntry id="OutputEntry_Rep_Sero_fundamentacao"><text>"MGTX Trial, AANEM: Evidencia de beneficio de timectomia e para pacientes anti-AChR positivos. Seronegativa requer manejo diferenciado."</text></outputEntry>
+        <outputEntry id="OutputEntry_Reprovado_Seronegativa_alertasDesperdicio"><text>"PROT"</text></outputEntry>
+        <outputEntry id="OutputEntry_Reprovado_Seronegativa_acaoRecomendada"><text>"NEGAR"</text></outputEntry>
+        <outputEntry id="OutputEntry_Reprovado_Seronegativa_alertasDesperdicio"><text>"PROT"</text></outputEntry>
+        <outputEntry id="OutputEntry_Reprovado_Seronegativa_acaoRecomendada"><text>"NEGAR"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Reprovado_AntiMuSK">
+        <description>Reprovado: Miastenia anti-MuSK positiva</description>
+        <inputEntry id="InputEntry_Rep_MuSK_1"><text>"MG_ANTI_MUSK"</text></inputEntry>
+        <inputEntry id="InputEntry_Rep_MuSK_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Rep_MuSK_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Rep_MuSK_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Rep_MuSK_5"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_Rep_MuSK_resultado"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_Rep_MuSK_observacao"><text>"Timectomia nao recomendada em MG anti-MuSK positiva. Patofisiologia diferente - tratamento clinico e primeira linha."</text></outputEntry>
+        <outputEntry id="OutputEntry_Rep_MuSK_fundamentacao"><text>"AANEM 2020: MG anti-MuSK tem fisiopatologia distinta. Timectomia nao demonstrou beneficio. Rituximab e opcao terapeutica."</text></outputEntry>
+        <outputEntry id="OutputEntry_Reprovado_AntiMuSK_alertasDesperdicio"><text>"PROT"</text></outputEntry>
+        <outputEntry id="OutputEntry_Reprovado_AntiMuSK_acaoRecomendada"><text>"NEGAR"</text></outputEntry>
+        <outputEntry id="OutputEntry_Reprovado_AntiMuSK_alertasDesperdicio"><text>"PROT"</text></outputEntry>
+        <outputEntry id="OutputEntry_Reprovado_AntiMuSK_acaoRecomendada"><text>"NEGAR"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Reprovado_CriseMiastenica">
+        <description>Reprovado: Crise miastenica ativa (MGFA V)</description>
+        <inputEntry id="InputEntry_Rep_Crise_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Rep_Crise_2"><text>"MGFA_V_CRISE"</text></inputEntry>
+        <inputEntry id="InputEntry_Rep_Crise_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Rep_Crise_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Rep_Crise_5"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_Rep_Crise_resultado"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_Rep_Crise_observacao"><text>"Timectomia contraindicada em crise miastenica. Estabilizar com plasmaferese/IVIg antes. Cirurgia eletiva apos controle clinico."</text></outputEntry>
+        <outputEntry id="OutputEntry_Rep_Crise_fundamentacao"><text>"MGFA, AANEM: Crise miastenica requer tratamento intensivo (plasmaferese, IVIg). Cirurgia so apos estabilizacao de 2-4 semanas."</text></outputEntry>
+        <outputEntry id="OutputEntry_Reprovado_CriseMiastenica_alertasDesperdicio"><text>"PROT"</text></outputEntry>
+        <outputEntry id="OutputEntry_Reprovado_CriseMiastenica_acaoRecomendada"><text>"NEGAR"</text></outputEntry>
+        <outputEntry id="OutputEntry_Reprovado_CriseMiastenica_alertasDesperdicio"><text>"PROT"</text></outputEntry>
+        <outputEntry id="OutputEntry_Reprovado_CriseMiastenica_acaoRecomendada"><text>"NEGAR"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Reprovado_InsufResp">
+        <description>Reprovado: Insuficiencia respiratoria grave nao compensada</description>
+        <inputEntry id="InputEntry_Rep_Resp_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Rep_Resp_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Rep_Resp_3"><text>"INSUFICIENCIA_RESP_CVF_MENOR_40"</text></inputEntry>
+        <inputEntry id="InputEntry_Rep_Resp_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Rep_Resp_5"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_Rep_Resp_resultado"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_Rep_Resp_observacao"><text>"CVF menor 40% indica fraqueza respiratoria grave. Otimizar tratamento clinico antes de cirurgia. Risco de crise pos-operatoria."</text></outputEntry>
+        <outputEntry id="OutputEntry_Rep_Resp_fundamentacao"><text>"SBCT, MGFA: CVF pre-operatoria e preditor de complicacoes. CVF menor 50% aumenta risco de ventilacao prolongada."</text></outputEntry>
+        <outputEntry id="OutputEntry_Reprovado_InsufResp_alertasDesperdicio"><text>"PROT"</text></outputEntry>
+        <outputEntry id="OutputEntry_Reprovado_InsufResp_acaoRecomendada"><text>"NEGAR"</text></outputEntry>
+        <outputEntry id="OutputEntry_Reprovado_InsufResp_alertasDesperdicio"><text>"PROT"</text></outputEntry>
+        <outputEntry id="OutputEntry_Reprovado_InsufResp_acaoRecomendada"><text>"NEGAR"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Reprovado_IdadeAvancada">
+        <description>Reprovado: Idade maior 70 anos sem timoma</description>
+        <inputEntry id="InputEntry_Rep_Idade_1"><text>"MG_GENERALIZADA_ANTI_ACHR_POS","MG_OCULAR"</text></inputEntry>
+        <inputEntry id="InputEntry_Rep_Idade_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Rep_Idade_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Rep_Idade_4"><text>"IDADE_MAIOR_65"</text></inputEntry>
+        <inputEntry id="InputEntry_Rep_Idade_5"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_Rep_Idade_resultado"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_Rep_Idade_observacao"><text>"Beneficio de timectomia em pacientes maiores 65-70 anos e incerto. Timo involuido com menor tecido funcional."</text></outputEntry>
+        <outputEntry id="OutputEntry_Rep_Idade_fundamentacao"><text>"MGTX Trial: Pacientes maiores 65 anos foram excluidos do estudo. Beneficio extrapolado nao e garantido nesta faixa etaria."</text></outputEntry>
+        <outputEntry id="OutputEntry_Reprovado_IdadeAvancada_alertasDesperdicio"><text>"PROT"</text></outputEntry>
+        <outputEntry id="OutputEntry_Reprovado_IdadeAvancada_acaoRecomendada"><text>"NEGAR"</text></outputEntry>
+        <outputEntry id="OutputEntry_Reprovado_IdadeAvancada_alertasDesperdicio"><text>"PROT"</text></outputEntry>
+        <outputEntry id="OutputEntry_Reprovado_IdadeAvancada_acaoRecomendada"><text>"NEGAR"</text></outputEntry>
+      </rule>
+
+      <!-- APROVACOES -->
+
+      <rule id="Rule_Aprovado_Timoma">
+        <description>Aprovado: Timoma associado a MG (indicacao absoluta)</description>
+        <inputEntry id="InputEntry_Apr_Tim_1"><text>"MG_COM_TIMOMA"</text></inputEntry>
+        <inputEntry id="InputEntry_Apr_Tim_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Apr_Tim_3"><text>"ADEQUADA_CVF_NORMAL","REDUCAO_LEVE_CVF_60_80","REDUCAO_MODERADA_CVF_40_60"</text></inputEntry>
+        <inputEntry id="InputEntry_Apr_Tim_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Apr_Tim_5"><text>"COMPLETA_ANTICORPOS_TC"</text></inputEntry>
+        <outputEntry id="OutputEntry_Apr_Tim_resultado"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_Apr_Tim_observacao"><text>"Timectomia aprovada - timoma e indicacao absoluta independente de idade ou duracao da MG. Resseccao oncologica completa obrigatoria."</text></outputEntry>
+        <outputEntry id="OutputEntry_Apr_Tim_fundamentacao"><text>"MGFA, NCCN Thymoma: Timoma requer resseccao cirurgica. Timectomia estendida melhora tanto controle tumoral quanto desfecho da MG."</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprovado_Timoma_alertasDesperdicio"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprovado_Timoma_acaoRecomendada"><text>"APROVAR"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprovado_Timoma_alertasDesperdicio"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprovado_Timoma_acaoRecomendada"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Aprovado_Generalizada_Jovem">
+        <description>Aprovado: MG generalizada anti-AChR+ em paciente jovem</description>
+        <inputEntry id="InputEntry_Apr_GenJov_1"><text>"MG_GENERALIZADA_ANTI_ACHR_POS"</text></inputEntry>
+        <inputEntry id="InputEntry_Apr_GenJov_2"><text>"MGFA_II_LEVE","MGFA_III_MODERADA","MGFA_IV_GRAVE"</text></inputEntry>
+        <inputEntry id="InputEntry_Apr_GenJov_3"><text>"ADEQUADA_CVF_NORMAL","REDUCAO_LEVE_CVF_60_80"</text></inputEntry>
+        <inputEntry id="InputEntry_Apr_GenJov_4"><text>"IDADE_18_50_DURACAO_MENOR_5A"</text></inputEntry>
+        <inputEntry id="InputEntry_Apr_GenJov_5"><text>"COMPLETA_ANTICORPOS_TC"</text></inputEntry>
+        <outputEntry id="OutputEntry_Apr_GenJov_resultado"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_Apr_GenJov_observacao"><text>"Timectomia aprovada - candidato ideal (jovem, anti-AChR+, duracao menor 5 anos). MGTX Trial demonstrou beneficio significativo."</text></outputEntry>
+        <outputEntry id="OutputEntry_Apr_GenJov_fundamentacao"><text>"MGTX Trial 2016: Timectomia + prednisona superior a prednisona isolada. Melhora de sintomas e reducao de medicacao em 3 anos."</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprovado_Generalizada_Jovem_alertasDesperdicio"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprovado_Generalizada_Jovem_acaoRecomendada"><text>"APROVAR"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprovado_Generalizada_Jovem_alertasDesperdicio"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprovado_Generalizada_Jovem_acaoRecomendada"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Aprovado_Generalizada_Meia_Idade">
+        <description>Aprovado: MG generalizada em paciente 50-65 anos</description>
+        <inputEntry id="InputEntry_Apr_GenMeia_1"><text>"MG_GENERALIZADA_ANTI_ACHR_POS"</text></inputEntry>
+        <inputEntry id="InputEntry_Apr_GenMeia_2"><text>"MGFA_II_LEVE","MGFA_III_MODERADA"</text></inputEntry>
+        <inputEntry id="InputEntry_Apr_GenMeia_3"><text>"ADEQUADA_CVF_NORMAL","REDUCAO_LEVE_CVF_60_80"</text></inputEntry>
+        <inputEntry id="InputEntry_Apr_GenMeia_4"><text>"IDADE_50_65_DURACAO_MENOR_5A"</text></inputEntry>
+        <inputEntry id="InputEntry_Apr_GenMeia_5"><text>"COMPLETA_ANTICORPOS_TC"</text></inputEntry>
+        <outputEntry id="OutputEntry_Apr_GenMeia_resultado"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_Apr_GenMeia_observacao"><text>"Timectomia aprovada para paciente 50-65 anos com MG generalizada. Beneficio demonstrado ate 65 anos pelo MGTX."</text></outputEntry>
+        <outputEntry id="OutputEntry_Apr_GenMeia_fundamentacao"><text>"MGTX: Incluiu pacientes ate 65 anos com beneficio consistente. Duracao menor 5 anos e fator favoravel."</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprovado_Generalizada_Meia_Idade_alertasDesperdicio"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprovado_Generalizada_Meia_Idade_acaoRecomendada"><text>"APROVAR"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprovado_Generalizada_Meia_Idade_alertasDesperdicio"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprovado_Generalizada_Meia_Idade_acaoRecomendada"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <!-- PENDENCIAS -->
+
+      <rule id="Rule_Pendente_Ocular_Refrataria">
+        <description>Pendente: MG ocular refrataria - beneficio menos estabelecido</description>
+        <inputEntry id="InputEntry_Pend_Ocul_1"><text>"MG_OCULAR"</text></inputEntry>
+        <inputEntry id="InputEntry_Pend_Ocul_2"><text>"MGFA_I_OCULAR"</text></inputEntry>
+        <inputEntry id="InputEntry_Pend_Ocul_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Pend_Ocul_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Pend_Ocul_5"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_Pend_Ocul_resultado"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OutputEntry_Pend_Ocul_observacao"><text>"MG ocular pura - beneficio de timectomia menos estabelecido. Considerar se refrataria a tratamento clinico ou risco de generalizacao."</text></outputEntry>
+        <outputEntry id="OutputEntry_Pend_Ocul_fundamentacao"><text>"MGFA: Timectomia em MG ocular pode prevenir generalizacao em alguns pacientes. Decisao individualizada com neurologista."</text></outputEntry>
+        <outputEntry id="OutputEntry_Pendente_Ocular_Refrataria_alertasDesperdicio"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_Pendente_Ocular_Refrataria_acaoRecomendada"><text>"SOLICITAR_INFO"</text></outputEntry>
+        <outputEntry id="OutputEntry_Pendente_Ocular_Refrataria_alertasDesperdicio"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_Pendente_Ocular_Refrataria_acaoRecomendada"><text>"SOLICITAR_INFO"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Pendente_DuracaoLonga">
+        <description>Pendente: Duracao maior 10 anos - beneficio reduzido</description>
+        <inputEntry id="InputEntry_Pend_Dur_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Pend_Dur_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Pend_Dur_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Pend_Dur_4"><text>"DURACAO_MAIOR_10A"</text></inputEntry>
+        <inputEntry id="InputEntry_Pend_Dur_5"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_Pend_Dur_resultado"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OutputEntry_Pend_Dur_observacao"><text>"Duracao de MG maior 10 anos - probabilidade de remissao pos-timectomia e menor. Avaliar beneficio esperado."</text></outputEntry>
+        <outputEntry id="OutputEntry_Pend_Dur_fundamentacao"><text>"MGFA: Duracao prolongada associada a menor taxa de remissao. Discutir expectativas realistas com paciente."</text></outputEntry>
+        <outputEntry id="OutputEntry_Pendente_DuracaoLonga_alertasDesperdicio"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_Pendente_DuracaoLonga_acaoRecomendada"><text>"SOLICITAR_INFO"</text></outputEntry>
+        <outputEntry id="OutputEntry_Pendente_DuracaoLonga_alertasDesperdicio"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_Pendente_DuracaoLonga_acaoRecomendada"><text>"SOLICITAR_INFO"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Pendente_FuncaoModerada">
+        <description>Pendente: Reducao moderada de CVF - otimizar antes de cirurgia</description>
+        <inputEntry id="InputEntry_Pend_CVF_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Pend_CVF_2"><text>"MGFA_III_MODERADA","MGFA_IV_GRAVE"</text></inputEntry>
+        <inputEntry id="InputEntry_Pend_CVF_3"><text>"REDUCAO_MODERADA_CVF_40_60"</text></inputEntry>
+        <inputEntry id="InputEntry_Pend_CVF_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Pend_CVF_5"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_Pend_CVF_resultado"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OutputEntry_Pend_CVF_observacao"><text>"CVF 40-60% indica fraqueza respiratoria. Considerar plasmaferese ou IVIg pre-operatoria para otimizar funcao antes de cirurgia."</text></outputEntry>
+        <outputEntry id="OutputEntry_Pend_CVF_fundamentacao"><text>"SBCT, MGFA: CVF menor 60% aumenta risco. Preparo pre-operatorio com imunoterapia pode melhorar desfecho."</text></outputEntry>
+        <outputEntry id="OutputEntry_Pendente_FuncaoModerada_alertasDesperdicio"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_Pendente_FuncaoModerada_acaoRecomendada"><text>"SOLICITAR_INFO"</text></outputEntry>
+        <outputEntry id="OutputEntry_Pendente_FuncaoModerada_alertasDesperdicio"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_Pendente_FuncaoModerada_acaoRecomendada"><text>"SOLICITAR_INFO"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Pendente_SemAnticorpos">
+        <description>Pendente: Dosagem de anticorpos nao realizada</description>
+        <inputEntry id="InputEntry_Pend_Anti_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Pend_Anti_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Pend_Anti_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Pend_Anti_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Pend_Anti_5"><text>"PARCIAL_SEM_ANTICORPOS","INCOMPLETA"</text></inputEntry>
+        <outputEntry id="OutputEntry_Pend_Anti_resultado"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OutputEntry_Pend_Anti_observacao"><text>"Dosagem de anti-AChR e anti-MuSK obrigatoria para indicar timectomia. Status sorologico define elegibilidade."</text></outputEntry>
+        <outputEntry id="OutputEntry_Pend_Anti_fundamentacao"><text>"MGTX, AANEM: Beneficio de timectomia demonstrado em anti-AChR positivos. Sorologia e criterio de inclusao."</text></outputEntry>
+        <outputEntry id="OutputEntry_Pendente_SemAnticorpos_alertasDesperdicio"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_Pendente_SemAnticorpos_acaoRecomendada"><text>"SOLICITAR_INFO"</text></outputEntry>
+        <outputEntry id="OutputEntry_Pendente_SemAnticorpos_alertasDesperdicio"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_Pendente_SemAnticorpos_acaoRecomendada"><text>"SOLICITAR_INFO"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Pendente_SemTC">
+        <description>Pendente: TC de mediastino nao realizada</description>
+        <inputEntry id="InputEntry_Pend_TC_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Pend_TC_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Pend_TC_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Pend_TC_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Pend_TC_5"><text>"PARCIAL_SEM_TC_MEDIASTINO"</text></inputEntry>
+        <outputEntry id="OutputEntry_Pend_TC_resultado"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OutputEntry_Pend_TC_observacao"><text>"TC de torax com contraste obrigatoria para excluir timoma e planejar abordagem cirurgica (VATS vs esternotomia)."</text></outputEntry>
+        <outputEntry id="OutputEntry_Pend_TC_fundamentacao"><text>"MGFA, SBCT: Todos pacientes com MG devem ter imagem de mediastino. Timoma muda indicacao para absoluta e planejamento cirurgico."</text></outputEntry>
+        <outputEntry id="OutputEntry_Pendente_SemTC_alertasDesperdicio"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_Pendente_SemTC_acaoRecomendada"><text>"SOLICITAR_INFO"</text></outputEntry>
+        <outputEntry id="OutputEntry_Pendente_SemTC_alertasDesperdicio"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_Pendente_SemTC_acaoRecomendada"><text>"SOLICITAR_INFO"</text></outputEntry>
+      </rule>
+
+      <!-- FALLBACK -->
+
+      <rule id="Rule_Fallback_30803130">
+        <description>Fallback: Caso requer avaliacao multidisciplinar</description>
+        <inputEntry id="InputEntry_Fallback_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Fallback_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Fallback_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Fallback_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Fallback_5"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_Fallback_resultado"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OutputEntry_Fallback_observacao"><text>"Indicacao de timectomia requer avaliacao conjunta de neurologista e cirurgiao toracico. Considerar gravidade, duracao, idade e resposta a tratamento."</text></outputEntry>
+        <outputEntry id="OutputEntry_Fallback_fundamentacao"><text>"MGFA Task Force: Decisao de timectomia deve ser compartilhada entre equipe multidisciplinar e paciente."</text></outputEntry>
+        <outputEntry id="OutputEntry_Fallback_30803130_alertasDesperdicio"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_Fallback_30803130_acaoRecomendada"><text>"SOLICITAR_INFO"</text></outputEntry>
+        <outputEntry id="OutputEntry_Fallback_30803130_alertasDesperdicio"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_Fallback_30803130_acaoRecomendada"><text>"SOLICITAR_INFO"</text></outputEntry>
+      </rule>
+
+    </decisionTable>
+  </decision>
+</definitions>

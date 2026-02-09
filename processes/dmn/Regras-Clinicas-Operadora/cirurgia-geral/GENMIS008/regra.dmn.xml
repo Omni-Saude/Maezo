@@ -1,0 +1,224 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             xmlns:camunda="http://camunda.org/schema/1.0/dmn"
+             id="Definitions_GEN_MIS_008"
+             name="Traqueostomia - Timing em UTI"
+             namespace="http://camunda.org/schema/1.0/dmn">
+
+  <!--
+    ===============================================================================
+    CODIGO: GEN-MIS-008
+    Procedimento: Traqueostomia Eletiva - Criterios de Timing em UTI
+    Especialidade: Cirurgia Geral - Procedimentos Diversos
+    Versao: 3.0.0-TIER1
+    Data: 2026-02-07
+    ===============================================================================
+
+    INDICACOES:
+    - Ventilacao mecanica prolongada prevista (> 14 dias)
+    - Falha de extubacao repetida
+    - Obstrucao de via aerea superior
+    - Protecao de via aerea em disfagia grave
+    - Facilitar desmame ventilatorio
+
+    TIMING:
+    - Precoce (< 7 dias): TCE grave, lesao raquimedular
+    - Padrao (7-14 dias): maioria dos casos
+    - Tardia (> 14 dias): evitar se possivel
+
+    REFERENCIAS TECNICAS:
+    - ATS/CHEST Guidelines Tracheostomy 2020
+    - SCCM/ESICM Consensus 2020
+    - AMIB Recomendacoes 2021
+
+    ===============================================================================
+  -->
+
+  <decision id="Decision_GEN_MIS_008" name="Regra Clinica - Traqueostomia Timing">
+    <decisionTable id="DecisionTable_GEN_MIS_008" hitPolicy="FIRST">
+
+      <!-- ========== INPUTS (5) ========== -->
+
+      <input id="Input_indicacaoVentilacao" label="Indicacao de Ventilacao Prolongada" camunda:inputVariable="indicacaoVentilacao">
+        <inputExpression id="InputExpression_indicacaoVentilacao" typeRef="string">
+          <text>indicacaoVentilacao</text>
+        </inputExpression>
+        <inputValues id="InputValues_indicacaoVentilacao">
+          <text>"TCEGrave","LesaoRaquimedular","DPOC","Pneumonia","SepseSdra","Neurologico","ObstrucaoVAS","Outros"</text>
+        </inputValues>
+      </input>
+
+      <input id="Input_diasVentilacao" label="Dias de Ventilacao Mecanica" camunda:inputVariable="diasVentilacao">
+        <inputExpression id="InputExpression_diasVentilacao" typeRef="number">
+          <text>diasVentilacao</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_previsaoExtubacao" label="Previsao de Extubacao (dias)" camunda:inputVariable="previsaoExtubacao">
+        <inputExpression id="InputExpression_previsaoExtubacao" typeRef="number">
+          <text>previsaoExtubacao</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_falhasExtubacao" label="Numero de Falhas de Extubacao" camunda:inputVariable="falhasExtubacao">
+        <inputExpression id="InputExpression_falhasExtubacao" typeRef="number">
+          <text>falhasExtubacao</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_estabilidadeClinica" label="Estabilidade Clinica" camunda:inputVariable="estabilidadeClinica">
+        <inputExpression id="InputExpression_estabilidadeClinica" typeRef="string">
+          <text>estabilidadeClinica</text>
+        </inputExpression>
+        <inputValues id="InputValues_estabilidadeClinica">
+          <text>"Estavel","InstabilidadeLeve","InstabilidadeModerada","Instavel","Choque"</text>
+        </inputValues>
+      </input>
+
+      <!-- ========== OUTPUTS (3) ========== -->
+
+      <output id="Output_resultado" label="Resultado" name="resultado" typeRef="string">
+        <outputValues id="OutputValues_resultado">
+          <text>"Aprovado","Reprovado","Pendente"</text>
+        </outputValues>
+      </output>
+
+      <output id="Output_observacao" label="Observacao Clinica" name="observacao" typeRef="string" />
+
+      <output id="Output_fundamentacao" label="Fundamentacao Tecnica" name="fundamentacao" typeRef="string" />
+
+      <!-- Output 4: Alertas Desperdicio -->
+      <output id="Output_alertasDesperdicio" label="Alertas de Desperdicio" name="alertasDesperdicio" typeRef="string">
+        <outputValues id="OutputValues_alertasDesperdicio">
+          <text>"NENHUM","DUP","FREQ","ESC","DOC","PROT","MULTI"</text>
+        </outputValues>
+      </output>
+
+      <!-- Output 5: Acao Recomendada -->
+      <output id="Output_acaoRecomendada" label="Acao Recomendada" name="acaoRecomendada" typeRef="string">
+        <outputValues id="OutputValues_acaoRecomendada">
+          <text>"APROVAR","NEGAR","SOLICITAR_INFO","AGUARDAR_PRAZO","SUGERIR_ALTERNATIVA"</text>
+        </outputValues>
+      </output>
+
+      <!-- ========== REGRAS DE REPROVACAO ========== -->
+
+      <rule id="Rule_Reprovado_Instavel">
+        <description>Reprovado: Instabilidade hemodinamica</description>
+        <inputEntry id="IE_Rep1_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_Rep1_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_Rep1_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_Rep1_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_Rep1_5"><text>"Instavel","Choque"</text></inputEntry>
+        <outputEntry id="OE_Rep1_1"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OE_Rep1_2"><text>"Instabilidade hemodinamica - estabilizar antes de procedimento eletivo"</text></outputEntry>
+        <outputEntry id="OE_Rep1_3"><text>"ATS/CHEST 2020 - Traqueostomia eletiva requer estabilidade clinica"</text></outputEntry>
+      <outputEntry id="OE_Reprovado_Instavel_4"><text>"PROT"</text></outputEntry>
+        <outputEntry id="OE_Reprovado_Instavel_5"><text>"NEGAR"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Reprovado_ExtubacaoBreve">
+        <description>Reprovado: Extubacao prevista em breve</description>
+        <inputEntry id="IE_Rep2_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_Rep2_2"><text>&lt;= 7</text></inputEntry>
+        <inputEntry id="IE_Rep2_3"><text>&lt;= 3</text></inputEntry>
+        <inputEntry id="IE_Rep2_4"><text>0</text></inputEntry>
+        <inputEntry id="IE_Rep2_5"><text>-</text></inputEntry>
+        <outputEntry id="OE_Rep2_1"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OE_Rep2_2"><text>"Extubacao prevista em &lt; 3 dias - manter TOT e tentar desmame"</text></outputEntry>
+        <outputEntry id="OE_Rep2_3"><text>"SCCM/ESICM 2020 - Evitar traqueostomia se desmame provavel"</text></outputEntry>
+      <outputEntry id="OE_Reprovado_ExtubacaoBreve_4"><text>"PROT"</text></outputEntry>
+        <outputEntry id="OE_Reprovado_ExtubacaoBreve_5"><text>"NEGAR"</text></outputEntry>
+      </rule>
+
+      <!-- ========== REGRAS DE APROVACAO ========== -->
+
+      <rule id="Rule_Aprovado_TCEPrecoce">
+        <description>Aprovado: TCE grave - traqueostomia precoce</description>
+        <inputEntry id="IE_Apr1_1"><text>"TCEGrave"</text></inputEntry>
+        <inputEntry id="IE_Apr1_2"><text>&gt;= 3</text></inputEntry>
+        <inputEntry id="IE_Apr1_3"><text>&gt; 14</text></inputEntry>
+        <inputEntry id="IE_Apr1_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_Apr1_5"><text>"Estavel","InstabilidadeLeve"</text></inputEntry>
+        <outputEntry id="OE_Apr1_1"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OE_Apr1_2"><text>"TCE grave com VM prolongada prevista - traqueostomia precoce (&lt; 7 dias) indicada"</text></outputEntry>
+        <outputEntry id="OE_Apr1_3"><text>"ATS/CHEST 2020 - Traqueostomia precoce em TCE reduz tempo de VM"</text></outputEntry>
+      <outputEntry id="OE_Aprovado_TCEPrecoce_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_Aprovado_TCEPrecoce_5"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Aprovado_LesaoRaquimedular">
+        <description>Aprovado: Lesao raquimedular alta</description>
+        <inputEntry id="IE_Apr2_1"><text>"LesaoRaquimedular"</text></inputEntry>
+        <inputEntry id="IE_Apr2_2"><text>&gt;= 3</text></inputEntry>
+        <inputEntry id="IE_Apr2_3"><text>&gt; 14</text></inputEntry>
+        <inputEntry id="IE_Apr2_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_Apr2_5"><text>"Estavel","InstabilidadeLeve"</text></inputEntry>
+        <outputEntry id="OE_Apr2_1"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OE_Apr2_2"><text>"Lesao raquimedular alta - traqueostomia precoce para facilitar reabilitacao"</text></outputEntry>
+        <outputEntry id="OE_Apr2_3"><text>"AMIB 2021 - Lesao cervical alta tem indicacao de traqueostomia precoce"</text></outputEntry>
+      <outputEntry id="OE_Aprovado_LesaoRaquimedular_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_Aprovado_LesaoRaquimedular_5"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Aprovado_FalhasExtubacao">
+        <description>Aprovado: Falhas de extubacao repetidas</description>
+        <inputEntry id="IE_Apr3_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_Apr3_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_Apr3_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_Apr3_4"><text>&gt;= 2</text></inputEntry>
+        <inputEntry id="IE_Apr3_5"><text>"Estavel","InstabilidadeLeve","InstabilidadeModerada"</text></inputEntry>
+        <outputEntry id="OE_Apr3_1"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OE_Apr3_2"><text>"Duas ou mais falhas de extubacao - traqueostomia indicada para desmame"</text></outputEntry>
+        <outputEntry id="OE_Apr3_3"><text>"SCCM/ESICM 2020 - Falha de extubacao repetida e indicacao de TQT"</text></outputEntry>
+      <outputEntry id="OE_Aprovado_FalhasExtubacao_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_Aprovado_FalhasExtubacao_5"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Aprovado_VMProlongada">
+        <description>Aprovado: VM prolongada > 14 dias prevista</description>
+        <inputEntry id="IE_Apr4_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_Apr4_2"><text>&gt;= 7</text></inputEntry>
+        <inputEntry id="IE_Apr4_3"><text>&gt; 7</text></inputEntry>
+        <inputEntry id="IE_Apr4_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_Apr4_5"><text>"Estavel","InstabilidadeLeve"</text></inputEntry>
+        <outputEntry id="OE_Apr4_1"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OE_Apr4_2"><text>"VM prevista &gt; 14 dias total - traqueostomia entre 7-14 dias"</text></outputEntry>
+        <outputEntry id="OE_Apr4_3"><text>"ATS/CHEST 2020 - Traqueostomia entre 7-14 dias se VM prolongada prevista"</text></outputEntry>
+      <outputEntry id="OE_Aprovado_VMProlongada_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_Aprovado_VMProlongada_5"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Aprovado_ObstrucaoVAS">
+        <description>Aprovado: Obstrucao de via aerea superior</description>
+        <inputEntry id="IE_Apr5_1"><text>"ObstrucaoVAS"</text></inputEntry>
+        <inputEntry id="IE_Apr5_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_Apr5_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_Apr5_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_Apr5_5"><text>"Estavel","InstabilidadeLeve","InstabilidadeModerada"</text></inputEntry>
+        <outputEntry id="OE_Apr5_1"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OE_Apr5_2"><text>"Obstrucao de VAS - traqueostomia para garantir via aerea patente"</text></outputEntry>
+        <outputEntry id="OE_Apr5_3"><text>"AMIB 2021 - Obstrucao de via aerea e indicacao absoluta"</text></outputEntry>
+      <outputEntry id="OE_Aprovado_ObstrucaoVAS_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_Aprovado_ObstrucaoVAS_5"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <!-- ========== REGRA FALLBACK ========== -->
+
+      <rule id="Rule_Fallback_GEN_MIS_008">
+        <description>Pendente: Reavaliar em 48-72h</description>
+        <inputEntry id="IE_FB_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_FB_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_FB_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_FB_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_FB_5"><text>-</text></inputEntry>
+        <outputEntry id="OE_FB_1"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OE_FB_2"><text>"Reavaliar previsao de desmame em 48-72h e definir indicacao"</text></outputEntry>
+        <outputEntry id="OE_FB_3"><text>"SCCM/ESICM 2020 - Decisao de TQT deve ser individualizada"</text></outputEntry>
+      <outputEntry id="OE_Fallback_GEN_MIS_008_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_Fallback_GEN_MIS_008_5"><text>"SOLICITAR_INFO"</text></outputEntry>
+      </rule>
+
+    </decisionTable>
+  </decision>
+</definitions>

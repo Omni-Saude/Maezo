@@ -1,0 +1,233 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/"
+             xmlns:dc="http://www.omg.org/spec/DD/20100524/DC/"
+             xmlns:di="http://www.omg.org/spec/DD/20100524/DI/"
+             id="Definitions_VAS_VEN_006"
+             name="Tromboflebite Superficial - Manejo Clinico"
+             namespace="http://camunda.org/schema/1.0/dmn"
+             exporter="Camunda Modeler"
+             exporterVersion="5.0.0">
+  <!--
+    VAS-VEN-006 - Tromboflebite Superficial - Manejo Clinico
+    Versao: 1.0.0 (2026-02-07)
+    Especialidade: Cirurgia Vascular / Angiologia
+    Categoria: Doenca Venosa Tromboembolica
+    TUSS Relacionados: 40402029, 40402037
+
+    Tromboflebite Superficial (TS):
+    - Trombose de veia superficial com inflamacao
+    - Risco de extensao para sistema profundo (TVP)
+    - Risco de TEP: principalmente se proxima a juncao safenofemoral
+
+    Classificacao de Risco (SUPERFICIAL Study):
+    - Baixo risco: < 5cm, distal, varizes
+    - Alto risco: > 5cm, proximal (coxa), proxima a juncao SF
+
+    Tratamento (CHEST 2016 / CALISTO Trial):
+    - TS de baixo risco: anti-inflamatorio + compressao
+    - TS de alto risco (> 5cm, proxima a juncao): anticoagulacao
+    - Fondaparinux 2.5mg/dia por 45 dias: estudo CALISTO
+
+    Indicacoes de Duplex:
+    - Toda TS para avaliar extensao e proximidade da juncao
+    - Descartar TVP concomitante (15-25% dos casos)
+
+    Indicacoes de Intervencao Cirurgica:
+    - Trombo em juncao safenofemoral com risco de embolizacao
+    - TS recorrente
+    - Falha de tratamento conservador
+
+    Referencias Normativas:
+    - CHEST 2016 - Antithrombotic Guidelines
+    - CALISTO Trial 2010
+    - ESVS 2015 - Chronic Venous Disease
+    - DUT ANS 2024
+  -->
+
+  <decision id="Decision_VAS_VEN_006" name="Criterios de Manejo - Tromboflebite Superficial">
+    <decisionTable id="DecisionTable_VAS_VEN_006" hitPolicy="FIRST">
+
+      <!-- Input 1: Extensao do Trombo -->
+      <input id="Input_extensao" label="Extensao do Trombo (Duplex)">
+        <inputExpression id="InputExpr_extensao" typeRef="string">
+          <text>extensaoTrombo</text>
+        </inputExpression>
+        <inputValues id="InputValues_extensao">
+          <text>"Menor_5cm","Entre_5_10cm","Maior_10cm","Ate_Juncao_SF"</text>
+        </inputValues>
+      </input>
+
+      <!-- Input 2: Localizacao -->
+      <input id="Input_localizacao" label="Localizacao Anatomica">
+        <inputExpression id="InputExpr_localizacao" typeRef="string">
+          <text>localizacaoAnatomica</text>
+        </inputExpression>
+        <inputValues id="InputValues_localizacao">
+          <text>"Perna_Distal","Perna_Proximal","Coxa_Distal","Coxa_Proximal_JSF"</text>
+        </inputValues>
+      </input>
+
+      <!-- Input 3: TVP Associada -->
+      <input id="Input_tvp" label="TVP Concomitante (Duplex)">
+        <inputExpression id="InputExpr_tvp" typeRef="string">
+          <text>tvpConcomitante</text>
+        </inputExpression>
+        <inputValues id="InputValues_tvp">
+          <text>"Ausente","Presente_Distal","Presente_Proximal","Nao_Avaliado"</text>
+        </inputValues>
+      </input>
+
+      <!-- Input 4: Fatores de Risco para TEV -->
+      <input id="Input_fatoresRisco" label="Fatores de Risco para TEV">
+        <inputExpression id="InputExpr_fatoresRisco" typeRef="string">
+          <text>fatoresRiscoTEV</text>
+        </inputExpression>
+        <inputValues id="InputValues_fatoresRisco">
+          <text>"Baixo_Risco","Moderado_Risco","Alto_Risco_Cancer_Trombofilia"</text>
+        </inputValues>
+      </input>
+
+      <!-- Input 5: Documentacao -->
+      <input id="Input_documentacao" label="Duplex Venoso Completo">
+        <inputExpression id="InputExpr_documentacao" typeRef="boolean">
+          <text>documentacaoCompleta</text>
+        </inputExpression>
+      </input>
+
+      <!-- Outputs -->
+      <output id="Output_resultado" label="Resultado" name="resultado" typeRef="string">
+        <outputValues id="OutputValues_resultado">
+          <text>"Aprovado","Reprovado","Pendente"</text>
+        </outputValues>
+      </output>
+      <output id="Output_observacao" label="Observacao Clinica" name="observacao" typeRef="string" />
+      <output id="Output_fundamentacao" label="Fundamentacao Legal/Tecnica" name="fundamentacao" typeRef="string" />
+
+      <output id="Output_alertasDesperdicio" name="alertasDesperdicio" typeRef="string">
+        <outputValues>
+          <text>"NENHUM","DUP","FREQ","ESC","DOC","PROT","MULTI"</text>
+        </outputValues>
+      </output>
+
+      <output id="Output_acaoRecomendada" name="acaoRecomendada" typeRef="string">
+        <outputValues>
+          <text>"APROVAR","NEGAR","SOLICITAR_INFO","AGUARDAR_PRAZO","SUGERIR_ALTERNATIVA"</text>
+        </outputValues>
+      </output>
+
+      <!-- ============================================== -->
+      <!-- REGRAS DE REPROVACAO                          -->
+      <!-- ============================================== -->
+
+      <rule id="Rule_VAS_VEN_006_Reprovacao_SemDoc">
+        <description>Reprovacao - Duplex nao realizado</description>
+        <inputEntry id="IE_Rep1_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_Rep1_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_Rep1_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_Rep1_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_Rep1_5"><text>false</text></inputEntry>
+        <outputEntry id="OE_Rep1_1"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OE_Rep1_2"><text>"Duplex obrigatorio em tromboflebite superficial - necessario para avaliar extensao, proximidade de juncao e descartar TVP concomitante"</text></outputEntry>
+        <outputEntry id="OE_Rep1_3"><text>"CHEST 2016 - Duplex recomendado em toda TS para excluir TVP"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_VAS_VEN_006_Reprovacao_Anticoag_BaixoRisco">
+        <description>Reprovacao - Anticoagulacao em TS de baixo risco</description>
+        <inputEntry id="IE_Rep2_1"><text>"Menor_5cm"</text></inputEntry>
+        <inputEntry id="IE_Rep2_2"><text>"Perna_Distal"</text></inputEntry>
+        <inputEntry id="IE_Rep2_3"><text>"Ausente"</text></inputEntry>
+        <inputEntry id="IE_Rep2_4"><text>"Baixo_Risco"</text></inputEntry>
+        <inputEntry id="IE_Rep2_5"><text>true</text></inputEntry>
+        <outputEntry id="OE_Rep2_1"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OE_Rep2_2"><text>"Anticoagulacao NAO indicada - TS menor 5cm, distal, sem TVP, baixo risco - tratamento com AINE + compressao"</text></outputEntry>
+        <outputEntry id="OE_Rep2_3"><text>"CHEST 2016 - Anticoagulacao nao recomendada em TS de baixo risco"</text></outputEntry>
+      </rule>
+
+      <!-- ============================================== -->
+      <!-- REGRAS DE APROVACAO                           -->
+      <!-- ============================================== -->
+
+      <rule id="Rule_VAS_VEN_006_Aprovacao_TVP_Associada">
+        <description>Aprovacao - TVP concomitante requer anticoagulacao plena</description>
+        <inputEntry id="IE_Apr1_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_Apr1_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_Apr1_3"><text>"Presente_Distal","Presente_Proximal"</text></inputEntry>
+        <inputEntry id="IE_Apr1_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_Apr1_5"><text>true</text></inputEntry>
+        <outputEntry id="OE_Apr1_1"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OE_Apr1_2"><text>"Anticoagulacao PLENA APROVADA - TVP concomitante documentada - tratar como TVP (minimo 3 meses)"</text></outputEntry>
+        <outputEntry id="OE_Apr1_3"><text>"CHEST 2016 Classe I - TVP associada requer anticoagulacao padrao"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_VAS_VEN_006_Aprovacao_Juncao">
+        <description>Aprovacao - Trombo ate juncao safenofemoral</description>
+        <inputEntry id="IE_Apr2_1"><text>"Ate_Juncao_SF"</text></inputEntry>
+        <inputEntry id="IE_Apr2_2"><text>"Coxa_Proximal_JSF"</text></inputEntry>
+        <inputEntry id="IE_Apr2_3"><text>"Ausente"</text></inputEntry>
+        <inputEntry id="IE_Apr2_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_Apr2_5"><text>true</text></inputEntry>
+        <outputEntry id="OE_Apr2_1"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OE_Apr2_2"><text>"Anticoagulacao/Cirurgia APROVADA - trombo ate juncao safenofemoral - alto risco de extensao para veia femoral e TEP - considerar ligadura de juncao ou anticoagulacao"</text></outputEntry>
+        <outputEntry id="OE_Apr2_3"><text>"CHEST 2016 Classe IIa - Anticoagulacao ou cirurgia quando trombo proximal a juncao"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_VAS_VEN_006_Aprovacao_Extensa">
+        <description>Aprovacao - TS extensa maior 5cm</description>
+        <inputEntry id="IE_Apr3_1"><text>"Entre_5_10cm","Maior_10cm"</text></inputEntry>
+        <inputEntry id="IE_Apr3_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_Apr3_3"><text>"Ausente"</text></inputEntry>
+        <inputEntry id="IE_Apr3_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_Apr3_5"><text>true</text></inputEntry>
+        <outputEntry id="OE_Apr3_1"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OE_Apr3_2"><text>"Anticoagulacao profilatica APROVADA - TS maior 5cm - fondaparinux 2.5mg/dia ou HBPM profilatica por 45 dias (CALISTO)"</text></outputEntry>
+        <outputEntry id="OE_Apr3_3"><text>"CALISTO Trial 2010 - Fondaparinux reduz extensao e TVP em TS maior 5cm"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_VAS_VEN_006_Aprovacao_AltoRisco">
+        <description>Aprovacao - TS em paciente de alto risco para TEV</description>
+        <inputEntry id="IE_Apr4_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_Apr4_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_Apr4_3"><text>"Ausente"</text></inputEntry>
+        <inputEntry id="IE_Apr4_4"><text>"Alto_Risco_Cancer_Trombofilia"</text></inputEntry>
+        <inputEntry id="IE_Apr4_5"><text>true</text></inputEntry>
+        <outputEntry id="OE_Apr4_1"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OE_Apr4_2"><text>"Anticoagulacao APROVADA - TS em paciente com cancer ativo ou trombofilia - maior risco de extensao para TVP"</text></outputEntry>
+        <outputEntry id="OE_Apr4_3"><text>"CHEST 2016 - Considerar anticoagulacao em TS com fatores de risco para TEV"</text></outputEntry>
+      </rule>
+
+      <!-- ============================================== -->
+      <!-- REGRAS DE PENDENCIA                           -->
+      <!-- ============================================== -->
+
+      <rule id="Rule_VAS_VEN_006_Pendente_TVP">
+        <description>Pendente - TVP nao avaliada</description>
+        <inputEntry id="IE_Pend1_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_Pend1_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_Pend1_3"><text>"Nao_Avaliado"</text></inputEntry>
+        <inputEntry id="IE_Pend1_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_Pend1_5"><text>true</text></inputEntry>
+        <outputEntry id="OE_Pend1_1"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OE_Pend1_2"><text>"TVP nao avaliada - realizar duplex de sistema profundo antes de definir tratamento - TVP presente em 15-25% dos casos"</text></outputEntry>
+        <outputEntry id="OE_Pend1_3"><text>"CHEST 2016 - Duplex obrigatorio para excluir TVP em TS"</text></outputEntry>
+      </rule>
+
+      <!-- ============================================== -->
+      <!-- REGRA FALLBACK                                -->
+      <!-- ============================================== -->
+
+      <rule id="Rule_Fallback_VAS_VEN_006">
+        <description>Fallback - Casos nao cobertos requerem analise manual</description>
+        <inputEntry id="IE_Fallback_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_Fallback_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_Fallback_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_Fallback_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_Fallback_5"><text>-</text></inputEntry>
+        <outputEntry id="OE_Fallback_1"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OE_Fallback_2"><text>"Caso requer analise por angiologista ou cirurgiao vascular"</text></outputEntry>
+        <outputEntry id="OE_Fallback_3"><text>"Auditoria especializada conforme RN 428/2017"</text></outputEntry>
+      </rule>
+
+    </decisionTable>
+  </decision>
+</definitions>

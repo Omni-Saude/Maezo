@@ -1,0 +1,257 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/"
+             xmlns:dc="http://www.omg.org/spec/DD/20100524/DC/"
+             xmlns:di="http://www.omg.org/spec/DD/20100524/DI/"
+             id="Definitions_VAS_CAR_003"
+             name="Stenting Carotideo vs Endarterectomia - Criterios de Selecao"
+             namespace="http://camunda.org/schema/1.0/dmn"
+             exporter="Camunda Modeler"
+             exporterVersion="5.0.0">
+  <!--
+    VAS-CAR-003 - Stenting Carotideo vs CEA - Criterios de Selecao
+    Versao: 1.0.0 (2026-02-07)
+    Especialidade: Cirurgia Vascular / Radiologia Intervencionista
+    Categoria: Cirurgia Carotidea
+    TUSS Relacionados: 30907010, 30907028, 40901114
+
+    Indicacoes para Stenting Carotideo (SVS/ESVS 2019):
+    - Alto risco cirurgico para CEA (cardiopatia grave, DPOC severa)
+    - Pescoco hostil (radioterapia previa, traqueostomia)
+    - Reestenose pos-CEA previa
+    - Estenose alta (acima de C2) ou baixa (intrathoracica)
+    - Paralisia de nervo laringeo contralateral
+
+    Indicacoes Preferenciais para CEA:
+    - Idade maior que 70 anos (maior risco de AVC com stenting)
+    - Anatomia desfavoravel para stenting (arco aortico tipo III, tortuosidade)
+    - Placa extensa calcificada
+    - Trombo intraluminal
+
+    Documentacao Obrigatoria:
+    - Imagem vascular completa (duplex + angioTC ou angioRM)
+    - Avaliacao de risco cirurgico detalhada
+    - Avaliacao anatomica do arco aortico
+    - Justificativa para escolha do metodo
+
+    Referencias Normativas:
+    - SVS/ESVS 2019 - CAS vs CEA Selection
+    - CREST Trial - Comparative outcomes
+    - ACT-1 Trial - High surgical risk patients
+    - DUT ANS 2024
+  -->
+
+  <decision id="Decision_VAS_CAR_003" name="Criterios de Selecao - Stenting Carotideo vs Endarterectomia">
+    <decisionTable id="DecisionTable_VAS_CAR_003" hitPolicy="FIRST">
+
+      <!-- Input 1: Risco Cirurgico para CEA -->
+      <input id="Input_riscoCEA" label="Risco Cirurgico para CEA Convencional">
+        <inputExpression id="InputExpr_riscoCEA" typeRef="string">
+          <text>riscoCEA</text>
+        </inputExpression>
+        <inputValues id="InputValues_riscoCEA">
+          <text>"Baixo_Risco","Alto_Risco_Cardiaco","Alto_Risco_Pulmonar","Pescoco_Hostil","Reestenose_Pos_CEA","Anatomia_Desfavoravel_CEA"</text>
+        </inputValues>
+      </input>
+
+      <!-- Input 2: Idade do Paciente -->
+      <input id="Input_idade" label="Faixa Etaria do Paciente">
+        <inputExpression id="InputExpr_idade" typeRef="string">
+          <text>faixaEtaria</text>
+        </inputExpression>
+        <inputValues id="InputValues_idade">
+          <text>"Menor_70_Anos","Entre_70_80_Anos","Maior_80_Anos"</text>
+        </inputValues>
+      </input>
+
+      <!-- Input 3: Anatomia para Stenting -->
+      <input id="Input_anatomiaStenting" label="Anatomia para Stenting Carotideo">
+        <inputExpression id="InputExpr_anatomiaStenting" typeRef="string">
+          <text>anatomiaStenting</text>
+        </inputExpression>
+        <inputValues id="InputValues_anatomiaStenting">
+          <text>"Favoravel","Arco_Tipo_III","Tortuosidade_Severa","Calcificacao_Extensa","Trombo_Intraluminal"</text>
+        </inputValues>
+      </input>
+
+      <!-- Input 4: Status Sintomatico -->
+      <input id="Input_statusSintomatico" label="Status Sintomatico">
+        <inputExpression id="InputExpr_statusSintomatico" typeRef="string">
+          <text>statusSintomatico</text>
+        </inputExpression>
+        <inputValues id="InputValues_statusSintomatico">
+          <text>"Sintomatico","Assintomatico"</text>
+        </inputValues>
+      </input>
+
+      <!-- Input 5: Documentacao Completa -->
+      <input id="Input_documentacaoCompleta" label="Imagem Vascular e Avaliacao de Risco Completas">
+        <inputExpression id="InputExpr_documentacaoCompleta" typeRef="boolean">
+          <text>documentacaoCompleta</text>
+        </inputExpression>
+      </input>
+
+      <!-- Outputs -->
+      <output id="Output_resultado" label="Resultado" name="resultado" typeRef="string">
+        <outputValues id="OutputValues_resultado">
+          <text>"Aprovado","Reprovado","Pendente"</text>
+        </outputValues>
+      </output>
+      <output id="Output_observacao" label="Observacao Clinica" name="observacao" typeRef="string" />
+      <output id="Output_fundamentacao" label="Fundamentacao Legal/Tecnica" name="fundamentacao" typeRef="string" />
+
+      <output id="Output_alertasDesperdicio" name="alertasDesperdicio" typeRef="string">
+        <outputValues>
+          <text>"NENHUM","DUP","FREQ","ESC","DOC","PROT","MULTI"</text>
+        </outputValues>
+      </output>
+
+      <output id="Output_acaoRecomendada" name="acaoRecomendada" typeRef="string">
+        <outputValues>
+          <text>"APROVAR","NEGAR","SOLICITAR_INFO","AGUARDAR_PRAZO","SUGERIR_ALTERNATIVA"</text>
+        </outputValues>
+      </output>
+
+      <!-- ============================================== -->
+      <!-- REGRAS DE REPROVACAO                          -->
+      <!-- ============================================== -->
+
+      <rule id="Rule_VAS_CAR_003_Reprovacao_SemDoc">
+        <description>Reprovacao - Documentacao incompleta</description>
+        <inputEntry id="IE_Rep1_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_Rep1_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_Rep1_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_Rep1_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_Rep1_5"><text>false</text></inputEntry>
+        <outputEntry id="OE_Rep1_1"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OE_Rep1_2"><text>"Documentacao incompleta - necessario imagem vascular completa e avaliacao de risco detalhada para selecao de metodo"</text></outputEntry>
+        <outputEntry id="OE_Rep1_3"><text>"RN 465/2021 - Documentacao obrigatoria para procedimentos de alto custo"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_VAS_CAR_003_Reprovacao_Trombo">
+        <description>Reprovacao de CAS - Trombo intraluminal contraindica stenting</description>
+        <inputEntry id="IE_Rep2_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_Rep2_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_Rep2_3"><text>"Trombo_Intraluminal"</text></inputEntry>
+        <inputEntry id="IE_Rep2_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_Rep2_5"><text>true</text></inputEntry>
+        <outputEntry id="OE_Rep2_1"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OE_Rep2_2"><text>"Stenting carotideo CONTRAINDICADO - presenca de trombo intraluminal aumenta risco de embolizacao - CEA eh o metodo preferencial"</text></outputEntry>
+        <outputEntry id="OE_Rep2_3"><text>"SVS/ESVS 2019 - Trombo intraluminal eh contraindicacao para CAS"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_VAS_CAR_003_Reprovacao_IdosoCAS">
+        <description>Reprovacao de CAS - Idade maior que 80 anos com anatomia desfavoravel</description>
+        <inputEntry id="IE_Rep3_1"><text>"Baixo_Risco"</text></inputEntry>
+        <inputEntry id="IE_Rep3_2"><text>"Maior_80_Anos"</text></inputEntry>
+        <inputEntry id="IE_Rep3_3"><text>"Arco_Tipo_III","Tortuosidade_Severa","Calcificacao_Extensa"</text></inputEntry>
+        <inputEntry id="IE_Rep3_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_Rep3_5"><text>true</text></inputEntry>
+        <outputEntry id="OE_Rep3_1"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OE_Rep3_2"><text>"Stenting carotideo CONTRAINDICADO em paciente maior que 80 anos com anatomia desfavoravel - CEA preferencial se risco cirurgico aceitavel"</text></outputEntry>
+        <outputEntry id="OE_Rep3_3"><text>"CREST Trial - Maior taxa de AVC perioperatorio com CAS em idosos"</text></outputEntry>
+      </rule>
+
+      <!-- ============================================== -->
+      <!-- REGRAS DE APROVACAO - STENTING CAROTIDEO      -->
+      <!-- ============================================== -->
+
+      <rule id="Rule_VAS_CAR_003_Aprovacao_CAS_AltoRiscoCardiaco">
+        <description>Aprovacao CAS - Alto risco cardiaco para CEA</description>
+        <inputEntry id="IE_Apr1_1"><text>"Alto_Risco_Cardiaco"</text></inputEntry>
+        <inputEntry id="IE_Apr1_2"><text>"Menor_70_Anos","Entre_70_80_Anos"</text></inputEntry>
+        <inputEntry id="IE_Apr1_3"><text>"Favoravel"</text></inputEntry>
+        <inputEntry id="IE_Apr1_4"><text>"Sintomatico"</text></inputEntry>
+        <inputEntry id="IE_Apr1_5"><text>true</text></inputEntry>
+        <outputEntry id="OE_Apr1_1"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OE_Apr1_2"><text>"Stenting Carotideo APROVADO - alto risco cardiaco para CEA convencional com anatomia favoravel para CAS"</text></outputEntry>
+        <outputEntry id="OE_Apr1_3"><text>"SVS/ESVS 2019 Classe IIa - CAS preferencial em alto risco cirurgico"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_VAS_CAR_003_Aprovacao_CAS_PescocoHostil">
+        <description>Aprovacao CAS - Pescoco hostil (radioterapia/traqueostomia)</description>
+        <inputEntry id="IE_Apr2_1"><text>"Pescoco_Hostil"</text></inputEntry>
+        <inputEntry id="IE_Apr2_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_Apr2_3"><text>"Favoravel"</text></inputEntry>
+        <inputEntry id="IE_Apr2_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_Apr2_5"><text>true</text></inputEntry>
+        <outputEntry id="OE_Apr2_1"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OE_Apr2_2"><text>"Stenting Carotideo APROVADO - pescoco hostil (radioterapia previa ou traqueostomia) com anatomia favoravel para CAS"</text></outputEntry>
+        <outputEntry id="OE_Apr2_3"><text>"SVS/ESVS 2019 Classe I - CAS indicado em pescoco hostil"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_VAS_CAR_003_Aprovacao_CAS_Reestenose">
+        <description>Aprovacao CAS - Reestenose apos CEA previa</description>
+        <inputEntry id="IE_Apr3_1"><text>"Reestenose_Pos_CEA"</text></inputEntry>
+        <inputEntry id="IE_Apr3_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_Apr3_3"><text>"Favoravel"</text></inputEntry>
+        <inputEntry id="IE_Apr3_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_Apr3_5"><text>true</text></inputEntry>
+        <outputEntry id="OE_Apr3_1"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OE_Apr3_2"><text>"Stenting Carotideo APROVADO - reestenose pos-CEA previa - CAS evita reoperacao em territorio previamente operado"</text></outputEntry>
+        <outputEntry id="OE_Apr3_3"><text>"SVS/ESVS 2019 Classe IIa - CAS preferencial em reestenose pos-CEA"</text></outputEntry>
+      </rule>
+
+      <!-- ============================================== -->
+      <!-- REGRAS DE APROVACAO - CEA                     -->
+      <!-- ============================================== -->
+
+      <rule id="Rule_VAS_CAR_003_Aprovacao_CEA_BaixoRisco">
+        <description>Aprovacao CEA - Baixo risco cirurgico padrao</description>
+        <inputEntry id="IE_Apr4_1"><text>"Baixo_Risco"</text></inputEntry>
+        <inputEntry id="IE_Apr4_2"><text>"Menor_70_Anos","Entre_70_80_Anos"</text></inputEntry>
+        <inputEntry id="IE_Apr4_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_Apr4_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_Apr4_5"><text>true</text></inputEntry>
+        <outputEntry id="OE_Apr4_1"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OE_Apr4_2"><text>"Endarterectomia Carotidea APROVADA - baixo risco cirurgico com ausencia de fatores que favorecam CAS - CEA permanece padrao-ouro"</text></outputEntry>
+        <outputEntry id="OE_Apr4_3"><text>"SVS/ESVS 2019 Classe I - CEA eh tratamento padrao em risco cirurgico aceitavel"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_VAS_CAR_003_Aprovacao_CEA_AnatomiaDesfavoravel">
+        <description>Aprovacao CEA - Anatomia desfavoravel para stenting</description>
+        <inputEntry id="IE_Apr5_1"><text>"Baixo_Risco"</text></inputEntry>
+        <inputEntry id="IE_Apr5_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_Apr5_3"><text>"Arco_Tipo_III","Tortuosidade_Severa","Calcificacao_Extensa"</text></inputEntry>
+        <inputEntry id="IE_Apr5_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_Apr5_5"><text>true</text></inputEntry>
+        <outputEntry id="OE_Apr5_1"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OE_Apr5_2"><text>"Endarterectomia Carotidea APROVADA - anatomia desfavoravel para stenting (arco tipo III, tortuosidade ou calcificacao extensa)"</text></outputEntry>
+        <outputEntry id="OE_Apr5_3"><text>"SVS/ESVS 2019 - CEA preferencial quando anatomia desfavorece CAS"</text></outputEntry>
+      </rule>
+
+      <!-- ============================================== -->
+      <!-- REGRAS DE PENDENCIA                           -->
+      <!-- ============================================== -->
+
+      <rule id="Rule_VAS_CAR_003_Pendente_IdosoAltoRisco">
+        <description>Pendente - Idoso maior 80 com alto risco cirurgico requer junta</description>
+        <inputEntry id="IE_Pend1_1"><text>"Alto_Risco_Cardiaco","Alto_Risco_Pulmonar"</text></inputEntry>
+        <inputEntry id="IE_Pend1_2"><text>"Maior_80_Anos"</text></inputEntry>
+        <inputEntry id="IE_Pend1_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_Pend1_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_Pend1_5"><text>true</text></inputEntry>
+        <outputEntry id="OE_Pend1_1"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OE_Pend1_2"><text>"Paciente maior que 80 anos com alto risco cirurgico - decisao CAS vs CEA vs tratamento clinico requer junta medica multidisciplinar"</text></outputEntry>
+        <outputEntry id="OE_Pend1_3"><text>"SVS/ESVS 2019 - Casos complexos requerem decisao compartilhada"</text></outputEntry>
+      </rule>
+
+      <!-- ============================================== -->
+      <!-- REGRA FALLBACK                                -->
+      <!-- ============================================== -->
+
+      <rule id="Rule_Fallback_VAS_CAR_003">
+        <description>Fallback - Casos nao cobertos requerem analise manual</description>
+        <inputEntry id="IE_Fallback_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_Fallback_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_Fallback_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_Fallback_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_Fallback_5"><text>-</text></inputEntry>
+        <outputEntry id="OE_Fallback_1"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OE_Fallback_2"><text>"Caso requer analise manual por auditor especializado para definicao de metodo mais apropriado"</text></outputEntry>
+        <outputEntry id="OE_Fallback_3"><text>"Auditoria vascular especializada conforme RN 428/2017"</text></outputEntry>
+      </rule>
+
+    </decisionTable>
+  </decision>
+</definitions>

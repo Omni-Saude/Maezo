@@ -1,0 +1,196 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/" xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/" xmlns:dc="http://www.omg.org/spec/DMN/20180521/DC/" xmlns:di="http://www.omg.org/spec/DMN/20180521/DI/" id="DDI_QT_012" name="DDI-QT-012: Amiodarona + Fluoroquinolonas" namespace="http://camunda.org/schema/1.0/dmn">
+  <decision id="ddi_qt_012_decision" name="Amiodarona + Fluoroquinolonas QT Prolongation">
+    <decisionTable id="ddi_qt_012_table" hitPolicy="FIRST">
+      <input id="input_medicamentos_ativos" label="Medicamentos Ativos">
+        <inputExpression id="input_expr_medicamentos_ativos" typeRef="string">
+          <text>medicamentosAtivos</text>
+        </inputExpression>
+      </input>
+      <input id="input_medicamento_novo" label="Medicamento Novo">
+        <inputExpression id="input_expr_medicamento_novo" typeRef="string">
+          <text>medicamentoNovo</text>
+        </inputExpression>
+      </input>
+      <input id="input_potassio" label="Potássio (mmol/L)">
+        <inputExpression id="input_expr_potassio" typeRef="number">
+          <text>potassio</text>
+        </inputExpression>
+      </input>
+      <input id="input_idade" label="Idade (anos)">
+        <inputExpression id="input_expr_idade" typeRef="number">
+          <text>idade</text>
+        </inputExpression>
+      </input>
+
+      <output id="output_nivel_alerta" name="nivelAlerta" typeRef="string">
+        <outputValues>
+          <text>"Alerta","Atencao","OK"</text>
+        </outputValues>
+      </output>
+      <output id="output_urgencia" name="urgencia" typeRef="string">
+        <outputValues>
+          <text>"IMEDIATA","URGENTE","ROTINA"</text>
+        </outputValues>
+      </output>
+      <output id="output_medicamentos_conflitantes" name="medicamentosConflitantes" typeRef="string" />
+      <output id="output_mecanismo_interacao" name="mecanismoInteracao" typeRef="string" />
+      <output id="output_acao_requerida" name="acaoRequerida" typeRef="string" />
+
+      <!-- Rule 1: Moxifloxacino (highest QT risk among quinolones) -->
+      <rule id="rule_amio_moxi">
+        <inputEntry id="input_medicamentos_amio">
+          <text>list contains(medicamentosAtivos, "AMIODARONA")</text>
+        </inputEntry>
+        <inputEntry id="input_novo_moxi">
+          <text>"MOXIFLOXACINO"</text>
+        </inputEntry>
+        <inputEntry id="input_k_qualquer">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="input_idade_qualquer">
+          <text>-</text>
+        </inputEntry>
+        <outputEntry id="output_alerta_moxi">
+          <text>"Alerta"</text>
+        </outputEntry>
+        <outputEntry id="output_urgencia_moxi">
+          <text>"URGENTE"</text>
+        </outputEntry>
+        <outputEntry id="output_conflitantes_moxi">
+          <text>"Amiodarona + Moxifloxacino"</text>
+        </outputEntry>
+        <outputEntry id="output_mecanismo_moxi">
+          <text>"Bloqueio aditivo canais K+ IKr. Moxifloxacino MAIOR efeito QT entre quinolonas (+15-20ms). Amiodarona +40-60ms. Risco Torsades ALTO."</text>
+        </outputEntry>
+        <outputEntry id="output_acao_moxi">
+          <text>"EVITAR moxifloxacino: (1) Preferir levofloxacino 500-750mg/dia (menor QT +5-10ms) ou ceftriaxona 1-2g/dia, (2) Se ESSENCIAL: ECG baseline + 48h + 7 dias, K+&gt;4.0, Mg&gt;2.0, (3) Suspender se QTc&gt;500ms ou aumento &gt;60ms."</text>
+        </outputEntry>
+      </rule>
+
+      <!-- Rule 2: Levofloxacino com hipocalemia ou idade >70 -->
+      <rule id="rule_amio_levo_alto_risco">
+        <inputEntry id="input_medicamentos_amio2">
+          <text>list contains(medicamentosAtivos, "AMIODARONA")</text>
+        </inputEntry>
+        <inputEntry id="input_novo_levo">
+          <text>"LEVOFLOXACINO"</text>
+        </inputEntry>
+        <inputEntry id="input_k_baixo">
+          <text>&lt; 3.5</text>
+        </inputEntry>
+        <inputEntry id="input_idade_alta">
+          <text>&gt; 70</text>
+        </inputEntry>
+        <outputEntry id="output_alerta_levo_alto">
+          <text>"Alerta"</text>
+        </outputEntry>
+        <outputEntry id="output_urgencia_levo_alto">
+          <text>"URGENTE"</text>
+        </outputEntry>
+        <outputEntry id="output_conflitantes_levo_alto">
+          <text>"Amiodarona + Levofloxacino (hipocalemia + idade &gt;70)"</text>
+        </outputEntry>
+        <outputEntry id="output_mecanismo_levo_alto">
+          <text>"Levofloxacino QT moderado +5-10ms. Com hipocalemia K+&lt;3.5 + idade&gt;70, risco Torsades aumenta 5-10x."</text>
+        </outputEntry>
+        <outputEntry id="output_acao_levo_alto">
+          <text>"URGENTE: (1) Corrigir K+&gt;4.0 mmol/L ANTES antibiótico, (2) Mg&gt;2.0, (3) ECG baseline + 48h, (4) Considerar ceftriaxona, doxiciclina ou azitromicina alternativa, (5) Reduzir dose levo se ClCr&lt;50 (acúmulo)."</text>
+        </outputEntry>
+      </rule>
+
+      <!-- Rule 3: Levofloxacino condições normais -->
+      <rule id="rule_amio_levo_padrao">
+        <inputEntry id="input_medicamentos_amio3">
+          <text>list contains(medicamentosAtivos, "AMIODARONA")</text>
+        </inputEntry>
+        <inputEntry id="input_novo_levo2">
+          <text>"LEVOFLOXACINO"</text>
+        </inputEntry>
+        <inputEntry id="input_k_normal">
+          <text>&gt;= 3.5</text>
+        </inputEntry>
+        <inputEntry id="input_idade_normal">
+          <text>&lt;= 70</text>
+        </inputEntry>
+        <outputEntry id="output_alerta_levo_padrao">
+          <text>"Atencao"</text>
+        </outputEntry>
+        <outputEntry id="output_urgencia_levo_padrao">
+          <text>"URGENTE"</text>
+        </outputEntry>
+        <outputEntry id="output_conflitantes_levo_padrao">
+          <text>"Amiodarona + Levofloxacino"</text>
+        </outputEntry>
+        <outputEntry id="output_mecanismo_levo_padrao">
+          <text>"Prolongamento QT moderado aditivo. Levofloxacino menor risco que moxifloxacino."</text>
+        </outputEntry>
+        <outputEntry id="output_acao_levo_padrao">
+          <text>"ACEITÁVEL com monitoramento: (1) ECG baseline recomendado, (2) Manter K+/Mg normais, (3) Monitorar sintomas (palpitações, tontura), (4) ECG 72h se história cardíaca, (5) Curso antibiótico curto (5-7 dias)."</text>
+        </outputEntry>
+      </rule>
+
+      <!-- Rule 4: Ciprofloxacino (lowest QT risk) -->
+      <rule id="rule_amio_cipro">
+        <inputEntry id="input_medicamentos_amio4">
+          <text>list contains(medicamentosAtivos, "AMIODARONA")</text>
+        </inputEntry>
+        <inputEntry id="input_novo_cipro">
+          <text>"CIPROFLOXACINO"</text>
+        </inputEntry>
+        <inputEntry id="input_k_qualquer2">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="input_idade_qualquer2">
+          <text>-</text>
+        </inputEntry>
+        <outputEntry id="output_alerta_cipro">
+          <text>"Atencao"</text>
+        </outputEntry>
+        <outputEntry id="output_urgencia_cipro">
+          <text>"URGENTE"</text>
+        </outputEntry>
+        <outputEntry id="output_conflitantes_cipro">
+          <text>"Amiodarona + Ciprofloxacino"</text>
+        </outputEntry>
+        <outputEntry id="output_mecanismo_cipro">
+          <text>"Ciprofloxacino MENOR efeito QT entre quinolonas (+3-5ms). Risco Torsades mínimo."</text>
+        </outputEntry>
+        <outputEntry id="output_acao_cipro">
+          <text>"PREFERÍVEL entre quinolonas: (1) ECG baseline opcional, (2) K+/Mg normais, (3) Monitorar sintomas, (4) Curso curto (5-7 dias), (5) Suspender se sintomas arrítmicos."</text>
+        </outputEntry>
+      </rule>
+
+      <!-- Fallback Rule -->
+      <rule id="rule_fallback">
+        <inputEntry id="input_fallback_1">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="input_fallback_2">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="input_fallback_3">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="input_fallback_4">
+          <text>-</text>
+        </inputEntry>
+        <outputEntry id="output_fallback_1">
+          <text>"OK"</text>
+        </outputEntry>
+        <outputEntry id="output_fallback_2">
+          <text>"ROTINA"</text>
+        </outputEntry>
+        <outputEntry id="output_fallback_3">
+          <text>""</text>
+        </outputEntry>
+        <outputEntry id="output_fallback_4">
+          <text>""</text>
+        </outputEntry>
+        <outputEntry id="output_fallback_5">
+          <text>""</text>
+        </outputEntry>
+      </rule>
+    </decisionTable>
+  </decision>
+</definitions>

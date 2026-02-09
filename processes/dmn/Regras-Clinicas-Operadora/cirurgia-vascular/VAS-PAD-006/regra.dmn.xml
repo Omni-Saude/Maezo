@@ -1,0 +1,233 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/"
+             xmlns:dc="http://www.omg.org/spec/DD/20100524/DC/"
+             xmlns:di="http://www.omg.org/spec/DD/20100524/DI/"
+             id="Definitions_VAS_PAD_006"
+             name="Isquemia Aguda de Membro - Classificacao de Rutherford"
+             namespace="http://camunda.org/schema/1.0/dmn"
+             exporter="Camunda Modeler"
+             exporterVersion="5.0.0">
+  <!--
+    VAS-PAD-006 - Isquemia Aguda de Membro - Classificacao de Rutherford
+    Versao: 1.0.0 (2026-02-07)
+    Especialidade: Cirurgia Vascular
+    Categoria: Emergencia Vascular
+    TUSS Relacionados: 30907109, 30907125, 30907133
+
+    Classificacao de Rutherford para Isquemia Aguda:
+    - I: Viavel - sem ameaca imediata
+    - IIa: Marginalmente ameacado - salvavel se tratado prontamente
+    - IIb: Imediatamente ameacado - salvavel com revascularizacao imediata
+    - III: Irreversivel - perda tecidual maior, amputacao
+
+    Criterios Clinicos:
+    - Pulso: ausente em todos
+    - Doppler arterial: I/IIa audivel, IIb/III inaudivel
+    - Doppler venoso: I/IIa/IIb audivel, III inaudivel
+    - Deficit motor: ausente em I, leve em IIa, moderado IIb, profundo III
+    - Deficit sensitivo: ausente I, leve IIa, maior IIb, anestesia III
+
+    Tratamento por Categoria:
+    - I: Anticoagulacao, investigar causa, revascularizacao eletiva
+    - IIa: Revascularizacao urgente (horas), anticoagulacao
+    - IIb: Revascularizacao emergencial (imediata)
+    - III: Amputacao primaria (evitar reperfusao)
+
+    Referencias Normativas:
+    - SVS/ESVS 2019 - Acute Limb Ischemia
+    - ACC/AHA PAD 2016
+    - Rutherford Classification 1997
+    - DUT ANS 2024
+  -->
+
+  <decision id="Decision_VAS_PAD_006" name="Criterios de Manejo - Isquemia Aguda de Membro">
+    <decisionTable id="DecisionTable_VAS_PAD_006" hitPolicy="FIRST">
+
+      <!-- Input 1: Classificacao de Rutherford -->
+      <input id="Input_rutherford" label="Classificacao de Rutherford">
+        <inputExpression id="InputExpr_rutherford" typeRef="string">
+          <text>classificacaoRutherford</text>
+        </inputExpression>
+        <inputValues id="InputValues_rutherford">
+          <text>"Classe_I_Viavel","Classe_IIa_Marginalmente_Ameacado","Classe_IIb_Imediatamente_Ameacado","Classe_III_Irreversivel"</text>
+        </inputValues>
+      </input>
+
+      <!-- Input 2: Tempo de Isquemia -->
+      <input id="Input_tempoIsquemia" label="Tempo Estimado de Isquemia">
+        <inputExpression id="InputExpr_tempoIsquemia" typeRef="string">
+          <text>tempoIsquemia</text>
+        </inputExpression>
+        <inputValues id="InputValues_tempoIsquemia">
+          <text>"Menor_6_Horas","Entre_6_12_Horas","Entre_12_24_Horas","Maior_24_Horas","Indeterminado"</text>
+        </inputValues>
+      </input>
+
+      <!-- Input 3: Etiologia -->
+      <input id="Input_etiologia" label="Etiologia da Isquemia Aguda">
+        <inputExpression id="InputExpr_etiologia" typeRef="string">
+          <text>etiologiaIsquemia</text>
+        </inputExpression>
+        <inputValues id="InputValues_etiologia">
+          <text>"Embolica_Cardiaca","Trombotica_In_Situ","Traumatica","Aneurism_Trombosado","Iatrogenia","Indeterminada"</text>
+        </inputValues>
+      </input>
+
+      <!-- Input 4: Sinais Motores/Sensitivos -->
+      <input id="Input_deficitNeurologico" label="Deficit Motor/Sensitivo">
+        <inputExpression id="InputExpr_deficitNeurologico" typeRef="string">
+          <text>deficitNeurologico</text>
+        </inputExpression>
+        <inputValues id="InputValues_deficitNeurologico">
+          <text>"Ausente","Leve_Parestesias","Moderado_Paresia","Severo_Paralisia","Anestesia_Completa"</text>
+        </inputValues>
+      </input>
+
+      <!-- Input 5: Exame Clinico Documentado -->
+      <input id="Input_documentacao" label="Exame Clinico Vascular Completo">
+        <inputExpression id="InputExpr_documentacao" typeRef="boolean">
+          <text>exameCcompleto</text>
+        </inputExpression>
+      </input>
+
+      <!-- Outputs -->
+      <output id="Output_resultado" label="Resultado" name="resultado" typeRef="string">
+        <outputValues id="OutputValues_resultado">
+          <text>"Aprovado","Reprovado","Pendente"</text>
+        </outputValues>
+      </output>
+      <output id="Output_observacao" label="Observacao Clinica" name="observacao" typeRef="string" />
+      <output id="Output_fundamentacao" label="Fundamentacao Legal/Tecnica" name="fundamentacao" typeRef="string" />
+
+      <output id="Output_alertasDesperdicio" name="alertasDesperdicio" typeRef="string">
+        <outputValues>
+          <text>"NENHUM","DUP","FREQ","ESC","DOC","PROT","MULTI"</text>
+        </outputValues>
+      </output>
+
+      <output id="Output_acaoRecomendada" name="acaoRecomendada" typeRef="string">
+        <outputValues>
+          <text>"APROVAR","NEGAR","SOLICITAR_INFO","AGUARDAR_PRAZO","SUGERIR_ALTERNATIVA"</text>
+        </outputValues>
+      </output>
+
+      <!-- ============================================== -->
+      <!-- REGRAS DE REPROVACAO                          -->
+      <!-- ============================================== -->
+
+      <rule id="Rule_VAS_PAD_006_Reprovacao_SemExame">
+        <description>Reprovacao - Exame clinico incompleto</description>
+        <inputEntry id="IE_Rep1_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_Rep1_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_Rep1_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_Rep1_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_Rep1_5"><text>false</text></inputEntry>
+        <outputEntry id="OE_Rep1_1"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OE_Rep1_2"><text>"Exame vascular completo obrigatorio (pulsos, doppler, funcao motora/sensitiva) para classificacao de Rutherford e definicao de conduta"</text></outputEntry>
+        <outputEntry id="OE_Rep1_3"><text>"SVS/ESVS 2019 - Classificacao de Rutherford baseia-se em exame clinico sistematizado"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_VAS_PAD_006_Reprovacao_Reperfusao_III">
+        <description>Reprovacao Revascularizacao - Classe III irreversivel</description>
+        <inputEntry id="IE_Rep2_1"><text>"Classe_III_Irreversivel"</text></inputEntry>
+        <inputEntry id="IE_Rep2_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_Rep2_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_Rep2_4"><text>"Anestesia_Completa"</text></inputEntry>
+        <inputEntry id="IE_Rep2_5"><text>true</text></inputEntry>
+        <outputEntry id="OE_Rep2_1"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OE_Rep2_2"><text>"Revascularizacao CONTRAINDICADA em Rutherford III - isquemia irreversivel - reperfusao causa sindrome compartimental e rabdomiolise - amputacao primaria indicada"</text></outputEntry>
+        <outputEntry id="OE_Rep2_3"><text>"SVS/ESVS 2019 Classe III - Revascularizacao contraindicada em isquemia irreversivel"</text></outputEntry>
+      </rule>
+
+      <!-- ============================================== -->
+      <!-- REGRAS DE APROVACAO - EMERGENCIA              -->
+      <!-- ============================================== -->
+
+      <rule id="Rule_VAS_PAD_006_Aprovacao_IIb_Imediato">
+        <description>Aprovacao Emergencia - Classe IIb revascularizacao imediata</description>
+        <inputEntry id="IE_Apr1_1"><text>"Classe_IIb_Imediatamente_Ameacado"</text></inputEntry>
+        <inputEntry id="IE_Apr1_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_Apr1_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_Apr1_4"><text>"Moderado_Paresia","Severo_Paralisia"</text></inputEntry>
+        <inputEntry id="IE_Apr1_5"><text>true</text></inputEntry>
+        <outputEntry id="OE_Apr1_1"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OE_Apr1_2"><text>"Revascularizacao EMERGENCIAL IMEDIATA APROVADA - Rutherford IIb com deficit motor - membro salvavel apenas com intervencao imediata (minutos a horas)"</text></outputEntry>
+        <outputEntry id="OE_Apr1_3"><text>"SVS/ESVS 2019 Classe I - Revascularizacao emergencial obrigatoria em IIb"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_VAS_PAD_006_Aprovacao_IIa_Urgente">
+        <description>Aprovacao Urgencia - Classe IIa revascularizacao urgente</description>
+        <inputEntry id="IE_Apr2_1"><text>"Classe_IIa_Marginalmente_Ameacado"</text></inputEntry>
+        <inputEntry id="IE_Apr2_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_Apr2_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_Apr2_4"><text>"Leve_Parestesias"</text></inputEntry>
+        <inputEntry id="IE_Apr2_5"><text>true</text></inputEntry>
+        <outputEntry id="OE_Apr2_1"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OE_Apr2_2"><text>"Revascularizacao URGENTE APROVADA - Rutherford IIa com deficit sensitivo leve - intervencao nas proximas horas para salvar membro"</text></outputEntry>
+        <outputEntry id="OE_Apr2_3"><text>"SVS/ESVS 2019 Classe I - Revascularizacao urgente em IIa"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_VAS_PAD_006_Aprovacao_Amputacao_III">
+        <description>Aprovacao Amputacao - Classe III irreversivel</description>
+        <inputEntry id="IE_Apr3_1"><text>"Classe_III_Irreversivel"</text></inputEntry>
+        <inputEntry id="IE_Apr3_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_Apr3_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_Apr3_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_Apr3_5"><text>true</text></inputEntry>
+        <outputEntry id="OE_Apr3_1"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OE_Apr3_2"><text>"Amputacao primaria APROVADA - Rutherford III com isquemia irreversivel - evitar sindrome de reperfusao potencialmente fatal"</text></outputEntry>
+        <outputEntry id="OE_Apr3_3"><text>"SVS/ESVS 2019 Classe I - Amputacao primaria em isquemia irreversivel"</text></outputEntry>
+      </rule>
+
+      <!-- ============================================== -->
+      <!-- REGRAS DE APROVACAO - CLASSE I                -->
+      <!-- ============================================== -->
+
+      <rule id="Rule_VAS_PAD_006_Aprovacao_Classe_I">
+        <description>Aprovacao - Classe I viavel com revascularizacao planejada</description>
+        <inputEntry id="IE_Apr4_1"><text>"Classe_I_Viavel"</text></inputEntry>
+        <inputEntry id="IE_Apr4_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_Apr4_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_Apr4_4"><text>"Ausente"</text></inputEntry>
+        <inputEntry id="IE_Apr4_5"><text>true</text></inputEntry>
+        <outputEntry id="OE_Apr4_1"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OE_Apr4_2"><text>"Anticoagulacao + investigacao + revascularizacao eletiva APROVADA - Rutherford I sem ameaca imediata permite planejamento adequado"</text></outputEntry>
+        <outputEntry id="OE_Apr4_3"><text>"SVS/ESVS 2019 - Classe I permite tempo para investigacao e planejamento"</text></outputEntry>
+      </rule>
+
+      <!-- ============================================== -->
+      <!-- REGRAS DE PENDENCIA                           -->
+      <!-- ============================================== -->
+
+      <rule id="Rule_VAS_PAD_006_Pendente_Reclassificar">
+        <description>Pendente - Classificacao duvidosa requer reavaliacao</description>
+        <inputEntry id="IE_Pend1_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_Pend1_2"><text>"Indeterminado"</text></inputEntry>
+        <inputEntry id="IE_Pend1_3"><text>"Indeterminada"</text></inputEntry>
+        <inputEntry id="IE_Pend1_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_Pend1_5"><text>true</text></inputEntry>
+        <outputEntry id="OE_Pend1_1"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OE_Pend1_2"><text>"Tempo e etiologia indeterminados - anticoagulacao imediata + reavaliacao clinica frequente para definir conduta"</text></outputEntry>
+        <outputEntry id="OE_Pend1_3"><text>"SVS/ESVS 2019 - Reavaliacao seriada necessaria em casos incertos"</text></outputEntry>
+      </rule>
+
+      <!-- ============================================== -->
+      <!-- REGRA FALLBACK                                -->
+      <!-- ============================================== -->
+
+      <rule id="Rule_Fallback_VAS_PAD_006">
+        <description>Fallback - Emergencia vascular requer decisao imediata</description>
+        <inputEntry id="IE_Fallback_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_Fallback_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_Fallback_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_Fallback_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_Fallback_5"><text>-</text></inputEntry>
+        <outputEntry id="OE_Fallback_1"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OE_Fallback_2"><text>"Isquemia aguda eh emergencia - contatar plantao vascular para avaliacao imediata - anticoagulacao nao deve ser atrasada"</text></outputEntry>
+        <outputEntry id="OE_Fallback_3"><text>"Emergencia vascular - autorizacao administrativa pode ser regularizada posteriormente"</text></outputEntry>
+      </rule>
+
+    </decisionTable>
+  </decision>
+</definitions>

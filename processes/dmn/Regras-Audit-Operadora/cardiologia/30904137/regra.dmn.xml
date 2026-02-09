@@ -1,0 +1,302 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             xmlns:camunda="http://camunda.org/schema/1.0/dmn"
+             id="Definitions_30904137"
+             name="Reparo Mitral Percutaneo MitraClip"
+             namespace="http://camunda.org/schema/1.0/dmn">
+
+  <!--
+    ===============================================================================
+    TUSS: 30904137
+    Procedimento: Reparo Mitral Percutaneo (MitraClip/TEER)
+    Versao: 1.0.0-LEAN-TIER2
+    Data: 2026-02-07
+    ===============================================================================
+
+    INDICACOES CLINICAS (ACC/AHA 2024):
+    - IM primaria severa sintomatica em risco alto cirurgico (Classe IIa)
+    - IM secundaria severa sintomatica com IC refrataria a TMO (Classe IIa)
+    - IM secundaria com FEVE 20-50%, DSVD <= 70mm (Classe IIa - COAPT-like)
+    - IM severa com IC hospitalizado como ponte (Classe IIb)
+
+    CONTRAINDICACOES:
+    - Anatomia desfavoravel ao TEER (area valvar < 4cm2, calcificacao extensa)
+    - FEVE < 20% sem perspectiva de recuperacao
+    - Hipertensao pulmonar fixa (RVP > 5 WU)
+    - Expectativa de vida < 1 ano
+    - Classe III: IM moderada, assintomatico sem IC
+
+    ALERTAS DE DESPERDICIO:
+    - DUP: Repetir MitraClip < 365 dias sem nova descompensacao
+    - FREQ: Segundo MitraClip sem documentar falha do primeiro
+    - DOC: Falta de COAPT criteria ou Heart Team
+    - ESC: MitraClip sem TMO otimizada primeiro
+    - PROT: Fora dos criterios COAPT/ACC-AHA
+
+    REFERENCIAS TECNICAS:
+    - ACC/AHA 2024 Valvular Heart Disease Guidelines
+    - ESC/EACTS 2024 Valvular Heart Disease Guidelines
+    - COAPT Trial Criteria 2018 (IM secundaria)
+    - SBC 2023 Diretrizes Valvopatias
+
+    ===============================================================================
+  -->
+
+  <decision id="Decision_30904137" name="Regra Clinica LEAN TIER-2 - MitraClip/TEER">
+    <decisionTable id="DecisionTable_30904137" hitPolicy="FIRST">
+
+      <!-- ========== INPUTS (6 - Padrao LEAN TIER-2) ========== -->
+
+      <input id="Input_tipoIM" label="Tipo de Insuficiencia Mitral" camunda:inputVariable="tipoIM">
+        <inputExpression id="InputExpression_tipoIM" typeRef="string">
+          <text>tipoIM</text>
+        </inputExpression>
+        <inputValues id="InputValues_tipoIM">
+          <text>"Primaria","Secundaria","Mista"</text>
+        </inputValues>
+      </input>
+
+      <input id="Input_historicoClinico" label="Historico Clinico" camunda:inputVariable="historicoClinico">
+        <inputExpression id="InputExpression_historicoClinico" typeRef="string">
+          <text>historicoClinico</text>
+        </inputExpression>
+        <inputValues id="InputValues_historicoClinico">
+          <text>"Adequado","Incompleto","NaoDocumentado"</text>
+        </inputValues>
+      </input>
+
+      <input id="Input_classeIndicacao" label="Classe de Indicacao (ACC/AHA)" camunda:inputVariable="classeIndicacao">
+        <inputExpression id="InputExpression_classeIndicacao" typeRef="string">
+          <text>classeIndicacao</text>
+        </inputExpression>
+        <inputValues id="InputValues_classeIndicacao">
+          <text>"Classe I","Classe IIa","Classe IIb","Classe III"</text>
+        </inputValues>
+      </input>
+
+      <input id="Input_criteriosCOAPT" label="Criterios COAPT Atendidos" camunda:inputVariable="criteriosCOAPT">
+        <inputExpression id="InputExpression_criteriosCOAPT" typeRef="string">
+          <text>criteriosCOAPT</text>
+        </inputExpression>
+        <inputValues id="InputValues_criteriosCOAPT">
+          <text>"Atendidos","ParcialmenteAtendidos","NaoAtendidos","NaoAplicavel"</text>
+        </inputValues>
+      </input>
+
+      <input id="Input_feVE" label="Fracao de Ejecao do VE (%)" camunda:inputVariable="feVE">
+        <inputExpression id="InputExpression_feVE" typeRef="string">
+          <text>feVE</text>
+        </inputExpression>
+        <inputValues id="InputValues_feVE">
+          <text>"Menor20","20a30","30a50","Maior50","NaoAvaliada"</text>
+        </inputValues>
+      </input>
+
+      <input id="Input_ultimoProcedimentoDias" label="Ultimo Procedimento Similar (dias)" camunda:inputVariable="ultimoProcedimentoDias">
+        <inputExpression id="InputExpression_ultimoProcedimentoDias" typeRef="integer">
+          <text>ultimoProcedimentoDias</text>
+        </inputExpression>
+      </input>
+
+      <!-- ========== OUTPUTS (5 - Padrao LEAN TIER-2) ========== -->
+
+      <output id="Output_resultado" label="Resultado" name="resultado" typeRef="string">
+        <outputValues id="OutputValues_resultado">
+          <text>"Aprovado","Reprovado","Pendente"</text>
+        </outputValues>
+      </output>
+
+      <output id="Output_observacao" label="Observacao Clinica" name="observacao" typeRef="string" />
+
+      <output id="Output_fundamentacao" label="Fundamentacao Tecnica" name="fundamentacao" typeRef="string" />
+
+      <output id="Output_alertasDesperdicio" label="Alertas de Desperdicio" name="alertasDesperdicio" typeRef="string">
+        <outputValues id="OutputValues_alertasDesperdicio">
+          <text>"NENHUM","DUP","FREQ","ESC","DOC","PROT","MULTI"</text>
+        </outputValues>
+      </output>
+
+      <output id="Output_acaoRecomendada" label="Acao Recomendada" name="acaoRecomendada" typeRef="string">
+        <outputValues id="OutputValues_acaoRecomendada">
+          <text>"APROVAR","NEGAR","SOLICITAR_INFO","AGUARDAR_PRAZO","SUGERIR_ALTERNATIVA"</text>
+        </outputValues>
+      </output>
+
+      <!-- =============================================================== -->
+      <!-- REGRAS DE REPROVACAO (Prioridade Maxima - Waste Detection)      -->
+      <!-- =============================================================== -->
+
+      <!-- REGRA 1: DUP - Duplicidade MitraClip < 365 dias -->
+      <rule id="Rule_DUP_MenosDe365Dias">
+        <description>WASTE DUP: MitraClip realizado ha menos de 365 dias sem nova descompensacao</description>
+        <inputEntry id="InputEntry_DUP_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_DUP_2"><text>"Adequado"</text></inputEntry>
+        <inputEntry id="InputEntry_DUP_3"><text>"Classe IIb","Classe III"</text></inputEntry>
+        <inputEntry id="InputEntry_DUP_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_DUP_5"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_DUP_6"><text>&lt; 365</text></inputEntry>
+        <outputEntry id="OutputEntry_DUP_resultado"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_DUP_observacao"><text>"MitraClip realizado ha menos de 1 ano sem documentacao de nova descompensacao ou progressao"</text></outputEntry>
+        <outputEntry id="OutputEntry_DUP_fundamentacao"><text>"ACC/AHA 2024: Repeticao de TEER requer documentar falha procedimento previo e nova indicacao clinica"</text></outputEntry>
+        <outputEntry id="OutputEntry_DUP_alertasDesperdicio"><text>"DUP"</text></outputEntry>
+        <outputEntry id="OutputEntry_DUP_acaoRecomendada"><text>"AGUARDAR_PRAZO"</text></outputEntry>
+      </rule>
+
+      <!-- REGRA 2: PROT - Classe III nao indicado -->
+      <rule id="Rule_PROT_ClasseIII">
+        <description>WASTE PROT: Classe III - TEER nao indicado conforme protocolo</description>
+        <inputEntry id="InputEntry_PROT_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_PROT_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_PROT_3"><text>"Classe III"</text></inputEntry>
+        <inputEntry id="InputEntry_PROT_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_PROT_5"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_PROT_6"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_PROT_resultado"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_PROT_observacao"><text>"Classe III - TEER nao indicado para esta condicao clinica"</text></outputEntry>
+        <outputEntry id="OutputEntry_PROT_fundamentacao"><text>"ACC/AHA 2024 Classe III: TEER sem beneficio em IM moderada ou assintomatico sem IC"</text></outputEntry>
+        <outputEntry id="OutputEntry_PROT_alertasDesperdicio"><text>"PROT"</text></outputEntry>
+        <outputEntry id="OutputEntry_PROT_acaoRecomendada"><text>"NEGAR"</text></outputEntry>
+      </rule>
+
+      <!-- REGRA 3: PROT - FEVE < 20% fora dos criterios -->
+      <rule id="Rule_PROT_FEVEMuitoBaixa">
+        <description>WASTE PROT: FEVE menor 20% - fora criterios COAPT</description>
+        <inputEntry id="InputEntry_PROT2_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_PROT2_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_PROT2_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_PROT2_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_PROT2_5"><text>"Menor20"</text></inputEntry>
+        <inputEntry id="InputEntry_PROT2_6"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_PROT2_resultado"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_PROT2_observacao"><text>"FEVE menor 20% - fora criterios COAPT, beneficio incerto"</text></outputEntry>
+        <outputEntry id="OutputEntry_PROT2_fundamentacao"><text>"COAPT Trial: FEVE 20-50% mandatorio para beneficio demonstrado. FEVE menor 20% associada a prognostico reservado independente TEER"</text></outputEntry>
+        <outputEntry id="OutputEntry_PROT2_alertasDesperdicio"><text>"PROT"</text></outputEntry>
+        <outputEntry id="OutputEntry_PROT2_acaoRecomendada"><text>"SUGERIR_ALTERNATIVA"</text></outputEntry>
+      </rule>
+
+      <!-- REGRA 4: ESC - IM secundaria sem COAPT atendidos -->
+      <rule id="Rule_ESC_SemCOAPT">
+        <description>WASTE ESC: IM secundaria sem criterios COAPT - escalonamento inadequado</description>
+        <inputEntry id="InputEntry_ESC_1"><text>"Secundaria"</text></inputEntry>
+        <inputEntry id="InputEntry_ESC_2"><text>"Adequado"</text></inputEntry>
+        <inputEntry id="InputEntry_ESC_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_ESC_4"><text>"NaoAtendidos"</text></inputEntry>
+        <inputEntry id="InputEntry_ESC_5"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_ESC_6"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_ESC_resultado"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_ESC_observacao"><text>"IM secundaria sem criterios COAPT atendidos - pulou etapa de TMO otimizada"</text></outputEntry>
+        <outputEntry id="OutputEntry_ESC_fundamentacao"><text>"MITRA-FR vs COAPT: Selecao adequada COAPT-like (EROA maior 30ml, FEVE 20-50%, DSVD menor ou igual 70mm, TMO otimizada) essencial para beneficio"</text></outputEntry>
+        <outputEntry id="OutputEntry_ESC_alertasDesperdicio"><text>"ESC"</text></outputEntry>
+        <outputEntry id="OutputEntry_ESC_acaoRecomendada"><text>"SOLICITAR_INFO"</text></outputEntry>
+      </rule>
+
+      <!-- REGRA 5: DOC - Documentacao incompleta -->
+      <rule id="Rule_DOC_Incompleto">
+        <description>WASTE DOC: Documentacao incompleta - falta Heart Team ou COAPT</description>
+        <inputEntry id="InputEntry_DOC_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_DOC_2"><text>"Incompleto","NaoDocumentado"</text></inputEntry>
+        <inputEntry id="InputEntry_DOC_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_DOC_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_DOC_5"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_DOC_6"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_DOC_resultado"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OutputEntry_DOC_observacao"><text>"Documentacao incompleta - necessario Eco TT/TE, FEVE, criterios COAPT, ata Heart Team"</text></outputEntry>
+        <outputEntry id="OutputEntry_DOC_fundamentacao"><text>"ANS RN 465/2021, ACC/AHA 2024: Procedimento de alto custo requer documentacao completa e Heart Team"</text></outputEntry>
+        <outputEntry id="OutputEntry_DOC_alertasDesperdicio"><text>"DOC"</text></outputEntry>
+        <outputEntry id="OutputEntry_DOC_acaoRecomendada"><text>"SOLICITAR_INFO"</text></outputEntry>
+      </rule>
+
+      <!-- =============================================================== -->
+      <!-- REGRAS DE APROVACAO (Indicacoes Classe I e IIa)                 -->
+      <!-- =============================================================== -->
+
+      <!-- REGRA 6: Aprovado - IM secundaria com COAPT -->
+      <rule id="Rule_Aprovado_COAPT">
+        <description>Aprovado: IM secundaria com criterios COAPT atendidos</description>
+        <inputEntry id="InputEntry_Aprov1_1"><text>"Secundaria"</text></inputEntry>
+        <inputEntry id="InputEntry_Aprov1_2"><text>"Adequado"</text></inputEntry>
+        <inputEntry id="InputEntry_Aprov1_3"><text>"Classe IIa"</text></inputEntry>
+        <inputEntry id="InputEntry_Aprov1_4"><text>"Atendidos"</text></inputEntry>
+        <inputEntry id="InputEntry_Aprov1_5"><text>"20a30","30a50"</text></inputEntry>
+        <inputEntry id="InputEntry_Aprov1_6"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_Aprov1_resultado"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprov1_observacao"><text>"IM secundaria com criterios COAPT - reducao mortalidade demonstrada (NNT=6)"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprov1_fundamentacao"><text>"ACC/AHA 2024 Classe IIa, COAPT Trial: TEER em IM secundaria com EROA maior 30ml, FEVE 20-50%, DSVD menor ou igual 70mm, TMO otimizada"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprov1_alertasDesperdicio"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprov1_acaoRecomendada"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <!-- REGRA 7: Aprovado - IM primaria risco alto -->
+      <rule id="Rule_Aprovado_Primaria">
+        <description>Aprovado: IM primaria severa em risco cirurgico alto</description>
+        <inputEntry id="InputEntry_Aprov2_1"><text>"Primaria"</text></inputEntry>
+        <inputEntry id="InputEntry_Aprov2_2"><text>"Adequado"</text></inputEntry>
+        <inputEntry id="InputEntry_Aprov2_3"><text>"Classe IIa"</text></inputEntry>
+        <inputEntry id="InputEntry_Aprov2_4"><text>"NaoAplicavel"</text></inputEntry>
+        <inputEntry id="InputEntry_Aprov2_5"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Aprov2_6"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_Aprov2_resultado"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprov2_observacao"><text>"IM primaria severa sintomatica em risco cirurgico alto documentado"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprov2_fundamentacao"><text>"ACC/AHA 2024 Classe IIa, EVEREST II: TEER alternativa a cirugia em pacientes com risco cirurgico elevado (STS maior 8%)"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprov2_alertasDesperdicio"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprov2_acaoRecomendada"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <!-- REGRA 8: Aprovado - Ponte para recuperacao/transplante -->
+      <rule id="Rule_Aprovado_Ponte">
+        <description>Aprovado: TEER como ponte para recuperacao ou transplante</description>
+        <inputEntry id="InputEntry_Aprov3_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Aprov3_2"><text>"Adequado"</text></inputEntry>
+        <inputEntry id="InputEntry_Aprov3_3"><text>"Classe IIb"</text></inputEntry>
+        <inputEntry id="InputEntry_Aprov3_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Aprov3_5"><text>"20a30","30a50"</text></inputEntry>
+        <inputEntry id="InputEntry_Aprov3_6"><text>&gt;= 365</text></inputEntry>
+        <outputEntry id="OutputEntry_Aprov3_resultado"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprov3_observacao"><text>"TEER como ponte para recuperacao ou transplante com objetivo terapeutico definido"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprov3_fundamentacao"><text>"ACC/AHA 2024 Classe IIb: TEER pode estabilizar paciente como ponte para decisao ou transplante"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprov3_alertasDesperdicio"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprov3_acaoRecomendada"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <!-- =============================================================== -->
+      <!-- REGRAS PENDENTES                                                -->
+      <!-- =============================================================== -->
+
+      <!-- REGRA 9: Pendente - COAPT parcialmente atendidos -->
+      <rule id="Rule_Pendente_COAPTParcial">
+        <description>Pendente: Criterios COAPT parcialmente atendidos</description>
+        <inputEntry id="InputEntry_Pend1_1"><text>"Secundaria"</text></inputEntry>
+        <inputEntry id="InputEntry_Pend1_2"><text>"Adequado"</text></inputEntry>
+        <inputEntry id="InputEntry_Pend1_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Pend1_4"><text>"ParcialmenteAtendidos"</text></inputEntry>
+        <inputEntry id="InputEntry_Pend1_5"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Pend1_6"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_Pend1_resultado"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OutputEntry_Pend1_observacao"><text>"Criterios COAPT parcialmente atendidos - justificar quais criterios e por que beneficio esperado"</text></outputEntry>
+        <outputEntry id="OutputEntry_Pend1_fundamentacao"><text>"MITRA-FR vs COAPT: Selecao inadequada pode resultar em ausencia de beneficio. Documentar criterios atendidos e justificativa clinica"</text></outputEntry>
+        <outputEntry id="OutputEntry_Pend1_alertasDesperdicio"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_Pend1_acaoRecomendada"><text>"SOLICITAR_INFO"</text></outputEntry>
+      </rule>
+
+      <!-- =============================================================== -->
+      <!-- FALLBACK RULE                                                   -->
+      <!-- =============================================================== -->
+
+      <rule id="Rule_Fallback_30904137">
+        <description>Regra padrao - Heart Team obrigatorio</description>
+        <inputEntry id="InputEntry_Fallback_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Fallback_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Fallback_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Fallback_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Fallback_5"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Fallback_6"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_Fallback_resultado"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OutputEntry_Fallback_observacao"><text>"Caso complexo requer avaliacao Heart Team com documentacao completa"</text></outputEntry>
+        <outputEntry id="OutputEntry_Fallback_fundamentacao"><text>"ACC/AHA 2024, SBC 2023: TEER requer Heart Team para decisao compartilhada"</text></outputEntry>
+        <outputEntry id="OutputEntry_Fallback_alertasDesperdicio"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_Fallback_acaoRecomendada"><text>"SOLICITAR_INFO"</text></outputEntry>
+      </rule>
+
+    </decisionTable>
+  </decision>
+</definitions>

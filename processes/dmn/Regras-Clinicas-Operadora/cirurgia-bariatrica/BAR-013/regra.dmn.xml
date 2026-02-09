@@ -1,0 +1,256 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             xmlns:camunda="http://camunda.org/schema/1.0/dmn"
+             id="Definitions_BAR013"
+             name="Remocao de Banda Gastrica"
+             namespace="http://camunda.org/schema/1.0/dmn">
+
+  <!--
+    ===============================================================================
+    TUSS: BAR-013
+    Procedimento: Remocao de Banda Gastrica Ajustavel
+    Especialidade: Cirurgia Bariatrica
+    Versao: 3.0.0-TIER1
+    Data: 2026-02-07
+    ===============================================================================
+
+    INDICACOES CLINICAS (SBCBM 2022, ASMBS 2017):
+    - Complicacoes da banda (erosao, migracao, slippage)
+    - Intolerancia alimentar grave
+    - Falha de perda de peso
+    - Infeccao do port ou cateter
+    - Dilatacao esofagica/pouch
+    - Solicitacao do paciente
+
+    TAXAS DE REMOCAO:
+    - 20-50% das bandas sao removidas em 10 anos
+    - Maioria por complicacoes ou falha terapeutica
+
+    REFERENCIAS TECNICAS:
+    - SBCBM 2022 - Manejo de Banda Gastrica
+    - ASMBS Band Removal Statement 2017
+    - IFSO Guidelines 2023
+
+    ===============================================================================
+  -->
+
+  <decision id="Decision_BAR013" name="Regra Clinica - Remocao de Banda Gastrica">
+    <decisionTable id="DecisionTable_BAR013" hitPolicy="FIRST">
+
+      <!-- ========== INPUTS (5) ========== -->
+
+      <input id="Input_indicacaoRemocao" label="Indicacao para Remocao" camunda:inputVariable="indicacaoRemocao">
+        <inputExpression id="InputExpression_indicacaoRemocao" typeRef="string">
+          <text>indicacaoRemocao</text>
+        </inputExpression>
+        <inputValues id="InputValues_indicacaoRemocao">
+          <text>"Erosao","Migracao","Slippage","IntoleranciaAlimentar","FalhaPerdaPeso","InfeccaoPort","DilatacaoEsofagica","SolicitacaoPaciente"</text>
+        </inputValues>
+      </input>
+
+      <input id="Input_tempoDesdeImplante" label="Tempo Desde Implante (anos)" camunda:inputVariable="tempoDesdeImplante">
+        <inputExpression id="InputExpression_tempoDesdeImplante" typeRef="number">
+          <text>tempoDesdeImplante</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_confirmacaoDiagnostica" label="Confirmacao Diagnostica" camunda:inputVariable="confirmacaoDiagnostica">
+        <inputExpression id="InputExpression_confirmacaoDiagnostica" typeRef="string">
+          <text>confirmacaoDiagnostica</text>
+        </inputExpression>
+        <inputValues id="InputValues_confirmacaoDiagnostica">
+          <text>"Endoscopia","Radiografia","Tomografia","ClinicaApenas"</text>
+        </inputValues>
+      </input>
+
+      <input id="Input_conversaoSimultanea" label="Conversao Simultanea Planejada" camunda:inputVariable="conversaoSimultanea">
+        <inputExpression id="InputExpression_conversaoSimultanea" typeRef="string">
+          <text>conversaoSimultanea</text>
+        </inputExpression>
+        <inputValues id="InputValues_conversaoSimultanea">
+          <text>"ParaSleeve","ParaBypass","ApenasRemocao","Indefinido"</text>
+        </inputValues>
+      </input>
+
+      <input id="Input_acompanhamentoMultidisciplinar" label="Acompanhamento Multidisciplinar" camunda:inputVariable="acompanhamentoMultidisciplinar">
+        <inputExpression id="InputExpression_acompanhamentoMultidisciplinar" typeRef="boolean">
+          <text>acompanhamentoMultidisciplinar</text>
+        </inputExpression>
+      </input>
+
+      <!-- ========== OUTPUTS (3 - Padrao TIER-1) ========== -->
+
+      <output id="Output_resultado" label="Resultado" name="resultado" typeRef="string">
+        <outputValues id="OutputValues_resultado">
+          <text>"Aprovado","Reprovado","Pendente"</text>
+        </outputValues>
+      </output>
+
+      <output id="Output_observacao" label="Observacao Clinica" name="observacao" typeRef="string" />
+
+      <output id="Output_fundamentacao" label="Fundamentacao Tecnica" name="fundamentacao" typeRef="string" />
+
+      <!-- Output 4: Alertas Desperdicio -->
+      <output id="Output_alertasDesperdicio" label="Alertas de Desperdicio" name="alertasDesperdicio" typeRef="string">
+        <outputValues id="OutputValues_alertasDesperdicio">
+          <text>"NENHUM","DUP","FREQ","ESC","DOC","PROT","MULTI"</text>
+        </outputValues>
+      </output>
+
+      <!-- Output 5: Acao Recomendada -->
+      <output id="Output_acaoRecomendada" label="Acao Recomendada" name="acaoRecomendada" typeRef="string">
+        <outputValues id="OutputValues_acaoRecomendada">
+          <text>"APROVAR","NEGAR","SOLICITAR_INFO","AGUARDAR_PRAZO","SUGERIR_ALTERNATIVA"</text>
+        </outputValues>
+      </output>
+
+      <!-- ========== RULES ========== -->
+
+      <!-- APROVACOES URGENTES - COMPLICACOES -->
+      <rule id="Rule_Aprovado_Erosao">
+        <description>Aprovado Urgente: Erosao da banda para lumen gastrico</description>
+        <inputEntry id="InputEntry_ER_1"><text>"Erosao"</text></inputEntry>
+        <inputEntry id="InputEntry_ER_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_ER_3"><text>"Endoscopia"</text></inputEntry>
+        <inputEntry id="InputEntry_ER_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_ER_5"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_ER_resultado"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_ER_observacao"><text>"Erosao de banda confirmada por endoscopia - remocao urgente indicada"</text></outputEntry>
+        <outputEntry id="OutputEntry_ER_fundamentacao"><text>"SBCBM 2022, ASMBS 2017 - Erosao e complicacao grave com risco de perfuracao e infeccao"</text></outputEntry>
+      <outputEntry id="OE_Aprovado_Erosao_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_Aprovado_Erosao_5"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Aprovado_Migracao">
+        <description>Aprovado Urgente: Migracao/deslizamento da banda</description>
+        <inputEntry id="InputEntry_MG_1"><text>"Migracao","Slippage"</text></inputEntry>
+        <inputEntry id="InputEntry_MG_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_MG_3"><text>"Radiografia","Tomografia"</text></inputEntry>
+        <inputEntry id="InputEntry_MG_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_MG_5"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_MG_resultado"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_MG_observacao"><text>"Migracao/slippage da banda - risco de obstrucao e isquemia gastrica"</text></outputEntry>
+        <outputEntry id="OutputEntry_MG_fundamentacao"><text>"ASMBS 2017, SBCBM 2022 - Slippage requer desinsuflacao imediata e remocao cirurgica"</text></outputEntry>
+      <outputEntry id="OE_Aprovado_Migracao_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_Aprovado_Migracao_5"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Aprovado_InfeccaoPort">
+        <description>Aprovado: Infeccao do port ou cateter</description>
+        <inputEntry id="InputEntry_IP_1"><text>"InfeccaoPort"</text></inputEntry>
+        <inputEntry id="InputEntry_IP_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_IP_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_IP_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_IP_5"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_IP_resultado"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_IP_observacao"><text>"Infeccao de port/cateter - remocao para controle infeccioso"</text></outputEntry>
+        <outputEntry id="OutputEntry_IP_fundamentacao"><text>"SBCBM 2022 - Infeccao de dispositivo requer remocao para erradicacao"</text></outputEntry>
+      <outputEntry id="OE_Aprovado_InfeccaoPort_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_Aprovado_InfeccaoPort_5"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Aprovado_DilatacaoEsofagica">
+        <description>Aprovado: Dilatacao esofagica</description>
+        <inputEntry id="InputEntry_DE_1"><text>"DilatacaoEsofagica"</text></inputEntry>
+        <inputEntry id="InputEntry_DE_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_DE_3"><text>"Radiografia","Tomografia"</text></inputEntry>
+        <inputEntry id="InputEntry_DE_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_DE_5"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_DE_resultado"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_DE_observacao"><text>"Dilatacao esofagica/pouch - remocao para prevenir dano esofagico permanente"</text></outputEntry>
+        <outputEntry id="OutputEntry_DE_fundamentacao"><text>"ASMBS 2017, IFSO 2023 - Dilatacao esofagica progressiva e indicacao de remocao"</text></outputEntry>
+      <outputEntry id="OE_Aprovado_DilatacaoEsofagica_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_Aprovado_DilatacaoEsofagica_5"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <!-- APROVACOES ELETIVAS -->
+      <rule id="Rule_Aprovado_IntoleranciaGrave">
+        <description>Aprovado: Intolerancia alimentar grave persistente</description>
+        <inputEntry id="InputEntry_IA_1"><text>"IntoleranciaAlimentar"</text></inputEntry>
+        <inputEntry id="InputEntry_IA_2"><text>&gt;= 1</text></inputEntry>
+        <inputEntry id="InputEntry_IA_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_IA_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_IA_5"><text>true</text></inputEntry>
+        <outputEntry id="OutputEntry_IA_resultado"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_IA_observacao"><text>"Intolerancia alimentar grave persistente apos ajustes - remocao indicada"</text></outputEntry>
+        <outputEntry id="OutputEntry_IA_fundamentacao"><text>"SBCBM 2022 - Intolerancia grave que compromete nutricao indica remocao"</text></outputEntry>
+      <outputEntry id="OE_Aprovado_IntoleranciaGrave_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_Aprovado_IntoleranciaGrave_5"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Aprovado_FalhaPerdaPeso">
+        <description>Aprovado: Falha de perda de peso com conversao planejada</description>
+        <inputEntry id="InputEntry_FP_1"><text>"FalhaPerdaPeso"</text></inputEntry>
+        <inputEntry id="InputEntry_FP_2"><text>&gt;= 2</text></inputEntry>
+        <inputEntry id="InputEntry_FP_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_FP_4"><text>"ParaSleeve","ParaBypass"</text></inputEntry>
+        <inputEntry id="InputEntry_FP_5"><text>true</text></inputEntry>
+        <outputEntry id="OutputEntry_FP_resultado"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_FP_observacao"><text>"Falha terapeutica da banda - remocao com conversao para procedimento definitivo"</text></outputEntry>
+        <outputEntry id="OutputEntry_FP_fundamentacao"><text>"SBCBM 2022, ASMBS 2017 - Conversao para sleeve/bypass apos falha de banda"</text></outputEntry>
+      <outputEntry id="OE_Aprovado_FalhaPerdaPeso_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_Aprovado_FalhaPerdaPeso_5"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Aprovado_SolicitacaoPaciente">
+        <description>Aprovado: Solicitacao do paciente com acompanhamento</description>
+        <inputEntry id="InputEntry_SP_1"><text>"SolicitacaoPaciente"</text></inputEntry>
+        <inputEntry id="InputEntry_SP_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_SP_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_SP_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_SP_5"><text>true</text></inputEntry>
+        <outputEntry id="OutputEntry_SP_resultado"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_SP_observacao"><text>"Solicitacao do paciente com acompanhamento multidisciplinar - remocao eletiva"</text></outputEntry>
+        <outputEntry id="OutputEntry_SP_fundamentacao"><text>"ASMBS 2017 - Paciente tem autonomia para solicitar remocao apos orientacao adequada"</text></outputEntry>
+      <outputEntry id="OE_Aprovado_SolicitacaoPaciente_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_Aprovado_SolicitacaoPaciente_5"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <!-- CONTRAINDICACOES -->
+      <rule id="Rule_Contraind_SemAcompanhamento">
+        <description>Contraindicacao: Solicitacao sem acompanhamento adequado</description>
+        <inputEntry id="InputEntry_SA_1"><text>"SolicitacaoPaciente","FalhaPerdaPeso"</text></inputEntry>
+        <inputEntry id="InputEntry_SA_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_SA_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_SA_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_SA_5"><text>false</text></inputEntry>
+        <outputEntry id="OutputEntry_SA_resultado"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_SA_observacao"><text>"Acompanhamento multidisciplinar necessario antes de remocao eletiva"</text></outputEntry>
+        <outputEntry id="OutputEntry_SA_fundamentacao"><text>"CFM 2.131/2015, SBCBM 2022 - Decisoes sobre banda requerem equipe multidisciplinar"</text></outputEntry>
+      <outputEntry id="OE_Contraind_SemAcompanhamento_4"><text>"PROT"</text></outputEntry>
+        <outputEntry id="OE_Contraind_SemAcompanhamento_5"><text>"NEGAR"</text></outputEntry>
+      </rule>
+
+      <!-- PENDENTE -->
+      <rule id="Rule_Pendente_ConfirmacaoNecessaria">
+        <description>Pendente: Confirmacao diagnostica necessaria</description>
+        <inputEntry id="InputEntry_CD_1"><text>"Erosao","Migracao","Slippage","DilatacaoEsofagica"</text></inputEntry>
+        <inputEntry id="InputEntry_CD_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_CD_3"><text>"ClinicaApenas"</text></inputEntry>
+        <inputEntry id="InputEntry_CD_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_CD_5"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_CD_resultado"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OutputEntry_CD_observacao"><text>"Realizar exame de imagem (EDA, Rx, TC) para confirmar complicacao"</text></outputEntry>
+        <outputEntry id="OutputEntry_CD_fundamentacao"><text>"SBCBM 2022 - Confirmacao diagnostica necessaria para planejamento cirurgico"</text></outputEntry>
+      <outputEntry id="OE_Pendente_ConfirmacaoNecessaria_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_Pendente_ConfirmacaoNecessaria_5"><text>"SOLICITAR_INFO"</text></outputEntry>
+      </rule>
+
+      <!-- FALLBACK RULE -->
+      <rule id="Rule_Fallback_BAR013">
+        <description>Regra padrao - Analise adicional necessaria</description>
+        <inputEntry id="InputEntry_Fallback_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Fallback_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Fallback_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Fallback_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Fallback_5"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_Fallback_resultado"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OutputEntry_Fallback_observacao"><text>"Avaliar caso com equipe de cirurgia bariatrica especializada"</text></outputEntry>
+        <outputEntry id="OutputEntry_Fallback_fundamentacao"><text>"ASMBS 2017, SBCBM 2022 - Decisao sobre banda requer avaliacao especializada"</text></outputEntry>
+      <outputEntry id="OE_Fallback_BAR013_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_Fallback_BAR013_5"><text>"SOLICITAR_INFO"</text></outputEntry>
+      </rule>
+
+    </decisionTable>
+  </decision>
+</definitions>

@@ -1,0 +1,157 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  ============================================================================
+  AUTH-SCOPE-004 - Profissional Executante Autorizado
+  ============================================================================
+  Versao: 1.0.0 (2026-02-08)
+  Categoria: AUTH-SCOPE
+  Perspectiva: HOSPITAL (Faturamento/Auditoria)
+
+  ============================================================================
+  INDICACOES (Quando PROSSEGUIR):
+  ============================================================================
+  - Profissional executante esta autorizado
+  - CRM do executante corresponde ao autorizado
+  - Profissional habilitado para procedimento
+
+  ============================================================================
+  CONTRAINDICACOES (Quando BLOQUEAR):
+  ============================================================================
+  - Profissional executante nao autorizado
+  - CRM divergente do autorizado
+  - Falta habilitacao do profissional
+
+  ============================================================================
+  REFERENCIAS NORMATIVAS:
+  ============================================================================
+  - RN 424/2017 (Autorizacao Previa)
+  - RN 465/2021 (Procedimentos Regulados)
+  - TISS 4.01.00 (Guia SADT)
+  - Lei 9.656/1998 Art. 12 (Cobertura Obrigatoria)
+  ============================================================================
+-->
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/"
+             xmlns:dc="http://www.omg.org/spec/DMN/20180521/DC/"
+             id="Definitions_AUTH_SCOPE_004"
+             name="Profissional Executante Autorizado"
+             targetNamespace="http://camunda.org/schema/1.0/dmn">
+
+  <decision id="Decision_AUTH_SCOPE_004" name="Verificar Profissional Executante Autorizado">
+    <decisionTable id="DecisionTable_AUTH_SCOPE_004" hitPolicy="FIRST">
+
+      <!-- ========== INPUTS ========== -->
+      <input id="Input_1" label="Profissional Autorizado">
+        <inputExpression id="InputExpression_1" typeRef="boolean">
+          <text>profissionalAutorizado</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_2" label="CRM Executante">
+        <inputExpression id="InputExpression_2" typeRef="string">
+          <text>crmExecutante</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_3" label="CRM Autorizado">
+        <inputExpression id="InputExpression_3" typeRef="string">
+          <text>crmAutorizado</text>
+        </inputExpression>
+      </input>
+
+      <!-- ========== OUTPUTS (5 STANDARD) ========== -->
+      <output id="Output_1" label="Resultado" name="resultado" typeRef="string">
+        <outputValues><text>"Prosseguir", "Bloquear", "Alertar", "Revisar"</text></outputValues>
+      </output>
+
+      <output id="Output_2" label="Observacao" name="observacao" typeRef="string"/>
+
+      <output id="Output_3" label="Acao Recomendada" name="acaoRecomendada" typeRef="string"/>
+
+      <output id="Output_4" label="Alertas Conformidade" name="alertasConformidade" typeRef="string">
+        <outputValues><text>"NENHUM", "DUP", "FREQ", "PRAZO", "DOC", "VALOR", "CRED", "CONTRATO"</text></outputValues>
+      </output>
+
+      <output id="Output_5" label="Risco Denial" name="riscoDenial" typeRef="string">
+        <outputValues><text>"BAIXO", "MEDIO", "ALTO", "CRITICO"</text></outputValues>
+      </output>
+
+      <!-- ========== RULES ========== -->
+
+      <!-- REGRA B1: Bloqueio - Profissional nao autorizado -->
+      <rule id="Rule_Bloqueio_1">
+        <description>Profissional executante nao autorizado</description>
+        <inputEntry id="InputEntry_B1_1"><text>false</text></inputEntry>
+        <inputEntry id="InputEntry_B1_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_B1_3"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_B1_1"><text>"Bloquear"</text></outputEntry>
+        <outputEntry id="OutputEntry_B1_2"><text>"Profissional executante nao consta na autorizacao previa. Faturamento bloqueado."</text></outputEntry>
+        <outputEntry id="OutputEntry_B1_3"><text>"Solicitar autorizacao para profissional executante ou realizar com profissional autorizado."</text></outputEntry>
+        <outputEntry id="OutputEntry_B1_4"><text>"CRED"</text></outputEntry>
+        <outputEntry id="OutputEntry_B1_5"><text>"ALTO"</text></outputEntry>
+      </rule>
+
+      <!-- REGRA B2: Bloqueio - CRM divergente -->
+      <rule id="Rule_Bloqueio_2">
+        <description>CRM do executante diverge do autorizado</description>
+        <inputEntry id="InputEntry_B2_1"><text>true</text></inputEntry>
+        <inputEntry id="InputEntry_B2_2"><text>not("" + crmExecutante = "" + crmAutorizado)</text></inputEntry>
+        <inputEntry id="InputEntry_B2_3"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_B2_1"><text>"Bloquear"</text></outputEntry>
+        <outputEntry id="OutputEntry_B2_2"><text>"CRM do profissional executante difere do autorizado pela operadora."</text></outputEntry>
+        <outputEntry id="OutputEntry_B2_3"><text>"Solicitar atualizacao da autorizacao com CRM correto ou realizar com profissional autorizado."</text></outputEntry>
+        <outputEntry id="OutputEntry_B2_4"><text>"CRED"</text></outputEntry>
+        <outputEntry id="OutputEntry_B2_5"><text>"ALTO"</text></outputEntry>
+      </rule>
+
+      <!-- REGRA A1: Alerta - Autorizacao generica -->
+      <rule id="Rule_Alerta_1">
+        <description>Profissional autorizado mas CRM nao especificado</description>
+        <inputEntry id="InputEntry_A1_1"><text>true</text></inputEntry>
+        <inputEntry id="InputEntry_A1_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_A1_3"><text>"", null</text></inputEntry>
+        <outputEntry id="OutputEntry_A1_1"><text>"Alertar"</text></outputEntry>
+        <outputEntry id="OutputEntry_A1_2"><text>"Autorizacao nao especifica CRM do profissional. Autorizacao generica."</text></outputEntry>
+        <outputEntry id="OutputEntry_A1_3"><text>"Verificar se operadora aceita autorizacao generica. Documentar CRM do executante."</text></outputEntry>
+        <outputEntry id="OutputEntry_A1_4"><text>"DOC"</text></outputEntry>
+        <outputEntry id="OutputEntry_A1_5"><text>"MEDIO"</text></outputEntry>
+      </rule>
+
+      <!-- REGRA P1: Aprovado - Profissional e CRM corretos -->
+      <rule id="Rule_Aprovado_1">
+        <description>Profissional autorizado e CRM correspondente</description>
+        <inputEntry id="InputEntry_P1_1"><text>true</text></inputEntry>
+        <inputEntry id="InputEntry_P1_2"><text>"" + crmExecutante = "" + crmAutorizado</text></inputEntry>
+        <inputEntry id="InputEntry_P1_3"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_P1_1"><text>"Prosseguir"</text></outputEntry>
+        <outputEntry id="OutputEntry_P1_2"><text>"Profissional executante corresponde ao autorizado pela operadora."</text></outputEntry>
+        <outputEntry id="OutputEntry_P1_3"><text>"Prosseguir com faturamento conforme profissional autorizado."</text></outputEntry>
+        <outputEntry id="OutputEntry_P1_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_P1_5"><text>"BAIXO"</text></outputEntry>
+      </rule>
+
+      <!-- REGRA F: Fallback - Requer revisao manual -->
+      <rule id="Rule_Fallback_AUTH_SCOPE_004">
+        <description>Regra padrao - Requer avaliacao manual</description>
+        <inputEntry id="InputEntry_F_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_F_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_F_3"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_F_1"><text>"Revisar"</text></outputEntry>
+        <outputEntry id="OutputEntry_F_2"><text>"Situacao de profissional executante requer analise manual."</text></outputEntry>
+        <outputEntry id="OutputEntry_F_3"><text>"Encaminhar para auditoria verificar habilitacao do profissional executante."</text></outputEntry>
+        <outputEntry id="OutputEntry_F_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_F_5"><text>"MEDIO"</text></outputEntry>
+      </rule>
+
+    </decisionTable>
+  </decision>
+
+  <dmndi:DMNDI>
+    <dmndi:DMNDiagram id="DMNDiagram_AUTH_SCOPE_004">
+      <dmndi:DMNShape id="DMNShape_Decision_AUTH_SCOPE_004" dmnElementRef="Decision_AUTH_SCOPE_004">
+        <dc:Bounds height="80" width="180" x="160" y="100"/>
+      </dmndi:DMNShape>
+    </dmndi:DMNDiagram>
+  </dmndi:DMNDI>
+
+</definitions>

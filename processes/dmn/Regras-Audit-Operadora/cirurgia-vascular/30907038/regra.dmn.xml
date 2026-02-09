@@ -1,0 +1,451 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             xmlns:camunda="http://camunda.org/schema/1.0/dmn"
+             id="VAS-002-Varizes-MMII-Tratamento"
+             name="Regra Tratamento Cirúrgico Varizes MMII"
+             namespace="http://camunda.org/schema/1.0/dmn">
+
+  <!--
+    TUSS 30907038 - Varizes - tratamento cirúrgico de MMII
+    Versao: 3.0.0 (2026-02-07)
+    Especialidade: Cirurgia Vascular
+    Categoria: Procedimentos Cirurgicos
+
+    Indicacoes Clinicas (DUT ANS 2024 + SBACV 2020):
+- Varizes com insuficiencia safena documentada (Doppler) CEAP C2-C6
+- Falha documentada de tratamento conservador por minimo 6 meses
+- Complicacoes venosas: tromboflebite, ulcera, hemorragia
+- Comprometimento funcional ou risco de progressao
+
+    Contraindicacoes:
+- Ausencia de documentacao medica (CID-10, Doppler venoso)
+- Intencao puramente estetica sem indicacao terapeutica
+- Paciente em condicoes clinicas criticas nao otimizadas
+- Varizes primarias C0-C1 sem complicacoes
+
+    Documentacao Obrigatoria:
+    - Diagnostico CID-10 confirmado (I83, I80, I87, etc)
+    - Exame Doppler venoso documentando insuficiencia
+    - Classificacao CEAP (C0-C6)
+    - Comprovacao tratamento conservador 6 meses (se eletivo)
+    - Laudo medico com indicacao cirurgica
+
+    Referencias Normativas:
+    - DUT ANS 2024 - Tratamento Cirurgico Varizes
+    - RN 465/2021 - Rol de Procedimentos
+    - SBACV 2020 - Diretrizes Cirurgia Vascular Brasileira
+    - RN 428/2017 - Regulacao de Cobertura
+  -->
+
+  <decision id="Decision_VAS002_Varizes" name="VAS-002: Varizes MMII - Critérios Tratamento Cirúrgico">
+    <decisionTable id="DecisionTable_VAS002" hitPolicy="FIRST">
+      <input id="Input_ClassificacaoCEAP" label="Classificação CEAP" camunda:inputVariable="classificacaoCeap">
+        <inputExpression id="InputExpression_CEAP" typeRef="string">
+          <text>classificacaoCeap</text>
+        </inputExpression>
+        <inputValues id="InputValues_CEAP">
+          <text>"C0","C1","C2","C3","C4a","C4b","C5","C6"</text>
+        </inputValues>
+      </input>
+
+      <input id="Input_InsuficienciaSafena" label="Insuficiência Safena Documentada" camunda:inputVariable="insuficienciaSafenaDocumentada">
+        <inputExpression id="InputExpression_Safena" typeRef="boolean">
+          <text>insuficienciaSafenaDocumentada</text>
+        </inputExpression>
+        <inputValues id="InputValues_Safena">
+          <text>true,false</text>
+        </inputValues>
+      </input>
+
+      <input id="Input_FalhaTratamentoConservador" label="Falha Tratamento Conservador (meses)" camunda:inputVariable="mesesTratamentoConservador">
+        <inputExpression id="InputExpression_Conservador" typeRef="number">
+          <text>mesesTratamentoConservador</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_ComplicacaoPresente" label="Complicação Presente" camunda:inputVariable="complicacaoPresente">
+        <inputExpression id="InputExpression_Complicacao" typeRef="string">
+          <text>complicacaoPresente</text>
+        </inputExpression>
+        <inputValues id="InputValues_Complicacao">
+          <text>"nenhuma","tromboflebite","ulcera_ativa","ulcera_cicatrizada","hemorragia","eczema_grave"</text>
+        </inputValues>
+      </input>
+
+      <input id="Input_IntencaoProcedimento" label="Intenção Procedimento" camunda:inputVariable="intencaoProcedimento">
+        <inputExpression id="InputExpression_Intencao" typeRef="string">
+          <text>intencaoProcedimento</text>
+        </inputExpression>
+        <inputValues id="InputValues_Intencao">
+          <text>"funcional_terapeutico","estetico"</text>
+        </inputValues>
+      </input>
+
+      <output id="Output_resultado" label="Resultado" name="resultado" typeRef="string">
+        <outputValues id="OutputValues_Resultado">
+          <text>"Aprovado","Reprovado","Pendente"</text>
+        </outputValues>
+      </output>
+
+      <output id="Output_observacao" label="Observação" name="observacao" typeRef="string"/>
+
+      <output id="Output_fundamentacao" label="Fundamentação Legal" name="fundamentacao" typeRef="string"/>
+
+      <output id="Output_alertasDesperdicio" name="alertasDesperdicio" typeRef="string">
+        <outputValues>
+          <text>"NENHUM","DUP","FREQ","ESC","DOC","PROT","MULTI"</text>
+        </outputValues>
+      </output>
+
+      <output id="Output_acaoRecomendada" name="acaoRecomendada" typeRef="string">
+        <outputValues>
+          <text>"APROVAR","NEGAR","SOLICITAR_INFO","AGUARDAR_PRAZO","SUGERIR_ALTERNATIVA"</text>
+        </outputValues>
+      </output>
+
+      <!-- ============================================== -->
+      <!-- CONTRAINDICATION RULES (FIRST PRIORITY)       -->
+      <!-- ============================================== -->
+
+      <!-- REGRA 0A: Contraindicacao - CEAP C0-C1 sem complicacoes (intencao estetica) -->
+      <rule id="Rule_VAS002_Contraindicacao_EsteticaSemIndicacao">
+        <description>Contraindicacao - Tratamento estetico puro sem indicacao terapeutica</description>
+        <inputEntry id="IE_Contra_0A_CEAP">
+          <text>"C0","C1"</text>
+        </inputEntry>
+        <inputEntry id="IE_Contra_0A_Safena">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="IE_Contra_0A_Conservador">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="IE_Contra_0A_Complicacao">
+          <text>"nenhuma"</text>
+        </inputEntry>
+        <inputEntry id="IE_Contra_0A_Intencao">
+          <text>"estetico"</text>
+        </inputEntry>
+        <outputEntry id="OE_Contra_0A_Resultado">
+          <text>"Reprovado"</text>
+        </outputEntry>
+        <outputEntry id="OE_Contra_0A_Obs">
+          <text>"CEAP C0-C1 com intencao estetica. Procedimentos esteticos puros nao sao cobertos por operadora de saude conforme RN 211/2010. Nao ha indicacao terapeutica documentada."</text>
+        </outputEntry>
+        <outputEntry id="OE_Contra_0A_Fund">
+          <text>"RN 211/2010 - Procedimentos esteticos nao cobertos por planos de saude"</text>
+        </outputEntry>
+      </rule>
+
+      <!-- REGRA 0B: Contraindicacao - Ausencia de documentacao obrigatoria (Doppler) -->
+      <rule id="Rule_VAS002_Contraindicacao_SemDoppler">
+        <description>Contraindicacao - Documentacao medica obrigatoria (Doppler venoso) ausente</description>
+        <inputEntry id="IE_Contra_0B_CEAP">
+          <text>"C2","C3","C4a","C4b","C5","C6"</text>
+        </inputEntry>
+        <inputEntry id="IE_Contra_0B_Safena">
+          <text>false</text>
+        </inputEntry>
+        <inputEntry id="IE_Contra_0B_Conservador">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="IE_Contra_0B_Complicacao">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="IE_Contra_0B_Intencao">
+          <text>"funcional_terapeutico"</text>
+        </inputEntry>
+        <outputEntry id="OE_Contra_0B_Resultado">
+          <text>"Reprovado"</text>
+        </outputEntry>
+        <outputEntry id="OE_Contra_0B_Obs">
+          <text>"Exame Doppler venoso documentando insuficiencia safena eh obrigatoria. Sem Doppler confirmando fluxo reverso, nao eh possivel indicar cirurgia convencional conforme SBACV 2020. Pendente exame complementar."</text>
+        </outputEntry>
+        <outputEntry id="OE_Contra_0B_Fund">
+          <text>"SBACV 2020 - Doppler venoso obrigatoria antes de cirurgia"</text>
+        </outputEntry>
+      </rule>
+
+      <!-- ============================================== -->
+      <!-- APPROVAL RULES (AFTER CONTRAINDICATIONS)      -->
+      <!-- ============================================== -->
+      <rule id="Rule_VAS002_01">
+        <inputEntry id="InputEntry_R1_CEAP">
+          <text>"C0","C1"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_R1_Safena">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_R1_Conservador">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_R1_Complicacao">
+          <text>"nenhuma"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_R1_Intencao">
+          <text>-</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_R1_Resultado">
+          <text>"Reprovado"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_R1_Obs">
+          <text>"CEAP C0-C1 (sem varizes ou telangiectasias isoladas). Sem indicação cirúrgica. Tratamento estético não coberto."</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_R1_Fund">
+          <text>"Diretrizes SBACV 2020 - C0-C1 sem indicação terapêutica"</text>
+        </outputEntry>
+      </rule>
+
+      <!-- REGRA 2: Reprovado - CEAP C2 estético sem complicações -->
+      <rule id="Rule_VAS002_02">
+        <inputEntry id="InputEntry_R2_CEAP">
+          <text>"C2"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_R2_Safena">
+          <text>false</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_R2_Conservador">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_R2_Complicacao">
+          <text>"nenhuma"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_R2_Intencao">
+          <text>"estetico"</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_R2_Resultado">
+          <text>"Reprovado"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_R2_Obs">
+          <text>"CEAP C2 sem insuficiência safena, intenção estética. Varizes tributárias isoladas. Tratamento cosmético não coberto. Considerar escleroterapia."</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_R2_Fund">
+          <text>"RN 211/2010 - Procedimentos estéticos não cobertos"</text>
+        </outputEntry>
+      </rule>
+
+      <!-- REGRA 3: Reprovado - Falha tratamento conservador insuficiente -->
+      <rule id="Rule_VAS002_03">
+        <inputEntry id="InputEntry_R3_CEAP">
+          <text>"C2","C3"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_R3_Safena">
+          <text>true</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_R3_Conservador">
+          <text>&lt; 6</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_R3_Complicacao">
+          <text>"nenhuma"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_R3_Intencao">
+          <text>-</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_R3_Resultado">
+          <text>"Reprovado"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_R3_Obs">
+          <text>"Tratamento conservador insuficiente. Obrigatório mínimo 6 meses com meia elástica compressiva (20-30 mmHg) antes de cirurgia eletiva."</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_R3_Fund">
+          <text>"SBACV 2020 - Tratamento conservador 6 meses pré-cirurgia"</text>
+        </outputEntry>
+      </rule>
+
+      <!-- REGRA 4: Aprovado - CEAP C2-C3 com insuficiência safena e falha conservador -->
+      <rule id="Rule_VAS002_04">
+        <inputEntry id="InputEntry_R4_CEAP">
+          <text>"C2","C3"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_R4_Safena">
+          <text>true</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_R4_Conservador">
+          <text>&gt;= 6</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_R4_Complicacao">
+          <text>"nenhuma"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_R4_Intencao">
+          <text>"funcional_terapeutico"</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_R4_Resultado">
+          <text>"Aprovado"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_R4_Obs">
+          <text>"CEAP C2-C3 com insuficiência safena documentada (Doppler), falha conservador ≥6 meses. Indicação safenectomia ou ablação térmica (laser/radiofrequência)."</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_R4_Fund">
+          <text>"SBACV 2020 - C2-C3 com refluxo safena indicação cirúrgica"</text>
+        </outputEntry>
+      </rule>
+
+      <!-- REGRA 5: Aprovado - CEAP C4a/C4b (alterações cutâneas) -->
+      <rule id="Rule_VAS002_05">
+        <inputEntry id="InputEntry_R5_CEAP">
+          <text>"C4a","C4b"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_R5_Safena">
+          <text>true</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_R5_Conservador">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_R5_Complicacao">
+          <text>"eczema_grave","tromboflebite"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_R5_Intencao">
+          <text>"funcional_terapeutico"</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_R5_Resultado">
+          <text>"Aprovado"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_R5_Obs">
+          <text>"CEAP C4a/C4b (pigmentação, eczema, lipodermatoesclerose). Indicação cirurgia para prevenir progressão para úlcera. Tratamento conservador insuficiente."</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_R5_Fund">
+          <text>"SBACV 2020 - C4 indicação cirúrgica para prevenir úlcera"</text>
+        </outputEntry>
+      </rule>
+
+      <!-- REGRA 6: Aprovado - CEAP C5 (úlcera cicatrizada) -->
+      <rule id="Rule_VAS002_06">
+        <inputEntry id="InputEntry_R6_CEAP">
+          <text>"C5"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_R6_Safena">
+          <text>true</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_R6_Conservador">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_R6_Complicacao">
+          <text>"ulcera_cicatrizada"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_R6_Intencao">
+          <text>"funcional_terapeutico"</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_R6_Resultado">
+          <text>"Aprovado"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_R6_Obs">
+          <text>"CEAP C5 (úlcera venosa cicatrizada). Indicação cirurgia para prevenir recidiva. Correção insuficiência venosa fundamental para resultado duradouro."</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_R6_Fund">
+          <text>"SBACV 2020 - C5 indicação cirúrgica para prevenir recidiva"</text>
+        </outputEntry>
+      </rule>
+
+      <!-- REGRA 7: Aprovado - CEAP C6 (úlcera ativa) -->
+      <rule id="Rule_VAS002_07">
+        <inputEntry id="InputEntry_R7_CEAP">
+          <text>"C6"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_R7_Safena">
+          <text>true</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_R7_Conservador">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_R7_Complicacao">
+          <text>"ulcera_ativa"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_R7_Intencao">
+          <text>"funcional_terapeutico"</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_R7_Resultado">
+          <text>"Aprovado"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_R7_Obs">
+          <text>"CEAP C6 (úlcera venosa ativa). Indicação URGENTE cirurgia + tratamento úlcera. Correção hemodinâmica essencial para cicatrização e prevenir recidiva."</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_R7_Fund">
+          <text>"SBACV 2020 - C6 indicação absoluta cirurgia + tratamento local"</text>
+        </outputEntry>
+      </rule>
+
+      <!-- REGRA 8: Aprovado - Complicação hemorrágica -->
+      <rule id="Rule_VAS002_08">
+        <inputEntry id="InputEntry_R8_CEAP">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_R8_Safena">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_R8_Conservador">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_R8_Complicacao">
+          <text>"hemorragia"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_R8_Intencao">
+          <text>-</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_R8_Resultado">
+          <text>"Aprovado"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_R8_Obs">
+          <text>"Hemorragia por ruptura varicosa. EMERGÊNCIA cirúrgica. Controle hemorrágico + tratamento definitivo varizes para prevenir recidiva."</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_R8_Fund">
+          <text>"SBACV 2020 - Hemorragia varicosa indicação emergencial"</text>
+        </outputEntry>
+      </rule>
+
+      <!-- REGRA 9: Pendente - Doppler pendente -->
+      <rule id="Rule_VAS002_09">
+        <inputEntry id="InputEntry_R9_CEAP">
+          <text>"C2","C3","C4a","C4b"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_R9_Safena">
+          <text>false</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_R9_Conservador">
+          <text>&gt;= 6</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_R9_Complicacao">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_R9_Intencao">
+          <text>"funcional_terapeutico"</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_R9_Resultado">
+          <text>"Pendente"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_R9_Obs">
+          <text>"Pendente Doppler venoso MMII para documentar insuficiência safena/perfurantes. Obrigatório antes de indicação cirúrgica para planejamento adequado."</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_R9_Fund">
+          <text>"SBACV 2020 - Doppler venoso obrigatório pré-cirurgia"</text>
+        </outputEntry>
+      </rule>
+
+      <!-- REGRA 10: Fallback -->
+      <rule id="Rule_Default_Fallback">
+        <inputEntry id="InputEntry_Fallback_CEAP">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_Fallback_Safena">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_Fallback_Conservador">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_Fallback_Complicacao">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_Fallback_Intencao">
+          <text>-</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_Fallback_Resultado">
+          <text>"Pendente"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_Fallback_Obs">
+          <text>"Caso não contemplado nas regras. Solicitar avaliação cirurgião vascular para análise individualizada conforme SBACV 2020."</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_Fallback_Fund">
+          <text>"Análise caso a caso - SBACV Guidelines"</text>
+        </outputEntry>
+      </rule>
+    </decisionTable>
+  </decision>
+</definitions>

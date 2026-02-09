@@ -1,0 +1,358 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/"
+             xmlns:dc="http://www.omg.org/spec/DMN/20180521/DC/"
+             id="Definitions_SYN_AKI_003"
+             name="Deteccao de AKI - Disturbios Eletroliticos"
+             targetNamespace="http://camunda.org/schema/1.0/dmn">
+
+  <!--
+    SYN-AKI-003 - Deteccao de Complicacoes Eletroliticas da AKI
+    Versao: 1.0.0 (2026-02-06)
+    Categoria: Alerta Clinico - Sindromes Criticas
+
+    COMPLICACOES ELETROLITICAS DA AKI:
+
+    HIPERCALEMIA (mais perigosa):
+    - Leve: K+ 5.0-5.5 mEq/L
+    - Moderada: K+ 5.5-6.5 mEq/L
+    - Grave: K+ > 6.5 mEq/L (risco de arritmia fatal)
+
+    ACIDOSE METABOLICA:
+    - Leve: pH 7.25-7.35, Bic 15-22
+    - Moderada: pH 7.15-7.24, Bic 10-14
+    - Grave: pH < 7.15, Bic < 10
+
+    HIPERFOSFATEMIA:
+    - Fosforo > 5.5 mg/dL
+
+    INDICACOES DE DIALISE DE EMERGENCIA (AEIOU):
+    - Acidose refrataria
+    - Eletroliticos (hipercalemia refrataria)
+    - Intoxicacao
+    - Overload (hipervolemia)
+    - Uremia sintomatica
+
+    REFERENCIAS:
+    - KDIGO AKI Guidelines 2012
+    - AHA Guidelines for Hyperkalemia Management
+  -->
+
+  <decision id="Decision_SYN_AKI_003" name="Deteccao AKI Eletroliticos">
+    <decisionTable id="DecisionTable_SYN_AKI_003" hitPolicy="FIRST">
+
+      <!-- INPUT 1: Potassio Serico -->
+      <input id="Input_1" label="Potassio (mEq/L)">
+        <inputExpression id="InputExpression_1" typeRef="number">
+          <text>potassio</text>
+        </inputExpression>
+      </input>
+
+      <!-- INPUT 2: pH Arterial -->
+      <input id="Input_2" label="pH Arterial">
+        <inputExpression id="InputExpression_2" typeRef="number">
+          <text>phArterial</text>
+        </inputExpression>
+      </input>
+
+      <!-- INPUT 3: Bicarbonato -->
+      <input id="Input_3" label="Bicarbonato (mEq/L)">
+        <inputExpression id="InputExpression_3" typeRef="number">
+          <text>bicarbonato</text>
+        </inputExpression>
+      </input>
+
+      <!-- INPUT 4: Alteracoes ECG -->
+      <input id="Input_4" label="Alteracoes ECG Hipercalemia">
+        <inputExpression id="InputExpression_4" typeRef="boolean">
+          <text>alteracoesEcgHipercalemia</text>
+        </inputExpression>
+      </input>
+
+      <!-- OUTPUTS -->
+      <output id="Output_1" label="Nivel Alerta" name="nivelAlerta" typeRef="string">
+        <outputValues id="OutputValues_1">
+          <text>"Alerta", "Atencao", "OK", "Revisar"</text>
+        </outputValues>
+      </output>
+
+      <output id="Output_2" label="Classificacao Sindrome" name="classificacaoSindrome" typeRef="string"/>
+
+      <output id="Output_3" label="Protocolo Ativado" name="protocoloAtivado" typeRef="boolean"/>
+
+      <output id="Output_4" label="Acao Requerida" name="acaoRequerida" typeRef="string"/>
+
+      <output id="Output_5" label="Urgencia" name="urgencia" typeRef="string">
+        <outputValues id="OutputValues_5">
+          <text>"CRITICA", "ALTA", "MEDIA", "BAIXA"</text>
+        </outputValues>
+      </output>
+
+      <!-- RULE 1: Hipercalemia grave com alteracoes ECG -->
+      <rule id="Rule_Hipercalemia_Grave_ECG">
+        <description>Hipercalemia grave com alteracoes ECG - Emergencia</description>
+        <inputEntry id="InputEntry_1_1">
+          <text>&gt; 6.5</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_1_2">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_1_3">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_1_4">
+          <text>true</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_1_1">
+          <text>"Alerta"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_1_2">
+          <text>"HIPERCALEMIA_EMERGENCIA"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_1_3">
+          <text>true</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_1_4">
+          <text>"EMERGENCIA: Hipercalemia grave com alteracoes ECG. GLUCONATO DE CALCIO 10% 10mL IV em 2-3min (estabilizacao membrana). Depois: insulina+glicose, salbutamol nebulizacao. DIALISE URGENTE se refratario."</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_1_5">
+          <text>"CRITICA"</text>
+        </outputEntry>
+      </rule>
+
+      <!-- RULE 2: Hipercalemia grave sem ECG -->
+      <rule id="Rule_Hipercalemia_Grave">
+        <description>Hipercalemia grave K > 6.5 mEq/L</description>
+        <inputEntry id="InputEntry_2_1">
+          <text>&gt; 6.5</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_2_2">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_2_3">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_2_4">
+          <text>false</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_2_1">
+          <text>"Alerta"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_2_2">
+          <text>"HIPERCALEMIA_GRAVE"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_2_3">
+          <text>true</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_2_4">
+          <text>"Hipercalemia grave K > 6.5 mEq/L. ECG URGENTE. Monitorar ritmo cardiaco. Iniciar: Gluconato de calcio profilatico + Insulina regular 10U + Glicose 50% 25g IV. Suspender diureticos poupadores de K."</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_2_5">
+          <text>"CRITICA"</text>
+        </outputEntry>
+      </rule>
+
+      <!-- RULE 3: Acidose metabolica grave -->
+      <rule id="Rule_Acidose_Grave">
+        <description>Acidose metabolica grave pH < 7.15</description>
+        <inputEntry id="InputEntry_3_1">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_3_2">
+          <text>&lt; 7.15</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_3_3">
+          <text>&lt; 10</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_3_4">
+          <text>-</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_3_1">
+          <text>"Alerta"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_3_2">
+          <text>"ACIDOSE_METABOLICA_GRAVE"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_3_3">
+          <text>true</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_3_4">
+          <text>"Acidose metabolica grave (pH < 7.15, Bic < 10). Avaliar causa: AKI, cetoacidose, lactoacidose. Considerar bicarbonato de sodio se pH < 7.1. DIALISE se acidose refrataria a tratamento clinico."</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_3_5">
+          <text>"CRITICA"</text>
+        </outputEntry>
+      </rule>
+
+      <!-- RULE 4: Hipercalemia moderada -->
+      <rule id="Rule_Hipercalemia_Moderada">
+        <description>Hipercalemia moderada K 5.5-6.5 mEq/L</description>
+        <inputEntry id="InputEntry_4_1">
+          <text>[5.5..6.5]</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_4_2">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_4_3">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_4_4">
+          <text>-</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_4_1">
+          <text>"Alerta"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_4_2">
+          <text>"HIPERCALEMIA_MODERADA"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_4_3">
+          <text>false</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_4_4">
+          <text>"Hipercalemia moderada K 5.5-6.5 mEq/L. ECG para rastreio. Suspender: IECA/BRA, espironolactona, suplementos de K. Poliestireno sulfonato de calcio 15-30g VO. Repetir K em 4-6h."</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_4_5">
+          <text>"ALTA"</text>
+        </outputEntry>
+      </rule>
+
+      <!-- RULE 5: Acidose metabolica moderada -->
+      <rule id="Rule_Acidose_Moderada">
+        <description>Acidose metabolica moderada pH 7.15-7.24</description>
+        <inputEntry id="InputEntry_5_1">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_5_2">
+          <text>[7.15..7.24]</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_5_3">
+          <text>[10..14]</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_5_4">
+          <text>-</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_5_1">
+          <text>"Atencao"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_5_2">
+          <text>"ACIDOSE_MODERADA"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_5_3">
+          <text>false</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_5_4">
+          <text>"Acidose metabolica moderada. Identificar e tratar causa base. Monitorar gasometria a cada 4-6h. Nao usar bicarbonato de rotina a menos que pH < 7.1."</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_5_5">
+          <text>"ALTA"</text>
+        </outputEntry>
+      </rule>
+
+      <!-- RULE 6: Hipercalemia leve -->
+      <rule id="Rule_Hipercalemia_Leve">
+        <description>Hipercalemia leve K 5.0-5.5 mEq/L</description>
+        <inputEntry id="InputEntry_6_1">
+          <text>[5.0..5.5)</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_6_2">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_6_3">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_6_4">
+          <text>-</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_6_1">
+          <text>"Atencao"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_6_2">
+          <text>"HIPERCALEMIA_LEVE"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_6_3">
+          <text>false</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_6_4">
+          <text>"Hipercalemia leve. Revisar medicamentos (IECA, BRA, espironolactona). Dieta hipopotassemica. Repetir potassio em 24h. Monitorar funcao renal."</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_6_5">
+          <text>"MEDIA"</text>
+        </outputEntry>
+      </rule>
+
+      <!-- RULE 7: Eletroliticos normais -->
+      <rule id="Rule_Eletroliticos_Normais">
+        <description>Eletroliticos dentro da normalidade</description>
+        <inputEntry id="InputEntry_7_1">
+          <text>[3.5..5.0)</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_7_2">
+          <text>&gt;= 7.35</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_7_3">
+          <text>&gt;= 22</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_7_4">
+          <text>false</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_7_1">
+          <text>"OK"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_7_2">
+          <text>"ELETROLITICOS_NORMAIS"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_7_3">
+          <text>false</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_7_4">
+          <text>"Potassio e equilibrio acido-base dentro dos parametros normais. Manter monitoramento de rotina se paciente com AKI."</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_7_5">
+          <text>"BAIXA"</text>
+        </outputEntry>
+      </rule>
+
+      <!-- FALLBACK -->
+      <rule id="Rule_Fallback_SYN_AKI_003">
+        <description>Dados insuficientes para avaliacao</description>
+        <inputEntry id="InputEntry_F_1">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_F_2">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_F_3">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_F_4">
+          <text>-</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_F_1">
+          <text>"Revisar"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_F_2">
+          <text>"DADOS_INCOMPLETOS"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_F_3">
+          <text>false</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_F_4">
+          <text>"Dados insuficientes para avaliacao eletrolitica. Solicitar: potassio serico, gasometria arterial (pH, bicarbonato), ECG se K elevado."</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_F_5">
+          <text>"MEDIA"</text>
+        </outputEntry>
+      </rule>
+
+    </decisionTable>
+  </decision>
+
+  <dmndi:DMNDI>
+    <dmndi:DMNDiagram id="DMNDiagram_SYN_AKI_003">
+      <dmndi:DMNShape id="DMNShape_Decision_SYN_AKI_003" dmnElementRef="Decision_SYN_AKI_003">
+        <dc:Bounds height="80" width="180" x="160" y="100"/>
+      </dmndi:DMNShape>
+    </dmndi:DMNDiagram>
+  </dmndi:DMNDI>
+
+</definitions>

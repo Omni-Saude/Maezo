@@ -1,0 +1,276 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             xmlns:camunda="http://camunda.org/schema/1.0/dmn"
+             id="Definitions_REC007"
+             name="Reconstrucao Pos-Oncologica"
+             namespace="http://camunda.org/schema/1.0/dmn">
+
+  <!--
+    ===============================================================================
+    TUSS: REC-007
+    Procedimento: Reconstrucao Apos Resseccao Oncologica
+    Especialidade: Cirurgia Reconstrutiva / Cirurgia Plastica
+    Versao: 3.0.0-TIER1
+    Data: 2026-02-07
+    ===============================================================================
+
+    INDICACOES CLINICAS (SBCP 2022, INCA 2021):
+    - Reconstrucao apos resseccao de tumores cutaneos
+    - Reconstrucao apos laringectomia/faringectomia
+    - Reconstrucao de cabeca e pescoco
+    - Reconstrucao de membros apos resseccao de sarcoma
+    - Reconstrucao apos exenteracao pelvica
+
+    TIMING:
+    - IMEDIATO: Na mesma cirurgia da resseccao
+    - TARDIO: Apos conclusao do tratamento oncologico
+
+    REFERENCIAS TECNICAS:
+    - SBCP 2022 - Reconstrucao Oncologica
+    - INCA 2021 - Oncologia Cirurgica
+    - NCCN 2023 - Guidelines por tipo tumoral
+    - ASPS 2023 - Oncologic Reconstruction
+
+    ===============================================================================
+  -->
+
+  <decision id="Decision_REC007" name="Regra Clinica - Reconstrucao Pos-Oncologica">
+    <decisionTable id="DecisionTable_REC007" hitPolicy="FIRST">
+
+      <!-- ========== INPUTS (5) ========== -->
+
+      <input id="Input_tipoTumorRessecado" label="Tipo de Tumor Ressecado" camunda:inputVariable="tipoTumorRessecado">
+        <inputExpression id="InputExpression_tipoTumorRessecado" typeRef="string">
+          <text>tipoTumorRessecado</text>
+        </inputExpression>
+        <inputValues id="InputValues_tipoTumorRessecado">
+          <text>"CarcinomaCutaneo","Melanoma","SarcomaTecidosMoles","CarcinomaCabecaPescoco","TumorOsseo","CarcinomaAbdominal"</text>
+        </inputValues>
+      </input>
+
+      <input id="Input_localReconstrucao" label="Local da Reconstrucao" camunda:inputVariable="localReconstrucao">
+        <inputExpression id="InputExpression_localReconstrucao" typeRef="string">
+          <text>localReconstrucao</text>
+        </inputExpression>
+        <inputValues id="InputValues_localReconstrucao">
+          <text>"Face","Couro","Pescoco","Membro","Tronco","AreaGenital","Mama"</text>
+        </inputValues>
+      </input>
+
+      <input id="Input_momentoReconstrucao" label="Momento da Reconstrucao" camunda:inputVariable="momentoReconstrucao">
+        <inputExpression id="InputExpression_momentoReconstrucao" typeRef="string">
+          <text>momentoReconstrucao</text>
+        </inputExpression>
+        <inputValues id="InputValues_momentoReconstrucao">
+          <text>"Imediato","Tardio","Revisao"</text>
+        </inputValues>
+      </input>
+
+      <input id="Input_statusOncologico" label="Status Oncologico" camunda:inputVariable="statusOncologico">
+        <inputExpression id="InputExpression_statusOncologico" typeRef="string">
+          <text>statusOncologico</text>
+        </inputExpression>
+        <inputValues id="InputValues_statusOncologico">
+          <text>"MargemNegativaDefinitiva","MargemPendenteCongelacao","RecidivaLocal","MetastaseAtiva","LivreDoenca"</text>
+        </inputValues>
+      </input>
+
+      <input id="Input_defeitoTecidual" label="Defeito Tecidual" camunda:inputVariable="defeitoTecidual">
+        <inputExpression id="InputExpression_defeitoTecidual" typeRef="string">
+          <text>defeitoTecidual</text>
+        </inputExpression>
+        <inputValues id="InputValues_defeitoTecidual">
+          <text>"PequenoPele","GrandePele","OssoExposto","EstruturaNobreExposta","CavidadeAberta"</text>
+        </inputValues>
+      </input>
+
+      <!-- ========== OUTPUTS (3 - Padrao TIER-1) ========== -->
+
+      <output id="Output_resultado" label="Resultado" name="resultado" typeRef="string">
+        <outputValues id="OutputValues_resultado">
+          <text>"Aprovado","Reprovado","Pendente"</text>
+        </outputValues>
+      </output>
+
+      <output id="Output_observacao" label="Observacao Clinica" name="observacao" typeRef="string" />
+
+      <output id="Output_fundamentacao" label="Fundamentacao Tecnica" name="fundamentacao" typeRef="string" />
+
+      <!-- Output 4: Alertas Desperdicio -->
+      <output id="Output_alertasDesperdicio" label="Alertas de Desperdicio" name="alertasDesperdicio" typeRef="string">
+        <outputValues id="OutputValues_alertasDesperdicio">
+          <text>"NENHUM","DUP","FREQ","ESC","DOC","PROT","MULTI"</text>
+        </outputValues>
+      </output>
+
+      <!-- Output 5: Acao Recomendada -->
+      <output id="Output_acaoRecomendada" label="Acao Recomendada" name="acaoRecomendada" typeRef="string">
+        <outputValues id="OutputValues_acaoRecomendada">
+          <text>"APROVAR","NEGAR","SOLICITAR_INFO","AGUARDAR_PRAZO","SUGERIR_ALTERNATIVA"</text>
+        </outputValues>
+      </output>
+
+      <!-- ========== RULES ========== -->
+
+      <!-- APROVACOES URGENTES -->
+      <rule id="Rule_Aprovado_OssoExposto">
+        <description>Aprovado Urgente: Osso exposto apos resseccao</description>
+        <inputEntry id="InputEntry_OE_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_OE_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_OE_3"><text>"Imediato"</text></inputEntry>
+        <inputEntry id="InputEntry_OE_4"><text>"MargemNegativaDefinitiva","MargemPendenteCongelacao"</text></inputEntry>
+        <inputEntry id="InputEntry_OE_5"><text>"OssoExposto"</text></inputEntry>
+        <outputEntry id="OutputEntry_OE_resultado"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_OE_observacao"><text>"URGENTE - Cobertura imediata de osso exposto para prevenir osteomielite"</text></outputEntry>
+        <outputEntry id="OutputEntry_OE_fundamentacao"><text>"SBCP 2022, ASPS 2023 - Osso exposto requer cobertura em ate 72h"</text></outputEntry>
+      <outputEntry id="OE_Aprovado_OssoExposto_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_Aprovado_OssoExposto_5"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Aprovado_EstruturaNobreExposta">
+        <description>Aprovado Urgente: Estrutura nobre exposta</description>
+        <inputEntry id="InputEntry_ENE_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_ENE_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_ENE_3"><text>"Imediato"</text></inputEntry>
+        <inputEntry id="InputEntry_ENE_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_ENE_5"><text>"EstruturaNobreExposta"</text></inputEntry>
+        <outputEntry id="OutputEntry_ENE_resultado"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_ENE_observacao"><text>"URGENTE - Cobertura de estruturas nobres (vasos, nervos, articulacao)"</text></outputEntry>
+        <outputEntry id="OutputEntry_ENE_fundamentacao"><text>"SBCP 2022 - Estruturas nobres expostas requerem cobertura imediata"</text></outputEntry>
+      <outputEntry id="OE_Aprovado_EstruturaNobreExposta_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_Aprovado_EstruturaNobreExposta_5"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Aprovado_CavidadeAberta">
+        <description>Aprovado Urgente: Cavidade aberta apos resseccao</description>
+        <inputEntry id="InputEntry_CA_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_CA_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_CA_3"><text>"Imediato"</text></inputEntry>
+        <inputEntry id="InputEntry_CA_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_CA_5"><text>"CavidadeAberta"</text></inputEntry>
+        <outputEntry id="OutputEntry_CA_resultado"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_CA_observacao"><text>"URGENTE - Fechamento de cavidade para prevenir infeccao e fistula"</text></outputEntry>
+        <outputEntry id="OutputEntry_CA_fundamentacao"><text>"INCA 2021 - Defeitos de cavidade requerem reconstrucao imediata"</text></outputEntry>
+      <outputEntry id="OE_Aprovado_CavidadeAberta_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_Aprovado_CavidadeAberta_5"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <!-- APROVACOES ELETIVAS -->
+      <rule id="Rule_Aprovado_ReconstrucaoImediataMargemNegativa">
+        <description>Aprovado: Reconstrucao imediata com margem negativa</description>
+        <inputEntry id="InputEntry_RIMN_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_RIMN_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_RIMN_3"><text>"Imediato"</text></inputEntry>
+        <inputEntry id="InputEntry_RIMN_4"><text>"MargemNegativaDefinitiva"</text></inputEntry>
+        <inputEntry id="InputEntry_RIMN_5"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_RIMN_resultado"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_RIMN_observacao"><text>"Reconstrucao imediata autorizada com margens oncologicas confirmadas"</text></outputEntry>
+        <outputEntry id="OutputEntry_RIMN_fundamentacao"><text>"SBCP 2022, NCCN 2023 - Reconstrucao imediata melhora resultados quando margens livres"</text></outputEntry>
+      <outputEntry id="OE_Aprovado_ReconstrucaoImediataMargemNegativa_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_Aprovado_ReconstrucaoImediataMargemNegativa_5"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Aprovado_ReconstrucaoTardiaLivreDoenca">
+        <description>Aprovado: Reconstrucao tardia paciente livre de doenca</description>
+        <inputEntry id="InputEntry_RTLD_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_RTLD_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_RTLD_3"><text>"Tardio"</text></inputEntry>
+        <inputEntry id="InputEntry_RTLD_4"><text>"LivreDoenca"</text></inputEntry>
+        <inputEntry id="InputEntry_RTLD_5"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_RTLD_resultado"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_RTLD_observacao"><text>"Reconstrucao tardia aprovada - paciente livre de doenca oncologica"</text></outputEntry>
+        <outputEntry id="OutputEntry_RTLD_fundamentacao"><text>"SBCP 2022 - Reconstrucao tardia indicada apos controle oncologico"</text></outputEntry>
+      <outputEntry id="OE_Aprovado_ReconstrucaoTardiaLivreDoenca_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_Aprovado_ReconstrucaoTardiaLivreDoenca_5"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Aprovado_CarcinomaCutaneoFace">
+        <description>Aprovado: Reconstrucao facial apos carcinoma cutaneo</description>
+        <inputEntry id="InputEntry_CCF_1"><text>"CarcinomaCutaneo"</text></inputEntry>
+        <inputEntry id="InputEntry_CCF_2"><text>"Face"</text></inputEntry>
+        <inputEntry id="InputEntry_CCF_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_CCF_4"><text>"MargemNegativaDefinitiva","LivreDoenca"</text></inputEntry>
+        <inputEntry id="InputEntry_CCF_5"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_CCF_resultado"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_CCF_observacao"><text>"Reconstrucao facial apos resseccao de carcinoma cutaneo"</text></outputEntry>
+        <outputEntry id="OutputEntry_CCF_fundamentacao"><text>"SBCP 2022 - Face e regiao prioritaria para reconstrucao estetico-funcional"</text></outputEntry>
+      <outputEntry id="OE_Aprovado_CarcinomaCutaneoFace_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_Aprovado_CarcinomaCutaneoFace_5"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Aprovado_SarcomaMembro">
+        <description>Aprovado: Reconstrucao de membro apos resseccao de sarcoma</description>
+        <inputEntry id="InputEntry_SM_1"><text>"SarcomaTecidosMoles"</text></inputEntry>
+        <inputEntry id="InputEntry_SM_2"><text>"Membro"</text></inputEntry>
+        <inputEntry id="InputEntry_SM_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_SM_4"><text>"MargemNegativaDefinitiva","LivreDoenca"</text></inputEntry>
+        <inputEntry id="InputEntry_SM_5"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_SM_resultado"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_SM_observacao"><text>"Reconstrucao de membro para preservar funcao apos resseccao de sarcoma"</text></outputEntry>
+        <outputEntry id="OutputEntry_SM_fundamentacao"><text>"NCCN 2023, SBCP 2022 - Cirurgia preservadora de membro requer reconstrucao adequada"</text></outputEntry>
+      <outputEntry id="OE_Aprovado_SarcomaMembro_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_Aprovado_SarcomaMembro_5"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <!-- REPROVACOES -->
+      <rule id="Rule_Reprovado_MetastaseAtiva">
+        <description>Reprovado: Metastase a distancia ativa (exceto paliativo)</description>
+        <inputEntry id="InputEntry_MA_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_MA_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_MA_3"><text>"Tardio","Revisao"</text></inputEntry>
+        <inputEntry id="InputEntry_MA_4"><text>"MetastaseAtiva"</text></inputEntry>
+        <inputEntry id="InputEntry_MA_5"><text>"PequenoPele","GrandePele"</text></inputEntry>
+        <outputEntry id="OutputEntry_MA_resultado"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_MA_observacao"><text>"Metastase ativa - priorizar tratamento sistemico, exceto se indicacao paliativa"</text></outputEntry>
+        <outputEntry id="OutputEntry_MA_fundamentacao"><text>"INCA 2021 - Reconstrucao eletiva contraindicada com doenca metastatica"</text></outputEntry>
+      <outputEntry id="OE_Reprovado_MetastaseAtiva_4"><text>"PROT"</text></outputEntry>
+        <outputEntry id="OE_Reprovado_MetastaseAtiva_5"><text>"NEGAR"</text></outputEntry>
+      </rule>
+
+      <!-- PENDENTE -->
+      <rule id="Rule_Pendente_MargemPendente">
+        <description>Pendente: Aguardando resultado de margens</description>
+        <inputEntry id="InputEntry_MP_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_MP_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_MP_3"><text>"Tardio"</text></inputEntry>
+        <inputEntry id="InputEntry_MP_4"><text>"MargemPendenteCongelacao"</text></inputEntry>
+        <inputEntry id="InputEntry_MP_5"><text>"PequenoPele","GrandePele"</text></inputEntry>
+        <outputEntry id="OutputEntry_MP_resultado"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OutputEntry_MP_observacao"><text>"Aguardar resultado definitivo das margens antes de reconstrucao tardia"</text></outputEntry>
+        <outputEntry id="OutputEntry_MP_fundamentacao"><text>"SBCP 2022 - Reconstrucao tardia requer confirmacao de margens livres"</text></outputEntry>
+      <outputEntry id="OE_Pendente_MargemPendente_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_Pendente_MargemPendente_5"><text>"SOLICITAR_INFO"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Pendente_RecidivaLocal">
+        <description>Pendente: Recidiva local - reavaliar</description>
+        <inputEntry id="InputEntry_RL_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_RL_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_RL_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_RL_4"><text>"RecidivaLocal"</text></inputEntry>
+        <inputEntry id="InputEntry_RL_5"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_RL_resultado"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OutputEntry_RL_observacao"><text>"Recidiva local - reavaliar com equipe oncologica antes de reconstrucao"</text></outputEntry>
+        <outputEntry id="OutputEntry_RL_fundamentacao"><text>"NCCN 2023 - Recidiva requer re-estadiamento e discussao multidisciplinar"</text></outputEntry>
+      <outputEntry id="OE_Pendente_RecidivaLocal_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_Pendente_RecidivaLocal_5"><text>"SOLICITAR_INFO"</text></outputEntry>
+      </rule>
+
+      <!-- FALLBACK RULE -->
+      <rule id="Rule_Fallback_REC007">
+        <description>Regra padrao - Analise adicional necessaria</description>
+        <inputEntry id="InputEntry_Fallback_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Fallback_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Fallback_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Fallback_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Fallback_5"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_Fallback_resultado"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OutputEntry_Fallback_observacao"><text>"Avaliar com equipe de oncologia e cirurgia reconstrutiva"</text></outputEntry>
+        <outputEntry id="OutputEntry_Fallback_fundamentacao"><text>"SBCP 2022, INCA 2021 - Reconstrucao oncologica requer planejamento conjunto"</text></outputEntry>
+      <outputEntry id="OE_Fallback_REC007_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_Fallback_REC007_5"><text>"SOLICITAR_INFO"</text></outputEntry>
+      </rule>
+
+    </decisionTable>
+  </decision>
+</definitions>

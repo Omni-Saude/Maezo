@@ -1,0 +1,305 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://hospital-revenue-cycle.com/schemas/hospital-admin-rules/output-schema/v1.0.0",
+  "title": "Hospital Administrative Rules - Output Schema",
+  "description": "Standard output schema for hospital administrative DMN rules (HOSPITAL perspective)",
+  "version": "1.0.0",
+  "createdAt": "2026-02-06",
+  "perspective": "HOSPITAL",
+
+  "perspectiveComparison": {
+    "payer": {
+      "outputs": ["Aprovado", "Reprovado", "Pendente"],
+      "goal": "Control costs, prevent fraud, validate medical necessity",
+      "logic": "Block when criteria not met"
+    },
+    "hospital": {
+      "outputs": ["Prosseguir", "Bloquear", "Alertar", "Revisar"],
+      "goal": "Maximize legitimate revenue, prevent denials, ensure billing completeness",
+      "logic": "Block when revenue at risk"
+    }
+  },
+
+  "standardOutputs": {
+    "resultado": {
+      "type": "string",
+      "description": "Primary decision result from hospital perspective",
+      "required": true,
+      "allowedValues": {
+        "Prosseguir": {
+          "meaning": "Action approved - continue with billing/authorization",
+          "color": "green",
+          "requiresAction": false,
+          "examples": [
+            "All documentation complete, claim ready for submission",
+            "Authorization valid and within dates",
+            "Bundle billing correctly configured"
+          ]
+        },
+        "Bloquear": {
+          "meaning": "Action blocked - requires correction before proceeding",
+          "color": "red",
+          "requiresAction": true,
+          "examples": [
+            "Missing required documentation",
+            "Authorization expired",
+            "Bundle billing violation detected",
+            "Filing deadline exceeded"
+          ]
+        },
+        "Alertar": {
+          "meaning": "Action flagged - human review recommended but can proceed",
+          "color": "yellow",
+          "requiresAction": false,
+          "examples": [
+            "High denial risk detected",
+            "Authorization expiring within 7 days",
+            "Quantity above normal threshold",
+            "Payer has high historical denial rate"
+          ]
+        },
+        "Revisar": {
+          "meaning": "Insufficient data - requires manual review",
+          "color": "orange",
+          "requiresAction": true,
+          "examples": [
+            "Cannot determine bundle applicability",
+            "Edge case not covered by rules",
+            "Missing critical input data"
+          ]
+        }
+      }
+    },
+
+    "observacao": {
+      "type": "string",
+      "description": "Audit trail justification explaining WHY the decision was made",
+      "required": true,
+      "language": "Portuguese",
+      "requirements": [
+        "Must explain the reason for the decision",
+        "Must reference specific criteria used",
+        "Must suggest corrective action if blocked",
+        "Must be suitable for audit review"
+      ],
+      "examples": {
+        "Prosseguir": "Autorizacao valida ate 15/03/2026. Documentacao completa. Prosseguir com faturamento.",
+        "Bloquear": "Bloqueado - Linfadenectomia axilar (30602130) inclusa no procedimento 30602149. Remover cobranca separada.",
+        "Alertar": "Alerta - Paciente com 68 anos. Limite de idade para reparo de manguito e 70 anos. Verificar indicacao.",
+        "Revisar": "Revisar - Contrato nao especifica permissao para cobranca separada de procedimentos agrupados."
+      }
+    },
+
+    "acaoRecomendada": {
+      "type": "string",
+      "description": "Next step recommendation for the user",
+      "required": false,
+      "valuesByCategory": {
+        "BILL": {
+          "allowedValues": [
+            "COBRAR_AGRUPADO",
+            "COBRAR_SEPARADO",
+            "VERIFICAR_CONTRATO",
+            "ADICIONAR_MODIFICADOR",
+            "REMOVER_MODIFICADOR",
+            "AJUSTAR_QUANTIDADE",
+            "APLICAR_ACRESCIMO_NOTURNO",
+            "JUSTIFICAR_MATERIAL"
+          ],
+          "descriptions": {
+            "COBRAR_AGRUPADO": "Bill as bundle/composite procedure",
+            "COBRAR_SEPARADO": "Bill procedures separately",
+            "VERIFICAR_CONTRATO": "Check contract terms for billing allowance",
+            "ADICIONAR_MODIFICADOR": "Add appropriate billing modifier",
+            "REMOVER_MODIFICADOR": "Remove incorrect modifier",
+            "AJUSTAR_QUANTIDADE": "Adjust quantity to allowed limit",
+            "APLICAR_ACRESCIMO_NOTURNO": "Apply night/weekend surcharge",
+            "JUSTIFICAR_MATERIAL": "Attach material justification"
+          }
+        },
+        "AUTH": {
+          "allowedValues": [
+            "SOLICITAR_AUTORIZACAO",
+            "DOCUMENTAR_EMERGENCIA",
+            "VERIFICAR_VALIDADE",
+            "SOLICITAR_PRORROGACAO",
+            "ANEXAR_DOCUMENTACAO",
+            "INTERPOR_RECURSO",
+            "ATUALIZAR_CID",
+            "AGUARDAR_RESPOSTA"
+          ],
+          "descriptions": {
+            "SOLICITAR_AUTORIZACAO": "Submit pre-authorization request",
+            "DOCUMENTAR_EMERGENCIA": "Document emergency bypass per RN 424/2017",
+            "VERIFICAR_VALIDADE": "Check authorization expiration date",
+            "SOLICITAR_PRORROGACAO": "Request authorization extension",
+            "ANEXAR_DOCUMENTACAO": "Attach required documentation",
+            "INTERPOR_RECURSO": "File appeal within deadline",
+            "ATUALIZAR_CID": "Update diagnosis code to match procedure",
+            "AGUARDAR_RESPOSTA": "Wait for payer response"
+          }
+        },
+        "DENY": {
+          "allowedValues": [
+            "CORRIGIR_ANTES_ENVIO",
+            "ANEXAR_DOCUMENTO",
+            "VERIFICAR_PRAZO",
+            "DOCUMENTAR_NECESSIDADE",
+            "AGUARDAR_INTERVALO",
+            "REVISAR_CODIFICACAO",
+            "OBTER_PARECER_MEDICO"
+          ],
+          "descriptions": {
+            "CORRIGIR_ANTES_ENVIO": "Fix issues before claim submission",
+            "ANEXAR_DOCUMENTO": "Attach missing document",
+            "VERIFICAR_PRAZO": "Check filing deadline",
+            "DOCUMENTAR_NECESSIDADE": "Document medical necessity",
+            "AGUARDAR_INTERVALO": "Wait for required interval between procedures",
+            "REVISAR_CODIFICACAO": "Review procedure/diagnosis coding",
+            "OBTER_PARECER_MEDICO": "Obtain additional medical opinion"
+          }
+        },
+        "COMP": {
+          "allowedValues": [
+            "VERIFICAR_COBERTURA",
+            "VALIDAR_FORMATO",
+            "COMPLETAR_CAMPOS",
+            "AGENDAR_ENVIO",
+            "CORRIGIR_XSD",
+            "ATUALIZAR_VERSAO"
+          ],
+          "descriptions": {
+            "VERIFICAR_COBERTURA": "Verify ANS coverage for procedure",
+            "VALIDAR_FORMATO": "Validate TISS format",
+            "COMPLETAR_CAMPOS": "Complete mandatory fields",
+            "AGENDAR_ENVIO": "Schedule submission before deadline",
+            "CORRIGIR_XSD": "Fix XSD validation errors",
+            "ATUALIZAR_VERSAO": "Update to current TISS version"
+          }
+        },
+        "RECV": {
+          "allowedValues": [
+            "RECORRER",
+            "ACEITAR_GLOSA",
+            "SOLICITAR_PARECER",
+            "PROVISIONAR",
+            "BAIXAR",
+            "RENEGOCIAR",
+            "RETRABALHAR_CONTA",
+            "ENCAMINHAR_JURIDICO"
+          ],
+          "descriptions": {
+            "RECORRER": "File appeal for disallowance",
+            "ACEITAR_GLOSA": "Accept disallowance (not recoverable)",
+            "SOLICITAR_PARECER": "Request medical opinion for appeal",
+            "PROVISIONAR": "Create accounting provision per CPC 25",
+            "BAIXAR": "Write off as uncollectible",
+            "RENEGOCIAR": "Initiate negotiation with payer",
+            "RETRABALHAR_CONTA": "Rework and resubmit claim",
+            "ENCAMINHAR_JURIDICO": "Escalate to legal department"
+          }
+        }
+      }
+    }
+  },
+
+  "categorySpecificOutputs": {
+    "BILL": {
+      "cobrancaRecomendada": {
+        "type": "string",
+        "description": "Recommended billing approach",
+        "allowedValues": ["BUNDLE", "SEPARADO", "VERIFICAR_CONTRATO"]
+      }
+    },
+    "DENY": {
+      "riscoDenial": {
+        "type": "string",
+        "description": "Denial risk classification",
+        "allowedValues": ["BAIXO", "MEDIO", "ALTO", "CRITICO"],
+        "thresholds": {
+          "BAIXO": "< 20% denial probability",
+          "MEDIO": "20-40% denial probability",
+          "ALTO": "40-70% denial probability",
+          "CRITICO": "> 70% denial probability"
+        }
+      },
+      "documentacaoFaltante": {
+        "type": "array",
+        "items": {"type": "string"},
+        "description": "List of missing required documents"
+      }
+    },
+    "COMP": {
+      "prazoStatus": {
+        "type": "string",
+        "description": "Deadline status classification",
+        "allowedValues": ["DENTRO_PRAZO", "ALERTA_PROXIMIDADE", "PRAZO_EXCEDIDO"],
+        "thresholds": {
+          "DENTRO_PRAZO": "> 5 days remaining",
+          "ALERTA_PROXIMIDADE": "1-5 days remaining",
+          "PRAZO_EXCEDIDO": "< 0 days (deadline passed)"
+        }
+      },
+      "diasRestantes": {
+        "type": "number",
+        "description": "Days remaining until deadline"
+      }
+    },
+    "RECV": {
+      "probabilidadeRecuperacao": {
+        "type": "number",
+        "minimum": 0,
+        "maximum": 100,
+        "description": "Recovery probability percentage"
+      },
+      "valorEstimadoRecuperacao": {
+        "type": "number",
+        "description": "Estimated recovery amount = valorGlosa * probabilidadeRecuperacao"
+      }
+    }
+  },
+
+  "ruleOrderPattern": {
+    "description": "Standard rule order within decision tables",
+    "order": [
+      {
+        "section": 1,
+        "name": "BLOCK CONDITIONS",
+        "resultado": "Bloquear",
+        "purpose": "Conditions that PREVENT the action from proceeding",
+        "evaluationOrder": "FIRST - Safety-first, revenue-protection"
+      },
+      {
+        "section": 2,
+        "name": "ALERT CONDITIONS",
+        "resultado": "Alertar",
+        "purpose": "Conditions that flag for review but allow proceeding",
+        "evaluationOrder": "SECOND - Warning conditions"
+      },
+      {
+        "section": 3,
+        "name": "APPROVE CONDITIONS",
+        "resultado": "Prosseguir",
+        "purpose": "Conditions that confirm the action should proceed",
+        "evaluationOrder": "THIRD - Positive criteria met"
+      },
+      {
+        "section": 4,
+        "name": "FALLBACK",
+        "resultado": "Revisar",
+        "purpose": "Default catch-all for manual review",
+        "evaluationOrder": "LAST - Always present, catches unmatched cases"
+      }
+    ]
+  },
+
+  "dmn": {
+    "hitPolicy": "FIRST",
+    "outputColumns": [
+      {"id": "Output_resultado", "name": "resultado", "label": "Resultado", "typeRef": "string"},
+      {"id": "Output_observacao", "name": "observacao", "label": "Observacao", "typeRef": "string"},
+      {"id": "Output_acao", "name": "acaoRecomendada", "label": "Acao Recomendada", "typeRef": "string"}
+    ],
+    "outputValuesDeclaration": "<outputValues id=\"OutputValues_resultado\"><text>\"Prosseguir\", \"Bloquear\", \"Alertar\", \"Revisar\"</text></outputValues>"
+  }
+}

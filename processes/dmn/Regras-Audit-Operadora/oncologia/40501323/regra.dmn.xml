@@ -1,0 +1,327 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  ONQ-IMG-008: PSA vs Imaging Prostate
+  TUSS: 40501323
+  Versao: 3.1.0-LEAN-TIER2 (2026-02-08)
+  Especialidade: Oncologia/Urologia
+
+  ============================================================================
+  INDICACOES CLINICAS:
+  ============================================================================
+  - PSA >2 ng/mL acima do nadir pos-tratamento: investigar
+  - PSADT <6 meses: alto risco de metastase, imagem indicada
+  - Sintomas osseos independente de PSA: imagem imediata
+
+  ============================================================================
+  CRITERIOS DE IMAGEM:
+  ============================================================================
+  - Pos-PR: PSA detectavel (>0.2 ng/mL) indica recidiva bioquimica
+  - Pos-RT: PSA >2 acima do nadir (criterio Phoenix)
+  - Metastatico: reimagem se PSA dobra ou sintomas novos
+
+  ============================================================================
+  MODALIDADES PREFERIDAS:
+  ============================================================================
+  - PSMA-PET: superior para deteccao precoce (PSA 0.2-2.0)
+  - Cintilografia ossea: tradicional mas menos sensivel
+  - RNM pelve: avaliacao de recidiva local
+
+  ============================================================================
+  REFERENCIAS NORMATIVAS:
+  ============================================================================
+  - NCCN Prostate Cancer Guidelines 2024
+  - AUA/ASTRO BCR Guidelines
+  - EAU Prostate Cancer Guidelines 2024
+-->
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/" xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/" xmlns:dc="http://www.omg.org/spec/DMN/20180521/DC/" xmlns:modeler="http://camunda.org/schema/modeler/1.0" id="Definitions_ONQ_IMG_008" name="DRD" namespace="http://camunda.org/schema/1.0/dmn" exporter="Camunda Modeler" exporterVersion="5.14.0" modeler:executionPlatform="Camunda Cloud" modeler:executionPlatformVersion="8.2.0">
+  <decision id="Decision_ONQ_IMG_008" name="ONQ-IMG-008: PSA vs Imaging Prostate [LEAN TIER-2]">
+    <decisionTable id="DecisionTable_ONQ_IMG_008" hitPolicy="FIRST">
+      <input id="Input_psa_level" label="PSA Level (ng/mL)">
+        <inputExpression id="InputExpression_psa_level" typeRef="number">
+          <text>psaLevel</text>
+        </inputExpression>
+      </input>
+      <input id="Input_psa_doubling_time" label="PSA Doubling Time (months)">
+        <inputExpression id="InputExpression_psa_doubling_time" typeRef="number">
+          <text>psaDoublingTimeMonths</text>
+        </inputExpression>
+      </input>
+      <input id="Input_prior_treatment" label="Prior Treatment">
+        <inputExpression id="InputExpression_prior_treatment" typeRef="string">
+          <text>priorTreatment</text>
+        </inputExpression>
+      </input>
+      <input id="Input_symptoms" label="New Symptoms Present">
+        <inputExpression id="InputExpression_symptoms" typeRef="boolean">
+          <text>newSymptoms</text>
+        </inputExpression>
+      </input>
+      <!-- Input: Dias desde ultimo procedimento (DUP detection) -->
+      <input id="Input_ultimoProcedimentoDias" label="Dias Desde Ultimo Procedimento">
+        <inputExpression id="InputExpression_ultimoProcedimentoDias" typeRef="number">
+          <text>ultimoProcedimentoDias</text>
+        </inputExpression>
+      </input>
+
+      <output id="Output_resultado" label="Resultado" name="resultado" typeRef="string">
+        <outputValues id="UnaryTests_resultado">
+          <text>"Aprovado","Reprovado","Pendente"</text>
+        </outputValues>
+      </output>
+      <output id="Output_observacao" label="Observacao" name="observacao" typeRef="string" />
+      <output id="Output_fundamentacao" label="Fundamentacao" name="fundamentacao" typeRef="string" />
+      <!-- Output 4: Alertas de Desperdicio - Anti-Waste Intelligence -->
+      <output id="Output_alertasDesperdicio" label="Alertas de Desperdicio" name="alertasDesperdicio" typeRef="string">
+        <outputValues id="OutputValues_alertasDesperdicio">
+          <text>"NENHUM","DUP","FREQ","ESC","DOC","PROT","MULTI"</text>
+        </outputValues>
+      </output>
+      <!-- Output 5: Acao Recomendada -->
+      <output id="Output_acaoRecomendada" label="Acao Recomendada" name="acaoRecomendada" typeRef="string">
+        <outputValues id="OutputValues_acaoRecomendada">
+          <text>"APROVAR","NEGAR","SOLICITAR_INFO","AGUARDAR_PRAZO","SUGERIR_ALTERNATIVA"</text>
+        </outputValues>
+      </output>
+      <rule id="DecisionRule_approve_symptomatic">
+        <description>Approve imaging for symptomatic patients regardless of PSA</description>
+        <inputEntry id="InputEntry_psa_level_symp">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_psa_doubling_time_symp">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_prior_treatment_symp">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_symptoms_symp">
+          <text>true</text>
+        </inputEntry>
+        <inputEntry id="IE_DecisionRule_approve_symptomatic_ultimo"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_resultado_symp">
+          <text>"Aprovado"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_observacao_symp">
+          <text>"Imagem aprovada: sintomas novos (osseos, urinarios) requerem avaliacao independente de PSA"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_fundamentacao_symp">
+          <text>"Sintomas podem preceder elevacao do PSA; imagem indicada para tumores neuroendocrinos ou pouco diferenciados"</text>
+        </outputEntry>
+        <outputEntry id="OE_DecisionRule_approve_symptomatic_alertasDesperdicio">
+          <text>"NENHUM"</text>
+        </outputEntry>
+        <outputEntry id="OE_DecisionRule_approve_symptomatic_acaoRecomendada">
+          <text>"APROVAR"</text>
+        </outputEntry>
+      </rule>
+      <rule id="DecisionRule_reject_undetectable_post_rp">
+        <description>Reject imaging for undetectable PSA post-prostatectomy</description>
+        <inputEntry id="InputEntry_psa_level_undet">
+          <text>&lt; 0.1</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_psa_doubling_time_undet">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_prior_treatment_undet">
+          <text>"prostatectomy"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_symptoms_undet">
+          <text>false</text>
+        </inputEntry>
+        <inputEntry id="IE_DecisionRule_reject_undetectable_post_rp_ultimo"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_resultado_undet">
+          <text>"Reprovado"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_observacao_undet">
+          <text>"Imagem nao indicada: PSA indetectavel pos-PR em assintomatico"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_fundamentacao_undet">
+          <text>"PSA &lt;0.1 pos-PR indica ausencia de doenca residual; vigilancia com PSA suficiente"</text>
+        </outputEntry>
+        <outputEntry id="OE_DecisionRule_reject_undetectable_post_rp_alertasDesperdicio">
+          <text>"FREQ"</text>
+        </outputEntry>
+        <outputEntry id="OE_DecisionRule_reject_undetectable_post_rp_acaoRecomendada">
+          <text>"NEGAR"</text>
+        </outputEntry>
+      </rule>
+
+      <!-- WASTE DETECTION: DUP -->
+      <rule id="Rule_40501323_DUP">
+        <description>DUP - PSA/imagem prostata repetido em menos de 90 dias</description>
+        <inputEntry id="IE_DUP_40501323_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_DUP_40501323_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_DUP_40501323_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_DUP_40501323_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_DUP_40501323_ultimo"><text>&lt; 90</text></inputEntry>
+        <outputEntry id="OE_DUP_40501323_resultado"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OE_DUP_40501323_observacao"><text>"PSA/imagem prostata repetido em menos de 90 dias"</text></outputEntry>
+        <outputEntry id="OE_DUP_40501323_fundamentacao"><text>"NCCN Prostate 2024: PSA a cada 3-6 meses, imagem se PSA elevado"</text></outputEntry>
+        <outputEntry id="OE_DUP_40501323_alertasDesperdicio"><text>"DUP"</text></outputEntry>
+        <outputEntry id="OE_DUP_40501323_acaoRecomendada"><text>"AGUARDAR_PRAZO"</text></outputEntry>
+      </rule>
+
+      <rule id="DecisionRule_approve_bcr_post_rp">
+        <description>Approve imaging for biochemical recurrence post-prostatectomy</description>
+        <inputEntry id="InputEntry_psa_level_bcr">
+          <text>&gt;= 0.2</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_psa_doubling_time_bcr">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_prior_treatment_bcr">
+          <text>"prostatectomy"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_symptoms_bcr">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="IE_DecisionRule_approve_bcr_post_rp_ultimo"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_resultado_bcr">
+          <text>"Aprovado"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_observacao_bcr">
+          <text>"Imagem aprovada: recidiva bioquimica pos-PR (PSA&gt;=0.2). Preferir PSMA-PET"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_fundamentacao_bcr">
+          <text>"PSMA-PET detecta recidiva em 40-60% com PSA 0.2-0.5; superior a TC/cintilografia"</text>
+        </outputEntry>
+        <outputEntry id="OE_DecisionRule_approve_bcr_post_rp_alertasDesperdicio">
+          <text>"NENHUM"</text>
+        </outputEntry>
+        <outputEntry id="OE_DecisionRule_approve_bcr_post_rp_acaoRecomendada">
+          <text>"APROVAR"</text>
+        </outputEntry>
+      </rule>
+      <rule id="DecisionRule_approve_rapid_psadt">
+        <description>Approve imaging for rapid PSA doubling time</description>
+        <inputEntry id="InputEntry_psa_level_rapid">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_psa_doubling_time_rapid">
+          <text>&lt; 6</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_prior_treatment_rapid">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_symptoms_rapid">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="IE_DecisionRule_approve_rapid_psadt_ultimo"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_resultado_rapid">
+          <text>"Aprovado"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_observacao_rapid">
+          <text>"Imagem aprovada: PSADT &lt;6 meses indica alto risco de doenca metastatica"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_fundamentacao_rapid">
+          <text>"PSADT &lt;6 meses associado a maior probabilidade de deteccao por imagem e pior prognostico"</text>
+        </outputEntry>
+        <outputEntry id="OE_DecisionRule_approve_rapid_psadt_alertasDesperdicio">
+          <text>"NENHUM"</text>
+        </outputEntry>
+        <outputEntry id="OE_DecisionRule_approve_rapid_psadt_acaoRecomendada">
+          <text>"APROVAR"</text>
+        </outputEntry>
+      </rule>
+      <rule id="DecisionRule_approve_phoenix">
+        <description>Approve imaging for Phoenix criteria post-radiation</description>
+        <inputEntry id="InputEntry_psa_level_phoenix">
+          <text>&gt;= 2</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_psa_doubling_time_phoenix">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_prior_treatment_phoenix">
+          <text>"radiation","brachytherapy","EBRT"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_symptoms_phoenix">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="IE_DecisionRule_approve_phoenix_ultimo"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_resultado_phoenix">
+          <text>"Aprovado"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_observacao_phoenix">
+          <text>"Imagem aprovada: criterio Phoenix atingido (PSA nadir +2). Avaliar recidiva local vs metastase"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_fundamentacao_phoenix">
+          <text>"Phoenix: PSA nadir+2 define falha bioquimica pos-RT; RNM pelve + PSMA-PET recomendados"</text>
+        </outputEntry>
+        <outputEntry id="OE_DecisionRule_approve_phoenix_alertasDesperdicio">
+          <text>"NENHUM"</text>
+        </outputEntry>
+        <outputEntry id="OE_DecisionRule_approve_phoenix_acaoRecomendada">
+          <text>"APROVAR"</text>
+        </outputEntry>
+      </rule>
+      <rule id="DecisionRule_pending_low_psa">
+        <description>Pending for low PSA without rapid kinetics</description>
+        <inputEntry id="InputEntry_psa_level_low">
+          <text>[0.1..0.5[</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_psa_doubling_time_low">
+          <text>&gt;= 10</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_prior_treatment_low">
+          <text>"prostatectomy"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_symptoms_low">
+          <text>false</text>
+        </inputEntry>
+        <inputEntry id="IE_DecisionRule_pending_low_psa_ultimo"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_resultado_low">
+          <text>"Pendente"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_observacao_low">
+          <text>"PSA baixo com cinetica lenta: considerar repetir PSA antes de imagem"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_fundamentacao_low">
+          <text>"PSADT lento (&gt;10 meses) indica doenca indolente; vigilancia ativa pode ser opcao"</text>
+        </outputEntry>
+        <outputEntry id="OE_DecisionRule_pending_low_psa_alertasDesperdicio">
+          <text>"NENHUM"</text>
+        </outputEntry>
+        <outputEntry id="OE_DecisionRule_pending_low_psa_acaoRecomendada">
+          <text>"SOLICITAR_INFO"</text>
+        </outputEntry>
+      </rule>
+      <rule id="DecisionRule_fallback">
+        <description>Fallback rule for incomplete data</description>
+        <inputEntry id="InputEntry_psa_level_fallback">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_psa_doubling_time_fallback">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_prior_treatment_fallback">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_symptoms_fallback">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="IE_DecisionRule_fallback_ultimo"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_resultado_fallback">
+          <text>"Pendente"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_observacao_fallback">
+          <text>"Dados insuficientes para correlacao PSA-imagem"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_fundamentacao_fallback">
+          <text>"Necessario: PSA atual, PSADT, tratamento previo, sintomas"</text>
+        </outputEntry>
+        <outputEntry id="OE_DecisionRule_fallback_alertasDesperdicio">
+          <text>"NENHUM"</text>
+        </outputEntry>
+        <outputEntry id="OE_DecisionRule_fallback_acaoRecomendada">
+          <text>"SOLICITAR_INFO"</text>
+        </outputEntry>
+      </rule>
+    </decisionTable>
+  </decision>
+  <dmndi:DMNDI>
+    <dmndi:DMNDiagram>
+      <dmndi:DMNShape dmnElementRef="Decision_ONQ_IMG_008">
+        <dc:Bounds height="80" width="180" x="160" y="100" />
+      </dmndi:DMNShape>
+    </dmndi:DMNDiagram>
+  </dmndi:DMNDI>
+</definitions>

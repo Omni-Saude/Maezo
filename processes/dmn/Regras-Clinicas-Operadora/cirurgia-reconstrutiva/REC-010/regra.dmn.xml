@@ -1,0 +1,267 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             xmlns:camunda="http://camunda.org/schema/1.0/dmn"
+             id="Definitions_REC010"
+             name="Reconstrucao Membro Inferior"
+             namespace="http://camunda.org/schema/1.0/dmn">
+
+  <!--
+    ===============================================================================
+    TUSS: REC-010
+    Procedimento: Reconstrucao de Membro Inferior
+    Especialidade: Cirurgia Reconstrutiva / Cirurgia Plastica
+    Versao: 3.0.0-TIER1
+    Data: 2026-02-07
+    ===============================================================================
+
+    INDICACOES CLINICAS (SBCP 2022, ASPS 2023):
+    - Cobertura de fratura exposta de tibia
+    - Ulcera de pressao em membro inferior
+    - Ulcera de pe diabetico (Wagner 3-4)
+    - Perda de substancia pos-traumatica
+    - Linfedema cronico (opcoes cirurgicas)
+
+    CLASSIFICACAO GUSTILO (Fraturas Expostas):
+    - Tipo I: Ferida <1cm, limpa
+    - Tipo II: Ferida 1-10cm
+    - Tipo IIIA: Cobertura possivel com tecido local
+    - Tipo IIIB: Exposicao ossea, requer retalho
+    - Tipo IIIC: Lesao vascular associada
+
+    REFERENCIAS TECNICAS:
+    - SBCP 2022 - Reconstrucao de Membro Inferior
+    - ASPS 2023 - Lower Extremity Reconstruction
+    - Gustilo-Anderson Classification
+    - IWGDF 2023 - Diabetic Foot Guidelines
+
+    ===============================================================================
+  -->
+
+  <decision id="Decision_REC010" name="Regra Clinica - Reconstrucao Membro Inferior">
+    <decisionTable id="DecisionTable_REC010" hitPolicy="FIRST">
+
+      <!-- ========== INPUTS (5) ========== -->
+
+      <input id="Input_tipoLesao" label="Tipo de Lesao" camunda:inputVariable="tipoLesao">
+        <inputExpression id="InputExpression_tipoLesao" typeRef="string">
+          <text>tipoLesao</text>
+        </inputExpression>
+        <inputValues id="InputValues_tipoLesao">
+          <text>"FraturaExpostaTibia","UlceraPressao","UlceraDiabetica","PerdaSubstanciaTraumatica","Osteomielite","Linfedema"</text>
+        </inputValues>
+      </input>
+
+      <input id="Input_classificacaoGustilo" label="Classificacao Gustilo (se aplicavel)" camunda:inputVariable="classificacaoGustilo">
+        <inputExpression id="InputExpression_classificacaoGustilo" typeRef="string">
+          <text>classificacaoGustilo</text>
+        </inputExpression>
+        <inputValues id="InputValues_classificacaoGustilo">
+          <text>"I","II","IIIA","IIIB","IIIC","NaoAplicavel"</text>
+        </inputValues>
+      </input>
+
+      <input id="Input_localLesao" label="Local da Lesao" camunda:inputVariable="localLesao">
+        <inputExpression id="InputExpression_localLesao" typeRef="string">
+          <text>localLesao</text>
+        </inputExpression>
+        <inputValues id="InputValues_localLesao">
+          <text>"TercoProximalTibia","TercoMedioTibia","TercoDistalTibia","Calcaneo","Antepé","Sacro","Trocanter","Isquio"</text>
+        </inputValues>
+      </input>
+
+      <input id="Input_statusVascular" label="Status Vascular" camunda:inputVariable="statusVascular">
+        <inputExpression id="InputExpression_statusVascular" typeRef="string">
+          <text>statusVascular</text>
+        </inputExpression>
+        <inputValues id="InputValues_statusVascular">
+          <text>"Adequado","ComprometidoRevascularizavel","ComprometidoIrreversivel"</text>
+        </inputValues>
+      </input>
+
+      <input id="Input_procedimentoProposto" label="Procedimento Proposto" camunda:inputVariable="procedimentoProposto">
+        <inputExpression id="InputExpression_procedimentoProposto" typeRef="string">
+          <text>procedimentoProposto</text>
+        </inputExpression>
+        <inputValues id="InputValues_procedimentoProposto">
+          <text>"RetalhoSural","RetalhoGastrocnemio","RetalhoSoleo","RetalhoLivre","EnxertoPele","TerapiaPressaoNegativa","Amputacao"</text>
+        </inputValues>
+      </input>
+
+      <!-- ========== OUTPUTS (3 - Padrao TIER-1) ========== -->
+
+      <output id="Output_resultado" label="Resultado" name="resultado" typeRef="string">
+        <outputValues id="OutputValues_resultado">
+          <text>"Aprovado","Reprovado","Pendente"</text>
+        </outputValues>
+      </output>
+
+      <output id="Output_observacao" label="Observacao Clinica" name="observacao" typeRef="string" />
+
+      <output id="Output_fundamentacao" label="Fundamentacao Tecnica" name="fundamentacao" typeRef="string" />
+
+      <!-- Output 4: Alertas Desperdicio -->
+      <output id="Output_alertasDesperdicio" label="Alertas de Desperdicio" name="alertasDesperdicio" typeRef="string">
+        <outputValues id="OutputValues_alertasDesperdicio">
+          <text>"NENHUM","DUP","FREQ","ESC","DOC","PROT","MULTI"</text>
+        </outputValues>
+      </output>
+
+      <!-- Output 5: Acao Recomendada -->
+      <output id="Output_acaoRecomendada" label="Acao Recomendada" name="acaoRecomendada" typeRef="string">
+        <outputValues id="OutputValues_acaoRecomendada">
+          <text>"APROVAR","NEGAR","SOLICITAR_INFO","AGUARDAR_PRAZO","SUGERIR_ALTERNATIVA"</text>
+        </outputValues>
+      </output>
+
+      <!-- ========== RULES ========== -->
+
+      <!-- APROVACOES URGENTES - FRATURAS EXPOSTAS -->
+      <rule id="Rule_Aprovado_GustiloIIIB">
+        <description>Aprovado Urgente: Fratura exposta Gustilo IIIB</description>
+        <inputEntry id="InputEntry_G3B_1"><text>"FraturaExpostaTibia"</text></inputEntry>
+        <inputEntry id="InputEntry_G3B_2"><text>"IIIB"</text></inputEntry>
+        <inputEntry id="InputEntry_G3B_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_G3B_4"><text>"Adequado"</text></inputEntry>
+        <inputEntry id="InputEntry_G3B_5"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_G3B_resultado"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_G3B_observacao"><text>"URGENTE - Fratura IIIB requer cobertura com retalho em ate 72h"</text></outputEntry>
+        <outputEntry id="OutputEntry_G3B_fundamentacao"><text>"SBCP 2022, Gustilo - Cobertura precoce reduz infeccao de 40% para 7%"</text></outputEntry>
+      <outputEntry id="OE_Aprovado_GustiloIIIB_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_Aprovado_GustiloIIIB_5"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Aprovado_GustiloIIIC">
+        <description>Aprovado Emergencia: Fratura exposta Gustilo IIIC</description>
+        <inputEntry id="InputEntry_G3C_1"><text>"FraturaExpostaTibia"</text></inputEntry>
+        <inputEntry id="InputEntry_G3C_2"><text>"IIIC"</text></inputEntry>
+        <inputEntry id="InputEntry_G3C_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_G3C_4"><text>"ComprometidoRevascularizavel"</text></inputEntry>
+        <inputEntry id="InputEntry_G3C_5"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_G3C_resultado"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_G3C_observacao"><text>"EMERGENCIA - Fratura IIIC com lesao vascular - revascularizacao + cobertura"</text></outputEntry>
+        <outputEntry id="OutputEntry_G3C_fundamentacao"><text>"SBCP 2022 - IIIC requer abordagem conjunta vascular e plastica de emergencia"</text></outputEntry>
+      <outputEntry id="OE_Aprovado_GustiloIIIC_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_Aprovado_GustiloIIIC_5"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <!-- APROVACOES - RETALHOS POR LOCALIZACAO -->
+      <rule id="Rule_Aprovado_TercoProximalGastrocnemio">
+        <description>Aprovado: Retalho de gastrocnemio para terco proximal</description>
+        <inputEntry id="InputEntry_TPG_1"><text>"FraturaExpostaTibia","Osteomielite"</text></inputEntry>
+        <inputEntry id="InputEntry_TPG_2"><text>"II","IIIA","IIIB"</text></inputEntry>
+        <inputEntry id="InputEntry_TPG_3"><text>"TercoProximalTibia"</text></inputEntry>
+        <inputEntry id="InputEntry_TPG_4"><text>"Adequado"</text></inputEntry>
+        <inputEntry id="InputEntry_TPG_5"><text>"RetalhoGastrocnemio"</text></inputEntry>
+        <outputEntry id="OutputEntry_TPG_resultado"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_TPG_observacao"><text>"Retalho de gastrocnemio para cobertura de terco proximal de tibia"</text></outputEntry>
+        <outputEntry id="OutputEntry_TPG_fundamentacao"><text>"ASPS 2023 - Gastrocnemio e primeira escolha para terco proximal"</text></outputEntry>
+      <outputEntry id="OE_Aprovado_TercoProximalGastrocnemio_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_Aprovado_TercoProximalGastrocnemio_5"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Aprovado_TercoMedioSoleo">
+        <description>Aprovado: Retalho de soleo para terco medio</description>
+        <inputEntry id="InputEntry_TMS_1"><text>"FraturaExpostaTibia","Osteomielite"</text></inputEntry>
+        <inputEntry id="InputEntry_TMS_2"><text>"II","IIIA","IIIB"</text></inputEntry>
+        <inputEntry id="InputEntry_TMS_3"><text>"TercoMedioTibia"</text></inputEntry>
+        <inputEntry id="InputEntry_TMS_4"><text>"Adequado"</text></inputEntry>
+        <inputEntry id="InputEntry_TMS_5"><text>"RetalhoSoleo"</text></inputEntry>
+        <outputEntry id="OutputEntry_TMS_resultado"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_TMS_observacao"><text>"Retalho de soleo para cobertura de terco medio de tibia"</text></outputEntry>
+        <outputEntry id="OutputEntry_TMS_fundamentacao"><text>"SBCP 2022 - Soleo hemisoleus ou total para terco medio"</text></outputEntry>
+      <outputEntry id="OE_Aprovado_TercoMedioSoleo_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_Aprovado_TercoMedioSoleo_5"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Aprovado_TercoDistalLivre">
+        <description>Aprovado: Retalho livre para terco distal</description>
+        <inputEntry id="InputEntry_TDL_1"><text>"FraturaExpostaTibia"</text></inputEntry>
+        <inputEntry id="InputEntry_TDL_2"><text>"IIIA","IIIB"</text></inputEntry>
+        <inputEntry id="InputEntry_TDL_3"><text>"TercoDistalTibia","Calcaneo"</text></inputEntry>
+        <inputEntry id="InputEntry_TDL_4"><text>"Adequado"</text></inputEntry>
+        <inputEntry id="InputEntry_TDL_5"><text>"RetalhoLivre"</text></inputEntry>
+        <outputEntry id="OutputEntry_TDL_resultado"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_TDL_observacao"><text>"Retalho livre (ALT, gracilis) para terco distal - opcoes locais limitadas"</text></outputEntry>
+        <outputEntry id="OutputEntry_TDL_fundamentacao"><text>"ASPS 2023, SBCP 2022 - Terco distal requer retalho livre na maioria dos casos"</text></outputEntry>
+      <outputEntry id="OE_Aprovado_TercoDistalLivre_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_Aprovado_TercoDistalLivre_5"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <!-- APROVACOES - ULCERAS DE PRESSAO -->
+      <rule id="Rule_Aprovado_UlceraPressao">
+        <description>Aprovado: Retalho para ulcera de pressao refrataria</description>
+        <inputEntry id="InputEntry_UP_1"><text>"UlceraPressao"</text></inputEntry>
+        <inputEntry id="InputEntry_UP_2"><text>"NaoAplicavel"</text></inputEntry>
+        <inputEntry id="InputEntry_UP_3"><text>"Sacro","Trocanter","Isquio"</text></inputEntry>
+        <inputEntry id="InputEntry_UP_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_UP_5"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_UP_resultado"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_UP_observacao"><text>"Retalho para ulcera de pressao refrataria a tratamento conservador"</text></outputEntry>
+        <outputEntry id="OutputEntry_UP_fundamentacao"><text>"SBCP 2022 - Ulcera de pressao grau III/IV com exposicao ossea requer retalho"</text></outputEntry>
+      <outputEntry id="OE_Aprovado_UlceraPressao_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_Aprovado_UlceraPressao_5"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <!-- APROVACOES - PE DIABETICO -->
+      <rule id="Rule_Aprovado_PeDiabeticoWagner3">
+        <description>Aprovado: Cobertura de pe diabetico Wagner 3-4</description>
+        <inputEntry id="InputEntry_PD_1"><text>"UlceraDiabetica"</text></inputEntry>
+        <inputEntry id="InputEntry_PD_2"><text>"NaoAplicavel"</text></inputEntry>
+        <inputEntry id="InputEntry_PD_3"><text>"Calcaneo","Antepé"</text></inputEntry>
+        <inputEntry id="InputEntry_PD_4"><text>"Adequado","ComprometidoRevascularizavel"</text></inputEntry>
+        <inputEntry id="InputEntry_PD_5"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_PD_resultado"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_PD_observacao"><text>"Cobertura de pe diabetico apos controle infeccioso e revascularizacao"</text></outputEntry>
+        <outputEntry id="OutputEntry_PD_fundamentacao"><text>"IWGDF 2023 - Salvamento de membro em pe diabetico viavel"</text></outputEntry>
+      <outputEntry id="OE_Aprovado_PeDiabeticoWagner3_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_Aprovado_PeDiabeticoWagner3_5"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <!-- REPROVACOES -->
+      <rule id="Rule_Reprovado_VascularIrreversivel">
+        <description>Reprovado: Comprometimento vascular irreversivel</description>
+        <inputEntry id="InputEntry_VI_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_VI_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_VI_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_VI_4"><text>"ComprometidoIrreversivel"</text></inputEntry>
+        <inputEntry id="InputEntry_VI_5"><text>not("Amputacao")</text></inputEntry>
+        <outputEntry id="OutputEntry_VI_resultado"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_VI_observacao"><text>"Membro inviavel - reconstrucao contraindicada, considerar amputacao"</text></outputEntry>
+        <outputEntry id="OutputEntry_VI_fundamentacao"><text>"SBCP 2022 - Reconstrucao de membro inviavel aumenta morbimortalidade"</text></outputEntry>
+      <outputEntry id="OE_Reprovado_VascularIrreversivel_4"><text>"PROT"</text></outputEntry>
+        <outputEntry id="OE_Reprovado_VascularIrreversivel_5"><text>"NEGAR"</text></outputEntry>
+      </rule>
+
+      <!-- PENDENTE -->
+      <rule id="Rule_Pendente_AvaliacaoVascular">
+        <description>Pendente: Requer avaliacao vascular previa</description>
+        <inputEntry id="InputEntry_AV_1"><text>"UlceraDiabetica","Osteomielite"</text></inputEntry>
+        <inputEntry id="InputEntry_AV_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_AV_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_AV_4"><text>"ComprometidoRevascularizavel"</text></inputEntry>
+        <inputEntry id="InputEntry_AV_5"><text>"RetalhoLivre"</text></inputEntry>
+        <outputEntry id="OutputEntry_AV_resultado"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OutputEntry_AV_observacao"><text>"Realizar revascularizacao antes de cobertura com retalho"</text></outputEntry>
+        <outputEntry id="OutputEntry_AV_fundamentacao"><text>"IWGDF 2023 - Revascularizacao primeiro, depois reconstrucao"</text></outputEntry>
+      <outputEntry id="OE_Pendente_AvaliacaoVascular_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_Pendente_AvaliacaoVascular_5"><text>"SOLICITAR_INFO"</text></outputEntry>
+      </rule>
+
+      <!-- FALLBACK RULE -->
+      <rule id="Rule_Fallback_REC010">
+        <description>Regra padrao - Analise adicional necessaria</description>
+        <inputEntry id="InputEntry_Fallback_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Fallback_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Fallback_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Fallback_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Fallback_5"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_Fallback_resultado"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OutputEntry_Fallback_observacao"><text>"Avaliar com equipe multidisciplinar (plastica, vascular, ortopedia)"</text></outputEntry>
+        <outputEntry id="OutputEntry_Fallback_fundamentacao"><text>"SBCP 2022 - Reconstrucao de membro inferior requer abordagem multidisciplinar"</text></outputEntry>
+      <outputEntry id="OE_Fallback_REC010_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_Fallback_REC010_5"><text>"SOLICITAR_INFO"</text></outputEntry>
+      </rule>
+
+    </decisionTable>
+  </decision>
+</definitions>

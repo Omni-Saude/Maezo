@@ -1,0 +1,328 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             xmlns:camunda="http://camunda.org/schema/1.0/dmn"
+             id="Definitions_40812022"
+             name="Ressonancia Magnetica Cardiaca"
+             namespace="http://camunda.org/schema/1.0/dmn">
+
+  <!--
+    ===============================================================================
+    TUSS: 40812022
+    Procedimento: Ressonancia Magnetica Cardiaca (RMC)
+    Versao: 1.0.0-LEAN-TIER2
+    Data: 2026-02-07
+    ===============================================================================
+
+    INDICACOES CLINICAS (DUT/ANS + SCMR 2024):
+    - Cardiomiopatias (caracterizacao tecidual)
+    - Viabilidade miocardica (padrao-ouro)
+    - Miocardite
+    - Doencas do pericardio
+    - Massas cardiacas
+    - Cardiopatias congenitas complexas
+    - Avaliacao de funcao VD
+
+    CONTRAINDICACOES:
+    - Marca-passo/CDI nao compativel
+    - Clipes cerebrais ferromagneticos
+    - Claustrofobia grave
+    - DRC grave (gadolinio - NSF)
+
+    ALERTAS DE DESPERDICIO:
+    - DUP: RMC repetida em < 365 dias sem nova indicacao clinica
+    - FREQ: Multiplas RMC no ano para mesma indicacao
+    - DOC: RMC sem ETT previo (step therapy)
+    - ESC: RMC sem escalonar ETT primeiro
+    - PROT: Dispositivo nao compativel, DRC grave com gadolinio
+
+    REFERENCIAS TECNICAS:
+    - SCMR Guidelines 2024
+    - ACC AUC 2024
+    - ESC CMR 2024
+
+    ===============================================================================
+  -->
+
+  <decision id="Decision_40812022" name="Regra Clinica LEAN TIER-2 - Ressonancia Magnetica Cardiaca">
+    <decisionTable id="DecisionTable_40812022" hitPolicy="FIRST">
+
+      <!-- ========== INPUTS (8 - Padrao LEAN TIER-2) ========== -->
+
+      <input id="Input_indicacaoClinica" label="Indicacao Clinica" camunda:inputVariable="indicacaoClinica">
+        <inputExpression id="InputExpression_indicacaoClinica" typeRef="string">
+          <text>indicacaoClinica</text>
+        </inputExpression>
+        <inputValues id="InputValues_indicacaoClinica">
+          <text>"Cardiomiopatia","ViabilidadeMiocardica","MiocarditeSuspeita","DoencaPericardio","MassaCardiaca","CardiopatiaCongenita","AvaliacaoFuncaoVD","IsquemiaStress","FollowUpRotina"</text>
+        </inputValues>
+      </input>
+
+      <input id="Input_classeIndicacao" label="Classe de Indicacao (SCMR/ACC)" camunda:inputVariable="classeIndicacao">
+        <inputExpression id="InputExpression_classeIndicacao" typeRef="string">
+          <text>classeIndicacao</text>
+        </inputExpression>
+        <inputValues id="InputValues_classeIndicacao">
+          <text>"Classe I","Classe IIa","Classe IIb","Classe III"</text>
+        </inputValues>
+      </input>
+
+      <input id="Input_ettPrevio" label="ETT Previo Realizado" camunda:inputVariable="ettPrevio">
+        <inputExpression id="InputExpression_ettPrevio" typeRef="boolean">
+          <text>ettPrevio</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_tfge" label="TFGe (mL/min/1.73m2)" camunda:inputVariable="tfge">
+        <inputExpression id="InputExpression_tfge" typeRef="string">
+          <text>tfge</text>
+        </inputExpression>
+        <inputValues id="InputValues_tfge">
+          <text>"maior60","45-60","30-45","menor30"</text>
+        </inputValues>
+      </input>
+
+      <input id="Input_dispositivoCardiaco" label="Dispositivo Cardiaco Implantado" camunda:inputVariable="dispositivoCardiaco">
+        <inputExpression id="InputExpression_dispositivoCardiaco" typeRef="string">
+          <text>dispositivoCardiaco</text>
+        </inputExpression>
+        <inputValues id="InputValues_dispositivoCardiaco">
+          <text>"Nenhum","MP_Compativel","MP_NaoCompativel","CDI_Compativel","CDI_NaoCompativel"</text>
+        </inputValues>
+      </input>
+
+      <input id="Input_necessidadeGadolinio" label="Necessidade de Gadolinio" camunda:inputVariable="necessidadeGadolinio">
+        <inputExpression id="InputExpression_necessidadeGadolinio" typeRef="boolean">
+          <text>necessidadeGadolinio</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_claustrofobia" label="Claustrofobia" camunda:inputVariable="claustrofobia">
+        <inputExpression id="InputExpression_claustrofobia" typeRef="boolean">
+          <text>claustrofobia</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_ultimoProcedimentoDias" label="Ultimo Procedimento Similar (dias)" camunda:inputVariable="ultimoProcedimentoDias">
+        <inputExpression id="InputExpression_ultimoProcedimentoDias" typeRef="integer">
+          <text>ultimoProcedimentoDias</text>
+        </inputExpression>
+      </input>
+
+      <!-- ========== OUTPUTS (5 - Padrao LEAN TIER-2) ========== -->
+
+      <output id="Output_resultado" label="Resultado" name="resultado" typeRef="string">
+        <outputValues id="OutputValues_resultado">
+          <text>"Aprovado","Reprovado","Pendente"</text>
+        </outputValues>
+      </output>
+
+      <output id="Output_observacao" label="Observacao Clinica" name="observacao" typeRef="string" />
+
+      <output id="Output_fundamentacao" label="Fundamentacao Tecnica" name="fundamentacao" typeRef="string" />
+
+      <output id="Output_alertasDesperdicio" label="Alertas de Desperdicio" name="alertasDesperdicio" typeRef="string">
+        <outputValues id="OutputValues_alertasDesperdicio">
+          <text>"NENHUM","DUP","FREQ","ESC","DOC","PROT","MULTI"</text>
+        </outputValues>
+      </output>
+
+      <output id="Output_acaoRecomendada" label="Acao Recomendada" name="acaoRecomendada" typeRef="string">
+        <outputValues id="OutputValues_acaoRecomendada">
+          <text>"APROVAR","NEGAR","SOLICITAR_INFO","AGUARDAR_PRAZO","SUGERIR_ALTERNATIVA"</text>
+        </outputValues>
+      </output>
+
+      <!-- =============================================================== -->
+      <!-- REGRAS DE REPROVACAO (Prioridade Maxima - Waste Detection)      -->
+      <!-- =============================================================== -->
+
+      <!-- REGRA 1: PROT - Dispositivo nao compativel -->
+      <rule id="Rule_PROT_DispositivoIncomp">
+        <description>WASTE PROT: Dispositivo cardiaco nao compativel com RM - contraindicado</description>
+        <inputEntry id="InputEntry_PROT1_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_PROT1_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_PROT1_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_PROT1_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_PROT1_5"><text>"MP_NaoCompativel","CDI_NaoCompativel"</text></inputEntry>
+        <inputEntry id="InputEntry_PROT1_6"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_PROT1_7"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_PROT1_8"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_PROT1_resultado"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_PROT1_observacao"><text>"Dispositivo cardiaco nao compativel com RM - contraindicacao absoluta"</text></outputEntry>
+        <outputEntry id="OutputEntry_PROT1_fundamentacao"><text>"SCMR 2024: Dispositivos nao compativeis sao contraindicacao absoluta. Alternativas: TC, ETT/ETE, PET, Cintilografia"</text></outputEntry>
+        <outputEntry id="OutputEntry_PROT1_alertasDesperdicio"><text>"PROT"</text></outputEntry>
+        <outputEntry id="OutputEntry_PROT1_acaoRecomendada"><text>"SUGERIR_ALTERNATIVA"</text></outputEntry>
+      </rule>
+
+      <!-- REGRA 2: PROT - DRC grave com gadolinio -->
+      <rule id="Rule_PROT_DRC_Gadolinio">
+        <description>WASTE PROT: DRC grave (TFGe menor 30) com gadolinio - risco NSF</description>
+        <inputEntry id="InputEntry_PROT2_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_PROT2_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_PROT2_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_PROT2_4"><text>"menor30"</text></inputEntry>
+        <inputEntry id="InputEntry_PROT2_5"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_PROT2_6"><text>true</text></inputEntry>
+        <inputEntry id="InputEntry_PROT2_7"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_PROT2_8"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_PROT2_resultado"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_PROT2_observacao"><text>"DRC grave (TFGe menor 30) com gadolinio - risco de fibrose sistemica nefrogenica"</text></outputEntry>
+        <outputEntry id="OutputEntry_PROT2_fundamentacao"><text>"SCMR 2024: Gadolinio contraindicado em TFGe menor 30. Alternativa: RM sem contraste (cine puro) ou outros metodos"</text></outputEntry>
+        <outputEntry id="OutputEntry_PROT2_alertasDesperdicio"><text>"PROT"</text></outputEntry>
+        <outputEntry id="OutputEntry_PROT2_acaoRecomendada"><text>"SUGERIR_ALTERNATIVA"</text></outputEntry>
+      </rule>
+
+      <!-- REGRA 3: DUP - RMC repetida em < 365 dias para follow-up rotina -->
+      <rule id="Rule_DUP_MenosDe365Dias">
+        <description>WASTE DUP: RMC repetida em menos de 1 ano para follow-up sem mudanca clinica</description>
+        <inputEntry id="InputEntry_DUP_1"><text>"FollowUpRotina"</text></inputEntry>
+        <inputEntry id="InputEntry_DUP_2"><text>"Classe IIb","Classe III"</text></inputEntry>
+        <inputEntry id="InputEntry_DUP_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_DUP_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_DUP_5"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_DUP_6"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_DUP_7"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_DUP_8"><text>&lt; 365</text></inputEntry>
+        <outputEntry id="OutputEntry_DUP_resultado"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_DUP_observacao"><text>"RMC realizada ha menos de 1 ano sem documentar mudanca clinica que justifique repeticao"</text></outputEntry>
+        <outputEntry id="OutputEntry_DUP_fundamentacao"><text>"SCMR 2024: Repeticao de RMC em menos de 1 ano sem indicacao clinica nao e apropriada"</text></outputEntry>
+        <outputEntry id="OutputEntry_DUP_alertasDesperdicio"><text>"DUP"</text></outputEntry>
+        <outputEntry id="OutputEntry_DUP_acaoRecomendada"><text>"AGUARDAR_PRAZO"</text></outputEntry>
+      </rule>
+
+      <!-- REGRA 4: ESC - RMC sem ETT previo -->
+      <rule id="Rule_ESC_SemETT">
+        <description>WASTE ESC: RMC solicitada sem ETT previo - escalonamento inadequado</description>
+        <inputEntry id="InputEntry_ESC_1"><text>"Cardiomiopatia","AvaliacaoFuncaoVD","IsquemiaStress"</text></inputEntry>
+        <inputEntry id="InputEntry_ESC_2"><text>"Classe I","Classe IIa"</text></inputEntry>
+        <inputEntry id="InputEntry_ESC_3"><text>false</text></inputEntry>
+        <inputEntry id="InputEntry_ESC_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_ESC_5"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_ESC_6"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_ESC_7"><text>false</text></inputEntry>
+        <inputEntry id="InputEntry_ESC_8"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_ESC_resultado"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OutputEntry_ESC_observacao"><text>"ETT deve preceder RMC na maioria das indicacoes - step therapy nao cumprido"</text></outputEntry>
+        <outputEntry id="OutputEntry_ESC_fundamentacao"><text>"SCMR 2024: ETT e triagem inicial; RMC para esclarecimento adicional quando ETT inconclusivo ou insuficiente"</text></outputEntry>
+        <outputEntry id="OutputEntry_ESC_alertasDesperdicio"><text>"ESC"</text></outputEntry>
+        <outputEntry id="OutputEntry_ESC_acaoRecomendada"><text>"SOLICITAR_INFO"</text></outputEntry>
+      </rule>
+
+      <!-- REGRA 5: DOC - Claustrofobia sem plano -->
+      <rule id="Rule_DOC_Claustrofobia">
+        <description>WASTE DOC: Claustrofobia sem plano de manejo documentado</description>
+        <inputEntry id="InputEntry_DOC_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_DOC_2"><text>"Classe I","Classe IIa"</text></inputEntry>
+        <inputEntry id="InputEntry_DOC_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_DOC_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_DOC_5"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_DOC_6"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_DOC_7"><text>true</text></inputEntry>
+        <inputEntry id="InputEntry_DOC_8"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_DOC_resultado"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OutputEntry_DOC_observacao"><text>"Claustrofobia identificada - documentar plano de sedacao ou considerar alternativas"</text></outputEntry>
+        <outputEntry id="OutputEntry_DOC_fundamentacao"><text>"SCMR 2024: Sedacao leve pode viabilizar exame. Alternativas: TC, ETT/ETE, PET, Cintilografia"</text></outputEntry>
+        <outputEntry id="OutputEntry_DOC_alertasDesperdicio"><text>"DOC"</text></outputEntry>
+        <outputEntry id="OutputEntry_DOC_acaoRecomendada"><text>"SOLICITAR_INFO"</text></outputEntry>
+      </rule>
+
+      <!-- =============================================================== -->
+      <!-- REGRAS DE APROVACAO (Indicacoes Classe I)                       -->
+      <!-- =============================================================== -->
+
+      <!-- REGRA 6: Aprovado - Cardiomiopatia com ETT previo -->
+      <rule id="Rule_Aprovado_Cardiomiopatia">
+        <description>Aprovado: Cardiomiopatia para caracterizacao tecidual com ETT previo</description>
+        <inputEntry id="InputEntry_Aprov1_1"><text>"Cardiomiopatia"</text></inputEntry>
+        <inputEntry id="InputEntry_Aprov1_2"><text>"Classe I","Classe IIa"</text></inputEntry>
+        <inputEntry id="InputEntry_Aprov1_3"><text>true</text></inputEntry>
+        <inputEntry id="InputEntry_Aprov1_4"><text>"maior60","45-60","30-45"</text></inputEntry>
+        <inputEntry id="InputEntry_Aprov1_5"><text>"Nenhum","MP_Compativel","CDI_Compativel"</text></inputEntry>
+        <inputEntry id="InputEntry_Aprov1_6"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Aprov1_7"><text>false</text></inputEntry>
+        <inputEntry id="InputEntry_Aprov1_8"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_Aprov1_resultado"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprov1_observacao"><text>"Cardiomiopatia com ETT previo - RMC para caracterizacao tecidual e etiologica"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprov1_fundamentacao"><text>"SCMR 2024: RMC e padrao-ouro para caracterizacao de cardiomiopatias (realce tardio, T1/T2 mapping)"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprov1_alertasDesperdicio"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprov1_acaoRecomendada"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <!-- REGRA 7: Aprovado - Viabilidade miocardica -->
+      <rule id="Rule_Aprovado_Viabilidade">
+        <description>Aprovado: Viabilidade miocardica (padrao-ouro)</description>
+        <inputEntry id="InputEntry_Aprov2_1"><text>"ViabilidadeMiocardica"</text></inputEntry>
+        <inputEntry id="InputEntry_Aprov2_2"><text>"Classe I"</text></inputEntry>
+        <inputEntry id="InputEntry_Aprov2_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Aprov2_4"><text>"maior60","45-60","30-45"</text></inputEntry>
+        <inputEntry id="InputEntry_Aprov2_5"><text>"Nenhum","MP_Compativel","CDI_Compativel"</text></inputEntry>
+        <inputEntry id="InputEntry_Aprov2_6"><text>true</text></inputEntry>
+        <inputEntry id="InputEntry_Aprov2_7"><text>false</text></inputEntry>
+        <inputEntry id="InputEntry_Aprov2_8"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_Aprov2_resultado"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprov2_observacao"><text>"Viabilidade miocardica - RMC com gadolinio e padrao-ouro"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprov2_fundamentacao"><text>"SCMR 2024: Realce tardio com gadolinio e padrao-ouro para viabilidade. Transmuralidade menor 50% indica recuperacao"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprov2_alertasDesperdicio"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprov2_acaoRecomendada"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <!-- REGRA 8: Aprovado - Miocardite -->
+      <rule id="Rule_Aprovado_Miocardite">
+        <description>Aprovado: Miocardite suspeita (criterios Lake Louise)</description>
+        <inputEntry id="InputEntry_Aprov3_1"><text>"MiocarditeSuspeita"</text></inputEntry>
+        <inputEntry id="InputEntry_Aprov3_2"><text>"Classe I","Classe IIa"</text></inputEntry>
+        <inputEntry id="InputEntry_Aprov3_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Aprov3_4"><text>"maior60","45-60"</text></inputEntry>
+        <inputEntry id="InputEntry_Aprov3_5"><text>"Nenhum","MP_Compativel","CDI_Compativel"</text></inputEntry>
+        <inputEntry id="InputEntry_Aprov3_6"><text>true</text></inputEntry>
+        <inputEntry id="InputEntry_Aprov3_7"><text>false</text></inputEntry>
+        <inputEntry id="InputEntry_Aprov3_8"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_Aprov3_resultado"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprov3_observacao"><text>"Miocardite suspeita - RMC para diagnostico (criterios Lake Louise)"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprov3_fundamentacao"><text>"SCMR 2024: RMC e exame de escolha para diagnostico de miocardite (edema T2, realce tardio nao-isquemico)"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprov3_alertasDesperdicio"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprov3_acaoRecomendada"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <!-- REGRA 9: Aprovado - Massa cardiaca -->
+      <rule id="Rule_Aprovado_Massa">
+        <description>Aprovado: Massa cardiaca para caracterizacao</description>
+        <inputEntry id="InputEntry_Aprov4_1"><text>"MassaCardiaca"</text></inputEntry>
+        <inputEntry id="InputEntry_Aprov4_2"><text>"Classe I"</text></inputEntry>
+        <inputEntry id="InputEntry_Aprov4_3"><text>true</text></inputEntry>
+        <inputEntry id="InputEntry_Aprov4_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Aprov4_5"><text>"Nenhum","MP_Compativel","CDI_Compativel"</text></inputEntry>
+        <inputEntry id="InputEntry_Aprov4_6"><text>true</text></inputEntry>
+        <inputEntry id="InputEntry_Aprov4_7"><text>false</text></inputEntry>
+        <inputEntry id="InputEntry_Aprov4_8"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_Aprov4_resultado"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprov4_observacao"><text>"Massa cardiaca - RMC para caracterizacao e diferenciacao tumor/trombo"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprov4_fundamentacao"><text>"SCMR 2024: RMC e exame de escolha para caracterizacao de massas cardiacas"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprov4_alertasDesperdicio"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprov4_acaoRecomendada"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <!-- =============================================================== -->
+      <!-- FALLBACK RULE                                                   -->
+      <!-- =============================================================== -->
+
+      <rule id="Rule_Fallback_40812022">
+        <description>Regra padrao - analise clinica adicional necessaria</description>
+        <inputEntry id="InputEntry_Fallback_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Fallback_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Fallback_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Fallback_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Fallback_5"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Fallback_6"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Fallback_7"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Fallback_8"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_Fallback_resultado"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OutputEntry_Fallback_observacao"><text>"Caso requer analise clinica adicional - verificar indicacao, contraindicacoes e step therapy"</text></outputEntry>
+        <outputEntry id="OutputEntry_Fallback_fundamentacao"><text>"SCMR 2024, ACC AUC 2024: ETT previo, funcao renal, dispositivos implantados"</text></outputEntry>
+        <outputEntry id="OutputEntry_Fallback_alertasDesperdicio"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_Fallback_acaoRecomendada"><text>"SOLICITAR_INFO"</text></outputEntry>
+      </rule>
+
+    </decisionTable>
+  </decision>
+</definitions>

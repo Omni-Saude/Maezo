@@ -1,0 +1,169 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  ============================================================================
+  CASH-ESTIMATE-003 - Alerta Desvio Orcamento vs Real
+  ============================================================================
+  Versao: 1.0.0 (2026-02-08)
+  Categoria: CASH-ESTIMATE
+  Perspectiva: HOSPITAL (Financeiro/Controladoria)
+
+  ============================================================================
+  INDICACOES (Quando PROSSEGUIR):
+  ============================================================================
+  - Desvio entre orcamento e valor real ate 10%
+  - Justificativa tecnica documentada para desvios entre 10-15%
+  - Paciente informado previamente sobre possibilidade de variacao
+
+  ============================================================================
+  CONTRAINDICACOES (Quando BLOQUEAR):
+  ============================================================================
+  - Desvio superior a 15% sem justificativa clinica ou tecnica
+  - Cobranca de itens nao previstos no orcamento original
+  - Paciente nao foi informado sobre variacao de valores
+
+  ============================================================================
+  REFERENCIAS NORMATIVAS:
+  ============================================================================
+  - Lei 8.078/1990 CDC Art. 6 (informacao adequada)
+  - Lei 13.003/2014 (transparencia de custos)
+  - CPC Art. 47 (politica de orcamento hospitalar)
+  ============================================================================
+-->
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/"
+             xmlns:dc="http://www.omg.org/spec/DMN/20180521/DC/"
+             id="Definitions_CASH_ESTIMATE_003"
+             name="Alerta Desvio Orcamento vs Real"
+             targetNamespace="http://camunda.org/schema/1.0/dmn">
+
+  <decision id="Decision_CASH_ESTIMATE_003" name="Alerta Desvio Orcamento vs Real">
+    <decisionTable id="DecisionTable_CASH_ESTIMATE_003" hitPolicy="FIRST">
+
+      <!-- ========== INPUTS ========== -->
+      <input id="Input_1" label="Desvio Percentual (%)">
+        <inputExpression id="InputExpression_1" typeRef="number">
+          <text>desvioPercentual</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_2" label="Justificativa Documentada">
+        <inputExpression id="InputExpression_2" typeRef="boolean">
+          <text>justificativaDocumentada</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_3" label="Paciente Informado">
+        <inputExpression id="InputExpression_3" typeRef="boolean">
+          <text>pacienteInformado</text>
+        </inputExpression>
+      </input>
+
+      <!-- ========== OUTPUTS (5 STANDARD) ========== -->
+      <output id="Output_1" label="Resultado" name="resultado" typeRef="string">
+        <outputValues><text>"Prosseguir", "Bloquear", "Alertar", "Revisar"</text></outputValues>
+      </output>
+
+      <output id="Output_2" label="Observacao" name="observacao" typeRef="string"/>
+
+      <output id="Output_3" label="Acao Recomendada" name="acaoRecomendada" typeRef="string"/>
+
+      <output id="Output_4" label="Alertas Conformidade" name="alertasConformidade" typeRef="string">
+        <outputValues><text>"NENHUM", "DUP", "FREQ", "PRAZO", "DOC", "VALOR", "CRED", "CONTRATO"</text></outputValues>
+      </output>
+
+      <output id="Output_5" label="Risco Denial" name="riscoDenial" typeRef="string">
+        <outputValues><text>"BAIXO", "MEDIO", "ALTO", "CRITICO"</text></outputValues>
+      </output>
+
+      <!-- ========== RULES ========== -->
+
+      <!-- REGRA B1: Bloqueio - Desvio >15% sem justificativa -->
+      <rule id="Rule_Bloqueio_1">
+        <description>Desvio superior a 15% sem justificativa documentada</description>
+        <inputEntry id="InputEntry_B1_1"><text>&gt; 15</text></inputEntry>
+        <inputEntry id="InputEntry_B1_2"><text>false</text></inputEntry>
+        <inputEntry id="InputEntry_B1_3"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_B1_1"><text>"Bloquear"</text></outputEntry>
+        <outputEntry id="OutputEntry_B1_2"><text>"Desvio superior a 15% sem justificativa tecnica. Possivel erro de orcamento ou cobranca indevida."</text></outputEntry>
+        <outputEntry id="OutputEntry_B1_3"><text>"Bloquear faturamento. Solicitar justificativa tecnica e revisar orcamento antes de prosseguir."</text></outputEntry>
+        <outputEntry id="OutputEntry_B1_4"><text>"VALOR"</text></outputEntry>
+        <outputEntry id="OutputEntry_B1_5"><text>"CRITICO"</text></outputEntry>
+      </rule>
+
+      <!-- REGRA B2: Bloqueio - Paciente nao informado sobre variacao -->
+      <rule id="Rule_Bloqueio_2">
+        <description>Desvio acima de 10% e paciente nao foi informado previamente</description>
+        <inputEntry id="InputEntry_B2_1"><text>&gt; 10</text></inputEntry>
+        <inputEntry id="InputEntry_B2_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_B2_3"><text>false</text></inputEntry>
+        <outputEntry id="OutputEntry_B2_1"><text>"Bloquear"</text></outputEntry>
+        <outputEntry id="OutputEntry_B2_2"><text>"Paciente nao foi informado sobre variacao de valores. Violacao do direito a informacao (CDC Art. 6)."</text></outputEntry>
+        <outputEntry id="OutputEntry_B2_3"><text>"Contatar paciente, informar sobre variacao e obter concordancia antes de faturar."</text></outputEntry>
+        <outputEntry id="OutputEntry_B2_4"><text>"DOC"</text></outputEntry>
+        <outputEntry id="OutputEntry_B2_5"><text>"ALTO"</text></outputEntry>
+      </rule>
+
+      <!-- REGRA A1: Alerta - Desvio entre 10-15% com justificativa -->
+      <rule id="Rule_Alerta_1">
+        <description>Desvio entre 10% e 15% com justificativa documentada</description>
+        <inputEntry id="InputEntry_A1_1"><text>[10..15]</text></inputEntry>
+        <inputEntry id="InputEntry_A1_2"><text>true</text></inputEntry>
+        <inputEntry id="InputEntry_A1_3"><text>true</text></inputEntry>
+        <outputEntry id="OutputEntry_A1_1"><text>"Alertar"</text></outputEntry>
+        <outputEntry id="OutputEntry_A1_2"><text>"Desvio significativo (10-15%). Revisar justificativa antes de faturamento final."</text></outputEntry>
+        <outputEntry id="OutputEntry_A1_3"><text>"Revisar justificativa tecnica com equipe clinica. Confirmar ciencia do paciente antes de faturar."</text></outputEntry>
+        <outputEntry id="OutputEntry_A1_4"><text>"DOC"</text></outputEntry>
+        <outputEntry id="OutputEntry_A1_5"><text>"MEDIO"</text></outputEntry>
+      </rule>
+
+      <!-- REGRA P1: Aprovado - Desvio ate 10% -->
+      <rule id="Rule_Aprovado_1">
+        <description>Desvio ate 10% considerado aceitavel</description>
+        <inputEntry id="InputEntry_P1_1"><text>[0..10]</text></inputEntry>
+        <inputEntry id="InputEntry_P1_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_P1_3"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_P1_1"><text>"Prosseguir"</text></outputEntry>
+        <outputEntry id="OutputEntry_P1_2"><text>"Desvio dentro da margem aceitavel (ate 10%). Prosseguir com faturamento."</text></outputEntry>
+        <outputEntry id="OutputEntry_P1_3"><text>"Prosseguir com faturamento. Registrar desvio no sistema para analise de tendencias."</text></outputEntry>
+        <outputEntry id="OutputEntry_P1_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_P1_5"><text>"BAIXO"</text></outputEntry>
+      </rule>
+
+      <!-- REGRA P2: Aprovado - Desvio negativo (valor real menor) -->
+      <rule id="Rule_Aprovado_2">
+        <description>Valor real inferior ao orcado - Favoravel ao paciente</description>
+        <inputEntry id="InputEntry_P2_1"><text>&lt; 0</text></inputEntry>
+        <inputEntry id="InputEntry_P2_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_P2_3"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_P2_1"><text>"Prosseguir"</text></outputEntry>
+        <outputEntry id="OutputEntry_P2_2"><text>"Valor real inferior ao orcado. Situacao favoravel ao paciente. Prosseguir com faturamento."</text></outputEntry>
+        <outputEntry id="OutputEntry_P2_3"><text>"Faturar valor real (menor). Informar paciente sobre economia em relacao ao orcamento."</text></outputEntry>
+        <outputEntry id="OutputEntry_P2_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_P2_5"><text>"BAIXO"</text></outputEntry>
+      </rule>
+
+      <!-- REGRA F: Fallback - Requer revisao manual -->
+      <rule id="Rule_Fallback_CASH_ESTIMATE_003">
+        <description>Regra padrao - Requer avaliacao manual</description>
+        <inputEntry id="InputEntry_F_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_F_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_F_3"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_F_1"><text>"Revisar"</text></outputEntry>
+        <outputEntry id="OutputEntry_F_2"><text>"Situacao requer analise manual por nao corresponder a nenhum criterio automatico."</text></outputEntry>
+        <outputEntry id="OutputEntry_F_3"><text>"Encaminhar para auditoria administrativa para avaliacao caso a caso."</text></outputEntry>
+        <outputEntry id="OutputEntry_F_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_F_5"><text>"MEDIO"</text></outputEntry>
+      </rule>
+
+    </decisionTable>
+  </decision>
+
+  <dmndi:DMNDI>
+    <dmndi:DMNDiagram id="DMNDiagram_CASH_ESTIMATE_003">
+      <dmndi:DMNShape id="DMNShape_Decision_CASH_ESTIMATE_003" dmnElementRef="Decision_CASH_ESTIMATE_003">
+        <dc:Bounds height="80" width="180" x="160" y="100"/>
+      </dmndi:DMNShape>
+    </dmndi:DMNDiagram>
+  </dmndi:DMNDI>
+
+</definitions>

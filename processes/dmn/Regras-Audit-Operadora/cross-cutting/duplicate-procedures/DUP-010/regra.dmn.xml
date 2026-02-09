@@ -1,0 +1,309 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/" xmlns:camunda="http://camunda.org/schema/1.0/dmn" id="regra-DUP-010" name="Duplicate Procedure Same-Day Control" namespace="http://camunda.org/schema/1.0/dmn">
+  <decision id="DUP-010" name="Duplicate Procedure Same-Day Control">
+    <decisionTable id="decisionTable_DUP010" hitPolicy="FIRST">
+      <input id="input_tipoProcedimento" label="Tipo de Procedimento" camunda:inputVariable="tipoProcedimento">
+        <inputExpression id="inputExpression_tipoProcedimento" typeRef="string">
+          <text>tipoProcedimento</text>
+        </inputExpression>
+        <inputValues id="inputValues_tipoProcedimento">
+          <text>"Curativo","Nebulização","Inalação","Medicação Injetável","Glicemia Capilar","Aferição PA","Oximetria","ECG Urgência"</text>
+        </inputValues>
+      </input>
+      <input id="input_horasDesdeUltimo" label="Horas Desde Último Procedimento" camunda:inputVariable="horasDesdeUltimoProcedimento">
+        <inputExpression id="inputExpression_horasDesdeUltimo" typeRef="integer">
+          <text>horasDesdeUltimoProcedimento</text>
+        </inputExpression>
+      </input>
+      <input id="input_prescricaoMedica" label="Prescrição Médica para Repetição" camunda:inputVariable="prescricaoMedicaRepetir">
+        <inputExpression id="inputExpression_prescricaoMedica" typeRef="boolean">
+          <text>prescricaoMedicaRepetir</text>
+        </inputExpression>
+        <inputValues id="inputValues_prescricaoMedica">
+          <text>true,false</text>
+        </inputValues>
+      </input>
+      <input id="input_emergencia" label="Situação de Emergência" camunda:inputVariable="situacaoEmergencia">
+        <inputExpression id="inputExpression_emergencia" typeRef="boolean">
+          <text>situacaoEmergencia</text>
+        </inputExpression>
+        <inputValues id="inputValues_emergencia">
+          <text>true,false</text>
+        </inputValues>
+      </input>
+      <output id="output_resultado" label="Resultado" name="resultado" typeRef="string">
+        <outputValues id="outputValues_resultado">
+          <text>"Aprovado","Reprovado","Pendente"</text>
+        </outputValues>
+      </output>
+      <output id="output_observacao" label="Observação" name="observacao" typeRef="string" />
+      <output id="output_fundamentacao" label="Fundamentação Legal" name="fundamentacao" typeRef="string" />
+      
+      <output id="output_4" label="Alertas de Desperdicio" name="alertasDesperdicio" typeRef="string">
+        <outputValues id="outputValues_4">
+          <text>"NENHUM","DUP","FREQ","ESC","DOC","PROT","MULTI"</text>
+        </outputValues>
+      </output>
+      
+
+      <output id="output_5" label="Acao Recomendada" name="acaoRecomendada" typeRef="string">
+        <outputValues id="outputValues_5">
+          <text>"APROVAR","NEGAR","SOLICITAR_INFO","AGUARDAR_PRAZO","SUGERIR_ALTERNATIVA"</text>
+        </outputValues>
+      </output>
+
+
+      <!-- REPROVADO: Curativo repetido <24h sem prescrição médica -->
+      <rule id="rule_001">
+        <inputEntry id="input_001_1">
+          <text>"Curativo"</text>
+        </inputEntry>
+        <inputEntry id="input_001_2">
+          <text>&lt; 24</text>
+        </inputEntry>
+        <inputEntry id="input_001_3">
+          <text>false</text>
+        </inputEntry>
+        <inputEntry id="input_001_4">
+          <text>false</text>
+        </inputEntry>
+        <outputEntry id="output_001_1">
+          <text>"Reprovado"</text>
+        </outputEntry>
+        <outputEntry id="output_001_2">
+          <text>"Curativo solicitado dentro de 24 horas sem prescrição médica específica. Protocolo padrão é curativo diário ou a cada 2-3 dias conforme tipo de ferida. Potencial desperdício: R$30-80 por curativo."</text>
+        </outputEntry>
+        <outputEntry id="output_001_3">
+          <text>"SOBENDE/COFEN - Curativos devem seguir protocolo institucional; trocas excessivas podem prejudicar cicatrização e aumentar custos."</text>
+        </outputEntry>
+        <outputEntry id="OE_rule_001_4"><text>"PROT"</text></outputEntry>
+        <outputEntry id="OE_rule_001_5"><text>"NEGAR"</text></outputEntry>
+
+      </rule>
+
+      <!-- REPROVADO: Nebulização/Inalação repetida <4h sem prescrição médica -->
+      <rule id="rule_002">
+        <inputEntry id="input_002_1">
+          <text>"Nebulização","Inalação"</text>
+        </inputEntry>
+        <inputEntry id="input_002_2">
+          <text>&lt; 4</text>
+        </inputEntry>
+        <inputEntry id="input_002_3">
+          <text>false</text>
+        </inputEntry>
+        <inputEntry id="input_002_4">
+          <text>false</text>
+        </inputEntry>
+        <outputEntry id="output_002_1">
+          <text>"Reprovado"</text>
+        </outputEntry>
+        <outputEntry id="output_002_2">
+          <text>"Nebulização/Inalação solicitada dentro de 4 horas sem prescrição médica. Intervalo mínimo recomendado é 4-6 horas para broncodilatadores. Potencial desperdício: R$15-40 por sessão."</text>
+        </outputEntry>
+        <outputEntry id="output_002_3">
+          <text>"SBPT - Nebulizações muito frequentes podem causar taquifilaxia e efeitos adversos; intervalo mínimo 4-6h exceto em emergências."</text>
+        </outputEntry>
+        <outputEntry id="OE_rule_002_4"><text>"PROT"</text></outputEntry>
+        <outputEntry id="OE_rule_002_5"><text>"NEGAR"</text></outputEntry>
+
+      </rule>
+
+      <!-- REPROVADO: Medicação Injetável repetida <4h mesma droga sem prescrição -->
+      <rule id="rule_003">
+        <inputEntry id="input_003_1">
+          <text>"Medicação Injetável"</text>
+        </inputEntry>
+        <inputEntry id="input_003_2">
+          <text>&lt; 4</text>
+        </inputEntry>
+        <inputEntry id="input_003_3">
+          <text>false</text>
+        </inputEntry>
+        <inputEntry id="input_003_4">
+          <text>false</text>
+        </inputEntry>
+        <outputEntry id="output_003_1">
+          <text>"Reprovado"</text>
+        </outputEntry>
+        <outputEntry id="output_003_2">
+          <text>"Medicação Injetável (mesma droga) solicitada dentro de 4 horas sem prescrição médica. Risco de sobredose e reação adversa. Potencial desperdício: R$20-500+ conforme medicação."</text>
+        </outputEntry>
+        <outputEntry id="output_003_3">
+          <text>"ANVISA/CFF - Administração de medicamentos deve seguir prescrição médica; repetições precoces requerem justificativa e reavaliação médica."</text>
+        </outputEntry>
+        <outputEntry id="OE_rule_003_4"><text>"PROT"</text></outputEntry>
+        <outputEntry id="OE_rule_003_5"><text>"NEGAR"</text></outputEntry>
+
+      </rule>
+
+      <!-- REPROVADO: Glicemia Capilar repetida <2h em paciente estável -->
+      <rule id="rule_004">
+        <inputEntry id="input_004_1">
+          <text>"Glicemia Capilar"</text>
+        </inputEntry>
+        <inputEntry id="input_004_2">
+          <text>&lt; 2</text>
+        </inputEntry>
+        <inputEntry id="input_004_3">
+          <text>false</text>
+        </inputEntry>
+        <inputEntry id="input_004_4">
+          <text>false</text>
+        </inputEntry>
+        <outputEntry id="output_004_1">
+          <text>"Reprovado"</text>
+        </outputEntry>
+        <outputEntry id="output_004_2">
+          <text>"Glicemia Capilar solicitada dentro de 2 horas em paciente estável sem prescrição médica. Monitoramento excessivo aumenta desconforto e custos. Potencial desperdício: R$2-5 por teste."</text>
+        </outputEntry>
+        <outputEntry id="output_004_3">
+          <text>"SBD - Glicemia capilar em paciente internado estável: intervalo mínimo 4-6h; controles horários apenas em situações críticas ou infusão de insulina."</text>
+        </outputEntry>
+        <outputEntry id="OE_rule_004_4"><text>"PROT"</text></outputEntry>
+        <outputEntry id="OE_rule_004_5"><text>"NEGAR"</text></outputEntry>
+
+      </rule>
+
+      <!-- REPROVADO: Aferição PA/Oximetria repetida <30min em paciente estável -->
+      <rule id="rule_005">
+        <inputEntry id="input_005_1">
+          <text>"Aferição PA","Oximetria"</text>
+        </inputEntry>
+        <inputEntry id="input_005_2">
+          <text>&lt; 1</text>
+        </inputEntry>
+        <inputEntry id="input_005_3">
+          <text>false</text>
+        </inputEntry>
+        <inputEntry id="input_005_4">
+          <text>false</text>
+        </inputEntry>
+        <outputEntry id="output_005_1">
+          <text>"Reprovado"</text>
+        </outputEntry>
+        <outputEntry id="output_005_2">
+          <text>"Aferição de PA/Oximetria solicitada dentro de 30 minutos em paciente estável sem prescrição médica. Monitoramento contínuo não indicado fora de UTI/unidades críticas. Potencial desperdício: custo de equipe."</text>
+        </outputEntry>
+        <outputEntry id="output_005_3">
+          <text>"COFEN/AMIB - Sinais vitais em enfermaria: intervalo padrão 4-6h; monitoramento contínuo reservado para pacientes críticos."</text>
+        </outputEntry>
+        <outputEntry id="OE_rule_005_4"><text>"PROT"</text></outputEntry>
+        <outputEntry id="OE_rule_005_5"><text>"NEGAR"</text></outputEntry>
+
+      </rule>
+
+      <!-- APROVADO: Prescrição médica documenta necessidade de repetição -->
+      <rule id="rule_006">
+        <inputEntry id="input_006_1">
+          <text></text>
+        </inputEntry>
+        <inputEntry id="input_006_2">
+          <text></text>
+        </inputEntry>
+        <inputEntry id="input_006_3">
+          <text>true</text>
+        </inputEntry>
+        <inputEntry id="input_006_4">
+          <text></text>
+        </inputEntry>
+        <outputEntry id="output_006_1">
+          <text>"Aprovado"</text>
+        </outputEntry>
+        <outputEntry id="output_006_2">
+          <text>"Procedimento aprovado por prescrição médica específica documentando necessidade de repetição."</text>
+        </outputEntry>
+        <outputEntry id="output_006_3">
+          <text>"CFM/COFEN - Prescrição médica justifica procedimentos fora do protocolo padrão."</text>
+        </outputEntry>
+        <outputEntry id="OE_rule_006_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_rule_006_5"><text>"APROVAR"</text></outputEntry>
+
+      </rule>
+
+      <!-- APROVADO: Situação de emergência documentada -->
+      <rule id="rule_007">
+        <inputEntry id="input_007_1">
+          <text></text>
+        </inputEntry>
+        <inputEntry id="input_007_2">
+          <text></text>
+        </inputEntry>
+        <inputEntry id="input_007_3">
+          <text></text>
+        </inputEntry>
+        <inputEntry id="input_007_4">
+          <text>true</text>
+        </inputEntry>
+        <outputEntry id="output_007_1">
+          <text>"Aprovado"</text>
+        </outputEntry>
+        <outputEntry id="output_007_2">
+          <text>"Procedimento aprovado por situação de emergência. Protocolo de urgência em vigor."</text>
+        </outputEntry>
+        <outputEntry id="output_007_3">
+          <text>"CFM Resolução 2147/2016 - Emergências justificam procedimentos imediatos independente de intervalos eletivos."</text>
+        </outputEntry>
+        <outputEntry id="OE_rule_007_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_rule_007_5"><text>"APROVAR"</text></outputEntry>
+
+      </rule>
+
+      <!-- PENDENTE: Intervalo adequado -->
+      <rule id="rule_008">
+        <inputEntry id="input_008_1">
+          <text></text>
+        </inputEntry>
+        <inputEntry id="input_008_2">
+          <text></text>
+        </inputEntry>
+        <inputEntry id="input_008_3">
+          <text></text>
+        </inputEntry>
+        <inputEntry id="input_008_4">
+          <text></text>
+        </inputEntry>
+        <outputEntry id="output_008_1">
+          <text>"Pendente"</text>
+        </outputEntry>
+        <outputEntry id="output_008_2">
+          <text>"Procedimento dentro do intervalo esperado. Aguardando análise de indicação clínica."</text>
+        </outputEntry>
+        <outputEntry id="output_008_3">
+          <text>"Fluxo de autorização padrão - Avaliação de indicação necessária."</text>
+        </outputEntry>
+        <outputEntry id="OE_rule_008_4"><text>"DOC"</text></outputEntry>
+        <outputEntry id="OE_rule_008_5"><text>"SOLICITAR_INFO"</text></outputEntry>
+
+      </rule>
+
+      <!-- DEFAULT FALLBACK -->
+      <rule id="Rule_Default_Fallback">
+        <inputEntry id="input_fallback_1">
+          <text></text>
+        </inputEntry>
+        <inputEntry id="input_fallback_2">
+          <text></text>
+        </inputEntry>
+        <inputEntry id="input_fallback_3">
+          <text></text>
+        </inputEntry>
+        <inputEntry id="input_fallback_4">
+          <text></text>
+        </inputEntry>
+        <outputEntry id="output_fallback_1">
+          <text>"Pendente"</text>
+        </outputEntry>
+        <outputEntry id="output_fallback_2">
+          <text>"Caso não coberto pelas regras anteriores. Análise manual necessária."</text>
+        </outputEntry>
+        <outputEntry id="output_fallback_3">
+          <text>"Regra de segurança - casos não mapeados requerem revisão humana."</text>
+        </outputEntry>
+        <outputEntry id="OE_Rule_Default_Fallback_4"><text>"DOC"</text></outputEntry>
+        <outputEntry id="OE_Rule_Default_Fallback_5"><text>"SOLICITAR_INFO"</text></outputEntry>
+
+      </rule>
+    </decisionTable>
+  </decision>
+</definitions>

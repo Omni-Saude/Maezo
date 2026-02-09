@@ -1,0 +1,216 @@
+<?xml version='1.0' encoding='utf-8'?>
+<!--
+  ============================================================================
+  RECV-WRITEOFF-001 - Baixa Contabil Incobravel
+  ============================================================================
+  Versao: 1.0.0 (2026-02-08)
+  Categoria: RECV-WRITEOFF
+  Perspectiva: HOSPITAL (Administrativo)
+  ============================================================================
+-->
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/"
+             xmlns:dc="http://www.omg.org/spec/DMN/20180521/DC/" id="Definitions_RECV_WRITEOFF_001" name="Baixa Contabil Incobravel" targetNamespace="http://camunda.org/schema/1.0/dmn">
+
+  <decision id="Decision_RECV_WRITEOFF_001" name="Avaliacao Baixa Contabil Incobravel">
+    <decisionTable id="DecisionTable_RECV_WRITEOFF_001" hitPolicy="FIRST">
+
+      
+      <input id="Input_1" label="Dias em Atraso">
+        <inputExpression id="InputExpression_1" typeRef="number">
+          <text>diasAtraso</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_2" label="Tentativas de Cobranca">
+        <inputExpression id="InputExpression_2" typeRef="number">
+          <text>tentativasCobranca</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_3" label="Status Negociacao">
+        <inputExpression id="InputExpression_3" typeRef="string">
+          <text>statusNegociacao</text>
+        </inputExpression>
+        <inputValues id="InputValues_3">
+          <text>"EM_ANDAMENTO", "ENCERRADA_SEM_SUCESSO", "DEVEDOR_NAO_LOCALIZADO", "DEVEDOR_INSOLVENTE"</text>
+        </inputValues>
+      </input>
+
+      <input id="Input_4" label="Valor do Credito">
+        <inputExpression id="InputExpression_4" typeRef="number">
+          <text>valorCredito</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_5" label="Possui Garantia">
+        <inputExpression id="InputExpression_5" typeRef="boolean">
+          <text>possuiGarantia</text>
+        </inputExpression>
+      </input>
+
+      
+      <!-- ========== OUTPUTS (5 STANDARD) ========== -->
+      <output id="Output_1" label="Resultado" name="resultado" typeRef="string">
+        <outputValues><text>"Prosseguir", "Bloquear", "Alertar", "Revisar"</text></outputValues>
+      </output>
+
+      <output id="Output_2" label="Observacao" name="observacao" typeRef="string"/>
+
+      <output id="Output_3" label="Acao Recomendada" name="acaoRecomendada" typeRef="string"/>
+
+      <output id="Output_4" label="Alertas Conformidade" name="alertasConformidade" typeRef="string">
+        <outputValues><text>"NENHUM", "DUP", "FREQ", "PRAZO", "DOC", "VALOR", "CRED", "CONTRATO"</text></outputValues>
+      </output>
+
+      <output id="Output_5" label="Risco Denial" name="riscoDenial" typeRef="string">
+        <outputValues><text>"BAIXO", "MEDIO", "ALTO", "CRITICO"</text></outputValues>
+      </output>
+
+      <!-- ========== RULES ========== -->
+<rule id="Rule_Contraindicacao_1">
+        <description>Menos de 3 tentativas de cobranca - Insuficiente para baixa</description>
+        <inputEntry id="InputEntry_C1_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_C1_2"><text>&lt; 3</text></inputEntry>
+        <inputEntry id="InputEntry_C1_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_C1_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_C1_5"><text>-</text></inputEntry>
+<outputEntry id="OutputEntry_C1_1"><text>"Bloquear"</text></outputEntry>
+<outputEntry id="OutputEntry_C1_2"><text>"Minimo de 3 tentativas de cobranca nao atingido. Continuar esforcos de recuperacao antes de baixar."</text></outputEntry>
+<outputEntry id="OutputEntry_C1_3"><text>"MANTER_COBRANCA"</text></outputEntry>
+<outputEntry id="Rule_Contraindicacao_1_outputEntry_alertasConformidade"><text>"VALOR"</text></outputEntry>
+<outputEntry id="Rule_Contraindicacao_1_outputEntry_riscoDenial"><text>"ALTO"</text></outputEntry>
+      </rule>
+
+      
+      <rule id="Rule_Contraindicacao_2">
+        <description>Atraso inferior a 365 dias - Nao elegivel para baixa fiscal</description>
+        <inputEntry id="InputEntry_C2_1"><text>&lt; 365</text></inputEntry>
+        <inputEntry id="InputEntry_C2_2"><text>&gt;= 3</text></inputEntry>
+        <inputEntry id="InputEntry_C2_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_C2_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_C2_5"><text>-</text></inputEntry>
+<outputEntry id="OutputEntry_C2_1"><text>"Bloquear"</text></outputEntry>
+<outputEntry id="OutputEntry_C2_2"><text>"Credito com menos de 365 dias de atraso nao elegivel para baixa fiscal. Manter em provisao."</text></outputEntry>
+<outputEntry id="OutputEntry_C2_3"><text>"PROVISIONAR_PERDA"</text></outputEntry>
+<outputEntry id="Rule_Contraindicacao_2_outputEntry_alertasConformidade"><text>"VALOR"</text></outputEntry>
+<outputEntry id="Rule_Contraindicacao_2_outputEntry_riscoDenial"><text>"ALTO"</text></outputEntry>
+      </rule>
+
+      
+      <rule id="Rule_Contraindicacao_3">
+        <description>Negociacao ainda em andamento</description>
+        <inputEntry id="InputEntry_C3_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_C3_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_C3_3"><text>"EM_ANDAMENTO"</text></inputEntry>
+        <inputEntry id="InputEntry_C3_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_C3_5"><text>-</text></inputEntry>
+<outputEntry id="OutputEntry_C3_1"><text>"Bloquear"</text></outputEntry>
+<outputEntry id="OutputEntry_C3_2"><text>"Negociacao em andamento. Aguardar conclusao antes de considerar baixa."</text></outputEntry>
+<outputEntry id="OutputEntry_C3_3"><text>"MANTER_COBRANCA"</text></outputEntry>
+<outputEntry id="Rule_Contraindicacao_3_outputEntry_alertasConformidade"><text>"VALOR"</text></outputEntry>
+<outputEntry id="Rule_Contraindicacao_3_outputEntry_riscoDenial"><text>"ALTO"</text></outputEntry>
+      </rule>
+
+      
+      <rule id="Rule_Contraindicacao_4">
+        <description>Credito possui garantia real - Executar garantia primeiro</description>
+        <inputEntry id="InputEntry_C4_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_C4_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_C4_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_C4_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_C4_5"><text>true</text></inputEntry>
+<outputEntry id="OutputEntry_C4_1"><text>"Bloquear"</text></outputEntry>
+<outputEntry id="OutputEntry_C4_2"><text>"Credito possui garantia real. Acionar juridico para execucao da garantia antes de baixar."</text></outputEntry>
+<outputEntry id="OutputEntry_C4_3"><text>"ACIONAR_JURIDICO"</text></outputEntry>
+<outputEntry id="Rule_Contraindicacao_4_outputEntry_alertasConformidade"><text>"VALOR"</text></outputEntry>
+<outputEntry id="Rule_Contraindicacao_4_outputEntry_riscoDenial"><text>"ALTO"</text></outputEntry>
+      </rule>
+
+      
+      <rule id="Rule_Alerta_1">
+        <description>Atraso entre 270 e 365 dias - Preparar para baixa</description>
+        <inputEntry id="InputEntry_A1_1"><text>[270..365)</text></inputEntry>
+        <inputEntry id="InputEntry_A1_2"><text>&gt;= 3</text></inputEntry>
+        <inputEntry id="InputEntry_A1_3"><text>"ENCERRADA_SEM_SUCESSO", "DEVEDOR_NAO_LOCALIZADO", "DEVEDOR_INSOLVENTE"</text></inputEntry>
+        <inputEntry id="InputEntry_A1_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_A1_5"><text>false</text></inputEntry>
+<outputEntry id="OutputEntry_A1_1"><text>"Alertar"</text></outputEntry>
+<outputEntry id="OutputEntry_A1_2"><text>"Credito proximo do limite para baixa fiscal (270+ dias). Preparar documentacao para baixa contabil."</text></outputEntry>
+<outputEntry id="OutputEntry_A1_3"><text>"PROVISIONAR_PERDA"</text></outputEntry>
+<outputEntry id="Rule_Alerta_1_outputEntry_alertasConformidade"><text>"VALOR"</text></outputEntry>
+<outputEntry id="Rule_Alerta_1_outputEntry_riscoDenial"><text>"MEDIO"</text></outputEntry>
+      </rule>
+
+      
+      <rule id="Rule_Aprovado_1">
+        <description>Devedor nao localizado com esforcos documentados</description>
+        <inputEntry id="InputEntry_P1_1"><text>&gt;= 365</text></inputEntry>
+        <inputEntry id="InputEntry_P1_2"><text>&gt;= 3</text></inputEntry>
+        <inputEntry id="InputEntry_P1_3"><text>"DEVEDOR_NAO_LOCALIZADO"</text></inputEntry>
+        <inputEntry id="InputEntry_P1_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_P1_5"><text>false</text></inputEntry>
+<outputEntry id="OutputEntry_P1_1"><text>"Prosseguir"</text></outputEntry>
+<outputEntry id="OutputEntry_P1_2"><text>"Devedor nao localizado apos esforcos documentados. Elegivel para baixa contabil e deducao fiscal."</text></outputEntry>
+<outputEntry id="OutputEntry_P1_3"><text>"BAIXAR_CONTABIL"</text></outputEntry>
+<outputEntry id="Rule_Aprovado_1_outputEntry_alertasConformidade"><text>"NENHUM"</text></outputEntry>
+<outputEntry id="Rule_Aprovado_1_outputEntry_riscoDenial"><text>"BAIXO"</text></outputEntry>
+      </rule>
+
+      
+      <rule id="Rule_Aprovado_2">
+        <description>Devedor declarado insolvente</description>
+        <inputEntry id="InputEntry_P2_1"><text>&gt;= 365</text></inputEntry>
+        <inputEntry id="InputEntry_P2_2"><text>&gt;= 3</text></inputEntry>
+        <inputEntry id="InputEntry_P2_3"><text>"DEVEDOR_INSOLVENTE"</text></inputEntry>
+        <inputEntry id="InputEntry_P2_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_P2_5"><text>false</text></inputEntry>
+<outputEntry id="OutputEntry_P2_1"><text>"Prosseguir"</text></outputEntry>
+<outputEntry id="OutputEntry_P2_2"><text>"Devedor insolvente documentado. Elegivel para baixa contabil com deducao fiscal (CPC 48)."</text></outputEntry>
+<outputEntry id="OutputEntry_P2_3"><text>"BAIXAR_CONTABIL"</text></outputEntry>
+<outputEntry id="Rule_Aprovado_2_outputEntry_alertasConformidade"><text>"NENHUM"</text></outputEntry>
+<outputEntry id="Rule_Aprovado_2_outputEntry_riscoDenial"><text>"BAIXO"</text></outputEntry>
+      </rule>
+
+      
+      <rule id="Rule_Aprovado_3">
+        <description>Negociacao encerrada sem sucesso apos prazo legal</description>
+        <inputEntry id="InputEntry_P3_1"><text>&gt;= 365</text></inputEntry>
+        <inputEntry id="InputEntry_P3_2"><text>&gt;= 3</text></inputEntry>
+        <inputEntry id="InputEntry_P3_3"><text>"ENCERRADA_SEM_SUCESSO"</text></inputEntry>
+        <inputEntry id="InputEntry_P3_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_P3_5"><text>false</text></inputEntry>
+<outputEntry id="OutputEntry_P3_1"><text>"Prosseguir"</text></outputEntry>
+<outputEntry id="OutputEntry_P3_2"><text>"Credito incobravel apos esgotamento de esforcos. Proceder com baixa contabil e deducao fiscal."</text></outputEntry>
+<outputEntry id="OutputEntry_P3_3"><text>"BAIXAR_CONTABIL"</text></outputEntry>
+<outputEntry id="Rule_Aprovado_3_outputEntry_alertasConformidade"><text>"NENHUM"</text></outputEntry>
+<outputEntry id="Rule_Aprovado_3_outputEntry_riscoDenial"><text>"BAIXO"</text></outputEntry>
+      </rule>
+
+      
+      <rule id="Rule_Fallback_RECV_WRITEOFF_001">
+        <description>Caso nao atenda criterios automaticos - Revisar comite</description>
+        <inputEntry id="InputEntry_F_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_F_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_F_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_F_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_F_5"><text>-</text></inputEntry>
+<outputEntry id="OutputEntry_F_1"><text>"Revisar"</text></outputEntry>
+<outputEntry id="OutputEntry_F_2"><text>"Credito requer analise do comite de credito. Verificar documentacao e opcoes de recuperacao."</text></outputEntry>
+<outputEntry id="OutputEntry_F_3"><text>"PROVISIONAR_PERDA"</text></outputEntry>
+<outputEntry id="Rule_Fallback_RECV_WRITEOFF_001_outputEntry_alertasConformidade"><text>"NENHUM"</text></outputEntry>
+<outputEntry id="Rule_Fallback_RECV_WRITEOFF_001_outputEntry_riscoDenial"><text>"MEDIO"</text></outputEntry>
+      </rule>
+
+    </decisionTable>
+  </decision>
+
+  <dmndi:DMNDI>
+    <dmndi:DMNDiagram id="DMNDiagram_RECV_WRITEOFF_001">
+      <dmndi:DMNShape id="DMNShape_Decision_RECV_WRITEOFF_001" dmnElementRef="Decision_RECV_WRITEOFF_001">
+        <dc:Bounds height="80" width="180" x="160" y="100" />
+      </dmndi:DMNShape>
+    </dmndi:DMNDiagram>
+  </dmndi:DMNDI>
+
+</definitions>

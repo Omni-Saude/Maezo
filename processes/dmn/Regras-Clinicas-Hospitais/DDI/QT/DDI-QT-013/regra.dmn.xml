@@ -1,0 +1,196 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/" xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/" xmlns:dc="http://www.omg.org/spec/DMN/20180521/DC/" xmlns:di="http://www.omg.org/spec/DMN/20180521/DI/" id="DDI_QT_013" name="DDI-QT-013: Sotalol + Antipsicóticos" namespace="http://camunda.org/schema/1.0/dmn">
+  <decision id="ddi_qt_013_decision" name="Sotalol + Antipsicóticos QT Prolongation">
+    <decisionTable id="ddi_qt_013_table" hitPolicy="FIRST">
+      <input id="input_medicamentos_ativos" label="Medicamentos Ativos">
+        <inputExpression id="input_expr_medicamentos_ativos" typeRef="string">
+          <text>medicamentosAtivos</text>
+        </inputExpression>
+      </input>
+      <input id="input_medicamento_novo" label="Medicamento Novo">
+        <inputExpression id="input_expr_medicamento_novo" typeRef="string">
+          <text>medicamentoNovo</text>
+        </inputExpression>
+      </input>
+      <input id="input_potassio" label="Potássio (mmol/L)">
+        <inputExpression id="input_expr_potassio" typeRef="number">
+          <text>potassio</text>
+        </inputExpression>
+      </input>
+      <input id="input_clearance_creatinina" label="ClCr (mL/min)">
+        <inputExpression id="input_expr_clcr" typeRef="number">
+          <text>clearanceCreatinina</text>
+        </inputExpression>
+      </input>
+
+      <output id="output_nivel_alerta" name="nivelAlerta" typeRef="string">
+        <outputValues>
+          <text>"Alerta","Atencao","OK"</text>
+        </outputValues>
+      </output>
+      <output id="output_urgencia" name="urgencia" typeRef="string">
+        <outputValues>
+          <text>"IMEDIATA","URGENTE","ROTINA"</text>
+        </outputValues>
+      </output>
+      <output id="output_medicamentos_conflitantes" name="medicamentosConflitantes" typeRef="string" />
+      <output id="output_mecanismo_interacao" name="mecanismoInteracao" typeRef="string" />
+      <output id="output_acao_requerida" name="acaoRequerida" typeRef="string" />
+
+      <!-- Rule 1: CONTRAINDICATED - Sotalol + High QT antipsychotics -->
+      <rule id="rule_sotalol_antipsic_alto_qt">
+        <inputEntry id="input_medicamentos_sotalol">
+          <text>list contains(medicamentosAtivos, "SOTALOL")</text>
+        </inputEntry>
+        <inputEntry id="input_novo_antipsic_alto">
+          <text>"HALOPERIDOL" or "ZIPRASIDONA" or "TIORIDAZINA" or "PIMOZIDA"</text>
+        </inputEntry>
+        <inputEntry id="input_k_qualquer">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="input_clcr_qualquer">
+          <text>-</text>
+        </inputEntry>
+        <outputEntry id="output_alerta_contraindicado">
+          <text>"Alerta"</text>
+        </outputEntry>
+        <outputEntry id="output_urgencia_contraindicado">
+          <text>"IMEDIATA"</text>
+        </outputEntry>
+        <outputEntry id="output_conflitantes_contraindicado">
+          <text>"Sotalol + Antipsicótico Alto QT (CONTRAINDICADO)"</text>
+        </outputEntry>
+        <outputEntry id="output_mecanismo_contraindicado">
+          <text>"Bloqueio aditivo CRÍTICO canais K+ IKr. Sotalol (beta-bloq classe III) prolonga QT 20-40ms dose-dependente. Haloperidol +20-35ms, Ziprasidona +20-30ms, Tioridazina +30-50ms (retirada vários países). Risco Torsades ALTÍSSIMO."</text>
+        </outputEntry>
+        <outputEntry id="output_acao_contraindicado">
+          <text>"CONTRAINDICAÇÃO ABSOLUTA: (1) NÃO iniciar antipsicótico alto QT se sotalol ativo, (2) Alternativa antipsicótica: olanzapina, aripiprazol, lurasidona (QT mínimo), (3) Alternativa antiarrítmica: metoprolol, bisoprolol (beta sem QT), flecainida (se sem ICC), (4) Se AMBOS essenciais: internação, monitorização cardíaca contínua, ECG diário."</text>
+        </outputEntry>
+      </rule>
+
+      <!-- Rule 2: Sotalol + Medium QT antipsychotics with risk factors -->
+      <rule id="rule_sotalol_antipsic_medio_risco">
+        <inputEntry id="input_medicamentos_sotalol2">
+          <text>list contains(medicamentosAtivos, "SOTALOL")</text>
+        </inputEntry>
+        <inputEntry id="input_novo_antipsic_medio">
+          <text>"QUETIAPINA" or "RISPERIDONA" or "CLOZAPINA"</text>
+        </inputEntry>
+        <inputEntry id="input_k_baixo">
+          <text>&lt; 3.5</text>
+        </inputEntry>
+        <inputEntry id="input_clcr_baixo">
+          <text>&lt; 60</text>
+        </inputEntry>
+        <outputEntry id="output_alerta_medio_risco">
+          <text>"Alerta"</text>
+        </outputEntry>
+        <outputEntry id="output_urgencia_medio_risco">
+          <text>"IMEDIATA"</text>
+        </outputEntry>
+        <outputEntry id="output_conflitantes_medio_risco">
+          <text>"Sotalol + Antipsicótico (hipocalemia + IR)"</text>
+        </outputEntry>
+        <outputEntry id="output_mecanismo_medio_risco">
+          <text>"Quetiapina/Risperidona QT moderado +5-15ms. Com K+&lt;3.5 + ClCr&lt;60 (acúmulo sotalol), risco Torsades aumenta 5-10x."</text>
+        </outputEntry>
+        <outputEntry id="output_acao_medio_risco">
+          <text>"ALTO RISCO: (1) Corrigir K+&gt;4.5 mmol/L ANTES antipsicótico, (2) Ajustar dose sotalol por função renal, (3) ECG baseline + 48h + 7 dias, (4) Considerar olanzapina alternativa (menor QT), (5) Reduzir doses ambos se possível."</text>
+        </outputEntry>
+      </rule>
+
+      <!-- Rule 3: Sotalol + Medium QT antipsychotics normal conditions -->
+      <rule id="rule_sotalol_antipsic_medio_normal">
+        <inputEntry id="input_medicamentos_sotalol3">
+          <text>list contains(medicamentosAtivos, "SOTALOL")</text>
+        </inputEntry>
+        <inputEntry id="input_novo_antipsic_medio2">
+          <text>"QUETIAPINA" or "RISPERIDONA" or "CLOZAPINA"</text>
+        </inputEntry>
+        <inputEntry id="input_k_normal">
+          <text>&gt;= 3.5</text>
+        </inputEntry>
+        <inputEntry id="input_clcr_normal">
+          <text>&gt;= 60</text>
+        </inputEntry>
+        <outputEntry id="output_alerta_medio_normal">
+          <text>"Alerta"</text>
+        </outputEntry>
+        <outputEntry id="output_urgencia_medio_normal">
+          <text>"URGENTE"</text>
+        </outputEntry>
+        <outputEntry id="output_conflitantes_medio_normal">
+          <text>"Sotalol + Antipsicótico Médio QT"</text>
+        </outputEntry>
+        <outputEntry id="output_mecanismo_medio_normal">
+          <text>"Prolongamento QT moderado aditivo. Quetiapina +5-10ms, Risperidona +10-15ms (dose-dependente)."</text>
+        </outputEntry>
+        <outputEntry id="output_acao_medio_normal">
+          <text>"USAR COM CAUTELA: (1) ECG baseline obrigatório, (2) Doses mínimas eficazes ambos, (3) K+&gt;4.0, Mg&gt;2.0, (4) ECG 48h + 7 dias, (5) Monitorar sintomas, (6) Suspender se QTc&gt;500ms."</text>
+        </outputEntry>
+      </rule>
+
+      <!-- Rule 4: Sotalol + Low QT antipsychotics -->
+      <rule id="rule_sotalol_antipsic_baixo_qt">
+        <inputEntry id="input_medicamentos_sotalol4">
+          <text>list contains(medicamentosAtivos, "SOTALOL")</text>
+        </inputEntry>
+        <inputEntry id="input_novo_antipsic_baixo">
+          <text>"OLANZAPINA" or "ARIPIPRAZOL" or "LURASIDONA"</text>
+        </inputEntry>
+        <inputEntry id="input_k_qualquer2">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="input_clcr_qualquer2">
+          <text>-</text>
+        </inputEntry>
+        <outputEntry id="output_alerta_baixo_qt">
+          <text>"Atencao"</text>
+        </outputEntry>
+        <outputEntry id="output_urgencia_baixo_qt">
+          <text>"URGENTE"</text>
+        </outputEntry>
+        <outputEntry id="output_conflitantes_baixo_qt">
+          <text>"Sotalol + Antipsicótico Baixo QT"</text>
+        </outputEntry>
+        <outputEntry id="output_mecanismo_baixo_qt">
+          <text>"Olanzapina, aripiprazol e lurasidona possuem efeito QT MÍNIMO (&lt;5ms). Risco Torsades baixo."</text>
+        </outputEntry>
+        <outputEntry id="output_acao_baixo_qt">
+          <text>"PREFERÍVEL entre antipsicóticos: (1) ECG baseline recomendado, (2) K+/Mg normais, (3) Monitorar sintomas, (4) ECG 7 dias opcional se doses altas sotalol (&gt;160mg/dia)."</text>
+        </outputEntry>
+      </rule>
+
+      <!-- Fallback Rule -->
+      <rule id="rule_fallback">
+        <inputEntry id="input_fallback_1">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="input_fallback_2">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="input_fallback_3">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="input_fallback_4">
+          <text>-</text>
+        </inputEntry>
+        <outputEntry id="output_fallback_1">
+          <text>"OK"</text>
+        </outputEntry>
+        <outputEntry id="output_fallback_2">
+          <text>"ROTINA"</text>
+        </outputEntry>
+        <outputEntry id="output_fallback_3">
+          <text>""</text>
+        </outputEntry>
+        <outputEntry id="output_fallback_4">
+          <text>""</text>
+        </outputEntry>
+        <outputEntry id="output_fallback_5">
+          <text>""</text>
+        </outputEntry>
+      </rule>
+    </decisionTable>
+  </decision>
+</definitions>

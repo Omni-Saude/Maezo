@@ -1,0 +1,326 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  ONQ-IMG-002: PET-CT vs CT for Response Assessment [LEAN TIER-2]
+  TUSS: 40501317
+  Versao: 3.1.0-LEAN-TIER2 (2026-02-08)
+  Especialidade: Oncologia/Medicina Nuclear
+
+  ============================================================================
+  INDICACOES CLINICAS (ACR/NCCN):
+  ============================================================================
+  - PET-CT: Linfomas (Deauville), melanoma, NSCLC estadiamento/restaging
+  - CT: Tumores solidos vigilancia de rotina (RECIST 1.1)
+  - PET-CT nao indicado para vigilancia de rotina em tumores solidos
+
+  ============================================================================
+  CONTRAINDICACOES PET-CT:
+  ============================================================================
+  - Hiperglicemia nao controlada (glicose >200 mg/dL)
+  - Gravidez (contraindicacao relativa)
+  - Vigilancia de rotina em tumores solidos (custo-inefetivo)
+
+  ============================================================================
+  DOCUMENTACAO OBRIGATORIA:
+  ============================================================================
+  - Tipo tumoral e indicacao especifica
+  - Fase do tratamento (estadiamento, resposta interim, final, vigilancia)
+  - Exames de imagem anteriores se restaging
+
+  ============================================================================
+  REFERENCIAS NORMATIVAS:
+  ============================================================================
+  - ACR Appropriateness Criteria - Oncologic Imaging 2024
+  - NCCN Imaging Guidelines by Tumor Type
+  - Lugano Classification for Lymphoma (Deauville Score)
+  - PERCIST/RECIST 1.1 Response Criteria
+-->
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/" xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/" xmlns:dc="http://www.omg.org/spec/DMN/20180521/DC/" xmlns:modeler="http://camunda.org/schema/modeler/1.0" id="Definitions_ONQ_IMG_002" name="DRD" namespace="http://camunda.org/schema/1.0/dmn" exporter="Camunda Modeler" exporterVersion="5.14.0" modeler:executionPlatform="Camunda Cloud" modeler:executionPlatformVersion="8.2.0">
+  <decision id="Decision_ONQ_IMG_002" name="ONQ-IMG-002: PET-CT vs CT for Response Assessment [LEAN TIER-2]">
+    <decisionTable id="DecisionTable_ONQ_IMG_002" hitPolicy="FIRST">
+      <input id="Input_tumor_type" label="Tumor Type">
+        <inputExpression id="InputExpression_tumor_type" typeRef="string">
+          <text>tumorType</text>
+        </inputExpression>
+      </input>
+      <input id="Input_treatment_phase" label="Treatment Phase">
+        <inputExpression id="InputExpression_treatment_phase" typeRef="string">
+          <text>treatmentPhase</text>
+        </inputExpression>
+      </input>
+      <input id="Input_imaging_modality" label="Imaging Modality Requested">
+        <inputExpression id="InputExpression_imaging_modality" typeRef="string">
+          <text>imagingModality</text>
+        </inputExpression>
+      </input>
+      <input id="Input_prior_baseline" label="Baseline PET Available">
+        <inputExpression id="InputExpression_prior_baseline" typeRef="boolean">
+          <text>baselinePetAvailable</text>
+        </inputExpression>
+      </input>
+      <!-- Input: Dias desde ultimo procedimento (DUP detection) -->
+      <input id="Input_ultimoProcedimentoDias" label="Dias Desde Ultimo Procedimento">
+        <inputExpression id="InputExpression_ultimoProcedimentoDias" typeRef="number">
+          <text>ultimoProcedimentoDias</text>
+        </inputExpression>
+      </input>
+
+      <output id="Output_resultado" label="Resultado" name="resultado" typeRef="string">
+        <outputValues id="UnaryTests_resultado">
+          <text>"Aprovado","Reprovado","Pendente"</text>
+        </outputValues>
+      </output>
+      <output id="Output_observacao" label="Observacao" name="observacao" typeRef="string" />
+      <output id="Output_fundamentacao" label="Fundamentacao" name="fundamentacao" typeRef="string" />
+      <output id="Output_alertasDesperdicio" label="Alertas de Desperdicio" name="alertasDesperdicio" typeRef="string">
+        <outputValues id="OutputValues_alertasDesperdicio">
+          <text>"NENHUM","DUP","FREQ","ESC","DOC","PROT","MULTI"</text>
+        </outputValues>
+      </output>
+      <output id="Output_acaoRecomendada" label="Acao Recomendada" name="acaoRecomendada" typeRef="string">
+        <outputValues id="OutputValues_acaoRecomendada">
+          <text>"APROVAR","NEGAR","SOLICITAR_INFO","AGUARDAR_PRAZO","SUGERIR_ALTERNATIVA"</text>
+        </outputValues>
+      </output>
+      <rule id="DecisionRule_reject_pet_surveillance_solid">
+        <description>Reject PET-CT for routine surveillance in solid tumors</description>
+        <inputEntry id="InputEntry_tumor_type_reject">
+          <text>not("lymphoma","melanoma","lung_cancer","head_neck")</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_treatment_phase_reject">
+          <text>"surveillance","routine_followup"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_imaging_modality_reject">
+          <text>"PET-CT"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_prior_baseline_reject">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="IE_DecisionRule_reject_pet_surveillance_solid_ultimo"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_resultado_reject">
+          <text>"Reprovado"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_observacao_reject">
+          <text>"PET-CT nao indicado para vigilancia de rotina em tumores solidos. TC de contraste e padrao"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_fundamentacao_reject">
+          <text>"Meta-analises mostram ausencia de beneficio de PET em vigilancia; alto custo sem impacto em OS"</text>
+        </outputEntry>
+        <outputEntry id="OE_reject_alertasDesperdicio">
+          <text>"PROT"</text>
+        </outputEntry>
+        <outputEntry id="OE_reject_acaoRecomendada">
+          <text>"NEGAR"</text>
+        </outputEntry>
+      </rule>
+
+      <!-- WASTE DETECTION: DUP -->
+      <rule id="Rule_40501317_DUP">
+        <description>DUP - PET-CT resposta repetido em menos de 90 dias</description>
+        <inputEntry id="IE_DUP_40501317_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_DUP_40501317_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_DUP_40501317_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_DUP_40501317_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_DUP_40501317_ultimo"><text>&lt; 90</text></inputEntry>
+        <outputEntry id="OE_DUP_40501317_resultado"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OE_DUP_40501317_observacao"><text>"PET-CT resposta repetido em menos de 90 dias"</text></outputEntry>
+        <outputEntry id="OE_DUP_40501317_fundamentacao"><text>"NCCN/ACR 2024: PET-CT avaliacao resposta intervalo minimo 90 dias"</text></outputEntry>
+        <outputEntry id="OE_DUP_40501317_alertasDesperdicio"><text>"DUP"</text></outputEntry>
+        <outputEntry id="OE_DUP_40501317_acaoRecomendada"><text>"AGUARDAR_PRAZO"</text></outputEntry>
+      </rule>
+
+      <rule id="DecisionRule_approve_pet_lymphoma">
+        <description>Approve PET-CT for lymphoma response assessment</description>
+        <inputEntry id="InputEntry_tumor_type_lymphoma">
+          <text>"lymphoma","hodgkin","NHL"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_treatment_phase_lymphoma">
+          <text>"interim","end_of_treatment","restaging"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_imaging_modality_lymphoma">
+          <text>"PET-CT"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_prior_baseline_lymphoma">
+          <text>true</text>
+        </inputEntry>
+        <inputEntry id="IE_DecisionRule_approve_pet_lymphoma_ultimo"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_resultado_lymphoma">
+          <text>"Aprovado"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_observacao_lymphoma">
+          <text>"PET-CT aprovado para avaliacao de resposta em linfoma (Deauville score)"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_fundamentacao_lymphoma">
+          <text>"Lugano 2014: PET-CT e padrao ouro para resposta em linfoma FDG-avido; Deauville 1-3 = CMR"</text>
+        </outputEntry>
+        <outputEntry id="OE_lymphoma_alertasDesperdicio">
+          <text>"NENHUM"</text>
+        </outputEntry>
+        <outputEntry id="OE_lymphoma_acaoRecomendada">
+          <text>"APROVAR"</text>
+        </outputEntry>
+      </rule>
+      <rule id="DecisionRule_approve_pet_melanoma">
+        <description>Approve PET-CT for melanoma staging/restaging</description>
+        <inputEntry id="InputEntry_tumor_type_melanoma">
+          <text>"melanoma"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_treatment_phase_melanoma">
+          <text>"staging","restaging","suspected_recurrence"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_imaging_modality_melanoma">
+          <text>"PET-CT"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_prior_baseline_melanoma">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="IE_DecisionRule_approve_pet_melanoma_ultimo"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_resultado_melanoma">
+          <text>"Aprovado"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_observacao_melanoma">
+          <text>"PET-CT aprovado para estadiamento/restaging de melanoma (estadio III-IV)"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_fundamentacao_melanoma">
+          <text>"Sensibilidade superior a TC para deteccao de metastases em melanoma; ACR appropriate"</text>
+        </outputEntry>
+        <outputEntry id="OE_melanoma_alertasDesperdicio">
+          <text>"NENHUM"</text>
+        </outputEntry>
+        <outputEntry id="OE_melanoma_acaoRecomendada">
+          <text>"APROVAR"</text>
+        </outputEntry>
+      </rule>
+      <rule id="DecisionRule_approve_pet_nsclc">
+        <description>Approve PET-CT for NSCLC staging</description>
+        <inputEntry id="InputEntry_tumor_type_nsclc">
+          <text>"lung_cancer","NSCLC"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_treatment_phase_nsclc">
+          <text>"staging","restaging","post_treatment"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_imaging_modality_nsclc">
+          <text>"PET-CT"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_prior_baseline_nsclc">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="IE_DecisionRule_approve_pet_nsclc_ultimo"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_resultado_nsclc">
+          <text>"Aprovado"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_observacao_nsclc">
+          <text>"PET-CT aprovado para estadiamento e avaliacao de resposta em CPNPC"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_fundamentacao_nsclc">
+          <text>"NCCN NSCLC: PET recomendado para estadiamento inicial e confirmacao de doenca limitada"</text>
+        </outputEntry>
+        <outputEntry id="OE_nsclc_alertasDesperdicio">
+          <text>"NENHUM"</text>
+        </outputEntry>
+        <outputEntry id="OE_nsclc_acaoRecomendada">
+          <text>"APROVAR"</text>
+        </outputEntry>
+      </rule>
+      <rule id="DecisionRule_approve_ct_solid">
+        <description>Approve CT for solid tumor surveillance</description>
+        <inputEntry id="InputEntry_tumor_type_solid">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_treatment_phase_solid">
+          <text>"surveillance","routine_followup","monitoring"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_imaging_modality_solid">
+          <text>"CT"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_prior_baseline_solid">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="IE_DecisionRule_approve_ct_solid_ultimo"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_resultado_solid">
+          <text>"Aprovado"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_observacao_solid">
+          <text>"TC de contraste aprovada para vigilancia oncologica padrao (RECIST 1.1)"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_fundamentacao_solid">
+          <text>"RECIST 1.1 e padrao para avaliacao de resposta em tumores solidos; TC com custo-efetividade"</text>
+        </outputEntry>
+        <outputEntry id="OE_solid_alertasDesperdicio">
+          <text>"NENHUM"</text>
+        </outputEntry>
+        <outputEntry id="OE_solid_acaoRecomendada">
+          <text>"APROVAR"</text>
+        </outputEntry>
+      </rule>
+      <rule id="DecisionRule_pending_no_baseline">
+        <description>Pending if baseline PET not available for lymphoma</description>
+        <inputEntry id="InputEntry_tumor_type_nobase">
+          <text>"lymphoma","hodgkin","NHL"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_treatment_phase_nobase">
+          <text>"interim","end_of_treatment"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_imaging_modality_nobase">
+          <text>"PET-CT"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_prior_baseline_nobase">
+          <text>false</text>
+        </inputEntry>
+        <inputEntry id="IE_DecisionRule_pending_no_baseline_ultimo"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_resultado_nobase">
+          <text>"Pendente"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_observacao_nobase">
+          <text>"PET basal nao disponivel: Deauville nao aplicavel. Avaliar comparacao qualitativa"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_fundamentacao_nobase">
+          <text>"Deauville requer comparacao com mediastino/figado; sem baseline, avaliacao e limitada"</text>
+        </outputEntry>
+        <outputEntry id="OE_nobase_alertasDesperdicio">
+          <text>"DOC"</text>
+        </outputEntry>
+        <outputEntry id="OE_nobase_acaoRecomendada">
+          <text>"SOLICITAR_INFO"</text>
+        </outputEntry>
+      </rule>
+      <rule id="DecisionRule_fallback">
+        <description>Fallback rule for incomplete data</description>
+        <inputEntry id="InputEntry_tumor_type_fallback">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_treatment_phase_fallback">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_imaging_modality_fallback">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_prior_baseline_fallback">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="IE_DecisionRule_fallback_ultimo"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_resultado_fallback">
+          <text>"Pendente"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_observacao_fallback">
+          <text>"Dados insuficientes para definir modalidade de imagem apropriada"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_fundamentacao_fallback">
+          <text>"Necessario: tipo tumoral, fase do tratamento, modalidade solicitada"</text>
+        </outputEntry>
+        <outputEntry id="OE_fallback_alertasDesperdicio">
+          <text>"NENHUM"</text>
+        </outputEntry>
+        <outputEntry id="OE_fallback_acaoRecomendada">
+          <text>"SOLICITAR_INFO"</text>
+        </outputEntry>
+      </rule>
+    </decisionTable>
+  </decision>
+  <dmndi:DMNDI>
+    <dmndi:DMNDiagram>
+      <dmndi:DMNShape dmnElementRef="Decision_ONQ_IMG_002">
+        <dc:Bounds height="80" width="180" x="160" y="100" />
+      </dmndi:DMNShape>
+    </dmndi:DMNDiagram>
+  </dmndi:DMNDI>
+</definitions>

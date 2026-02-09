@@ -1,0 +1,355 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             xmlns:camunda="http://camunda.org/schema/1.0/dmn"
+             id="Definitions_40101045_LEAN"
+             name="Ecocardiograma Transesofagico - LEAN TIER-2 Anti-Desperdicio"
+             namespace="http://camunda.org/schema/1.0/dmn">
+
+  <!--
+    ===============================================================================
+    TUSS: 40101045
+    Procedimento: Ecocardiograma Transesofagico (ETE)
+    Versao: 1.0.0-LEAN-TIER2
+    Data: 2026-02-07
+    ===============================================================================
+
+    LEAN TIER-2 ANTI-DESPERDICIO:
+    Formato simplificado focado em deteccao de desperdicio
+    - 5 outputs: resultado, observacao, fundamentacao, alertasDesperdicio, acaoRecomendada
+    - Deteccao de desperdicios: DUP, FREQ, ESC, DOC, PROT
+
+    INDICACOES CLINICAS (DUT/ANS + ACC AUC 2024):
+    - Endocardite infecciosa suspeita (ETT inconclusivo)
+    - Trombo atrial esquerdo pre-cardioversao FA
+    - Avaliacao valvular pre/intra-operatoria
+    - Cardiopatia estrutural complexa
+    - AVC criptogenico (busca de fonte embolica)
+    - Avaliacao de proteses valvares
+
+    CONTRAINDICACOES:
+    - Estenose esofagica
+    - Varizes esofagicas de alto risco
+    - Cirurgia esofagica recente
+    - Tumor esofagico
+
+    REFERENCIAS TECNICAS:
+    ACC/AHA AUC 2024, ASE/EACVI TEE Guidelines 2024, SBC/DIC 2023
+
+    ===============================================================================
+  -->
+
+  <decision id="Decision_40101045_LEAN" name="Regra Clinica LEAN - Ecocardiograma Transesofagico">
+    <decisionTable id="DecisionTable_40101045_LEAN" hitPolicy="FIRST">
+
+      <!-- ========== INPUTS (7 - LEAN Clinical Assessment) ========== -->
+
+      <input id="Input_indicacaoClinica" label="Indicacao Clinica" camunda:inputVariable="indicacaoClinica">
+        <inputExpression id="InputExpression_indicacaoClinica" typeRef="string">
+          <text>indicacaoClinica</text>
+        </inputExpression>
+        <inputValues id="InputValues_indicacaoClinica">
+          <text>"EndocarditeSuspeita","TromboAEPreCV","AvaliacaoValvarPreOp","AvaliacaoIntraOperatoria","AVCCriptogenico","ProteseValvar","CardiopatiaComplexa","MonitorizacaoGuiadaIntervencao"</text>
+        </inputValues>
+      </input>
+
+      <input id="Input_classeIndicacao" label="Classe de Indicacao (ACC/AHA)" camunda:inputVariable="classeIndicacao">
+        <inputExpression id="InputExpression_classeIndicacao" typeRef="string">
+          <text>classeIndicacao</text>
+        </inputExpression>
+        <inputValues id="InputValues_classeIndicacao">
+          <text>"Classe I","Classe IIa","Classe IIb","Classe III"</text>
+        </inputValues>
+      </input>
+
+      <input id="Input_urgencia" label="Nivel de Urgencia" camunda:inputVariable="urgencia">
+        <inputExpression id="InputExpression_urgencia" typeRef="string">
+          <text>urgencia</text>
+        </inputExpression>
+        <inputValues id="InputValues_urgencia">
+          <text>"Emergencia","Urgencia","Eletivo"</text>
+        </inputValues>
+      </input>
+
+      <input id="Input_ettPrevioInconclusivo" label="ETT Previo Inconclusivo" camunda:inputVariable="ettPrevioInconclusivo">
+        <inputExpression id="InputExpression_ettPrevioInconclusivo" typeRef="boolean">
+          <text>ettPrevioInconclusivo</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_contraindicacaoEsofagica" label="Contraindicacao Esofagica" camunda:inputVariable="contraindicacaoEsofagica">
+        <inputExpression id="InputExpression_contraindicacaoEsofagica" typeRef="boolean">
+          <text>contraindicacaoEsofagica</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_anticoagulacaoAdequada" label="Anticoagulacao Adequada > 3 semanas" camunda:inputVariable="anticoagulacaoAdequada">
+        <inputExpression id="InputExpression_anticoagulacaoAdequada" typeRef="boolean">
+          <text>anticoagulacaoAdequada</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_ultimoProcedimentoDias" label="Dias desde ultimo ETE" camunda:inputVariable="ultimoProcedimentoDias">
+        <inputExpression id="InputExpression_ultimoProcedimentoDias" typeRef="integer">
+          <text>ultimoProcedimentoDias</text>
+        </inputExpression>
+      </input>
+
+      <!-- ========== OUTPUTS (5 - LEAN TIER-2) ========== -->
+
+      <output id="Output_resultado" label="Resultado" name="resultado" typeRef="string">
+        <outputValues id="OutputValues_resultado">
+          <text>"Aprovado","Reprovado","Pendente"</text>
+        </outputValues>
+      </output>
+
+      <output id="Output_observacao" label="Observacao Clinica" name="observacao" typeRef="string" />
+
+      <output id="Output_fundamentacao" label="Fundamentacao Tecnica" name="fundamentacao" typeRef="string" />
+
+      <output id="Output_alertasDesperdicio" label="Alertas de Desperdicio" name="alertasDesperdicio" typeRef="string">
+        <outputValues id="OutputValues_alertasDesperdicio">
+          <text>"NENHUM","DUP","FREQ","ESC","DOC","PROT","MULTI"</text>
+        </outputValues>
+      </output>
+
+      <output id="Output_acaoRecomendada" label="Acao Recomendada" name="acaoRecomendada" typeRef="string">
+        <outputValues id="OutputValues_acaoRecomendada">
+          <text>"APROVAR","NEGAR","SOLICITAR_INFO","AGUARDAR_PRAZO","SUGERIR_ALTERNATIVA"</text>
+        </outputValues>
+      </output>
+
+      <!-- ========== RULES - REPROVADOS (Waste Detection First) ========== -->
+
+      <rule id="Rule_DUP_ETE_Recente">
+        <description>DUP: ETE realizado nos ultimos 30 dias sem nova indicacao clinica</description>
+        <inputEntry id="InputEntry_DUP_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_DUP_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_DUP_3"><text>"Eletivo"</text></inputEntry>
+        <inputEntry id="InputEntry_DUP_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_DUP_5"><text>false</text></inputEntry>
+        <inputEntry id="InputEntry_DUP_6"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_DUP_7"><text>&lt; 30</text></inputEntry>
+        <outputEntry id="OE_DUP_resultado"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OE_DUP_observacao"><text>"ETE realizado ha menos de 30 dias - duplicidade detectada"</text></outputEntry>
+        <outputEntry id="OE_DUP_fundamentacao"><text>"ACC AUC 2024: ETE de repeticao em menos de 30 dias requer nova indicacao clinica documentada"</text></outputEntry>
+        <outputEntry id="OE_DUP_alertas"><text>"DUP"</text></outputEntry>
+        <outputEntry id="OE_DUP_acao"><text>"AGUARDAR_PRAZO"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Contraind_Esofagica">
+        <description>PROT: Contraindicacao esofagica absoluta ao ETE</description>
+        <inputEntry id="InputEntry_CE_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_CE_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_CE_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_CE_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_CE_5"><text>true</text></inputEntry>
+        <inputEntry id="InputEntry_CE_6"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_CE_7"><text>-</text></inputEntry>
+        <outputEntry id="OE_CE_resultado"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OE_CE_observacao"><text>"Contraindicacao esofagica absoluta - ETE nao pode ser realizado"</text></outputEntry>
+        <outputEntry id="OE_CE_fundamentacao"><text>"ASE/EACVI TEE 2024: Estenose, varizes ou tumor esofagico sao contraindicacoes absolutas"</text></outputEntry>
+        <outputEntry id="OE_CE_alertas"><text>"PROT"</text></outputEntry>
+        <outputEntry id="OE_CE_acao"><text>"SUGERIR_ALTERNATIVA"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Contraind_ClasseIII">
+        <description>PROT: Classe III - Uso inapropriado conforme ACC AUC</description>
+        <inputEntry id="InputEntry_CIII_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_CIII_2"><text>"Classe III"</text></inputEntry>
+        <inputEntry id="InputEntry_CIII_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_CIII_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_CIII_5"><text>false</text></inputEntry>
+        <inputEntry id="InputEntry_CIII_6"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_CIII_7"><text>-</text></inputEntry>
+        <outputEntry id="OE_CIII_resultado"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OE_CIII_observacao"><text>"Uso inapropriado de ETE - Classe III ACC AUC"</text></outputEntry>
+        <outputEntry id="OE_CIII_fundamentacao"><text>"ACC AUC 2024: Classe III indica uso inapropriado com risco maior que beneficio"</text></outputEntry>
+        <outputEntry id="OE_CIII_alertas"><text>"PROT"</text></outputEntry>
+        <outputEntry id="OE_CIII_acao"><text>"NEGAR"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_ESC_SemETTPrevio">
+        <description>ESC: ETE eletivo sem ETT previo - escalonamento inadequado</description>
+        <inputEntry id="InputEntry_ESC_1"><text>"EndocarditeSuspeita","AVCCriptogenico","CardiopatiaComplexa"</text></inputEntry>
+        <inputEntry id="InputEntry_ESC_2"><text>"Classe I","Classe IIa"</text></inputEntry>
+        <inputEntry id="InputEntry_ESC_3"><text>"Eletivo"</text></inputEntry>
+        <inputEntry id="InputEntry_ESC_4"><text>false</text></inputEntry>
+        <inputEntry id="InputEntry_ESC_5"><text>false</text></inputEntry>
+        <inputEntry id="InputEntry_ESC_6"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_ESC_7"><text>-</text></inputEntry>
+        <outputEntry id="OE_ESC_resultado"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OE_ESC_observacao"><text>"ETT deve ser realizado antes do ETE em casos eletivos"</text></outputEntry>
+        <outputEntry id="OE_ESC_fundamentacao"><text>"ACC AUC 2024: ETT e exame de primeira linha; ETE reservado para ETT inconclusivo"</text></outputEntry>
+        <outputEntry id="OE_ESC_alertas"><text>"ESC"</text></outputEntry>
+        <outputEntry id="OE_ESC_acao"><text>"SUGERIR_ALTERNATIVA"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_PROT_FA_Anticoagulado">
+        <description>PROT: FA com anticoagulacao adequada - ETE dispensavel</description>
+        <inputEntry id="InputEntry_PROT_FA_1"><text>"TromboAEPreCV"</text></inputEntry>
+        <inputEntry id="InputEntry_PROT_FA_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_PROT_FA_3"><text>"Eletivo"</text></inputEntry>
+        <inputEntry id="InputEntry_PROT_FA_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_PROT_FA_5"><text>false</text></inputEntry>
+        <inputEntry id="InputEntry_PROT_FA_6"><text>true</text></inputEntry>
+        <inputEntry id="InputEntry_PROT_FA_7"><text>-</text></inputEntry>
+        <outputEntry id="OE_PROT_FA_resultado"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OE_PROT_FA_observacao"><text>"Anticoagulacao adequada por 3+ semanas dispensa ETE pre-CV"</text></outputEntry>
+        <outputEntry id="OE_PROT_FA_fundamentacao"><text>"ESC AF 2024: Com anticoagulacao efetiva por 3+ semanas, CV pode ser realizada sem ETE"</text></outputEntry>
+        <outputEntry id="OE_PROT_FA_alertas"><text>"PROT"</text></outputEntry>
+        <outputEntry id="OE_PROT_FA_acao"><text>"NEGAR"</text></outputEntry>
+      </rule>
+
+      <!-- ========== RULES - APROVADOS ========== -->
+
+      <rule id="Rule_Aprovado_Endocardite">
+        <description>Aprovado: Endocardite suspeita com ETT inconclusivo</description>
+        <inputEntry id="InputEntry_Endo_1"><text>"EndocarditeSuspeita"</text></inputEntry>
+        <inputEntry id="InputEntry_Endo_2"><text>"Classe I"</text></inputEntry>
+        <inputEntry id="InputEntry_Endo_3"><text>"Urgencia","Emergencia"</text></inputEntry>
+        <inputEntry id="InputEntry_Endo_4"><text>true</text></inputEntry>
+        <inputEntry id="InputEntry_Endo_5"><text>false</text></inputEntry>
+        <inputEntry id="InputEntry_Endo_6"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Endo_7"><text>-</text></inputEntry>
+        <outputEntry id="OE_Endo_resultado"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OE_Endo_observacao"><text>"Endocardite infecciosa suspeita com ETT inconclusivo - ETE essencial"</text></outputEntry>
+        <outputEntry id="OE_Endo_fundamentacao"><text>"ACC AUC 2024, ESC IE 2023: ETE e obrigatorio quando ETT inconclusivo em suspeita de endocardite"</text></outputEntry>
+        <outputEntry id="OE_Endo_alertas"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_Endo_acao"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Aprovado_TromboPreCV">
+        <description>Aprovado: Pesquisa trombo AE pre-CV sem anticoagulacao</description>
+        <inputEntry id="InputEntry_Trombo_1"><text>"TromboAEPreCV"</text></inputEntry>
+        <inputEntry id="InputEntry_Trombo_2"><text>"Classe I"</text></inputEntry>
+        <inputEntry id="InputEntry_Trombo_3"><text>"Urgencia","Eletivo"</text></inputEntry>
+        <inputEntry id="InputEntry_Trombo_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Trombo_5"><text>false</text></inputEntry>
+        <inputEntry id="InputEntry_Trombo_6"><text>false</text></inputEntry>
+        <inputEntry id="InputEntry_Trombo_7"><text>-</text></inputEntry>
+        <outputEntry id="OE_Trombo_resultado"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OE_Trombo_observacao"><text>"FA sem anticoagulacao adequada - ETE obrigatorio antes de CV"</text></outputEntry>
+        <outputEntry id="OE_Trombo_fundamentacao"><text>"ACC AUC 2024, ESC AF 2024: ETE obrigatorio pre-CV em FA sem anticoagulacao efetiva"</text></outputEntry>
+        <outputEntry id="OE_Trombo_alertas"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_Trombo_acao"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Aprovado_IntraOp">
+        <description>Aprovado: Monitorizacao intra-operatoria cardiaca</description>
+        <inputEntry id="InputEntry_IntraOp_1"><text>"AvaliacaoIntraOperatoria","MonitorizacaoGuiadaIntervencao"</text></inputEntry>
+        <inputEntry id="InputEntry_IntraOp_2"><text>"Classe I","Classe IIa"</text></inputEntry>
+        <inputEntry id="InputEntry_IntraOp_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_IntraOp_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_IntraOp_5"><text>false</text></inputEntry>
+        <inputEntry id="InputEntry_IntraOp_6"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_IntraOp_7"><text>-</text></inputEntry>
+        <outputEntry id="OE_IntraOp_resultado"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OE_IntraOp_observacao"><text>"Monitorizacao intra-operatoria - ETE indicado"</text></outputEntry>
+        <outputEntry id="OE_IntraOp_fundamentacao"><text>"ASE/SCA 2024: ETE intra-operatorio padrao em cirurgias cardiacas e intervencoes estruturais"</text></outputEntry>
+        <outputEntry id="OE_IntraOp_alertas"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_IntraOp_acao"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Aprovado_AVC">
+        <description>Aprovado: AVC criptogenico - busca de fonte embolica</description>
+        <inputEntry id="InputEntry_AVC_1"><text>"AVCCriptogenico"</text></inputEntry>
+        <inputEntry id="InputEntry_AVC_2"><text>"Classe I","Classe IIa"</text></inputEntry>
+        <inputEntry id="InputEntry_AVC_3"><text>"Urgencia","Eletivo"</text></inputEntry>
+        <inputEntry id="InputEntry_AVC_4"><text>true</text></inputEntry>
+        <inputEntry id="InputEntry_AVC_5"><text>false</text></inputEntry>
+        <inputEntry id="InputEntry_AVC_6"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_AVC_7"><text>-</text></inputEntry>
+        <outputEntry id="OE_AVC_resultado"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OE_AVC_observacao"><text>"AVC criptogenico com ETT inconclusivo - ETE para busca de FOP/fonte embolica"</text></outputEntry>
+        <outputEntry id="OE_AVC_fundamentacao"><text>"ACC AUC 2024, AHA Stroke 2024: ETE indicado para investigacao de fonte embolica em AVC criptogenico"</text></outputEntry>
+        <outputEntry id="OE_AVC_alertas"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_AVC_acao"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Aprovado_PreOp">
+        <description>Aprovado: Avaliacao valvular pre-operatoria</description>
+        <inputEntry id="InputEntry_PreOp_1"><text>"AvaliacaoValvarPreOp"</text></inputEntry>
+        <inputEntry id="InputEntry_PreOp_2"><text>"Classe I","Classe IIa"</text></inputEntry>
+        <inputEntry id="InputEntry_PreOp_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_PreOp_4"><text>true</text></inputEntry>
+        <inputEntry id="InputEntry_PreOp_5"><text>false</text></inputEntry>
+        <inputEntry id="InputEntry_PreOp_6"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_PreOp_7"><text>-</text></inputEntry>
+        <outputEntry id="OE_PreOp_resultado"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OE_PreOp_observacao"><text>"Avaliacao valvular pre-operatoria com ETT inconclusivo"</text></outputEntry>
+        <outputEntry id="OE_PreOp_fundamentacao"><text>"ACC/AHA Valvular 2024: ETE recomendado pre-operatorio quando ETT nao define anatomia valvar"</text></outputEntry>
+        <outputEntry id="OE_PreOp_alertas"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_PreOp_acao"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Aprovado_Protese">
+        <description>Aprovado: Avaliacao de protese valvar com suspeita de disfuncao</description>
+        <inputEntry id="InputEntry_Protese_1"><text>"ProteseValvar"</text></inputEntry>
+        <inputEntry id="InputEntry_Protese_2"><text>"Classe I","Classe IIa"</text></inputEntry>
+        <inputEntry id="InputEntry_Protese_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Protese_4"><text>true</text></inputEntry>
+        <inputEntry id="InputEntry_Protese_5"><text>false</text></inputEntry>
+        <inputEntry id="InputEntry_Protese_6"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Protese_7"><text>-</text></inputEntry>
+        <outputEntry id="OE_Protese_resultado"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OE_Protese_observacao"><text>"Avaliacao de protese valvar - ETE superior ao ETT para proteses"</text></outputEntry>
+        <outputEntry id="OE_Protese_fundamentacao"><text>"ASE/EACVI 2024: ETE e padrao-ouro para avaliacao de proteses valvares e deteccao de complicacoes"</text></outputEntry>
+        <outputEntry id="OE_Protese_alertas"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_Protese_acao"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <!-- ========== RULES - PENDENTES ========== -->
+
+      <rule id="Rule_Pendente_ClasseIIb">
+        <description>Pendente: Classe IIb - requer analise adicional</description>
+        <inputEntry id="InputEntry_IIb_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_IIb_2"><text>"Classe IIb"</text></inputEntry>
+        <inputEntry id="InputEntry_IIb_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_IIb_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_IIb_5"><text>false</text></inputEntry>
+        <inputEntry id="InputEntry_IIb_6"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_IIb_7"><text>-</text></inputEntry>
+        <outputEntry id="OE_IIb_resultado"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OE_IIb_observacao"><text>"Classe IIb - indicacao incerta, requer justificativa adicional"</text></outputEntry>
+        <outputEntry id="OE_IIb_fundamentacao"><text>"ACC AUC 2024: Classe IIb indica beneficio incerto - documentacao adicional necessaria"</text></outputEntry>
+        <outputEntry id="OE_IIb_alertas"><text>"DOC"</text></outputEntry>
+        <outputEntry id="OE_IIb_acao"><text>"SOLICITAR_INFO"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Pendente_Cardiopatia">
+        <description>Pendente: Cardiopatia complexa sem ETT inconclusivo documentado</description>
+        <inputEntry id="InputEntry_Cardio_1"><text>"CardiopatiaComplexa"</text></inputEntry>
+        <inputEntry id="InputEntry_Cardio_2"><text>"Classe I","Classe IIa"</text></inputEntry>
+        <inputEntry id="InputEntry_Cardio_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Cardio_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Cardio_5"><text>false</text></inputEntry>
+        <inputEntry id="InputEntry_Cardio_6"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Cardio_7"><text>-</text></inputEntry>
+        <outputEntry id="OE_Cardio_resultado"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OE_Cardio_observacao"><text>"Cardiopatia complexa - verificar se ETT foi inconclusivo"</text></outputEntry>
+        <outputEntry id="OE_Cardio_fundamentacao"><text>"ACC AUC 2024: ETT deve preceder ETE exceto em indicacoes especificas"</text></outputEntry>
+        <outputEntry id="OE_Cardio_alertas"><text>"DOC"</text></outputEntry>
+        <outputEntry id="OE_Cardio_acao"><text>"SOLICITAR_INFO"</text></outputEntry>
+      </rule>
+
+      <!-- ========== FALLBACK RULE ========== -->
+
+      <rule id="Rule_Fallback">
+        <description>Fallback: Caso nao coberto pelas regras anteriores</description>
+        <inputEntry id="InputEntry_FB_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_FB_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_FB_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_FB_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_FB_5"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_FB_6"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_FB_7"><text>-</text></inputEntry>
+        <outputEntry id="OE_FB_resultado"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OE_FB_observacao"><text>"Caso requer analise clinica adicional para ETE"</text></outputEntry>
+        <outputEntry id="OE_FB_fundamentacao"><text>"ACC AUC 2024: Avaliacao individualizada necessaria para casos nao cobertos pelas diretrizes"</text></outputEntry>
+        <outputEntry id="OE_FB_alertas"><text>"DOC"</text></outputEntry>
+        <outputEntry id="OE_FB_acao"><text>"SOLICITAR_INFO"</text></outputEntry>
+      </rule>
+
+    </decisionTable>
+  </decision>
+</definitions>

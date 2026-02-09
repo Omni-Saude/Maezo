@@ -1,0 +1,231 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Versao: 3.1.0-LEAN-TIER2 (2026-02-08) -->
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/" xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/" xmlns:dc="http://www.omg.org/spec/DMN/20180521/DC/" xmlns:modeler="http://camunda.org/schema/modeler/1.0" id="Definitions_ONQ_BIO_011" name="DRD" namespace="http://camunda.org/schema/1.0/dmn" exporter="Camunda Modeler" exporterVersion="5.14.0" modeler:executionPlatform="Camunda Cloud" modeler:executionPlatformVersion="8.2.0">
+  <decision id="Decision_ONQ_BIO_011" name="ONQ-BIO-011: ROS1 Testing [LEAN TIER-2]">
+    <decisionTable id="DecisionTable_ONQ_BIO_011" hitPolicy="FIRST">
+      <input id="Input_tumor_type" label="Tumor Type">
+        <inputExpression id="InputExpression_tumor_type" typeRef="string">
+          <text>tumorType</text>
+        </inputExpression>
+      </input>
+      <input id="Input_egfr_alk_status" label="EGFR/ALK Status">
+        <inputExpression id="InputExpression_egfr_alk_status" typeRef="string">
+          <text>egfrAlkStatus</text>
+        </inputExpression>
+      </input>
+      <input id="Input_histology" label="Histology">
+        <inputExpression id="InputExpression_histology" typeRef="string">
+          <text>histology</text>
+        </inputExpression>
+      </input>
+      <!-- Input: Dias desde ultimo procedimento (DUP detection) -->
+      <input id="Input_ultimoProcedimentoDias" label="Dias Desde Ultimo Procedimento">
+        <inputExpression id="InputExpression_ultimoProcedimentoDias" typeRef="number">
+          <text>ultimoProcedimentoDias</text>
+        </inputExpression>
+      </input>
+
+      <output id="Output_resultado" label="Resultado" name="resultado" typeRef="string">
+        <outputValues id="UnaryTests_resultado">
+          <text>"Aprovado","Reprovado","Pendente"</text>
+        </outputValues>
+      </output>
+      <output id="Output_observacao" label="Observação" name="observacao" typeRef="string" />
+      <output id="Output_fundamentacao" label="Fundamentação" name="fundamentacao" typeRef="string" />
+      <output id="Output_alertasDesperdicio" label="Alertas de Desperdicio" name="alertasDesperdicio" typeRef="string">
+        <outputValues id="OutputValues_alertasDesperdicio">
+          <text>"NENHUM","DUP","FREQ","ESC","DOC","PROT","MULTI"</text>
+        </outputValues>
+      </output>
+      <output id="Output_acaoRecomendada" label="Acao Recomendada" name="acaoRecomendada" typeRef="string">
+        <outputValues id="OutputValues_acaoRecomendada">
+          <text>"APROVAR","NEGAR","SOLICITAR_INFO","AGUARDAR_PRAZO","SUGERIR_ALTERNATIVA"</text>
+        </outputValues>
+      </output>
+      <rule id="DecisionRule_reject_non_nsclc">
+        <inputEntry id="InputEntry_tumor_type_reject">
+          <text>not("NSCLC")</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_egfr_alk_status_reject">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_histology_reject">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="IE_DecisionRule_reject_non_nsclc_ultimo"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_resultado_reject">
+          <text>"Reprovado"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_observacao_reject">
+          <text>"Teste ROS1 indicado apenas para NSCLC conforme diretrizes ASCO/IASLC"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_fundamentacao_reject">
+          <text>"Fusoes ROS1 encontradas em 1-2% de NSCLC; rara em outros tipos de tumor conforme ASCO 2024"</text>
+        </outputEntry>
+        <outputEntry id="OE_reject_alertasDesperdicio">
+          <text>"PROT"</text>
+        </outputEntry>
+        <outputEntry id="OE_reject_acaoRecomendada">
+          <text>"NEGAR"</text>
+        </outputEntry>
+      </rule>
+
+      <!-- WASTE DETECTION: DUP -->
+      <rule id="Rule_40501305_DUP">
+        <description>DUP - Reteste ROS1 em menos de 90 dias</description>
+        <inputEntry id="IE_DUP_40501305_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_DUP_40501305_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_DUP_40501305_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_DUP_40501305_ultimo"><text>&lt; 90</text></inputEntry>
+        <outputEntry id="OE_DUP_40501305_resultado"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OE_DUP_40501305_observacao"><text>"Reteste ROS1 em menos de 90 dias"</text></outputEntry>
+        <outputEntry id="OE_DUP_40501305_fundamentacao"><text>"NCCN 2024: ROS1 resultado permanente, reteste se novo primario"</text></outputEntry>
+        <outputEntry id="OE_DUP_40501305_alertasDesperdicio"><text>"DUP"</text></outputEntry>
+        <outputEntry id="OE_DUP_40501305_acaoRecomendada"><text>"AGUARDAR_PRAZO"</text></outputEntry>
+      </rule>
+
+      <rule id="DecisionRule_approve_nsclc">
+        <inputEntry id="InputEntry_tumor_type_nsclc">
+          <text>"NSCLC"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_egfr_alk_status_nsclc">
+          <text>"negative"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_histology_nsclc">
+          <text>"adenocarcinoma"</text>
+        </inputEntry>
+        <inputEntry id="IE_DecisionRule_approve_nsclc_ultimo"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_resultado_nsclc">
+          <text>"Aprovado"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_observacao_nsclc">
+          <text>"Teste ROS1 FISH/NGS aprovado para adenocarcinoma negativo para EGFR/ALK (taxa de fusao 1-2%)"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_fundamentacao_nsclc">
+          <text>"Crizotinib aprovado pela FDA para NSCLC ROS1+; ORR de 72% conforme estudo PROFILE 1001 2024"</text>
+        </outputEntry>
+        <outputEntry id="OE_nsclc_alertasDesperdicio">
+          <text>"NENHUM"</text>
+        </outputEntry>
+        <outputEntry id="OE_nsclc_acaoRecomendada">
+          <text>"APROVAR"</text>
+        </outputEntry>
+      </rule>
+      <rule id="DecisionRule_approve_never_smoker">
+        <inputEntry id="InputEntry_tumor_type_never_smoker">
+          <text>"NSCLC"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_egfr_alk_status_never_smoker">
+          <text>"negative"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_histology_never_smoker">
+          <text>"adenocarcinoma_never_smoker"</text>
+        </inputEntry>
+        <inputEntry id="IE_DecisionRule_approve_never_smoker_ultimo"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_resultado_never_smoker">
+          <text>"Aprovado"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_observacao_never_smoker">
+          <text>"Teste ROS1 prioritario para adenocarcinoma em nao-fumantes (populacao enriquecida)"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_fundamentacao_never_smoker">
+          <text>"Fusoes ROS1 mais comuns em pacientes mais jovens e nao-fumantes conforme criterios de enriquecimento NCCN 2024"</text>
+        </outputEntry>
+        <outputEntry id="OE_never_smoker_alertasDesperdicio">
+          <text>"NENHUM"</text>
+        </outputEntry>
+        <outputEntry id="OE_never_smoker_acaoRecomendada">
+          <text>"APROVAR"</text>
+        </outputEntry>
+      </rule>
+      <rule id="DecisionRule_pending_no_cascade">
+        <inputEntry id="InputEntry_tumor_type_pending">
+          <text>"NSCLC"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_egfr_alk_status_pending">
+          <text>not("negative")</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_histology_pending">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="IE_DecisionRule_pending_no_cascade_ultimo"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_resultado_pending">
+          <text>"Pendente"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_observacao_pending">
+          <text>"Teste EGFR/ALK requerido primeiro conforme cascata molecular (alteracoes mutuamente exclusivas)"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_fundamentacao_pending">
+          <text>"Teste sequencial vs NGS upfront depende de protocolo institucional conforme diretrizes CAP 2024"</text>
+        </outputEntry>
+        <outputEntry id="OE_pending_alertasDesperdicio">
+          <text>"DOC"</text>
+        </outputEntry>
+        <outputEntry id="OE_pending_acaoRecomendada">
+          <text>"SOLICITAR_INFO"</text>
+        </outputEntry>
+      </rule>
+      <rule id="DecisionRule_pending_squamous">
+        <inputEntry id="InputEntry_tumor_type_squamous">
+          <text>"NSCLC"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_egfr_alk_status_squamous">
+          <text>"negative"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_histology_squamous">
+          <text>"squamous"</text>
+        </inputEntry>
+        <inputEntry id="IE_DecisionRule_pending_squamous_ultimo"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_resultado_squamous">
+          <text>"Pendente"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_observacao_squamous">
+          <text>"Teste ROS1 com baixo rendimento em NSCLC escamoso (&lt;0.5%); considerar apenas se nao-fumante"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_fundamentacao_squamous">
+          <text>"Painel NGS pode capturar ROS1 como parte da analise mais ampla conforme teste discricionario NCCN 2024"</text>
+        </outputEntry>
+        <outputEntry id="OE_squamous_alertasDesperdicio">
+          <text>"NENHUM"</text>
+        </outputEntry>
+        <outputEntry id="OE_squamous_acaoRecomendada">
+          <text>"SOLICITAR_INFO"</text>
+        </outputEntry>
+      </rule>
+      <rule id="DecisionRule_fallback">
+        <inputEntry id="InputEntry_tumor_type_fallback">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_egfr_alk_status_fallback">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_histology_fallback">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="IE_DecisionRule_fallback_ultimo"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_resultado_fallback">
+          <text>"Pendente"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_observacao_fallback">
+          <text>"Dados insuficientes. Tipo de tumor, histologia e teste molecular previo requeridos"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_fundamentacao_fallback">
+          <text>"Revisao por comite molecular de tumores para sequencia apropriada de testes conforme NCCN 2024"</text>
+        </outputEntry>
+        <outputEntry id="OE_fallback_alertasDesperdicio">
+          <text>"NENHUM"</text>
+        </outputEntry>
+        <outputEntry id="OE_fallback_acaoRecomendada">
+          <text>"SOLICITAR_INFO"</text>
+        </outputEntry>
+      </rule>
+    </decisionTable>
+  </decision>
+  <dmndi:DMNDI>
+    <dmndi:DMNDiagram>
+      <dmndi:DMNShape dmnElementRef="Decision_ONQ_BIO_011">
+        <dc:Bounds height="80" width="180" x="160" y="100" />
+      </dmndi:DMNShape>
+    </dmndi:DMNDiagram>
+  </dmndi:DMNDI>
+</definitions>

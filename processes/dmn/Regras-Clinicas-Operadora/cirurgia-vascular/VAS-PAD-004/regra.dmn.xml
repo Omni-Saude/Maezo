@@ -1,0 +1,244 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/"
+             xmlns:dc="http://www.omg.org/spec/DD/20100524/DC/"
+             xmlns:di="http://www.omg.org/spec/DD/20100524/DI/"
+             id="Definitions_VAS_PAD_004"
+             name="Amputacao de Membro - Criterios para Membro Nao-Salvavel"
+             namespace="http://camunda.org/schema/1.0/dmn"
+             exporter="Camunda Modeler"
+             exporterVersion="5.0.0">
+  <!--
+    VAS-PAD-004 - Amputacao de Membro - Criterios para Membro Nao-Salvavel
+    Versao: 1.0.0 (2026-02-07)
+    Especialidade: Cirurgia Vascular
+    Categoria: Doenca Arterial Periferica
+    TUSS Relacionados: 30907150, 30907168, 30907176
+
+    Indicacoes de Amputacao Primaria:
+    - Gangrena extensa irreversivel (alem do metatarso)
+    - Infeccao nao controlavel com risco de vida (sepse)
+    - Dor intratavel sem possibilidade de revascularizacao
+    - Revascularizacao tecnicamente impossivel
+    - Comorbidades que tornam revascularizacao futilidade
+
+    Nivel de Amputacao:
+    - Menor (digital, transmetatarsal): quando viavel
+    - Transtibial (abaixo do joelho): preferido para reabilitacao
+    - Transfemoral (acima do joelho): quando cicatrizacao transtibial improvavel
+
+    Criterios para Definir Nivel:
+    - TcPO2 maior 30mmHg no nivel proposto
+    - Pressao absoluta maior 40mmHg
+    - Ausencia de infeccao ativa no nivel
+    - Potencial de reabilitacao do paciente
+
+    Referencias Normativas:
+    - GVG CLTI Guidelines 2019
+    - WIfI Classification
+    - ACC/AHA PAD 2016
+    - DUT ANS 2024
+  -->
+
+  <decision id="Decision_VAS_PAD_004" name="Criterios de Amputacao - Membro Nao-Salvavel">
+    <decisionTable id="DecisionTable_VAS_PAD_004" hitPolicy="FIRST">
+
+      <!-- Input 1: Extensao da Gangrena/Lesao -->
+      <input id="Input_extensao" label="Extensao da Gangrena/Lesao Tecidual">
+        <inputExpression id="InputExpr_extensao" typeRef="string">
+          <text>extensaoLesao</text>
+        </inputExpression>
+        <inputValues id="InputValues_extensao">
+          <text>"Digital_Isolada","Antepe","Mesopc_Retro","Transtibial","Transfemoral"</text>
+        </inputValues>
+      </input>
+
+      <!-- Input 2: Status de Infeccao -->
+      <input id="Input_infeccao" label="Status de Infeccao">
+        <inputExpression id="InputExpr_infeccao" typeRef="string">
+          <text>statusInfeccao</text>
+        </inputExpression>
+        <inputValues id="InputValues_infeccao">
+          <text>"Sem_Infeccao","Localizada_Controlada","Extensa_Controlavel","Sepse","Sepse_Choque"</text>
+        </inputValues>
+      </input>
+
+      <!-- Input 3: Viabilidade de Revascularizacao -->
+      <input id="Input_revascularizacao" label="Possibilidade de Revascularizacao">
+        <inputExpression id="InputExpr_revascularizacao" typeRef="string">
+          <text>viabilidadeRevasc</text>
+        </inputExpression>
+        <inputValues id="InputValues_revascularizacao">
+          <text>"Viavel","Tentada_Falhou","Tecnicamente_Inviavel","Nao_Avaliada"</text>
+        </inputValues>
+      </input>
+
+      <!-- Input 4: Potencial de Cicatrizacao -->
+      <input id="Input_cicatrizacao" label="TcPO2/Pressao no Nivel Proposto">
+        <inputExpression id="InputExpr_cicatrizacao" typeRef="string">
+          <text>potencialCicatrizacao</text>
+        </inputExpression>
+        <inputValues id="InputValues_cicatrizacao">
+          <text>"Adequado_TcPO2_Maior30","Limtrofe","Inadequado","Nao_Avaliado"</text>
+        </inputValues>
+      </input>
+
+      <!-- Input 5: Documentacao -->
+      <input id="Input_documentacao" label="Avaliacao Vascular e Clinica Documentada">
+        <inputExpression id="InputExpr_documentacao" typeRef="boolean">
+          <text>documentacaoCompleta</text>
+        </inputExpression>
+      </input>
+
+      <!-- Outputs -->
+      <output id="Output_resultado" label="Resultado" name="resultado" typeRef="string">
+        <outputValues id="OutputValues_resultado">
+          <text>"Aprovado","Reprovado","Pendente"</text>
+        </outputValues>
+      </output>
+      <output id="Output_observacao" label="Observacao Clinica" name="observacao" typeRef="string" />
+      <output id="Output_fundamentacao" label="Fundamentacao Legal/Tecnica" name="fundamentacao" typeRef="string" />
+
+      <output id="Output_alertasDesperdicio" name="alertasDesperdicio" typeRef="string">
+        <outputValues>
+          <text>"NENHUM","DUP","FREQ","ESC","DOC","PROT","MULTI"</text>
+        </outputValues>
+      </output>
+
+      <output id="Output_acaoRecomendada" name="acaoRecomendada" typeRef="string">
+        <outputValues>
+          <text>"APROVAR","NEGAR","SOLICITAR_INFO","AGUARDAR_PRAZO","SUGERIR_ALTERNATIVA"</text>
+        </outputValues>
+      </output>
+
+      <!-- ============================================== -->
+      <!-- REGRAS DE REPROVACAO                          -->
+      <!-- ============================================== -->
+
+      <rule id="Rule_VAS_PAD_004_Reprovacao_SemTentarRevasc">
+        <description>Reprovacao - Revascularizacao nao tentada quando viavel</description>
+        <inputEntry id="IE_Rep1_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_Rep1_2"><text>"Sem_Infeccao","Localizada_Controlada"</text></inputEntry>
+        <inputEntry id="IE_Rep1_3"><text>"Viavel","Nao_Avaliada"</text></inputEntry>
+        <inputEntry id="IE_Rep1_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_Rep1_5"><text>-</text></inputEntry>
+        <outputEntry id="OE_Rep1_1"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OE_Rep1_2"><text>"Amputacao NAO aprovada - revascularizacao viavel ou nao avaliada com infeccao controlada - obrigatorio tentar salvamento de membro antes"</text></outputEntry>
+        <outputEntry id="OE_Rep1_3"><text>"GVG CLTI 2019 Classe III - Amputacao primaria contraindicada quando revascularizacao eh possivel"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_VAS_PAD_004_Reprovacao_SemDoc">
+        <description>Reprovacao - Documentacao incompleta</description>
+        <inputEntry id="IE_Rep2_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_Rep2_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_Rep2_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_Rep2_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_Rep2_5"><text>false</text></inputEntry>
+        <outputEntry id="OE_Rep2_1"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OE_Rep2_2"><text>"Documentacao vascular incompleta - avaliacao arterial, infeccao e potencial de cicatrizacao obrigatorios antes de indicar amputacao"</text></outputEntry>
+        <outputEntry id="OE_Rep2_3"><text>"RN 465/2021 - Documentacao minima obrigatoria"</text></outputEntry>
+      </rule>
+
+      <!-- ============================================== -->
+      <!-- REGRAS DE APROVACAO - EMERGENCIA              -->
+      <!-- ============================================== -->
+
+      <rule id="Rule_VAS_PAD_004_Aprovacao_Sepse">
+        <description>Aprovacao Emergencia - Sepse ou choque septico</description>
+        <inputEntry id="IE_Apr1_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_Apr1_2"><text>"Sepse","Sepse_Choque"</text></inputEntry>
+        <inputEntry id="IE_Apr1_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_Apr1_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_Apr1_5"><text>true</text></inputEntry>
+        <outputEntry id="OE_Apr1_1"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OE_Apr1_2"><text>"Amputacao EMERGENCIAL APROVADA - sepse ou choque septico secundario a infeccao de membro - controle de foco infeccioso prioritario sobre salvamento de membro"</text></outputEntry>
+        <outputEntry id="OE_Apr1_3"><text>"GVG CLTI 2019 Classe I - Amputacao de emergencia em sepse com foco em membro"</text></outputEntry>
+      </rule>
+
+      <!-- ============================================== -->
+      <!-- REGRAS DE APROVACAO - ELETIVA                 -->
+      <!-- ============================================== -->
+
+      <rule id="Rule_VAS_PAD_004_Aprovacao_FalhaRevasc">
+        <description>Aprovacao - Falha de revascularizacao previa</description>
+        <inputEntry id="IE_Apr2_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_Apr2_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_Apr2_3"><text>"Tentada_Falhou"</text></inputEntry>
+        <inputEntry id="IE_Apr2_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_Apr2_5"><text>true</text></inputEntry>
+        <outputEntry id="OE_Apr2_1"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OE_Apr2_2"><text>"Amputacao APROVADA - revascularizacao tentada e falhou - membro permanece isquemico sem opcao adicional de tratamento"</text></outputEntry>
+        <outputEntry id="OE_Apr2_3"><text>"GVG CLTI 2019 - Amputacao indicada apos falha de revascularizacao"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_VAS_PAD_004_Aprovacao_Inviavel">
+        <description>Aprovacao - Revascularizacao tecnicamente inviavel</description>
+        <inputEntry id="IE_Apr3_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_Apr3_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_Apr3_3"><text>"Tecnicamente_Inviavel"</text></inputEntry>
+        <inputEntry id="IE_Apr3_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_Apr3_5"><text>true</text></inputEntry>
+        <outputEntry id="OE_Apr3_1"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OE_Apr3_2"><text>"Amputacao APROVADA - revascularizacao tecnicamente inviavel (ausencia de runoff, anatomia hostil) - amputacao primaria indicada"</text></outputEntry>
+        <outputEntry id="OE_Apr3_3"><text>"GVG CLTI 2019 Classe I - Amputacao primaria quando revascularizacao impossivel"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_VAS_PAD_004_Aprovacao_GangrenaExtensa">
+        <description>Aprovacao - Gangrena extensa irreversivel</description>
+        <inputEntry id="IE_Apr4_1"><text>"Transtibial","Transfemoral"</text></inputEntry>
+        <inputEntry id="IE_Apr4_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_Apr4_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_Apr4_4"><text>"Adequado_TcPO2_Maior30"</text></inputEntry>
+        <inputEntry id="IE_Apr4_5"><text>true</text></inputEntry>
+        <outputEntry id="OE_Apr4_1"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OE_Apr4_2"><text>"Amputacao APROVADA - gangrena extensa com perda de tecido irreversivel - nivel de amputacao baseado em TcPO2 adequado para cicatrizacao"</text></outputEntry>
+        <outputEntry id="OE_Apr4_3"><text>"GVG CLTI 2019 - Nivel de amputacao guiado por potencial de cicatrizacao"</text></outputEntry>
+      </rule>
+
+      <!-- ============================================== -->
+      <!-- REGRAS DE PENDENCIA                           -->
+      <!-- ============================================== -->
+
+      <rule id="Rule_VAS_PAD_004_Pendente_Nivel">
+        <description>Pendente - Potencial de cicatrizacao nao avaliado</description>
+        <inputEntry id="IE_Pend1_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_Pend1_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_Pend1_3"><text>"Tecnicamente_Inviavel","Tentada_Falhou"</text></inputEntry>
+        <inputEntry id="IE_Pend1_4"><text>"Nao_Avaliado"</text></inputEntry>
+        <inputEntry id="IE_Pend1_5"><text>true</text></inputEntry>
+        <outputEntry id="OE_Pend1_1"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OE_Pend1_2"><text>"Amputacao indicada mas nivel nao definido - necessario TcPO2 ou pressao segmentar para determinar nivel de amputacao com maior chance de cicatrizacao"</text></outputEntry>
+        <outputEntry id="OE_Pend1_3"><text>"GVG CLTI 2019 - Avaliacao de nivel obrigatoria para otimizar resultado"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_VAS_PAD_004_Pendente_Limitrofe">
+        <description>Pendente - Potencial de cicatrizacao limtrofe</description>
+        <inputEntry id="IE_Pend2_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_Pend2_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_Pend2_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_Pend2_4"><text>"Limtrofe"</text></inputEntry>
+        <inputEntry id="IE_Pend2_5"><text>true</text></inputEntry>
+        <outputEntry id="OE_Pend2_1"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OE_Pend2_2"><text>"TcPO2 limtrofe no nivel proposto - discutir nivel de amputacao (mais proximal pode ter melhor cicatrizacao mas menor funcionalidade)"</text></outputEntry>
+        <outputEntry id="OE_Pend2_3"><text>"GVG CLTI 2019 - Decisao de nivel em casos limtrofes requer discussao multidisciplinar"</text></outputEntry>
+      </rule>
+
+      <!-- ============================================== -->
+      <!-- REGRA FALLBACK                                -->
+      <!-- ============================================== -->
+
+      <rule id="Rule_Fallback_VAS_PAD_004">
+        <description>Fallback - Casos nao cobertos requerem analise manual</description>
+        <inputEntry id="IE_Fallback_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_Fallback_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_Fallback_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_Fallback_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_Fallback_5"><text>-</text></inputEntry>
+        <outputEntry id="OE_Fallback_1"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OE_Fallback_2"><text>"Caso requer analise por junta multidisciplinar (vascular, infecto, reabilitacao)"</text></outputEntry>
+        <outputEntry id="OE_Fallback_3"><text>"Auditoria especializada conforme RN 428/2017"</text></outputEntry>
+      </rule>
+
+    </decisionTable>
+  </decision>
+</definitions>

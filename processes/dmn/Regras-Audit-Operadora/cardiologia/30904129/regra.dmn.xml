@@ -1,0 +1,309 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             xmlns:camunda="http://camunda.org/schema/1.0/dmn"
+             id="Definitions_30904129"
+             name="Implante Transcateter de Valvula Aortica (TAVI)"
+             namespace="http://camunda.org/schema/1.0/dmn">
+
+  <!--
+    ===============================================================================
+    TUSS: 30904129
+    Procedimento: Implante Transcateter de Valvula Aortica (TAVI/TAVR)
+    Versao: 1.0.0-LEAN-TIER2
+    Data: 2026-02-07
+    ===============================================================================
+
+    INDICACOES CLINICAS (ACC/AHA/SCAI 2024):
+    - EAo severa sintomatica em alto risco cirurgico (Classe I)
+    - EAo severa sintomatica em risco intermediario (Classe I)
+    - EAo severa sintomatica em baixo risco com anatomia favoravel (Classe IIa)
+    - EAo severa assintomatica com FEVE menor 50% (Classe IIa)
+    - EAo severa assintomatica com teste ergometrico anormal (Classe IIa)
+
+    CONTRAINDICACOES:
+    - Expectativa de vida menor 1 ano por comorbidades
+    - Anatomia desfavoravel (anuloaortico, acesso vascular)
+    - Endocardite ativa
+    - FEVE menor 20% sem perspectiva de recuperacao
+    - Classe III: EAo moderada, EAo leve
+
+    REFERENCIAS TECNICAS:
+    - ACC/AHA 2024 Valvular Heart Disease Guidelines
+    - ESC/EACTS 2024 Valvular Heart Disease Guidelines
+    - SCAI/ACC/AATS TAVI Position Statement 2024
+    - SBC 2023 Diretrizes Valvopatias
+
+    ALERTAS DE DESPERDICIO (LEAN TIER-2):
+    - DUP: Duplicidade - TAVI ja realizado ou em planejamento
+    - FREQ: Frequencia excessiva - avaliacoes repetidas sem indicacao
+    - ESC: Escalonamento indevido - TAVI sem avaliar SAVR quando indicado
+    - DOC: Documentacao insuficiente - sem Heart Team, AngioTC, STS Score
+    - PROT: Protocolo inadequado - EAo nao severa ou Classe III
+    - MULTI: Multiplos alertas combinados
+
+    ===============================================================================
+  -->
+
+  <decision id="Decision_30904129" name="Regra Clinica - TAVI">
+    <decisionTable id="DecisionTable_30904129" hitPolicy="FIRST">
+
+      <!-- ========== INPUTS (6 - Padrao LEAN TIER-2) ========== -->
+
+      <input id="Input_gravidadeEAo" label="Gravidade da Estenose Aortica" camunda:inputVariable="gravidadeEAo">
+        <inputExpression id="InputExpression_gravidadeEAo" typeRef="string">
+          <text>gravidadeEAo</text>
+        </inputExpression>
+        <inputValues id="InputValues_gravidadeEAo">
+          <text>"Severa","ModeradaSevera","Moderada","Leve","BaixoFluxoBaixoGradiente"</text>
+        </inputValues>
+      </input>
+
+      <input id="Input_historicoClinico" label="Historico Clinico" camunda:inputVariable="historicoClinico">
+        <inputExpression id="InputExpression_historicoClinico" typeRef="string">
+          <text>historicoClinico</text>
+        </inputExpression>
+        <inputValues id="InputValues_historicoClinico">
+          <text>"Adequado","Incompleto","NaoDocumentado"</text>
+        </inputValues>
+      </input>
+
+      <input id="Input_classeIndicacao" label="Classe de Indicacao (ACC/AHA)" camunda:inputVariable="classeIndicacao">
+        <inputExpression id="InputExpression_classeIndicacao" typeRef="string">
+          <text>classeIndicacao</text>
+        </inputExpression>
+        <inputValues id="InputValues_classeIndicacao">
+          <text>"Classe I","Classe IIa","Classe IIb","Classe III"</text>
+        </inputValues>
+      </input>
+
+      <input id="Input_riscoCirurgico" label="Risco Cirurgico (STS/EuroSCORE)" camunda:inputVariable="riscoCirurgico">
+        <inputExpression id="InputExpression_riscoCirurgico" typeRef="string">
+          <text>riscoCirurgico</text>
+        </inputExpression>
+        <inputValues id="InputValues_riscoCirurgico">
+          <text>"Proibitivo","Alto","Intermediario","Baixo","NaoCalculado"</text>
+        </inputValues>
+      </input>
+
+      <input id="Input_ultimoProcedimentoDias" label="Dias desde Ultima Avaliacao/Procedimento" camunda:inputVariable="ultimoProcedimentoDias">
+        <inputExpression id="InputExpression_ultimoProcedimentoDias" typeRef="integer">
+          <text>ultimoProcedimentoDias</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_heartTeamDocumentado" label="Heart Team Documentado" camunda:inputVariable="heartTeamDocumentado">
+        <inputExpression id="InputExpression_heartTeamDocumentado" typeRef="boolean">
+          <text>heartTeamDocumentado</text>
+        </inputExpression>
+      </input>
+
+      <!-- ========== OUTPUTS (5 - Padrao LEAN TIER-2) ========== -->
+
+      <output id="Output_resultado" label="Resultado" name="resultado" typeRef="string">
+        <outputValues id="OutputValues_resultado">
+          <text>"Aprovado","Reprovado","Pendente"</text>
+        </outputValues>
+      </output>
+
+      <output id="Output_observacao" label="Observacao Clinica" name="observacao" typeRef="string" />
+
+      <output id="Output_fundamentacao" label="Fundamentacao Tecnica" name="fundamentacao" typeRef="string" />
+
+      <output id="Output_alertasDesperdicio" label="Alertas de Desperdicio" name="alertasDesperdicio" typeRef="string">
+        <outputValues id="OutputValues_alertasDesperdicio">
+          <text>"NENHUM","DUP","FREQ","ESC","DOC","PROT","MULTI"</text>
+        </outputValues>
+      </output>
+
+      <output id="Output_acaoRecomendada" label="Acao Recomendada" name="acaoRecomendada" typeRef="string">
+        <outputValues id="OutputValues_acaoRecomendada">
+          <text>"APROVAR","NEGAR","SOLICITAR_INFO","AGUARDAR_PRAZO","SUGERIR_ALTERNATIVA"</text>
+        </outputValues>
+      </output>
+
+      <!-- ========== REGRAS DE REPROVACAO (PRIORIDADE MAXIMA) ========== -->
+
+      <!-- PROT: Classe III - nao indicado -->
+      <rule id="Rule_Reprovado_ClasseIII">
+        <description>Reprovado: Classe III - TAVI nao indicado</description>
+        <inputEntry id="InputEntry_ClasseIII_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_ClasseIII_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_ClasseIII_3"><text>"Classe III"</text></inputEntry>
+        <inputEntry id="InputEntry_ClasseIII_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_ClasseIII_5"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_ClasseIII_6"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_ClasseIII_resultado"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_ClasseIII_observacao"><text>"Classe III - TAVI nao indicado conforme diretrizes vigentes"</text></outputEntry>
+        <outputEntry id="OutputEntry_ClasseIII_fundamentacao"><text>"ACC/AHA VHD 2024 - Classe III: Procedimento nao indicado, risco supera beneficio"</text></outputEntry>
+        <outputEntry id="OutputEntry_ClasseIII_alerta"><text>"PROT"</text></outputEntry>
+        <outputEntry id="OutputEntry_ClasseIII_acao"><text>"NEGAR"</text></outputEntry>
+      </rule>
+
+      <!-- PROT: EAo nao severa -->
+      <rule id="Rule_Reprovado_NaoSevera">
+        <description>Reprovado: EAo moderada ou leve - TAVI nao indicado</description>
+        <inputEntry id="InputEntry_NaoSev_1"><text>"Moderada","Leve"</text></inputEntry>
+        <inputEntry id="InputEntry_NaoSev_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_NaoSev_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_NaoSev_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_NaoSev_5"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_NaoSev_6"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_NaoSev_resultado"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_NaoSev_observacao"><text>"EAo nao severa - TAVI indicado apenas para estenose aortica severa"</text></outputEntry>
+        <outputEntry id="OutputEntry_NaoSev_fundamentacao"><text>"ACC/AHA VHD 2024: TAVI indicado exclusivamente para EAo severa sintomatica ou assintomatica com criterios especificos"</text></outputEntry>
+        <outputEntry id="OutputEntry_NaoSev_alerta"><text>"PROT"</text></outputEntry>
+        <outputEntry id="OutputEntry_NaoSev_acao"><text>"NEGAR"</text></outputEntry>
+      </rule>
+
+      <!-- ESC: Baixo risco sem justificativa para TAVI vs SAVR -->
+      <rule id="Rule_Reprovado_BaixoRiscoSemJustificativa">
+        <description>Reprovado: Baixo risco sem Heart Team - SAVR e padrao-ouro</description>
+        <inputEntry id="InputEntry_BaixoRisco_1"><text>"Severa"</text></inputEntry>
+        <inputEntry id="InputEntry_BaixoRisco_2"><text>"Adequado"</text></inputEntry>
+        <inputEntry id="InputEntry_BaixoRisco_3"><text>"Classe IIb"</text></inputEntry>
+        <inputEntry id="InputEntry_BaixoRisco_4"><text>"Baixo"</text></inputEntry>
+        <inputEntry id="InputEntry_BaixoRisco_5"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_BaixoRisco_6"><text>false</text></inputEntry>
+        <outputEntry id="OutputEntry_BaixoRisco_resultado"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_BaixoRisco_observacao"><text>"Paciente baixo risco sem Heart Team. SAVR e tratamento padrao-ouro para baixo risco. TAVI requer justificativa especifica"</text></outputEntry>
+        <outputEntry id="OutputEntry_BaixoRisco_fundamentacao"><text>"ACC/AHA VHD 2024: Em baixo risco, SAVR permanece padrao-ouro. TAVI apenas se Heart Team justificar (anatomia, preferencia informada)"</text></outputEntry>
+        <outputEntry id="OutputEntry_BaixoRisco_alerta"><text>"ESC"</text></outputEntry>
+        <outputEntry id="OutputEntry_BaixoRisco_acao"><text>"SUGERIR_ALTERNATIVA"</text></outputEntry>
+      </rule>
+
+      <!-- MULTI: Sem documentacao e sem Heart Team -->
+      <rule id="Rule_Reprovado_MultiSemDoc">
+        <description>Reprovado: Multiplos alertas - documentacao incompleta e sem Heart Team</description>
+        <inputEntry id="InputEntry_Multi_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Multi_2"><text>"Incompleto","NaoDocumentado"</text></inputEntry>
+        <inputEntry id="InputEntry_Multi_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Multi_4"><text>"NaoCalculado"</text></inputEntry>
+        <inputEntry id="InputEntry_Multi_5"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Multi_6"><text>false</text></inputEntry>
+        <outputEntry id="OutputEntry_Multi_resultado"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_Multi_observacao"><text>"Multiplos alertas: documentacao incompleta, score de risco nao calculado, sem Heart Team. TAVI requer avaliacao multidisciplinar completa"</text></outputEntry>
+        <outputEntry id="OutputEntry_Multi_fundamentacao"><text>"ACC/AHA VHD 2024: TAVI obrigatoriamente requer: ETE, AngioTC aorta/iliaca, STS-PROM, EuroSCORE II, coronariografia, ata Heart Team"</text></outputEntry>
+        <outputEntry id="OutputEntry_Multi_alerta"><text>"MULTI"</text></outputEntry>
+        <outputEntry id="OutputEntry_Multi_acao"><text>"NEGAR"</text></outputEntry>
+      </rule>
+
+      <!-- ========== REGRAS DE APROVACAO ========== -->
+
+      <!-- Classe I - Alto risco/proibitivo -->
+      <rule id="Rule_Aprovado_AltoRisco">
+        <description>Aprovado: EAo severa sintomatica em risco alto/proibitivo - Classe I</description>
+        <inputEntry id="InputEntry_AltoR_1"><text>"Severa","BaixoFluxoBaixoGradiente"</text></inputEntry>
+        <inputEntry id="InputEntry_AltoR_2"><text>"Adequado"</text></inputEntry>
+        <inputEntry id="InputEntry_AltoR_3"><text>"Classe I"</text></inputEntry>
+        <inputEntry id="InputEntry_AltoR_4"><text>"Proibitivo","Alto"</text></inputEntry>
+        <inputEntry id="InputEntry_AltoR_5"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_AltoR_6"><text>true</text></inputEntry>
+        <outputEntry id="OutputEntry_AltoR_resultado"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_AltoR_observacao"><text>"Indicacao Classe I: EAo severa sintomatica em risco cirurgico alto/proibitivo. TAVI e tratamento de escolha"</text></outputEntry>
+        <outputEntry id="OutputEntry_AltoR_fundamentacao"><text>"ACC/AHA VHD 2024 Classe I, Nivel A. PARTNER/SURTAVI - Beneficio claro sobre tratamento conservador em alto risco"</text></outputEntry>
+        <outputEntry id="OutputEntry_AltoR_alerta"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_AltoR_acao"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <!-- Classe I - Risco intermediario -->
+      <rule id="Rule_Aprovado_RiscoIntermediario">
+        <description>Aprovado: EAo severa sintomatica em risco intermediario - Classe I</description>
+        <inputEntry id="InputEntry_IntR_1"><text>"Severa"</text></inputEntry>
+        <inputEntry id="InputEntry_IntR_2"><text>"Adequado"</text></inputEntry>
+        <inputEntry id="InputEntry_IntR_3"><text>"Classe I"</text></inputEntry>
+        <inputEntry id="InputEntry_IntR_4"><text>"Intermediario"</text></inputEntry>
+        <inputEntry id="InputEntry_IntR_5"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_IntR_6"><text>true</text></inputEntry>
+        <outputEntry id="OutputEntry_IntR_resultado"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_IntR_observacao"><text>"Indicacao Classe I: EAo severa sintomatica em risco intermediario. TAVI equivalente ou superior a SAVR"</text></outputEntry>
+        <outputEntry id="OutputEntry_IntR_fundamentacao"><text>"ACC/AHA VHD 2024 Classe I. PARTNER 2/SURTAVI - TAVI equivalente ou superior a SAVR em risco intermediario"</text></outputEntry>
+        <outputEntry id="OutputEntry_IntR_alerta"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_IntR_acao"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <!-- Classe IIa - Baixo risco com Heart Team -->
+      <rule id="Rule_Aprovado_BaixoRiscoHeartTeam">
+        <description>Aprovado: EAo severa em baixo risco com anatomia favoravel e Heart Team - Classe IIa</description>
+        <inputEntry id="InputEntry_BxRHT_1"><text>"Severa"</text></inputEntry>
+        <inputEntry id="InputEntry_BxRHT_2"><text>"Adequado"</text></inputEntry>
+        <inputEntry id="InputEntry_BxRHT_3"><text>"Classe IIa"</text></inputEntry>
+        <inputEntry id="InputEntry_BxRHT_4"><text>"Baixo"</text></inputEntry>
+        <inputEntry id="InputEntry_BxRHT_5"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_BxRHT_6"><text>true</text></inputEntry>
+        <outputEntry id="OutputEntry_BxRHT_resultado"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_BxRHT_observacao"><text>"Indicacao Classe IIa: EAo severa em baixo risco com anatomia favoravel. Heart Team documentou preferencia por TAVI"</text></outputEntry>
+        <outputEntry id="OutputEntry_BxRHT_fundamentacao"><text>"ACC/AHA VHD 2024 Classe IIa. PARTNER 3/Evolut Low Risk - TAVI nao inferior a SAVR. Decisao compartilhada Heart Team"</text></outputEntry>
+        <outputEntry id="OutputEntry_BxRHT_alerta"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_BxRHT_acao"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <!-- ========== REGRAS DE PENDENCIA ========== -->
+
+      <!-- DOC: Risco nao calculado -->
+      <rule id="Rule_Pendente_SemRisco">
+        <description>Pendente: Score de risco cirurgico nao calculado</description>
+        <inputEntry id="InputEntry_NoRisk_1"><text>"Severa"</text></inputEntry>
+        <inputEntry id="InputEntry_NoRisk_2"><text>"Adequado"</text></inputEntry>
+        <inputEntry id="InputEntry_NoRisk_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_NoRisk_4"><text>"NaoCalculado"</text></inputEntry>
+        <inputEntry id="InputEntry_NoRisk_5"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_NoRisk_6"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_NoRisk_resultado"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OutputEntry_NoRisk_observacao"><text>"Score de risco cirurgico (STS-PROM e EuroSCORE II) nao calculado. Obrigatorio para decisao TAVI vs SAVR"</text></outputEntry>
+        <outputEntry id="OutputEntry_NoRisk_fundamentacao"><text>"ACC/AHA VHD 2024: Calculo de STS-PROM e EuroSCORE II obrigatorio para estratificacao de risco e decisao Heart Team"</text></outputEntry>
+        <outputEntry id="OutputEntry_NoRisk_alerta"><text>"DOC"</text></outputEntry>
+        <outputEntry id="OutputEntry_NoRisk_acao"><text>"SOLICITAR_INFO"</text></outputEntry>
+      </rule>
+
+      <!-- DOC: Sem Heart Team -->
+      <rule id="Rule_Pendente_SemHeartTeam">
+        <description>Pendente: Heart Team nao documentado</description>
+        <inputEntry id="InputEntry_NoHT_1"><text>"Severa"</text></inputEntry>
+        <inputEntry id="InputEntry_NoHT_2"><text>"Adequado"</text></inputEntry>
+        <inputEntry id="InputEntry_NoHT_3"><text>"Classe I","Classe IIa"</text></inputEntry>
+        <inputEntry id="InputEntry_NoHT_4"><text>"Proibitivo","Alto","Intermediario"</text></inputEntry>
+        <inputEntry id="InputEntry_NoHT_5"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_NoHT_6"><text>false</text></inputEntry>
+        <outputEntry id="OutputEntry_NoHT_resultado"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OutputEntry_NoHT_observacao"><text>"Heart Team nao documentado. TAVI obrigatoriamente requer discussao multidisciplinar com ata"</text></outputEntry>
+        <outputEntry id="OutputEntry_NoHT_fundamentacao"><text>"ACC/AHA VHD 2024: Heart Team approach mandatorio. Deve incluir cirurgiao cardiaco, cardiologista intervencionista, ecocardiografista, geriatra"</text></outputEntry>
+        <outputEntry id="OutputEntry_NoHT_alerta"><text>"DOC"</text></outputEntry>
+        <outputEntry id="OutputEntry_NoHT_acao"><text>"SOLICITAR_INFO"</text></outputEntry>
+      </rule>
+
+      <!-- DOC: Documentacao incompleta -->
+      <rule id="Rule_Pendente_DocIncompleta">
+        <description>Pendente: Documentacao clinica incompleta</description>
+        <inputEntry id="InputEntry_DocInc_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_DocInc_2"><text>"Incompleto","NaoDocumentado"</text></inputEntry>
+        <inputEntry id="InputEntry_DocInc_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_DocInc_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_DocInc_5"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_DocInc_6"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_DocInc_resultado"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OutputEntry_DocInc_observacao"><text>"Documentacao clinica incompleta para avaliacao de TAVI"</text></outputEntry>
+        <outputEntry id="OutputEntry_DocInc_fundamentacao"><text>"ANS RN 465/2021, ACC/AHA VHD 2024: Documentacao obrigatoria - Eco TT, AngioTC aorta/iliaca, coronariografia, STS/EuroSCORE, ata Heart Team"</text></outputEntry>
+        <outputEntry id="OutputEntry_DocInc_alerta"><text>"DOC"</text></outputEntry>
+        <outputEntry id="OutputEntry_DocInc_acao"><text>"SOLICITAR_INFO"</text></outputEntry>
+      </rule>
+
+      <!-- ========== REGRA FALLBACK ========== -->
+
+      <rule id="Rule_Fallback_30904129">
+        <description>Regra padrao - caso complexo requer Heart Team</description>
+        <inputEntry id="InputEntry_Fallback_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Fallback_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Fallback_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Fallback_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Fallback_5"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Fallback_6"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_Fallback_resultado"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OutputEntry_Fallback_observacao"><text>"Caso complexo requer analise Heart Team especializado. Documentar: eco, AngioTC, coronariografia, STS/EuroSCORE"</text></outputEntry>
+        <outputEntry id="OutputEntry_Fallback_fundamentacao"><text>"ACC/AHA VHD 2024: Heart Team approach obrigatorio para decisao TAVI vs SAVR vs tratamento conservador"</text></outputEntry>
+        <outputEntry id="OutputEntry_Fallback_alerta"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_Fallback_acao"><text>"SOLICITAR_INFO"</text></outputEntry>
+      </rule>
+
+    </decisionTable>
+  </decision>
+</definitions>

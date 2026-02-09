@@ -1,0 +1,337 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             xmlns:camunda="http://camunda.org/schema/1.0/dmn"
+             id="Definitions_30901015"
+             name="Craniotomia para Tumor Cerebral"
+             namespace="http://camunda.org/schema/1.0/dmn">
+
+  <!--
+    ===============================================================================
+    TUSS: 30901015
+    Procedimento: Craniotomia para Tumor Cerebral
+    Versao: 3.1.0-LEAN-TIER2
+    Data: 2026-02-07
+    Enriquecido: LEAN TIER-2 Anti-Desperdicio (2026-02-08)
+    ===============================================================================
+
+    INDICACOES CLINICAS (DUT/ANS):
+    Tumores cerebrais primarios ou metastaticos com indicacao cirurgica,
+    tumores ressecaveis com status funcional adequado (KPS maior ou igual 70),
+    tumores com efeito de massa causando sintomas neurologicos
+
+    CONTRAINDICACOES:
+    Tumores irressecaveis em areas eloquentes sem possibilidade de resseccao segura,
+    status funcional muito baixo (KPS menor 40), coagulopatia nao corrigida,
+    expectativa de vida menor 3 meses, doenca sistemica descompensada
+
+    DOCUMENTACAO OBRIGATORIA:
+    RM de cranio com contraste, laudo histopatologico previo se disponivel,
+    avaliacao de Karnofsky, parecer neurocirurgico, exames pre-operatorios
+
+    REFERENCIAS TECNICAS:
+    AANS/CNS Guidelines for Brain Tumors 2024, NCCN CNS Cancers 2024,
+    SBN Diretrizes Tumores Cerebrais 2023, ANS RN 465/2021, DUT 2024
+
+    ===============================================================================
+  -->
+
+  <decision id="Decision_30901015" name="Regra Clinica - Craniotomia para Tumor Cerebral">
+    <decisionTable id="DecisionTable_30901015" hitPolicy="FIRST">
+
+      <!-- ========== INPUTS (5 - Padrao Neurocirurgia) ========== -->
+
+      <input id="Input_condicaoPaciente" label="Condicao do Paciente" camunda:inputVariable="condicaoPaciente">
+        <inputExpression id="InputExpression_condicaoPaciente" typeRef="string">
+          <text>condicaoPaciente</text>
+        </inputExpression>
+        <inputValues id="InputValues_condicaoPaciente">
+          <text>"TumorPrimarioRessecavel","TumorMetastaticoUnico","TumorComEfeitoMassa","TumorRecidivado","TumorIrressecavel"</text>
+        </inputValues>
+      </input>
+
+      <input id="Input_historicoClinico" label="Historico Clinico" camunda:inputVariable="historicoClinico">
+        <inputExpression id="InputExpression_historicoClinico" typeRef="string">
+          <text>historicoClinico</text>
+        </inputExpression>
+        <inputValues id="InputValues_historicoClinico">
+          <text>"Adequado","Incompleto","NaoDocumentado"</text>
+        </inputValues>
+      </input>
+
+      <input id="Input_classeIndicacao" label="Classe de Indicacao (AANS/SBN)" camunda:inputVariable="classeIndicacao">
+        <inputExpression id="InputExpression_classeIndicacao" typeRef="string">
+          <text>classeIndicacao</text>
+        </inputExpression>
+        <inputValues id="InputValues_classeIndicacao">
+          <text>"Classe I","Classe IIa","Classe IIb","Classe III"</text>
+        </inputValues>
+      </input>
+
+      <input id="Input_examesComprobatorios" label="Exames Comprobatorios" camunda:inputVariable="examesComprobatorios">
+        <inputExpression id="InputExpression_examesComprobatorios" typeRef="string">
+          <text>examesComprobatorios</text>
+        </inputExpression>
+        <inputValues id="InputValues_examesComprobatorios">
+          <text>"RMComContrasteLaudada","TCComContraste","ImagemSemContraste","SemImagem"</text>
+        </inputValues>
+      </input>
+
+      <input id="Input_expectativaVidaSuperior1Ano" label="Expectativa de Vida Superior 1 Ano" camunda:inputVariable="expectativaVidaSuperior1Ano">
+        <inputExpression id="InputExpression_expectativaVidaSuperior1Ano" typeRef="boolean">
+          <text>expectativaVidaSuperior1Ano</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_ultimoProcedimentoDias" label="Dias Desde Ultimo Procedimento" camunda:inputVariable="ultimoProcedimentoDias">
+        <inputExpression id="InputExpression_ultimoProcedimentoDias" typeRef="integer">
+          <text>ultimoProcedimentoDias</text>
+        </inputExpression>
+      </input>
+
+      <!-- ========== OUTPUTS (3 - Padrao TIER-1) ========== -->
+
+      <output id="Output_resultado" label="Resultado" name="resultado" typeRef="string">
+        <outputValues id="OutputValues_resultado">
+          <text>"Aprovado","Reprovado","Pendente"</text>
+        </outputValues>
+      </output>
+
+      <output id="Output_observacao" label="Observacao Clinica" name="observacao" typeRef="string" />
+
+      <output id="Output_fundamentacao" label="Fundamentacao Tecnica" name="fundamentacao" typeRef="string" />
+      <!-- Output 4: Alertas de Desperdicio -->
+      <output id="Output_alertasDesperdicio" label="Alertas de Desperdicio" name="alertasDesperdicio" typeRef="string">
+        <outputValues id="OutputValues_alertasDesperdicio">
+          <text>"NENHUM","DUP","FREQ","ESC","DOC","PROT","MULTI"</text>
+        </outputValues>
+      </output>
+
+      <!-- Output 5: Acao Recomendada -->
+      <output id="Output_acaoRecomendada" label="Acao Recomendada" name="acaoRecomendada" typeRef="string">
+        <outputValues id="OutputValues_acaoRecomendada">
+          <text>"APROVAR","NEGAR","SOLICITAR_INFO","AGUARDAR_PRAZO","SUGERIR_ALTERNATIVA"</text>
+        </outputValues>
+      </output>
+
+
+      <!-- ========== RULES - REPROVACOES PRIMEIRO ========== -->
+
+      <rule id="Rule_Contraind_ClasseIII">
+        <description>Contraindicacao: Procedimento Classe III - nao indicado</description>
+        <inputEntry id="InputEntry_Contraind_ClasseIII_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Contraind_ClasseIII_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Contraind_ClasseIII_3"><text>"Classe III"</text></inputEntry>
+        <inputEntry id="InputEntry_Contraind_ClasseIII_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Contraind_ClasseIII_5"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Contraind_ClasseIII_6"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_Contraind_ClasseIII_resultado"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_Contraind_ClasseIII_observacao"><text>"Procedimento nao indicado - classificacao Classe III"</text></outputEntry>
+        <outputEntry id="OutputEntry_Contraind_ClasseIII_fundamentacao"><text>"AANS/CNS Guidelines Brain Tumors 2024, SBN 2023 - Classe III: Procedimento contraindicado ou potencialmente prejudicial"</text></outputEntry>
+        <outputEntry id="OE_Rule_Contraind_ClasseIII_4"><text>"PROT"</text></outputEntry>
+        <outputEntry id="OE_Rule_Contraind_ClasseIII_5"><text>"NEGAR"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_30901015_DUP_Tumor">
+        <description>DUP: Reoperacao de tumor cerebral em menos de 90 dias sem recidiva documentada</description>
+        <inputEntry id="IE_30901015_DUP_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_30901015_DUP_2"><text>"Incompleto","NaoDocumentado"</text></inputEntry>
+        <inputEntry id="IE_30901015_DUP_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_30901015_DUP_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_30901015_DUP_5"><text>-</text></inputEntry>
+        <inputEntry id="IE_30901015_DUP_6"><text>&lt; 90</text></inputEntry>
+        <outputEntry id="OE_30901015_DUP_1"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OE_30901015_DUP_2"><text>"Reoperacao tumoral em menos de 90 dias. Documentar recidiva ou progressao com RNM comparativa"</text></outputEntry>
+        <outputEntry id="OE_30901015_DUP_3"><text>"AANS/CNS Brain Tumors 2024, NCCN 2024 - Reoperacao precoce requer evidencia de progressao tumoral"</text></outputEntry>
+        <outputEntry id="OE_30901015_DUP_4"><text>"DUP"</text></outputEntry>
+        <outputEntry id="OE_30901015_DUP_5"><text>"SOLICITAR_INFO"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_30901015_DOC_Imagem">
+        <description>DOC: Procedimento neurocirurgico sem imagem atual</description>
+        <inputEntry id="IE_30901015_DOC_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_30901015_DOC_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_30901015_DOC_3"><text>"Classe I","Classe IIa"</text></inputEntry>
+        <inputEntry id="IE_30901015_DOC_4"><text>"ImagemSemContraste","SemImagem"</text></inputEntry>
+        <inputEntry id="IE_30901015_DOC_5"><text>-</text></inputEntry>
+        <inputEntry id="IE_30901015_DOC_6"><text>-</text></inputEntry>
+        <outputEntry id="OE_30901015_DOC_1"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OE_30901015_DOC_2"><text>"Documentacao insuficiente - RNM ou TC obrigatoria para planejamento cirurgico"</text></outputEntry>
+        <outputEntry id="OE_30901015_DOC_3"><text>"AANS/CNS 2024, ANS RN 465/2021 - Imagem atual obrigatoria para autorizacao"</text></outputEntry>
+        <outputEntry id="OE_30901015_DOC_4"><text>"DOC"</text></outputEntry>
+        <outputEntry id="OE_30901015_DOC_5"><text>"SOLICITAR_INFO"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Contraind_ExpectativaVida">
+        <description>Contraindicacao: Expectativa de vida menor que 1 ano</description>
+        <inputEntry id="InputEntry_Contraind_ExpVida_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Contraind_ExpVida_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Contraind_ExpVida_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Contraind_ExpVida_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Contraind_ExpVida_5"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Contraind_ExpVida_6"><text>false</text></inputEntry>
+        <outputEntry id="OutputEntry_Contraind_ExpVida_resultado"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_Contraind_ExpVida_observacao"><text>"Expectativa de vida insuficiente para beneficio cirurgico"</text></outputEntry>
+        <outputEntry id="OutputEntry_Contraind_ExpVida_fundamentacao"><text>"AANS/CNS 2024, NCCN CNS 2024 - Cirurgia oncologica requer expectativa de vida compativel com recuperacao"</text></outputEntry>
+        <outputEntry id="OE_Rule_Contraind_ExpectativaVida_4"><text>"PROT"</text></outputEntry>
+        <outputEntry id="OE_Rule_Contraind_ExpectativaVida_5"><text>"NEGAR"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Contraind_TumorIrressecavel">
+        <description>Contraindicacao: Tumor irressecavel em area eloquente</description>
+        <inputEntry id="InputEntry_Contraind_Irres_1"><text>"TumorIrressecavel"</text></inputEntry>
+        <inputEntry id="InputEntry_Contraind_Irres_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Contraind_Irres_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Contraind_Irres_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Contraind_Irres_5"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Contraind_Irres_6"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_Contraind_Irres_resultado"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_Contraind_Irres_observacao"><text>"Tumor classificado como irressecavel - considerar biopsia ou tratamento alternativo"</text></outputEntry>
+        <outputEntry id="OutputEntry_Contraind_Irres_fundamentacao"><text>"AANS/CNS 2024 - Tumores irressecaveis em areas eloquentes nao sao candidatos a craniotomia ressectiva"</text></outputEntry>
+        <outputEntry id="OE_Rule_Contraind_TumorIrressecavel_4"><text>"PROT"</text></outputEntry>
+        <outputEntry id="OE_Rule_Contraind_TumorIrressecavel_5"><text>"NEGAR"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Reprovado_SemImagem">
+        <description>Reprovado: Ausencia de exame de imagem</description>
+        <inputEntry id="InputEntry_Reprovado_Img_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Reprovado_Img_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Reprovado_Img_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Reprovado_Img_4"><text>"SemImagem"</text></inputEntry>
+        <inputEntry id="InputEntry_Reprovado_Img_5"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Reprovado_Img_6"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_Reprovado_Img_resultado"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_Reprovado_Img_observacao"><text>"Obrigatorio exame de imagem para planejamento cirurgico"</text></outputEntry>
+        <outputEntry id="OutputEntry_Reprovado_Img_fundamentacao"><text>"AANS/CNS 2024, ANS RN 465/2021 - RM ou TC com contraste obrigatoria para cirurgia de tumor cerebral"</text></outputEntry>
+        <outputEntry id="OE_Rule_Reprovado_SemImagem_4"><text>"PROT"</text></outputEntry>
+        <outputEntry id="OE_Rule_Reprovado_SemImagem_5"><text>"NEGAR"</text></outputEntry>
+      </rule>
+
+      <!-- ========== RULES - APROVACOES ========== -->
+
+      <rule id="Rule_Aprovado_ClasseI_TumorPrimario">
+        <description>Aprovado: Tumor primario ressecavel com Classe I</description>
+        <inputEntry id="InputEntry_Aprovado_CI_Prim_1"><text>"TumorPrimarioRessecavel"</text></inputEntry>
+        <inputEntry id="InputEntry_Aprovado_CI_Prim_2"><text>"Adequado"</text></inputEntry>
+        <inputEntry id="InputEntry_Aprovado_CI_Prim_3"><text>"Classe I"</text></inputEntry>
+        <inputEntry id="InputEntry_Aprovado_CI_Prim_4"><text>"RMComContrasteLaudada"</text></inputEntry>
+        <inputEntry id="InputEntry_Aprovado_CI_Prim_5"><text>true</text></inputEntry>
+        <inputEntry id="InputEntry_Aprovado_CI_6"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_Aprovado_CI_Prim_resultado"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprovado_CI_Prim_observacao"><text>"Tumor primario ressecavel com indicacao Classe I - cirurgia indicada"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprovado_CI_Prim_fundamentacao"><text>"AANS/CNS Brain Tumors 2024, NCCN 2024 - Classe I: Resseccao maxima segura e indicada para tumores primarios"</text></outputEntry>
+        <outputEntry id="OE_Rule_Aprovado_ClasseI_TumorPrimario_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_Rule_Aprovado_ClasseI_TumorPrimario_5"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Aprovado_ClasseI_Metastase">
+        <description>Aprovado: Metastase cerebral unica com Classe I</description>
+        <inputEntry id="InputEntry_Aprovado_CI_Met_1"><text>"TumorMetastaticoUnico"</text></inputEntry>
+        <inputEntry id="InputEntry_Aprovado_CI_Met_2"><text>"Adequado"</text></inputEntry>
+        <inputEntry id="InputEntry_Aprovado_CI_Met_3"><text>"Classe I"</text></inputEntry>
+        <inputEntry id="InputEntry_Aprovado_CI_Met_4"><text>"RMComContrasteLaudada"</text></inputEntry>
+        <inputEntry id="InputEntry_Aprovado_CI_Met_5"><text>true</text></inputEntry>
+        <inputEntry id="InputEntry_Aprovado_CI_6"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_Aprovado_CI_Met_resultado"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprovado_CI_Met_observacao"><text>"Metastase unica ressecavel - indicacao cirurgica classe I"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprovado_CI_Met_fundamentacao"><text>"AANS/CNS 2024, NCCN CNS Cancers 2024 - Metastase unica acessivel com doenca sistemica controlada"</text></outputEntry>
+        <outputEntry id="OE_Rule_Aprovado_ClasseI_Metastase_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_Rule_Aprovado_ClasseI_Metastase_5"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Aprovado_ClasseI_EfeitoMassa">
+        <description>Aprovado: Tumor com efeito de massa sintomatico</description>
+        <inputEntry id="InputEntry_Aprovado_CI_Massa_1"><text>"TumorComEfeitoMassa"</text></inputEntry>
+        <inputEntry id="InputEntry_Aprovado_CI_Massa_2"><text>"Adequado"</text></inputEntry>
+        <inputEntry id="InputEntry_Aprovado_CI_Massa_3"><text>"Classe I","Classe IIa"</text></inputEntry>
+        <inputEntry id="InputEntry_Aprovado_CI_Massa_4"><text>"RMComContrasteLaudada","TCComContraste"</text></inputEntry>
+        <inputEntry id="InputEntry_Aprovado_CI_Massa_5"><text>true</text></inputEntry>
+        <inputEntry id="InputEntry_Aprovado_CI_6"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_Aprovado_CI_Massa_resultado"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprovado_CI_Massa_observacao"><text>"Tumor com efeito de massa - descompressao cirurgica indicada"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprovado_CI_Massa_fundamentacao"><text>"AANS/CNS 2024, SBN 2023 - Efeito de massa com sintomas neurologicos requer descompressao"</text></outputEntry>
+        <outputEntry id="OE_Rule_Aprovado_ClasseI_EfeitoMassa_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_Rule_Aprovado_ClasseI_EfeitoMassa_5"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Aprovado_ClasseIIa">
+        <description>Aprovado: Indicacao Classe IIa com documentacao adequada</description>
+        <inputEntry id="InputEntry_Aprovado_CIIa_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Aprovado_CIIa_2"><text>"Adequado"</text></inputEntry>
+        <inputEntry id="InputEntry_Aprovado_CIIa_3"><text>"Classe IIa"</text></inputEntry>
+        <inputEntry id="InputEntry_Aprovado_CIIa_4"><text>"RMComContrasteLaudada","TCComContraste"</text></inputEntry>
+        <inputEntry id="InputEntry_Aprovado_CIIa_5"><text>true</text></inputEntry>
+        <inputEntry id="InputEntry_Aprovado_6"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_Aprovado_CIIa_resultado"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprovado_CIIa_observacao"><text>"Indicacao Classe IIa - procedimento razoavel e provavelmente util"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprovado_CIIa_fundamentacao"><text>"AANS/CNS 2024 - Classe IIa: Beneficio provavel supera riscos"</text></outputEntry>
+        <outputEntry id="OE_Rule_Aprovado_ClasseIIa_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_Rule_Aprovado_ClasseIIa_5"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Aprovado_ClasseIIb">
+        <description>Aprovado: Indicacao Classe IIb com documentacao completa</description>
+        <inputEntry id="InputEntry_Aprovado_CIIb_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Aprovado_CIIb_2"><text>"Adequado"</text></inputEntry>
+        <inputEntry id="InputEntry_Aprovado_CIIb_3"><text>"Classe IIb"</text></inputEntry>
+        <inputEntry id="InputEntry_Aprovado_CIIb_4"><text>"RMComContrasteLaudada"</text></inputEntry>
+        <inputEntry id="InputEntry_Aprovado_CIIb_5"><text>true</text></inputEntry>
+        <inputEntry id="InputEntry_Aprovado_6"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_Aprovado_CIIb_resultado"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprovado_CIIb_observacao"><text>"Indicacao Classe IIb - procedimento pode ser considerado"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprovado_CIIb_fundamentacao"><text>"AANS/CNS 2024 - Classe IIb: Utilidade nao bem estabelecida mas pode ser considerado"</text></outputEntry>
+        <outputEntry id="OE_Rule_Aprovado_ClasseIIb_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_Rule_Aprovado_ClasseIIb_5"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <!-- ========== RULES - PENDENTES ========== -->
+
+      <rule id="Rule_Pendente_ImagemSemContraste">
+        <description>Pendente: Imagem sem contraste - necessita complementacao</description>
+        <inputEntry id="InputEntry_Pendente_Img_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Pendente_Img_2"><text>"Adequado"</text></inputEntry>
+        <inputEntry id="InputEntry_Pendente_Img_3"><text>"Classe I","Classe IIa"</text></inputEntry>
+        <inputEntry id="InputEntry_Pendente_Img_4"><text>"ImagemSemContraste"</text></inputEntry>
+        <inputEntry id="InputEntry_Pendente_Img_5"><text>true</text></inputEntry>
+        <inputEntry id="InputEntry_Pendente_6"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_Pendente_Img_resultado"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OutputEntry_Pendente_Img_observacao"><text>"Necessaria imagem com contraste para adequada avaliacao tumoral"</text></outputEntry>
+        <outputEntry id="OutputEntry_Pendente_Img_fundamentacao"><text>"AANS/CNS 2024 - RM com gadolinio padrao ouro para avaliacao de tumores cerebrais"</text></outputEntry>
+        <outputEntry id="OE_Rule_Pendente_ImagemSemContraste_4"><text>"DOC"</text></outputEntry>
+        <outputEntry id="OE_Rule_Pendente_ImagemSemContraste_5"><text>"SOLICITAR_INFO"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Pendente_DocIncompleta">
+        <description>Pendente: Documentacao clinica incompleta</description>
+        <inputEntry id="InputEntry_Pendente_Doc_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Pendente_Doc_2"><text>"Incompleto"</text></inputEntry>
+        <inputEntry id="InputEntry_Pendente_Doc_3"><text>"Classe I","Classe IIa"</text></inputEntry>
+        <inputEntry id="InputEntry_Pendente_Doc_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Pendente_Doc_5"><text>true</text></inputEntry>
+        <inputEntry id="InputEntry_Pendente_6"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_Pendente_Doc_resultado"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OutputEntry_Pendente_Doc_observacao"><text>"Documentacao clinica incompleta - solicitar complementacao"</text></outputEntry>
+        <outputEntry id="OutputEntry_Pendente_Doc_fundamentacao"><text>"ANS RN 465/2021 - Documentacao adequada necessaria para autorizacao"</text></outputEntry>
+        <outputEntry id="OE_Rule_Pendente_DocIncompleta_4"><text>"DOC"</text></outputEntry>
+        <outputEntry id="OE_Rule_Pendente_DocIncompleta_5"><text>"SOLICITAR_INFO"</text></outputEntry>
+      </rule>
+
+      <!-- ========== FALLBACK RULE ========== -->
+
+      <rule id="Rule_Fallback_30901015">
+        <description>Regra padrao - Analise adicional necessaria</description>
+        <inputEntry id="InputEntry_Fallback_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Fallback_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Fallback_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Fallback_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Fallback_5"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_6"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_Fallback_resultado"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OutputEntry_Fallback_observacao"><text>"Caso requer analise clinica adicional por junta medica"</text></outputEntry>
+        <outputEntry id="OutputEntry_Fallback_fundamentacao"><text>"Avaliacao individualizada conforme AANS/CNS 2024 e SBN 2023"</text></outputEntry>
+        <outputEntry id="OE_Rule_Fallback_30901015_4"><text>"DOC"</text></outputEntry>
+        <outputEntry id="OE_Rule_Fallback_30901015_5"><text>"SOLICITAR_INFO"</text></outputEntry>
+      </rule>
+
+    </decisionTable>
+  </decision>
+</definitions>

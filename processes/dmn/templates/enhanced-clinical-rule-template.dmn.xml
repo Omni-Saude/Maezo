@@ -1,0 +1,371 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             xmlns:camunda="http://camunda.org/schema/1.0/dmn"
+             xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/"
+             xmlns:dc="http://www.omg.org/spec/DD/20100524/DC/"
+             id="Definitions_ENHANCED_TEMPLATE"
+             name="Lean TIER-2 Clinical Rule Template - Anti-Desperdício"
+             namespace="http://camunda.org/schema/1.0/dmn"
+             exporter="Camunda Modeler"
+             exporterVersion="5.0.0">
+
+  <!--
+    ===============================================================================
+    LEAN TIER-2 CLINICAL RULE TEMPLATE: Anti-Desperdício
+    Version: 2.1.0 (Lean)
+    Date: 2026-02-07
+    ===============================================================================
+
+    FILOSOFIA LEAN:
+    "Menos campos, mais inteligência. Detectar desperdício, não criar papelada."
+
+    O QUE NÃO FAZEMOS:
+    - ❌ QALY scores (não reflete realidade ANS/SUS)
+    - ❌ 8 outputs complexos
+    - ❌ Algoritmos de risco burocráticos
+    - ❌ Step therapy genérico
+
+    O QUE FAZEMOS:
+    - ✅ Detectar padrões de desperdício automaticamente
+    - ✅ Ação clara e direta
+    - ✅ Neural learning dos padrões históricos
+    - ✅ Foco em protocolos brasileiros (ANS/CONITEC)
+
+    BASE INPUTS (5 - Maintained from TIER-1):
+    1. condicaoPaciente - Patient clinical condition
+    2. historicoClinico - Clinical documentation status
+    3. classeIndicacao - Guideline indication class (I, IIa, IIb, III)
+    4. feVE - Left ventricular ejection fraction
+    5. expectativaVidaSuperior1Ano - Life expectancy > 1 year
+
+    BASE OUTPUTS (3 - Standard Decision):
+    1. resultado - Decision result (Aprovado, Reprovado, Pendente)
+    2. observacao - Clinical observation
+    3. fundamentacao - Technical/legal rationale
+
+    LEAN OUTPUTS (2 - NEW Anti-Waste Intelligence):
+    4. alertasDesperdicio - Waste pattern detection codes
+    5. acaoRecomendada - Clear recommended action
+
+    ALERTAS DE DESPERDÍCIO:
+    - NENHUM: No waste detected - adequate request
+    - DUP: Duplication - same procedure in < 30/60/90 days (saves 25%)
+    - FREQ: Excessive frequency - above protocol (saves 20%)
+    - ESC: Escalation - skipped step therapy (saves 15%)
+    - DOC: Documentation - missing clinical justification (saves 30%)
+    - PROT: Out of protocol - not in ANS/CONITEC (saves 10%)
+    - MULTI: Multiple alerts detected (use most restrictive)
+
+    AÇÕES RECOMENDADAS:
+    - APROVAR: No alerts, documentation OK → Aprovado
+    - NEGAR: DUP, FREQ, PROT confirmed → Reprovado
+    - SOLICITAR_INFO: DOC, ESC detected → Pendente
+    - AGUARDAR_PRAZO: DUP with future valid date → Pendente + date
+    - SUGERIR_ALTERNATIVA: ESC with more adequate option → Pendente + suggestion
+
+    MIGRATION PATH FROM TIER-1:
+    1. Copy existing TIER-1 rule structure
+    2. Add 2 new output columns: alertasDesperdicio, acaoRecomendada
+    3. Extend each rule with waste detection logic
+    4. Validate with test cases for all 5 outputs
+    5. Train neural model on historical waste patterns
+
+    ===============================================================================
+  -->
+
+  <decision id="Decision_ENHANCED_TEMPLATE" name="Lean TIER-2 Clinical Decision - Anti-Waste">
+    <decisionTable id="DecisionTable_ENHANCED" hitPolicy="FIRST">
+
+      <!-- ========================================================================
+           INPUTS (5) - Standard TIER-1 Cardiology Inputs
+           ======================================================================== -->
+
+      <!-- Input 1: Patient Condition -->
+      <input id="Input_condicaoPaciente" label="Condicao do Paciente" camunda:inputVariable="condicaoPaciente">
+        <inputExpression id="InputExpression_condicaoPaciente" typeRef="string">
+          <text>condicaoPaciente</text>
+        </inputExpression>
+        <inputValues id="InputValues_condicaoPaciente">
+          <!-- CUSTOMIZE: Replace with procedure-specific conditions -->
+          <text>"CondicaoOtima","CondicaoIntermediaria","CondicaoLimitada","CondicaoContraindicada","Outra"</text>
+        </inputValues>
+      </input>
+
+      <!-- Input 2: Clinical History Documentation -->
+      <input id="Input_historicoClinico" label="Historico Clinico" camunda:inputVariable="historicoClinico">
+        <inputExpression id="InputExpression_historicoClinico" typeRef="string">
+          <text>historicoClinico</text>
+        </inputExpression>
+        <inputValues id="InputValues_historicoClinico">
+          <text>"Adequado","Incompleto","NaoDocumentado"</text>
+        </inputValues>
+      </input>
+
+      <!-- Input 3: Indication Class per Guidelines -->
+      <input id="Input_classeIndicacao" label="Classe de Indicacao (Diretrizes)" camunda:inputVariable="classeIndicacao">
+        <inputExpression id="InputExpression_classeIndicacao" typeRef="string">
+          <text>classeIndicacao</text>
+        </inputExpression>
+        <inputValues id="InputValues_classeIndicacao">
+          <text>"Classe I","Classe IIa","Classe IIb","Classe III"</text>
+        </inputValues>
+      </input>
+
+      <!-- Input 4: Left Ventricular Ejection Fraction -->
+      <input id="Input_feVE" label="Fracao de Ejecao do VE (%)" camunda:inputVariable="feVE">
+        <inputExpression id="InputExpression_feVE" typeRef="string">
+          <text>feVE</text>
+        </inputExpression>
+        <inputValues id="InputValues_feVE">
+          <text>"&lt;15%","15-30%","30-35%","35-50%","&gt;50%","NaoAvaliada","NaoAplica"</text>
+        </inputValues>
+      </input>
+
+      <!-- Input 5: Life Expectancy > 1 Year -->
+      <input id="Input_expectativaVidaSuperior1Ano" label="Expectativa de Vida Superior a 1 Ano" camunda:inputVariable="expectativaVidaSuperior1Ano">
+        <inputExpression id="InputExpression_expectativaVidaSuperior1Ano" typeRef="boolean">
+          <text>expectativaVidaSuperior1Ano</text>
+        </inputExpression>
+      </input>
+
+      <!-- ========================================================================
+           BASE OUTPUTS (3) - Standard TIER-1 Outputs
+           ======================================================================== -->
+
+      <!-- Output 1: Decision Result -->
+      <output id="Output_resultado" label="Resultado" name="resultado" typeRef="string">
+        <outputValues id="OutputValues_resultado">
+          <text>"Aprovado","Reprovado","Pendente"</text>
+        </outputValues>
+      </output>
+
+      <!-- Output 2: Clinical Observation -->
+      <output id="Output_observacao" label="Observacao Clinica" name="observacao" typeRef="string" />
+
+      <!-- Output 3: Technical/Legal Rationale -->
+      <output id="Output_fundamentacao" label="Fundamentacao Tecnica" name="fundamentacao" typeRef="string" />
+
+      <!-- ========================================================================
+           LEAN OUTPUTS (2) - Anti-Waste Intelligence
+           ======================================================================== -->
+
+      <!-- Output 4: Waste Detection Alerts -->
+      <!--
+        Automatic detection of waste patterns:
+        - NENHUM: No waste detected - adequate request
+        - DUP: Duplication - same procedure in < 30/60/90 days (saves 25%)
+        - FREQ: Excessive frequency - above protocol (saves 20%)
+        - ESC: Escalation - skipped step therapy (saves 15%)
+        - DOC: Documentation - missing clinical justification (saves 30%)
+        - PROT: Out of protocol - not in ANS/CONITEC (saves 10%)
+        - MULTI: Multiple alerts detected (use most restrictive)
+
+        Neural learning tracks historical patterns of waste.
+      -->
+      <output id="Output_alertasDesperdicio" label="Alertas de Desperdicio" name="alertasDesperdicio" typeRef="string">
+        <outputValues id="OutputValues_alertasDesperdicio">
+          <text>"NENHUM","DUP","FREQ","ESC","DOC","PROT","MULTI"</text>
+        </outputValues>
+      </output>
+
+      <!-- Output 5: Recommended Action -->
+      <!--
+        Clear and direct actions based on waste detection:
+        - APROVAR: No alerts, documentation OK → Aprovado
+        - NEGAR: DUP, FREQ, PROT confirmed → Reprovado
+        - SOLICITAR_INFO: DOC, ESC detected → Pendente
+        - AGUARDAR_PRAZO: DUP with future valid date → Pendente + date
+        - SUGERIR_ALTERNATIVA: ESC with more adequate option → Pendente + suggestion
+
+        Maps directly to workflow actions for faster processing.
+      -->
+      <output id="Output_acaoRecomendada" label="Acao Recomendada" name="acaoRecomendada" typeRef="string">
+        <outputValues id="OutputValues_acaoRecomendada">
+          <text>"APROVAR","NEGAR","SOLICITAR_INFO","AGUARDAR_PRAZO","SUGERIR_ALTERNATIVA"</text>
+        </outputValues>
+      </output>
+
+      <!-- ========================================================================
+           DECISION RULES - Template Structure
+           ======================================================================== -->
+
+      <!-- ====== CONTRAINDICATION RULES (Highest Priority) ====== -->
+
+      <!-- Rule 1: Absolute Contraindication - Class III -->
+      <rule id="Rule_Contraind_ClasseIII">
+        <description>Contraindicacao Absoluta: Classe III - procedimento nao indicado</description>
+        <inputEntry id="IE_Contraind_ClasseIII_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_Contraind_ClasseIII_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_Contraind_ClasseIII_3"><text>"Classe III"</text></inputEntry>
+        <inputEntry id="IE_Contraind_ClasseIII_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_Contraind_ClasseIII_5"><text>-</text></inputEntry>
+        <!-- Base outputs -->
+        <outputEntry id="OE_Contraind_ClasseIII_resultado"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OE_Contraind_ClasseIII_observacao"><text>"Procedimento classificado como Classe III - nao indicado pelas diretrizes"</text></outputEntry>
+        <outputEntry id="OE_Contraind_ClasseIII_fundamentacao"><text>"[REFERENCIA] Classe III: Procedimento nao util/eficaz e potencialmente prejudicial"</text></outputEntry>
+        <!-- Lean outputs -->
+        <outputEntry id="OE_Contraind_ClasseIII_alertasDesperdicio"><text>"PROT"</text></outputEntry>
+        <outputEntry id="OE_Contraind_ClasseIII_acaoRecomendada"><text>"NEGAR"</text></outputEntry>
+      </rule>
+
+      <!-- Rule 2: Contraindication - Life Expectancy < 1 Year -->
+      <rule id="Rule_Contraind_ExpVida">
+        <description>Contraindicacao: Expectativa de vida inferior a 1 ano</description>
+        <inputEntry id="IE_Contraind_ExpVida_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_Contraind_ExpVida_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_Contraind_ExpVida_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_Contraind_ExpVida_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_Contraind_ExpVida_5"><text>false</text></inputEntry>
+        <!-- Base outputs -->
+        <outputEntry id="OE_Contraind_ExpVida_resultado"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OE_Contraind_ExpVida_observacao"><text>"Expectativa de sobrevida insuficiente para beneficio do procedimento"</text></outputEntry>
+        <outputEntry id="OE_Contraind_ExpVida_fundamentacao"><text>"[REFERENCIA] Procedimento nao recomendado quando expectativa de vida inferior a 1 ano"</text></outputEntry>
+        <!-- Lean outputs -->
+        <outputEntry id="OE_Contraind_ExpVida_alertasDesperdicio"><text>"PROT"</text></outputEntry>
+        <outputEntry id="OE_Contraind_ExpVida_acaoRecomendada"><text>"NEGAR"</text></outputEntry>
+      </rule>
+
+      <!-- ====== PENDING RULES (Documentation Issues) ====== -->
+
+      <!-- Rule 3: Documentation Not Available -->
+      <rule id="Rule_Pendente_DocNaoDisponivel">
+        <description>Pendencia: Documentacao clinica nao disponivel</description>
+        <inputEntry id="IE_Pendente_Doc_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_Pendente_Doc_2"><text>"NaoDocumentado"</text></inputEntry>
+        <inputEntry id="IE_Pendente_Doc_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_Pendente_Doc_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_Pendente_Doc_5"><text>-</text></inputEntry>
+        <!-- Base outputs -->
+        <outputEntry id="OE_Pendente_Doc_resultado"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OE_Pendente_Doc_observacao"><text>"Documentacao clinica obrigatoria nao foi anexada a solicitacao"</text></outputEntry>
+        <outputEntry id="OE_Pendente_Doc_fundamentacao"><text>"ANS RN 465/2021 - Necessaria documentacao completa para avaliacao"</text></outputEntry>
+        <!-- Lean outputs -->
+        <outputEntry id="OE_Pendente_Doc_alertasDesperdicio"><text>"DOC"</text></outputEntry>
+        <outputEntry id="OE_Pendente_Doc_acaoRecomendada"><text>"SOLICITAR_INFO"</text></outputEntry>
+      </rule>
+
+      <!-- Rule 4: Incomplete Documentation -->
+      <rule id="Rule_Pendente_DocIncompleta">
+        <description>Pendencia: Documentacao clinica incompleta</description>
+        <inputEntry id="IE_Pendente_Inc_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_Pendente_Inc_2"><text>"Incompleto"</text></inputEntry>
+        <inputEntry id="IE_Pendente_Inc_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_Pendente_Inc_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_Pendente_Inc_5"><text>-</text></inputEntry>
+        <!-- Base outputs -->
+        <outputEntry id="OE_Pendente_Inc_resultado"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OE_Pendente_Inc_observacao"><text>"Documentacao clinica incompleta - faltam elementos essenciais"</text></outputEntry>
+        <outputEntry id="OE_Pendente_Inc_fundamentacao"><text>"ANS RN 465/2021 - Documentacao anexada nao contem todos elementos obrigatorios"</text></outputEntry>
+        <!-- Lean outputs -->
+        <outputEntry id="OE_Pendente_Inc_alertasDesperdicio"><text>"DOC"</text></outputEntry>
+        <outputEntry id="OE_Pendente_Inc_acaoRecomendada"><text>"SOLICITAR_INFO"</text></outputEntry>
+      </rule>
+
+      <!-- ====== APPROVAL RULES (Class I - Strong Indication) ====== -->
+
+      <!-- Rule 5: Optimal Condition with Class I Indication -->
+      <rule id="Rule_Aprovado_ClasseI_Otimo">
+        <description>Aprovacao: Condicao otima com indicacao Classe I</description>
+        <inputEntry id="IE_Aprov_CI_Otimo_1"><text>"CondicaoOtima"</text></inputEntry>
+        <inputEntry id="IE_Aprov_CI_Otimo_2"><text>"Adequado"</text></inputEntry>
+        <inputEntry id="IE_Aprov_CI_Otimo_3"><text>"Classe I"</text></inputEntry>
+        <inputEntry id="IE_Aprov_CI_Otimo_4"><text>"&lt;15%","15-30%","30-35%"</text></inputEntry>
+        <inputEntry id="IE_Aprov_CI_Otimo_5"><text>true</text></inputEntry>
+        <!-- Base outputs -->
+        <outputEntry id="OE_Aprov_CI_Otimo_resultado"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OE_Aprov_CI_Otimo_observacao"><text>"Indicacao Classe I em paciente com condicao otima - beneficio claramente estabelecido"</text></outputEntry>
+        <outputEntry id="OE_Aprov_CI_Otimo_fundamentacao"><text>"[REFERENCIA] Classe I, Nivel de Evidencia A - Procedimento indicado, util e efetivo"</text></outputEntry>
+        <!-- Lean outputs -->
+        <outputEntry id="OE_Aprov_CI_Otimo_alertasDesperdicio"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_Aprov_CI_Otimo_acaoRecomendada"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <!-- Rule 6: General Class I Approval -->
+      <rule id="Rule_Aprovado_ClasseI_Geral">
+        <description>Aprovacao: Indicacao Classe I em condicoes gerais apropriadas</description>
+        <inputEntry id="IE_Aprov_CI_Geral_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_Aprov_CI_Geral_2"><text>"Adequado"</text></inputEntry>
+        <inputEntry id="IE_Aprov_CI_Geral_3"><text>"Classe I"</text></inputEntry>
+        <inputEntry id="IE_Aprov_CI_Geral_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_Aprov_CI_Geral_5"><text>true</text></inputEntry>
+        <!-- Base outputs -->
+        <outputEntry id="OE_Aprov_CI_Geral_resultado"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OE_Aprov_CI_Geral_observacao"><text>"Indicacao Classe I - Procedimento essencial e indicado"</text></outputEntry>
+        <outputEntry id="OE_Aprov_CI_Geral_fundamentacao"><text>"[REFERENCIA] Classe I: Beneficio muito superior ao risco"</text></outputEntry>
+        <!-- Lean outputs -->
+        <outputEntry id="OE_Aprov_CI_Geral_alertasDesperdicio"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_Aprov_CI_Geral_acaoRecomendada"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <!-- ====== APPROVAL RULES (Class IIa - Reasonable Indication) ====== -->
+
+      <!-- Rule 7: Class IIa Approval -->
+      <rule id="Rule_Aprovado_ClasseIIa">
+        <description>Aprovacao: Indicacao Classe IIa - procedimento razoavel</description>
+        <inputEntry id="IE_Aprov_CIIa_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_Aprov_CIIa_2"><text>"Adequado"</text></inputEntry>
+        <inputEntry id="IE_Aprov_CIIa_3"><text>"Classe IIa"</text></inputEntry>
+        <inputEntry id="IE_Aprov_CIIa_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_Aprov_CIIa_5"><text>true</text></inputEntry>
+        <!-- Base outputs -->
+        <outputEntry id="OE_Aprov_CIIa_resultado"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OE_Aprov_CIIa_observacao"><text>"Indicacao Classe IIa - Procedimento provavelmente util e razoavel"</text></outputEntry>
+        <outputEntry id="OE_Aprov_CIIa_fundamentacao"><text>"[REFERENCIA] Classe IIa: Beneficio superior ao risco"</text></outputEntry>
+        <!-- Lean outputs -->
+        <outputEntry id="OE_Aprov_CIIa_alertasDesperdicio"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_Aprov_CIIa_acaoRecomendada"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <!-- ====== APPROVAL RULES (Class IIb - May Be Considered) ====== -->
+
+      <!-- Rule 8: Class IIb Approval -->
+      <rule id="Rule_Aprovado_ClasseIIb">
+        <description>Aprovacao: Indicacao Classe IIb - procedimento pode ser considerado</description>
+        <inputEntry id="IE_Aprov_CIIb_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_Aprov_CIIb_2"><text>"Adequado"</text></inputEntry>
+        <inputEntry id="IE_Aprov_CIIb_3"><text>"Classe IIb"</text></inputEntry>
+        <inputEntry id="IE_Aprov_CIIb_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_Aprov_CIIb_5"><text>true</text></inputEntry>
+        <!-- Base outputs -->
+        <outputEntry id="OE_Aprov_CIIb_resultado"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OE_Aprov_CIIb_observacao"><text>"Indicacao Classe IIb - Procedimento pode ser considerado"</text></outputEntry>
+        <outputEntry id="OE_Aprov_CIIb_fundamentacao"><text>"[REFERENCIA] Classe IIb: Beneficio igual ou superior ao risco"</text></outputEntry>
+        <!-- Lean outputs -->
+        <outputEntry id="OE_Aprov_CIIb_alertasDesperdicio"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_Aprov_CIIb_acaoRecomendada"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <!-- ====== FALLBACK RULE ====== -->
+
+      <!-- Rule 9: Default Fallback - Manual Analysis Required -->
+      <rule id="Rule_Fallback_Default">
+        <description>Regra padrao - Analise clinica individualizada necessaria</description>
+        <inputEntry id="IE_Fallback_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_Fallback_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_Fallback_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_Fallback_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_Fallback_5"><text>-</text></inputEntry>
+        <!-- Base outputs -->
+        <outputEntry id="OE_Fallback_resultado"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OE_Fallback_observacao"><text>"Caso requer avaliacao clinica especializada - encaminhar para auditoria medica"</text></outputEntry>
+        <outputEntry id="OE_Fallback_fundamentacao"><text>"Situacao nao enquadrada nas regras automatizadas - necessaria avaliacao individualizada"</text></outputEntry>
+        <!-- Lean outputs -->
+        <outputEntry id="OE_Fallback_alertasDesperdicio"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_Fallback_acaoRecomendada"><text>"SOLICITAR_INFO"</text></outputEntry>
+      </rule>
+
+    </decisionTable>
+  </decision>
+
+  <!-- ========================================================================
+       DMNDI - Diagram Information (Optional Visual Layout)
+       ======================================================================== -->
+  <dmndi:DMNDI>
+    <dmndi:DMNDiagram id="DMNDiagram_Enhanced">
+      <dmndi:DMNShape id="DMNShape_Decision" dmnElementRef="Decision_ENHANCED_TEMPLATE">
+        <dc:Bounds height="80" width="180" x="160" y="100" />
+      </dmndi:DMNShape>
+    </dmndi:DMNDiagram>
+  </dmndi:DMNDI>
+
+</definitions>

@@ -1,0 +1,375 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  ONQ-DRUG-016: Imatinib vs Generics Policy
+  TUSS: 40501341
+  Versao: 3.1.0-LEAN-TIER2 (2026-02-08)
+  Especialidade: Oncologia
+
+  ============================================================================
+  INDICACOES CLINICAS:
+  ============================================================================
+  - LMC: 1L todas as fases (IRIS, ENESTnd comparator)
+  - GIST: adjuvante e metastatico (ACOSOG Z9001, B2222)
+  - Generico preferido (bioequivalencia comprovada)
+  - Referencia apenas se intolerancia documentada ao generico
+
+  ============================================================================
+  REFERENCIAS NORMATIVAS:
+  ============================================================================
+  - IRIS (CML 1L)
+  - ENESTnd (CML 1L comparator)
+  - ACOSOG Z9001 (GIST adjuvant)
+  - ANVISA Resolucao RDC 17/2007 (Bioequivalencia)
+  - NCCN CML 2024, NCCN GIST 2024
+-->
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/" xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/" xmlns:dc="http://www.omg.org/spec/DMN/20180521/DC/" xmlns:modeler="http://camunda.org/schema/modeler/1.0" id="Definitions_ONQ_DRUG_016" name="DRD" namespace="http://camunda.org/schema/1.0/dmn" exporter="Camunda Modeler" exporterVersion="5.14.0" modeler:executionPlatform="Camunda Cloud" modeler:executionPlatformVersion="8.2.0">
+  <decision id="Decision_ONQ_DRUG_016" name="ONQ-DRUG-016: Imatinib vs Generics Policy [LEAN TIER-2]">
+    <decisionTable id="DecisionTable_ONQ_DRUG_016" hitPolicy="FIRST">
+      <input id="Input_disease" label="Disease">
+        <inputExpression id="InputExpression_disease" typeRef="string">
+          <text>disease</text>
+        </inputExpression>
+      </input>
+      <input id="Input_product_type" label="Product Requested">
+        <inputExpression id="InputExpression_product_type" typeRef="string">
+          <text>productType</text>
+        </inputExpression>
+      </input>
+      <input id="Input_generic_intolerance" label="Generic Intolerance Documented">
+        <inputExpression id="InputExpression_generic_intolerance" typeRef="boolean">
+          <text>genericIntoleranceDocumented</text>
+        </inputExpression>
+      </input>
+      <input id="Input_phase" label="Disease Phase">
+        <inputExpression id="InputExpression_phase" typeRef="string">
+          <text>diseasePhase</text>
+        </inputExpression>
+      </input>
+      <!-- Input: Dias desde ultimo procedimento (DUP detection) -->
+      <input id="Input_ultimoProcedimentoDias" label="Dias Desde Ultimo Procedimento">
+        <inputExpression id="InputExpression_ultimoProcedimentoDias" typeRef="number">
+          <text>ultimoProcedimentoDias</text>
+        </inputExpression>
+      </input>
+
+      <output id="Output_resultado" label="Resultado" name="resultado" typeRef="string">
+        <outputValues id="UnaryTests_resultado">
+          <text>"Aprovado","Reprovado","Pendente"</text>
+        </outputValues>
+      </output>
+      <output id="Output_observacao" label="Observacao" name="observacao" typeRef="string" />
+      <output id="Output_fundamentacao" label="Fundamentacao" name="fundamentacao" typeRef="string" />
+      <output id="Output_alertasDesperdicio" label="Alertas de Desperdicio" name="alertasDesperdicio" typeRef="string">
+        <outputValues id="OutputValues_alertasDesperdicio">
+          <text>"NENHUM","DUP","FREQ","ESC","DOC","PROT","MULTI"</text>
+        </outputValues>
+      </output>
+      <output id="Output_acaoRecomendada" label="Acao Recomendada" name="acaoRecomendada" typeRef="string">
+        <outputValues id="OutputValues_acaoRecomendada">
+          <text>"APROVAR","NEGAR","SOLICITAR_INFO","AGUARDAR_PRAZO","SUGERIR_ALTERNATIVA"</text>
+        </outputValues>
+      </output>
+      <rule id="DecisionRule_reject_non_approved">
+        <description>Reject non-approved diseases</description>
+        <inputEntry id="InputEntry_disease_non">
+          <text>not("CML","LMC","GIST","Ph+_ALL","LLA_Ph+")</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_product_type_non">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_generic_intolerance_non">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_phase_non">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="IE_DecisionRule_reject_non_approved_ultimo"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_resultado_non">
+          <text>"Reprovado"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_observacao_non">
+          <text>"Imatinibe: apenas LMC, GIST ou LLA Ph+"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_fundamentacao_non">
+          <text>"Indicacoes aprovadas: IRIS (LMC), ACOSOG (GIST). Outras off-label"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_alertasDesperdicio_non">
+          <text>"PROT"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_acaoRecomendada_non">
+          <text>"NEGAR"</text>
+        </outputEntry>
+      </rule>
+      <rule id="DecisionRule_approve_generic">
+        <description>Approve generic imatinib</description>
+        <inputEntry id="InputEntry_disease_gen">
+          <text>"CML","LMC","GIST","Ph+_ALL","LLA_Ph+"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_product_type_gen">
+          <text>"generic","generico"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_generic_intolerance_gen">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_phase_gen">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="IE_DecisionRule_approve_generic_ultimo"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_resultado_gen">
+          <text>"Aprovado"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_observacao_gen">
+          <text>"Imatinibe generico aprovado: bioequivalencia comprovada por ANVISA"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_fundamentacao_gen">
+          <text>"RDC 17/2007: genericos comprovam bioequivalencia; custo 70-80% menor"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_alertasDesperdicio_gen">
+          <text>"NENHUM"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_acaoRecomendada_gen">
+          <text>"APROVAR"</text>
+        </outputEntry>
+      </rule>
+      <rule id="DecisionRule_approve_reference_intolerance">
+        <description>Approve reference if generic intolerance</description>
+        <inputEntry id="InputEntry_disease_ref">
+          <text>"CML","LMC","GIST","Ph+_ALL","LLA_Ph+"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_product_type_ref">
+          <text>"reference","referencia","Glivec"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_generic_intolerance_ref">
+          <text>true</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_phase_ref">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="IE_DecisionRule_approve_reference_intolerance_ultimo"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_resultado_ref">
+          <text>"Aprovado"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_observacao_ref">
+          <text>"Imatinibe referencia aprovado: intolerancia ao generico documentada"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_fundamentacao_ref">
+          <text>"Intolerancia documentada justifica uso do referencia; manter monitoramento"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_alertasDesperdicio_ref">
+          <text>"NENHUM"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_acaoRecomendada_ref">
+          <text>"APROVAR"</text>
+        </outputEntry>
+      </rule>
+      <rule id="DecisionRule_reject_reference_no_intolerance">
+        <description>Reject reference without documented intolerance</description>
+        <inputEntry id="InputEntry_disease_no_intol">
+          <text>"CML","LMC","GIST","Ph+_ALL","LLA_Ph+"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_product_type_no_intol">
+          <text>"reference","referencia","Glivec"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_generic_intolerance_no_intol">
+          <text>false</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_phase_no_intol">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="IE_DecisionRule_reject_reference_no_intolerance_ultimo"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_resultado_no_intol">
+          <text>"Reprovado"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_observacao_no_intol">
+          <text>"Referencia sem intolerancia documentada: iniciar com generico bioequivalente"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_fundamentacao_no_intol">
+          <text>"Politica biosimilar-first: generico primeira escolha; referencia apenas se intolerancia"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_alertasDesperdicio_no_intol">
+          <text>"PROT"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_acaoRecomendada_no_intol">
+          <text>"NEGAR"</text>
+        </outputEntry>
+      </rule>
+
+      <!-- WASTE DETECTION: ESC -->
+      <rule id="Rule_40501341_ESC">
+        <description>ESC - Imatinib marca quando biosimilar/generico disponivel</description>
+        <inputEntry id="IE_ESC_40501341_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_ESC_40501341_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_ESC_40501341_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_ESC_40501341_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_ESC_40501341_ultimo"><text>-</text></inputEntry>
+        <outputEntry id="OE_ESC_40501341_resultado"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OE_ESC_40501341_observacao"><text>"Imatinib marca quando biosimilar/generico disponivel"</text></outputEntry>
+        <outputEntry id="OE_ESC_40501341_fundamentacao"><text>"CONITEC/ANS 2024: Imatinib generico/biosimilar com mesma eficacia. Economia 40-60%"</text></outputEntry>
+        <outputEntry id="OE_ESC_40501341_alertasDesperdicio"><text>"ESC"</text></outputEntry>
+        <outputEntry id="OE_ESC_40501341_acaoRecomendada"><text>"SOLICITAR_INFO"</text></outputEntry>
+      </rule>
+
+      <!-- WASTE DETECTION: FREQ -->
+      <rule id="Rule_40501341_FREQ">
+        <description>FREQ - Verificar frequencia dispensacao medicamento oral oncologico. Ciclo 28 dias padr</description>
+        <inputEntry id="IE_FREQ_40501341_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_FREQ_40501341_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_FREQ_40501341_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_FREQ_40501341_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_FREQ_40501341_ultimo"><text>-</text></inputEntry>
+        <outputEntry id="OE_FREQ_40501341_resultado"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OE_FREQ_40501341_observacao"><text>"Verificar frequencia dispensacao medicamento oral oncologico. Ciclo 28 dias padrao"</text></outputEntry>
+        <outputEntry id="OE_FREQ_40501341_fundamentacao"><text>"ANS RN 465/2021, SBOC 2023: Dispensacao oral oncologico ciclo 28 dias, max 3 ciclos por autorizacao"</text></outputEntry>
+        <outputEntry id="OE_FREQ_40501341_alertasDesperdicio"><text>"FREQ"</text></outputEntry>
+        <outputEntry id="OE_FREQ_40501341_acaoRecomendada"><text>"SOLICITAR_INFO"</text></outputEntry>
+      </rule>
+
+      <!-- WASTE DETECTION: PROT -->
+      <rule id="Rule_40501341_PROT">
+        <description>PROT - Imatinib marca quando generico/biosimilar disponivel. Justificar uso marca</description>
+        <inputEntry id="IE_PROT_40501341_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_PROT_40501341_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_PROT_40501341_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_PROT_40501341_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_PROT_40501341_ultimo"><text>-</text></inputEntry>
+        <outputEntry id="OE_PROT_40501341_resultado"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OE_PROT_40501341_observacao"><text>"Imatinib marca quando generico/biosimilar disponivel. Justificar uso marca"</text></outputEntry>
+        <outputEntry id="OE_PROT_40501341_fundamentacao"><text>"CONITEC/ANS 2024: Imatinib generico com mesma eficacia/seguranca. Economia 40-60%"</text></outputEntry>
+        <outputEntry id="OE_PROT_40501341_alertasDesperdicio"><text>"PROT"</text></outputEntry>
+        <outputEntry id="OE_PROT_40501341_acaoRecomendada"><text>"SUGERIR_ALTERNATIVA"</text></outputEntry>
+      </rule>
+
+      <rule id="DecisionRule_pending_blast_crisis">
+        <description>Pending for blast crisis - consider 2G TKI</description>
+        <inputEntry id="InputEntry_disease_bc">
+          <text>"CML","LMC"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_product_type_bc">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_generic_intolerance_bc">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_phase_bc">
+          <text>"blast_crisis","BC","accelerated","AP"</text>
+        </inputEntry>
+        <inputEntry id="IE_DecisionRule_pending_blast_crisis_ultimo"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_resultado_bc">
+          <text>"Pendente"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_observacao_bc">
+          <text>"Fase acelerada/blastica: considerar TKI 2G (dasatinibe/nilotinibe) como 1L"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_fundamentacao_bc">
+          <text>"ENESTnd/DASISION: TKI 2G superiores em fases avancadas; imatinibe subotimo"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_alertasDesperdicio_bc">
+          <text>"NENHUM"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_acaoRecomendada_bc">
+          <text>"SOLICITAR_INFO"</text>
+        </outputEntry>
+      </rule>
+      <rule id="DecisionRule_approve_cml_chronic">
+        <description>Approve CML chronic phase</description>
+        <inputEntry id="InputEntry_disease_cp">
+          <text>"CML","LMC"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_product_type_cp">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_generic_intolerance_cp">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_phase_cp">
+          <text>"chronic","CP","cronica"</text>
+        </inputEntry>
+        <inputEntry id="IE_DecisionRule_approve_cml_chronic_ultimo"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_resultado_cp">
+          <text>"Aprovado"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_observacao_cp">
+          <text>"Imatinibe aprovado: LMC fase cronica 1L. Generico preferido"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_fundamentacao_cp">
+          <text>"IRIS: OS &gt;85% aos 10 anos; custo-efetivo como 1L em fase cronica"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_alertasDesperdicio_cp">
+          <text>"NENHUM"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_acaoRecomendada_cp">
+          <text>"APROVAR"</text>
+        </outputEntry>
+      </rule>
+      <rule id="DecisionRule_approve_gist">
+        <description>Approve GIST</description>
+        <inputEntry id="InputEntry_disease_gist">
+          <text>"GIST"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_product_type_gist">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_generic_intolerance_gist">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_phase_gist">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="IE_DecisionRule_approve_gist_ultimo"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_resultado_gist">
+          <text>"Aprovado"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_observacao_gist">
+          <text>"Imatinibe aprovado: GIST adjuvante (3 anos) ou metastatico. Generico preferido"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_fundamentacao_gist">
+          <text>"ACOSOG: RFS 65% vs 47% com 3 anos adjuvante; B2222: PFS 18m metastatico"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_alertasDesperdicio_gist">
+          <text>"NENHUM"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_acaoRecomendada_gist">
+          <text>"APROVAR"</text>
+        </outputEntry>
+      </rule>
+      <rule id="DecisionRule_fallback">
+        <description>Fallback rule</description>
+        <inputEntry id="InputEntry_disease_fallback">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_product_type_fallback">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_generic_intolerance_fallback">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_phase_fallback">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="IE_DecisionRule_fallback_ultimo"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_resultado_fallback">
+          <text>"Pendente"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_observacao_fallback">
+          <text>"Dados insuficientes para avaliacao de imatinibe"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_fundamentacao_fallback">
+          <text>"Necessario: doenca, tipo de produto, intolerancia ao generico, fase da doenca"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_alertasDesperdicio_fallback">
+          <text>"DOC"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_acaoRecomendada_fallback">
+          <text>"SOLICITAR_INFO"</text>
+        </outputEntry>
+      </rule>
+    </decisionTable>
+  </decision>
+  <dmndi:DMNDI>
+    <dmndi:DMNDiagram>
+      <dmndi:DMNShape dmnElementRef="Decision_ONQ_DRUG_016">
+        <dc:Bounds height="80" width="180" x="160" y="100" />
+      </dmndi:DMNShape>
+    </dmndi:DMNDiagram>
+  </dmndi:DMNDI>
+</definitions>

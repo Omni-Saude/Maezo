@@ -1,0 +1,244 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/"
+             xmlns:dc="http://www.omg.org/spec/DD/20100524/DC/"
+             xmlns:di="http://www.omg.org/spec/DD/20100524/DI/"
+             id="Definitions_TUSS_CODE"
+             name="PROCEDURE_NAME"
+             namespace="http://camunda.org/schema/1.0/dmn"
+             exporter="Camunda Modeler"
+             exporterVersion="5.0.0">
+  <!--
+    TUSS TUSS_CODE - PROCEDURE_NAME
+    Versao: 1.0.0 (2026-02-06)
+    Especialidade: SPECIALTY_NAME
+    Categoria: Oncology Specialized
+
+    Indicacoes Clinicas:
+    - Diagnostico oncologico confirmado por histopatologia com estadiamento especificado (TNM/Ann Arbor)
+    - Linhas de tratamento previas documentadas conforme protocolo
+    - Performance Status ECOG [criterio: 0-2 para terapia ativa]
+    - Protocolo terapeutico baseado em evidencia nivel [I/II] de sociedades medicas
+
+    Contraindicacoes:
+    - Performance Status ECOG >= 3 sem indicacao paliativa especifica
+    - Ausencia de confirmacao histopatologica (exceto emergencias)
+    - Progressao de doenca em < [N semanas] da ultima linha sem alternativa
+    - [Contraindicacao especifica adicional]
+
+    Documentacao Obrigatoria:
+    - Laudo anatomopatologico com imunohistoquimica se aplicavel
+    - Laudo de estadiamento (TNM completo ou Ann Arbor com fatores prognosticos)
+    - Relatorio de linhas de tratamento previas e respostas
+    - Performance Status ECOG documentado
+    - Protocolo terapeutico proposto com referencias (NCCN/ASCO/ESMO)
+    - [Documento especifico adicional]
+
+    Referencias Normativas:
+    - DUT ANS 2024 - Diretrizes para Oncologia
+    - RN 465/2021 - Rol de Procedimentos Oncologicos
+    - NCCN Guidelines (National Comprehensive Cancer Network)
+    - ASCO/ESMO - Diretrizes de Sociedades Oncologicas
+    - [Protocolo clinico especifico]
+  -->
+
+  <decision id="Decision_TUSS_CODE" name="Criterios de Autorizacao - PROCEDURE_NAME">
+    <decisionTable id="DecisionTable_TUSS_CODE" hitPolicy="FIRST">
+
+      <!-- Input 1: Diagnostico Oncologico -->
+      <input id="Input_diagnosticoOncologico" label="Diagnostico Oncologico Confirmado (CID-10)">
+        <inputExpression id="InputExpr_diagnosticoOncologico" typeRef="string">
+          <text>diagnosticoOncologico</text>
+        </inputExpression>
+        <inputValues id="InputValues_diagnosticoOncologico">
+          <text>"CANCER_TYPE_1","CANCER_TYPE_2","CANCER_TYPE_3"</text>
+        </inputValues>
+      </input>
+
+      <!-- Input 2: Estadiamento -->
+      <input id="Input_estadiamento" label="Estadiamento (TNM ou Ann Arbor)">
+        <inputExpression id="InputExpr_estadiamento" typeRef="string">
+          <text>estadiamento</text>
+        </inputExpression>
+        <inputValues id="InputValues_estadiamento">
+          <text>"ESTAGIO_I","ESTAGIO_II","ESTAGIO_III","ESTAGIO_IV","RECIDIVA"</text>
+        </inputValues>
+      </input>
+
+      <!-- Input 3: Linhas de Tratamento -->
+      <input id="Input_linhasTratamento" label="Linhas de Tratamento Previas">
+        <inputExpression id="InputExpr_linhasTratamento" typeRef="string">
+          <text>linhasTratamento</text>
+        </inputExpression>
+        <inputValues id="InputValues_linhasTratamento">
+          <text>"NAO_TRATADO","1_LINHA_COMPLETA","2_LINHAS","3_OU_MAIS_LINHAS"</text>
+        </inputValues>
+      </input>
+
+      <!-- Input 4: Performance Status ECOG -->
+      <input id="Input_performanceStatus" label="Performance Status ECOG">
+        <inputExpression id="InputExpr_performanceStatus" typeRef="string">
+          <text>performanceStatus</text>
+        </inputExpression>
+        <inputValues id="InputValues_performanceStatus">
+          <text>"ECOG_0","ECOG_1","ECOG_2","ECOG_3","ECOG_4"</text>
+        </inputValues>
+      </input>
+
+      <!-- Input 5: Protocolo Terapeutico -->
+      <input id="Input_protocoloTerapeutico" label="Protocolo Terapeutico Baseado em Evidencia">
+        <inputExpression id="InputExpr_protocoloTerapeutico" typeRef="boolean">
+          <text>protocoloTerapeutico</text>
+        </inputExpression>
+      </input>
+
+      <!-- Output 1: Resultado -->
+      <output id="Output_resultado" label="Resultado" name="resultado" typeRef="string">
+        <outputValues id="OutputValues_resultado">
+          <text>"Aprovado","Reprovado","Pendente"</text>
+        </outputValues>
+      </output>
+
+      <!-- Output 2: Observacao -->
+      <output id="Output_observacao" label="Observacao" name="observacao" typeRef="string" />
+
+      <!-- Output 3: Fundamentacao -->
+      <output id="Output_fundamentacao" label="Fundamentacao Legal" name="fundamentacao" typeRef="string" />
+
+      <!-- Output 4: Alertas de Desperdicio -->
+      <output id="Output_alertasDesperdicio" label="Alertas de Desperdicio" name="alertasDesperdicio" typeRef="string">
+        <outputValues id="OutputValues_alertasDesperdicio">
+          <text>"NENHUM","DUP","FREQ","ESC","DOC","PROT","MULTI"</text>
+        </outputValues>
+      </output>
+
+      <!-- Output 5: Acao Recomendada -->
+      <output id="Output_acaoRecomendada" label="Acao Recomendada" name="acaoRecomendada" typeRef="string">
+        <outputValues id="OutputValues_acaoRecomendada">
+          <text>"APROVAR","NEGAR","SOLICITAR_INFO","AGUARDAR_PRAZO","SUGERIR_ALTERNATIVA"</text>
+        </outputValues>
+      </output>
+
+      <!-- ============================================== -->
+      <!-- CONTRAINDICATION: Performance Status ECOG 4   -->
+      <!-- MUST COME FIRST for global denial             -->
+      <!-- ============================================== -->
+      <rule id="Rule_TUSS_CODE_Contraindicacao_ECOG4">
+        <description>Contraindicacao absoluta - Performance Status ECOG 4 (totalmente acamado)</description>
+        <inputEntry id="IE_Contra1_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_Contra1_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_Contra1_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_Contra1_4"><text>"ECOG_4"</text></inputEntry>
+        <inputEntry id="IE_Contra1_5"><text>-</text></inputEntry>
+        <outputEntry id="OE_Contra1_1"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OE_Contra1_2"><text>"Performance Status ECOG 4 (totalmente acamado) - contraindicacao para terapia ativa, indicar cuidados paliativos"</text></outputEntry>
+        <outputEntry id="OE_Contra1_3"><text>"DUT ANS 2024 - ECOG 4 contraindicacao para terapia antineoplasica"</text></outputEntry>
+        <outputEntry id="OE_Contra1_4"><text>"PROT"</text></outputEntry>
+        <outputEntry id="OE_Contra1_5"><text>"NEGAR"</text></outputEntry>
+      </rule>
+
+      <!-- ============================================== -->
+      <!-- CONTRAINDICATION: Sem protocolo baseado       -->
+      <!-- ============================================== -->
+      <rule id="Rule_TUSS_CODE_Contraindicacao_SemProtocolo">
+        <description>Contraindicacao - Protocolo terapeutico nao fundamentado em evidencia</description>
+        <inputEntry id="IE_Contra2_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_Contra2_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_Contra2_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_Contra2_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_Contra2_5"><text>false</text></inputEntry>
+        <outputEntry id="OE_Contra2_1"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OE_Contra2_2"><text>"Protocolo terapeutico baseado em evidencia (NCCN/ASCO/ESMO) eh documentacao obrigatoria"</text></outputEntry>
+        <outputEntry id="OE_Contra2_3"><text>"RN 465/2021 Art. 5 - Protocolos Oncologicos Baseados em Evidencia"</text></outputEntry>
+        <outputEntry id="OE_Contra2_4"><text>"DOC"</text></outputEntry>
+        <outputEntry id="OE_Contra2_5"><text>"SOLICITAR_INFO"</text></outputEntry>
+      </rule>
+
+      <!-- ============================================== -->
+      <!-- APPROVAL: 1a linha, estagio I-III, ECOG 0-1   -->
+      <!-- ============================================== -->
+      <rule id="Rule_TUSS_CODE_Aprovacao_1Linha_ECOG01">
+        <description>Aprovacao prioritaria - Primeira linha em estagio I-III com performance status excelente ECOG 0-1</description>
+        <inputEntry id="IE_Aprov1_1"><text>"CANCER_TYPE_1"</text></inputEntry>
+        <inputEntry id="IE_Aprov1_2"><text>"ESTAGIO_I","ESTAGIO_II","ESTAGIO_III"</text></inputEntry>
+        <inputEntry id="IE_Aprov1_3"><text>"NAO_TRATADO"</text></inputEntry>
+        <inputEntry id="IE_Aprov1_4"><text>"ECOG_0","ECOG_1"</text></inputEntry>
+        <inputEntry id="IE_Aprov1_5"><text>true</text></inputEntry>
+        <outputEntry id="OE_Aprov1_1"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OE_Aprov1_2"><text>"Indicacao prioritaria - primeira linha de tratamento em estagio I-III com performance status excelente (ECOG 0-1)"</text></outputEntry>
+        <outputEntry id="OE_Aprov1_3"><text>"DUT ANS 2024 - Primeira Linha Tratamento Oncologico"</text></outputEntry>
+        <outputEntry id="OE_Aprov1_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_Aprov1_5"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <!-- ============================================== -->
+      <!-- APPROVAL: 2a linha, estagio avancado, ECOG 0-2 -->
+      <!-- ============================================== -->
+      <rule id="Rule_TUSS_CODE_Aprovacao_2Linha_ECOG012">
+        <description>Aprovacao secundaria - Segunda linha em estagio avancado com performance status adequado ECOG 0-2</description>
+        <inputEntry id="IE_Aprov2_1"><text>"CANCER_TYPE_1","CANCER_TYPE_2"</text></inputEntry>
+        <inputEntry id="IE_Aprov2_2"><text>"ESTAGIO_III","ESTAGIO_IV","RECIDIVA"</text></inputEntry>
+        <inputEntry id="IE_Aprov2_3"><text>"1_LINHA_COMPLETA"</text></inputEntry>
+        <inputEntry id="IE_Aprov2_4"><text>"ECOG_0","ECOG_1","ECOG_2"</text></inputEntry>
+        <inputEntry id="IE_Aprov2_5"><text>true</text></inputEntry>
+        <outputEntry id="OE_Aprov2_1"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OE_Aprov2_2"><text>"Indicacao secundaria - segunda linha de tratamento em estagio avancado com performance status adequado (ECOG 0-2)"</text></outputEntry>
+        <outputEntry id="OE_Aprov2_3"><text>"DUT ANS 2024 - Segunda Linha Tratamento Oncologico"</text></outputEntry>
+        <outputEntry id="OE_Aprov2_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_Aprov2_5"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <!-- ============================================== -->
+      <!-- APPROVAL: 3+ linhas, estagio IV, ECOG 0-1     -->
+      <!-- ============================================== -->
+      <rule id="Rule_TUSS_CODE_Aprovacao_3MaisLinhas_ECOG01">
+        <description>Aprovacao terciaria - Terceira linha ou mais em estagio IV com performance status bom ECOG 0-1</description>
+        <inputEntry id="IE_Aprov3_1"><text>"CANCER_TYPE_1","CANCER_TYPE_2","CANCER_TYPE_3"</text></inputEntry>
+        <inputEntry id="IE_Aprov3_2"><text>"ESTAGIO_IV","RECIDIVA"</text></inputEntry>
+        <inputEntry id="IE_Aprov3_3"><text>"2_LINHAS","3_OU_MAIS_LINHAS"</text></inputEntry>
+        <inputEntry id="IE_Aprov3_4"><text>"ECOG_0","ECOG_1"</text></inputEntry>
+        <inputEntry id="IE_Aprov3_5"><text>true</text></inputEntry>
+        <outputEntry id="OE_Aprov3_1"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OE_Aprov3_2"><text>"Indicacao terciaria - terceira linha ou mais em estagio avancado com performance status bom (ECOG 0-1)"</text></outputEntry>
+        <outputEntry id="OE_Aprov3_3"><text>"DUT ANS 2024 - Terceira Linha ou Mais Tratamento Oncologico"</text></outputEntry>
+        <outputEntry id="OE_Aprov3_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_Aprov3_5"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <!-- ============================================== -->
+      <!-- APPROVAL: ECOG 3 com indicacao paliativa      -->
+      <!-- ============================================== -->
+      <rule id="Rule_TUSS_CODE_Aprovacao_ECOG3_Paliativo">
+        <description>Aprovacao quaternaria - ECOG 3 com indicacao paliativa especifica fundamentada</description>
+        <inputEntry id="IE_Aprov4_1"><text>"CANCER_TYPE_1","CANCER_TYPE_2","CANCER_TYPE_3"</text></inputEntry>
+        <inputEntry id="IE_Aprov4_2"><text>"ESTAGIO_IV","RECIDIVA"</text></inputEntry>
+        <inputEntry id="IE_Aprov4_3"><text>"1_LINHA_COMPLETA","2_LINHAS","3_OU_MAIS_LINHAS"</text></inputEntry>
+        <inputEntry id="IE_Aprov4_4"><text>"ECOG_3"</text></inputEntry>
+        <inputEntry id="IE_Aprov4_5"><text>true</text></inputEntry>
+        <outputEntry id="OE_Aprov4_1"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OE_Aprov4_2"><text>"Indicacao paliativa - ECOG 3 com indicacao paliativa fundamentada conforme protocolo"</text></outputEntry>
+        <outputEntry id="OE_Aprov4_3"><text>"DUT ANS 2024 - Tratamento Paliativo ECOG 3"</text></outputEntry>
+        <outputEntry id="OE_Aprov4_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_Aprov4_5"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <!-- ============================================== -->
+      <!-- FALLBACK RULE - Casos nao cobertos            -->
+      <!-- ============================================== -->
+      <rule id="Rule_Fallback_TUSS_CODE">
+        <description>Regra padrao - Casos nao cobertos requerem analise manual por oncologista auditor</description>
+        <inputEntry id="IE_Fallback_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_Fallback_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_Fallback_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_Fallback_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_Fallback_5"><text>-</text></inputEntry>
+        <outputEntry id="OE_Fallback_1"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OE_Fallback_2"><text>"Caso requer analise manual por oncologista auditor - criterios nao atendidos automaticamente"</text></outputEntry>
+        <outputEntry id="OE_Fallback_3"><text>"Processo manual de auditoria oncologica"</text></outputEntry>
+        <outputEntry id="OE_Fallback_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_Fallback_5"><text>"SOLICITAR_INFO"</text></outputEntry>
+      </rule>
+
+    </decisionTable>
+  </decision>
+</definitions>

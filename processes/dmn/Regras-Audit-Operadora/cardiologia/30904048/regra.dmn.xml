@@ -1,0 +1,258 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             xmlns:camunda="http://camunda.org/schema/1.0/dmn"
+             id="Definitions_30904048"
+             name="Correcao de CIA Cirurgica"
+             namespace="http://camunda.org/schema/1.0/dmn">
+
+  <!--
+    ===============================================================================
+    TUSS: 30904048
+    Procedimento: Correcao de Comunicacao Interatrial (CIA) Cirurgica
+    Versao: 1.0.0-LEAN-TIER2
+    Data: 2026-02-07
+    ===============================================================================
+
+    INDICACOES CLINICAS (ACC/AHA CHD 2024):
+    - CIA OS com shunt significativo (Qp/Qs maior 1.5) e sobrecarga VD (Classe I)
+    - CIA qualquer tipo com sintomas atribuiveis ao shunt (Classe I)
+    - CIA seio venoso ou seio coronario (nao tratavel por dispositivo) (Classe I)
+    - CIA OS com borda inadequada para dispositivo percutaneo (Classe I)
+    - Embolia paradoxal documentada (Classe I)
+    - CIA primum com cleft mitral associado (Classe I)
+
+    NOTA: Fechamento percutaneo preferivel para CIA OS com anatomia favoravel
+
+    CONTRAINDICACOES:
+    - Hipertensao pulmonar irreversivel (PVR maior 5 UW ou maior 2/3 RVS)
+    - Shunt reverso (Eisenmenger) - contraindicacao absoluta
+    - Expectativa vida menor 1 ano
+    - CIA pequena assintomatica sem sobrecarga VD
+
+    REFERENCIAS TECNICAS:
+    - ACC/AHA Congenital Heart Disease Guidelines 2024
+    - ESC Grown-Up Congenital Heart Disease Guidelines 2023
+
+    ALERTAS DE DESPERDICIO (LEAN TIER-2):
+    - DUP: Duplicidade - CIA ja corrigida ou em acompanhamento
+    - FREQ: Frequencia excessiva - avaliacoes repetidas
+    - ESC: Escalonamento indevido - cirurgia quando percutaneo indicado
+    - DOC: Documentacao insuficiente - sem ETE, cateterismo, RNM
+    - PROT: Protocolo inadequado - Eisenmenger, CIA pequena
+    - MULTI: Multiplos alertas combinados
+
+    ===============================================================================
+  -->
+
+  <decision id="Decision_30904048" name="Regra Clinica - Correcao CIA Cirurgica">
+    <decisionTable id="DecisionTable_30904048" hitPolicy="FIRST">
+
+      <!-- ========== INPUTS (6 - Padrao LEAN TIER-2) ========== -->
+
+      <input id="Input_tipoCIA" label="Tipo de CIA" camunda:inputVariable="tipoCIA">
+        <inputExpression id="InputExpression_tipoCIA" typeRef="string">
+          <text>tipoCIA</text>
+        </inputExpression>
+        <inputValues id="InputValues_tipoCIA">
+          <text>"CIA_Ostium_Secundum","CIA_Seio_Venoso","CIA_Seio_Coronario","CIA_Ostium_Primum","CIA_Mista"</text>
+        </inputValues>
+      </input>
+
+      <input id="Input_qpQs" label="Relacao Qp/Qs" camunda:inputVariable="qpQs">
+        <inputExpression id="InputExpression_qpQs" typeRef="string">
+          <text>qpQs</text>
+        </inputExpression>
+        <inputValues id="InputValues_qpQs">
+          <text>"Menor1_5","Entre1_5e2","Maior2","NaoCalculado"</text>
+        </inputValues>
+      </input>
+
+      <input id="Input_anatomiaDispositivo" label="Anatomia Favoravel Dispositivo Percutaneo" camunda:inputVariable="anatomiaDispositivo">
+        <inputExpression id="InputExpression_anatomiaDispositivo" typeRef="boolean">
+          <text>anatomiaDispositivo</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_pressaoPulmonar" label="Pressao Arterial Pulmonar" camunda:inputVariable="pressaoPulmonar">
+        <inputExpression id="InputExpression_pressaoPulmonar" typeRef="string">
+          <text>pressaoPulmonar</text>
+        </inputExpression>
+        <inputValues id="InputValues_pressaoPulmonar">
+          <text>"Normal","Leve","Moderada","Grave_Reversivel","Grave_Irreversivel"</text>
+        </inputValues>
+      </input>
+
+      <input id="Input_ultimoProcedimentoDias" label="Dias desde Ultima Avaliacao/Procedimento" camunda:inputVariable="ultimoProcedimentoDias">
+        <inputExpression id="InputExpression_ultimoProcedimentoDias" typeRef="integer">
+          <text>ultimoProcedimentoDias</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_sobrecargaVD" label="Sobrecarga Volume VD" camunda:inputVariable="sobrecargaVD">
+        <inputExpression id="InputExpression_sobrecargaVD" typeRef="boolean">
+          <text>sobrecargaVD</text>
+        </inputExpression>
+      </input>
+
+      <!-- ========== OUTPUTS (5 - Padrao LEAN TIER-2) ========== -->
+
+      <output id="Output_resultado" label="Resultado" name="resultado" typeRef="string">
+        <outputValues id="OutputValues_resultado">
+          <text>"Aprovado","Reprovado","Pendente"</text>
+        </outputValues>
+      </output>
+
+      <output id="Output_observacao" label="Observacao Clinica" name="observacao" typeRef="string" />
+
+      <output id="Output_fundamentacao" label="Fundamentacao Tecnica" name="fundamentacao" typeRef="string" />
+
+      <output id="Output_alertasDesperdicio" label="Alertas de Desperdicio" name="alertasDesperdicio" typeRef="string">
+        <outputValues id="OutputValues_alertasDesperdicio">
+          <text>"NENHUM","DUP","FREQ","ESC","DOC","PROT","MULTI"</text>
+        </outputValues>
+      </output>
+
+      <output id="Output_acaoRecomendada" label="Acao Recomendada" name="acaoRecomendada" typeRef="string">
+        <outputValues id="OutputValues_acaoRecomendada">
+          <text>"APROVAR","NEGAR","SOLICITAR_INFO","AGUARDAR_PRAZO","SUGERIR_ALTERNATIVA"</text>
+        </outputValues>
+      </output>
+
+      <!-- ========== REGRAS DE REPROVACAO (PRIORIDADE MAXIMA) ========== -->
+
+      <!-- PROT: Eisenmenger - contraindicacao absoluta -->
+      <rule id="Rule_Reprovado_Eisenmenger">
+        <description>Reprovado: Hipertensao pulmonar irreversivel/Eisenmenger - contraindicacao absoluta</description>
+        <inputEntry id="InputEntry_Eisen_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Eisen_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Eisen_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Eisen_4"><text>"Grave_Irreversivel"</text></inputEntry>
+        <inputEntry id="InputEntry_Eisen_5"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Eisen_6"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_Eisen_resultado"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_Eisen_observacao"><text>"Hipertensao pulmonar irreversivel (sindrome Eisenmenger) contraindica fechamento CIA. Fechamento precipita falencia VD"</text></outputEntry>
+        <outputEntry id="OutputEntry_Eisen_fundamentacao"><text>"ACC/AHA CHD 2024 Classe III: fechamento CIA contraindicado se PVR maior 5 UW ou maior 2/3 RVS ou shunt reverso. Tratamento: vasodilatador pulmonar, transplante"</text></outputEntry>
+        <outputEntry id="OutputEntry_Eisen_alerta"><text>"PROT"</text></outputEntry>
+        <outputEntry id="OutputEntry_Eisen_acao"><text>"NEGAR"</text></outputEntry>
+      </rule>
+
+      <!-- PROT: CIA pequena sem sobrecarga VD -->
+      <rule id="Rule_Reprovado_CIAPequena">
+        <description>Reprovado: CIA pequena (Qp/Qs menor 1.5) sem sobrecarga VD - nao indicado</description>
+        <inputEntry id="InputEntry_Peq_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Peq_2"><text>"Menor1_5"</text></inputEntry>
+        <inputEntry id="InputEntry_Peq_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Peq_4"><text>"Normal","Leve"</text></inputEntry>
+        <inputEntry id="InputEntry_Peq_5"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Peq_6"><text>false</text></inputEntry>
+        <outputEntry id="OutputEntry_Peq_resultado"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_Peq_observacao"><text>"CIA pequena (Qp/Qs menor 1.5) sem sobrecarga VD - fechamento nao indicado. Acompanhamento clinico"</text></outputEntry>
+        <outputEntry id="OutputEntry_Peq_fundamentacao"><text>"ACC/AHA CHD 2024: Fechamento indicado apenas se shunt significativo (Qp/Qs maior 1.5) com sobrecarga volumetrica VD documentada"</text></outputEntry>
+        <outputEntry id="OutputEntry_Peq_alerta"><text>"PROT"</text></outputEntry>
+        <outputEntry id="OutputEntry_Peq_acao"><text>"NEGAR"</text></outputEntry>
+      </rule>
+
+      <!-- ESC: CIA OS com anatomia favoravel - preferir percutaneo -->
+      <rule id="Rule_Pendente_Percutaneo">
+        <description>Pendente: CIA OS com anatomia favoravel - avaliar fechamento percutaneo primeiro</description>
+        <inputEntry id="InputEntry_Perc_1"><text>"CIA_Ostium_Secundum"</text></inputEntry>
+        <inputEntry id="InputEntry_Perc_2"><text>"Entre1_5e2","Maior2"</text></inputEntry>
+        <inputEntry id="InputEntry_Perc_3"><text>true</text></inputEntry>
+        <inputEntry id="InputEntry_Perc_4"><text>"Normal","Leve","Moderada"</text></inputEntry>
+        <inputEntry id="InputEntry_Perc_5"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Perc_6"><text>true</text></inputEntry>
+        <outputEntry id="OutputEntry_Perc_resultado"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OutputEntry_Perc_observacao"><text>"CIA OS com anatomia favoravel para dispositivo percutaneo. Via menos invasiva e preferencial. Justificar se optar por cirurgia"</text></outputEntry>
+        <outputEntry id="OutputEntry_Perc_fundamentacao"><text>"ACC/AHA CHD 2024 Classe I: fechamento percutaneo preferencial para CIA OS com bordas adequadas. Menor invasividade, recuperacao rapida"</text></outputEntry>
+        <outputEntry id="OutputEntry_Perc_alerta"><text>"ESC"</text></outputEntry>
+        <outputEntry id="OutputEntry_Perc_acao"><text>"SUGERIR_ALTERNATIVA"</text></outputEntry>
+      </rule>
+
+      <!-- ========== REGRAS DE APROVACAO ========== -->
+
+      <!-- Classe I - CIA seio venoso (nao tratavel por dispositivo) -->
+      <rule id="Rule_Aprovado_SeioVenoso">
+        <description>Aprovado: CIA seio venoso/coronario - cirurgia obrigatoria (dispositivo nao aplicavel)</description>
+        <inputEntry id="InputEntry_SV_1"><text>"CIA_Seio_Venoso","CIA_Seio_Coronario"</text></inputEntry>
+        <inputEntry id="InputEntry_SV_2"><text>"Entre1_5e2","Maior2"</text></inputEntry>
+        <inputEntry id="InputEntry_SV_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_SV_4"><text>"Normal","Leve","Moderada","Grave_Reversivel"</text></inputEntry>
+        <inputEntry id="InputEntry_SV_5"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_SV_6"><text>true</text></inputEntry>
+        <outputEntry id="OutputEntry_SV_resultado"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_SV_observacao"><text>"CIA seio venoso/coronario com shunt significativo - Indicacao cirurgica Classe I. Dispositivo nao aplicavel"</text></outputEntry>
+        <outputEntry id="OutputEntry_SV_fundamentacao"><text>"ACC/AHA CHD 2024 Classe I: CIA seio venoso requer correcao cirurgica (baffle veias pulmonares). Mortalidade menor 1%"</text></outputEntry>
+        <outputEntry id="OutputEntry_SV_alerta"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_SV_acao"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <!-- Classe I - CIA primum -->
+      <rule id="Rule_Aprovado_Primum">
+        <description>Aprovado: CIA primum - cirurgia indicada (dispositivo nao aplicavel)</description>
+        <inputEntry id="InputEntry_Prim_1"><text>"CIA_Ostium_Primum"</text></inputEntry>
+        <inputEntry id="InputEntry_Prim_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Prim_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Prim_4"><text>"Normal","Leve","Moderada","Grave_Reversivel"</text></inputEntry>
+        <inputEntry id="InputEntry_Prim_5"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Prim_6"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_Prim_resultado"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_Prim_observacao"><text>"CIA primum (defeito septo AV parcial) - Indicacao cirurgica Classe I. Requer fechamento CIA e reparo cleft mitral"</text></outputEntry>
+        <outputEntry id="OutputEntry_Prim_fundamentacao"><text>"ACC/AHA CHD 2024 Classe I: CIA primum requer correcao cirurgica. Ausencia de borda inferior impede dispositivo"</text></outputEntry>
+        <outputEntry id="OutputEntry_Prim_alerta"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_Prim_acao"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <!-- Classe I - CIA OS com anatomia desfavoravel -->
+      <rule id="Rule_Aprovado_OSDesfavoravel">
+        <description>Aprovado: CIA OS com bordas inadequadas para dispositivo - cirurgia indicada</description>
+        <inputEntry id="InputEntry_OSD_1"><text>"CIA_Ostium_Secundum"</text></inputEntry>
+        <inputEntry id="InputEntry_OSD_2"><text>"Entre1_5e2","Maior2"</text></inputEntry>
+        <inputEntry id="InputEntry_OSD_3"><text>false</text></inputEntry>
+        <inputEntry id="InputEntry_OSD_4"><text>"Normal","Leve","Moderada","Grave_Reversivel"</text></inputEntry>
+        <inputEntry id="InputEntry_OSD_5"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_OSD_6"><text>true</text></inputEntry>
+        <outputEntry id="OutputEntry_OSD_resultado"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_OSD_observacao"><text>"CIA OS com bordas inadequadas para dispositivo ou defeito muito grande - Cirurgia indicada"</text></outputEntry>
+        <outputEntry id="OutputEntry_OSD_fundamentacao"><text>"ACC/AHA CHD 2024: cirurgia indicada CIA OS quando percutaneo contraindicado (bordas menor 5mm, defeito maior 38mm). Mortalidade menor 1%"</text></outputEntry>
+        <outputEntry id="OutputEntry_OSD_alerta"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_OSD_acao"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <!-- ========== REGRAS DE PENDENCIA ========== -->
+
+      <!-- DOC: Qp/Qs nao calculado -->
+      <rule id="Rule_Pendente_SemQpQs">
+        <description>Pendente: Qp/Qs nao calculado - obrigatorio para decisao</description>
+        <inputEntry id="InputEntry_NoQp_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_NoQp_2"><text>"NaoCalculado"</text></inputEntry>
+        <inputEntry id="InputEntry_NoQp_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_NoQp_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_NoQp_5"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_NoQp_6"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_NoQp_resultado"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OutputEntry_NoQp_observacao"><text>"Relacao Qp/Qs nao calculada. Obrigatorio para determinar significancia do shunt e indicacao de fechamento"</text></outputEntry>
+        <outputEntry id="OutputEntry_NoQp_fundamentacao"><text>"ACC/AHA CHD 2024: Fechamento indicado se Qp/Qs maior 1.5 com sobrecarga VD. Calcular por eco ou cateterismo"</text></outputEntry>
+        <outputEntry id="OutputEntry_NoQp_alerta"><text>"DOC"</text></outputEntry>
+        <outputEntry id="OutputEntry_NoQp_acao"><text>"SOLICITAR_INFO"</text></outputEntry>
+      </rule>
+
+      <!-- ========== REGRA FALLBACK ========== -->
+
+      <rule id="Rule_Fallback_30904048">
+        <description>Regra padrao - caso requer analise especialista cardiopatia congenita</description>
+        <inputEntry id="InputEntry_Fallback_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Fallback_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Fallback_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Fallback_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Fallback_5"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Fallback_6"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_Fallback_resultado"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OutputEntry_Fallback_observacao"><text>"Caso requer analise de especialista em cardiopatia congenita adulto. Documentar: eco TT/TE, Qp/Qs, pressao pulmonar, RNM"</text></outputEntry>
+        <outputEntry id="OutputEntry_Fallback_fundamentacao"><text>"Heart Team congenito define: percutaneo vs cirurgico vs conservador. Documentar anatomia, shunt, pressoes"</text></outputEntry>
+        <outputEntry id="OutputEntry_Fallback_alerta"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_Fallback_acao"><text>"SOLICITAR_INFO"</text></outputEntry>
+      </rule>
+
+    </decisionTable>
+  </decision>
+</definitions>

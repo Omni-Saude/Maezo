@@ -1,0 +1,152 @@
+<?xml version='1.0' encoding='utf-8'?>
+<!--
+  ============================================================================
+  BILL-OPME-002 - Validacao Preco OPME
+  ============================================================================
+  Versao: 1.0.0 (2026-02-08)
+  Categoria: BILL-OPME
+  Perspectiva: HOSPITAL (Administrativo)
+  ============================================================================
+-->
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/"
+             xmlns:dc="http://www.omg.org/spec/DMN/20180521/DC/" id="Definitions_BILL-OPME-002" name="Validacao Preco OPME" targetNamespace="http://camunda.org/schema/1.0/dmn">
+
+  <decision id="Decision_BILL-OPME-002" name="Validacao Preco OPME">
+    <decisionTable id="DecisionTable_BILL-OPME-002" hitPolicy="FIRST">
+
+      <input id="Input_1" label="Percentual Margem Atual">
+        <inputExpression id="InputExpression_1" typeRef="number">
+          <text>percentualMargemAtual</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_2" label="Limite Margem Contrato">
+        <inputExpression id="InputExpression_2" typeRef="number">
+          <text>limiteMargemContrato</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_3" label="Preco Venda Maior Custo">
+        <inputExpression id="InputExpression_3" typeRef="boolean">
+          <text>precoVendaMaiorCusto</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_4" label="Tabela Referencia Disponivel">
+        <inputExpression id="InputExpression_4" typeRef="boolean">
+          <text>tabelaReferenciaDisponivel</text>
+        </inputExpression>
+      </input>
+
+      <!-- ========== OUTPUTS (5 STANDARD) ========== -->
+      <output id="Output_1" label="Resultado" name="resultado" typeRef="string">
+        <outputValues><text>"Prosseguir", "Bloquear", "Alertar", "Revisar"</text></outputValues>
+      </output>
+
+      <output id="Output_2" label="Observacao" name="observacao" typeRef="string"/>
+
+      <output id="Output_3" label="Acao Recomendada" name="acaoRecomendada" typeRef="string"/>
+
+      <output id="Output_4" label="Alertas Conformidade" name="alertasConformidade" typeRef="string">
+        <outputValues><text>"NENHUM", "DUP", "FREQ", "PRAZO", "DOC", "VALOR", "CRED", "CONTRATO"</text></outputValues>
+      </output>
+
+      <output id="Output_5" label="Risco Denial" name="riscoDenial" typeRef="string">
+        <outputValues><text>"BAIXO", "MEDIO", "ALTO", "CRITICO"</text></outputValues>
+      </output>
+
+      <!-- ========== RULES ========== -->
+<rule id="Rule_Bloquear_1">
+        <description>Bloqueio: Margem excede limite contratual</description>
+        <inputEntry id="InputEntry_B1_1"><text>&gt; limiteMargemContrato</text></inputEntry>
+        <inputEntry id="InputEntry_B1_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_B1_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_B1_4"><text>-</text></inputEntry>
+<outputEntry id="OutputEntry_B1_1"><text>"Bloquear"</text></outputEntry>
+<outputEntry id="OutputEntry_B1_2"><text>"BLOQUEADO - Margem de preco OPME excede limite contratual. Ajustar preco para margem permitida ou solicitar negociacao especial com operadora antes de faturar."</text></outputEntry>
+<outputEntry id="OutputEntry_B1_3"><text>"AJUSTAR_PRECO"</text></outputEntry>
+<outputEntry id="Rule_Bloquear_1_outputEntry_alertasConformidade"><text>"VALOR"</text></outputEntry>
+<outputEntry id="Rule_Bloquear_1_outputEntry_riscoDenial"><text>"ALTO"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Bloquear_2">
+        <description>Bloqueio: Preco abaixo do custo</description>
+        <inputEntry id="InputEntry_B2_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_B2_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_B2_3"><text>false</text></inputEntry>
+        <inputEntry id="InputEntry_B2_4"><text>-</text></inputEntry>
+<outputEntry id="OutputEntry_B2_1"><text>"Bloquear"</text></outputEntry>
+<outputEntry id="OutputEntry_B2_2"><text>"BLOQUEADO - Preco de venda OPME abaixo do custo de aquisicao. Verificar nota fiscal de compra e corrigir cadastro de preco antes de faturar para evitar prejuizo."</text></outputEntry>
+<outputEntry id="OutputEntry_B2_3"><text>"REVISAR_CUSTO"</text></outputEntry>
+<outputEntry id="Rule_Bloquear_2_outputEntry_alertasConformidade"><text>"VALOR"</text></outputEntry>
+<outputEntry id="Rule_Bloquear_2_outputEntry_riscoDenial"><text>"ALTO"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Bloquear_3">
+        <description>Bloqueio: Sem tabela de referencia</description>
+        <inputEntry id="InputEntry_B3_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_B3_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_B3_3"><text>true</text></inputEntry>
+        <inputEntry id="InputEntry_B3_4"><text>false</text></inputEntry>
+<outputEntry id="OutputEntry_B3_1"><text>"Bloquear"</text></outputEntry>
+<outputEntry id="OutputEntry_B3_2"><text>"BLOQUEADO - OPME sem tabela de referencia disponivel para validacao de preco. Conforme RN ANS 465/2021, transparencia de precos e obrigatoria. Cadastrar referencia."</text></outputEntry>
+<outputEntry id="OutputEntry_B3_3"><text>"NEGOCIAR_OPERADORA"</text></outputEntry>
+<outputEntry id="Rule_Bloquear_3_outputEntry_alertasConformidade"><text>"VALOR"</text></outputEntry>
+<outputEntry id="Rule_Bloquear_3_outputEntry_riscoDenial"><text>"ALTO"</text></outputEntry>
+      </rule>
+
+      
+      <rule id="Rule_Alertar_1">
+        <description>Alerta: Margem proxima do limite (80%)</description>
+        <inputEntry id="InputEntry_A1_1"><text>[limiteMargemContrato * 0.8..limiteMargemContrato]</text></inputEntry>
+        <inputEntry id="InputEntry_A1_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_A1_3"><text>true</text></inputEntry>
+        <inputEntry id="InputEntry_A1_4"><text>true</text></inputEntry>
+<outputEntry id="OutputEntry_A1_1"><text>"Alertar"</text></outputEntry>
+<outputEntry id="OutputEntry_A1_2"><text>"ALERTA - Margem de preco OPME proxima do limite contratual (acima de 80% do teto). Considerar negociacao previa para evitar questionamento da operadora."</text></outputEntry>
+<outputEntry id="OutputEntry_A1_3"><text>"NEGOCIAR_OPERADORA"</text></outputEntry>
+<outputEntry id="Rule_Alertar_1_outputEntry_alertasConformidade"><text>"VALOR"</text></outputEntry>
+<outputEntry id="Rule_Alertar_1_outputEntry_riscoDenial"><text>"MEDIO"</text></outputEntry>
+      </rule>
+
+      
+      <rule id="Rule_Prosseguir_1">
+        <description>Aprovado: Preco dentro da margem contratual</description>
+        <inputEntry id="InputEntry_P1_1"><text>&lt; limiteMargemContrato * 0.8</text></inputEntry>
+        <inputEntry id="InputEntry_P1_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_P1_3"><text>true</text></inputEntry>
+        <inputEntry id="InputEntry_P1_4"><text>true</text></inputEntry>
+<outputEntry id="OutputEntry_P1_1"><text>"Prosseguir"</text></outputEntry>
+<outputEntry id="OutputEntry_P1_2"><text>"APROVADO - Preco OPME dentro da margem contratual permitida, acima do custo de aquisicao e com tabela de referencia documentada. Prosseguir com faturamento."</text></outputEntry>
+<outputEntry id="OutputEntry_P1_3"><text>"FATURAR"</text></outputEntry>
+<outputEntry id="Rule_Prosseguir_1_outputEntry_alertasConformidade"><text>"NENHUM"</text></outputEntry>
+<outputEntry id="Rule_Prosseguir_1_outputEntry_riscoDenial"><text>"BAIXO"</text></outputEntry>
+      </rule>
+
+      
+      <rule id="Rule_Fallback_BILL-OPME-002">
+        <description>Regra padrao - Dados insuficientes para decisao automatica</description>
+        <inputEntry id="InputEntry_F_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_F_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_F_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_F_4"><text>-</text></inputEntry>
+<outputEntry id="OutputEntry_F_1"><text>"Revisar"</text></outputEntry>
+<outputEntry id="OutputEntry_F_2"><text>"REVISAR - Dados insuficientes para validacao de preco OPME. Verificar: margem atual, limite contratual, custo de aquisicao e tabela de referencia."</text></outputEntry>
+<outputEntry id="OutputEntry_F_3"><text>"REVISAR_CUSTO"</text></outputEntry>
+<outputEntry id="Rule_Fallback_BILL-OPME-002_outputEntry_alertasConformidade"><text>"NENHUM"</text></outputEntry>
+<outputEntry id="Rule_Fallback_BILL-OPME-002_outputEntry_riscoDenial"><text>"MEDIO"</text></outputEntry>
+      </rule>
+
+    </decisionTable>
+  </decision>
+
+  <dmndi:DMNDI>
+    <dmndi:DMNDiagram id="DMNDiagram_BILL-OPME-002">
+      <dmndi:DMNShape id="DMNShape_Decision_BILL-OPME-002" dmnElementRef="Decision_BILL-OPME-002">
+        <dc:Bounds height="80" width="180" x="160" y="100" />
+      </dmndi:DMNShape>
+    </dmndi:DMNDiagram>
+  </dmndi:DMNDI>
+
+</definitions>

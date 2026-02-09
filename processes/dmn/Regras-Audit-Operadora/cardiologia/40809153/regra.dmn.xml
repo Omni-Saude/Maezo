@@ -1,0 +1,332 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             xmlns:camunda="http://camunda.org/schema/1.0/dmn"
+             id="Definitions_40809153"
+             name="Cintilografia Miocardica de Perfusao"
+             namespace="http://camunda.org/schema/1.0/dmn">
+
+  <!--
+    ===============================================================================
+    TUSS: 40809153
+    Procedimento: Cintilografia Miocardica de Perfusao (SPECT)
+    Versao: 1.0.0-LEAN-TIER2
+    Data: 2026-02-07
+    ===============================================================================
+
+    INDICACOES CLINICAS (DUT/ANS + ASNC 2024):
+    - Avaliacao de DAC sintomatica PTP intermediario
+    - Estratificacao de risco pos-IAM
+    - Avaliacao de viabilidade miocardica
+    - Follow-up pos-revascularizacao
+    - Avaliacao pre-operatoria de alto risco
+
+    CONTRAINDICACOES:
+    - Gravidez (radiacao)
+    - Incapacidade de realizar esforco sem alternativa farmacologica
+
+    REFERENCIAS TECNICAS:
+    ASNC Guidelines 2024, ACC AUC 2024, ESC CCS 2024
+
+    ALERTAS DE DESPERDICIO (LEAN TIER-2):
+    - DUP: Duplicidade - cintilografia recente sem mudanca clinica
+    - FREQ: Frequencia excessiva - follow-up de rotina sem indicacao
+    - ESC: Escalonamento indevido - cintilografia sem teste ergometrico previo
+    - DOC: Documentacao insuficiente - sem justificativa clinica
+    - PROT: Protocolo inadequado - screening em baixo risco
+    - MULTI: Multiplos alertas combinados
+
+    ===============================================================================
+  -->
+
+  <decision id="Decision_40809153" name="Regra Clinica - Cintilografia Miocardica de Perfusao">
+    <decisionTable id="DecisionTable_40809153" hitPolicy="FIRST">
+
+      <!-- ========== INPUTS (6 - Padrao LEAN TIER-2) ========== -->
+
+      <input id="Input_indicacaoClinica" label="Indicacao Clinica" camunda:inputVariable="indicacaoClinica">
+        <inputExpression id="InputExpression_indicacaoClinica" typeRef="string">
+          <text>indicacaoClinica</text>
+        </inputExpression>
+        <inputValues id="InputValues_indicacaoClinica">
+          <text>"AvaliacaoDACSintomatica","EstratificacaoPosIAM","ViabilidadeMiocardica","FollowUpRevascularizacao","PreOperatorioAltoRisco","ScreeningAssintomatico","FollowUpRotina"</text>
+        </inputValues>
+      </input>
+
+      <input id="Input_ptpDAC" label="PTP para DAC" camunda:inputVariable="ptpDAC">
+        <inputExpression id="InputExpression_ptpDAC" typeRef="string">
+          <text>ptpDAC</text>
+        </inputExpression>
+        <inputValues id="InputValues_ptpDAC">
+          <text>"MuitoBaixo","Baixo","Intermediario","Alto","MuitoAlto"</text>
+        </inputValues>
+      </input>
+
+      <input id="Input_testeErgometricoPrevio" label="Teste Ergometrico Previo" camunda:inputVariable="testeErgometricoPrevio">
+        <inputExpression id="InputExpression_testeErgometricoPrevio" typeRef="string">
+          <text>testeErgometricoPrevio</text>
+        </inputExpression>
+        <inputValues id="InputValues_testeErgometricoPrevio">
+          <text>"Positivo","Negativo","Inconclusivo","NaoRealizado"</text>
+        </inputValues>
+      </input>
+
+      <input id="Input_ultimoProcedimentoDias" label="Dias desde Ultima Cintilografia" camunda:inputVariable="ultimoProcedimentoDias">
+        <inputExpression id="InputExpression_ultimoProcedimentoDias" typeRef="integer">
+          <text>ultimoProcedimentoDias</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_ecgInterpretavel" label="ECG Interpretavel para Isquemia" camunda:inputVariable="ecgInterpretavel">
+        <inputExpression id="InputExpression_ecgInterpretavel" typeRef="boolean">
+          <text>ecgInterpretavel</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_gravidez" label="Gravidez" camunda:inputVariable="gravidez">
+        <inputExpression id="InputExpression_gravidez" typeRef="boolean">
+          <text>gravidez</text>
+        </inputExpression>
+      </input>
+
+      <!-- ========== OUTPUTS (5 - Padrao LEAN TIER-2) ========== -->
+
+      <output id="Output_resultado" label="Resultado" name="resultado" typeRef="string">
+        <outputValues id="OutputValues_resultado">
+          <text>"Aprovado","Reprovado","Pendente"</text>
+        </outputValues>
+      </output>
+
+      <output id="Output_observacao" label="Observacao Clinica" name="observacao" typeRef="string" />
+
+      <output id="Output_fundamentacao" label="Fundamentacao Tecnica" name="fundamentacao" typeRef="string" />
+
+      <output id="Output_alertasDesperdicio" label="Alertas de Desperdicio" name="alertasDesperdicio" typeRef="string">
+        <outputValues id="OutputValues_alertasDesperdicio">
+          <text>"NENHUM","DUP","FREQ","ESC","DOC","PROT","MULTI"</text>
+        </outputValues>
+      </output>
+
+      <output id="Output_acaoRecomendada" label="Acao Recomendada" name="acaoRecomendada" typeRef="string">
+        <outputValues id="OutputValues_acaoRecomendada">
+          <text>"APROVAR","NEGAR","SOLICITAR_INFO","AGUARDAR_PRAZO","SUGERIR_ALTERNATIVA"</text>
+        </outputValues>
+      </output>
+
+      <!-- ========== REGRAS DE REPROVACAO (PRIORIDADE MAXIMA) ========== -->
+
+      <!-- PROT: Gravidez - contraindicacao absoluta -->
+      <rule id="Rule_Reprovado_Gravidez">
+        <description>Reprovado: Gravidez - radiacao contraindicada</description>
+        <inputEntry id="InputEntry_Grav_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Grav_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Grav_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Grav_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Grav_5"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Grav_6"><text>true</text></inputEntry>
+        <outputEntry id="OutputEntry_Grav_resultado"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_Grav_observacao"><text>"Gravidez - cintilografia contraindicada por exposicao a radiacao. Utilizar alternativas sem radiacao"</text></outputEntry>
+        <outputEntry id="OutputEntry_Grav_fundamentacao"><text>"ASNC 2024: Exames com radiacao contraindicados na gestacao. Alternativas: eco de estresse, RM cardiaca"</text></outputEntry>
+        <outputEntry id="OutputEntry_Grav_alerta"><text>"PROT"</text></outputEntry>
+        <outputEntry id="OutputEntry_Grav_acao"><text>"SUGERIR_ALTERNATIVA"</text></outputEntry>
+      </rule>
+
+      <!-- PROT: Screening em baixo risco -->
+      <rule id="Rule_Reprovado_ScreeningBaixoRisco">
+        <description>Reprovado: Screening em assintomaticos de baixo risco - nao indicado</description>
+        <inputEntry id="InputEntry_Screen_1"><text>"ScreeningAssintomatico"</text></inputEntry>
+        <inputEntry id="InputEntry_Screen_2"><text>"MuitoBaixo","Baixo"</text></inputEntry>
+        <inputEntry id="InputEntry_Screen_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Screen_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Screen_5"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Screen_6"><text>false</text></inputEntry>
+        <outputEntry id="OutputEntry_Screen_resultado"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_Screen_observacao"><text>"Cintilografia nao indicada para screening em assintomaticos de baixo risco cardiovascular"</text></outputEntry>
+        <outputEntry id="OutputEntry_Screen_fundamentacao"><text>"ASNC 2024, ACC AUC 2024: Raramente apropriado em baixo risco assintomatico. Escore de calcio mais custo-efetivo"</text></outputEntry>
+        <outputEntry id="OutputEntry_Screen_alerta"><text>"PROT"</text></outputEntry>
+        <outputEntry id="OutputEntry_Screen_acao"><text>"NEGAR"</text></outputEntry>
+      </rule>
+
+      <!-- FREQ: Follow-up rotina com cintilografia recente -->
+      <rule id="Rule_Reprovado_FollowUpRecente">
+        <description>Reprovado: Follow-up de rotina com cintilografia ha menos de 730 dias</description>
+        <inputEntry id="InputEntry_FU_1"><text>"FollowUpRotina"</text></inputEntry>
+        <inputEntry id="InputEntry_FU_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_FU_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_FU_4"><text>&lt; 730</text></inputEntry>
+        <inputEntry id="InputEntry_FU_5"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_FU_6"><text>false</text></inputEntry>
+        <outputEntry id="OutputEntry_FU_resultado"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_FU_observacao"><text>"Cintilografia realizada ha menos de 2 anos. Follow-up de rotina sem mudanca clinica nao e apropriado"</text></outputEntry>
+        <outputEntry id="OutputEntry_FU_fundamentacao"><text>"ASNC 2024: Repeticao de cintilografia em menos de 2 anos sem mudanca clinica nao acrescenta informacao. Documentar mudanca para justificar"</text></outputEntry>
+        <outputEntry id="OutputEntry_FU_alerta"><text>"FREQ"</text></outputEntry>
+        <outputEntry id="OutputEntry_FU_acao"><text>"AGUARDAR_PRAZO"</text></outputEntry>
+      </rule>
+
+      <!-- DUP: Cintilografia recente sem mudanca clinica -->
+      <rule id="Rule_Reprovado_DupRecente">
+        <description>Reprovado: Cintilografia ha menos de 365 dias em DAC estavel</description>
+        <inputEntry id="InputEntry_Dup_1"><text>"AvaliacaoDACSintomatica"</text></inputEntry>
+        <inputEntry id="InputEntry_Dup_2"><text>"Baixo","Intermediario"</text></inputEntry>
+        <inputEntry id="InputEntry_Dup_3"><text>"Negativo"</text></inputEntry>
+        <inputEntry id="InputEntry_Dup_4"><text>&lt; 365</text></inputEntry>
+        <inputEntry id="InputEntry_Dup_5"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Dup_6"><text>false</text></inputEntry>
+        <outputEntry id="OutputEntry_Dup_resultado"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_Dup_observacao"><text>"Cintilografia previa negativa ha menos de 12 meses. Sem indicacao de repeticao em paciente estavel"</text></outputEntry>
+        <outputEntry id="OutputEntry_Dup_fundamentacao"><text>"ASNC 2024, ACC AUC 2024: Repeticao anual de cintilografia em DAC estavel sem mudanca clinica nao e apropriada"</text></outputEntry>
+        <outputEntry id="OutputEntry_Dup_alerta"><text>"DUP"</text></outputEntry>
+        <outputEntry id="OutputEntry_Dup_acao"><text>"AGUARDAR_PRAZO"</text></outputEntry>
+      </rule>
+
+      <!-- MULTI: Screening + teste nao realizado + cintilografia recente -->
+      <rule id="Rule_Reprovado_MultiScreening">
+        <description>Reprovado: Multiplos alertas - screening sem justificativa e exame recente</description>
+        <inputEntry id="InputEntry_Multi_1"><text>"ScreeningAssintomatico","FollowUpRotina"</text></inputEntry>
+        <inputEntry id="InputEntry_Multi_2"><text>"MuitoBaixo","Baixo"</text></inputEntry>
+        <inputEntry id="InputEntry_Multi_3"><text>"NaoRealizado"</text></inputEntry>
+        <inputEntry id="InputEntry_Multi_4"><text>&lt; 730</text></inputEntry>
+        <inputEntry id="InputEntry_Multi_5"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Multi_6"><text>false</text></inputEntry>
+        <outputEntry id="OutputEntry_Multi_resultado"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_Multi_observacao"><text>"Multiplos alertas: screening em baixo risco, sem teste ergometrico previo, cintilografia recente. Nao preenche criterios"</text></outputEntry>
+        <outputEntry id="OutputEntry_Multi_fundamentacao"><text>"ASNC 2024, ACC AUC 2024: Cintilografia requer indicacao clinica clara. Em baixo risco, teste ergometrico e mais custo-efetivo"</text></outputEntry>
+        <outputEntry id="OutputEntry_Multi_alerta"><text>"MULTI"</text></outputEntry>
+        <outputEntry id="OutputEntry_Multi_acao"><text>"NEGAR"</text></outputEntry>
+      </rule>
+
+      <!-- ========== REGRAS DE APROVACAO ========== -->
+
+      <!-- Aprovado: DAC sintomatica com PTP intermediario -->
+      <rule id="Rule_Aprovado_DACIntermediario">
+        <description>Aprovado: DAC sintomatica com PTP intermediario</description>
+        <inputEntry id="InputEntry_DACInt_1"><text>"AvaliacaoDACSintomatica"</text></inputEntry>
+        <inputEntry id="InputEntry_DACInt_2"><text>"Intermediario"</text></inputEntry>
+        <inputEntry id="InputEntry_DACInt_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_DACInt_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_DACInt_5"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_DACInt_6"><text>false</text></inputEntry>
+        <outputEntry id="OutputEntry_DACInt_resultado"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_DACInt_observacao"><text>"DAC sintomatica com PTP intermediario - cintilografia apropriada para estratificacao de risco"</text></outputEntry>
+        <outputEntry id="OutputEntry_DACInt_fundamentacao"><text>"ASNC 2024, ACC AUC 2024: Cintilografia apropriada para avaliacao de isquemia em probabilidade pre-teste intermediaria"</text></outputEntry>
+        <outputEntry id="OutputEntry_DACInt_alerta"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_DACInt_acao"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <!-- Aprovado: DAC com ECG nao interpretavel -->
+      <rule id="Rule_Aprovado_ECGNaoInterpretavel">
+        <description>Aprovado: DAC sintomatica com ECG nao interpretavel</description>
+        <inputEntry id="InputEntry_ECGNao_1"><text>"AvaliacaoDACSintomatica"</text></inputEntry>
+        <inputEntry id="InputEntry_ECGNao_2"><text>"Baixo","Intermediario","Alto"</text></inputEntry>
+        <inputEntry id="InputEntry_ECGNao_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_ECGNao_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_ECGNao_5"><text>false</text></inputEntry>
+        <inputEntry id="InputEntry_ECGNao_6"><text>false</text></inputEntry>
+        <outputEntry id="OutputEntry_ECGNao_resultado"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_ECGNao_observacao"><text>"ECG nao interpretavel para isquemia (BRE, MP, WPW) - cintilografia indicada como teste de imagem"</text></outputEntry>
+        <outputEntry id="OutputEntry_ECGNao_fundamentacao"><text>"ASNC 2024: Teste de imagem recomendado quando ECG nao interpretavel para alteracoes isquemicas"</text></outputEntry>
+        <outputEntry id="OutputEntry_ECGNao_alerta"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_ECGNao_acao"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <!-- Aprovado: Teste ergometrico inconclusivo -->
+      <rule id="Rule_Aprovado_TesteInconclusivo">
+        <description>Aprovado: Teste ergometrico inconclusivo - cintilografia para esclarecimento</description>
+        <inputEntry id="InputEntry_TEInc_1"><text>"AvaliacaoDACSintomatica"</text></inputEntry>
+        <inputEntry id="InputEntry_TEInc_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_TEInc_3"><text>"Inconclusivo"</text></inputEntry>
+        <inputEntry id="InputEntry_TEInc_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_TEInc_5"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_TEInc_6"><text>false</text></inputEntry>
+        <outputEntry id="OutputEntry_TEInc_resultado"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_TEInc_observacao"><text>"Teste ergometrico inconclusivo - cintilografia indicada para esclarecimento diagnostico"</text></outputEntry>
+        <outputEntry id="OutputEntry_TEInc_fundamentacao"><text>"ASNC 2024, ACC AUC 2024: Teste de imagem indicado apos ergometrico inconclusivo para estratificacao"</text></outputEntry>
+        <outputEntry id="OutputEntry_TEInc_alerta"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_TEInc_acao"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <!-- Aprovado: Pos-IAM -->
+      <rule id="Rule_Aprovado_PosIAM">
+        <description>Aprovado: Estratificacao pos-IAM</description>
+        <inputEntry id="InputEntry_PosIAM_1"><text>"EstratificacaoPosIAM"</text></inputEntry>
+        <inputEntry id="InputEntry_PosIAM_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_PosIAM_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_PosIAM_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_PosIAM_5"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_PosIAM_6"><text>false</text></inputEntry>
+        <outputEntry id="OutputEntry_PosIAM_resultado"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_PosIAM_observacao"><text>"Estratificacao pos-IAM estabilizado - cintilografia apropriada para avaliacao de isquemia residual"</text></outputEntry>
+        <outputEntry id="OutputEntry_PosIAM_fundamentacao"><text>"ASNC 2024: Cintilografia apropriada para estratificacao de risco pos-IAM quando nao foi realizada coronariografia completa"</text></outputEntry>
+        <outputEntry id="OutputEntry_PosIAM_alerta"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_PosIAM_acao"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <!-- Aprovado: Viabilidade miocardica -->
+      <rule id="Rule_Aprovado_Viabilidade">
+        <description>Aprovado: Avaliacao de viabilidade miocardica</description>
+        <inputEntry id="InputEntry_Viab_1"><text>"ViabilidadeMiocardica"</text></inputEntry>
+        <inputEntry id="InputEntry_Viab_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Viab_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Viab_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Viab_5"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Viab_6"><text>false</text></inputEntry>
+        <outputEntry id="OutputEntry_Viab_resultado"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_Viab_observacao"><text>"Avaliacao de viabilidade miocardica - cintilografia com protocolo de viabilidade para decisao de revascularizacao"</text></outputEntry>
+        <outputEntry id="OutputEntry_Viab_fundamentacao"><text>"ASNC 2024: Cintilografia com protocolo de viabilidade apropriada para decisao de revascularizacao em disfuncao VE isquemica"</text></outputEntry>
+        <outputEntry id="OutputEntry_Viab_alerta"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_Viab_acao"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <!-- Aprovado: Pre-operatorio de alto risco -->
+      <rule id="Rule_Aprovado_PreOp">
+        <description>Aprovado: Pre-operatorio de alto risco cardiovascular</description>
+        <inputEntry id="InputEntry_PreOp_1"><text>"PreOperatorioAltoRisco"</text></inputEntry>
+        <inputEntry id="InputEntry_PreOp_2"><text>"Intermediario","Alto","MuitoAlto"</text></inputEntry>
+        <inputEntry id="InputEntry_PreOp_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_PreOp_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_PreOp_5"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_PreOp_6"><text>false</text></inputEntry>
+        <outputEntry id="OutputEntry_PreOp_resultado"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_PreOp_observacao"><text>"Pre-operatorio de alto risco cardiovascular - cintilografia apropriada para estratificacao"</text></outputEntry>
+        <outputEntry id="OutputEntry_PreOp_fundamentacao"><text>"ACC/AHA Perioperative Guidelines 2022, ASNC 2024: Teste de imagem apropriado em alto risco para cirurgia nao-cardiaca maior"</text></outputEntry>
+        <outputEntry id="OutputEntry_PreOp_alerta"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_PreOp_acao"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <!-- ========== REGRAS DE PENDENCIA ========== -->
+
+      <!-- ESC: DAC estavel sem teste ergometrico previo -->
+      <rule id="Rule_Pendente_SemTeste">
+        <description>Pendente: DAC estavel sem teste ergometrico previo em paciente capaz</description>
+        <inputEntry id="InputEntry_NoTE_1"><text>"AvaliacaoDACSintomatica"</text></inputEntry>
+        <inputEntry id="InputEntry_NoTE_2"><text>"Baixo","Intermediario"</text></inputEntry>
+        <inputEntry id="InputEntry_NoTE_3"><text>"NaoRealizado"</text></inputEntry>
+        <inputEntry id="InputEntry_NoTE_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_NoTE_5"><text>true</text></inputEntry>
+        <inputEntry id="InputEntry_NoTE_6"><text>false</text></inputEntry>
+        <outputEntry id="OutputEntry_NoTE_resultado"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OutputEntry_NoTE_observacao"><text>"Paciente capaz de exercicio com ECG interpretavel - teste ergometrico como primeiro passo e mais custo-efetivo"</text></outputEntry>
+        <outputEntry id="OutputEntry_NoTE_fundamentacao"><text>"ACC AUC 2024: Teste ergometrico e opcao mais custo-efetiva em pacientes capazes com ECG interpretavel. Cintilografia se inconclusivo"</text></outputEntry>
+        <outputEntry id="OutputEntry_NoTE_alerta"><text>"ESC"</text></outputEntry>
+        <outputEntry id="OutputEntry_NoTE_acao"><text>"SUGERIR_ALTERNATIVA"</text></outputEntry>
+      </rule>
+
+      <!-- ========== REGRA FALLBACK ========== -->
+
+      <rule id="Rule_Fallback_40809153">
+        <description>Regra padrao - caso requer analise clinica adicional</description>
+        <inputEntry id="InputEntry_Fallback_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Fallback_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Fallback_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Fallback_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Fallback_5"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Fallback_6"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_Fallback_resultado"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OutputEntry_Fallback_observacao"><text>"Caso requer analise clinica adicional para cintilografia. Documentar indicacao e exames previos"</text></outputEntry>
+        <outputEntry id="OutputEntry_Fallback_fundamentacao"><text>"ASNC 2024: Avaliacao individualizada. Documentar: historia clinica, ECG, capacidade exercicio, teste previos"</text></outputEntry>
+        <outputEntry id="OutputEntry_Fallback_alerta"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_Fallback_acao"><text>"SOLICITAR_INFO"</text></outputEntry>
+      </rule>
+
+    </decisionTable>
+  </decision>
+</definitions>

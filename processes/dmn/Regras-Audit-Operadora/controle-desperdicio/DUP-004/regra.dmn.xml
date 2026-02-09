@@ -1,0 +1,194 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/"
+             xmlns:dc="http://www.omg.org/spec/DD/20100524/DC/"
+             xmlns:di="http://www.omg.org/spec/DD/20100524/DI/"
+             id="Definitions_DUP_004"
+             name="Prevencao de Duplicidade - Procedimentos Cirurgicos Bilaterais"
+             namespace="http://camunda.org/schema/1.0/dmn"
+             exporter="Camunda Modeler"
+             exporterVersion="5.0.0">
+  <!--
+    DUP-004 - Prevencao de Duplicidade de Procedimentos Cirurgicos Bilaterais
+    Versao: 1.0.0 (2026-02-07)
+    Especialidade: Controle de Desperdicio
+    Categoria: Duplicate Procedure Prevention
+
+    Objetivo:
+    - Detectar cobranca indevida de procedimentos bilaterais como dois procedimentos separados
+    - Aplicar reducao de honorarios conforme tabela ANS (30% para segundo lado)
+    - Validar correta codificacao TUSS para bilateralidade
+
+    Indicacoes para Bloqueio:
+    - Dois codigos TUSS identicos para procedimento bilateral
+    - Cobranca integral de ambos os lados
+    - Ausencia de modificador de bilateralidade
+
+    Excecoes Permitidas:
+    - Procedimentos em tempos cirurgicos distintos
+    - Cirurgias em datas diferentes
+    - Codigos TUSS especificos para bilateral
+
+    Referencias Normativas:
+    - ANS - RN 465/2021 - Tabela de Procedimentos
+    - CBHPM - Regras de Bilateralidade 2023
+    - TISS - Codificacao de Procedimentos Bilaterais
+  -->
+
+  <decision id="Decision_DUP_004" name="Prevencao Duplicidade - Procedimentos Cirurgicos Bilaterais">
+    <decisionTable id="DecisionTable_DUP_004" hitPolicy="FIRST">
+
+      <!-- Input 1: Procedimento bilateral detectado -->
+      <input id="Input_procedimentoBilateralDetectado" label="Procedimento Bilateral Detectado">
+        <inputExpression id="InputExpr_procedimentoBilateralDetectado" typeRef="boolean">
+          <text>procedimentoBilateralDetectado</text>
+        </inputExpression>
+      </input>
+
+      <!-- Input 2: Cobranca com reducao aplicada -->
+      <input id="Input_cobrancaReducaoAplicada" label="Reducao de 30% Aplicada no Segundo Lado">
+        <inputExpression id="InputExpr_cobrancaReducaoAplicada" typeRef="boolean">
+          <text>cobrancaReducaoAplicada</text>
+        </inputExpression>
+      </input>
+
+      <!-- Input 3: Tempos cirurgicos distintos -->
+      <input id="Input_temposCirurgicosDistintos" label="Tempos Cirurgicos Distintos Documentados">
+        <inputExpression id="InputExpr_temposCirurgicosDistintos" typeRef="boolean">
+          <text>temposCirurgicosDistintos</text>
+        </inputExpression>
+      </input>
+
+      <!-- Input 4: Codigo TUSS especifico bilateral -->
+      <input id="Input_codigoTUSSBilateral" label="Codigo TUSS Especifico para Bilateral Utilizado">
+        <inputExpression id="InputExpr_codigoTUSSBilateral" typeRef="boolean">
+          <text>codigoTUSSBilateral</text>
+        </inputExpression>
+      </input>
+
+      <!-- Output 1: Resultado -->
+      <output id="Output_resultado" label="Resultado" name="resultado" typeRef="string">
+        <outputValues id="OutputValues_resultado">
+          <text>"Aprovado","Reprovado","Pendente"</text>
+        </outputValues>
+      </output>
+
+      <!-- Output 2: Observacao -->
+      <output id="Output_observacao" label="Observacao" name="observacao" typeRef="string" />
+
+      <!-- Output 3: Fundamentacao -->
+      <output id="Output_fundamentacao" label="Fundamentacao Legal" name="fundamentacao" typeRef="string" />
+      <!-- Output 4: Alertas de Desperdicio -->
+      <output id="Output_alertasDesperdicio" label="Alertas de Desperdicio" name="alertasDesperdicio" typeRef="string">
+        <outputValues id="OutputValues_alertasDesperdicio">
+          <text>"NENHUM","DUP","FREQ","ESC","DOC","PROT","MULTI"</text>
+        </outputValues>
+      </output>
+
+      <!-- Output 5: Acao Recomendada -->
+      <output id="Output_acaoRecomendada" label="Acao Recomendada" name="acaoRecomendada" typeRef="string">
+        <outputValues id="OutputValues_acaoRecomendada">
+          <text>"APROVAR","NEGAR","SOLICITAR_INFO","AGUARDAR_PRAZO","SUGERIR_ALTERNATIVA"</text>
+        </outputValues>
+      </output>
+
+
+      <!-- ============================================== -->
+      <!-- REPROVADO: Bilateral sem reducao              -->
+      <!-- ============================================== -->
+      <rule id="Rule_DUP_004_Reprovado_SemReducao">
+        <description>Reprovado - Procedimento bilateral cobrado integralmente em ambos os lados</description>
+        <inputEntry id="IE_Rep1_1"><text>true</text></inputEntry>
+        <inputEntry id="IE_Rep1_2"><text>false</text></inputEntry>
+        <inputEntry id="IE_Rep1_3"><text>false</text></inputEntry>
+        <inputEntry id="IE_Rep1_4"><text>false</text></inputEntry>
+        <outputEntry id="OE_Rep1_1"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OE_Rep1_2"><text>"Procedimento bilateral sem reducao de 30% no segundo lado. Corrigir cobranca conforme regras de bilateralidade ANS/CBHPM."</text></outputEntry>
+        <outputEntry id="OE_Rep1_3"><text>"ANS RN 465/2021; CBHPM Regras Bilateralidade 2023"</text></outputEntry>
+        <outputEntry id="OE_Rule_DUP_004_Reprovado_SemReducao_4"><text>"PROT"</text></outputEntry>
+        <outputEntry id="OE_Rule_DUP_004_Reprovado_SemReducao_5"><text>"NEGAR"</text></outputEntry>
+      </rule>
+
+      <!-- ============================================== -->
+      <!-- APROVADO: Codigo TUSS especifico bilateral    -->
+      <!-- ============================================== -->
+      <rule id="Rule_DUP_004_Aprovado_CodigoEspecifico">
+        <description>Aprovado - Codigo TUSS especifico para bilateral utilizado corretamente</description>
+        <inputEntry id="IE_Aprov1_1"><text>true</text></inputEntry>
+        <inputEntry id="IE_Aprov1_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_Aprov1_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_Aprov1_4"><text>true</text></inputEntry>
+        <outputEntry id="OE_Aprov1_1"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OE_Aprov1_2"><text>"Procedimento bilateral autorizado - Codigo TUSS especifico para bilateral aplicado corretamente."</text></outputEntry>
+        <outputEntry id="OE_Aprov1_3"><text>"TISS - Codificacao bilateral correta"</text></outputEntry>
+        <outputEntry id="OE_Rule_DUP_004_Aprovado_CodigoEspecifico_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_Rule_DUP_004_Aprovado_CodigoEspecifico_5"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <!-- ============================================== -->
+      <!-- APROVADO: Tempos cirurgicos distintos         -->
+      <!-- ============================================== -->
+      <rule id="Rule_DUP_004_Aprovado_TemposDistintos">
+        <description>Aprovado - Cirurgias em tempos distintos documentados</description>
+        <inputEntry id="IE_Aprov2_1"><text>true</text></inputEntry>
+        <inputEntry id="IE_Aprov2_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_Aprov2_3"><text>true</text></inputEntry>
+        <inputEntry id="IE_Aprov2_4"><text>-</text></inputEntry>
+        <outputEntry id="OE_Aprov2_1"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OE_Aprov2_2"><text>"Procedimentos autorizados - Tempos cirurgicos distintos documentados justificam cobranca separada."</text></outputEntry>
+        <outputEntry id="OE_Aprov2_3"><text>"Tempos cirurgicos distintos - Excecao aplicavel"</text></outputEntry>
+        <outputEntry id="OE_Rule_DUP_004_Aprovado_TemposDistintos_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_Rule_DUP_004_Aprovado_TemposDistintos_5"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <!-- ============================================== -->
+      <!-- APROVADO: Reducao aplicada corretamente       -->
+      <!-- ============================================== -->
+      <rule id="Rule_DUP_004_Aprovado_ReducaoAplicada">
+        <description>Aprovado - Reducao de bilateralidade aplicada corretamente</description>
+        <inputEntry id="IE_Aprov3_1"><text>true</text></inputEntry>
+        <inputEntry id="IE_Aprov3_2"><text>true</text></inputEntry>
+        <inputEntry id="IE_Aprov3_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_Aprov3_4"><text>-</text></inputEntry>
+        <outputEntry id="OE_Aprov3_1"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OE_Aprov3_2"><text>"Procedimento bilateral autorizado - Reducao de 30% aplicada corretamente no segundo lado."</text></outputEntry>
+        <outputEntry id="OE_Aprov3_3"><text>"CBHPM - Regra de bilateralidade aplicada"</text></outputEntry>
+        <outputEntry id="OE_Rule_DUP_004_Aprovado_ReducaoAplicada_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_Rule_DUP_004_Aprovado_ReducaoAplicada_5"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <!-- ============================================== -->
+      <!-- APROVADO: Nao bilateral                       -->
+      <!-- ============================================== -->
+      <rule id="Rule_DUP_004_Aprovado_NaoBilateral">
+        <description>Aprovado - Procedimento nao bilateral</description>
+        <inputEntry id="IE_Aprov4_1"><text>false</text></inputEntry>
+        <inputEntry id="IE_Aprov4_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_Aprov4_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_Aprov4_4"><text>-</text></inputEntry>
+        <outputEntry id="OE_Aprov4_1"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OE_Aprov4_2"><text>"Procedimento autorizado - Nao se aplica regra de bilateralidade."</text></outputEntry>
+        <outputEntry id="OE_Aprov4_3"><text>"Verificacao de bilateralidade - N/A"</text></outputEntry>
+        <outputEntry id="OE_Rule_DUP_004_Aprovado_NaoBilateral_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_Rule_DUP_004_Aprovado_NaoBilateral_5"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <!-- ============================================== -->
+      <!-- PENDENTE: Fallback                            -->
+      <!-- ============================================== -->
+      <rule id="Rule_DUP_004_Pendente_Fallback">
+        <description>Pendente - Requer analise manual por auditor</description>
+        <inputEntry id="IE_Pend_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_Pend_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_Pend_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_Pend_4"><text>-</text></inputEntry>
+        <outputEntry id="OE_Pend_1"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OE_Pend_2"><text>"Caso requer analise manual por auditor para validacao de regras de bilateralidade."</text></outputEntry>
+        <outputEntry id="OE_Pend_3"><text>"Auditoria medica - Processo manual"</text></outputEntry>
+        <outputEntry id="OE_Rule_DUP_004_Pendente_Fallback_4"><text>"DOC"</text></outputEntry>
+        <outputEntry id="OE_Rule_DUP_004_Pendente_Fallback_5"><text>"SOLICITAR_INFO"</text></outputEntry>
+      </rule>
+
+    </decisionTable>
+  </decision>
+</definitions>

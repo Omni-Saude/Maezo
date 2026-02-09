@@ -1,0 +1,321 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  ============================================================================
+  DMN HOSPITAL ADMINISTRATIVE RULE TEMPLATE - Version 1.0.0
+  ============================================================================
+
+  PERSPECTIVE: HOSPITAL (Revenue Maximization)
+
+  This template differs from payer clinical rules in key ways:
+  - Output values: Prosseguir/Bloquear/Alertar/Revisar (NOT Aprovado/Reprovado/Pendente)
+  - Logic: Block when REVENUE AT RISK (NOT when criteria not met)
+  - Goal: MAXIMIZE legitimate revenue capture
+
+  ============================================================================
+  MANDATORY PATTERNS (DO NOT DEVIATE)
+  ============================================================================
+
+  1. hitPolicy="FIRST"
+     - Rules are evaluated top-to-bottom, first match wins
+     - This ensures predictable, deterministic results
+
+  2. Rule Order (STRICT):
+     a) BLOCK (Bloquear) - Revenue-at-risk conditions FIRST
+     b) ALERT (Alertar) - Warning conditions SECOND
+     c) PROCEED (Prosseguir) - Approved conditions THIRD
+     d) FALLBACK (Revisar) - Default catch-all ALWAYS LAST
+
+  3. Variable Naming: camelCase ONLY
+     - CORRECT: temAutorizacaoPrevia, valorGlosa, diasEmAberto
+     - WRONG: tem_autorizacao, ValorGlosa, DIAS_EM_ABERTO
+
+  4. Standard Outputs (REQUIRED):
+     - resultado: "Prosseguir" | "Bloquear" | "Alertar" | "Revisar"
+     - observacao: Human-readable message explaining the decision
+     - acaoRecomendada: Next step action (optional but recommended)
+
+  5. Fallback Rule: MANDATORY as last rule (catches unmatched cases)
+
+  ============================================================================
+  PLACEHOLDERS TO REPLACE
+  ============================================================================
+
+  IDENTIFICATION:
+  - {RULE_ID}           : Rule identifier (e.g., "BILL-BUNDLE-001")
+  - {RULE_CODE}         : Category-Subcategory code (e.g., "BILL-BUNDLE")
+  - {RULE_NAME}         : Human-readable name
+  - {DATE}              : Creation date (YYYY-MM-DD format)
+  - {VERSION}           : Semantic version (e.g., "1.0.0")
+
+  BUSINESS CONTEXT:
+  - {BLOCK_CONDITIONS}  : When to BLOCK (revenue at risk)
+  - {ALERT_CONDITIONS}  : When to ALERT (warning)
+  - {PROCEED_CONDITIONS}: When to PROCEED (all clear)
+  - {REFERENCES}        : Regulatory/business references
+
+  ============================================================================
+-->
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/"
+             xmlns:dc="http://www.omg.org/spec/DMN/20180521/DC/"
+             id="Definitions_{RULE_ID}"
+             name="{RULE_NAME}"
+             targetNamespace="http://camunda.org/schema/1.0/dmn">
+
+  <!--
+    ═══════════════════════════════════════════════════════════════════════════
+    RULE DOCUMENTATION HEADER
+    ═══════════════════════════════════════════════════════════════════════════
+
+    {RULE_ID} - {RULE_NAME}
+    Versao: {VERSION} ({DATE})
+    Categoria: {RULE_CODE}
+    Perspectiva: HOSPITAL (Maximizacao de Receita)
+
+    ═══════════════════════════════════════════════════════════════════════════
+    CONDICOES DE BLOQUEIO (Quando BLOQUEAR - receita em risco):
+    ═══════════════════════════════════════════════════════════════════════════
+    {BLOCK_CONDITIONS}
+
+    ═══════════════════════════════════════════════════════════════════════════
+    CONDICOES DE ALERTA (Quando ALERTAR - revisao recomendada):
+    ═══════════════════════════════════════════════════════════════════════════
+    {ALERT_CONDITIONS}
+
+    ═══════════════════════════════════════════════════════════════════════════
+    CONDICOES DE PROSSEGUIR (Quando APROVAR - tudo ok):
+    ═══════════════════════════════════════════════════════════════════════════
+    {PROCEED_CONDITIONS}
+
+    ═══════════════════════════════════════════════════════════════════════════
+    REFERENCIAS:
+    ═══════════════════════════════════════════════════════════════════════════
+    {REFERENCES}
+
+    ═══════════════════════════════════════════════════════════════════════════
+  -->
+
+  <decision id="Decision_{RULE_ID}" name="{RULE_NAME}">
+    <decisionTable id="DecisionTable_{RULE_ID}" hitPolicy="FIRST">
+
+      <!-- ═══════════════════════════════════════════════════════════════════
+           SECTION: INPUT DEFINITIONS
+           ═══════════════════════════════════════════════════════════════════ -->
+
+      <!-- INPUT 1: Primary criterion -->
+      <input id="Input_1" label="{INPUT_LABEL_1}">
+        <inputExpression id="InputExpression_1" typeRef="{TYPE_1}">
+          <text>{inputVariable1CamelCase}</text>
+        </inputExpression>
+      </input>
+
+      <!-- INPUT 2: Secondary criterion -->
+      <input id="Input_2" label="{INPUT_LABEL_2}">
+        <inputExpression id="InputExpression_2" typeRef="{TYPE_2}">
+          <text>{inputVariable2CamelCase}</text>
+        </inputExpression>
+      </input>
+
+      <!-- INPUT 3: Tertiary criterion (if needed) -->
+      <input id="Input_3" label="{INPUT_LABEL_3}">
+        <inputExpression id="InputExpression_3" typeRef="{TYPE_3}">
+          <text>{inputVariable3CamelCase}</text>
+        </inputExpression>
+      </input>
+
+      <!-- ═══════════════════════════════════════════════════════════════════
+           SECTION: OUTPUT DEFINITIONS (HOSPITAL PERSPECTIVE)
+           ═══════════════════════════════════════════════════════════════════ -->
+
+      <output id="Output_1" label="Resultado" name="resultado" typeRef="string">
+        <outputValues id="OutputValues_1">
+          <text>"Prosseguir", "Bloquear", "Alertar", "Revisar"</text>
+        </outputValues>
+      </output>
+
+      <output id="Output_2" label="Observacao" name="observacao" typeRef="string"/>
+
+      <output id="Output_3" label="Acao Recomendada" name="acaoRecomendada" typeRef="string"/>
+
+      <!-- ═══════════════════════════════════════════════════════════════════
+           SECTION 1: BLOCK RULES (Bloquear)
+           ═══════════════════════════════════════════════════════════════════
+
+           CRITICAL: These rules MUST come FIRST!
+
+           Purpose: Define conditions that BLOCK the action (revenue at risk).
+           Think: "What conditions should PREVENT this action?"
+
+           Examples:
+           - Missing required documentation
+           - Authorization expired
+           - Bundle billing violation
+           - Filing deadline exceeded
+           ═══════════════════════════════════════════════════════════════════ -->
+
+      <!-- RULE B1: Block - {BLOCK_REASON_1} -->
+      <rule id="Rule_Bloquear_1">
+        <description>{BLOCK_DESCRIPTION_1}</description>
+        <inputEntry id="InputEntry_B1_1">
+          <text>{BLOCK_CONDITION_1}</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_B1_2">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_B1_3">
+          <text>-</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_B1_1">
+          <text>"Bloquear"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_B1_2">
+          <text>"{BLOCK_MESSAGE_1}"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_B1_3">
+          <text>"{BLOCK_ACTION_1}"</text>
+        </outputEntry>
+      </rule>
+
+      <!-- RULE B2: Block - {BLOCK_REASON_2} -->
+      <rule id="Rule_Bloquear_2">
+        <description>{BLOCK_DESCRIPTION_2}</description>
+        <inputEntry id="InputEntry_B2_1">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_B2_2">
+          <text>{BLOCK_CONDITION_2}</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_B2_3">
+          <text>-</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_B2_1">
+          <text>"Bloquear"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_B2_2">
+          <text>"{BLOCK_MESSAGE_2}"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_B2_3">
+          <text>"{BLOCK_ACTION_2}"</text>
+        </outputEntry>
+      </rule>
+
+      <!-- ═══════════════════════════════════════════════════════════════════
+           SECTION 2: ALERT RULES (Alertar)
+           ═══════════════════════════════════════════════════════════════════
+
+           Purpose: Define warning conditions (can proceed but review recommended).
+           Think: "What conditions warrant human attention?"
+
+           Examples:
+           - High denial risk detected
+           - Authorization expiring soon
+           - Unusual quantity/frequency
+           ═══════════════════════════════════════════════════════════════════ -->
+
+      <!-- RULE A1: Alert - {ALERT_REASON_1} -->
+      <rule id="Rule_Alertar_1">
+        <description>{ALERT_DESCRIPTION_1}</description>
+        <inputEntry id="InputEntry_A1_1">
+          <text>{ALERT_CONDITION_1}</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_A1_2">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_A1_3">
+          <text>-</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_A1_1">
+          <text>"Alertar"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_A1_2">
+          <text>"{ALERT_MESSAGE_1}"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_A1_3">
+          <text>"{ALERT_ACTION_1}"</text>
+        </outputEntry>
+      </rule>
+
+      <!-- ═══════════════════════════════════════════════════════════════════
+           SECTION 3: PROCEED RULES (Prosseguir)
+           ═══════════════════════════════════════════════════════════════════
+
+           Purpose: Define conditions that confirm action should proceed.
+           Think: "What conditions mean all is well?"
+
+           Examples:
+           - All documentation complete
+           - Authorization valid
+           - Billing correctly configured
+           ═══════════════════════════════════════════════════════════════════ -->
+
+      <!-- RULE P1: Proceed - {PROCEED_REASON_1} -->
+      <rule id="Rule_Prosseguir_1">
+        <description>{PROCEED_DESCRIPTION_1}</description>
+        <inputEntry id="InputEntry_P1_1">
+          <text>{PROCEED_CONDITION_1}</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_P1_2">
+          <text>{PROCEED_CONDITION_2}</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_P1_3">
+          <text>-</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_P1_1">
+          <text>"Prosseguir"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_P1_2">
+          <text>"{PROCEED_MESSAGE_1}"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_P1_3">
+          <text>""</text>
+        </outputEntry>
+      </rule>
+
+      <!-- ═══════════════════════════════════════════════════════════════════
+           SECTION 4: FALLBACK RULE (Revisar) - MANDATORY
+           ═══════════════════════════════════════════════════════════════════
+
+           CRITICAL: This rule MUST be the LAST rule. NEVER remove it!
+
+           Purpose: Catch all cases that don't match any other rule.
+           Result: "Revisar" (Review) - Requires manual review.
+           ═══════════════════════════════════════════════════════════════════ -->
+
+      <!-- RULE F: Fallback - Default (MANDATORY - ALWAYS LAST) -->
+      <rule id="Rule_Fallback_{RULE_ID}">
+        <description>Regra padrao - Dados insuficientes para decisao automatica</description>
+        <inputEntry id="InputEntry_F_1">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_F_2">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_F_3">
+          <text>-</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_F_1">
+          <text>"Revisar"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_F_2">
+          <text>"Dados insuficientes para decisao automatica. Encaminhar para revisao manual. Verificar: {REVIEW_CHECKLIST}."</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_F_3">
+          <text>""</text>
+        </outputEntry>
+      </rule>
+
+    </decisionTable>
+  </decision>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════
+       OPTIONAL: Visual layout information for DMN editor
+       ═══════════════════════════════════════════════════════════════════════ -->
+  <dmndi:DMNDI>
+    <dmndi:DMNDiagram id="DMNDiagram_{RULE_ID}">
+      <dmndi:DMNShape id="DMNShape_Decision_{RULE_ID}" dmnElementRef="Decision_{RULE_ID}">
+        <dc:Bounds height="80" width="180" x="160" y="100"/>
+      </dmndi:DMNShape>
+    </dmndi:DMNDiagram>
+  </dmndi:DMNDI>
+
+</definitions>

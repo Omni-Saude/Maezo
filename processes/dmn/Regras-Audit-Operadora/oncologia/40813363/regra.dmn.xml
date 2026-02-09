@@ -1,0 +1,257 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/"
+             xmlns:dc="http://www.omg.org/spec/DD/20100524/DC/"
+             xmlns:di="http://www.omg.org/spec/DD/20100524/DI/"
+             id="Definitions_40813363"
+             name="ONQ-DX-002: PET-CT Vigilancia Oncologica"
+             namespace="http://camunda.org/schema/1.0/dmn"
+             exporter="Camunda Modeler"
+             exporterVersion="5.0.0">
+  <!--
+    TUSS 40813363 - PET-CT FDG Vigilancia Oncologica
+    Versao: 3.1.0-LEAN-TIER2 (2026-02-08)
+    Especialidade: Oncologia
+    Categoria: Diagnostico por Imagem - Medicina Nuclear
+
+    Indicacoes Clinicas (DUT ANS 2024):
+    - Linfoma: avaliacao resposta terapeutica conforme criterios Lugano 2014
+    - NSCLC pos-tratamento curativo: vigilancia anual primeiros 2 anos (>=6 meses)
+    - Reestadiamento com suspeita clinica de recidiva (sintomas, marcadores elevados)
+    - Imunoterapia: diferenciar pseudoprogressao de progressao verdadeira (iRECIST/PERCIST)
+    - Melanoma/Head & Neck: avaliacao resposta em terapia sistemica
+
+    Contraindicacoes:
+    - PET-CT vigilancia rotina <6 meses sem suspeita clinica de recidiva
+    - Tumores com baixa captacao FDG (prostata, renal, colorretal mucinoso)
+    - Screening assintomatico em pacientes sem indicacao especifica
+    - Ausencia de sintomas clinicos ou alteracao em marcadores tumorais
+
+    Documentacao Obrigatoria:
+    - Laudo anatomopatologico confirmando diagnostico oncologico
+    - Estadiamento TNM completo ou equivalente (Ann Arbor para linfomas)
+    - Relatorio medico detalhando tempo pos-tratamento (meses)
+    - Descricao sintomas clinicos atuais ou marcadores tumorais alterados
+    - Justificativa para finalidade do PET-CT (avaliacao resposta/reestadiamento/vigilancia)
+
+    Referencias Normativas:
+    - SBMN (Sociedade Brasileira de Medicina Nuclear e Imagem Molecular) 2023
+    - NCCN Survivorship Guidelines v1.2024
+    - PERCIST 1.0 (PET Response Criteria in Solid Tumors)
+    - Lugano Classification 2014 (Linfomas)
+    - iRECIST (immune Response Evaluation Criteria In Solid Tumors)
+  -->
+
+  <decision id="Decision_40813363" name="Criterios de Autorizacao - PET-CT Vigilancia Oncologica [LEAN TIER-2]">
+    <decisionTable id="DecisionTable_40813363" hitPolicy="FIRST">
+
+      <!-- Input 1: Diagnostico Oncologico -->
+      <input id="Input_diagnostico" label="Diagnostico Oncologico">
+        <inputExpression id="InputExpr_diagnostico" typeRef="string">
+          <text>diagnosticoOncologico</text>
+        </inputExpression>
+        <inputValues id="InputValues_diagnostico">
+          <text>"Linfoma","Pulmao_NSCLC","Melanoma","Colorretal","Head_Neck"</text>
+        </inputValues>
+      </input>
+
+      <!-- Input 2: Status Doenca -->
+      <input id="Input_status" label="Status Doenca">
+        <inputExpression id="InputExpr_status" typeRef="string">
+          <text>statusDoenca</text>
+        </inputExpression>
+        <inputValues id="InputValues_status">
+          <text>"Remissao_Completa","Resposta_Parcial","Doenca_Estavel","Progressao","Suspeita_Recidiva"</text>
+        </inputValues>
+      </input>
+
+      <!-- Input 3: Tempo Pos Tratamento Meses -->
+      <input id="Input_tempo" label="Tempo Pos Tratamento Meses">
+        <inputExpression id="InputExpr_tempo" typeRef="integer">
+          <text>tempoPosTratamentoMeses</text>
+        </inputExpression>
+      </input>
+
+      <!-- Input 4: Sintomas Clinicos -->
+      <input id="Input_sintomas" label="Sintomas Clinicos">
+        <inputExpression id="InputExpr_sintomas" typeRef="boolean">
+          <text>sintomasClinicos</text>
+        </inputExpression>
+      </input>
+
+      <!-- Input 5: Finalidade PET -->
+      <input id="Input_finalidade" label="Finalidade PET">
+        <inputExpression id="InputExpr_finalidade" typeRef="string">
+          <text>finalidadePET</text>
+        </inputExpression>
+        <inputValues id="InputValues_finalidade">
+          <text>"Avaliacao_Resposta","Reestadiamento","Vigilancia_Rotina","Suspeita_Recidiva"</text>
+        </inputValues>
+      </input>
+
+      <!-- Output 1: Resultado -->
+      <!-- Input: Dias desde ultimo procedimento (DUP detection) -->
+      <input id="Input_ultimoProcedimentoDias" label="Dias Desde Ultimo Procedimento">
+        <inputExpression id="InputExpression_ultimoProcedimentoDias" typeRef="number">
+          <text>ultimoProcedimentoDias</text>
+        </inputExpression>
+      </input>
+
+      <output id="Output_resultado" label="Resultado" name="resultado" typeRef="string">
+        <outputValues id="OutputValues_resultado">
+          <text>"Aprovado","Reprovado","Pendente"</text>
+        </outputValues>
+      </output>
+
+      <!-- Output 2: Observacao -->
+      <output id="Output_observacao" label="Observacao Clinica" name="observacao" typeRef="string" />
+
+      <!-- Output 3: Fundamentacao -->
+      <output id="Output_fundamentacao" label="Fundamentacao Legal/Tecnica" name="fundamentacao" typeRef="string" />
+
+      <!-- Output 4: Alertas de Desperdicio -->
+      <output id="Output_alertasDesperdicio" label="Alertas de Desperdicio" name="alertasDesperdicio" typeRef="string">
+        <outputValues id="OutputValues_alertasDesperdicio"><text>"NENHUM","DUP","FREQ","ESC","DOC","PROT","MULTI"</text></outputValues>
+      </output>
+
+      <!-- Output 5: Acao Recomendada -->
+      <output id="Output_acaoRecomendada" label="Acao Recomendada" name="acaoRecomendada" typeRef="string">
+        <outputValues id="OutputValues_acaoRecomendada"><text>"APROVAR","NEGAR","SOLICITAR_INFO","AGUARDAR_PRAZO","SUGERIR_ALTERNATIVA"</text></outputValues>
+      </output>
+
+      <!-- ============================================== -->
+      <!-- CONTRAINDICATION RULES (FIRST PRIORITY)       -->
+      <!-- ============================================== -->
+
+      <rule id="Rule_40813363_Contraindicacao_1">
+        <description>Contraindicacao - PET-CT vigilancia rotina antes de 6 meses sem suspeita clinica</description>
+        <inputEntry id="IE_Contra1_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_Contra1_2"><text>"Remissao_Completa","Doenca_Estavel"</text></inputEntry>
+        <inputEntry id="IE_Contra1_3"><text>&lt;6</text></inputEntry>
+        <inputEntry id="IE_Contra1_4"><text>false</text></inputEntry>
+        <inputEntry id="IE_Contra1_5"><text>"Vigilancia_Rotina"</text></inputEntry>
+        <inputEntry id="IE_Rule_40813363_Contraindicacao_1_ultimo"><text>-</text></inputEntry>
+        <outputEntry id="OE_Contra1_1"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OE_Contra1_2"><text>"PET-CT vigilancia rotina antes de 6 meses pos-tratamento sem suspeita clinica: nao indicado conforme guidelines NCCN/SBMN"</text></outputEntry>
+        <outputEntry id="OE_Contra1_3"><text>"NCCN Survivorship Guidelines v1.2024 e SBMN 2023: PET-CT vigilancia rotina em pacientes assintomaticos &lt;6 meses nao demonstra beneficio em overall survival, indicado apenas com suspeita clinica fundamentada"</text></outputEntry>
+        <outputEntry id="OE_Contra1_4"><text>"PROT"</text></outputEntry>
+        <outputEntry id="OE_Contra1_5"><text>"NEGAR"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_40813363_Contraindicacao_2">
+        <description>Contraindicacao - Tumores com baixa captacao FDG (colorretal mucinoso, prostata, renal)</description>
+        <inputEntry id="IE_Contra2_1"><text>"Colorretal"</text></inputEntry>
+        <inputEntry id="IE_Contra2_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_Contra2_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_Contra2_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_Contra2_5"><text>"Vigilancia_Rotina"</text></inputEntry>
+        <inputEntry id="IE_Rule_40813363_Contraindicacao_2_ultimo"><text>-</text></inputEntry>
+        <outputEntry id="OE_Contra2_1"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OE_Contra2_2"><text>"Tumores com baixa captacao FDG (colorretal mucinoso, prostata, renal): PET-CT tem acuracia limitada para vigilancia de rotina"</text></outputEntry>
+        <outputEntry id="OE_Contra2_3"><text>"SBMN 2023: adenocarcinoma colorretal mucinoso, carcinoma de prostata e carcinoma renal apresentam baixa avidez por FDG, resultando em sensibilidade inadequada para vigilancia de rotina. TC multidetector ou RM preferencial"</text></outputEntry>
+        <outputEntry id="OE_Contra2_4"><text>"PROT"</text></outputEntry>
+        <outputEntry id="OE_Contra2_5"><text>"NEGAR"</text></outputEntry>
+      </rule>
+
+      <!-- WASTE DETECTION: DUP -->
+      <rule id="Rule_40813363_DUP">
+        <description>DUP - PET-CT vigilancia repetido em menos de 90 dias</description>
+        <inputEntry id="IE_DUP_40813363_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_DUP_40813363_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_DUP_40813363_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_DUP_40813363_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_DUP_40813363_5"><text>-</text></inputEntry>
+        <inputEntry id="IE_DUP_40813363_ultimo"><text>&lt; 90</text></inputEntry>
+        <outputEntry id="OE_DUP_40813363_resultado"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OE_DUP_40813363_observacao"><text>"PET-CT vigilancia repetido em menos de 90 dias"</text></outputEntry>
+        <outputEntry id="OE_DUP_40813363_fundamentacao"><text>"NCCN/ACR 2024: PET-CT vigilancia oncologica intervalo minimo 90 dias, max 3/ano"</text></outputEntry>
+        <outputEntry id="OE_DUP_40813363_alertasDesperdicio"><text>"DUP"</text></outputEntry>
+        <outputEntry id="OE_DUP_40813363_acaoRecomendada"><text>"AGUARDAR_PRAZO"</text></outputEntry>
+      </rule>
+
+
+      <!-- ============================================== -->
+      <!-- APPROVAL RULES (AFTER CONTRAINDICATIONS)      -->
+      <!-- ============================================== -->
+
+      <rule id="Rule_40813363_Aprovacao_1">
+        <description>Aprovacao - Linfoma avaliacao resposta terapeutica conforme criterios Lugano 2014</description>
+        <inputEntry id="IE_Aprov1_1"><text>"Linfoma"</text></inputEntry>
+        <inputEntry id="IE_Aprov1_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_Aprov1_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_Aprov1_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_Aprov1_5"><text>"Avaliacao_Resposta"</text></inputEntry>
+        <inputEntry id="IE_Rule_40813363_Aprovacao_1_ultimo"><text>-</text></inputEntry>
+        <outputEntry id="OE_Aprov1_1"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OE_Aprov1_2"><text>"Linfoma: PET-CT e o padrao-ouro para avaliacao de resposta terapeutica conforme criterios Lugano 2014"</text></outputEntry>
+        <outputEntry id="OE_Aprov1_3"><text>"Lugano Classification 2014 e NCCN Lymphoma Guidelines: PET-CT obrigatorio para avaliacao interim e final em linfomas FDG-avidos (Hodgkin, LDGCB, folicular). Criterios Deauville 5-point scale"</text></outputEntry>
+        <outputEntry id="OE_Aprov1_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_Aprov1_5"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_40813363_Aprovacao_2">
+        <description>Aprovacao - Reestadiamento com suspeita clinica de recidiva (sintomas ou marcadores elevados)</description>
+        <inputEntry id="IE_Aprov2_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_Aprov2_2"><text>"Suspeita_Recidiva"</text></inputEntry>
+        <inputEntry id="IE_Aprov2_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_Aprov2_4"><text>true</text></inputEntry>
+        <inputEntry id="IE_Aprov2_5"><text>"Suspeita_Recidiva","Reestadiamento"</text></inputEntry>
+        <inputEntry id="IE_Rule_40813363_Aprovacao_2_ultimo"><text>-</text></inputEntry>
+        <outputEntry id="OE_Aprov2_1"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OE_Aprov2_2"><text>"Reestadiamento com suspeita clinica de recidiva (sintomas ou marcadores tumorais elevados): PET-CT indicado antes de biopsia"</text></outputEntry>
+        <outputEntry id="OE_Aprov2_3"><text>"NCCN Guidelines: PET-CT e gold standard para confirmacao de recidiva antes de biopsia invasiva. Sensibilidade 90-95% e especificidade 85-90% superior a TC/RM. Guia planejamento terapeutico e biopsia direcionada"</text></outputEntry>
+        <outputEntry id="OE_Aprov2_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_Aprov2_5"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_40813363_Aprovacao_3">
+        <description>Aprovacao - Avaliacao resposta imunoterapia (diferenciar pseudoprogressao de progressao verdadeira)</description>
+        <inputEntry id="IE_Aprov3_1"><text>"Melanoma","Pulmao_NSCLC","Head_Neck"</text></inputEntry>
+        <inputEntry id="IE_Aprov3_2"><text>"Resposta_Parcial","Doenca_Estavel","Progressao"</text></inputEntry>
+        <inputEntry id="IE_Aprov3_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_Aprov3_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_Aprov3_5"><text>"Avaliacao_Resposta"</text></inputEntry>
+        <inputEntry id="IE_Rule_40813363_Aprovacao_3_ultimo"><text>-</text></inputEntry>
+        <outputEntry id="OE_Aprov3_1"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OE_Aprov3_2"><text>"Avaliacao resposta imunoterapia: PET-CT essencial para diferenciar pseudoprogressao de progressao verdadeira (iRECIST/PERCIST)"</text></outputEntry>
+        <outputEntry id="OE_Aprov3_3"><text>"iRECIST e PERCIST 1.0: PET-CT essencial em imunoterapia por padroes atipicos de resposta (pseudoprogressao, hiperprogression). Metabolismo (SUV) superior a tamanho anatomico (RECIST). NCCN recomenda PET em casos inconclusivos por TC"</text></outputEntry>
+        <outputEntry id="OE_Aprov3_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_Aprov3_5"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_40813363_Aprovacao_4">
+        <description>Aprovacao - NSCLC pos-tratamento curativo vigilancia anual >=6 meses (primeiros 2 anos)</description>
+        <inputEntry id="IE_Aprov4_1"><text>"Pulmao_NSCLC"</text></inputEntry>
+        <inputEntry id="IE_Aprov4_2"><text>"Remissao_Completa"</text></inputEntry>
+        <inputEntry id="IE_Aprov4_3"><text>&gt;=6</text></inputEntry>
+        <inputEntry id="IE_Aprov4_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_Aprov4_5"><text>"Vigilancia_Rotina"</text></inputEntry>
+        <inputEntry id="IE_Rule_40813363_Aprovacao_4_ultimo"><text>-</text></inputEntry>
+        <outputEntry id="OE_Aprov4_1"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OE_Aprov4_2"><text>"NSCLC pos-tratamento curativo em remissao completa: PET-CT vigilancia anual indicado nos primeiros 2 anos (intervalo minimo 6 meses)"</text></outputEntry>
+        <outputEntry id="OE_Aprov4_3"><text>"NCCN NSCLC Guidelines v3.2024: PET-CT anual primeiros 2 anos pos-cura detecta recidiva precoce potencialmente ressecavel. Beneficio em overall survival para pacientes estadio IB-IIIA tratados com intencao curativa"</text></outputEntry>
+        <outputEntry id="OE_Aprov4_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_Aprov4_5"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <!-- ============================================== -->
+      <!-- FALLBACK RULE - Casos nao cobertos            -->
+      <!-- ============================================== -->
+      <rule id="Rule_Fallback_40813363">
+        <description>Regra padrao - Casos nao cobertos requerem analise manual por auditor medico especializado em oncologia</description>
+        <inputEntry id="IE_Fallback_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_Fallback_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_Fallback_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_Fallback_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_Fallback_5"><text>-</text></inputEntry>
+        <inputEntry id="IE_Rule_Fallback_40813363_ultimo"><text>-</text></inputEntry>
+        <outputEntry id="OE_Fallback_1"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OE_Fallback_2"><text>"Caso requer analise manual por auditor medico oncologista. Dados incompletos ou situacao clinica nao prevista nas regras automatizadas"</text></outputEntry>
+        <outputEntry id="OE_Fallback_3"><text>"Documentacao obrigatoria: laudo anatomopatologico, estadiamento TNM/Ann Arbor completo, tempo pos-tratamento em meses, sintomas clinicos atuais ou marcadores tumorais, justificativa medica detalhada para finalidade do PET-CT. Favor submeter para avaliacao medica especializada conforme RN 338/2013 ANS"</text></outputEntry>
+        <outputEntry id="OE_Fallback_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_Fallback_5"><text>"SOLICITAR_INFO"</text></outputEntry>
+      </rule>
+
+    </decisionTable>
+  </decision>
+</definitions>

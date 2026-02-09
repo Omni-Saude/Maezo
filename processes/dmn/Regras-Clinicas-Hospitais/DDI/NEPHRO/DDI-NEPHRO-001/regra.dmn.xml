@@ -1,0 +1,100 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- ============================================================================
+     DDI-NEPHRO-001: Vancomicina + Aminoglicosideos - Nefrotoxicidade Sinergica
+
+     EVIDENCIA CLINICA:
+     - Micromedex: Major Interaction (Nível 1)
+     - Rybak MJ et al. Am J Health Syst Pharm. 2009;66:82-98
+     - Lodise TP et al. Antimicrob Agents Chemother. 2008;52:1330-6
+
+     MECANISMO: Toxicidade tubular direta sinergica. Vancomicina causa lesao
+     tubular proximal; aminoglicosideos causam necrose tubular aguda.
+     Combinacao aumenta risco de IRA em 3-5x.
+
+     INCIDENCIA: 20-35% dos pacientes em uso combinado desenvolvem IRA
+     ============================================================================ -->
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/" xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/" xmlns:dc="http://www.omg.org/spec/DMN/20180521/DC/" xmlns:di="http://www.omg.org/spec/DMN/20180521/DI/" id="DDI_NEPHRO_001" name="DDI-NEPHRO-001: Vancomicina + Aminoglicosideos" namespace="http://camunda.org/schema/1.0/dmn">
+  <decision id="ddi_nephro_001_decision" name="Vancomicina + Aminoglicosideos - Nefrotoxicidade">
+    <decisionTable id="ddi_nephro_001_table" hitPolicy="FIRST">
+      <input id="input_medicamentos_ativos" label="Medicamentos Ativos">
+        <inputExpression id="input_expr_medicamentos" typeRef="string">
+          <text>medicamentosAtivos</text>
+        </inputExpression>
+      </input>
+      <input id="input_medicamento_novo" label="Medicamento Novo">
+        <inputExpression id="input_expr_novo" typeRef="string">
+          <text>medicamentoNovo</text>
+        </inputExpression>
+      </input>
+      <input id="input_tfg" label="Taxa Filtracao Glomerular (mL/min)">
+        <inputExpression id="input_expr_tfg" typeRef="number">
+          <text>taxaFiltracaoGlomerular</text>
+        </inputExpression>
+      </input>
+
+      <output id="output_nivel_alerta" name="nivelAlerta" typeRef="string">
+        <outputValues><text>"Alerta","Atencao","Informativo","OK"</text></outputValues>
+      </output>
+      <output id="output_acao_requerida" name="acaoRequerida" typeRef="string" />
+      <output id="output_justificativa" name="justificativaCientifica" typeRef="string" />
+
+      <!-- Rule 1: Vancomicina ativa + Aminoglicosideo novo + TFG baixa -->
+      <rule id="rule_vanco_amino_tfg_baixa">
+        <inputEntry id="ie_vanco_ativa">
+          <text>list contains(medicamentosAtivos, "VANCOMICINA")</text>
+        </inputEntry>
+        <inputEntry id="ie_amino_novo">
+          <text>"GENTAMICINA" or "AMICACINA" or "TOBRAMICINA" or "ESTREPTOMICINA"</text>
+        </inputEntry>
+        <inputEntry id="ie_tfg_baixa">
+          <text>&lt; 60</text>
+        </inputEntry>
+        <outputEntry id="oe_alerta_critico"><text>"Alerta"</text></outputEntry>
+        <outputEntry id="oe_acao_critico"><text>"CONTRAINDICADO em TFG &lt;60. Substituir aminoglicosideo por alternativa (fluoroquinolona, aztreonam). Se indispensavel, reduzir dose 50% e monitorar creatinina/TFG diariamente."</text></outputEntry>
+        <outputEntry id="oe_just_critico"><text>"Nefrotoxicidade sinergica: incidencia IRA 35-50% com TFG&lt;60. Rybak MJ, Am J Health Syst Pharm 2009."</text></outputEntry>
+      </rule>
+
+      <!-- Rule 2: Vancomicina ativa + Aminoglicosideo novo + TFG normal -->
+      <rule id="rule_vanco_amino_tfg_normal">
+        <inputEntry id="ie_vanco_ativa2">
+          <text>list contains(medicamentosAtivos, "VANCOMICINA")</text>
+        </inputEntry>
+        <inputEntry id="ie_amino_novo2">
+          <text>"GENTAMICINA" or "AMICACINA" or "TOBRAMICINA" or "ESTREPTOMICINA"</text>
+        </inputEntry>
+        <inputEntry id="ie_tfg_normal">
+          <text>&gt;= 60</text>
+        </inputEntry>
+        <outputEntry id="oe_atencao"><text>"Atencao"</text></outputEntry>
+        <outputEntry id="oe_acao_atencao"><text>"Monitorar creatinina e TFG a cada 48-72h. Dosar vancocinemia (vale 15-20 mcg/mL). Hidratar adequadamente. Evitar uso &gt;5 dias se possivel."</text></outputEntry>
+        <outputEntry id="oe_just_atencao"><text>"Risco IRA 20-25% mesmo com funcao renal normal. Lodise TP, Antimicrob Agents Chemother 2008."</text></outputEntry>
+      </rule>
+
+      <!-- Rule 3: Aminoglicosideo ativo + Vancomicina nova -->
+      <rule id="rule_amino_vanco">
+        <inputEntry id="ie_amino_ativo">
+          <text>list contains(medicamentosAtivos, "GENTAMICINA") or list contains(medicamentosAtivos, "AMICACINA") or list contains(medicamentosAtivos, "TOBRAMICINA")</text>
+        </inputEntry>
+        <inputEntry id="ie_vanco_nova">
+          <text>"VANCOMICINA"</text>
+        </inputEntry>
+        <inputEntry id="ie_tfg_any">
+          <text>-</text>
+        </inputEntry>
+        <outputEntry id="oe_atencao2"><text>"Atencao"</text></outputEntry>
+        <outputEntry id="oe_acao_atencao2"><text>"Avaliar necessidade de ambos. Monitorar funcao renal rigorosamente. Preferir monoterapia se possivel."</text></outputEntry>
+        <outputEntry id="oe_just_atencao2"><text>"Combinacao nefrotoxica sinergica. Considerar alternativas: daptomicina, linezolida, ceftarolina."</text></outputEntry>
+      </rule>
+
+      <!-- Fallback Rule -->
+      <rule id="Rule_Fallback">
+        <inputEntry id="ie_fallback1"><text>-</text></inputEntry>
+        <inputEntry id="ie_fallback2"><text>-</text></inputEntry>
+        <inputEntry id="ie_fallback3"><text>-</text></inputEntry>
+        <outputEntry id="oe_fallback1"><text>"OK"</text></outputEntry>
+        <outputEntry id="oe_fallback2"><text>""</text></outputEntry>
+        <outputEntry id="oe_fallback3"><text>""</text></outputEntry>
+      </rule>
+    </decisionTable>
+  </decision>
+</definitions>

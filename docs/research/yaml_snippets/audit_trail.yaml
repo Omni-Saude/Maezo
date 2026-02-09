@@ -1,0 +1,373 @@
+# Audit Trail Configuration Snippet
+# Copy this into business rules documentation for audit logging compliance
+
+audit_trail_configuration:
+  regulatory_basis:
+    - regulation: LGPD
+      article: "Art. 37"
+      requirement: "Controller must maintain records of processing operations"
+
+    - regulation: CFM
+      requirement: "Medical records retention for 20 years"
+
+    - regulation: "Brazilian Tax Law"
+      requirement: "Financial records retention for 5 years"
+
+    - regulation: ANPD
+      guideline: "Access logs minimum 6 months"
+
+  retention_periods:
+    medical_records:
+      duration: 20_years
+      duration_unit: years
+      legal_basis: CFM_Resolution
+      storage_type: long_term_archive
+      deletion_policy: manual_approval_required
+
+    financial_transactions:
+      duration: 5_years
+      duration_unit: years
+      legal_basis: Brazilian_Tax_Law
+      storage_type: financial_archive
+      deletion_policy: automated_after_retention
+
+    lgpd_audit_logs:
+      duration: per_dpia_analysis
+      duration_unit: variable
+      legal_basis: LGPD_Art_37
+      storage_type: audit_database
+      deletion_policy: per_dpia_recommendations
+
+    access_logs:
+      duration: 6_months
+      duration_unit: months
+      minimum: 6_months
+      legal_basis: ANPD_Guidance
+      storage_type: security_logs
+      deletion_policy: automated_after_minimum
+
+    consent_records:
+      duration: indefinite
+      duration_unit: years
+      legal_basis: LGPD_proof_of_consent
+      storage_type: legal_archive
+      deletion_policy: retain_until_data_deletion
+
+  mandatory_logging_fields:
+    user_identification:
+      - field: user_id
+        type: string
+        required: true
+        description: "Unique user identifier"
+
+      - field: user_name
+        type: string
+        required: true
+        description: "Full name of user"
+
+      - field: user_role
+        type: string
+        required: true
+        description: "Role (physician, nurse, admin, auditor)"
+        enum: [physician, nurse, admin, billing, auditor, support]
+
+    temporal:
+      - field: timestamp
+        type: datetime
+        required: true
+        format: ISO_8601
+        timezone: UTC
+        description: "Exact timestamp of action"
+
+      - field: session_start
+        type: datetime
+        format: ISO_8601
+        description: "When user session started"
+
+      - field: session_duration
+        type: integer
+        unit: seconds
+        description: "Duration of user session"
+
+    action_details:
+      - field: action
+        type: string
+        required: true
+        enum: [CREATE, READ, UPDATE, DELETE, EXPORT, PRINT, SHARE]
+        description: "Type of action performed"
+
+      - field: resource_type
+        type: string
+        required: true
+        enum: [patient, medical_record, claim, financial, appointment, prescription, authorization]
+        description: "Type of resource accessed"
+
+      - field: resource_id
+        type: string
+        required: true
+        description: "Unique identifier of accessed resource"
+
+      - field: resource_description
+        type: string
+        required: false
+        description: "Human-readable resource description"
+
+    network_information:
+      - field: ip_address
+        type: string
+        required: true
+        format: IPv4_or_IPv6
+        description: "IP address of user"
+
+      - field: location
+        type: string
+        required: true
+        description: "Geographic location (city, state)"
+
+      - field: device_type
+        type: string
+        required: false
+        enum: [desktop, mobile, tablet, kiosk]
+        description: "Type of device used"
+
+      - field: user_agent
+        type: string
+        required: false
+        description: "Browser/application user agent"
+
+    justification:
+      - field: access_reason
+        type: string
+        required: true
+        description: "Justification for accessing data"
+        examples:
+          - "Patient consultation appointment"
+          - "Medical emergency"
+          - "Billing review"
+          - "Compliance audit"
+          - "Patient-requested data export"
+
+      - field: authorization_context
+        type: string
+        required: false
+        description: "Authorization or order number justifying access"
+
+    changes:
+      - field: changes_made
+        type: json
+        required: true_for_modifications
+        description: "Before/after state for modifications"
+        format:
+          before: object
+          after: object
+          diff: array_of_changes
+
+      - field: change_reason
+        type: string
+        required: true_for_modifications
+        description: "Reason for modification"
+
+    result:
+      - field: operation_status
+        type: string
+        required: true
+        enum: [SUCCESS, FAILURE, DENIED, PARTIAL]
+        description: "Result of operation"
+
+      - field: error_message
+        type: string
+        required: false
+        description: "Error message if operation failed"
+
+      - field: denial_reason
+        type: string
+        required: true_if_denied
+        description: "Reason for access denial"
+
+  audit_log_structure:
+    example_read_access:
+      user_id: "12345"
+      user_name: "Dr. João Silva"
+      user_role: "physician"
+      timestamp: "2026-01-12T09:30:00Z"
+      action: "READ"
+      resource_type: "medical_record"
+      resource_id: "MR-789456"
+      resource_description: "Patient Maria Santos - Medical History"
+      ip_address: "192.168.1.100"
+      location: "São Paulo, SP"
+      device_type: "desktop"
+      access_reason: "Patient consultation appointment scheduled for 2026-01-12 10:00"
+      authorization_context: "Appointment-2026-0112-001"
+      operation_status: "SUCCESS"
+
+    example_modification:
+      user_id: "67890"
+      user_name: "Dr. Ana Costa"
+      user_role: "physician"
+      timestamp: "2026-01-12T14:15:30Z"
+      action: "UPDATE"
+      resource_type: "medical_record"
+      resource_id: "MR-789456"
+      ip_address: "192.168.1.105"
+      location: "São Paulo, SP"
+      access_reason: "Update diagnosis after lab results"
+      changes_made:
+        before:
+          diagnosis: "Suspected condition"
+          status: "under_investigation"
+        after:
+          diagnosis: "Confirmed condition with ICD-10 code"
+          status: "diagnosed"
+        diff:
+          - field: "diagnosis"
+            old: "Suspected condition"
+            new: "Confirmed condition with ICD-10 code"
+          - field: "status"
+            old: "under_investigation"
+            new: "diagnosed"
+      change_reason: "Lab results confirmed diagnosis"
+      operation_status: "SUCCESS"
+
+    example_denied_access:
+      user_id: "11111"
+      user_name: "João Admin"
+      user_role: "admin"
+      timestamp: "2026-01-12T16:45:00Z"
+      action: "READ"
+      resource_type: "medical_record"
+      resource_id: "MR-789456"
+      ip_address: "192.168.1.200"
+      location: "São Paulo, SP"
+      access_reason: "System troubleshooting"
+      operation_status: "DENIED"
+      denial_reason: "Administrative staff not authorized for medical record access without patient consent"
+
+  logging_implementation:
+    technology_stack:
+      - component: application_logging
+        technology: "Java SLF4J with Logback"
+        configuration: structured_json_logs
+
+      - component: database_audit_table
+        technology: PostgreSQL
+        table_name: audit_log
+        partitioning: monthly_partitions
+        indexes: [user_id, resource_id, timestamp, action]
+
+      - component: log_aggregation
+        technology: "ELK Stack (Elasticsearch, Logstash, Kibana)"
+        purpose: centralized_log_analysis
+
+      - component: log_immutability
+        technology: "Write-once audit database"
+        protection: append_only_mode
+
+    performance_considerations:
+      - consideration: "Asynchronous logging to avoid performance impact"
+        implementation: message_queue
+
+      - consideration: "Log rotation and archival"
+        schedule: daily_rotation
+        archive: move_to_long_term_storage
+
+      - consideration: "Index optimization"
+        strategy: composite_indexes_on_common_queries
+
+    security_measures:
+      - measure: "Encrypt audit logs at rest"
+        encryption: AES_256
+
+      - measure: "Restrict audit log access"
+        access_control: "DPO and Security Team only"
+
+      - measure: "Alert on audit log tampering attempts"
+        monitoring: intrusion_detection_system
+
+      - measure: "Separate audit database from application database"
+        architecture: dedicated_audit_server
+
+  compliance_checks:
+    automated_validations:
+      - validation: "All data access logged"
+        frequency: real_time
+        alert: immediate_if_missing
+
+      - validation: "Logs immutable and tamper-proof"
+        frequency: daily
+        check: cryptographic_hash_verification
+
+      - validation: "Retention policy automated"
+        frequency: monthly
+        action: archive_and_delete_expired_logs
+
+      - validation: "Audit reports generated"
+        frequency: monthly
+        recipients: [compliance_officer, dpo, security_team]
+
+      - validation: "ANPD-ready export format"
+        frequency: on_demand
+        format: JSON_or_CSV
+        structure: anpd_required_fields
+
+  reporting:
+    monthly_report:
+      contents:
+        - "Total access events by user role"
+        - "Failed access attempts"
+        - "Denied access requests with reasons"
+        - "Data modifications by resource type"
+        - "Peak access times and patterns"
+        - "Anomalous access patterns flagged"
+
+    quarterly_report:
+      contents:
+        - "Compliance with retention policies"
+        - "Audit log storage utilization"
+        - "Security incidents related to data access"
+        - "Training completion rates for staff"
+        - "LGPD compliance score"
+
+    on_demand_reports:
+      - report: patient_data_access_history
+        trigger: patient_rights_request
+        sla: 15_days
+
+      - report: user_activity_audit
+        trigger: security_investigation
+        sla: 24_hours
+
+      - report: anpd_data_breach_report
+        trigger: security_incident
+        sla: 2_business_days
+
+  alert_rules:
+    critical_alerts:
+      - alert: "Multiple failed access attempts"
+        threshold: 5_attempts_in_10_minutes
+        action: lock_account_and_notify_security
+
+      - alert: "Access to patient record outside working hours"
+        condition: access_time_not_in_business_hours
+        action: require_additional_justification
+
+      - alert: "Bulk data export detected"
+        threshold: more_than_50_records
+        action: require_dpo_approval
+
+      - alert: "Access from unauthorized location"
+        condition: ip_address_not_in_whitelist
+        action: deny_and_notify_security
+
+    warning_alerts:
+      - alert: "Unusual access pattern"
+        condition: deviation_from_user_baseline
+        action: flag_for_review
+
+      - alert: "Long session duration"
+        threshold: more_than_8_hours
+        action: require_reauthentication
+
+      - alert: "Access to own medical record"
+        condition: user_is_also_patient
+        action: log_and_monitor

@@ -1,0 +1,177 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="http://www.omg.org/spec/DMN/20151101/dmn.xsd"
+  id="Definitions_30101107"
+  name="Cauterização química por grupo de até 5 lesões"
+  namespace="http://camunda.org/schema/1.0/dmn">
+  <!--
+    TUSS: 30101107
+    Procedimento: Cauterização química por grupo de até 5 lesões
+    Versão: 3.0.0 (2026-02-07)
+
+    Indicações Clínicas (DUT/ANS):
+    - Verrugas virais (HPV) refratárias a tratamento tópico
+    - Ceratoses seborreicas múltiplas sintomáticas
+    - Ceratoses actínicas (lesões pré-malignas)
+    - Molusco contagioso em adultos
+
+    Contraindicações:
+    - Procedimentos concorrentes na mesma área (criocirurgia, eletrocirurgia)
+    - Lesões com suspeita de malignidade (requerem biópsia)
+    - Lesões em mucosas (requer código específico)
+
+    Referências:
+    - SBD Diretrizes de Dermatologia Cirúrgica 2025
+    - ANS RN 465/2021
+    - Rol ANS 2024
+  -->
+
+  <decision id="Decision_30101107" name="Decisão de Autorização - Cauterização Química">
+    <decisionTable id="DecisionTable_30101107" hitPolicy="FIRST">
+
+      <!-- INPUTS -->
+      <input id="Input_1" label="Diagnóstico Principal (CID-10)">
+        <inputExpression id="InputExpression_1" typeRef="string">
+          <text>diagnosticoPrincipal</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_2" label="Número de Lesões">
+        <inputExpression id="InputExpression_2" typeRef="number">
+          <text>numeroLesoes</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_3" label="Tratamento Prévio Realizado">
+        <inputExpression id="InputExpression_3" typeRef="boolean">
+          <text>tratamentoPrevio</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_4" label="Procedimentos Concorrentes">
+        <inputExpression id="InputExpression_4" typeRef="string">
+          <text>procedimentosConcorrentes</text>
+        </inputExpression>
+      </input>
+
+      <!-- OUTPUTS -->
+      <output id="Output_1" label="Resultado" typeRef="string" name="resultado">
+        <outputValues>
+          <text>"Aprovado","Reprovado","Pendente"</text>
+        </outputValues>
+      </output>
+
+      <output id="Output_2" label="Observação" typeRef="string" name="observacao" />
+
+      <output id="Output_3" label="Fundamentação Legal" typeRef="string" name="fundamentacao" />
+      <!-- Output 4: Alertas de Desperdicio -->
+      <output id="Output_4" label="Alertas de Desperdicio" name="alertasDesperdicio" typeRef="string">
+        <outputValues>
+          <text>"NENHUM","DUP","FREQ","ESC","DOC","PROT","MULTI"</text>
+        </outputValues>
+      </output>
+
+      <!-- Output 5: Acao Recomendada -->
+      <output id="Output_5" label="Acao Recomendada" name="acaoRecomendada" typeRef="string">
+        <outputValues>
+          <text>"APROVAR","NEGAR","SOLICITAR_INFO","AGUARDAR_PRAZO","SUGERIR_ALTERNATIVA"</text>
+        </outputValues>
+      </output>
+
+
+      <!-- CONTRAINDICATIONS -->
+      <rule id="Rule_Contraind_30101107_1">
+        <description>Reprovação: Procedimentos excludentes na mesma área</description>
+        <inputEntry id="IE_C1_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_C1_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_C1_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_C1_4"><text>matches(procedimentosConcorrentes, "30101298|20104073|30101204|30101255")</text></inputEntry>
+        <outputEntry id="OE_C1_1"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OE_C1_2"><text>"Procedimento excludente - criocirurgia, eletrocirurgia ou curetagem já autorizadas para mesma área"</text></outputEntry>
+        <outputEntry id="OE_C1_3"><text>"TUSS: procedimentos destrutivos são mutuamente excludentes na mesma sessão/área"</text></outputEntry>
+        <outputEntry id="OE_Rule_Contraind_30101107_1_4"><text>"PROT"</text></outputEntry>
+        <outputEntry id="OE_Rule_Contraind_30101107_1_5"><text>"NEGAR"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Contraind_30101107_2">
+        <description>Reprovação: Número de lesões excede limite do código</description>
+        <inputEntry id="IE_C2_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_C2_2"><text>&gt; 5</text></inputEntry>
+        <inputEntry id="IE_C2_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_C2_4"><text>-</text></inputEntry>
+        <outputEntry id="OE_C2_1"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OE_C2_2"><text>"Código 30101107 limita-se a 5 lesões por sessão - solicitar múltiplas autorizações ou código alternativo"</text></outputEntry>
+        <outputEntry id="OE_C2_3"><text>"TUSS 30101107: definição específica 'até 5 lesões por grupo'"</text></outputEntry>
+        <outputEntry id="OE_Rule_Contraind_30101107_2_4"><text>"DOC"</text></outputEntry>
+        <outputEntry id="OE_Rule_Contraind_30101107_2_5"><text>"NEGAR"</text></outputEntry>
+      </rule>
+
+      <!-- APPROVALS -->
+      <rule id="Rule_Approve_30101107_1">
+        <description>Aprovação: Verrugas virais refratárias</description>
+        <inputEntry id="IE_A1_1"><text>matches(diagnosticoPrincipal, "B07|A63")</text></inputEntry>
+        <inputEntry id="IE_A1_2"><text>[1..5]</text></inputEntry>
+        <inputEntry id="IE_A1_3"><text>true</text></inputEntry>
+        <inputEntry id="IE_A1_4"><text>not(matches(procedimentosConcorrentes, "30101298|20104073|30101204|30101255"))</text></inputEntry>
+        <outputEntry id="OE_A1_1"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OE_A1_2"><text>"Verrugas virais com falha terapêutica prévia - cauterização química autorizada"</text></outputEntry>
+        <outputEntry id="OE_A1_3"><text>"SBD: cauterização química indicada em verrugas recalcitrantes. ANS Rol 2024"</text></outputEntry>
+        <outputEntry id="OE_Rule_Approve_30101107_1_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_Rule_Approve_30101107_1_5"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Approve_30101107_2">
+        <description>Aprovação: Ceratoses actínicas (pré-malignas)</description>
+        <inputEntry id="IE_A2_1"><text>matches(diagnosticoPrincipal, "L57.0")</text></inputEntry>
+        <inputEntry id="IE_A2_2"><text>[1..5]</text></inputEntry>
+        <inputEntry id="IE_A2_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_A2_4"><text>not(matches(procedimentosConcorrentes, "30101298|20104073|30101204|30101255"))</text></inputEntry>
+        <outputEntry id="OE_A2_1"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OE_A2_2"><text>"Ceratoses actínicas - lesões pré-malignas com indicação de destruição química"</text></outputEntry>
+        <outputEntry id="OE_A2_3"><text>"SBD Consenso: tratamento ablativo de ceratoses actínicas previne evolução para CEC"</text></outputEntry>
+        <outputEntry id="OE_Rule_Approve_30101107_2_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_Rule_Approve_30101107_2_5"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Approve_30101107_3">
+        <description>Aprovação: Ceratoses seborreicas sintomáticas</description>
+        <inputEntry id="IE_A3_1"><text>matches(diagnosticoPrincipal, "L82")</text></inputEntry>
+        <inputEntry id="IE_A3_2"><text>[1..5]</text></inputEntry>
+        <inputEntry id="IE_A3_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_A3_4"><text>not(matches(procedimentosConcorrentes, "30101298|20104073|30101204|30101255"))</text></inputEntry>
+        <outputEntry id="OE_A3_1"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OE_A3_2"><text>"Ceratoses seborreicas com sintomas (prurido, sangramento, trauma) - cauterização autorizada"</text></outputEntry>
+        <outputEntry id="OE_A3_3"><text>"ANS Rol 2024: tratamento de lesões sintomáticas coberto quando há indicação médica"</text></outputEntry>
+        <outputEntry id="OE_Rule_Approve_30101107_3_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_Rule_Approve_30101107_3_5"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Approve_30101107_4">
+        <description>Aprovação: Molusco contagioso</description>
+        <inputEntry id="IE_A4_1"><text>matches(diagnosticoPrincipal, "B08.1")</text></inputEntry>
+        <inputEntry id="IE_A4_2"><text>[1..5]</text></inputEntry>
+        <inputEntry id="IE_A4_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_A4_4"><text>not(matches(procedimentosConcorrentes, "30101298|20104073|30101204|30101255"))</text></inputEntry>
+        <outputEntry id="OE_A4_1"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OE_A4_2"><text>"Molusco contagioso - tratamento destrutivo químico autorizado"</text></outputEntry>
+        <outputEntry id="OE_A4_3"><text>"SBD: cauterização efetiva para molusco contagioso em adultos"</text></outputEntry>
+        <outputEntry id="OE_Rule_Approve_30101107_4_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_Rule_Approve_30101107_4_5"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <!-- FALLBACK RULE -->
+      <rule id="Rule_Fallback_30101107">
+        <description>Regra padrão: análise de auditoria necessária</description>
+        <inputEntry id="IE_FB_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_FB_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_FB_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_FB_4"><text>-</text></inputEntry>
+        <outputEntry id="OE_FB_1"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OE_FB_2"><text>"Caso requer avaliação de auditoria médica com documentação clínica completa"</text></outputEntry>
+        <outputEntry id="OE_FB_3"><text>"ANS RN 465/2021 Art. 18: análise técnica em 48h úteis"</text></outputEntry>
+        <outputEntry id="OE_Rule_Fallback_30101107_4"><text>"DOC"</text></outputEntry>
+        <outputEntry id="OE_Rule_Fallback_30101107_5"><text>"SOLICITAR_INFO"</text></outputEntry>
+      </rule>
+
+    </decisionTable>
+  </decision>
+</definitions>

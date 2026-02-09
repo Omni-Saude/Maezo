@@ -1,0 +1,210 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             xmlns:camunda="http://camunda.org/schema/1.0/dmn"
+             id="Definitions_GEN_EME_003"
+             name="Isquemia Mesenterica - Intervencao Tempo-Critica"
+             namespace="http://camunda.org/schema/1.0/dmn">
+
+  <!--
+    ===============================================================================
+    CODIGO: GEN-EME-003
+    Procedimento: Isquemia Mesenterica Aguda - Intervencao Cirurgica
+    Especialidade: Cirurgia Geral - Emergencia Vascular
+    Versao: 3.0.0-TIER1
+    Data: 2026-02-07
+    ===============================================================================
+
+    INDICACOES CIRURGICAS:
+    - Isquemia mesenterica aguda com sinais de necrose intestinal
+    - Embolia da arteria mesenterica superior
+    - Trombose arterial mesenterica aguda
+    - Isquemia mesenterica nao-oclusiva com necrose
+    - Peritonite secundaria a necrose intestinal
+
+    CONTRAINDICACOES:
+    - Isquemia mesenterica cronica estavel (tratamento eletivo)
+    - Paciente terminal sem indicacao de intervencao
+    - Necrose intestinal extensa sem segmento viavel
+
+    REFERENCIAS TECNICAS:
+    - ESVS Guidelines 2017 - Acute Mesenteric Ischemia
+    - EAST Guidelines 2023 - Mesenteric Vascular Emergencies
+    - WSES Guidelines 2020 - Acute Mesenteric Ischemia
+
+    ===============================================================================
+  -->
+
+  <decision id="Decision_GEN_EME_003" name="Regra Clinica - Isquemia Mesenterica">
+    <decisionTable id="DecisionTable_GEN_EME_003" hitPolicy="FIRST">
+
+      <!-- ========== INPUTS (5) ========== -->
+
+      <input id="Input_tipoIsquemia" label="Tipo de Isquemia" camunda:inputVariable="tipoIsquemia">
+        <inputExpression id="InputExpression_tipoIsquemia" typeRef="string">
+          <text>tipoIsquemia</text>
+        </inputExpression>
+        <inputValues id="InputValues_tipoIsquemia">
+          <text>"EmboliaArterial","TromboseArterial","TromboseVenosa","NaoOclusiva","NaoDefinida"</text>
+        </inputValues>
+      </input>
+
+      <input id="Input_sinaisNecrose" label="Sinais de Necrose Intestinal" camunda:inputVariable="sinaisNecrose">
+        <inputExpression id="InputExpression_sinaisNecrose" typeRef="boolean">
+          <text>sinaisNecrose</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_tempoSintomas" label="Tempo de Sintomas (horas)" camunda:inputVariable="tempoSintomas">
+        <inputExpression id="InputExpression_tempoSintomas" typeRef="number">
+          <text>tempoSintomas</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_lactato" label="Lactato Serico (mmol/L)" camunda:inputVariable="lactato">
+        <inputExpression id="InputExpression_lactato" typeRef="number">
+          <text>lactato</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_angioTC" label="AngioTC Realizada" camunda:inputVariable="angioTC">
+        <inputExpression id="InputExpression_angioTC" typeRef="string">
+          <text>angioTC</text>
+        </inputExpression>
+        <inputValues id="InputValues_angioTC">
+          <text>"OclusaoArterial","OclusaoVenosa","Pneumatose","Normal","NaoRealizada"</text>
+        </inputValues>
+      </input>
+
+      <!-- ========== OUTPUTS (3) ========== -->
+
+      <output id="Output_resultado" label="Resultado" name="resultado" typeRef="string">
+        <outputValues id="OutputValues_resultado">
+          <text>"Aprovado","Reprovado","Pendente"</text>
+        </outputValues>
+      </output>
+
+      <output id="Output_observacao" label="Observacao Clinica" name="observacao" typeRef="string" />
+
+      <output id="Output_fundamentacao" label="Fundamentacao Tecnica" name="fundamentacao" typeRef="string" />
+
+      <!-- Output 4: Alertas Desperdicio -->
+      <output id="Output_alertasDesperdicio" label="Alertas de Desperdicio" name="alertasDesperdicio" typeRef="string">
+        <outputValues id="OutputValues_alertasDesperdicio">
+          <text>"NENHUM","DUP","FREQ","ESC","DOC","PROT","MULTI"</text>
+        </outputValues>
+      </output>
+
+      <!-- Output 5: Acao Recomendada -->
+      <output id="Output_acaoRecomendada" label="Acao Recomendada" name="acaoRecomendada" typeRef="string">
+        <outputValues id="OutputValues_acaoRecomendada">
+          <text>"APROVAR","NEGAR","SOLICITAR_INFO","AGUARDAR_PRAZO","SUGERIR_ALTERNATIVA"</text>
+        </outputValues>
+      </output>
+
+      <!-- ========== REGRAS DE REPROVACAO ========== -->
+
+      <rule id="Rule_Reprovado_SemDocumentacao">
+        <description>Reprovado: Sem confirmacao diagnostica por imagem</description>
+        <inputEntry id="IE_Rep1_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_Rep1_2"><text>false</text></inputEntry>
+        <inputEntry id="IE_Rep1_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_Rep1_4"><text>&lt; 2</text></inputEntry>
+        <inputEntry id="IE_Rep1_5"><text>"NaoRealizada"</text></inputEntry>
+        <outputEntry id="OE_Rep1_1"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OE_Rep1_2"><text>"Suspeita clinica sem confirmacao por AngioTC - realizar exame de imagem antes de indicacao cirurgica"</text></outputEntry>
+        <outputEntry id="OE_Rep1_3"><text>"ESVS Guidelines 2017 - AngioTC e padrao-ouro para diagnostico de isquemia mesenterica aguda"</text></outputEntry>
+      <outputEntry id="OE_Reprovado_SemDocumentacao_4"><text>"PROT"</text></outputEntry>
+        <outputEntry id="OE_Reprovado_SemDocumentacao_5"><text>"NEGAR"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Reprovado_IsquemiaCronica">
+        <description>Reprovado: Isquemia mesenterica cronica - nao emergencial</description>
+        <inputEntry id="IE_Rep2_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_Rep2_2"><text>false</text></inputEntry>
+        <inputEntry id="IE_Rep2_3"><text>&gt; 168</text></inputEntry>
+        <inputEntry id="IE_Rep2_4"><text>&lt; 2</text></inputEntry>
+        <inputEntry id="IE_Rep2_5"><text>-</text></inputEntry>
+        <outputEntry id="OE_Rep2_1"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OE_Rep2_2"><text>"Quadro cronico compativel com isquemia mesenterica cronica - indicacao eletiva, nao emergencial"</text></outputEntry>
+        <outputEntry id="OE_Rep2_3"><text>"ESVS Guidelines 2017 - Isquemia mesenterica cronica tem manejo diferenciado"</text></outputEntry>
+      <outputEntry id="OE_Reprovado_IsquemiaCronica_4"><text>"PROT"</text></outputEntry>
+        <outputEntry id="OE_Reprovado_IsquemiaCronica_5"><text>"NEGAR"</text></outputEntry>
+      </rule>
+
+      <!-- ========== REGRAS DE APROVACAO ========== -->
+
+      <rule id="Rule_Aprovado_NecroseDocumentada">
+        <description>Aprovado: Sinais de necrose intestinal</description>
+        <inputEntry id="IE_Apr1_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_Apr1_2"><text>true</text></inputEntry>
+        <inputEntry id="IE_Apr1_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_Apr1_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_Apr1_5"><text>-</text></inputEntry>
+        <outputEntry id="OE_Apr1_1"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OE_Apr1_2"><text>"Sinais de necrose intestinal - laparotomia de emergencia para resseccao de segmento necrotico"</text></outputEntry>
+        <outputEntry id="OE_Apr1_3"><text>"WSES Guidelines 2020 - Necrose intestinal requer intervencao cirurgica imediata"</text></outputEntry>
+      <outputEntry id="OE_Aprovado_NecroseDocumentada_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_Aprovado_NecroseDocumentada_5"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Aprovado_EmboliaArterial">
+        <description>Aprovado: Embolia arterial mesenterica aguda</description>
+        <inputEntry id="IE_Apr2_1"><text>"EmboliaArterial"</text></inputEntry>
+        <inputEntry id="IE_Apr2_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_Apr2_3"><text>&lt; 12</text></inputEntry>
+        <inputEntry id="IE_Apr2_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_Apr2_5"><text>"OclusaoArterial"</text></inputEntry>
+        <outputEntry id="OE_Apr2_1"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OE_Apr2_2"><text>"Embolia arterial mesenterica aguda - revascularizacao de emergencia indicada"</text></outputEntry>
+        <outputEntry id="OE_Apr2_3"><text>"ESVS Guidelines 2017 - Embolectomia em ate 6-12h do inicio dos sintomas"</text></outputEntry>
+      <outputEntry id="OE_Aprovado_EmboliaArterial_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_Aprovado_EmboliaArterial_5"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Aprovado_Pneumatose">
+        <description>Aprovado: Pneumatose intestinal na AngioTC</description>
+        <inputEntry id="IE_Apr3_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_Apr3_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_Apr3_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_Apr3_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_Apr3_5"><text>"Pneumatose"</text></inputEntry>
+        <outputEntry id="OE_Apr3_1"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OE_Apr3_2"><text>"Pneumatose intestinal indica necrose transmural - exploracao cirurgica de emergencia"</text></outputEntry>
+        <outputEntry id="OE_Apr3_3"><text>"EAST Guidelines 2023 - Pneumatose e indicador de mau prognostico, requer intervencao"</text></outputEntry>
+      <outputEntry id="OE_Aprovado_Pneumatose_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_Aprovado_Pneumatose_5"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Aprovado_LactatoElevado">
+        <description>Aprovado: Lactato muito elevado com oclusao documentada</description>
+        <inputEntry id="IE_Apr4_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_Apr4_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_Apr4_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_Apr4_4"><text>&gt;= 4</text></inputEntry>
+        <inputEntry id="IE_Apr4_5"><text>"OclusaoArterial","OclusaoVenosa"</text></inputEntry>
+        <outputEntry id="OE_Apr4_1"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OE_Apr4_2"><text>"Lactato elevado com oclusao vascular documentada - alta suspeita de isquemia em progressao"</text></outputEntry>
+        <outputEntry id="OE_Apr4_3"><text>"WSES Guidelines 2020 - Lactato &gt; 2 mmol/L associado a maior mortalidade"</text></outputEntry>
+      <outputEntry id="OE_Aprovado_LactatoElevado_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_Aprovado_LactatoElevado_5"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <!-- ========== REGRA FALLBACK ========== -->
+
+      <rule id="Rule_Fallback_GEN_EME_003">
+        <description>Pendente: Avaliacao adicional necessaria</description>
+        <inputEntry id="IE_FB_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_FB_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_FB_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_FB_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_FB_5"><text>-</text></inputEntry>
+        <outputEntry id="OE_FB_1"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OE_FB_2"><text>"Quadro clinico incerto - monitoramento intensivo e reavaliacao seriada necessarios"</text></outputEntry>
+        <outputEntry id="OE_FB_3"><text>"Discussao multidisciplinar urgente (cirurgia, radiologia intervencionista, UTI)"</text></outputEntry>
+      <outputEntry id="OE_Fallback_GEN_EME_003_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_Fallback_GEN_EME_003_5"><text>"SOLICITAR_INFO"</text></outputEntry>
+      </rule>
+
+    </decisionTable>
+  </decision>
+</definitions>

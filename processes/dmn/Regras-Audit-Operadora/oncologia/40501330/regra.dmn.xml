@@ -1,0 +1,243 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  ONQ-DRUG-005: Nivolumab Combinations
+  TUSS: 40501330
+  Versao: 3.1.0-LEAN-TIER2 (2026-02-08)
+  Especialidade: Oncologia
+
+  ============================================================================
+  INDICACOES APROVADAS:
+  ============================================================================
+  - Nivo+Ipi: Melanoma, RCC, MSI-H CRC, HCC, NSCLC (CheckMate-227)
+  - Nivo+Quimio: NSCLC (CheckMate-9LA), gastrico (CheckMate-649)
+  - Monoterapia preferida se PDL1>=50% (custo-efetividade similar)
+
+  ============================================================================
+  REFERENCIAS NORMATIVAS:
+  ============================================================================
+  - CheckMate-227, CheckMate-9LA (NSCLC)
+  - CheckMate-214 (RCC)
+  - CheckMate-142 (MSI-H CRC)
+  - NCCN Immunotherapy Combinations
+-->
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/" xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/" xmlns:dc="http://www.omg.org/spec/DMN/20180521/DC/" xmlns:modeler="http://camunda.org/schema/modeler/1.0" id="Definitions_ONQ_DRUG_005" name="DRD" namespace="http://camunda.org/schema/1.0/dmn" exporter="Camunda Modeler" exporterVersion="5.14.0" modeler:executionPlatform="Camunda Cloud" modeler:executionPlatformVersion="8.2.0">
+  <decision id="Decision_ONQ_DRUG_005" name="ONQ-DRUG-005: Nivolumab Combinations [LEAN TIER-2]">
+    <decisionTable id="DecisionTable_ONQ_DRUG_005" hitPolicy="FIRST">
+      <input id="Input_tumor_type" label="Tumor Type">
+        <inputExpression id="InputExpression_tumor_type" typeRef="string">
+          <text>tumorType</text>
+        </inputExpression>
+      </input>
+      <input id="Input_proposed_combo" label="Proposed Combination">
+        <inputExpression id="InputExpression_proposed_combo" typeRef="string">
+          <text>proposedCombination</text>
+        </inputExpression>
+      </input>
+      <input id="Input_pdl1_status" label="PDL1 Status (TPS %)">
+        <inputExpression id="InputExpression_pdl1_status" typeRef="number">
+          <text>pdl1TPS</text>
+        </inputExpression>
+      </input>
+      <input id="Input_line" label="Treatment Line">
+        <inputExpression id="InputExpression_line" typeRef="number">
+          <text>treatmentLine</text>
+        </inputExpression>
+      </input>
+      <!-- Input: Dias desde ultimo procedimento (DUP detection) -->
+      <input id="Input_ultimoProcedimentoDias" label="Dias Desde Ultimo Procedimento">
+        <inputExpression id="InputExpression_ultimoProcedimentoDias" typeRef="number">
+          <text>ultimoProcedimentoDias</text>
+        </inputExpression>
+      </input>
+
+      <output id="Output_resultado" label="Resultado" name="resultado" typeRef="string">
+        <outputValues id="UnaryTests_resultado">
+          <text>"Aprovado","Reprovado","Pendente"</text>
+        </outputValues>
+      </output>
+      <output id="Output_observacao" label="Observacao" name="observacao" typeRef="string" />
+      <output id="Output_fundamentacao" label="Fundamentacao" name="fundamentacao" typeRef="string" />
+      <output id="Output_alertasDesperdicio" label="Alertas de Desperdicio" name="alertasDesperdicio" typeRef="string">
+        <outputValues id="OutputValues_alertasDesperdicio">
+          <text>"NENHUM","DUP","FREQ","ESC","DOC","PROT","MULTI"</text>
+        </outputValues>
+      </output>
+      <output id="Output_acaoRecomendada" label="Acao Recomendada" name="acaoRecomendada" typeRef="string">
+        <outputValues id="OutputValues_acaoRecomendada">
+          <text>"APROVAR","NEGAR","SOLICITAR_INFO","AGUARDAR_PRAZO","SUGERIR_ALTERNATIVA"</text>
+        </outputValues>
+      </output>
+      <rule id="DecisionRule_reject_unapproved">
+        <description>Reject unapproved combinations</description>
+        <inputEntry id="InputEntry_tumor_type_unapproved">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_proposed_combo_unapproved">
+          <text>not("nivo_mono","nivo_ipi","nivo_chemo","nivo_cabo")</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_pdl1_unapproved">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_line_unapproved">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="IE_DecisionRule_reject_unapproved_ultimo"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_resultado_unapproved">
+          <text>"Reprovado"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_obs_unapproved">
+          <text>"Combinação não aprovada para autorização"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_fund_unapproved">
+          <text>"Combinação deve estar entre: nivo_mono, nivo_ipi, nivo_chemo, nivo_cabo"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_alertas_unapproved">
+          <text>"PROT"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_acao_unapproved">
+          <text>"NEGAR"</text>
+        </outputEntry>
+      </rule>
+
+      <!-- WASTE DETECTION: DUP -->
+      <rule id="Rule_40501330_DUP">
+        <description>DUP - Nivolumab dose repetida em menos de 14 dias</description>
+        <inputEntry id="IE_DUP_40501330_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_DUP_40501330_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_DUP_40501330_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_DUP_40501330_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_DUP_40501330_ultimo"><text>&lt; 14</text></inputEntry>
+        <outputEntry id="OE_DUP_40501330_resultado"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OE_DUP_40501330_observacao"><text>"Nivolumab dose repetida em menos de 14 dias"</text></outputEntry>
+        <outputEntry id="OE_DUP_40501330_fundamentacao"><text>"Bula nivolumab: 240mg a cada 14 dias ou 480mg a cada 28 dias"</text></outputEntry>
+        <outputEntry id="OE_DUP_40501330_alertasDesperdicio"><text>"DUP"</text></outputEntry>
+        <outputEntry id="OE_DUP_40501330_acaoRecomendada"><text>"AGUARDAR_PRAZO"</text></outputEntry>
+      </rule>
+
+      <rule id="DecisionRule_nivo_mono_approved">
+        <description>Nivolumab monotherapy approved for indicated tumors and PDL1 status</description>
+        <inputEntry id="InputEntry_tumor_type_mono">
+          <text>"melanoma","rcc","msi_h_crc","hcc","nsclc"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_proposed_combo_mono">
+          <text>"nivo_mono"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_pdl1_mono">
+          <text>>= 1</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_line_mono">
+          <text>1</text>
+        </inputEntry>
+        <inputEntry id="IE_DecisionRule_nivo_mono_approved_ultimo"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_resultado_mono">
+          <text>"Aprovado"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_obs_mono">
+          <text>"Nivolumab monotherapy approved for first line indicated cancers"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_fund_mono">
+          <text>"NCCN/ESMO guidelines support nivolumab monotherapy for first-line treatment"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_alertas_mono">
+          <text>"NENHUM"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_acao_mono">
+          <text>"APROVAR"</text>
+        </outputEntry>
+      </rule>
+      <rule id="DecisionRule_nivo_ipi_approved">
+        <description>Nivolumab + Ipilimumab approved for melanoma, RCC, MSI-H CRC, HCC</description>
+        <inputEntry id="InputEntry_tumor_type_ipi">
+          <text>"melanoma","rcc","msi_h_crc","hcc"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_proposed_combo_ipi">
+          <text>"nivo_ipi"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_pdl1_ipi">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_line_ipi">
+          <text>1</text>
+        </inputEntry>
+        <inputEntry id="IE_DecisionRule_nivo_ipi_approved_ultimo"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_resultado_ipi">
+          <text>"Aprovado"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_obs_ipi">
+          <text>"Nivo+Ipi approved per CheckMate trials for advanced cancers"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_fund_ipi">
+          <text>"CheckMate-227 (melanoma), CheckMate-214 (RCC), CheckMate-142 (MSI-H CRC)"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_alertas_ipi">
+          <text>"NENHUM"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_acao_ipi">
+          <text>"APROVAR"</text>
+        </outputEntry>
+      </rule>
+      <rule id="DecisionRule_nivo_chemo_pending">
+        <description>Nivolumab + Chemotherapy requires PDL1 status verification</description>
+        <inputEntry id="InputEntry_tumor_type_chemo">
+          <text>"nsclc","gastrico"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_proposed_combo_chemo">
+          <text>"nivo_chemo"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_pdl1_chemo">
+          <text>&lt; 50</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_line_chemo">
+          <text>1</text>
+        </inputEntry>
+        <inputEntry id="IE_DecisionRule_nivo_chemo_pending_ultimo"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_resultado_chemo">
+          <text>"Pendente"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_obs_chemo">
+          <text>"PDL1 TPS &lt; 50%: requires physician documentation of clinical justification"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_fund_chemo">
+          <text>"CheckMate-9LA (NSCLC), CheckMate-649 (gastric): PDL1 &lt;50% benefits from chemo combination"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_alertas_chemo">
+          <text>"DOC"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_acao_chemo">
+          <text>"SOLICITAR_INFO"</text>
+        </outputEntry>
+      </rule>
+      <rule id="DecisionRule_fallback">
+        <description>Fallback rule for unclassified cases</description>
+        <inputEntry id="InputEntry_tumor_type_fallback">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_proposed_combo_fallback">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_pdl1_fallback">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_line_fallback">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="IE_DecisionRule_fallback_ultimo"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_resultado_fallback">
+          <text>"Pendente"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_obs_fallback">
+          <text>"Case requires manual review by medical audit team"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_fund_fallback">
+          <text>"Clinical scenario not covered by automated rules"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_alertas_fallback">
+          <text>"NENHUM"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_acao_fallback">
+          <text>"SOLICITAR_INFO"</text>
+        </outputEntry>
+      </rule>
+    </decisionTable>
+  </decision>
+</definitions>

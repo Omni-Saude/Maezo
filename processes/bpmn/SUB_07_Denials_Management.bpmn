@@ -1,0 +1,551 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" xmlns:camunda="http://camunda.org/schema/1.0/bpmn" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" id="Definitions_SUB07" targetNamespace="http://bpmn.io/schema/bpmn" exporter="Camunda Modeler" exporterVersion="5.0.0">
+  <bpmn:collaboration id="Collaboration_SUB07">
+    <bpmn:participant id="Participant_SUB07" name="SUB 07 - Gestão de Glosas e Recursos" processRef="Process_SUB_07_Denials_Management" />
+  </bpmn:collaboration>
+  <bpmn:process id="Process_SUB_07_Denials_Management" name="Gestão de Glosas e Recursos" isExecutable="true" camunda:historyTimeToLive="P365D">
+    <bpmn:laneSet id="LaneSet_SUB07">
+      <bpmn:lane id="Lane_Capture" name="Captura de Glosas">
+        <bpmn:flowNodeRef>Event_Start_Denial_Message</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_RPA_Capture_Denials</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_Classify_Denial</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Gateway_Denial_Type</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_Auto_Correct</bpmn:flowNodeRef>
+      </bpmn:lane>
+      <bpmn:lane id="Lane_Analysis" name="Análise">
+        <bpmn:flowNodeRef>Task_LLM_Analysis</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_Search_Evidence</bpmn:flowNodeRef>
+      </bpmn:lane>
+      <bpmn:lane id="Lane_LLM_Appeals" name="Recursos (LLM)">
+        <bpmn:flowNodeRef>Task_Generate_Appeal</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_Human_Review_Appeal</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_Submit_Appeal</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_Track_Response</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Gateway_Appeal_Result</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_Compensate_Appeal</bpmn:flowNodeRef>
+      </bpmn:lane>
+      <bpmn:lane id="Lane_Negotiation" name="Negociação">
+        <bpmn:flowNodeRef>Task_Escalate</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_Register_Recovery</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_Register_Loss</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_Send_Denials_Complete</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Event_End_Resolved</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_Compensate_Recovery</bpmn:flowNodeRef>
+      </bpmn:lane>
+    </bpmn:laneSet>
+
+    <!-- ASYNC MESSAGE START: Triggered by StartDenialsManagementMessage -->
+    <bpmn:startEvent id="Event_Start_Denial_Message" name="Mensagem: Iniciar Glosas">
+      <bpmn:outgoing>Flow_Start_To_RPA</bpmn:outgoing>
+      <bpmn:messageEventDefinition messageRef="Message_StartDenialsManagement" />
+    </bpmn:startEvent>
+
+    <!-- LEGACY: Keep original for reference -->
+    <!--
+    <bpmn:startEvent id="Event_Start_Denial" name="Glosa Recebida">
+      <bpmn:outgoing>Flow_Start_To_RPA</bpmn:outgoing>
+      <bpmn:messageEventDefinition messageRef="Message_DenialReceived" />
+    </bpmn:startEvent>
+    -->
+
+    <bpmn:serviceTask id="Task_RPA_Capture_Denials" name="Capturar Glosas" camunda:asyncBefore="true" camunda:type="external" camunda:topic="rpa-portal-scraping">
+      <bpmn:extensionElements>
+        <camunda:inputOutput>
+          <camunda:inputParameter name="portalURL">${portalURL}</camunda:inputParameter>
+          <camunda:outputParameter name="denialData">${denialData}</camunda:outputParameter>
+        </camunda:inputOutput>
+      
+        <camunda:executionListener event="start" class="com.hospital.audit.TaskStartListener" />
+        <camunda:executionListener event="end" class="com.hospital.audit.TaskEndListener" />
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_Start_To_RPA</bpmn:incoming>
+      <bpmn:outgoing>Flow_RPA_To_Classify</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <bpmn:businessRuleTask id="Task_Classify_Denial" name="Classificar Glosa (Identify Glosa)" camunda:asyncBefore="true" camunda:decisionRef="glosa-classification" camunda:mapDecisionResult="singleResult" camunda:resultVariable="classificationDecision">
+      <bpmn:extensionElements>
+        <camunda:inputOutput>
+          <camunda:inputParameter name="denialData">${denialData}</camunda:inputParameter>
+          <camunda:inputParameter name="denialCode">${denialCode}</camunda:inputParameter>
+          <camunda:inputParameter name="insuranceId">${insuranceId}</camunda:inputParameter>
+          <camunda:outputParameter name="denialType">${classificationDecision.denialType}</camunda:outputParameter>
+          <camunda:outputParameter name="denialReason">${classificationDecision.denialReason}</camunda:outputParameter>
+          <camunda:outputParameter name="appealProbability">${classificationDecision.appealProbability}</camunda:outputParameter>
+        </camunda:inputOutput>
+
+        <camunda:executionListener event="start" class="com.hospital.audit.TaskStartListener" />
+        <camunda:executionListener event="end" class="com.hospital.audit.TaskEndListener" />
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_RPA_To_Classify</bpmn:incoming>
+      <bpmn:outgoing>Flow_Classify_To_Gateway</bpmn:outgoing>
+    </bpmn:businessRuleTask>
+
+    <bpmn:exclusiveGateway id="Gateway_Denial_Type" name="Tipo de Glosa" default="Flow_Type_Manual">
+      <bpmn:incoming>Flow_Classify_To_Gateway</bpmn:incoming>
+      <bpmn:outgoing>Flow_Type_AutoCorrect</bpmn:outgoing>
+      <bpmn:outgoing>Flow_Type_Manual</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+
+    <bpmn:serviceTask id="Task_Auto_Correct" name="Correção Automática" camunda:asyncBefore="true" camunda:delegateExpression="${autoCorrectDelegate}">
+      <bpmn:extensionElements>
+        <camunda:inputOutput>
+          <camunda:inputParameter name="denialData">${denialData}</camunda:inputParameter>
+          <camunda:outputParameter name="correctionApplied">${correctionApplied}</camunda:outputParameter>
+        </camunda:inputOutput>
+
+        <camunda:executionListener event="start" class="com.hospital.audit.TaskStartListener" />
+        <camunda:executionListener event="end" class="com.hospital.audit.TaskEndListener" />
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_Type_AutoCorrect</bpmn:incoming>
+      <bpmn:outgoing>Flow_AutoCorrect_To_Notify</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <bpmn:serviceTask id="Task_LLM_Analysis" name="Análise LLM (Analyze Glosa)" camunda:asyncBefore="true" camunda:delegateExpression="${analyzeGlosa}">
+      <bpmn:extensionElements>
+        <camunda:inputOutput>
+          <camunda:inputParameter name="denialData">${denialData}</camunda:inputParameter>
+          <camunda:inputParameter name="clinicalData">${clinicalData}</camunda:inputParameter>
+          <camunda:outputParameter name="analysisResult">${analysisResult}</camunda:outputParameter>
+          <camunda:outputParameter name="appealStrategy">${appealStrategy}</camunda:outputParameter>
+        </camunda:inputOutput>
+      
+        <camunda:executionListener event="start" class="com.hospital.audit.TaskStartListener" />
+        <camunda:executionListener event="end" class="com.hospital.audit.TaskEndListener" />
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_Type_Manual</bpmn:incoming>
+      <bpmn:outgoing>Flow_Analysis_To_Evidence</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <bpmn:serviceTask id="Task_Search_Evidence" name="Buscar Evidências" camunda:asyncBefore="true" camunda:delegateExpression="${searchEvidenceDelegate}">
+      <bpmn:extensionElements>
+        <camunda:inputOutput>
+          <camunda:inputParameter name="accountId">${accountId}</camunda:inputParameter>
+          <camunda:inputParameter name="denialReason">${denialReason}</camunda:inputParameter>
+          <camunda:outputParameter name="evidenceDocuments">${evidenceDocuments}</camunda:outputParameter>
+        </camunda:inputOutput>
+      
+        <camunda:executionListener event="start" class="com.hospital.audit.TaskStartListener" />
+        <camunda:executionListener event="end" class="com.hospital.audit.TaskEndListener" />
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_Analysis_To_Evidence</bpmn:incoming>
+      <bpmn:outgoing>Flow_Evidence_To_Generate</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <bpmn:serviceTask id="Task_Generate_Appeal" name="Gerar Recurso (Prepare Appeal)" camunda:asyncBefore="true" camunda:delegateExpression="${prepareGlosaAppeal}">
+      <bpmn:extensionElements>
+        <camunda:inputOutput>
+          <camunda:inputParameter name="analysisResult">${analysisResult}</camunda:inputParameter>
+          <camunda:inputParameter name="evidenceDocuments">${evidenceDocuments}</camunda:inputParameter>
+          <camunda:inputParameter name="appealStrategy">${appealStrategy}</camunda:inputParameter>
+          <camunda:outputParameter name="appealDocument">${appealDocument}</camunda:outputParameter>
+        </camunda:inputOutput>
+      
+        <camunda:executionListener event="start" class="com.hospital.audit.TaskStartListener" />
+        <camunda:executionListener event="end" class="com.hospital.audit.TaskEndListener" />
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_Evidence_To_Generate</bpmn:incoming>
+      <bpmn:outgoing>Flow_Generate_To_Review</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <bpmn:userTask id="Task_Human_Review_Appeal" name="Revisar Recurso" camunda:assignee="${analista_glosas}">
+      <bpmn:extensionElements>
+        <camunda:formData>
+          <camunda:formField id="appealDocument" label="Documento de Recurso" type="string" />
+          <camunda:formField id="approved" label="Aprovar Recurso?" type="boolean" />
+          <camunda:formField id="reviewComments" label="Comentários" type="string" />
+        </camunda:formData>
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_Generate_To_Review</bpmn:incoming>
+      <bpmn:outgoing>Flow_Review_To_Submit</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <bpmn:serviceTask id="Task_Submit_Appeal" name="Enviar Recurso" camunda:asyncBefore="true" camunda:jobPriority="9" camunda:type="external" camunda:topic="rpa-portal-submit">
+      <bpmn:extensionElements>
+        <camunda:inputOutput>
+          <camunda:inputParameter name="appealDocument">${appealDocument}</camunda:inputParameter>
+          <camunda:inputParameter name="portalURL">${portalURL}</camunda:inputParameter>
+          <camunda:outputParameter name="appealProtocol">${appealProtocol}</camunda:outputParameter>
+        </camunda:inputOutput>
+        <camunda:formData>
+          <camunda:formField id="appealDeadline" label="Prazo do Recurso" type="date" />
+          <camunda:formField id="appealType" label="Tipo de Recurso" type="enum">
+            <camunda:value id="ADMINISTRATIVO" name="ADMINISTRATIVO" />
+            <camunda:value id="JUDICIAL" name="JUDICIAL" />
+            <camunda:value id="ORDINÁRIO" name="ORDINÁRIO" />
+            <camunda:value id="EXTRAORDINÁRIO" name="EXTRAORDINÁRIO" />
+          </camunda:formField>
+          <camunda:formField id="denialDate" label="Data da Glosa" type="date" />
+        </camunda:formData>
+      
+        <camunda:executionListener event="start" class="com.hospital.audit.TaskStartListener" />
+        <camunda:executionListener event="end" class="com.hospital.audit.TaskEndListener" />
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_Review_To_Submit</bpmn:incoming>
+      <bpmn:outgoing>Flow_Submit_To_Track</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <bpmn:boundaryEvent id="Event_Timer_ANS_Deadline" name="Prazo ANS" attachedToRef="Task_Submit_Appeal">
+      <bpmn:outgoing>Flow_Deadline_To_Escalate</bpmn:outgoing>
+      <bpmn:timerEventDefinition>
+        <bpmn:timeDuration>${ansDeadline}</bpmn:timeDuration>
+      </bpmn:timerEventDefinition>
+    </bpmn:boundaryEvent>
+
+    <!-- Compensation Boundary Events -->
+    <bpmn:boundaryEvent id="Boundary_Compensate_Appeal" attachedToRef="Task_Submit_Appeal">
+      <bpmn:compensateEventDefinition />
+    </bpmn:boundaryEvent>
+
+    <bpmn:boundaryEvent id="Boundary_Compensate_Recovery" attachedToRef="Task_Register_Recovery">
+      <bpmn:compensateEventDefinition />
+    </bpmn:boundaryEvent>
+
+    <!-- Compensation Tasks -->
+    <bpmn:serviceTask id="Task_Compensate_Appeal" name="Cancelar Recurso" isForCompensation="true" camunda:delegateExpression="${compensateAppealDelegate}">
+      <bpmn:extensionElements>
+        <camunda:inputOutput>
+          <camunda:inputParameter name="appealProtocol">${appealProtocol}</camunda:inputParameter>
+          <camunda:inputParameter name="denialId">${denialId}</camunda:inputParameter>
+        </camunda:inputOutput>
+      </bpmn:extensionElements>
+    </bpmn:serviceTask>
+
+    <bpmn:serviceTask id="Task_Compensate_Recovery" name="Reverter Recuperação" isForCompensation="true" camunda:delegateExpression="${compensateRecoveryDelegate}">
+      <bpmn:extensionElements>
+        <camunda:inputOutput>
+          <camunda:inputParameter name="denialId">${denialId}</camunda:inputParameter>
+          <camunda:inputParameter name="recoveredAmount">${recoveredAmount}</camunda:inputParameter>
+        </camunda:inputOutput>
+      </bpmn:extensionElements>
+    </bpmn:serviceTask>
+
+    <bpmn:serviceTask id="Task_Escalate" name="Escalar" camunda:asyncBefore="true" camunda:delegateExpression="${escalateDelegate}">
+      <bpmn:extensionElements>
+        <camunda:inputOutput>
+          <camunda:inputParameter name="denialId">${denialId}</camunda:inputParameter>
+          <camunda:inputParameter name="escalationReason">ANS_DEADLINE_EXCEEDED</camunda:inputParameter>
+        </camunda:inputOutput>
+      
+        <camunda:executionListener event="start" class="com.hospital.audit.TaskStartListener" />
+        <camunda:executionListener event="end" class="com.hospital.audit.TaskEndListener" />
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_Deadline_To_Escalate</bpmn:incoming>
+      <bpmn:outgoing>Flow_Escalate_To_Negotiation</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <bpmn:serviceTask id="Task_Track_Response" name="Acompanhar Resposta" camunda:asyncBefore="true" camunda:type="external" camunda:topic="rpa-status-check">
+      <bpmn:extensionElements>
+        <camunda:inputOutput>
+          <camunda:inputParameter name="appealProtocol">${appealProtocol}</camunda:inputParameter>
+          <camunda:outputParameter name="appealResult">${appealResult}</camunda:outputParameter>
+        </camunda:inputOutput>
+      
+        <camunda:executionListener event="start" class="com.hospital.audit.TaskStartListener" />
+        <camunda:executionListener event="end" class="com.hospital.audit.TaskEndListener" />
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_Submit_To_Track</bpmn:incoming>
+      <bpmn:outgoing>Flow_Track_To_Gateway</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <bpmn:exclusiveGateway id="Gateway_Appeal_Result" name="Resultado Recurso" default="Flow_Result_Denied">
+      <bpmn:incoming>Flow_Track_To_Gateway</bpmn:incoming>
+      <bpmn:outgoing>Flow_Result_Approved</bpmn:outgoing>
+      <bpmn:outgoing>Flow_Result_Denied</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+
+    <bpmn:serviceTask id="Task_Register_Recovery" name="Registrar Recuperação" camunda:asyncBefore="true" camunda:delegateExpression="${registerRecoveryDelegate}">
+      <bpmn:extensionElements>
+        <camunda:inputOutput>
+          <camunda:inputParameter name="denialId">${denialId}</camunda:inputParameter>
+          <camunda:inputParameter name="recoveredAmount">${recoveredAmount}</camunda:inputParameter>
+        </camunda:inputOutput>
+
+        <camunda:executionListener event="start" class="com.hospital.audit.TaskStartListener" />
+        <camunda:executionListener event="end" class="com.hospital.audit.TaskEndListener" />
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_Result_Approved</bpmn:incoming>
+      <bpmn:outgoing>Flow_Recovery_To_Notify</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <bpmn:serviceTask id="Task_Register_Loss" name="Registrar Perda" camunda:asyncBefore="true" camunda:delegateExpression="${registerLossDelegate}">
+      <bpmn:extensionElements>
+        <camunda:inputOutput>
+          <camunda:inputParameter name="denialId">${denialId}</camunda:inputParameter>
+          <camunda:inputParameter name="lossAmount">${lossAmount}</camunda:inputParameter>
+        </camunda:inputOutput>
+
+        <camunda:executionListener event="start" class="com.hospital.audit.TaskStartListener" />
+        <camunda:executionListener event="end" class="com.hospital.audit.TaskEndListener" />
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_Result_Denied</bpmn:incoming>
+      <bpmn:incoming>Flow_Escalate_To_Negotiation</bpmn:incoming>
+      <bpmn:outgoing>Flow_Loss_To_Notify</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Send completion message to orchestrator -->
+    <bpmn:serviceTask id="Task_Send_Denials_Complete" name="Notificar Resolução" camunda:asyncBefore="true" camunda:delegateExpression="${sendDenialsCompleteDelegate}">
+      <bpmn:extensionElements>
+        <camunda:inputOutput>
+          <camunda:inputParameter name="atendimentoId">${execution.processBusinessKey}</camunda:inputParameter>
+          <camunda:inputParameter name="denialResolution">${denialResolution}</camunda:inputParameter>
+          <camunda:inputParameter name="recoveredAmount">${recoveredAmount}</camunda:inputParameter>
+        </camunda:inputOutput>
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_Recovery_To_Notify</bpmn:incoming>
+      <bpmn:incoming>Flow_Loss_To_Notify</bpmn:incoming>
+      <bpmn:incoming>Flow_AutoCorrect_To_Notify</bpmn:incoming>
+      <bpmn:outgoing>Flow_Notify_To_End</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- End event with message throw -->
+    <bpmn:endEvent id="Event_End_Resolved" name="Glosa Resolvida">
+      <bpmn:incoming>Flow_Notify_To_End</bpmn:incoming>
+      <bpmn:messageEventDefinition messageRef="Message_DenialResolved" camunda:delegateExpression="${sendMessageDelegate}" />
+    </bpmn:endEvent>
+
+    <!-- Sequence Flows -->
+    <bpmn:sequenceFlow id="Flow_Start_To_RPA" sourceRef="Event_Start_Denial_Message" targetRef="Task_RPA_Capture_Denials" />
+    <bpmn:sequenceFlow id="Flow_RPA_To_Classify" sourceRef="Task_RPA_Capture_Denials" targetRef="Task_Classify_Denial" />
+    <bpmn:sequenceFlow id="Flow_Classify_To_Gateway" sourceRef="Task_Classify_Denial" targetRef="Gateway_Denial_Type" />
+    <bpmn:sequenceFlow id="Flow_Type_AutoCorrect" name="Técnica" sourceRef="Gateway_Denial_Type" targetRef="Task_Auto_Correct">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${denialType == 'technical'}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_Type_Manual" name="Administrativa/Médica" sourceRef="Gateway_Denial_Type" targetRef="Task_LLM_Analysis" />
+    <bpmn:sequenceFlow id="Flow_AutoCorrect_To_Notify" sourceRef="Task_Auto_Correct" targetRef="Task_Send_Denials_Complete" />
+    <bpmn:sequenceFlow id="Flow_Analysis_To_Evidence" sourceRef="Task_LLM_Analysis" targetRef="Task_Search_Evidence" />
+    <bpmn:sequenceFlow id="Flow_Evidence_To_Generate" sourceRef="Task_Search_Evidence" targetRef="Task_Generate_Appeal" />
+    <bpmn:sequenceFlow id="Flow_Generate_To_Review" sourceRef="Task_Generate_Appeal" targetRef="Task_Human_Review_Appeal" />
+    <bpmn:sequenceFlow id="Flow_Review_To_Submit" sourceRef="Task_Human_Review_Appeal" targetRef="Task_Submit_Appeal" />
+    <bpmn:sequenceFlow id="Flow_Submit_To_Track" sourceRef="Task_Submit_Appeal" targetRef="Task_Track_Response" />
+    <bpmn:sequenceFlow id="Flow_Deadline_To_Escalate" sourceRef="Event_Timer_ANS_Deadline" targetRef="Task_Escalate" />
+    <bpmn:sequenceFlow id="Flow_Escalate_To_Negotiation" sourceRef="Task_Escalate" targetRef="Task_Register_Loss" />
+    <bpmn:sequenceFlow id="Flow_Track_To_Gateway" sourceRef="Task_Track_Response" targetRef="Gateway_Appeal_Result" />
+    <bpmn:sequenceFlow id="Flow_Result_Approved" name="Aprovado" sourceRef="Gateway_Appeal_Result" targetRef="Task_Register_Recovery">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${appealResult == 'approved'}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_Result_Denied" name="Negado" sourceRef="Gateway_Appeal_Result" targetRef="Task_Register_Loss" />
+    <bpmn:sequenceFlow id="Flow_Recovery_To_Notify" sourceRef="Task_Register_Recovery" targetRef="Task_Send_Denials_Complete" />
+    <bpmn:sequenceFlow id="Flow_Loss_To_Notify" sourceRef="Task_Register_Loss" targetRef="Task_Send_Denials_Complete" />
+    <bpmn:sequenceFlow id="Flow_Notify_To_End" sourceRef="Task_Send_Denials_Complete" targetRef="Event_End_Resolved" />
+
+    <!-- Compensation Associations -->
+    <bpmn:association id="Assoc_Compensate_Appeal" associationDirection="One" sourceRef="Boundary_Compensate_Appeal" targetRef="Task_Compensate_Appeal" />
+    <bpmn:association id="Assoc_Compensate_Recovery" associationDirection="One" sourceRef="Boundary_Compensate_Recovery" targetRef="Task_Compensate_Recovery" />
+  </bpmn:process>
+
+  <!-- Global Message Definitions -->
+  <bpmn:message id="Message_StartDenialsManagement" name="StartDenialsManagementMessage" />
+  <bpmn:message id="Message_DenialResolved" name="DenialResolvedMessage" />
+
+  <!-- Legacy message definition kept for reference -->
+  <bpmn:message id="Message_DenialReceived" name="Message_DenialReceived" />
+
+  <bpmndi:BPMNDiagram id="BPMNDiagram_SUB07">
+    <bpmndi:BPMNPlane id="BPMNPlane_SUB07" bpmnElement="Collaboration_SUB07">
+      <bpmndi:BPMNShape id="Participant_SUB07_di" bpmnElement="Participant_SUB07" isHorizontal="true">
+        <dc:Bounds x="160" y="80" width="2400" height="800" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Lane_Capture_di" bpmnElement="Lane_Capture" isHorizontal="true">
+        <dc:Bounds x="190" y="80" width="2370" height="200" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Lane_Analysis_di" bpmnElement="Lane_Analysis" isHorizontal="true">
+        <dc:Bounds x="190" y="280" width="2370" height="150" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Lane_LLM_Appeals_di" bpmnElement="Lane_LLM_Appeals" isHorizontal="true">
+        <dc:Bounds x="190" y="430" width="2370" height="250" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Lane_Negotiation_di" bpmnElement="Lane_Negotiation" isHorizontal="true">
+        <dc:Bounds x="190" y="680" width="2370" height="200" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Event_Start_Denial_di" bpmnElement="Event_Start_Denial">
+        <dc:Bounds x="252" y="152" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="231" y="195" width="78" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_RPA_Capture_Denials_di" bpmnElement="Task_RPA_Capture_Denials">
+        <dc:Bounds x="340" y="130" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_Classify_Denial_di" bpmnElement="Task_Classify_Denial">
+        <dc:Bounds x="490" y="130" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Gateway_Denial_Type_di" bpmnElement="Gateway_Denial_Type" isMarkerVisible="true">
+        <dc:Bounds x="645" y="145" width="50" height="50" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="632" y="115" width="76" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_Auto_Correct_di" bpmnElement="Task_Auto_Correct">
+        <dc:Bounds x="750" y="130" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_LLM_Analysis_di" bpmnElement="Task_LLM_Analysis">
+        <dc:Bounds x="750" y="310" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_Search_Evidence_di" bpmnElement="Task_Search_Evidence">
+        <dc:Bounds x="900" y="310" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_Generate_Appeal_di" bpmnElement="Task_Generate_Appeal">
+        <dc:Bounds x="1050" y="460" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_Human_Review_Appeal_di" bpmnElement="Task_Human_Review_Appeal">
+        <dc:Bounds x="1200" y="460" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_Submit_Appeal_di" bpmnElement="Task_Submit_Appeal">
+        <dc:Bounds x="1350" y="460" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_Track_Response_di" bpmnElement="Task_Track_Response">
+        <dc:Bounds x="1500" y="460" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Gateway_Appeal_Result_di" bpmnElement="Gateway_Appeal_Result" isMarkerVisible="true">
+        <dc:Bounds x="1655" y="475" width="50" height="50" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1647" y="532" width="66" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_Escalate_di" bpmnElement="Task_Escalate">
+        <dc:Bounds x="1350" y="600" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_Register_Recovery_di" bpmnElement="Task_Register_Recovery">
+        <dc:Bounds x="1760" y="710" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_Register_Loss_di" bpmnElement="Task_Register_Loss">
+        <dc:Bounds x="1900" y="710" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_Send_Denials_Complete_di" bpmnElement="Task_Send_Denials_Complete">
+        <dc:Bounds x="2000" y="710" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Event_End_Resolved_di" bpmnElement="Event_End_Resolved">
+        <dc:Bounds x="2062" y="732" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="2039" y="775" width="82" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Event_Timer_ANS_Deadline_di" bpmnElement="Event_Timer_ANS_Deadline">
+        <dc:Bounds x="1382" y="522" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1414" y="555" width="52" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Boundary_Compensate_Appeal_di" bpmnElement="Boundary_Compensate_Appeal">
+        <dc:Bounds x="1432" y="522" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Boundary_Compensate_Recovery_di" bpmnElement="Boundary_Compensate_Recovery">
+        <dc:Bounds x="1842" y="772" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_Compensate_Appeal_di" bpmnElement="Task_Compensate_Appeal">
+        <dc:Bounds x="1350" y="380" width="100" height="60" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_Compensate_Recovery_di" bpmnElement="Task_Compensate_Recovery">
+        <dc:Bounds x="1760" y="810" width="100" height="60" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Flow_Start_To_RPA_di" bpmnElement="Flow_Start_To_RPA">
+        <di:waypoint x="288" y="170" />
+        <di:waypoint x="340" y="170" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_RPA_To_Classify_di" bpmnElement="Flow_RPA_To_Classify">
+        <di:waypoint x="440" y="170" />
+        <di:waypoint x="490" y="170" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Classify_To_Gateway_di" bpmnElement="Flow_Classify_To_Gateway">
+        <di:waypoint x="590" y="170" />
+        <di:waypoint x="645" y="170" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Type_AutoCorrect_di" bpmnElement="Flow_Type_AutoCorrect">
+        <di:waypoint x="695" y="170" />
+        <di:waypoint x="750" y="170" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="703" y="152" width="39" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Type_Manual_di" bpmnElement="Flow_Type_Manual">
+        <di:waypoint x="670" y="195" />
+        <di:waypoint x="670" y="350" />
+        <di:waypoint x="750" y="350" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="644" y="270" width="62" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_AutoCorrect_To_Notify_di" bpmnElement="Flow_AutoCorrect_To_Notify">
+        <di:waypoint x="850" y="170" />
+        <di:waypoint x="1956" y="170" />
+        <di:waypoint x="1956" y="750" />
+        <di:waypoint x="2000" y="750" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Analysis_To_Evidence_di" bpmnElement="Flow_Analysis_To_Evidence">
+        <di:waypoint x="850" y="350" />
+        <di:waypoint x="900" y="350" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Evidence_To_Generate_di" bpmnElement="Flow_Evidence_To_Generate">
+        <di:waypoint x="1000" y="350" />
+        <di:waypoint x="1025" y="350" />
+        <di:waypoint x="1025" y="500" />
+        <di:waypoint x="1050" y="500" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Generate_To_Review_di" bpmnElement="Flow_Generate_To_Review">
+        <di:waypoint x="1150" y="500" />
+        <di:waypoint x="1200" y="500" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Review_To_Submit_di" bpmnElement="Flow_Review_To_Submit">
+        <di:waypoint x="1300" y="500" />
+        <di:waypoint x="1350" y="500" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Submit_To_Track_di" bpmnElement="Flow_Submit_To_Track">
+        <di:waypoint x="1450" y="500" />
+        <di:waypoint x="1500" y="500" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Deadline_To_Escalate_di" bpmnElement="Flow_Deadline_To_Escalate">
+        <di:waypoint x="1400" y="558" />
+        <di:waypoint x="1400" y="600" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Escalate_To_Negotiation_di" bpmnElement="Flow_Escalate_To_Negotiation">
+        <di:waypoint x="1450" y="640" />
+        <di:waypoint x="1675" y="640" />
+        <di:waypoint x="1675" y="750" />
+        <di:waypoint x="1900" y="750" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Track_To_Gateway_di" bpmnElement="Flow_Track_To_Gateway">
+        <di:waypoint x="1600" y="500" />
+        <di:waypoint x="1655" y="500" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Result_Approved_di" bpmnElement="Flow_Result_Approved">
+        <di:waypoint x="1680" y="525" />
+        <di:waypoint x="1680" y="750" />
+        <di:waypoint x="1760" y="750" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1686" y="635" width="48" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Result_Denied_di" bpmnElement="Flow_Result_Denied">
+        <di:waypoint x="1705" y="500" />
+        <di:waypoint x="1803" y="500" />
+        <di:waypoint x="1803" y="750" />
+        <di:waypoint x="1900" y="750" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1808" y="622" width="40" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Recovery_To_Notify_di" bpmnElement="Flow_Recovery_To_Notify">
+        <di:waypoint x="1860" y="750" />
+        <di:waypoint x="1880" y="750" />
+        <di:waypoint x="1880" y="750" />
+        <di:waypoint x="2000" y="750" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Loss_To_Notify_di" bpmnElement="Flow_Loss_To_Notify">
+        <di:waypoint x="2000" y="750" />
+        <di:waypoint x="2000" y="750" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Notify_To_End_di" bpmnElement="Flow_Notify_To_End">
+        <di:waypoint x="2100" y="750" />
+        <di:waypoint x="2062" y="750" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Assoc_Compensate_Appeal_di" bpmnElement="Assoc_Compensate_Appeal">
+        <di:waypoint x="1450" y="522" />
+        <di:waypoint x="1400" y="440" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Assoc_Compensate_Recovery_di" bpmnElement="Assoc_Compensate_Recovery">
+        <di:waypoint x="1860" y="790" />
+        <di:waypoint x="1810" y="810" />
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>

@@ -1,0 +1,239 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/"
+             xmlns:dc="http://www.omg.org/spec/DD/20100524/DC/"
+             xmlns:di="http://www.omg.org/spec/DD/20100524/DI/"
+             id="Definitions_VAS_CAR_004"
+             name="Reestenose Carotidea - Criterios de Reintervencao"
+             namespace="http://camunda.org/schema/1.0/dmn"
+             exporter="Camunda Modeler"
+             exporterVersion="5.0.0">
+  <!--
+    VAS-CAR-004 - Reestenose Carotidea - Criterios de Reintervencao
+    Versao: 1.0.0 (2026-02-07)
+    Especialidade: Cirurgia Vascular
+    Categoria: Cirurgia Carotidea
+    TUSS Relacionados: 30907010, 30907028, 40901114
+
+    Indicacoes para Reintervencao (SVS/ESVS 2019):
+    - Reestenose sintomatica maior que 50% pos-CEA ou pos-CAS
+    - Reestenose assintomatica maior que 80% pos-CEA ou pos-CAS
+    - Progressao rapida documentada
+    - Sintomas recorrentes ipsilaterais
+
+    Tipos de Reestenose:
+    - Precoce (menor que 2 anos): geralmente hiperplasia intimal - responde bem a CAS
+    - Tardia (maior que 2 anos): geralmente aterosclerose recorrente
+    - Pos-CEA: CAS preferencial
+    - Pos-CAS: CEA ou re-CAS dependendo da anatomia
+
+    Documentacao Obrigatoria:
+    - Duplex seriado documentando progressao
+    - Procedimento primario documentado
+    - Avaliacao neurologica se sintomatico
+    - Imagem complementar (angioTC/angioRM)
+
+    Referencias Normativas:
+    - SVS/ESVS 2019 - Recurrent Carotid Stenosis
+    - SBACV 2020 - Reestenose Carotidea
+    - DUT ANS 2024
+  -->
+
+  <decision id="Decision_VAS_CAR_004" name="Criterios de Reintervencao - Reestenose Carotidea">
+    <decisionTable id="DecisionTable_VAS_CAR_004" hitPolicy="FIRST">
+
+      <!-- Input 1: Grau de Reestenose -->
+      <input id="Input_grauReestenose" label="Grau de Reestenose (%)">
+        <inputExpression id="InputExpr_grauReestenose" typeRef="string">
+          <text>grauReestenose</text>
+        </inputExpression>
+        <inputValues id="InputValues_grauReestenose">
+          <text>"Menor_50","Entre_50_69","Entre_70_79","Maior_80","Oclusao"</text>
+        </inputValues>
+      </input>
+
+      <!-- Input 2: Status Sintomatico -->
+      <input id="Input_statusSintomatico" label="Status Sintomatico">
+        <inputExpression id="InputExpr_statusSintomatico" typeRef="string">
+          <text>statusSintomatico</text>
+        </inputExpression>
+        <inputValues id="InputValues_statusSintomatico">
+          <text>"Sintomatico_Ipsilateral","Assintomatico","Sintoma_Contralateral"</text>
+        </inputValues>
+      </input>
+
+      <!-- Input 3: Procedimento Primario -->
+      <input id="Input_procedimentoPrimario" label="Tipo de Procedimento Primario">
+        <inputExpression id="InputExpr_procedimentoPrimario" typeRef="string">
+          <text>procedimentoPrimario</text>
+        </inputExpression>
+        <inputValues id="InputValues_procedimentoPrimario">
+          <text>"CEA_Previa","CAS_Previo"</text>
+        </inputValues>
+      </input>
+
+      <!-- Input 4: Tempo desde Procedimento Primario -->
+      <input id="Input_tempoProcedimento" label="Tempo desde Procedimento Primario">
+        <inputExpression id="InputExpr_tempoProcedimento" typeRef="string">
+          <text>tempoProcedimento</text>
+        </inputExpression>
+        <inputValues id="InputValues_tempoProcedimento">
+          <text>"Menor_2_Anos","Maior_2_Anos"</text>
+        </inputValues>
+      </input>
+
+      <!-- Input 5: Documentacao Seriada -->
+      <input id="Input_documentacaoSeriada" label="Duplex Seriado Documentando Progressao">
+        <inputExpression id="InputExpr_documentacaoSeriada" typeRef="boolean">
+          <text>documentacaoSeriada</text>
+        </inputExpression>
+      </input>
+
+      <!-- Outputs -->
+      <output id="Output_resultado" label="Resultado" name="resultado" typeRef="string">
+        <outputValues id="OutputValues_resultado">
+          <text>"Aprovado","Reprovado","Pendente"</text>
+        </outputValues>
+      </output>
+      <output id="Output_observacao" label="Observacao Clinica" name="observacao" typeRef="string" />
+      <output id="Output_fundamentacao" label="Fundamentacao Legal/Tecnica" name="fundamentacao" typeRef="string" />
+
+      <output id="Output_alertasDesperdicio" name="alertasDesperdicio" typeRef="string">
+        <outputValues>
+          <text>"NENHUM","DUP","FREQ","ESC","DOC","PROT","MULTI"</text>
+        </outputValues>
+      </output>
+
+      <output id="Output_acaoRecomendada" name="acaoRecomendada" typeRef="string">
+        <outputValues>
+          <text>"APROVAR","NEGAR","SOLICITAR_INFO","AGUARDAR_PRAZO","SUGERIR_ALTERNATIVA"</text>
+        </outputValues>
+      </output>
+
+      <!-- ============================================== -->
+      <!-- REGRAS DE REPROVACAO                          -->
+      <!-- ============================================== -->
+
+      <rule id="Rule_VAS_CAR_004_Reprovacao_Oclusao">
+        <description>Reprovacao - Oclusao total nao eh candidata a reintervencao</description>
+        <inputEntry id="IE_Rep1_1"><text>"Oclusao"</text></inputEntry>
+        <inputEntry id="IE_Rep1_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_Rep1_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_Rep1_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_Rep1_5"><text>-</text></inputEntry>
+        <outputEntry id="OE_Rep1_1"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OE_Rep1_2"><text>"Oclusao carotidea total pos-procedimento nao eh candidata a reintervencao - manter tratamento clinico otimizado"</text></outputEntry>
+        <outputEntry id="OE_Rep1_3"><text>"SVS/ESVS 2019 - Oclusao cronica contraindica reintervencao"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_VAS_CAR_004_Reprovacao_BaixaAssintomatica">
+        <description>Reprovacao - Reestenose menor que 50% assintomatica</description>
+        <inputEntry id="IE_Rep2_1"><text>"Menor_50"</text></inputEntry>
+        <inputEntry id="IE_Rep2_2"><text>"Assintomatico"</text></inputEntry>
+        <inputEntry id="IE_Rep2_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_Rep2_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_Rep2_5"><text>-</text></inputEntry>
+        <outputEntry id="OE_Rep2_1"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OE_Rep2_2"><text>"Reestenose menor que 50% assintomatica nao tem indicacao de reintervencao - manter vigilancia com duplex seriado"</text></outputEntry>
+        <outputEntry id="OE_Rep2_3"><text>"SVS/ESVS 2019 - Seguimento conservador para reestenose menor que 50%"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_VAS_CAR_004_Reprovacao_SemDocumentacao">
+        <description>Reprovacao - Documentacao seriada ausente</description>
+        <inputEntry id="IE_Rep3_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_Rep3_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_Rep3_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_Rep3_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_Rep3_5"><text>false</text></inputEntry>
+        <outputEntry id="OE_Rep3_1"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OE_Rep3_2"><text>"Documentacao seriada com duplex obrigatoria para demonstrar progressao da reestenose"</text></outputEntry>
+        <outputEntry id="OE_Rep3_3"><text>"RN 465/2021 - Documentacao de progressao obrigatoria para reintervencao"</text></outputEntry>
+      </rule>
+
+      <!-- ============================================== -->
+      <!-- REGRAS DE APROVACAO                           -->
+      <!-- ============================================== -->
+
+      <rule id="Rule_VAS_CAR_004_Aprovacao_SintomaticoMaior50">
+        <description>Aprovacao - Reestenose sintomatica maior que 50%</description>
+        <inputEntry id="IE_Apr1_1"><text>"Entre_50_69","Entre_70_79","Maior_80"</text></inputEntry>
+        <inputEntry id="IE_Apr1_2"><text>"Sintomatico_Ipsilateral"</text></inputEntry>
+        <inputEntry id="IE_Apr1_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_Apr1_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_Apr1_5"><text>true</text></inputEntry>
+        <outputEntry id="OE_Apr1_1"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OE_Apr1_2"><text>"Reintervencao APROVADA - reestenose sintomatica maior que 50% com sintomas ipsilaterais documentados"</text></outputEntry>
+        <outputEntry id="OE_Apr1_3"><text>"SVS/ESVS 2019 Classe I - Reintervencao indicada em reestenose sintomatica maior que 50%"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_VAS_CAR_004_Aprovacao_AssintomaticoMaior80">
+        <description>Aprovacao - Reestenose assintomatica maior que 80%</description>
+        <inputEntry id="IE_Apr2_1"><text>"Maior_80"</text></inputEntry>
+        <inputEntry id="IE_Apr2_2"><text>"Assintomatico"</text></inputEntry>
+        <inputEntry id="IE_Apr2_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_Apr2_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_Apr2_5"><text>true</text></inputEntry>
+        <outputEntry id="OE_Apr2_1"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OE_Apr2_2"><text>"Reintervencao APROVADA - reestenose assintomatica maior que 80% com progressao documentada"</text></outputEntry>
+        <outputEntry id="OE_Apr2_3"><text>"SVS/ESVS 2019 Classe IIa - Reintervencao pode ser considerada em reestenose severa assintomatica"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_VAS_CAR_004_Aprovacao_CAS_PosCEA">
+        <description>Aprovacao CAS - Reestenose pos-CEA previa</description>
+        <inputEntry id="IE_Apr3_1"><text>"Entre_50_69","Entre_70_79","Maior_80"</text></inputEntry>
+        <inputEntry id="IE_Apr3_2"><text>"Sintomatico_Ipsilateral"</text></inputEntry>
+        <inputEntry id="IE_Apr3_3"><text>"CEA_Previa"</text></inputEntry>
+        <inputEntry id="IE_Apr3_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_Apr3_5"><text>true</text></inputEntry>
+        <outputEntry id="OE_Apr3_1"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OE_Apr3_2"><text>"Stenting Carotideo APROVADO para reestenose pos-CEA - CAS preferencial evitando reoperacao em territorio previamente manipulado"</text></outputEntry>
+        <outputEntry id="OE_Apr3_3"><text>"SVS/ESVS 2019 Classe IIa - CAS preferencial em reestenose pos-CEA"</text></outputEntry>
+      </rule>
+
+      <!-- ============================================== -->
+      <!-- REGRAS DE PENDENCIA                           -->
+      <!-- ============================================== -->
+
+      <rule id="Rule_VAS_CAR_004_Pendente_70_79_Assintomatico">
+        <description>Pendente - Reestenose 70-79% assintomatica requer analise</description>
+        <inputEntry id="IE_Pend1_1"><text>"Entre_70_79"</text></inputEntry>
+        <inputEntry id="IE_Pend1_2"><text>"Assintomatico"</text></inputEntry>
+        <inputEntry id="IE_Pend1_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_Pend1_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_Pend1_5"><text>true</text></inputEntry>
+        <outputEntry id="OE_Pend1_1"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OE_Pend1_2"><text>"Reestenose 70-79% assintomatica - beneficio de reintervencao incerto - requer analise individualizada considerando velocidade de progressao"</text></outputEntry>
+        <outputEntry id="OE_Pend1_3"><text>"SVS/ESVS 2019 Classe IIb - Decisao individualizada para reestenose moderada assintomatica"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_VAS_CAR_004_Pendente_PosCAS">
+        <description>Pendente - Reestenose pos-CAS requer avaliacao de metodo</description>
+        <inputEntry id="IE_Pend2_1"><text>"Entre_50_69","Entre_70_79","Maior_80"</text></inputEntry>
+        <inputEntry id="IE_Pend2_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_Pend2_3"><text>"CAS_Previo"</text></inputEntry>
+        <inputEntry id="IE_Pend2_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_Pend2_5"><text>true</text></inputEntry>
+        <outputEntry id="OE_Pend2_1"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OE_Pend2_2"><text>"Reestenose pos-CAS - escolha entre re-CAS vs CEA depende de anatomia e tipo de reestenose (intra-stent vs bordas) - requer analise especializada"</text></outputEntry>
+        <outputEntry id="OE_Pend2_3"><text>"SVS/ESVS 2019 - Decisao individualizada para reestenose pos-CAS"</text></outputEntry>
+      </rule>
+
+      <!-- ============================================== -->
+      <!-- REGRA FALLBACK                                -->
+      <!-- ============================================== -->
+
+      <rule id="Rule_Fallback_VAS_CAR_004">
+        <description>Fallback - Casos nao cobertos requerem analise manual</description>
+        <inputEntry id="IE_Fallback_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_Fallback_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_Fallback_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_Fallback_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_Fallback_5"><text>-</text></inputEntry>
+        <outputEntry id="OE_Fallback_1"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OE_Fallback_2"><text>"Caso requer analise manual por auditor especializado em cirurgia vascular"</text></outputEntry>
+        <outputEntry id="OE_Fallback_3"><text>"Auditoria especializada conforme RN 428/2017"</text></outputEntry>
+      </rule>
+
+    </decisionTable>
+  </decision>
+</definitions>

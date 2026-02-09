@@ -1,0 +1,165 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/" xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/" xmlns:dc="http://www.omg.org/spec/DMN/20180521/DC/" xmlns:di="http://www.omg.org/spec/DMN/20180521/DI/" id="DDI_BLEED_001" name="DDI-BLEED-001: Varfarina + AINEs" namespace="http://camunda.org/schema/1.0/dmn">
+  <decision id="ddi_bleed_001_decision" name="Varfarina + AINEs Bleeding Risk">
+    <decisionTable id="ddi_bleed_001_table" hitPolicy="FIRST">
+      <input id="input_medicamentos_ativos" label="Medicamentos Ativos">
+        <inputExpression id="input_expr_medicamentos_ativos" typeRef="string">
+          <text>medicamentosAtivos</text>
+        </inputExpression>
+      </input>
+      <input id="input_medicamento_novo" label="Medicamento Novo">
+        <inputExpression id="input_expr_medicamento_novo" typeRef="string">
+          <text>medicamentoNovo</text>
+        </inputExpression>
+      </input>
+      <input id="input_historico_sangramento" label="Histórico Sangramento">
+        <inputExpression id="input_expr_historico" typeRef="boolean">
+          <text>historicoSangramento</text>
+        </inputExpression>
+      </input>
+      <input id="input_idade" label="Idade (anos)">
+        <inputExpression id="input_expr_idade" typeRef="number">
+          <text>idade</text>
+        </inputExpression>
+      </input>
+
+      <output id="output_nivel_alerta" name="nivelAlerta" typeRef="string">
+        <outputValues>
+          <text>"Alerta","Atencao","Informativo"</text>
+        </outputValues>
+      </output>
+      <output id="output_urgencia" name="urgencia" typeRef="string">
+        <outputValues>
+          <text>"IMEDIATA","URGENTE","ROTINA"</text>
+        </outputValues>
+      </output>
+      <output id="output_medicamentos_conflitantes" name="medicamentosConflitantes" typeRef="string" />
+      <output id="output_mecanismo_interacao" name="mecanismoInteracao" typeRef="string" />
+      <output id="output_acao_requerida" name="acaoRequerida" typeRef="string" />
+
+      <!-- Rule 1: Varfarina + AINE com histórico sangramento ou idade ≥75 -->
+      <rule id="rule_varf_aine_alto_risco">
+        <inputEntry id="input_medicamentos_varf">
+          <text>list contains(medicamentosAtivos, "VARFARINA") or list contains(medicamentosAtivos, "WARFARIN")</text>
+        </inputEntry>
+        <inputEntry id="input_novo_aine">
+          <text>"DICLOFENACO" or "IBUPROFENO" or "NAPROXENO" or "CETOPROFENO" or "PIROXICAM" or "MELOXICAM" or "INDOMETACINA"</text>
+        </inputEntry>
+        <inputEntry id="input_sangramento_sim">
+          <text>true</text>
+        </inputEntry>
+        <inputEntry id="input_idade_alta">
+          <text>&gt;= 75</text>
+        </inputEntry>
+        <outputEntry id="output_alerta_alto">
+          <text>"Alerta"</text>
+        </outputEntry>
+        <outputEntry id="output_urgencia_alto">
+          <text>"IMEDIATA"</text>
+        </outputEntry>
+        <outputEntry id="output_conflitantes_alto">
+          <text>"Varfarina + AINE (idade ≥75 + hist sangramento)"</text>
+        </outputEntry>
+        <outputEntry id="output_mecanismo_alto">
+          <text>"TRIPLO mecanismo sangramento: (1) Varfarina bloqueia sintese fatores coagulacao, (2) AINE inibe funcao plaquetaria (COX-1), (3) AINE lesa mucosa gastrica = SANGRAMENTO GI GRAVE (ulcera, melena, hematêmese). Risco 13x aumentado em idosos."</text>
+        </outputEntry>
+        <outputEntry id="output_acao_alto">
+          <text>"EVITAR ASSOCIACAO: Suspender AINE, usar paracetamol ate 4g/dia. Se dor intensa: opioide (tramadol, codeina). IBP obrigatorio se AINE ESSENCIAL (omeprazol 40mg/dia). INR semanal. Orientar sinais sangramento (fezes escuras, vomito cafe, hematomas)."</text>
+        </outputEntry>
+      </rule>
+
+      <!-- Rule 2: Varfarina + AINE sem fatores alto risco -->
+      <rule id="rule_varf_aine_moderado">
+        <inputEntry id="input_medicamentos_varf_mod">
+          <text>list contains(medicamentosAtivos, "VARFARINA") or list contains(medicamentosAtivos, "WARFARIN")</text>
+        </inputEntry>
+        <inputEntry id="input_novo_aine_mod">
+          <text>"DICLOFENACO" or "IBUPROFENO" or "NAPROXENO" or "CETOPROFENO" or "PIROXICAM" or "MELOXICAM" or "INDOMETACINA"</text>
+        </inputEntry>
+        <inputEntry id="input_sangramento_nao">
+          <text>false</text>
+        </inputEntry>
+        <inputEntry id="input_idade_normal">
+          <text>&lt; 75</text>
+        </inputEntry>
+        <outputEntry id="output_alerta_mod">
+          <text>"Alerta"</text>
+        </outputEntry>
+        <outputEntry id="output_urgencia_mod">
+          <text>"URGENTE"</text>
+        </outputEntry>
+        <outputEntry id="output_conflitantes_mod">
+          <text>"Varfarina + AINE"</text>
+        </outputEntry>
+        <outputEntry id="output_mecanismo_mod">
+          <text>"Risco sangramento GI 3-4x aumentado. Mecanismo: anticoagulacao + disfuncao plaquetaria + lesao mucosa."</text>
+        </outputEntry>
+        <outputEntry id="output_acao_mod">
+          <text>"PREFERIR paracetamol. Se AINE necessario: (1) AINE COX-2 seletivo (celecoxibe 200mg/dia - menor risco GI), (2) IBP obrigatorio (omeprazol 20mg/dia), (3) INR 7 dias apos inicio AINE, (4) Limitar duracao AINE &lt;7 dias."</text>
+        </outputEntry>
+      </rule>
+
+      <!-- Rule 3: AINE em uso + prescrição varfarina -->
+      <rule id="rule_aine_varf">
+        <inputEntry id="input_medicamentos_aine">
+          <text>list contains(medicamentosAtivos, "DICLOFENACO") or list contains(medicamentosAtivos, "IBUPROFENO") or list contains(medicamentosAtivos, "NAPROXENO")</text>
+        </inputEntry>
+        <inputEntry id="input_novo_varf">
+          <text>"VARFARINA" or "WARFARIN"</text>
+        </inputEntry>
+        <inputEntry id="input_hist_any">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="input_idade_any">
+          <text>-</text>
+        </inputEntry>
+        <outputEntry id="output_alerta_aine">
+          <text>"Alerta"</text>
+        </outputEntry>
+        <outputEntry id="output_urgencia_aine">
+          <text>"URGENTE"</text>
+        </outputEntry>
+        <outputEntry id="output_conflitantes_aine">
+          <text>"AINE ativo + Varfarina prescrita"</text>
+        </outputEntry>
+        <outputEntry id="output_mecanismo_aine">
+          <text>"AINE ja causa disfuncao plaquetaria. Adicionar varfarina = risco sangramento alto."</text>
+        </outputEntry>
+        <outputEntry id="output_acao_aine">
+          <text>"Suspender AINE 48h antes iniciar varfarina. IBP profilatico durante toda anticoagulacao. Considerar DOAC se apropriado (apixabana, rivaroxabana - similar risco sangramento mas sem necessidade INR)."</text>
+        </outputEntry>
+      </rule>
+
+      <!-- Fallback Rule -->
+      <rule id="rule_fallback">
+        <inputEntry id="input_fallback_1">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="input_fallback_2">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="input_fallback_3">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="input_fallback_4">
+          <text>-</text>
+        </inputEntry>
+        <outputEntry id="output_fallback_1">
+          <text>"Informativo"</text>
+        </outputEntry>
+        <outputEntry id="output_fallback_2">
+          <text>"ROTINA"</text>
+        </outputEntry>
+        <outputEntry id="output_fallback_3">
+          <text>""</text>
+        </outputEntry>
+        <outputEntry id="output_fallback_4">
+          <text>""</text>
+        </outputEntry>
+        <outputEntry id="output_fallback_5">
+          <text>""</text>
+        </outputEntry>
+      </rule>
+    </decisionTable>
+  </decision>
+</definitions>

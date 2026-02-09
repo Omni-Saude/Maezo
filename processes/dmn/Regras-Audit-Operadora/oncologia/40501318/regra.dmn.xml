@@ -1,0 +1,388 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  ONQ-IMG-003: Brain MRI Surveillance [LEAN TIER-2]
+  TUSS: 40501318
+  Versao: 3.1.0-LEAN-TIER2 (2026-02-08)
+  Especialidade: Oncologia/Radiologia
+
+  ============================================================================
+  INDICACOES CLINICAS (Alto Risco SNC):
+  ============================================================================
+  - CPPC (SCLC): Alto risco de metastase cerebral (50-80%)
+  - Melanoma metastatico: 40-60% desenvolvem mets cerebrais
+  - Cancer de mama HER2+: Tropismo para SNC
+  - CPNPC ALK+/EGFR+: Alto risco de progressao SNC
+
+  ============================================================================
+  FREQUENCIA DE VIGILANCIA:
+  ============================================================================
+  - Alto risco (SCLC, melanoma): RNM cada 3-4 meses
+  - Risco intermediario (HER2+): RNM cada 6 meses
+  - Sintomatico: RNM imediata independente do tumor
+
+  ============================================================================
+  CONTRAINDICACOES RNM:
+  ============================================================================
+  - Marca-passo/desfibrilador nao compativel
+  - Implantes metalicos nao seguros para RNM
+  - Claustrofobia severa (considerar TC)
+
+  ============================================================================
+  REFERENCIAS NORMATIVAS:
+  ============================================================================
+  - NCCN CNS Cancer Guidelines 2024
+  - ESMO Brain Metastases Guidelines 2024
+  - ASCO Brain Metastases Surveillance Recommendations
+-->
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/" xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/" xmlns:dc="http://www.omg.org/spec/DMN/20180521/DC/" xmlns:modeler="http://camunda.org/schema/modeler/1.0" id="Definitions_ONQ_IMG_003" name="DRD" namespace="http://camunda.org/schema/1.0/dmn" exporter="Camunda Modeler" exporterVersion="5.14.0" modeler:executionPlatform="Camunda Cloud" modeler:executionPlatformVersion="8.2.0">
+  <decision id="Decision_ONQ_IMG_003" name="ONQ-IMG-003: Brain MRI Surveillance [LEAN TIER-2]">
+    <decisionTable id="DecisionTable_ONQ_IMG_003" hitPolicy="FIRST">
+      <input id="Input_tumor_type" label="Tumor Type">
+        <inputExpression id="InputExpression_tumor_type" typeRef="string">
+          <text>tumorType</text>
+        </inputExpression>
+      </input>
+      <input id="Input_baseline_brain" label="Baseline Brain Imaging Done">
+        <inputExpression id="InputExpression_baseline_brain" typeRef="boolean">
+          <text>baselineBrainImaging</text>
+        </inputExpression>
+      </input>
+      <input id="Input_neurologic_symptoms" label="Neurologic Symptoms">
+        <inputExpression id="InputExpression_neurologic_symptoms" typeRef="boolean">
+          <text>neurologicSymptoms</text>
+        </inputExpression>
+      </input>
+      <input id="Input_months_since_last" label="Months Since Last Brain MRI">
+        <inputExpression id="InputExpression_months_since_last" typeRef="number">
+          <text>monthsSinceLastBrainMRI</text>
+        </inputExpression>
+      </input>
+      <!-- Input: Dias desde ultimo procedimento (DUP detection) -->
+      <input id="Input_ultimoProcedimentoDias" label="Dias Desde Ultimo Procedimento">
+        <inputExpression id="InputExpression_ultimoProcedimentoDias" typeRef="number">
+          <text>ultimoProcedimentoDias</text>
+        </inputExpression>
+      </input>
+
+      <output id="Output_resultado" label="Resultado" name="resultado" typeRef="string">
+        <outputValues id="UnaryTests_resultado">
+          <text>"Aprovado","Reprovado","Pendente"</text>
+        </outputValues>
+      </output>
+      <output id="Output_observacao" label="Observacao" name="observacao" typeRef="string" />
+      <output id="Output_fundamentacao" label="Fundamentacao" name="fundamentacao" typeRef="string" />
+      <output id="Output_alertasDesperdicio" label="Alertas de Desperdicio" name="alertasDesperdicio" typeRef="string">
+        <outputValues id="OutputValues_alertasDesperdicio">
+          <text>"NENHUM","DUP","FREQ","ESC","DOC","PROT","MULTI"</text>
+        </outputValues>
+      </output>
+      <output id="Output_acaoRecomendada" label="Acao Recomendada" name="acaoRecomendada" typeRef="string">
+        <outputValues id="OutputValues_acaoRecomendada">
+          <text>"APROVAR","NEGAR","SOLICITAR_INFO","AGUARDAR_PRAZO","SUGERIR_ALTERNATIVA"</text>
+        </outputValues>
+      </output>
+      <rule id="DecisionRule_approve_symptomatic">
+        <description>Approve immediate MRI for symptomatic patients</description>
+        <inputEntry id="InputEntry_tumor_type_symp">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_baseline_brain_symp">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_neurologic_symptoms_symp">
+          <text>true</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_months_since_last_symp">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="IE_DecisionRule_approve_symptomatic_ultimo"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_resultado_symp">
+          <text>"Aprovado"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_observacao_symp">
+          <text>"RNM cerebral aprovada: sintomas neurologicos novos requerem avaliacao imediata"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_fundamentacao_symp">
+          <text>"Sintomas neurologicos em paciente oncologico sao emergencia; deteccao precoce melhora outcomes"</text>
+        </outputEntry>
+        <outputEntry id="OE_symp_alertasDesperdicio">
+          <text>"NENHUM"</text>
+        </outputEntry>
+        <outputEntry id="OE_symp_acaoRecomendada">
+          <text>"APROVAR"</text>
+        </outputEntry>
+      </rule>
+      <rule id="DecisionRule_reject_low_risk">
+        <description>Reject routine surveillance for low CNS risk tumors</description>
+        <inputEntry id="InputEntry_tumor_type_low">
+          <text>"colorectal","prostate","gastric","pancreatic"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_baseline_brain_low">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_neurologic_symptoms_low">
+          <text>false</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_months_since_last_low">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="IE_DecisionRule_reject_low_risk_ultimo"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_resultado_low">
+          <text>"Reprovado"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_observacao_low">
+          <text>"Vigilancia cerebral nao indicada para tumores com baixo tropismo SNC em assintomaticos"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_fundamentacao_low">
+          <text>"CRC, prostata, gastrico: &lt;5% mets cerebrais; vigilancia reservada para sintomaticos"</text>
+        </outputEntry>
+        <outputEntry id="OE_low_alertasDesperdicio">
+          <text>"PROT"</text>
+        </outputEntry>
+        <outputEntry id="OE_low_acaoRecomendada">
+          <text>"NEGAR"</text>
+        </outputEntry>
+      </rule>
+      <rule id="DecisionRule_approve_sclc">
+        <description>Approve brain MRI for SCLC every 3-4 months</description>
+        <inputEntry id="InputEntry_tumor_type_sclc">
+          <text>"SCLC","small_cell_lung"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_baseline_brain_sclc">
+          <text>true</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_neurologic_symptoms_sclc">
+          <text>false</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_months_since_last_sclc">
+          <text>&gt;= 3</text>
+        </inputEntry>
+        <inputEntry id="IE_DecisionRule_approve_sclc_ultimo"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_resultado_sclc">
+          <text>"Aprovado"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_observacao_sclc">
+          <text>"RNM cerebral aprovada para CPPC: vigilancia cada 3-4 meses (alto risco SNC)"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_fundamentacao_sclc">
+          <text>"50-80% CPPC desenvolvem mets cerebrais; vigilancia intensiva recomendada per NCCN SCLC"</text>
+        </outputEntry>
+        <outputEntry id="OE_sclc_alertasDesperdicio">
+          <text>"NENHUM"</text>
+        </outputEntry>
+        <outputEntry id="OE_sclc_acaoRecomendada">
+          <text>"APROVAR"</text>
+        </outputEntry>
+      </rule>
+      <rule id="DecisionRule_approve_melanoma">
+        <description>Approve brain MRI for melanoma every 3-6 months</description>
+        <inputEntry id="InputEntry_tumor_type_melanoma">
+          <text>"melanoma"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_baseline_brain_melanoma">
+          <text>true</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_neurologic_symptoms_melanoma">
+          <text>false</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_months_since_last_melanoma">
+          <text>&gt;= 3</text>
+        </inputEntry>
+        <inputEntry id="IE_DecisionRule_approve_melanoma_ultimo"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_resultado_melanoma">
+          <text>"Aprovado"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_observacao_melanoma">
+          <text>"RNM cerebral aprovada para melanoma metastatico: vigilancia cada 3-6 meses"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_fundamentacao_melanoma">
+          <text>"40-60% melanomas metastaticos desenvolvem mets SNC; deteccao precoce permite SRS/cirurgia"</text>
+        </outputEntry>
+        <outputEntry id="OE_melanoma_alertasDesperdicio">
+          <text>"NENHUM"</text>
+        </outputEntry>
+        <outputEntry id="OE_melanoma_acaoRecomendada">
+          <text>"APROVAR"</text>
+        </outputEntry>
+      </rule>
+      <rule id="DecisionRule_approve_her2">
+        <description>Approve brain MRI for HER2+ breast cancer every 6 months</description>
+        <inputEntry id="InputEntry_tumor_type_her2">
+          <text>"breast_HER2_positive","HER2_breast"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_baseline_brain_her2">
+          <text>true</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_neurologic_symptoms_her2">
+          <text>false</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_months_since_last_her2">
+          <text>&gt;= 6</text>
+        </inputEntry>
+        <inputEntry id="IE_DecisionRule_approve_her2_ultimo"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_resultado_her2">
+          <text>"Aprovado"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_observacao_her2">
+          <text>"RNM cerebral aprovada para cancer de mama HER2+: vigilancia cada 6 meses"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_fundamentacao_her2">
+          <text>"30-50% mama HER2+ desenvolvem mets SNC; TDM-1/tucatinib ativos em SNC se detectado precoce"</text>
+        </outputEntry>
+        <outputEntry id="OE_her2_alertasDesperdicio">
+          <text>"NENHUM"</text>
+        </outputEntry>
+        <outputEntry id="OE_her2_acaoRecomendada">
+          <text>"APROVAR"</text>
+        </outputEntry>
+      </rule>
+      <rule id="DecisionRule_approve_alk_egfr">
+        <description>Approve brain MRI for ALK+/EGFR+ NSCLC</description>
+        <inputEntry id="InputEntry_tumor_type_alk">
+          <text>"NSCLC_ALK","NSCLC_EGFR","ALK_positive","EGFR_positive"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_baseline_brain_alk">
+          <text>true</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_neurologic_symptoms_alk">
+          <text>false</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_months_since_last_alk">
+          <text>&gt;= 3</text>
+        </inputEntry>
+        <inputEntry id="IE_DecisionRule_approve_alk_egfr_ultimo"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_resultado_alk">
+          <text>"Aprovado"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_observacao_alk">
+          <text>"RNM cerebral aprovada para CPNPC ALK+/EGFR+: alto risco de progressao SNC"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_fundamentacao_alk">
+          <text>"ALK+: 50-60% mets SNC; osimertinib/lorlatinib com atividade SNC se detectado precoce"</text>
+        </outputEntry>
+        <outputEntry id="OE_alk_alertasDesperdicio">
+          <text>"NENHUM"</text>
+        </outputEntry>
+        <outputEntry id="OE_alk_acaoRecomendada">
+          <text>"APROVAR"</text>
+        </outputEntry>
+      </rule>
+      <rule id="DecisionRule_pending_no_baseline">
+        <description>Pending if no baseline brain imaging</description>
+        <inputEntry id="InputEntry_tumor_type_nobase">
+          <text>"SCLC","melanoma","breast_HER2_positive","NSCLC_ALK","NSCLC_EGFR"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_baseline_brain_nobase">
+          <text>false</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_neurologic_symptoms_nobase">
+          <text>false</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_months_since_last_nobase">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="IE_DecisionRule_pending_no_baseline_ultimo"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_resultado_nobase">
+          <text>"Aprovado"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_observacao_nobase">
+          <text>"RNM cerebral basal aprovada: tumor de alto risco SNC requer estadiamento cerebral"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_fundamentacao_nobase">
+          <text>"Estadiamento SNC mandatorio em tumores com alto tropismo cerebral per NCCN"</text>
+        </outputEntry>
+        <outputEntry id="OE_nobase_alertasDesperdicio">
+          <text>"NENHUM"</text>
+        </outputEntry>
+        <outputEntry id="OE_nobase_acaoRecomendada">
+          <text>"APROVAR"</text>
+        </outputEntry>
+      </rule>
+      <rule id="DecisionRule_reject_frequent">
+        <description>Reject if MRI done recently (less than interval)</description>
+        <inputEntry id="InputEntry_tumor_type_freq">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_baseline_brain_freq">
+          <text>true</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_neurologic_symptoms_freq">
+          <text>false</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_months_since_last_freq">
+          <text>&lt; 3</text>
+        </inputEntry>
+        <inputEntry id="IE_DecisionRule_reject_frequent_ultimo"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_resultado_freq">
+          <text>"Reprovado"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_observacao_freq">
+          <text>"RNM cerebral realizada ha &lt;3 meses: intervalo minimo nao atingido"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_fundamentacao_freq">
+          <text>"Intervalo minimo de 3 meses entre exames de vigilancia; exceto se novos sintomas"</text>
+        </outputEntry>
+        <outputEntry id="OE_freq_alertasDesperdicio">
+          <text>"FREQ"</text>
+        </outputEntry>
+        <outputEntry id="OE_freq_acaoRecomendada">
+          <text>"NEGAR"</text>
+        </outputEntry>
+      </rule>
+
+      <!-- WASTE DETECTION: DUP -->
+      <rule id="Rule_40501318_DUP">
+        <description>DUP - RNM cerebral vigilancia repetida em menos de 90 dias</description>
+        <inputEntry id="IE_DUP_40501318_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_DUP_40501318_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_DUP_40501318_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_DUP_40501318_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_DUP_40501318_ultimo"><text>&lt; 90</text></inputEntry>
+        <outputEntry id="OE_DUP_40501318_resultado"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OE_DUP_40501318_observacao"><text>"RNM cerebral vigilancia repetida em menos de 90 dias"</text></outputEntry>
+        <outputEntry id="OE_DUP_40501318_fundamentacao"><text>"NCCN 2024: RNM cerebral vigilancia a cada 3-6 meses conforme risco"</text></outputEntry>
+        <outputEntry id="OE_DUP_40501318_alertasDesperdicio"><text>"DUP"</text></outputEntry>
+        <outputEntry id="OE_DUP_40501318_acaoRecomendada"><text>"AGUARDAR_PRAZO"</text></outputEntry>
+      </rule>
+
+      <rule id="DecisionRule_fallback">
+        <description>Fallback rule for incomplete data</description>
+        <inputEntry id="InputEntry_tumor_type_fallback">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_baseline_brain_fallback">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_neurologic_symptoms_fallback">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_months_since_last_fallback">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="IE_DecisionRule_fallback_ultimo"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_resultado_fallback">
+          <text>"Pendente"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_observacao_fallback">
+          <text>"Dados insuficientes para avaliacao de indicacao de RNM cerebral"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_fundamentacao_fallback">
+          <text>"Necessario: tipo tumoral, sintomas neurologicos, data do ultimo exame"</text>
+        </outputEntry>
+        <outputEntry id="OE_fallback_alertasDesperdicio">
+          <text>"NENHUM"</text>
+        </outputEntry>
+        <outputEntry id="OE_fallback_acaoRecomendada">
+          <text>"SOLICITAR_INFO"</text>
+        </outputEntry>
+      </rule>
+    </decisionTable>
+  </decision>
+  <dmndi:DMNDI>
+    <dmndi:DMNDiagram>
+      <dmndi:DMNShape dmnElementRef="Decision_ONQ_IMG_003">
+        <dc:Bounds height="80" width="180" x="160" y="100" />
+      </dmndi:DMNShape>
+    </dmndi:DMNDiagram>
+  </dmndi:DMNDI>
+</definitions>

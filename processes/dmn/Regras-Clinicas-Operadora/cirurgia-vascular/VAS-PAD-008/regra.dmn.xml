@@ -1,0 +1,246 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/"
+             xmlns:dc="http://www.omg.org/spec/DD/20100524/DC/"
+             xmlns:di="http://www.omg.org/spec/DD/20100524/DI/"
+             id="Definitions_VAS_PAD_008"
+             name="Isquemia Mesenterica - Aguda vs Cronica"
+             namespace="http://camunda.org/schema/1.0/dmn"
+             exporter="Camunda Modeler"
+             exporterVersion="5.0.0">
+  <!--
+    VAS-PAD-008 - Isquemia Mesenterica - Aguda vs Cronica
+    Versao: 1.0.0 (2026-02-07)
+    Especialidade: Cirurgia Vascular / Cirurgia do Aparelho Digestivo
+    Categoria: Emergencia Vascular / Doenca Arterial Visceral
+    TUSS Relacionados: 30907184, 30907192, 30907206
+
+    Isquemia Mesenterica Aguda (IMA):
+    Etiologias:
+    - Embolia arterial (50%): origem cardiaca (FA, IAM, valvopatia)
+    - Trombose arterial (25%): aterosclerose previa
+    - Isquemia nao-oclusiva (20%): baixo debito, vasoconstritores
+    - Trombose venosa (5%): estados protrombóticos
+
+    Apresentacao:
+    - Dor abdominal intensa desproporcional ao exame fisico
+    - Acidose, leucocitose, lactato elevado
+    - Alta mortalidade (50-80% se diagnostico tardio)
+
+    Isquemia Mesenterica Cronica (IMC):
+    - Angina abdominal pos-prandial
+    - Perda de peso (food fear)
+    - Estenose de pelo menos 2 vasos viscerais
+
+    Tratamento:
+    - IMA: revascularizacao emergencial (aberta ou endovascular) + resseccao intestino necrotico
+    - IMC: revascularizacao eletiva (endovascular preferido se anatomia favoravel)
+
+    Referencias Normativas:
+    - SVS/ESVS 2019 - Mesenteric Ischemia Guidelines
+    - ACC/AHA 2016
+    - DUT ANS 2024
+  -->
+
+  <decision id="Decision_VAS_PAD_008" name="Criterios de Manejo - Isquemia Mesenterica">
+    <decisionTable id="DecisionTable_VAS_PAD_008" hitPolicy="FIRST">
+
+      <!-- Input 1: Apresentacao Clinica -->
+      <input id="Input_apresentacao" label="Apresentacao Clinica">
+        <inputExpression id="InputExpr_apresentacao" typeRef="string">
+          <text>apresentacaoClinica</text>
+        </inputExpression>
+        <inputValues id="InputValues_apresentacao">
+          <text>"Aguda_Dor_Intensa","Aguda_Peritonite","Cronica_Angina_Abdominal","Cronica_Perda_Peso","Subaguda"</text>
+        </inputValues>
+      </input>
+
+      <!-- Input 2: Etiologia -->
+      <input id="Input_etiologia" label="Etiologia Provavel">
+        <inputExpression id="InputExpr_etiologia" typeRef="string">
+          <text>etiologiaProvavel</text>
+        </inputExpression>
+        <inputValues id="InputValues_etiologia">
+          <text>"Embolia_Arterial","Trombose_Arterial","Nao_Oclusiva","Trombose_Venosa","Aterosclerose_Cronica"</text>
+        </inputValues>
+      </input>
+
+      <!-- Input 3: Status do Intestino -->
+      <input id="Input_intestino" label="Viabilidade Intestinal">
+        <inputExpression id="InputExpr_intestino" typeRef="string">
+          <text>viabilidadeIntestino</text>
+        </inputExpression>
+        <inputValues id="InputValues_intestino">
+          <text>"Viavel","Duvidoso","Necrose_Localizada","Necrose_Extensa","Nao_Avaliado"</text>
+        </inputValues>
+      </input>
+
+      <!-- Input 4: Marcadores de Gravidade -->
+      <input id="Input_gravidade" label="Marcadores de Gravidade (Lactato/Acidose)">
+        <inputExpression id="InputExpr_gravidade" typeRef="string">
+          <text>marcadoresGravidade</text>
+        </inputExpression>
+        <inputValues id="InputValues_gravidade">
+          <text>"Normal","Elevado_Leve","Elevado_Moderado","Acidose_Severa"</text>
+        </inputValues>
+      </input>
+
+      <!-- Input 5: Documentacao de Imagem -->
+      <input id="Input_documentacao" label="AngioTC Abdominal Realizada">
+        <inputExpression id="InputExpr_documentacao" typeRef="boolean">
+          <text>angioTCRealizada</text>
+        </inputExpression>
+      </input>
+
+      <!-- Outputs -->
+      <output id="Output_resultado" label="Resultado" name="resultado" typeRef="string">
+        <outputValues id="OutputValues_resultado">
+          <text>"Aprovado","Reprovado","Pendente"</text>
+        </outputValues>
+      </output>
+      <output id="Output_observacao" label="Observacao Clinica" name="observacao" typeRef="string" />
+      <output id="Output_fundamentacao" label="Fundamentacao Legal/Tecnica" name="fundamentacao" typeRef="string" />
+
+      <output id="Output_alertasDesperdicio" name="alertasDesperdicio" typeRef="string">
+        <outputValues>
+          <text>"NENHUM","DUP","FREQ","ESC","DOC","PROT","MULTI"</text>
+        </outputValues>
+      </output>
+
+      <output id="Output_acaoRecomendada" name="acaoRecomendada" typeRef="string">
+        <outputValues>
+          <text>"APROVAR","NEGAR","SOLICITAR_INFO","AGUARDAR_PRAZO","SUGERIR_ALTERNATIVA"</text>
+        </outputValues>
+      </output>
+
+      <!-- ============================================== -->
+      <!-- REGRAS DE REPROVACAO                          -->
+      <!-- ============================================== -->
+
+      <rule id="Rule_VAS_PAD_008_Reprovacao_NecroseExtensa">
+        <description>Reprovacao Revascularizacao - Necrose intestinal extensa</description>
+        <inputEntry id="IE_Rep1_1"><text>"Aguda_Peritonite"</text></inputEntry>
+        <inputEntry id="IE_Rep1_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_Rep1_3"><text>"Necrose_Extensa"</text></inputEntry>
+        <inputEntry id="IE_Rep1_4"><text>"Acidose_Severa"</text></inputEntry>
+        <inputEntry id="IE_Rep1_5"><text>true</text></inputEntry>
+        <outputEntry id="OE_Rep1_1"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OE_Rep1_2"><text>"Revascularizacao isolada NAO indicada - necrose intestinal extensa com acidose severa - laparotomia com resseccao intestinal prioritaria, revascularizacao se intestino residual viavel"</text></outputEntry>
+        <outputEntry id="OE_Rep1_3"><text>"SVS/ESVS 2019 - Controle de danos prioritario em necrose extensa"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_VAS_PAD_008_Reprovacao_SemImagem_Cronica">
+        <description>Reprovacao - Isquemia cronica sem imagem vascular</description>
+        <inputEntry id="IE_Rep2_1"><text>"Cronica_Angina_Abdominal","Cronica_Perda_Peso"</text></inputEntry>
+        <inputEntry id="IE_Rep2_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_Rep2_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_Rep2_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_Rep2_5"><text>false</text></inputEntry>
+        <outputEntry id="OE_Rep2_1"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OE_Rep2_2"><text>"Revascularizacao NAO aprovada - isquemia mesenterica cronica requer confirmacao por angioTC ou duplex mesenterica antes de intervencao"</text></outputEntry>
+        <outputEntry id="OE_Rep2_3"><text>"SVS/ESVS 2019 - Documentacao de estenose significativa obrigatoria"</text></outputEntry>
+      </rule>
+
+      <!-- ============================================== -->
+      <!-- REGRAS DE APROVACAO - EMERGENCIA IMA          -->
+      <!-- ============================================== -->
+
+      <rule id="Rule_VAS_PAD_008_Aprovacao_Embolia">
+        <description>Aprovacao Emergencia - Embolia arterial mesenterica</description>
+        <inputEntry id="IE_Apr1_1"><text>"Aguda_Dor_Intensa"</text></inputEntry>
+        <inputEntry id="IE_Apr1_2"><text>"Embolia_Arterial"</text></inputEntry>
+        <inputEntry id="IE_Apr1_3"><text>"Viavel","Duvidoso"</text></inputEntry>
+        <inputEntry id="IE_Apr1_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_Apr1_5"><text>true</text></inputEntry>
+        <outputEntry id="OE_Apr1_1"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OE_Apr1_2"><text>"Embolectomia/Revascularizacao EMERGENCIAL APROVADA - embolia arterial mesenterica com intestino viavel - cada hora de atraso aumenta mortalidade"</text></outputEntry>
+        <outputEntry id="OE_Apr1_3"><text>"SVS/ESVS 2019 Classe I - Revascularizacao emergencial obrigatoria em IMA"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_VAS_PAD_008_Aprovacao_Trombose">
+        <description>Aprovacao Emergencia - Trombose arterial mesenterica</description>
+        <inputEntry id="IE_Apr2_1"><text>"Aguda_Dor_Intensa","Aguda_Peritonite"</text></inputEntry>
+        <inputEntry id="IE_Apr2_2"><text>"Trombose_Arterial"</text></inputEntry>
+        <inputEntry id="IE_Apr2_3"><text>"Viavel","Duvidoso","Necrose_Localizada"</text></inputEntry>
+        <inputEntry id="IE_Apr2_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_Apr2_5"><text>true</text></inputEntry>
+        <outputEntry id="OE_Apr2_1"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OE_Apr2_2"><text>"Revascularizacao EMERGENCIAL APROVADA - trombose arterial mesenterica - bypass ou endarterectomia + resseccao de intestino necrotico se presente"</text></outputEntry>
+        <outputEntry id="OE_Apr2_3"><text>"SVS/ESVS 2019 Classe I - Intervencao emergencial em trombose mesenterica"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_VAS_PAD_008_Aprovacao_NaoOclusiva">
+        <description>Aprovacao Tratamento - Isquemia nao-oclusiva</description>
+        <inputEntry id="IE_Apr3_1"><text>"Aguda_Dor_Intensa"</text></inputEntry>
+        <inputEntry id="IE_Apr3_2"><text>"Nao_Oclusiva"</text></inputEntry>
+        <inputEntry id="IE_Apr3_3"><text>"Viavel"</text></inputEntry>
+        <inputEntry id="IE_Apr3_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_Apr3_5"><text>true</text></inputEntry>
+        <outputEntry id="OE_Apr3_1"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OE_Apr3_2"><text>"Tratamento APROVADO - isquemia nao-oclusiva - vasodilatadores intra-arteriais (papaverina) + correcao do baixo debito - cirurgia se necrose"</text></outputEntry>
+        <outputEntry id="OE_Apr3_3"><text>"SVS/ESVS 2019 - Tratamento farmacologico e suporte em isquemia nao-oclusiva"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_VAS_PAD_008_Aprovacao_TromboseVenosa">
+        <description>Aprovacao Tratamento - Trombose venosa mesenterica</description>
+        <inputEntry id="IE_Apr4_1"><text>"Aguda_Dor_Intensa","Subaguda"</text></inputEntry>
+        <inputEntry id="IE_Apr4_2"><text>"Trombose_Venosa"</text></inputEntry>
+        <inputEntry id="IE_Apr4_3"><text>"Viavel","Duvidoso"</text></inputEntry>
+        <inputEntry id="IE_Apr4_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_Apr4_5"><text>true</text></inputEntry>
+        <outputEntry id="OE_Apr4_1"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OE_Apr4_2"><text>"Anticoagulacao APROVADA - trombose venosa mesenterica - heparina plena + monitoramento - cirurgia apenas se peritonite"</text></outputEntry>
+        <outputEntry id="OE_Apr4_3"><text>"SVS/ESVS 2019 - Anticoagulacao eh tratamento primario de trombose venosa mesenterica"</text></outputEntry>
+      </rule>
+
+      <!-- ============================================== -->
+      <!-- REGRAS DE APROVACAO - ELETIVA IMC             -->
+      <!-- ============================================== -->
+
+      <rule id="Rule_VAS_PAD_008_Aprovacao_Cronica">
+        <description>Aprovacao Eletiva - Isquemia mesenterica cronica</description>
+        <inputEntry id="IE_Apr5_1"><text>"Cronica_Angina_Abdominal","Cronica_Perda_Peso"</text></inputEntry>
+        <inputEntry id="IE_Apr5_2"><text>"Aterosclerose_Cronica"</text></inputEntry>
+        <inputEntry id="IE_Apr5_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_Apr5_4"><text>"Normal"</text></inputEntry>
+        <inputEntry id="IE_Apr5_5"><text>true</text></inputEntry>
+        <outputEntry id="OE_Apr5_1"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OE_Apr5_2"><text>"Revascularizacao ELETIVA APROVADA - isquemia mesenterica cronica sintomatica com estenose documentada - endovascular preferido se anatomia favoravel"</text></outputEntry>
+        <outputEntry id="OE_Apr5_3"><text>"SVS/ESVS 2019 Classe I - Revascularizacao indicada em IMC sintomatica"</text></outputEntry>
+      </rule>
+
+      <!-- ============================================== -->
+      <!-- REGRAS DE PENDENCIA                           -->
+      <!-- ============================================== -->
+
+      <rule id="Rule_VAS_PAD_008_Pendente_SemTC_Agudo">
+        <description>Pendente - Suspeita de IMA sem angioTC</description>
+        <inputEntry id="IE_Pend1_1"><text>"Aguda_Dor_Intensa"</text></inputEntry>
+        <inputEntry id="IE_Pend1_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_Pend1_3"><text>"Nao_Avaliado"</text></inputEntry>
+        <inputEntry id="IE_Pend1_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_Pend1_5"><text>false</text></inputEntry>
+        <outputEntry id="OE_Pend1_1"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OE_Pend1_2"><text>"Alta suspeita de IMA - angioTC URGENTE para confirmar diagnostico e planejar intervencao - nao atrasar se instabilidade"</text></outputEntry>
+        <outputEntry id="OE_Pend1_3"><text>"SVS/ESVS 2019 - AngioTC eh exame de escolha para IMA se paciente estavel"</text></outputEntry>
+      </rule>
+
+      <!-- ============================================== -->
+      <!-- REGRA FALLBACK                                -->
+      <!-- ============================================== -->
+
+      <rule id="Rule_Fallback_VAS_PAD_008">
+        <description>Fallback - Emergencia mesenterica requer decisao imediata</description>
+        <inputEntry id="IE_Fallback_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_Fallback_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_Fallback_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_Fallback_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_Fallback_5"><text>-</text></inputEntry>
+        <outputEntry id="OE_Fallback_1"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OE_Fallback_2"><text>"Isquemia mesenterica aguda eh emergencia - contatar equipe vascular e cirurgia geral imediatamente"</text></outputEntry>
+        <outputEntry id="OE_Fallback_3"><text>"Emergencia cirurgica - autorizacao administrativa regularizada posteriormente"</text></outputEntry>
+      </rule>
+
+    </decisionTable>
+  </decision>
+</definitions>

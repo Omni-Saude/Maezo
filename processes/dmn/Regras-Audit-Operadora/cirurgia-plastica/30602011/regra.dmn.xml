@@ -1,0 +1,319 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             xmlns:camunda="http://camunda.org/schema/1.0/dmn"
+             id="Definitions_30602011"
+             name="Microcirurgia - Reimplante de Dedo"
+             namespace="http://camunda.org/schema/1.0/dmn">
+
+  <!--
+    ===============================================================================
+    TUSS: 30602011
+    Procedimento: Microcirurgia - Reimplante de Dedo
+    Especialidade: Cirurgia Plastica
+    Versao: 3.0.0-LEAN-TIER2
+    Data: 2026-02-07
+    ===============================================================================
+
+    INDICACOES CLINICAS (DUT/ANS):
+    - Amputacao traumatica de dedo com viabilidade de reimplante
+    - Segmento amputado preservado adequadamente (isquemia fria menor que 12h)
+    - Polegar (qualquer nivel), multiplos dedos, amputacao em criancas
+    - Amputacao distal a insercao do flexor superficial
+    - Ausencia de esmagamento extenso do coto
+
+    CONTRAINDICACOES:
+    - Tempo de isquemia quente superior a 6 horas
+    - Esmagamento severo ou avulsao extensa
+    - Contaminacao grosseira
+    - Dedo unico (exceto polegar) em adulto com lesao zona II
+    - Comorbidades graves (DM descompensado, vasculopatia periferica)
+    - Instabilidade hemodinamica
+    - Tabagismo ativo (contraindicacao relativa)
+
+    DOCUMENTACAO OBRIGATORIA:
+    - Laudo de urgencia/emergencia com descricao do mecanismo
+    - Registro fotografico do segmento amputado
+    - Tempo de isquemia documentado
+    - Avaliacao vascular pre-operatoria
+
+    REFERENCIAS TECNICAS:
+    - ASRM Guidelines for Digital Replantation (2024)
+    - BSSH Standards for Hand Trauma (2023)
+    - SBM - Sociedade Brasileira de Microcirurgia (2024)
+    - ANS RN 465/2021, DUT 2024
+
+    ===============================================================================
+  -->
+
+  <decision id="Decision_30602011" name="Regra Clinica - Microcirurgia - Reimplante de Dedo">
+    <decisionTable id="DecisionTable_30602011" hitPolicy="FIRST">
+
+      <!-- ========== INPUTS (5 - Padrao TIER-1) ========== -->
+
+      <input id="Input_condicaoPaciente" label="Condicao do Paciente" camunda:inputVariable="condicaoPaciente">
+        <inputExpression id="InputExpression_condicaoPaciente" typeRef="string">
+          <text>condicaoPaciente</text>
+        </inputExpression>
+        <inputValues id="InputValues_condicaoPaciente">
+          <text>"AmputacaoPolegar","AmputacaoMultiplosDedos","AmputacaoUnicoDedo","AmputacaoCrianca","AvulsaoExtensa","EsmagamentoSevero"</text>
+        </inputValues>
+      </input>
+
+      <input id="Input_historicoClinico" label="Historico Clinico" camunda:inputVariable="historicoClinico">
+        <inputExpression id="InputExpression_historicoClinico" typeRef="string">
+          <text>historicoClinico</text>
+        </inputExpression>
+        <inputValues id="InputValues_historicoClinico">
+          <text>"Adequado","Incompleto","NaoDocumentado"</text>
+        </inputValues>
+      </input>
+
+      <input id="Input_classeIndicacao" label="Classe de Indicacao" camunda:inputVariable="classeIndicacao">
+        <inputExpression id="InputExpression_classeIndicacao" typeRef="string">
+          <text>classeIndicacao</text>
+        </inputExpression>
+        <inputValues id="InputValues_classeIndicacao">
+          <text>"Classe I","Classe IIa","Classe IIb","Classe III"</text>
+        </inputValues>
+      </input>
+
+      <input id="Input_examesComprobatorios" label="Exames Comprobatorios" camunda:inputVariable="examesComprobatorios">
+        <inputExpression id="InputExpression_examesComprobatorios" typeRef="string">
+          <text>examesComprobatorios</text>
+        </inputExpression>
+        <inputValues id="InputValues_examesComprobatorios">
+          <text>"Completos","Parciais","Ausentes","IsquemiaAte6h","IsquemiaAte12h","IsquemiaSuperior12h"</text>
+        </inputValues>
+      </input>
+
+      <input id="Input_expectativaVidaSuperior1Ano" label="Expectativa de Vida Superior 1 Ano" camunda:inputVariable="expectativaVidaSuperior1Ano">
+        <inputExpression id="InputExpression_expectativaVidaSuperior1Ano" typeRef="boolean">
+          <text>expectativaVidaSuperior1Ano</text>
+        </inputExpression>
+      </input>
+
+      <!-- ========== OUTPUTS (5 - LEAN TIER-2) ========== -->
+
+      <output id="Output_resultado" label="Resultado" name="resultado" typeRef="string">
+        <outputValues id="OutputValues_resultado">
+          <text>"Aprovado","Reprovado","Pendente"</text>
+        </outputValues>
+      </output>
+
+      <output id="Output_observacao" label="Observacao Clinica" name="observacao" typeRef="string" />
+
+      <output id="Output_fundamentacao" label="Fundamentacao Tecnica" name="fundamentacao" typeRef="string" />
+
+      <output id="Output_alertasDesperdicio" name="alertasDesperdicio" typeRef="string">
+        <outputValues>
+          <text>"NENHUM","DUP","FREQ","ESC","DOC","PROT","MULTI"</text>
+        </outputValues>
+      </output>
+
+      <output id="Output_acaoRecomendada" name="acaoRecomendada" typeRef="string">
+        <outputValues>
+          <text>"APROVAR","NEGAR","SOLICITAR_INFO","AGUARDAR_PRAZO","SUGERIR_ALTERNATIVA"</text>
+        </outputValues>
+      </output>
+
+      <!-- ========== RULES ========== -->
+
+      <!-- REPROVACOES - Contraindicacoes Absolutas -->
+      <rule id="Rule_Contraind_ClasseIII">
+        <description>Contraindicacao: Procedimento Classe III (nao indicado)</description>
+        <inputEntry id="InputEntry_Contraind_ClasseIII_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Contraind_ClasseIII_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Contraind_ClasseIII_3"><text>"Classe III"</text></inputEntry>
+        <inputEntry id="InputEntry_Contraind_ClasseIII_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Contraind_ClasseIII_5"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_Contraind_ClasseIII_resultado"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_Contraind_ClasseIII_observacao"><text>"Procedimento nao indicado conforme classificacao Classe III"</text></outputEntry>
+        <outputEntry id="OutputEntry_Contraind_ClasseIII_fundamentacao"><text>"ASRM Guidelines 2024, BSSH 2023 - Reimplante contraindicado em lesoes com esmagamento severo ou avulsao extensa"</text></outputEntry>
+        <outputEntry id="OutputEntry_Contraind_ClasseIII_alertasDesperdicio"><text>"PROT"</text></outputEntry>
+        <outputEntry id="OutputEntry_Contraind_ClasseIII_acaoRecomendada"><text>"NEGAR"</text></outputEntry>
+        <outputEntry id="OutputEntry_Contraind_ClasseIII_alertasDesperdicio"><text>"PROT"</text></outputEntry>
+        <outputEntry id="OutputEntry_Contraind_ClasseIII_acaoRecomendada"><text>"NEGAR"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Contraind_ExpectativaVida">
+        <description>Contraindicacao: Expectativa de vida menor que 1 ano</description>
+        <inputEntry id="InputEntry_Contraind_ExpVida_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Contraind_ExpVida_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Contraind_ExpVida_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Contraind_ExpVida_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Contraind_ExpVida_5"><text>false</text></inputEntry>
+        <outputEntry id="OutputEntry_Contraind_ExpVida_resultado"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_Contraind_ExpVida_observacao"><text>"Expectativa de vida insuficiente para beneficio do procedimento"</text></outputEntry>
+        <outputEntry id="OutputEntry_Contraind_ExpVida_fundamentacao"><text>"ANS RN 465/2021 - Procedimentos requerem expectativa de vida compativel com beneficio clinico"</text></outputEntry>
+        <outputEntry id="OutputEntry_Contraind_ExpectativaVida_alertasDesperdicio"><text>"DOC"</text></outputEntry>
+        <outputEntry id="OutputEntry_Contraind_ExpectativaVida_acaoRecomendada"><text>"NEGAR"</text></outputEntry>
+        <outputEntry id="OutputEntry_Contraind_ExpectativaVida_alertasDesperdicio"><text>"DOC"</text></outputEntry>
+        <outputEntry id="OutputEntry_Contraind_ExpectativaVida_acaoRecomendada"><text>"NEGAR"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Contraind_IsquemiaProlongada">
+        <description>Contraindicacao: Tempo de isquemia superior a 12 horas</description>
+        <inputEntry id="InputEntry_Contraind_Isquemia_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Contraind_Isquemia_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Contraind_Isquemia_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Contraind_Isquemia_4"><text>"IsquemiaSuperior12h"</text></inputEntry>
+        <inputEntry id="InputEntry_Contraind_Isquemia_5"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_Contraind_Isquemia_resultado"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_Contraind_Isquemia_observacao"><text>"Tempo de isquemia fria superior a 12 horas inviabiliza reimplante"</text></outputEntry>
+        <outputEntry id="OutputEntry_Contraind_Isquemia_fundamentacao"><text>"ASRM Guidelines 2024 - Limite de isquemia fria para digitos e 12 horas, apos este periodo a viabilidade e comprometida"</text></outputEntry>
+        <outputEntry id="OutputEntry_Contraind_IsquemiaProlongada_alertasDesperdicio"><text>"PROT"</text></outputEntry>
+        <outputEntry id="OutputEntry_Contraind_IsquemiaProlongada_acaoRecomendada"><text>"NEGAR"</text></outputEntry>
+        <outputEntry id="OutputEntry_Contraind_IsquemiaProlongada_alertasDesperdicio"><text>"PROT"</text></outputEntry>
+        <outputEntry id="OutputEntry_Contraind_IsquemiaProlongada_acaoRecomendada"><text>"NEGAR"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Contraind_LesaoExtensa">
+        <description>Contraindicacao: Esmagamento severo ou avulsao extensa</description>
+        <inputEntry id="InputEntry_Contraind_Lesao_1"><text>"AvulsaoExtensa","EsmagamentoSevero"</text></inputEntry>
+        <inputEntry id="InputEntry_Contraind_Lesao_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Contraind_Lesao_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Contraind_Lesao_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Contraind_Lesao_5"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_Contraind_Lesao_resultado"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_Contraind_Lesao_observacao"><text>"Mecanismo de lesao com esmagamento ou avulsao extensa inviabiliza reimplante"</text></outputEntry>
+        <outputEntry id="OutputEntry_Contraind_Lesao_fundamentacao"><text>"BSSH Standards 2023 - Lesoes por avulsao ou esmagamento extenso tem prognostico desfavoravel para reimplante"</text></outputEntry>
+        <outputEntry id="OutputEntry_Contraind_LesaoExtensa_alertasDesperdicio"><text>"PROT"</text></outputEntry>
+        <outputEntry id="OutputEntry_Contraind_LesaoExtensa_acaoRecomendada"><text>"NEGAR"</text></outputEntry>
+        <outputEntry id="OutputEntry_Contraind_LesaoExtensa_alertasDesperdicio"><text>"PROT"</text></outputEntry>
+        <outputEntry id="OutputEntry_Contraind_LesaoExtensa_acaoRecomendada"><text>"NEGAR"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Reprovado_DocIncompleta">
+        <description>Reprovado: Documentacao clinica insuficiente</description>
+        <inputEntry id="InputEntry_Reprovado_Doc_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Reprovado_Doc_2"><text>"NaoDocumentado"</text></inputEntry>
+        <inputEntry id="InputEntry_Reprovado_Doc_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Reprovado_Doc_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Reprovado_Doc_5"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_Reprovado_Doc_resultado"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_Reprovado_Doc_observacao"><text>"Documentacao clinica nao apresentada"</text></outputEntry>
+        <outputEntry id="OutputEntry_Reprovado_Doc_fundamentacao"><text>"ANS RN 465/2021 - Necessaria documentacao clinica adequada para autorizacao"</text></outputEntry>
+        <outputEntry id="OutputEntry_Reprovado_DocIncompleta_alertasDesperdicio"><text>"DOC"</text></outputEntry>
+        <outputEntry id="OutputEntry_Reprovado_DocIncompleta_acaoRecomendada"><text>"NEGAR"</text></outputEntry>
+        <outputEntry id="OutputEntry_Reprovado_DocIncompleta_alertasDesperdicio"><text>"DOC"</text></outputEntry>
+        <outputEntry id="OutputEntry_Reprovado_DocIncompleta_acaoRecomendada"><text>"NEGAR"</text></outputEntry>
+      </rule>
+
+      <!-- APROVACOES - Indicacoes Prioritarias -->
+      <rule id="Rule_Aprovado_Polegar_ClasseI">
+        <description>Aprovado: Amputacao de polegar - indicacao absoluta Classe I</description>
+        <inputEntry id="InputEntry_Aprovado_Polegar_1"><text>"AmputacaoPolegar"</text></inputEntry>
+        <inputEntry id="InputEntry_Aprovado_Polegar_2"><text>"Adequado"</text></inputEntry>
+        <inputEntry id="InputEntry_Aprovado_Polegar_3"><text>"Classe I"</text></inputEntry>
+        <inputEntry id="InputEntry_Aprovado_Polegar_4"><text>"Completos","Parciais","IsquemiaAte6h","IsquemiaAte12h"</text></inputEntry>
+        <inputEntry id="InputEntry_Aprovado_Polegar_5"><text>true</text></inputEntry>
+        <outputEntry id="OutputEntry_Aprovado_Polegar_resultado"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprovado_Polegar_observacao"><text>"Reimplante de polegar - indicacao absoluta independente do nivel"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprovado_Polegar_fundamentacao"><text>"ASRM Guidelines 2024 - Polegar representa 40-50% da funcao da mao, reimplante sempre indicado quando viavel"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprovado_Polegar_ClasseI_alertasDesperdicio"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprovado_Polegar_ClasseI_acaoRecomendada"><text>"APROVAR"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprovado_Polegar_ClasseI_alertasDesperdicio"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprovado_Polegar_ClasseI_acaoRecomendada"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Aprovado_MultiplosDedos_ClasseI">
+        <description>Aprovado: Amputacao de multiplos dedos - Classe I</description>
+        <inputEntry id="InputEntry_Aprovado_Multiplos_1"><text>"AmputacaoMultiplosDedos"</text></inputEntry>
+        <inputEntry id="InputEntry_Aprovado_Multiplos_2"><text>"Adequado"</text></inputEntry>
+        <inputEntry id="InputEntry_Aprovado_Multiplos_3"><text>"Classe I"</text></inputEntry>
+        <inputEntry id="InputEntry_Aprovado_Multiplos_4"><text>"Completos","Parciais","IsquemiaAte6h","IsquemiaAte12h"</text></inputEntry>
+        <inputEntry id="InputEntry_Aprovado_Multiplos_5"><text>true</text></inputEntry>
+        <outputEntry id="OutputEntry_Aprovado_Multiplos_resultado"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprovado_Multiplos_observacao"><text>"Reimplante de multiplos dedos - indicacao prioritaria"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprovado_Multiplos_fundamentacao"><text>"BSSH Standards 2023 - Amputacao de multiplos dedos tem indicacao absoluta de reimplante"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprovado_MultiplosDedos_ClasseI_alertasDesperdicio"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprovado_MultiplosDedos_ClasseI_acaoRecomendada"><text>"APROVAR"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprovado_MultiplosDedos_ClasseI_alertasDesperdicio"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprovado_MultiplosDedos_ClasseI_acaoRecomendada"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Aprovado_Crianca_ClasseI">
+        <description>Aprovado: Amputacao em crianca - indicacao prioritaria</description>
+        <inputEntry id="InputEntry_Aprovado_Crianca_1"><text>"AmputacaoCrianca"</text></inputEntry>
+        <inputEntry id="InputEntry_Aprovado_Crianca_2"><text>"Adequado"</text></inputEntry>
+        <inputEntry id="InputEntry_Aprovado_Crianca_3"><text>"Classe I","Classe IIa"</text></inputEntry>
+        <inputEntry id="InputEntry_Aprovado_Crianca_4"><text>"Completos","Parciais","IsquemiaAte6h","IsquemiaAte12h"</text></inputEntry>
+        <inputEntry id="InputEntry_Aprovado_Crianca_5"><text>true</text></inputEntry>
+        <outputEntry id="OutputEntry_Aprovado_Crianca_resultado"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprovado_Crianca_observacao"><text>"Reimplante em crianca - capacidade regenerativa superior"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprovado_Crianca_fundamentacao"><text>"ASRM Guidelines 2024 - Criancas tem melhor prognostico devido a capacidade regenerativa e adaptacao funcional"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprovado_Crianca_ClasseI_alertasDesperdicio"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprovado_Crianca_ClasseI_acaoRecomendada"><text>"APROVAR"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprovado_Crianca_ClasseI_alertasDesperdicio"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprovado_Crianca_ClasseI_acaoRecomendada"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Aprovado_ClasseIIa">
+        <description>Aprovado: Indicacao Classe IIa com documentacao adequada</description>
+        <inputEntry id="InputEntry_Aprovado_IIa_1"><text>"AmputacaoUnicoDedo"</text></inputEntry>
+        <inputEntry id="InputEntry_Aprovado_IIa_2"><text>"Adequado"</text></inputEntry>
+        <inputEntry id="InputEntry_Aprovado_IIa_3"><text>"Classe IIa"</text></inputEntry>
+        <inputEntry id="InputEntry_Aprovado_IIa_4"><text>"Completos","IsquemiaAte6h"</text></inputEntry>
+        <inputEntry id="InputEntry_Aprovado_IIa_5"><text>true</text></inputEntry>
+        <outputEntry id="OutputEntry_Aprovado_IIa_resultado"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprovado_IIa_observacao"><text>"Reimplante de dedo unico com criterios favoraveis"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprovado_IIa_fundamentacao"><text>"SBM 2024 - Reimplante de dedo unico indicado quando tempo de isquemia favoravel e mecanismo de corte limpo"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprovado_ClasseIIa_alertasDesperdicio"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprovado_ClasseIIa_acaoRecomendada"><text>"APROVAR"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprovado_ClasseIIa_alertasDesperdicio"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprovado_ClasseIIa_acaoRecomendada"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <!-- PENDENTES - Requerem Avaliacao Adicional -->
+      <rule id="Rule_Pendente_DocIncompleta">
+        <description>Pendente: Documentacao incompleta necessita complementacao</description>
+        <inputEntry id="InputEntry_Pendente_Doc_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Pendente_Doc_2"><text>"Incompleto"</text></inputEntry>
+        <inputEntry id="InputEntry_Pendente_Doc_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Pendente_Doc_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Pendente_Doc_5"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_Pendente_Doc_resultado"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OutputEntry_Pendente_Doc_observacao"><text>"Documentacao incompleta - solicitar complementacao"</text></outputEntry>
+        <outputEntry id="OutputEntry_Pendente_Doc_fundamentacao"><text>"ANS RN 465/2021 - Necessario registro fotografico, tempo de isquemia e avaliacao vascular"</text></outputEntry>
+        <outputEntry id="OutputEntry_Pendente_DocIncompleta_alertasDesperdicio"><text>"DOC"</text></outputEntry>
+        <outputEntry id="OutputEntry_Pendente_DocIncompleta_acaoRecomendada"><text>"SOLICITAR_INFO"</text></outputEntry>
+        <outputEntry id="OutputEntry_Pendente_DocIncompleta_alertasDesperdicio"><text>"DOC"</text></outputEntry>
+        <outputEntry id="OutputEntry_Pendente_DocIncompleta_acaoRecomendada"><text>"SOLICITAR_INFO"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Pendente_ClasseIIb">
+        <description>Pendente: Classe IIb requer avaliacao individualizada</description>
+        <inputEntry id="InputEntry_Pendente_IIb_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Pendente_IIb_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Pendente_IIb_3"><text>"Classe IIb"</text></inputEntry>
+        <inputEntry id="InputEntry_Pendente_IIb_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Pendente_IIb_5"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_Pendente_IIb_resultado"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OutputEntry_Pendente_IIb_observacao"><text>"Indicacao Classe IIb requer avaliacao especializada"</text></outputEntry>
+        <outputEntry id="OutputEntry_Pendente_IIb_fundamentacao"><text>"ASRM Guidelines 2024 - Casos limítrofes requerem parecer de microcirurgiao"</text></outputEntry>
+        <outputEntry id="OutputEntry_Pendente_ClasseIIb_alertasDesperdicio"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_Pendente_ClasseIIb_acaoRecomendada"><text>"SOLICITAR_INFO"</text></outputEntry>
+        <outputEntry id="OutputEntry_Pendente_ClasseIIb_alertasDesperdicio"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_Pendente_ClasseIIb_acaoRecomendada"><text>"SOLICITAR_INFO"</text></outputEntry>
+      </rule>
+
+      <!-- FALLBACK RULE -->
+      <rule id="Rule_Fallback_30602011">
+        <description>Regra padrao - Analise adicional necessaria</description>
+        <inputEntry id="InputEntry_Fallback_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Fallback_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Fallback_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Fallback_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Fallback_5"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_Fallback_resultado"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OutputEntry_Fallback_observacao"><text>"Caso requer analise clinica adicional"</text></outputEntry>
+        <outputEntry id="OutputEntry_Fallback_fundamentacao"><text>"Avaliacao individualizada necessaria conforme diretrizes ASRM/SBM"</text></outputEntry>
+        <outputEntry id="OutputEntry_Fallback_30602011_alertasDesperdicio"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_Fallback_30602011_acaoRecomendada"><text>"SOLICITAR_INFO"</text></outputEntry>
+        <outputEntry id="OutputEntry_Fallback_30602011_alertasDesperdicio"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_Fallback_30602011_acaoRecomendada"><text>"SOLICITAR_INFO"</text></outputEntry>
+      </rule>
+
+    </decisionTable>
+  </decision>
+</definitions>

@@ -1,0 +1,223 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             xmlns:camunda="http://camunda.org/schema/1.0/dmn"
+             id="Definitions_GEN_MIS_004"
+             name="Cisto Pilonidal - Selecao de Procedimento"
+             namespace="http://camunda.org/schema/1.0/dmn">
+
+  <!--
+    ===============================================================================
+    CODIGO: GEN-MIS-004
+    Procedimento: Cisto Pilonidal - Criterios para Selecao de Tecnica Cirurgica
+    Especialidade: Cirurgia Geral - Procedimentos Diversos
+    Versao: 3.0.0-TIER1
+    Data: 2026-02-07
+    ===============================================================================
+
+    OPCOES CIRURGICAS:
+    - Excisao com cicatrizacao por segunda intencao
+    - Excisao com fechamento primario (linha media ou lateral)
+    - Retalhos (Limberg, Karydakis, V-Y)
+    - Marsupializacao
+
+    INDICACOES POR TECNICA:
+    - Primeira cirurgia: fechamento primario lateral preferido
+    - Recidiva: retalho (Limberg ou Karydakis)
+    - Abscesso agudo: drenagem simples, cirurgia definitiva apos
+
+    REFERENCIAS TECNICAS:
+    - ASCRS Practice Parameters 2019
+    - ESCP Guidelines 2020
+    - CBC Coloproctologia 2021
+
+    ===============================================================================
+  -->
+
+  <decision id="Decision_GEN_MIS_004" name="Regra Clinica - Cisto Pilonidal">
+    <decisionTable id="DecisionTable_GEN_MIS_004" hitPolicy="FIRST">
+
+      <!-- ========== INPUTS (5) ========== -->
+
+      <input id="Input_apresentacaoClinica" label="Apresentacao Clinica" camunda:inputVariable="apresentacaoClinica">
+        <inputExpression id="InputExpression_apresentacaoClinica" typeRef="string">
+          <text>apresentacaoClinica</text>
+        </inputExpression>
+        <inputValues id="InputValues_apresentacaoClinica">
+          <text>"AbscessoAgudo","CistoCronico","FistulaDrenando","Recidiva","Assintomatico"</text>
+        </inputValues>
+      </input>
+
+      <input id="Input_numeroCirurgiasPrevias" label="Numero de Cirurgias Previas" camunda:inputVariable="numeroCirurgiasPrevias">
+        <inputExpression id="InputExpression_numeroCirurgiasPrevias" typeRef="number">
+          <text>numeroCirurgiasPrevias</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_tamanhoLesao" label="Tamanho da Lesao (cm)" camunda:inputVariable="tamanhoLesao">
+        <inputExpression id="InputExpression_tamanhoLesao" typeRef="number">
+          <text>tamanhoLesao</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_numeroOrifiocios" label="Numero de Orificios/Trajetos" camunda:inputVariable="numeroOrificios">
+        <inputExpression id="InputExpression_numeroOrificios" typeRef="number">
+          <text>numeroOrificios</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_tecnicaProposta" label="Tecnica Cirurgica Proposta" camunda:inputVariable="tecnicaProposta">
+        <inputExpression id="InputExpression_tecnicaProposta" typeRef="string">
+          <text>tecnicaProposta</text>
+        </inputExpression>
+        <inputValues id="InputValues_tecnicaProposta">
+          <text>"DrenagemSimples","ExcisaoAberta","FechamentoPrimarioMedio","FechamentoLateral","Limberg","Karydakis","Marsupializacao"</text>
+        </inputValues>
+      </input>
+
+      <!-- ========== OUTPUTS (3) ========== -->
+
+      <output id="Output_resultado" label="Resultado" name="resultado" typeRef="string">
+        <outputValues id="OutputValues_resultado">
+          <text>"Aprovado","Reprovado","Pendente"</text>
+        </outputValues>
+      </output>
+
+      <output id="Output_observacao" label="Observacao Clinica" name="observacao" typeRef="string" />
+
+      <output id="Output_fundamentacao" label="Fundamentacao Tecnica" name="fundamentacao" typeRef="string" />
+
+      <!-- Output 4: Alertas Desperdicio -->
+      <output id="Output_alertasDesperdicio" label="Alertas de Desperdicio" name="alertasDesperdicio" typeRef="string">
+        <outputValues id="OutputValues_alertasDesperdicio">
+          <text>"NENHUM","DUP","FREQ","ESC","DOC","PROT","MULTI"</text>
+        </outputValues>
+      </output>
+
+      <!-- Output 5: Acao Recomendada -->
+      <output id="Output_acaoRecomendada" label="Acao Recomendada" name="acaoRecomendada" typeRef="string">
+        <outputValues id="OutputValues_acaoRecomendada">
+          <text>"APROVAR","NEGAR","SOLICITAR_INFO","AGUARDAR_PRAZO","SUGERIR_ALTERNATIVA"</text>
+        </outputValues>
+      </output>
+
+      <!-- ========== REGRAS DE REPROVACAO ========== -->
+
+      <rule id="Rule_Reprovado_Assintomatico">
+        <description>Reprovado: Cisto assintomatico - nao operar</description>
+        <inputEntry id="IE_Rep1_1"><text>"Assintomatico"</text></inputEntry>
+        <inputEntry id="IE_Rep1_2"><text>0</text></inputEntry>
+        <inputEntry id="IE_Rep1_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_Rep1_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_Rep1_5"><text>-</text></inputEntry>
+        <outputEntry id="OE_Rep1_1"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OE_Rep1_2"><text>"Cisto pilonidal assintomatico - seguimento clinico, cirurgia apenas se sintomatico"</text></outputEntry>
+        <outputEntry id="OE_Rep1_3"><text>"ASCRS 2019 - Cistos assintomaticos podem ser observados"</text></outputEntry>
+      <outputEntry id="OE_Reprovado_Assintomatico_4"><text>"PROT"</text></outputEntry>
+        <outputEntry id="OE_Reprovado_Assintomatico_5"><text>"NEGAR"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Reprovado_FechamentoMedioRecidiva">
+        <description>Reprovado: Fechamento em linha media em recidiva</description>
+        <inputEntry id="IE_Rep2_1"><text>"Recidiva"</text></inputEntry>
+        <inputEntry id="IE_Rep2_2"><text>&gt;= 1</text></inputEntry>
+        <inputEntry id="IE_Rep2_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_Rep2_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_Rep2_5"><text>"FechamentoPrimarioMedio"</text></inputEntry>
+        <outputEntry id="OE_Rep2_1"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OE_Rep2_2"><text>"Fechamento em linha media contraindicado em recidiva - preferir retalho"</text></outputEntry>
+        <outputEntry id="OE_Rep2_3"><text>"ESCP 2020 - Recidiva requer tecnica off-midline (Limberg/Karydakis)"</text></outputEntry>
+      <outputEntry id="OE_Reprovado_FechamentoMedioRecidiva_4"><text>"PROT"</text></outputEntry>
+        <outputEntry id="OE_Reprovado_FechamentoMedioRecidiva_5"><text>"NEGAR"</text></outputEntry>
+      </rule>
+
+      <!-- ========== REGRAS DE APROVACAO ========== -->
+
+      <rule id="Rule_Aprovado_AbscessoDrenagem">
+        <description>Aprovado: Abscesso agudo - drenagem simples</description>
+        <inputEntry id="IE_Apr1_1"><text>"AbscessoAgudo"</text></inputEntry>
+        <inputEntry id="IE_Apr1_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_Apr1_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_Apr1_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_Apr1_5"><text>"DrenagemSimples"</text></inputEntry>
+        <outputEntry id="OE_Apr1_1"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OE_Apr1_2"><text>"Abscesso agudo - drenagem simples sob anestesia local, cirurgia definitiva apos 4-6 semanas"</text></outputEntry>
+        <outputEntry id="OE_Apr1_3"><text>"ASCRS 2019 - Abscesso agudo: drenagem imediata, tratamento definitivo eletivo"</text></outputEntry>
+      <outputEntry id="OE_Aprovado_AbscessoDrenagem_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_Aprovado_AbscessoDrenagem_5"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Aprovado_PrimeiraFechamentoLateral">
+        <description>Aprovado: Primeira cirurgia - fechamento lateral</description>
+        <inputEntry id="IE_Apr2_1"><text>"CistoCronico","FistulaDrenando"</text></inputEntry>
+        <inputEntry id="IE_Apr2_2"><text>0</text></inputEntry>
+        <inputEntry id="IE_Apr2_3"><text>&lt;= 4</text></inputEntry>
+        <inputEntry id="IE_Apr2_4"><text>&lt;= 2</text></inputEntry>
+        <inputEntry id="IE_Apr2_5"><text>"FechamentoLateral"</text></inputEntry>
+        <outputEntry id="OE_Apr2_1"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OE_Apr2_2"><text>"Primeira cirurgia com lesao pequena - fechamento primario lateral preferido"</text></outputEntry>
+        <outputEntry id="OE_Apr2_3"><text>"ESCP 2020 - Fechamento off-midline tem menor recidiva que linha media"</text></outputEntry>
+      <outputEntry id="OE_Aprovado_PrimeiraFechamentoLateral_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_Aprovado_PrimeiraFechamentoLateral_5"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Aprovado_RetalhoRecidiva">
+        <description>Aprovado: Recidiva - retalho de Limberg ou Karydakis</description>
+        <inputEntry id="IE_Apr3_1"><text>"Recidiva"</text></inputEntry>
+        <inputEntry id="IE_Apr3_2"><text>&gt;= 1</text></inputEntry>
+        <inputEntry id="IE_Apr3_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_Apr3_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_Apr3_5"><text>"Limberg","Karydakis"</text></inputEntry>
+        <outputEntry id="OE_Apr3_1"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OE_Apr3_2"><text>"Recidiva de pilonidal - retalho indicado para menor taxa de nova recidiva"</text></outputEntry>
+        <outputEntry id="OE_Apr3_3"><text>"ASCRS 2019 - Limberg/Karydakis tem recidiva &lt; 5% em reoperacoes"</text></outputEntry>
+      <outputEntry id="OE_Aprovado_RetalhoRecidiva_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_Aprovado_RetalhoRecidiva_5"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Aprovado_LesaoGrande">
+        <description>Aprovado: Lesao grande ou multiplos trajetos - retalho</description>
+        <inputEntry id="IE_Apr4_1"><text>"CistoCronico","FistulaDrenando"</text></inputEntry>
+        <inputEntry id="IE_Apr4_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_Apr4_3"><text>&gt; 4</text></inputEntry>
+        <inputEntry id="IE_Apr4_4"><text>&gt; 2</text></inputEntry>
+        <inputEntry id="IE_Apr4_5"><text>"Limberg","Karydakis"</text></inputEntry>
+        <outputEntry id="OE_Apr4_1"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OE_Apr4_2"><text>"Lesao extensa ou multiplos trajetos - retalho preferido mesmo em primeira cirurgia"</text></outputEntry>
+        <outputEntry id="OE_Apr4_3"><text>"CBC 2021 - Doenca extensa se beneficia de retalhos desde o inicio"</text></outputEntry>
+      <outputEntry id="OE_Aprovado_LesaoGrande_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_Aprovado_LesaoGrande_5"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Aprovado_ExcisaoAberta">
+        <description>Aprovado: Excisao aberta com cicatrizacao por segunda intencao</description>
+        <inputEntry id="IE_Apr5_1"><text>"CistoCronico","FistulaDrenando"</text></inputEntry>
+        <inputEntry id="IE_Apr5_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_Apr5_3"><text>&lt;= 3</text></inputEntry>
+        <inputEntry id="IE_Apr5_4"><text>&lt;= 1</text></inputEntry>
+        <inputEntry id="IE_Apr5_5"><text>"ExcisaoAberta","Marsupializacao"</text></inputEntry>
+        <outputEntry id="OE_Apr5_1"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OE_Apr5_2"><text>"Lesao pequena - excisao aberta ou marsupializacao aceitavel, cicatrizacao em 6-8 semanas"</text></outputEntry>
+        <outputEntry id="OE_Apr5_3"><text>"ESCP 2020 - Cicatrizacao por segunda intencao: menor recidiva, maior tempo de cura"</text></outputEntry>
+      <outputEntry id="OE_Aprovado_ExcisaoAberta_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_Aprovado_ExcisaoAberta_5"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <!-- ========== REGRA FALLBACK ========== -->
+
+      <rule id="Rule_Fallback_GEN_MIS_004">
+        <description>Pendente: Definir tecnica conforme extensao da doenca</description>
+        <inputEntry id="IE_FB_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_FB_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_FB_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_FB_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_FB_5"><text>-</text></inputEntry>
+        <outputEntry id="OE_FB_1"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OE_FB_2"><text>"Avaliar extensao da doenca (RNM se necessario) para definir tecnica ideal"</text></outputEntry>
+        <outputEntry id="OE_FB_3"><text>"ASCRS 2019 - Escolha da tecnica depende de extensao e cirurgias previas"</text></outputEntry>
+      <outputEntry id="OE_Fallback_GEN_MIS_004_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_Fallback_GEN_MIS_004_5"><text>"SOLICITAR_INFO"</text></outputEntry>
+      </rule>
+
+    </decisionTable>
+  </decision>
+</definitions>

@@ -1,0 +1,269 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/"
+             xmlns:dc="http://www.omg.org/spec/DD/20100524/DC/"
+             xmlns:di="http://www.omg.org/spec/DD/20100524/DI/"
+             id="Definitions_VAS_AOR_004"
+             name="Manejo de Endoleak pos-EVAR - Classificacao e Tratamento"
+             namespace="http://camunda.org/schema/1.0/dmn"
+             exporter="Camunda Modeler"
+             exporterVersion="5.0.0">
+  <!--
+    VAS-AOR-004 - Manejo de Endoleak pos-EVAR
+    Versao: 1.0.0 (2026-02-07)
+    Especialidade: Cirurgia Vascular
+    Categoria: Cirurgia Aortica
+    TUSS Relacionados: 30907060, 40901130, 40901148
+
+    Classificacao de Endoleak:
+    - Tipo I: Vazamento nas zonas de selamento (proximal IA, distal IB)
+      -> Sempre requer tratamento
+    - Tipo II: Retrograde flow de ramos (lombares, IMA)
+      -> Tratamento se saco aneurismatico crescer
+    - Tipo III: Defeito estrutural da endoprotese
+      -> Sempre requer tratamento
+    - Tipo IV: Porosidade do material (raro, autolimitado)
+      -> Observacao
+    - Tipo V (Endotensao): Crescimento do saco sem leak visivel
+      -> Investigacao e tratamento
+
+    Indicacoes de Reintervencao:
+    - Endoleak Tipo I ou III (sempre)
+    - Endoleak Tipo II com crescimento do saco maior 5mm
+    - Endoleak Tipo V com crescimento documentado
+    - Qualquer endoleak com AAA maior 6.5cm
+
+    Documentacao Obrigatoria:
+    - AngioTC multifasico (arterial, portal, tardio)
+    - Medicoes seriadas do saco aneurismatico
+    - Identificacao do tipo de endoleak
+    - Comparacao com exames previos
+
+    Referencias Normativas:
+    - SVS/ESVS 2019 - EVAR Surveillance Guidelines
+    - EUROSTAR Registry
+    - DUT ANS 2024
+  -->
+
+  <decision id="Decision_VAS_AOR_004" name="Criterios de Manejo - Endoleak pos-EVAR">
+    <decisionTable id="DecisionTable_VAS_AOR_004" hitPolicy="FIRST">
+
+      <!-- Input 1: Tipo de Endoleak -->
+      <input id="Input_tipoEndoleak" label="Tipo de Endoleak">
+        <inputExpression id="InputExpr_tipoEndoleak" typeRef="string">
+          <text>tipoEndoleak</text>
+        </inputExpression>
+        <inputValues id="InputValues_tipoEndoleak">
+          <text>"Tipo_IA","Tipo_IB","Tipo_II","Tipo_III","Tipo_IV","Tipo_V_Endotensao","Nao_Identificado"</text>
+        </inputValues>
+      </input>
+
+      <!-- Input 2: Evolucao do Saco Aneurismatico -->
+      <input id="Input_evolucaoSaco" label="Evolucao do Saco Aneurismatico">
+        <inputExpression id="InputExpr_evolucaoSaco" typeRef="string">
+          <text>evolucaoSaco</text>
+        </inputExpression>
+        <inputValues id="InputValues_evolucaoSaco">
+          <text>"Regressao","Estavel","Crescimento_Menor_5mm","Crescimento_Maior_5mm","Crescimento_Rapido"</text>
+        </inputValues>
+      </input>
+
+      <!-- Input 3: Diametro Atual do Saco -->
+      <input id="Input_diametroSaco" label="Diametro Atual do Saco (cm)">
+        <inputExpression id="InputExpr_diametroSaco" typeRef="string">
+          <text>diametroSaco</text>
+        </inputExpression>
+        <inputValues id="InputValues_diametroSaco">
+          <text>"Menor_5.5","Entre_5.5_6.5","Maior_6.5"</text>
+        </inputValues>
+      </input>
+
+      <!-- Input 4: Tempo pos-EVAR -->
+      <input id="Input_tempoPosEVAR" label="Tempo desde EVAR">
+        <inputExpression id="InputExpr_tempoPosEVAR" typeRef="string">
+          <text>tempoPosEVAR</text>
+        </inputExpression>
+        <inputValues id="InputValues_tempoPosEVAR">
+          <text>"Menor_30_Dias","Entre_1_6_Meses","Entre_6_12_Meses","Maior_1_Ano"</text>
+        </inputValues>
+      </input>
+
+      <!-- Input 5: Documentacao Multifasica -->
+      <input id="Input_documentacao" label="AngioTC Multifasico com Medicoes Seriadas">
+        <inputExpression id="InputExpr_documentacao" typeRef="boolean">
+          <text>documentacaoMultifasica</text>
+        </inputExpression>
+      </input>
+
+      <!-- Outputs -->
+      <output id="Output_resultado" label="Resultado" name="resultado" typeRef="string">
+        <outputValues id="OutputValues_resultado">
+          <text>"Aprovado","Reprovado","Pendente"</text>
+        </outputValues>
+      </output>
+      <output id="Output_observacao" label="Observacao Clinica" name="observacao" typeRef="string" />
+      <output id="Output_fundamentacao" label="Fundamentacao Legal/Tecnica" name="fundamentacao" typeRef="string" />
+
+      <output id="Output_alertasDesperdicio" name="alertasDesperdicio" typeRef="string">
+        <outputValues>
+          <text>"NENHUM","DUP","FREQ","ESC","DOC","PROT","MULTI"</text>
+        </outputValues>
+      </output>
+
+      <output id="Output_acaoRecomendada" name="acaoRecomendada" typeRef="string">
+        <outputValues>
+          <text>"APROVAR","NEGAR","SOLICITAR_INFO","AGUARDAR_PRAZO","SUGERIR_ALTERNATIVA"</text>
+        </outputValues>
+      </output>
+
+      <!-- ============================================== -->
+      <!-- REGRAS DE REPROVACAO                          -->
+      <!-- ============================================== -->
+
+      <rule id="Rule_VAS_AOR_004_Reprovacao_SemDoc">
+        <description>Reprovacao - Documentacao multifasica inadequada</description>
+        <inputEntry id="IE_Rep1_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_Rep1_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_Rep1_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_Rep1_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_Rep1_5"><text>false</text></inputEntry>
+        <outputEntry id="OE_Rep1_1"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OE_Rep1_2"><text>"AngioTC multifasico (arterial + tardio) com medicoes seriadas obrigatorio para caracterizacao de endoleak e decisao terapeutica"</text></outputEntry>
+        <outputEntry id="OE_Rep1_3"><text>"SVS/ESVS 2019 - Protocolo de imagem padronizado para vigilancia pos-EVAR"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_VAS_AOR_004_Reprovacao_TipoII_Estavel">
+        <description>Reprovacao - Endoleak Tipo II com saco estavel ou em regressao</description>
+        <inputEntry id="IE_Rep2_1"><text>"Tipo_II"</text></inputEntry>
+        <inputEntry id="IE_Rep2_2"><text>"Regressao","Estavel","Crescimento_Menor_5mm"</text></inputEntry>
+        <inputEntry id="IE_Rep2_3"><text>"Menor_5.5","Entre_5.5_6.5"</text></inputEntry>
+        <inputEntry id="IE_Rep2_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_Rep2_5"><text>true</text></inputEntry>
+        <outputEntry id="OE_Rep2_1"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OE_Rep2_2"><text>"Endoleak Tipo II com saco estavel ou em regressao NAO tem indicacao de intervencao - manter vigilancia semestral"</text></outputEntry>
+        <outputEntry id="OE_Rep2_3"><text>"SVS/ESVS 2019 Classe III - Intervencao em Tipo II estavel nao recomendada"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_VAS_AOR_004_Reprovacao_TipoIV">
+        <description>Reprovacao - Endoleak Tipo IV (porosidade)</description>
+        <inputEntry id="IE_Rep3_1"><text>"Tipo_IV"</text></inputEntry>
+        <inputEntry id="IE_Rep3_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_Rep3_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_Rep3_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_Rep3_5"><text>true</text></inputEntry>
+        <outputEntry id="OE_Rep3_1"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OE_Rep3_2"><text>"Endoleak Tipo IV (porosidade do material) eh autolimitado e resolve espontaneamente - observacao apenas"</text></outputEntry>
+        <outputEntry id="OE_Rep3_3"><text>"SVS/ESVS 2019 - Tipo IV nao requer intervencao"</text></outputEntry>
+      </rule>
+
+      <!-- ============================================== -->
+      <!-- REGRAS DE APROVACAO                           -->
+      <!-- ============================================== -->
+
+      <rule id="Rule_VAS_AOR_004_Aprovacao_TipoI">
+        <description>Aprovacao - Endoleak Tipo I (sempre requer tratamento)</description>
+        <inputEntry id="IE_Apr1_1"><text>"Tipo_IA","Tipo_IB"</text></inputEntry>
+        <inputEntry id="IE_Apr1_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_Apr1_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_Apr1_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_Apr1_5"><text>true</text></inputEntry>
+        <outputEntry id="OE_Apr1_1"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OE_Apr1_2"><text>"Reintervencao APROVADA - Endoleak Tipo I indica falha de selamento e risco de ruptura - correcao obrigatoria por extensao ou conversao"</text></outputEntry>
+        <outputEntry id="OE_Apr1_3"><text>"SVS/ESVS 2019 Classe I - Tratamento obrigatorio para Endoleak Tipo I"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_VAS_AOR_004_Aprovacao_TipoIII">
+        <description>Aprovacao - Endoleak Tipo III (defeito estrutural)</description>
+        <inputEntry id="IE_Apr2_1"><text>"Tipo_III"</text></inputEntry>
+        <inputEntry id="IE_Apr2_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_Apr2_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_Apr2_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_Apr2_5"><text>true</text></inputEntry>
+        <outputEntry id="OE_Apr2_1"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OE_Apr2_2"><text>"Reintervencao APROVADA - Endoleak Tipo III indica defeito estrutural da endoprotese - correcao obrigatoria"</text></outputEntry>
+        <outputEntry id="OE_Apr2_3"><text>"SVS/ESVS 2019 Classe I - Tratamento obrigatorio para Endoleak Tipo III"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_VAS_AOR_004_Aprovacao_TipoII_Crescimento">
+        <description>Aprovacao - Endoleak Tipo II com crescimento do saco maior 5mm</description>
+        <inputEntry id="IE_Apr3_1"><text>"Tipo_II"</text></inputEntry>
+        <inputEntry id="IE_Apr3_2"><text>"Crescimento_Maior_5mm","Crescimento_Rapido"</text></inputEntry>
+        <inputEntry id="IE_Apr3_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_Apr3_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_Apr3_5"><text>true</text></inputEntry>
+        <outputEntry id="OE_Apr3_1"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OE_Apr3_2"><text>"Reintervencao APROVADA - Endoleak Tipo II com crescimento do saco maior que 5mm indica pressurizacao persistente - embolizacao indicada"</text></outputEntry>
+        <outputEntry id="OE_Apr3_3"><text>"SVS/ESVS 2019 Classe IIa - Tratamento de Tipo II indicado com crescimento do saco"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_VAS_AOR_004_Aprovacao_TipoII_Grande">
+        <description>Aprovacao - Endoleak Tipo II com saco maior 6.5cm</description>
+        <inputEntry id="IE_Apr4_1"><text>"Tipo_II"</text></inputEntry>
+        <inputEntry id="IE_Apr4_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_Apr4_3"><text>"Maior_6.5"</text></inputEntry>
+        <inputEntry id="IE_Apr4_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_Apr4_5"><text>true</text></inputEntry>
+        <outputEntry id="OE_Apr4_1"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OE_Apr4_2"><text>"Reintervencao APROVADA - Endoleak Tipo II com saco aneurismatico maior que 6.5cm - alto risco de ruptura independente de estabilidade"</text></outputEntry>
+        <outputEntry id="OE_Apr4_3"><text>"SVS/ESVS 2019 Classe I - Tratamento indicado em saco maior que 6.5cm"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_VAS_AOR_004_Aprovacao_TipoV">
+        <description>Aprovacao - Endotensao (Tipo V) com crescimento</description>
+        <inputEntry id="IE_Apr5_1"><text>"Tipo_V_Endotensao"</text></inputEntry>
+        <inputEntry id="IE_Apr5_2"><text>"Crescimento_Maior_5mm","Crescimento_Rapido"</text></inputEntry>
+        <inputEntry id="IE_Apr5_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_Apr5_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_Apr5_5"><text>true</text></inputEntry>
+        <outputEntry id="OE_Apr5_1"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OE_Apr5_2"><text>"Reintervencao APROVADA - Endotensao (Tipo V) com crescimento do saco indica falha de exclusao - considerar relining ou conversao"</text></outputEntry>
+        <outputEntry id="OE_Apr5_3"><text>"SVS/ESVS 2019 Classe IIa - Tratamento indicado em endotensao com crescimento"</text></outputEntry>
+      </rule>
+
+      <!-- ============================================== -->
+      <!-- REGRAS DE PENDENCIA                           -->
+      <!-- ============================================== -->
+
+      <rule id="Rule_VAS_AOR_004_Pendente_NaoIdentificado">
+        <description>Pendente - Endoleak nao caracterizado</description>
+        <inputEntry id="IE_Pend1_1"><text>"Nao_Identificado"</text></inputEntry>
+        <inputEntry id="IE_Pend1_2"><text>"Crescimento_Maior_5mm","Crescimento_Rapido"</text></inputEntry>
+        <inputEntry id="IE_Pend1_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_Pend1_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_Pend1_5"><text>true</text></inputEntry>
+        <outputEntry id="OE_Pend1_1"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OE_Pend1_2"><text>"Crescimento do saco sem endoleak visivel - investigacao adicional necessaria (angioRM, CEUS, ou arteriografia) para caracterizacao antes de tratamento"</text></outputEntry>
+        <outputEntry id="OE_Pend1_3"><text>"SVS/ESVS 2019 - Caracterizacao obrigatoria antes de intervencao"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_VAS_AOR_004_Pendente_Precoce">
+        <description>Pendente - Endoleak detectado muito precoce pos-EVAR</description>
+        <inputEntry id="IE_Pend2_1"><text>"Tipo_II"</text></inputEntry>
+        <inputEntry id="IE_Pend2_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_Pend2_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_Pend2_4"><text>"Menor_30_Dias"</text></inputEntry>
+        <inputEntry id="IE_Pend2_5"><text>true</text></inputEntry>
+        <outputEntry id="OE_Pend2_1"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OE_Pend2_2"><text>"Endoleak Tipo II detectado precocemente (menor que 30 dias) - muitos resolvem espontaneamente - reavaliacao em 6 meses recomendada antes de intervencao"</text></outputEntry>
+        <outputEntry id="OE_Pend2_3"><text>"SVS/ESVS 2019 - Observacao inicial para Tipo II precoce"</text></outputEntry>
+      </rule>
+
+      <!-- ============================================== -->
+      <!-- REGRA FALLBACK                                -->
+      <!-- ============================================== -->
+
+      <rule id="Rule_Fallback_VAS_AOR_004">
+        <description>Fallback - Casos nao cobertos requerem analise manual</description>
+        <inputEntry id="IE_Fallback_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_Fallback_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_Fallback_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_Fallback_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_Fallback_5"><text>-</text></inputEntry>
+        <outputEntry id="OE_Fallback_1"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OE_Fallback_2"><text>"Caso requer analise manual por especialista em cirurgia endovascular aortica"</text></outputEntry>
+        <outputEntry id="OE_Fallback_3"><text>"Auditoria especializada conforme RN 428/2017"</text></outputEntry>
+      </rule>
+
+    </decisionTable>
+  </decision>
+</definitions>

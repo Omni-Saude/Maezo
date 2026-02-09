@@ -1,0 +1,306 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             xmlns:camunda="http://camunda.org/schema/1.0/dmn"
+             id="Definitions_30904056"
+             name="Correcao de CIV Cirurgica"
+             namespace="http://camunda.org/schema/1.0/dmn">
+
+  <!--
+    ===============================================================================
+    TUSS: 30904056
+    Procedimento: Correcao de Comunicacao Interventricular (CIV) Cirurgica
+    Versao: 1.0.0-LEAN-TIER2
+    Data: 2026-02-07
+    ===============================================================================
+
+    INDICACOES CLINICAS (ACC/AHA CHD 2024):
+    - CIV com shunt significativo (Qp/Qs > 2) e sintomas (Classe I)
+    - CIV com sobrecarga volume VE (dilatacao VE, disfuncao) (Classe I)
+    - CIV perimembranosa com insuficiencia aortica progressiva (Classe I)
+    - CIV pos-IAM com instabilidade hemodinamica (Classe I urgencia)
+    - Endocardite pregressa em CIV (Classe IIa)
+
+    CONTRAINDICACOES:
+    - Sindrome Eisenmenger (shunt reverso)
+    - CIV pequena restritiva assintomatica sem sobrecarga VE
+    - PVR > 2/3 RVS
+
+    ALERTAS DE DESPERDICIO:
+    - DUP: Segunda cirurgia CIV < 365 dias sem shunt residual significativo
+    - FREQ: Multiplas cirurgias sem justificativa
+    - DOC: Falta de Qp/Qs, eco, cateterismo
+    - ESC: Cirurgia aberta sem avaliar percutaneo primeiro
+    - PROT: Eisenmenger ou CIV pequena assintomatica
+
+    REFERENCIAS TECNICAS:
+    - ACC/AHA Congenital Heart Disease Guidelines 2024
+    - ESC Grown-Up Congenital Heart Disease Guidelines 2023
+
+    ===============================================================================
+  -->
+
+  <decision id="Decision_30904056" name="Regra Clinica LEAN TIER-2 - Correcao CIV Cirurgica">
+    <decisionTable id="DecisionTable_30904056" hitPolicy="FIRST">
+
+      <!-- ========== INPUTS (8 - Padrao LEAN TIER-2) ========== -->
+
+      <input id="Input_tipoCIV" label="Tipo de CIV" camunda:inputVariable="tipoCIV">
+        <inputExpression id="InputExpression_tipoCIV" typeRef="string">
+          <text>tipoCIV</text>
+        </inputExpression>
+        <inputValues id="InputValues_tipoCIV">
+          <text>"CIV_Perimembranosa","CIV_Muscular","CIV_Infundibular","CIV_Inlet","CIV_Pos_IAM"</text>
+        </inputValues>
+      </input>
+
+      <input id="Input_qpQs" label="Relacao Qp/Qs" camunda:inputVariable="qpQs">
+        <inputExpression id="InputExpression_qpQs" typeRef="string">
+          <text>qpQs</text>
+        </inputExpression>
+        <inputValues id="InputValues_qpQs">
+          <text>"Menor1_5","Entre1_5e2","Maior2","NaoCalculado"</text>
+        </inputValues>
+      </input>
+
+      <input id="Input_pressaoPulmonar" label="Pressao Arterial Pulmonar" camunda:inputVariable="pressaoPulmonar">
+        <inputExpression id="InputExpression_pressaoPulmonar" typeRef="string">
+          <text>pressaoPulmonar</text>
+        </inputExpression>
+        <inputValues id="InputValues_pressaoPulmonar">
+          <text>"Normal","Leve","Moderada","Grave_Reversivel","Grave_Irreversivel"</text>
+        </inputValues>
+      </input>
+
+      <input id="Input_sobrecargaVE" label="Sobrecarga Volume VE" camunda:inputVariable="sobrecargaVE">
+        <inputExpression id="InputExpression_sobrecargaVE" typeRef="boolean">
+          <text>sobrecargaVE</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_insuficienciaAortica" label="Insuficiencia Aortica Associada" camunda:inputVariable="insuficienciaAortica">
+        <inputExpression id="InputExpression_insuficienciaAortica" typeRef="string">
+          <text>insuficienciaAortica</text>
+        </inputExpression>
+        <inputValues id="InputValues_insuficienciaAortica">
+          <text>"Ausente","Leve","Moderada","Grave","Progressiva"</text>
+        </inputValues>
+      </input>
+
+      <input id="Input_sintomatico" label="Sintomatico (IC, Arritmia)" camunda:inputVariable="sintomatico">
+        <inputExpression id="InputExpression_sintomatico" typeRef="boolean">
+          <text>sintomatico</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_endocarditePrev" label="Endocardite Previa em CIV" camunda:inputVariable="endocarditePrev">
+        <inputExpression id="InputExpression_endocarditePrev" typeRef="boolean">
+          <text>endocarditePrev</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_ultimoProcedimentoDias" label="Ultimo Procedimento Similar (dias)" camunda:inputVariable="ultimoProcedimentoDias">
+        <inputExpression id="InputExpression_ultimoProcedimentoDias" typeRef="integer">
+          <text>ultimoProcedimentoDias</text>
+        </inputExpression>
+      </input>
+
+      <!-- ========== OUTPUTS (5 - Padrao LEAN TIER-2) ========== -->
+
+      <output id="Output_resultado" label="Resultado" name="resultado" typeRef="string">
+        <outputValues id="OutputValues_resultado">
+          <text>"Aprovado","Reprovado","Pendente"</text>
+        </outputValues>
+      </output>
+
+      <output id="Output_observacao" label="Observacao Clinica" name="observacao" typeRef="string" />
+
+      <output id="Output_fundamentacao" label="Fundamentacao Tecnica" name="fundamentacao" typeRef="string" />
+
+      <output id="Output_alertasDesperdicio" label="Alertas de Desperdicio" name="alertasDesperdicio" typeRef="string">
+        <outputValues id="OutputValues_alertasDesperdicio">
+          <text>"NENHUM","DUP","FREQ","ESC","DOC","PROT","MULTI"</text>
+        </outputValues>
+      </output>
+
+      <output id="Output_acaoRecomendada" label="Acao Recomendada" name="acaoRecomendada" typeRef="string">
+        <outputValues id="OutputValues_acaoRecomendada">
+          <text>"APROVAR","NEGAR","SOLICITAR_INFO","AGUARDAR_PRAZO","SUGERIR_ALTERNATIVA"</text>
+        </outputValues>
+      </output>
+
+      <!-- =============================================================== -->
+      <!-- REGRAS DE REPROVACAO (Prioridade Maxima - Waste Detection)      -->
+      <!-- =============================================================== -->
+
+      <!-- REGRA 1: PROT - Eisenmenger contraindicacao absoluta -->
+      <rule id="Rule_PROT_Eisenmenger">
+        <description>WASTE PROT: Hipertensao pulmonar irreversivel (Eisenmenger) - contraindicacao absoluta</description>
+        <inputEntry id="InputEntry_PROT1_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_PROT1_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_PROT1_3"><text>"Grave_Irreversivel"</text></inputEntry>
+        <inputEntry id="InputEntry_PROT1_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_PROT1_5"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_PROT1_6"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_PROT1_7"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_PROT1_8"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_PROT1_resultado"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_PROT1_observacao"><text>"Hipertensao pulmonar irreversivel (Eisenmenger) - CIV funciona como valvula de seguranca. Fechamento precipita falencia VD"</text></outputEntry>
+        <outputEntry id="OutputEntry_PROT1_fundamentacao"><text>"ACC/AHA CHD 2024 Classe III: fechamento CIV contraindicado se PVR maior 2/3 RVS ou shunt reverso"</text></outputEntry>
+        <outputEntry id="OutputEntry_PROT1_alertasDesperdicio"><text>"PROT"</text></outputEntry>
+        <outputEntry id="OutputEntry_PROT1_acaoRecomendada"><text>"NEGAR"</text></outputEntry>
+      </rule>
+
+      <!-- REGRA 2: DUP - Segunda cirurgia < 365 dias sem shunt residual significativo -->
+      <rule id="Rule_DUP_MenosDe365Dias">
+        <description>WASTE DUP: Nova cirurgia CIV em menos de 1 ano sem shunt residual significativo</description>
+        <inputEntry id="InputEntry_DUP_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_DUP_2"><text>"Menor1_5"</text></inputEntry>
+        <inputEntry id="InputEntry_DUP_3"><text>"Normal","Leve"</text></inputEntry>
+        <inputEntry id="InputEntry_DUP_4"><text>false</text></inputEntry>
+        <inputEntry id="InputEntry_DUP_5"><text>"Ausente","Leve"</text></inputEntry>
+        <inputEntry id="InputEntry_DUP_6"><text>false</text></inputEntry>
+        <inputEntry id="InputEntry_DUP_7"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_DUP_8"><text>&lt; 365</text></inputEntry>
+        <outputEntry id="OutputEntry_DUP_resultado"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_DUP_observacao"><text>"Cirurgia CIV realizada ha menos de 1 ano com shunt residual pequeno e sem indicacao de reintervencao"</text></outputEntry>
+        <outputEntry id="OutputEntry_DUP_fundamentacao"><text>"ACC/AHA CHD 2024: Reintervencao em CIV requer shunt residual significativo (Qp/Qs maior 2) ou nova indicacao clinica"</text></outputEntry>
+        <outputEntry id="OutputEntry_DUP_alertasDesperdicio"><text>"DUP"</text></outputEntry>
+        <outputEntry id="OutputEntry_DUP_acaoRecomendada"><text>"AGUARDAR_PRAZO"</text></outputEntry>
+      </rule>
+
+      <!-- REGRA 3: ESC - Cirurgia aberta sem avaliar percutaneo (muscular) -->
+      <rule id="Rule_ESC_SemPercutaneo">
+        <description>WASTE ESC: CIV muscular - avaliar fechamento percutaneo primeiro</description>
+        <inputEntry id="InputEntry_ESC_1"><text>"CIV_Muscular"</text></inputEntry>
+        <inputEntry id="InputEntry_ESC_2"><text>"Entre1_5e2","Maior2"</text></inputEntry>
+        <inputEntry id="InputEntry_ESC_3"><text>"Normal","Leve","Moderada"</text></inputEntry>
+        <inputEntry id="InputEntry_ESC_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_ESC_5"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_ESC_6"><text>false</text></inputEntry>
+        <inputEntry id="InputEntry_ESC_7"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_ESC_8"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_ESC_resultado"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OutputEntry_ESC_observacao"><text>"CIV muscular pode ser tratada por via percutanea - avaliar anatomia antes de cirurgia aberta"</text></outputEntry>
+        <outputEntry id="OutputEntry_ESC_fundamentacao"><text>"ACC/AHA CHD 2024: Fechamento percutaneo e opcao em CIV muscular com anatomia favoravel, menor morbidade"</text></outputEntry>
+        <outputEntry id="OutputEntry_ESC_alertasDesperdicio"><text>"ESC"</text></outputEntry>
+        <outputEntry id="OutputEntry_ESC_acaoRecomendada"><text>"SUGERIR_ALTERNATIVA"</text></outputEntry>
+      </rule>
+
+      <!-- REGRA 4: DOC - Qp/Qs nao calculado -->
+      <rule id="Rule_DOC_SemQpQs">
+        <description>WASTE DOC: Qp/Qs nao calculado - impossivel avaliar indicacao</description>
+        <inputEntry id="InputEntry_DOC_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_DOC_2"><text>"NaoCalculado"</text></inputEntry>
+        <inputEntry id="InputEntry_DOC_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_DOC_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_DOC_5"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_DOC_6"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_DOC_7"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_DOC_8"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_DOC_resultado"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OutputEntry_DOC_observacao"><text>"Relacao Qp/Qs nao calculada - parametro essencial para indicacao cirurgica"</text></outputEntry>
+        <outputEntry id="OutputEntry_DOC_fundamentacao"><text>"ACC/AHA CHD 2024: Qp/Qs maior 2 e criterio principal para indicacao. Calcular por eco ou cateterismo"</text></outputEntry>
+        <outputEntry id="OutputEntry_DOC_alertasDesperdicio"><text>"DOC"</text></outputEntry>
+        <outputEntry id="OutputEntry_DOC_acaoRecomendada"><text>"SOLICITAR_INFO"</text></outputEntry>
+      </rule>
+
+      <!-- =============================================================== -->
+      <!-- REGRAS DE APROVACAO (Urgencia e Indicacoes Classe I)            -->
+      <!-- =============================================================== -->
+
+      <!-- REGRA 5: URGENCIA - CIV pos-IAM -->
+      <rule id="Rule_Aprovado_Urgencia_PosIAM">
+        <description>URGENTE: CIV pos-IAM - cirurgia de emergencia obrigatoria</description>
+        <inputEntry id="InputEntry_Urg_1"><text>"CIV_Pos_IAM"</text></inputEntry>
+        <inputEntry id="InputEntry_Urg_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Urg_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Urg_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Urg_5"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Urg_6"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Urg_7"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Urg_8"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_Urg_resultado"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_Urg_observacao"><text>"CIV pos-IAM e emergencia cirurgica. Mortalidade sem cirurgia maior 90% em 30 dias"</text></outputEntry>
+        <outputEntry id="OutputEntry_Urg_fundamentacao"><text>"ACC/AHA STEMI 2024 Classe I: CIV pos-IAM requer correcao cirurgica urgente independente status hemodinamico"</text></outputEntry>
+        <outputEntry id="OutputEntry_Urg_alertasDesperdicio"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_Urg_acaoRecomendada"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <!-- REGRA 6: Aprovado - Shunt grande sintomatico -->
+      <rule id="Rule_Aprovado_ShuntGrande">
+        <description>Aprovado: CIV com shunt grande (Qp/Qs maior 2) sintomatico</description>
+        <inputEntry id="InputEntry_Aprov1_1"><text>"CIV_Perimembranosa","CIV_Muscular","CIV_Infundibular","CIV_Inlet"</text></inputEntry>
+        <inputEntry id="InputEntry_Aprov1_2"><text>"Maior2"</text></inputEntry>
+        <inputEntry id="InputEntry_Aprov1_3"><text>"Normal","Leve","Moderada","Grave_Reversivel"</text></inputEntry>
+        <inputEntry id="InputEntry_Aprov1_4"><text>true</text></inputEntry>
+        <inputEntry id="InputEntry_Aprov1_5"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Aprov1_6"><text>true</text></inputEntry>
+        <inputEntry id="InputEntry_Aprov1_7"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Aprov1_8"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_Aprov1_resultado"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprov1_observacao"><text>"CIV com shunt significativo (Qp/Qs maior 2) sintomatico e sobrecarga VE - Classe I"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprov1_fundamentacao"><text>"ACC/AHA CHD 2024 Classe I: fechamento CIV indicado se Qp/Qs maior 2 ou sobrecarga volume VE. Mortalidade menor 2%"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprov1_alertasDesperdicio"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprov1_acaoRecomendada"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <!-- REGRA 7: Aprovado - IAo progressiva -->
+      <rule id="Rule_Aprovado_IAoProgressiva">
+        <description>Aprovado: CIV com insuficiencia aortica progressiva</description>
+        <inputEntry id="InputEntry_Aprov2_1"><text>"CIV_Perimembranosa","CIV_Infundibular"</text></inputEntry>
+        <inputEntry id="InputEntry_Aprov2_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Aprov2_3"><text>"Normal","Leve","Moderada","Grave_Reversivel"</text></inputEntry>
+        <inputEntry id="InputEntry_Aprov2_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Aprov2_5"><text>"Moderada","Grave","Progressiva"</text></inputEntry>
+        <inputEntry id="InputEntry_Aprov2_6"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Aprov2_7"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Aprov2_8"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_Aprov2_resultado"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprov2_observacao"><text>"CIV com IAo progressiva por prolapso cuspide - prevenir deterioracao valvar"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprov2_fundamentacao"><text>"ACC/AHA CHD 2024 Classe I: CIV infundibular/perimembranosa com IAo progressiva requer fechamento precoce"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprov2_alertasDesperdicio"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprov2_acaoRecomendada"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <!-- REGRA 8: Aprovado - Endocardite previa -->
+      <rule id="Rule_Aprovado_Endocardite">
+        <description>Aprovado: CIV com endocardite previa - prevencao recorrencia</description>
+        <inputEntry id="InputEntry_Aprov3_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Aprov3_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Aprov3_3"><text>"Normal","Leve","Moderada"</text></inputEntry>
+        <inputEntry id="InputEntry_Aprov3_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Aprov3_5"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Aprov3_6"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Aprov3_7"><text>true</text></inputEntry>
+        <inputEntry id="InputEntry_Aprov3_8"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_Aprov3_resultado"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprov3_observacao"><text>"CIV com endocardite previa - fechamento para prevenir recorrencia"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprov3_fundamentacao"><text>"ACC/AHA CHD 2024 Classe IIa: fechamento CIV razoavel apos episodio endocardite. Risco endocardite CIV 1-2% ao ano"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprov3_alertasDesperdicio"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprov3_acaoRecomendada"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <!-- =============================================================== -->
+      <!-- FALLBACK RULE                                                   -->
+      <!-- =============================================================== -->
+
+      <rule id="Rule_Fallback_30904056">
+        <description>Regra padrao - Heart Team cardiopatia congenita</description>
+        <inputEntry id="InputEntry_Fallback_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Fallback_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Fallback_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Fallback_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Fallback_5"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Fallback_6"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Fallback_7"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Fallback_8"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_Fallback_resultado"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OutputEntry_Fallback_observacao"><text>"Caso requer analise Heart Team especializado em cardiopatia congenita"</text></outputEntry>
+        <outputEntry id="OutputEntry_Fallback_fundamentacao"><text>"ACC/AHA CHD 2024: Decisao cirurgico vs percutaneo vs conservador por Heart Team congenito"</text></outputEntry>
+        <outputEntry id="OutputEntry_Fallback_alertasDesperdicio"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_Fallback_acaoRecomendada"><text>"SOLICITAR_INFO"</text></outputEntry>
+      </rule>
+
+    </decisionTable>
+  </decision>
+</definitions>

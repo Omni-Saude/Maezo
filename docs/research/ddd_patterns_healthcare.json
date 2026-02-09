@@ -1,0 +1,147 @@
+{
+  "healthcare_bounded_contexts": {
+    "description": "Healthcare systems benefit from clear bounded context separation for clinical and administrative processes",
+    "recommended_contexts": [
+      {
+        "name": "Patient Management",
+        "responsibility": "Patient registration, demographics, medical history",
+        "aggregate_root": "Patient",
+        "key_entities": ["Patient", "MedicalHistory", "EmergencyContact"],
+        "domain_events": ["PatientRegistered", "PatientUpdated", "MedicalHistoryAdded"]
+      },
+      {
+        "name": "Appointment Scheduling",
+        "responsibility": "Appointment booking, rescheduling, cancellations",
+        "aggregate_root": "Appointment",
+        "key_entities": ["Appointment", "Schedule", "TimeSlot"],
+        "domain_events": ["AppointmentScheduled", "AppointmentRescheduled", "AppointmentCancelled"]
+      },
+      {
+        "name": "Medical Records",
+        "responsibility": "Clinical documentation, diagnoses, treatments",
+        "aggregate_root": "MedicalRecord",
+        "key_entities": ["MedicalRecord", "Diagnosis", "Treatment", "Prescription"],
+        "domain_events": ["RecordCreated", "DiagnosisAdded", "TreatmentPrescribed"]
+      },
+      {
+        "name": "Billing & Claims",
+        "responsibility": "Financial processing, insurance claims, TISS integration",
+        "aggregate_root": "Claim",
+        "key_entities": ["Claim", "Invoice", "Payment", "Glosa"],
+        "domain_events": ["ClaimSubmitted", "ClaimApproved", "GlosaApplied", "PaymentReceived"]
+      },
+      {
+        "name": "Authorization & Audit",
+        "responsibility": "Procedure authorization, compliance, audit trails",
+        "aggregate_root": "Authorization",
+        "key_entities": ["Authorization", "AuditLog", "ComplianceCheck"],
+        "domain_events": ["AuthorizationRequested", "AuthorizationGranted", "AuditLogCreated"]
+      }
+    ]
+  },
+  "aggregate_patterns": {
+    "patient_aggregate": {
+      "root": "Patient",
+      "consistency_boundary": "All patient data modifications go through Patient aggregate root",
+      "invariants": [
+        "Patient must have valid CPF",
+        "Patient must have at least one contact method",
+        "Medical history entries are immutable once created"
+      ],
+      "privacy_rules": [
+        "LGPD: Professional secrecy for intra-institutional access",
+        "LGPD: Written consent for inter-institutional access",
+        "Audit every data access"
+      ]
+    },
+    "claim_aggregate": {
+      "root": "Claim",
+      "consistency_boundary": "All claim-related operations maintain TISS 4.0 compliance",
+      "invariants": [
+        "Claim must have all TISS mandatory fields",
+        "Claim amount must match sum of line items",
+        "Glosas can only be applied to approved claims"
+      ],
+      "validation_rules": [
+        "TISS XML schema validation",
+        "ANS procedure code verification",
+        "Financial provision calculation"
+      ]
+    }
+  },
+  "domain_events": {
+    "description": "Events ensure loose coupling between bounded contexts and enable event sourcing",
+    "healthcare_event_patterns": [
+      {
+        "event": "PatientAdmitted",
+        "triggers": ["CreateMedicalRecord", "NotifyBillingContext", "InitializeAuthorizationProcess"],
+        "lgpd_consideration": "Event payload should not contain sensitive health data; use references"
+      },
+      {
+        "event": "ClaimApproved",
+        "triggers": ["UpdateFinancialProvision", "GenerateInvoice", "NotifyPaymentContext"],
+        "tiss_consideration": "Event must include TISS transaction ID for traceability"
+      },
+      {
+        "event": "GlosaApplied",
+        "triggers": ["RecalculateClaimAmount", "TriggerSagaCompensation", "NotifyReviewQueue"],
+        "audit_consideration": "Record glosa justification and responsible party"
+      }
+    ]
+  },
+  "strategic_patterns": {
+    "context_mapping": {
+      "partnership": [
+        "Patient Management and Medical Records: Shared patient identity",
+        "Medical Records and Billing: Shared procedure codes"
+      ],
+      "customer_supplier": [
+        "Authorization (upstream) to Billing (downstream): Authorization approval required before billing",
+        "Medical Records (upstream) to Claims (downstream): Clinical data feeds claim generation"
+      ],
+      "conformist": [
+        "All contexts to TISS 4.0 Standard: Must conform to ANS specifications",
+        "All contexts to LGPD: Must conform to ANPD regulations"
+      ],
+      "anticorruption_layer": [
+        "Internal domain model to TISS XML: ACL transforms between domain objects and TISS format",
+        "Internal domain model to External insurance APIs: ACL protects domain from external changes"
+      ]
+    },
+    "ubiquitous_language": {
+      "clinical_terms": ["Paciente", "Atendimento", "Diagnóstico", "Procedimento", "Prescrição"],
+      "financial_terms": ["Fatura", "Glosa", "Provisão Financeira", "Ressarcimento"],
+      "tiss_terms": ["Guia", "Lote", "Demonstrativo", "TUSS", "OPME"],
+      "compliance_terms": ["Auditoria", "Autorização", "Conformidade", "Sigilo Profissional"]
+    }
+  },
+  "tactical_patterns": {
+    "entities": {
+      "description": "Objects with identity that persist over time",
+      "examples": ["Patient (CPF)", "Claim (TISS transaction ID)", "Authorization (protocol number)"]
+    },
+    "value_objects": {
+      "description": "Immutable objects defined by attributes, no identity",
+      "examples": ["Address", "CPF", "Money", "DateRange", "TissCode"]
+    },
+    "domain_services": {
+      "description": "Operations that don't naturally belong to entities or value objects",
+      "examples": [
+        "ClaimValidationService: Validates TISS XML against ANS schemas",
+        "FinancialProvisionService: Calculates financial provisions based on claim data",
+        "LgpdComplianceService: Checks data access permissions and logs access"
+      ]
+    },
+    "repositories": {
+      "description": "Abstractions for aggregate persistence and retrieval",
+      "examples": ["PatientRepository", "ClaimRepository", "AuditLogRepository"]
+    }
+  },
+  "architecture_benefits": {
+    "maintainability": "Each bounded context reflects real clinical/administrative process",
+    "auditability": "Clear aggregate boundaries enable comprehensive audit trails",
+    "compliance": "Aggregates and domain events ensure LGPD-compliant data handling",
+    "flexibility": "Bounded contexts allow independent evolution of clinical and financial systems",
+    "security": "Patient aggregate encapsulates data and enforces privacy rules"
+  }
+}

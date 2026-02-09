@@ -1,0 +1,211 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<!--
+  ============================================================================
+  BILL-UPCODE-005 - Emergency Elective Surcharge Validation
+  ============================================================================
+  Versao: 1.0.0 (2026-02-08)
+  Categoria: BILL-UPCODE
+  Perspectiva: HOSPITAL (Administrativo)
+  ============================================================================
+-->
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/"
+             xmlns:dc="http://www.omg.org/spec/DMN/20180521/DC/" id="Definitions_BILL_UPCODE_005" name="Emergency Elective Surcharge Validation" targetNamespace="http://camunda.org/schema/1.0/dmn">
+
+  <decision id="Decision_BILL_UPCODE_005" name="Validar Adicional Urgencia Emergencia">
+    <decisionTable id="DecisionTable_BILL_UPCODE_005" hitPolicy="FIRST">
+
+      <input id="Input_1" label="Tipo Atendimento Cobrado">
+        <inputExpression id="InputExpression_1" typeRef="string">
+          <text>tipoAtendimentoCobrado</text>
+        </inputExpression>
+        <inputValues><text>"emergencia", "urgencia", "eletivo"</text></inputValues>
+      </input>
+
+      <input id="Input_2" label="Hora Entrada PS">
+        <inputExpression id="InputExpression_2" typeRef="number">
+          <text>horaEntradaPS</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_3" label="Tempo Porta Bisturi (min)">
+        <inputExpression id="InputExpression_3" typeRef="number">
+          <text>tempoPortaBisturi</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_4" label="Classificacao Risco Manchester">
+        <inputExpression id="InputExpression_4" typeRef="string">
+          <text>classificacaoRiscoManchester</text>
+        </inputExpression>
+        <inputValues><text>"vermelho", "laranja", "amarelo", "verde", "azul"</text></inputValues>
+      </input>
+
+      <input id="Input_5" label="CID Trauma Agudo">
+        <inputExpression id="InputExpression_5" typeRef="boolean">
+          <text>cidTraumaAgudo</text>
+        </inputExpression>
+      </input>
+
+      <output id="Output_1" label="Resultado" name="resultado" typeRef="string">
+        <outputValues><text>"Prosseguir", "Bloquear", "Alertar", "Revisar"</text></outputValues>
+      </output>
+      <output id="Output_2" label="Observacao" name="observacao" typeRef="string" />
+      <output id="Output_3" label="Acao Recomendada" name="acaoRecomendada" typeRef="string" />
+
+      
+      <output id="Output_4" label="Alertas Conformidade" name="alertasConformidade" typeRef="string"><outputValues>"NENHUM", "DUP", "FREQ", "PRAZO", "DOC", "VALOR", "CRED", "CONTRATO"</outputValues></output><output id="Output_5" label="Risco Denial" name="riscoDenial" typeRef="string"><outputValues>"BAIXO", "MEDIO", "ALTO", "CRITICO"</outputValues></output><rule id="Rule_Block_1">
+        <description>Bloquear adicional emergencia para caso eletivo</description>
+        <inputEntry id="InputEntry_B1_1"><text>"emergencia"</text></inputEntry>
+        <inputEntry id="InputEntry_B1_2"><text>[8..18]</text></inputEntry>
+        <inputEntry id="InputEntry_B1_3"><text>&gt; 240</text></inputEntry>
+        <inputEntry id="InputEntry_B1_4"><text>"verde", "azul"</text></inputEntry>
+        <inputEntry id="InputEntry_B1_5"><text>false</text></inputEntry>
+        
+      <outputEntry id="OutputEntry_B1_1"><text>"Bloquear"</text></outputEntry>
+        
+      <outputEntry id="OutputEntry_B1_2"><text>"Adicional emergencia para caso verde/azul em horario comercial com &gt; 4h para cirurgia."</text></outputEntry>
+        
+      <outputEntry id="OutputEntry_B1_3"><text>"Remover adicional de emergencia. Cobrar como eletivo."</text></outputEntry>
+      
+      <outputEntry id="OutputEntry_Block_1_4"><text>"VALOR"</text></outputEntry>
+      <outputEntry id="OutputEntry_Block_1_5"><text>"ALTO"</text></outputEntry></rule>
+
+      
+      <rule id="Rule_Block_2">
+        <description>Bloquear emergencia sem classificacao de risco</description>
+        <inputEntry id="InputEntry_B2_1"><text>"emergencia"</text></inputEntry>
+        <inputEntry id="InputEntry_B2_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_B2_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_B2_4"><text>null</text></inputEntry>
+        <inputEntry id="InputEntry_B2_5"><text>-</text></inputEntry>
+        
+      <outputEntry id="OutputEntry_B2_1"><text>"Bloquear"</text></outputEntry>
+        
+      <outputEntry id="OutputEntry_B2_2"><text>"Adicional emergencia sem classificacao de risco documentada."</text></outputEntry>
+        
+      <outputEntry id="OutputEntry_B2_3"><text>"Documentar classificacao Manchester ou remover adicional."</text></outputEntry>
+      
+      <outputEntry id="OutputEntry_Block_2_4"><text>"VALOR"</text></outputEntry>
+      <outputEntry id="OutputEntry_Block_2_5"><text>"ALTO"</text></outputEntry></rule>
+
+      
+      <rule id="Rule_Alert_1">
+        <description>Alertar possivel subcobranca - eletivo noturno</description>
+        <inputEntry id="InputEntry_A1_1"><text>"eletivo"</text></inputEntry>
+        <inputEntry id="InputEntry_A1_2"><text>&lt; 6, &gt; 22</text></inputEntry>
+        <inputEntry id="InputEntry_A1_3"><text>&lt; 60</text></inputEntry>
+        <inputEntry id="InputEntry_A1_4"><text>"vermelho", "laranja"</text></inputEntry>
+        <inputEntry id="InputEntry_A1_5"><text>-</text></inputEntry>
+        
+      <outputEntry id="OutputEntry_A1_1"><text>"Alertar"</text></outputEntry>
+        
+      <outputEntry id="OutputEntry_A1_2"><text>"Caso vermelho/laranja em horario noturno cobrado como eletivo. Verificar adicional."</text></outputEntry>
+        
+      <outputEntry id="OutputEntry_A1_3"><text>"Avaliar cobranca de adicional noturno/urgencia se aplicavel."</text></outputEntry>
+      
+      <outputEntry id="OutputEntry_Alert_1_4"><text>"VALOR"</text></outputEntry>
+      <outputEntry id="OutputEntry_Alert_1_5"><text>"MEDIO"</text></outputEntry></rule>
+
+      
+      <rule id="Rule_Alert_2">
+        <description>Alertar urgencia fim de semana sem adicional</description>
+        <inputEntry id="InputEntry_A2_1"><text>"urgencia"</text></inputEntry>
+        <inputEntry id="InputEntry_A2_2"><text>&lt; 6, &gt; 22</text></inputEntry>
+        <inputEntry id="InputEntry_A2_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_A2_4"><text>"laranja", "amarelo"</text></inputEntry>
+        <inputEntry id="InputEntry_A2_5"><text>-</text></inputEntry>
+        
+      <outputEntry id="OutputEntry_A2_1"><text>"Alertar"</text></outputEntry>
+        
+      <outputEntry id="OutputEntry_A2_2"><text>"Urgencia noturna. Verificar se adicional noturno foi aplicado."</text></outputEntry>
+        
+      <outputEntry id="OutputEntry_A2_3"><text>"Aplicar adicional noturno se contrato permitir."</text></outputEntry>
+      
+      <outputEntry id="OutputEntry_Alert_2_4"><text>"VALOR"</text></outputEntry>
+      <outputEntry id="OutputEntry_Alert_2_5"><text>"MEDIO"</text></outputEntry></rule>
+
+      
+      <rule id="Rule_Proceed_1">
+        <description>Prosseguir emergencia verdadeira</description>
+        <inputEntry id="InputEntry_P1_1"><text>"emergencia"</text></inputEntry>
+        <inputEntry id="InputEntry_P1_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_P1_3"><text>&lt; 60</text></inputEntry>
+        <inputEntry id="InputEntry_P1_4"><text>"vermelho", "laranja"</text></inputEntry>
+        <inputEntry id="InputEntry_P1_5"><text>-</text></inputEntry>
+        
+      <outputEntry id="OutputEntry_P1_1"><text>"Prosseguir"</text></outputEntry>
+        
+      <outputEntry id="OutputEntry_P1_2"><text>"Emergencia verdadeira: classificacao alta e tempo porta-bisturi &lt; 1h."</text></outputEntry>
+        
+      <outputEntry id="OutputEntry_P1_3"><text>"Faturar com adicional de emergencia. Anexar classificacao."</text></outputEntry>
+      
+      <outputEntry id="OutputEntry_Proceed_1_4"><text>"NENHUM"</text></outputEntry>
+      <outputEntry id="OutputEntry_Proceed_1_5"><text>"BAIXO"</text></outputEntry></rule>
+
+      
+      <rule id="Rule_Proceed_2">
+        <description>Prosseguir trauma agudo</description>
+        <inputEntry id="InputEntry_P2_1"><text>"emergencia"</text></inputEntry>
+        <inputEntry id="InputEntry_P2_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_P2_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_P2_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_P2_5"><text>true</text></inputEntry>
+        
+      <outputEntry id="OutputEntry_P2_1"><text>"Prosseguir"</text></outputEntry>
+        
+      <outputEntry id="OutputEntry_P2_2"><text>"CID de trauma agudo justifica adicional de emergencia."</text></outputEntry>
+        
+      <outputEntry id="OutputEntry_P2_3"><text>"Faturar com adicional. CID de trauma documenta urgencia."</text></outputEntry>
+      
+      <outputEntry id="OutputEntry_Proceed_2_4"><text>"NENHUM"</text></outputEntry>
+      <outputEntry id="OutputEntry_Proceed_2_5"><text>"BAIXO"</text></outputEntry></rule>
+
+      
+      <rule id="Rule_Proceed_3">
+        <description>Prosseguir eletivo padrao</description>
+        <inputEntry id="InputEntry_P3_1"><text>"eletivo"</text></inputEntry>
+        <inputEntry id="InputEntry_P3_2"><text>[8..18]</text></inputEntry>
+        <inputEntry id="InputEntry_P3_3"><text>&gt; 60</text></inputEntry>
+        <inputEntry id="InputEntry_P3_4"><text>"amarelo", "verde", "azul"</text></inputEntry>
+        <inputEntry id="InputEntry_P3_5"><text>false</text></inputEntry>
+        
+      <outputEntry id="OutputEntry_P3_1"><text>"Prosseguir"</text></outputEntry>
+        
+      <outputEntry id="OutputEntry_P3_2"><text>"Procedimento eletivo em horario comercial. Cobranca padrao."</text></outputEntry>
+        
+      <outputEntry id="OutputEntry_P3_3"><text>"Faturar sem adicional de urgencia/emergencia."</text></outputEntry>
+      
+      <outputEntry id="OutputEntry_Proceed_3_4"><text>"NENHUM"</text></outputEntry>
+      <outputEntry id="OutputEntry_Proceed_3_5"><text>"BAIXO"</text></outputEntry></rule>
+
+      
+      <rule id="Rule_Fallback">
+        <description>Caso padrao - revisar manualmente</description>
+        <inputEntry id="InputEntry_F_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_F_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_F_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_F_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_F_5"><text>-</text></inputEntry>
+        
+      <outputEntry id="OutputEntry_F_1"><text>"Revisar"</text></outputEntry>
+        
+      <outputEntry id="OutputEntry_F_2"><text>"Dados insuficientes para validar tipo de atendimento."</text></outputEntry>
+        
+      <outputEntry id="OutputEntry_F_3"><text>"Verificar classificacao de risco, horario e CID."</text></outputEntry>
+      
+      <outputEntry id="OutputEntry_Fallback_4"><text>"NENHUM"</text></outputEntry>
+      <outputEntry id="OutputEntry_Fallback_5"><text>"MEDIO"</text></outputEntry></rule>
+
+    </decisionTable>
+  </decision>
+
+  <dmndi:DMNDI>
+    <dmndi:DMNDiagram id="DMNDiagram_BILL_UPCODE_005">
+      <dmndi:DMNShape id="DMNShape_Decision" dmnElementRef="Decision_BILL_UPCODE_005">
+        <dc:Bounds height="80" width="180" x="160" y="100" />
+      </dmndi:DMNShape>
+    </dmndi:DMNDiagram>
+  </dmndi:DMNDI>
+
+</definitions>

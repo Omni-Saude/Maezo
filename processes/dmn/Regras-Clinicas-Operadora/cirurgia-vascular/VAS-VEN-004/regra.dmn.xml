@@ -1,0 +1,259 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/"
+             xmlns:dc="http://www.omg.org/spec/DD/20100524/DC/"
+             xmlns:di="http://www.omg.org/spec/DD/20100524/DI/"
+             id="Definitions_VAS_VEN_004"
+             name="Varizes de Membros Inferiores C4-C6 - Criterios de Intervencao"
+             namespace="http://camunda.org/schema/1.0/dmn"
+             exporter="Camunda Modeler"
+             exporterVersion="5.0.0">
+  <!--
+    VAS-VEN-004 - Varizes de Membros Inferiores C4-C6 - Criterios de Intervencao
+    Versao: 1.0.0 (2026-02-07)
+    Especialidade: Cirurgia Vascular / Angiologia
+    Categoria: Doenca Venosa Cronica
+    TUSS Relacionados: 30907020, 30907039, 30907047
+
+    Classificacao CEAP:
+    - C0: sem sinais visiveis ou palpaveis
+    - C1: telangectasias ou veias reticulares
+    - C2: varizes (> 3mm)
+    - C3: edema
+    - C4: alteracoes cutaneas (pigmentacao, eczema, lipodermatoesclerose)
+    - C5: ulcera cicatrizada
+    - C6: ulcera ativa
+
+    Indicacoes de Intervencao (ESVS 2015 / NICE 2013):
+    - C2 sintomatico: dor, peso, desconforto
+    - C3-C4: indicacao relativa por risco de progressao
+    - C5-C6: indicacao absoluta por ulcera venosa
+    - Hemorragia de varizes: urgencia
+
+    Modalidades de Tratamento:
+    - Ablacao termica (laser/radiofrequencia): primeira escolha
+    - Ablacao quimica (escleroterapia com espuma): alternativa
+    - Cirurgia convencional: casos complexos, recidivas
+
+    Tratamento Conservador Previo:
+    - Meias de compressao (20-30 ou 30-40 mmHg)
+    - Medicamentos venoativos
+    - Tempo minimo: 3-6 meses (exceto C5-C6)
+
+    Referencias Normativas:
+    - ESVS 2015 - Chronic Venous Disease
+    - NICE 2013/2020 - Varicose Veins Guidelines
+    - SBACV 2018 - Varizes de MMII
+    - DUT ANS 2024
+  -->
+
+  <decision id="Decision_VAS_VEN_004" name="Criterios de Intervencao - Varizes MMII">
+    <decisionTable id="DecisionTable_VAS_VEN_004" hitPolicy="FIRST">
+
+      <!-- Input 1: Classificacao CEAP -->
+      <input id="Input_ceap" label="Classificacao CEAP">
+        <inputExpression id="InputExpr_ceap" typeRef="string">
+          <text>classificacaoCEAP</text>
+        </inputExpression>
+        <inputValues id="InputValues_ceap">
+          <text>"C1_Teleangectasias","C2_Varizes","C3_Edema","C4_Alteracoes_Cutaneas","C5_Ulcera_Cicatrizada","C6_Ulcera_Ativa"</text>
+        </inputValues>
+      </input>
+
+      <!-- Input 2: Sintomas -->
+      <input id="Input_sintomas" label="Sintomas Relacionados">
+        <inputExpression id="InputExpr_sintomas" typeRef="string">
+          <text>sintomasRelacionados</text>
+        </inputExpression>
+        <inputValues id="InputValues_sintomas">
+          <text>"Assintomatico","Leves_Esteticos","Moderados_Dor_Peso","Severos_Limitantes","Hemorragia_Varicosa"</text>
+        </inputValues>
+      </input>
+
+      <!-- Input 3: Tratamento Conservador -->
+      <input id="Input_conservador" label="Tratamento Conservador Previo">
+        <inputExpression id="InputExpr_conservador" typeRef="string">
+          <text>tratamentoConservador</text>
+        </inputExpression>
+        <inputValues id="InputValues_conservador">
+          <text>"Nao_Realizado","Menos_3_Meses","3_6_Meses_Parcial","6_Meses_Completo_Falhou"</text>
+        </inputValues>
+      </input>
+
+      <!-- Input 4: Padrao de Refluxo -->
+      <input id="Input_refluxo" label="Padrao de Refluxo (Duplex)">
+        <inputExpression id="InputExpr_refluxo" typeRef="string">
+          <text>padraoRefluxo</text>
+        </inputExpression>
+        <inputValues id="InputValues_refluxo">
+          <text>"Safena_Magna","Safena_Parva","Perfurantes_Isolado","Misto","Profundo_Primario","Nao_Avaliado"</text>
+        </inputValues>
+      </input>
+
+      <!-- Input 5: Documentacao -->
+      <input id="Input_documentacao" label="Duplex Venoso + Avaliacao Clinica">
+        <inputExpression id="InputExpr_documentacao" typeRef="boolean">
+          <text>documentacaoCompleta</text>
+        </inputExpression>
+      </input>
+
+      <!-- Outputs -->
+      <output id="Output_resultado" label="Resultado" name="resultado" typeRef="string">
+        <outputValues id="OutputValues_resultado">
+          <text>"Aprovado","Reprovado","Pendente"</text>
+        </outputValues>
+      </output>
+      <output id="Output_observacao" label="Observacao Clinica" name="observacao" typeRef="string" />
+      <output id="Output_fundamentacao" label="Fundamentacao Legal/Tecnica" name="fundamentacao" typeRef="string" />
+
+      <output id="Output_alertasDesperdicio" name="alertasDesperdicio" typeRef="string">
+        <outputValues>
+          <text>"NENHUM","DUP","FREQ","ESC","DOC","PROT","MULTI"</text>
+        </outputValues>
+      </output>
+
+      <output id="Output_acaoRecomendada" name="acaoRecomendada" typeRef="string">
+        <outputValues>
+          <text>"APROVAR","NEGAR","SOLICITAR_INFO","AGUARDAR_PRAZO","SUGERIR_ALTERNATIVA"</text>
+        </outputValues>
+      </output>
+
+      <!-- ============================================== -->
+      <!-- REGRAS DE REPROVACAO                          -->
+      <!-- ============================================== -->
+
+      <rule id="Rule_VAS_VEN_004_Reprovacao_SemDoc">
+        <description>Reprovacao - Documentacao incompleta</description>
+        <inputEntry id="IE_Rep1_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_Rep1_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_Rep1_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_Rep1_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_Rep1_5"><text>false</text></inputEntry>
+        <outputEntry id="OE_Rep1_1"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OE_Rep1_2"><text>"Documentacao incompleta - duplex venoso com mapeamento de refluxo obrigatorio para planejar intervencao"</text></outputEntry>
+        <outputEntry id="OE_Rep1_3"><text>"ESVS 2015 - Mapeamento duplex obrigatorio antes de tratamento"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_VAS_VEN_004_Reprovacao_Estetico">
+        <description>Reprovacao - Indicacao puramente estetica</description>
+        <inputEntry id="IE_Rep2_1"><text>"C1_Teleangectasias"</text></inputEntry>
+        <inputEntry id="IE_Rep2_2"><text>"Assintomatico","Leves_Esteticos"</text></inputEntry>
+        <inputEntry id="IE_Rep2_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_Rep2_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_Rep2_5"><text>true</text></inputEntry>
+        <outputEntry id="OE_Rep2_1"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OE_Rep2_2"><text>"Intervencao NAO coberta - teleangectasias sem sintomas ou com queixa puramente estetica nao tem cobertura obrigatoria"</text></outputEntry>
+        <outputEntry id="OE_Rep2_3"><text>"DUT ANS 2024 - Tratamento estetico nao coberto pelo rol"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_VAS_VEN_004_Reprovacao_SemConservador">
+        <description>Reprovacao - Tratamento conservador nao realizado em C2-C3</description>
+        <inputEntry id="IE_Rep3_1"><text>"C2_Varizes","C3_Edema"</text></inputEntry>
+        <inputEntry id="IE_Rep3_2"><text>"Moderados_Dor_Peso"</text></inputEntry>
+        <inputEntry id="IE_Rep3_3"><text>"Nao_Realizado","Menos_3_Meses"</text></inputEntry>
+        <inputEntry id="IE_Rep3_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_Rep3_5"><text>true</text></inputEntry>
+        <outputEntry id="OE_Rep3_1"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OE_Rep3_2"><text>"Tratamento conservador inadequado - meias de compressao + venoativos por minimo 3-6 meses antes de indicar intervencao em C2-C3"</text></outputEntry>
+        <outputEntry id="OE_Rep3_3"><text>"NICE 2013 - Tratamento conservador antes de intervencao em DVC sem complicacoes"</text></outputEntry>
+      </rule>
+
+      <!-- ============================================== -->
+      <!-- REGRAS DE APROVACAO                           -->
+      <!-- ============================================== -->
+
+      <rule id="Rule_VAS_VEN_004_Aprovacao_Urgencia">
+        <description>Aprovacao Urgencia - Hemorragia de varizes</description>
+        <inputEntry id="IE_Apr1_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_Apr1_2"><text>"Hemorragia_Varicosa"</text></inputEntry>
+        <inputEntry id="IE_Apr1_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_Apr1_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_Apr1_5"><text>true</text></inputEntry>
+        <outputEntry id="OE_Apr1_1"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OE_Apr1_2"><text>"Intervencao URGENTE APROVADA - hemorragia de varizes - compressao + escleroterapia de urgencia ou cirurgia"</text></outputEntry>
+        <outputEntry id="OE_Apr1_3"><text>"ESVS 2015 Classe I - Tratamento urgente de hemorragia varicosa"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_VAS_VEN_004_Aprovacao_Ulcera_Ativa">
+        <description>Aprovacao - Ulcera venosa ativa</description>
+        <inputEntry id="IE_Apr2_1"><text>"C6_Ulcera_Ativa"</text></inputEntry>
+        <inputEntry id="IE_Apr2_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_Apr2_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_Apr2_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_Apr2_5"><text>true</text></inputEntry>
+        <outputEntry id="OE_Apr2_1"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OE_Apr2_2"><text>"Intervencao APROVADA - ulcera venosa ativa (C6) - ablacao de safena incompetente acelera cicatrizacao e reduz recorrencia"</text></outputEntry>
+        <outputEntry id="OE_Apr2_3"><text>"ESVS 2015 Classe I - Ablacao indicada em ulcera venosa ativa"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_VAS_VEN_004_Aprovacao_Ulcera_Cicatrizada">
+        <description>Aprovacao - Ulcera venosa cicatrizada</description>
+        <inputEntry id="IE_Apr3_1"><text>"C5_Ulcera_Cicatrizada"</text></inputEntry>
+        <inputEntry id="IE_Apr3_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_Apr3_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_Apr3_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_Apr3_5"><text>true</text></inputEntry>
+        <outputEntry id="OE_Apr3_1"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OE_Apr3_2"><text>"Intervencao APROVADA - ulcera venosa cicatrizada (C5) - ablacao previne recorrencia de ulcera"</text></outputEntry>
+        <outputEntry id="OE_Apr3_3"><text>"ESVS 2015 Classe I - Prevencao de recorrencia de ulcera"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_VAS_VEN_004_Aprovacao_C4">
+        <description>Aprovacao - Alteracoes cutaneas C4</description>
+        <inputEntry id="IE_Apr4_1"><text>"C4_Alteracoes_Cutaneas"</text></inputEntry>
+        <inputEntry id="IE_Apr4_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_Apr4_3"><text>"3_6_Meses_Parcial","6_Meses_Completo_Falhou"</text></inputEntry>
+        <inputEntry id="IE_Apr4_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_Apr4_5"><text>true</text></inputEntry>
+        <outputEntry id="OE_Apr4_1"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OE_Apr4_2"><text>"Intervencao APROVADA - alteracoes cutaneas (C4) com tratamento conservador falho - alto risco de progressao para ulcera"</text></outputEntry>
+        <outputEntry id="OE_Apr4_3"><text>"ESVS 2015 Classe IIa - Intervencao indicada em C4 para prevenir ulceracao"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_VAS_VEN_004_Aprovacao_C2_Sintomatico">
+        <description>Aprovacao - Varizes C2 sintomaticas apos tratamento conservador</description>
+        <inputEntry id="IE_Apr5_1"><text>"C2_Varizes"</text></inputEntry>
+        <inputEntry id="IE_Apr5_2"><text>"Moderados_Dor_Peso","Severos_Limitantes"</text></inputEntry>
+        <inputEntry id="IE_Apr5_3"><text>"6_Meses_Completo_Falhou"</text></inputEntry>
+        <inputEntry id="IE_Apr5_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_Apr5_5"><text>true</text></inputEntry>
+        <outputEntry id="OE_Apr5_1"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OE_Apr5_2"><text>"Intervencao APROVADA - varizes sintomaticas (C2) com falha de tratamento conservador por 6 meses"</text></outputEntry>
+        <outputEntry id="OE_Apr5_3"><text>"NICE 2013 - Intervencao indicada em C2 sintomatico apos conservador"</text></outputEntry>
+      </rule>
+
+      <!-- ============================================== -->
+      <!-- REGRAS DE PENDENCIA                           -->
+      <!-- ============================================== -->
+
+      <rule id="Rule_VAS_VEN_004_Pendente_Refluxo">
+        <description>Pendente - Refluxo nao avaliado</description>
+        <inputEntry id="IE_Pend1_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_Pend1_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_Pend1_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_Pend1_4"><text>"Nao_Avaliado"</text></inputEntry>
+        <inputEntry id="IE_Pend1_5"><text>true</text></inputEntry>
+        <outputEntry id="OE_Pend1_1"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OE_Pend1_2"><text>"Padrao de refluxo nao definido - realizar duplex venoso com mapeamento para planejar tratamento"</text></outputEntry>
+        <outputEntry id="OE_Pend1_3"><text>"ESVS 2015 - Mapeamento de refluxo essencial para escolha de tratamento"</text></outputEntry>
+      </rule>
+
+      <!-- ============================================== -->
+      <!-- REGRA FALLBACK                                -->
+      <!-- ============================================== -->
+
+      <rule id="Rule_Fallback_VAS_VEN_004">
+        <description>Fallback - Casos nao cobertos requerem analise manual</description>
+        <inputEntry id="IE_Fallback_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_Fallback_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_Fallback_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_Fallback_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_Fallback_5"><text>-</text></inputEntry>
+        <outputEntry id="OE_Fallback_1"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OE_Fallback_2"><text>"Caso requer analise por especialista em doenca venosa cronica"</text></outputEntry>
+        <outputEntry id="OE_Fallback_3"><text>"Auditoria especializada conforme RN 428/2017"</text></outputEntry>
+      </rule>
+
+    </decisionTable>
+  </decision>
+</definitions>

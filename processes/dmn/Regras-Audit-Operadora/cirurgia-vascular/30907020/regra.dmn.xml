@@ -1,0 +1,395 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             xmlns:camunda="http://camunda.org/schema/1.0/dmn"
+             id="VAS-001-Aneurisma-Aorta-Abdominal"
+             name="Regra Tratamento Aneurisma Aorta Abdominal"
+             namespace="http://camunda.org/schema/1.0/dmn">
+
+  <!--
+    TUSS 30907020 - Aneurisma aorta abdominal - tratamento cirurgico
+    Versao: 3.0.0 (2026-02-07)
+    Especialidade: Cirurgia Vascular
+    Categoria: Procedimentos Cirurgicos
+
+    Indicacoes Clinicas (SVS/ESVS 2019 + DUT ANS 2024):
+- Aneurisma assintomatico >= 5.5 cm de diametro
+- Aneurisma com taxa crescimento >= 0.5 cm/ano
+- Aneurisma sintomatico (qualquer tamanho)
+- Risco iminente de ruptura com sinais de alerta
+- Anatomia favoravel para EVAR em alto risco cirurgico
+
+    Contraindicacoes:
+- Risco cirurgico proibitivo sem opcao de tratamento
+- Expectativa de vida < 2 anos
+- Paciente recusa tratamento com documentacao
+- Ausencia de documentacao medica obrigatoria (angioTC, etc)
+- Aneurisma < 5.5 cm assintomatico com crescimento < 0.5 cm/ano
+
+    Documentacao Obrigatoria:
+    - Diagnostico confirmado com angioTC (CID-10 I71)
+    - Medicao precisa diametro aneurisma
+    - Avaliacao taxa crescimento (exames previos comparativos)
+    - Laudo especialista cirurgiao vascular
+    - Avaliacao risco cirurgico (ASA, comorbidades)
+    - Laudo anatomia EVAR se aplicavel
+
+    Referencias Normativas:
+    - SVS/ESVS 2019 - Diretrizes Aneurisma Aorta Abdominal
+    - DUT ANS 2024 - Procedimentos Cirurgicos
+    - RN 465/2021 - Rol de Procedimentos e Eventos
+    - RN 428/2017 - Regulacao de Cobertura de Procedimentos
+  -->
+
+  <decision id="Decision_VAS001_AAA" name="VAS-001: Aneurisma Aorta Abdominal - Critérios Cirúrgicos">
+    <decisionTable id="DecisionTable_VAS001" hitPolicy="FIRST">
+      <input id="Input_DiametroAneurisma" label="Diâmetro Aneurisma (cm)" camunda:inputVariable="diametroAneurismaCm">
+        <inputExpression id="InputExpression_Diametro" typeRef="number">
+          <text>diametroAneurismaCm</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_TaxaCrescimento" label="Taxa Crescimento (cm/ano)" camunda:inputVariable="taxaCrescimentoCmAno">
+        <inputExpression id="InputExpression_Taxa" typeRef="number">
+          <text>taxaCrescimentoCmAno</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_Sintomatico" label="Aneurisma Sintomático" camunda:inputVariable="aneurismaSintomatico">
+        <inputExpression id="InputExpression_Sintomas" typeRef="boolean">
+          <text>aneurismaSintomatico</text>
+        </inputExpression>
+        <inputValues id="InputValues_Sintomas">
+          <text>true,false</text>
+        </inputValues>
+      </input>
+
+      <input id="Input_RiscoRuptura" label="Sinais Risco Ruptura Iminente" camunda:inputVariable="riscorRupturaIminente">
+        <inputExpression id="InputExpression_Ruptura" typeRef="boolean">
+          <text>riscorRupturaIminente</text>
+        </inputExpression>
+        <inputValues id="InputValues_Ruptura">
+          <text>true,false</text>
+        </inputValues>
+      </input>
+
+      <input id="Input_RiscoCircurgico" label="Risco Cirúrgico" camunda:inputVariable="riscoCircurgico">
+        <inputExpression id="InputExpression_Risco" typeRef="string">
+          <text>riscoCircurgico</text>
+        </inputExpression>
+        <inputValues id="InputValues_Risco">
+          <text>"baixo","moderado","alto","proibitivo"</text>
+        </inputValues>
+      </input>
+
+      <output id="Output_resultado" label="Resultado" name="resultado" typeRef="string">
+        <outputValues id="OutputValues_Resultado">
+          <text>"Aprovado","Reprovado","Pendente"</text>
+        </outputValues>
+      </output>
+
+      <output id="Output_observacao" label="Observação" name="observacao" typeRef="string"/>
+
+      <output id="Output_fundamentacao" label="Fundamentação Legal" name="fundamentacao" typeRef="string"/>
+
+      <output id="Output_alertasDesperdicio" name="alertasDesperdicio" typeRef="string">
+        <outputValues>
+          <text>"NENHUM","DUP","FREQ","ESC","DOC","PROT","MULTI"</text>
+        </outputValues>
+      </output>
+
+      <output id="Output_acaoRecomendada" name="acaoRecomendada" typeRef="string">
+        <outputValues>
+          <text>"APROVAR","NEGAR","SOLICITAR_INFO","AGUARDAR_PRAZO","SUGERIR_ALTERNATIVA"</text>
+        </outputValues>
+      </output>
+
+      <!-- ============================================== -->
+      <!-- CONTRAINDICATION RULES (FIRST PRIORITY)       -->
+      <!-- ============================================== -->
+
+      <!-- REGRA 0A: Contraindicacao - Risco cirurgico proibitivo -->
+      <rule id="Rule_VAS001_Contraindicacao_RiscoProibitivo">
+        <description>Contraindicacao - Risco cirurgico proibitivo sem opcao de tratamento</description>
+        <inputEntry id="IE_Contra_AAA_Diametro">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="IE_Contra_AAA_Taxa">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="IE_Contra_AAA_Sintomas">
+          <text>false</text>
+        </inputEntry>
+        <inputEntry id="IE_Contra_AAA_Ruptura">
+          <text>false</text>
+        </inputEntry>
+        <inputEntry id="IE_Contra_AAA_Risco">
+          <text>"proibitivo"</text>
+        </inputEntry>
+        <outputEntry id="OE_Contra_AAA_Resultado">
+          <text>"Reprovado"</text>
+        </outputEntry>
+        <outputEntry id="OE_Contra_AAA_Obs">
+          <text>"Risco cirurgico proibitivo (expectativa vida &lt;2 anos, comorbidades graves nao controlaveis). Risco-beneficio desfavoravel. Cuidados paliativos e suporte clínico. Reavaliacao caso condicoes clinicas mudem."</text>
+        </outputEntry>
+        <outputEntry id="OE_Contra_AAA_Fund">
+          <text>"SVS/ESVS 2019 - Risco-beneficio desfavoravel em proibitivo cirurgico"</text>
+        </outputEntry>
+      </rule>
+
+      <!-- REGRA 0B: Contraindicacao - Aneurisma pequeno assintomatico com crescimento lento -->
+      <rule id="Rule_VAS001_Contraindicacao_PequenoBaixoCresc">
+        <description>Contraindicacao - AAA &lt;5.5 cm assintomatico com crescimento &lt;0.5 cm/ano</description>
+        <inputEntry id="IE_Contra_AAA2_Diametro">
+          <text>&lt; 5.5</text>
+        </inputEntry>
+        <inputEntry id="IE_Contra_AAA2_Taxa">
+          <text>&lt; 0.5</text>
+        </inputEntry>
+        <inputEntry id="IE_Contra_AAA2_Sintomas">
+          <text>false</text>
+        </inputEntry>
+        <inputEntry id="IE_Contra_AAA2_Ruptura">
+          <text>false</text>
+        </inputEntry>
+        <inputEntry id="IE_Contra_AAA2_Risco">
+          <text>-</text>
+        </inputEntry>
+        <outputEntry id="OE_Contra_AAA2_Resultado">
+          <text>"Reprovado"</text>
+        </outputEntry>
+        <outputEntry id="OE_Contra_AAA2_Obs">
+          <text>"AAA &lt;5.5 cm, assintomatico, crescimento &lt;0.5 cm/ano. Nao atende criterios de cirurgia. Tratamento conservador com vigilancia (USG/TC 6-12 meses). Controle pressao arterial, cessacao tabagismo, estatinas. Reavaliacao periodica."</text>
+        </outputEntry>
+        <outputEntry id="OE_Contra_AAA2_Fund">
+          <text>"SVS/ESVS 2019 - AAA pequeno assintomatico: vigilancia versus intervencao"</text>
+        </outputEntry>
+      </rule>
+
+      <!-- ============================================== -->
+      <!-- APPROVAL RULES (AFTER CONTRAINDICATIONS)      -->
+      <!-- ============================================== -->
+      <rule id="Rule_VAS001_01">
+        <inputEntry id="InputEntry_R1_Diametro">
+          <text>&lt; 5.5</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_R1_Taxa">
+          <text>&lt; 0.5</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_R1_Sintomas">
+          <text>false</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_R1_Ruptura">
+          <text>false</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_R1_Risco">
+          <text>-</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_R1_Resultado">
+          <text>"Reprovado"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_R1_Obs">
+          <text>"Aneurisma &lt;5.5 cm, assintomático, crescimento &lt;0.5 cm/ano. Tratamento conservador com vigilância (USG/TC 6-12 meses). Controle fatores risco."</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_R1_Fund">
+          <text>"Diretrizes SVS/ESVS 2019 - Correção AAA &gt;5.5 cm ou sintomático"</text>
+        </outputEntry>
+      </rule>
+
+      <!-- REGRA 2: Reprovado - Risco cirúrgico proibitivo -->
+      <rule id="Rule_VAS001_02">
+        <inputEntry id="InputEntry_R2_Diametro">
+          <text>&gt;= 5.5</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_R2_Taxa">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_R2_Sintomas">
+          <text>false</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_R2_Ruptura">
+          <text>false</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_R2_Risco">
+          <text>"proibitivo"</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_R2_Resultado">
+          <text>"Reprovado"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_R2_Obs">
+          <text>"Risco cirúrgico proibitivo (expectativa vida &lt;2 anos, comorbidades graves). Manter vigilância e cuidados paliativos. Considerar EVAR se anatomia favorável."</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_R2_Fund">
+          <text>"SVS 2019 - Risco-benefício desfavorável em alto risco cirúrgico"</text>
+        </outputEntry>
+      </rule>
+
+      <!-- REGRA 3: Aprovado - Aneurisma sintomático (URGÊNCIA) -->
+      <rule id="Rule_VAS001_03">
+        <inputEntry id="InputEntry_R3_Diametro">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_R3_Taxa">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_R3_Sintomas">
+          <text>true</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_R3_Ruptura">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_R3_Risco">
+          <text>not("proibitivo")</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_R3_Resultado">
+          <text>"Aprovado"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_R3_Obs">
+          <text>"Aneurisma sintomático (dor abdominal/dorsal persistente). URGÊNCIA: Risco ruptura iminente. Correção cirúrgica emergencial (aberta ou EVAR)."</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_R3_Fund">
+          <text>"SVS 2019 - AAA sintomático indicação absoluta cirurgia urgente"</text>
+        </outputEntry>
+      </rule>
+
+      <!-- REGRA 4: Aprovado - Risco ruptura iminente -->
+      <rule id="Rule_VAS001_04">
+        <inputEntry id="InputEntry_R4_Diametro">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_R4_Taxa">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_R4_Sintomas">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_R4_Ruptura">
+          <text>true</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_R4_Risco">
+          <text>-</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_R4_Resultado">
+          <text>"Aprovado"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_R4_Obs">
+          <text>"Sinais ruptura iminente (crescimento rápido, irregularidade morfológica, hipotensão, hematoma periaórtico). EMERGÊNCIA cirúrgica imediata."</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_R4_Fund">
+          <text>"SVS 2019 - Ruptura iminente indicação cirurgia emergencial"</text>
+        </outputEntry>
+      </rule>
+
+      <!-- REGRA 5: Aprovado - Diâmetro ≥5.5 cm (homens) -->
+      <rule id="Rule_VAS001_05">
+        <inputEntry id="InputEntry_R5_Diametro">
+          <text>&gt;= 5.5</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_R5_Taxa">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_R5_Sintomas">
+          <text>false</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_R5_Ruptura">
+          <text>false</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_R5_Risco">
+          <text>"baixo","moderado"</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_R5_Resultado">
+          <text>"Aprovado"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_R5_Obs">
+          <text>"AAA ≥5.5 cm (homens) ou ≥5.0 cm (mulheres). Indicação cirurgia eletiva. Preferir EVAR se anatomia favorável (menor morbimortalidade)."</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_R5_Fund">
+          <text>"SVS/ESVS 2019 - Limiar 5.5 cm homens, 5.0 cm mulheres"</text>
+        </outputEntry>
+      </rule>
+
+      <!-- REGRA 6: Aprovado - Taxa crescimento rápido -->
+      <rule id="Rule_VAS001_06">
+        <inputEntry id="InputEntry_R6_Diametro">
+          <text>[4.5..5.5)</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_R6_Taxa">
+          <text>&gt;= 0.5</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_R6_Sintomas">
+          <text>false</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_R6_Ruptura">
+          <text>false</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_R6_Risco">
+          <text>"baixo","moderado"</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_R6_Resultado">
+          <text>"Aprovado"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_R6_Obs">
+          <text>"AAA 4.5-5.5 cm com crescimento rápido (≥0.5 cm/ano ou ≥0.3 cm/6 meses). Indicação cirurgia preemptiva para prevenir ruptura."</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_R6_Fund">
+          <text>"SVS 2019 - Crescimento ≥0.5 cm/ano indicação cirurgia"</text>
+        </outputEntry>
+      </rule>
+
+      <!-- REGRA 7: Pendente - Risco cirúrgico alto, considerar EVAR -->
+      <rule id="Rule_VAS001_07">
+        <inputEntry id="InputEntry_R7_Diametro">
+          <text>&gt;= 5.5</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_R7_Taxa">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_R7_Sintomas">
+          <text>false</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_R7_Ruptura">
+          <text>false</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_R7_Risco">
+          <text>"alto"</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_R7_Resultado">
+          <text>"Pendente"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_R7_Obs">
+          <text>"AAA ≥5.5 cm com risco cirúrgico alto. Pendente angioTC para avaliar anatomia EVAR. Se favorável, EVAR preferencial. Se desfavorável, avaliar risco-benefício."</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_R7_Fund">
+          <text>"SVS 2019 - EVAR preferencial em alto risco cirúrgico"</text>
+        </outputEntry>
+      </rule>
+
+      <!-- REGRA 8: Fallback -->
+      <rule id="Rule_Default_Fallback">
+        <inputEntry id="InputEntry_Fallback_Diametro">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_Fallback_Taxa">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_Fallback_Sintomas">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_Fallback_Ruptura">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_Fallback_Risco">
+          <text>-</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_Fallback_Resultado">
+          <text>"Pendente"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_Fallback_Obs">
+          <text>"Caso não contemplado nas regras. Solicitar avaliação cirurgião vascular para análise individualizada conforme SVS/ESVS 2019."</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_Fallback_Fund">
+          <text>"Análise caso a caso - SVS/ESVS Guidelines"</text>
+        </outputEntry>
+      </rule>
+    </decisionTable>
+  </decision>
+</definitions>

@@ -1,0 +1,334 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/"
+             xmlns:dc="http://www.omg.org/spec/DMN/20180521/DC/"
+             id="Definitions_SYN_VTE_003"
+             name="Estratificacao de Gravidade EP - PESI Score"
+             targetNamespace="http://camunda.org/schema/1.0/dmn">
+
+  <!--
+    SYN-VTE-003 - Estratificacao de Gravidade de EP via PESI Score
+    Versao: 1.0.0 (2026-02-06)
+    Categoria: Alerta Clinico - Sindromes Criticas
+
+    PESI SCORE (Pulmonary Embolism Severity Index):
+    - Idade: +idade em anos
+    - Sexo masculino: +10
+    - Cancer: +30
+    - Insuficiencia cardiaca: +10
+    - Doenca pulmonar cronica: +10
+    - FC >= 110 bpm: +20
+    - PAS < 100 mmHg: +30
+    - FR >= 30/min: +20
+    - Temperatura < 36°C: +20
+    - Alteracao do nivel de consciencia: +60
+    - SatO2 < 90%: +20
+
+    CLASSES DE RISCO:
+    - Classe I (<= 65): Muito baixo (mortalidade 0-1.6%)
+    - Classe II (66-85): Baixo (mortalidade 1.7-3.5%)
+    - Classe III (86-105): Intermediario (mortalidade 3.2-7.1%)
+    - Classe IV (106-125): Alto (mortalidade 4-11.4%)
+    - Classe V (> 125): Muito alto (mortalidade 10-24.5%)
+
+    PESI SIMPLIFICADO (sPESI):
+    - Idade > 80: +1
+    - Cancer: +1
+    - Doenca cardiopulmonar cronica: +1
+    - FC >= 110: +1
+    - PAS < 100: +1
+    - SatO2 < 90%: +1
+    Score 0 = Baixo risco | Score >= 1 = Alto risco
+
+    REFERENCIAS:
+    - Aujesky D et al. Lancet 2005
+    - Jimenez D et al. Arch Intern Med 2010
+    - ESC Guidelines on PE 2019
+  -->
+
+  <decision id="Decision_SYN_VTE_003" name="PESI Score EP">
+    <decisionTable id="DecisionTable_SYN_VTE_003" hitPolicy="FIRST">
+
+      <!-- INPUT 1: PESI Score -->
+      <input id="Input_1" label="PESI Score Total">
+        <inputExpression id="InputExpression_1" typeRef="number">
+          <text>pesiScore</text>
+        </inputExpression>
+      </input>
+
+      <!-- INPUT 2: Disfuncao VD (ECO/BNP) -->
+      <input id="Input_2" label="Disfuncao VD Presente">
+        <inputExpression id="InputExpression_2" typeRef="boolean">
+          <text>disfuncaoVD</text>
+        </inputExpression>
+      </input>
+
+      <!-- INPUT 3: Troponina Elevada -->
+      <input id="Input_3" label="Troponina Elevada">
+        <inputExpression id="InputExpression_3" typeRef="boolean">
+          <text>troponinaElevada</text>
+        </inputExpression>
+      </input>
+
+      <!-- INPUT 4: Instabilidade Hemodinamica -->
+      <input id="Input_4" label="Instabilidade Hemodinamica">
+        <inputExpression id="InputExpression_4" typeRef="boolean">
+          <text>instabilidadeHemodinamica</text>
+        </inputExpression>
+      </input>
+
+      <!-- OUTPUTS -->
+      <output id="Output_1" label="Nivel Alerta" name="nivelAlerta" typeRef="string">
+        <outputValues id="OutputValues_1">
+          <text>"Alerta", "Atencao", "OK", "Revisar"</text>
+        </outputValues>
+      </output>
+
+      <output id="Output_2" label="Classificacao Sindrome" name="classificacaoSindrome" typeRef="string"/>
+
+      <output id="Output_3" label="Protocolo Ativado" name="protocoloAtivado" typeRef="boolean"/>
+
+      <output id="Output_4" label="Acao Requerida" name="acaoRequerida" typeRef="string"/>
+
+      <output id="Output_5" label="Urgencia" name="urgencia" typeRef="string">
+        <outputValues id="OutputValues_5">
+          <text>"CRITICA", "ALTA", "MEDIA", "BAIXA"</text>
+        </outputValues>
+      </output>
+
+      <!-- RULE 1: EP Alto Risco - Instabilidade Hemodinamica -->
+      <rule id="Rule_EP_Alto_Risco">
+        <description>EP de Alto Risco - Instabilidade Hemodinamica</description>
+        <inputEntry id="InputEntry_1_1">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_1_2">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_1_3">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_1_4">
+          <text>true</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_1_1">
+          <text>"Alerta"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_1_2">
+          <text>"EP_ALTO_RISCO"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_1_3">
+          <text>true</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_1_4">
+          <text>"EP DE ALTO RISCO - Instabilidade hemodinamica. TROMBOLISE INDICADA se nao houver contraindicacao absoluta. UTI imediata. Vasopressores. Se contraindicacao a trombolise, considerar embolectomia ou terapia dirigida por cateter."</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_1_5">
+          <text>"CRITICA"</text>
+        </outputEntry>
+      </rule>
+
+      <!-- RULE 2: EP Risco Intermediario-Alto -->
+      <rule id="Rule_EP_Intermediario_Alto">
+        <description>EP Risco Intermediario-Alto - PESI III-V + Disfuncao VD + Troponina</description>
+        <inputEntry id="InputEntry_2_1">
+          <text>&gt;= 86</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_2_2">
+          <text>true</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_2_3">
+          <text>true</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_2_4">
+          <text>false</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_2_1">
+          <text>"Alerta"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_2_2">
+          <text>"EP_INTERMEDIARIO_ALTO"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_2_3">
+          <text>true</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_2_4">
+          <text>"EP RISCO INTERMEDIARIO-ALTO. Disfuncao de VD + troponina elevada. UTI/UCO para monitoramento. Anticoagulacao plena. Vigilancia para deterioracao. Se instabilizacao, considerar trombolise de resgate."</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_2_5">
+          <text>"CRITICA"</text>
+        </outputEntry>
+      </rule>
+
+      <!-- RULE 3: EP Risco Intermediario-Baixo -->
+      <rule id="Rule_EP_Intermediario_Baixo">
+        <description>EP Risco Intermediario-Baixo - PESI III-V com apenas um marcador</description>
+        <inputEntry id="InputEntry_3_1">
+          <text>&gt;= 86</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_3_2">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_3_3">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_3_4">
+          <text>false</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_3_1">
+          <text>"Alerta"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_3_2">
+          <text>"EP_INTERMEDIARIO_BAIXO"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_3_3">
+          <text>true</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_3_4">
+          <text>"EP RISCO INTERMEDIARIO-BAIXO. PESI classe III-V. Internacao hospitalar obrigatoria. Anticoagulacao plena. Monitoramento em enfermaria. Repetir ECO e troponina em 24-48h se nao realizados."</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_3_5">
+          <text>"ALTA"</text>
+        </outputEntry>
+      </rule>
+
+      <!-- RULE 4: EP Baixo Risco - PESI II -->
+      <rule id="Rule_EP_Baixo_PESI_II">
+        <description>EP Baixo Risco - PESI Classe II</description>
+        <inputEntry id="InputEntry_4_1">
+          <text>[66..85]</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_4_2">
+          <text>false</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_4_3">
+          <text>false</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_4_4">
+          <text>false</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_4_1">
+          <text>"Atencao"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_4_2">
+          <text>"EP_BAIXO_RISCO"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_4_3">
+          <text>false</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_4_4">
+          <text>"EP BAIXO RISCO - PESI Classe II. Internacao hospitalar recomendada. Anticoagulacao oral pode ser iniciada. Mortalidade esperada 1.7-3.5%. Considerar alta precoce em 24-48h se estavel."</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_4_5">
+          <text>"MEDIA"</text>
+        </outputEntry>
+      </rule>
+
+      <!-- RULE 5: EP Muito Baixo Risco - PESI I -->
+      <rule id="Rule_EP_Muito_Baixo">
+        <description>EP Muito Baixo Risco - PESI Classe I</description>
+        <inputEntry id="InputEntry_5_1">
+          <text>&lt;= 65</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_5_2">
+          <text>false</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_5_3">
+          <text>false</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_5_4">
+          <text>false</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_5_1">
+          <text>"Atencao"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_5_2">
+          <text>"EP_MUITO_BAIXO_RISCO"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_5_3">
+          <text>false</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_5_4">
+          <text>"EP MUITO BAIXO RISCO - PESI Classe I. Candidato a TRATAMENTO DOMICILIAR com DOACs. Mortalidade < 1.6%. Criterios: suporte social adequado, acesso a saude, sem comorbidades graves. Retorno em 48-72h."</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_5_5">
+          <text>"MEDIA"</text>
+        </outputEntry>
+      </rule>
+
+      <!-- RULE 6: Aguardando estratificacao -->
+      <rule id="Rule_Aguardando_Estratificacao">
+        <description>EP confirmada aguardando estratificacao completa</description>
+        <inputEntry id="InputEntry_6_1">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_6_2">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_6_3">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_6_4">
+          <text>false</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_6_1">
+          <text>"Atencao"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_6_2">
+          <text>"EP_ESTRATIFICACAO_PENDENTE"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_6_3">
+          <text>false</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_6_4">
+          <text>"EP confirmada - estratificacao incompleta. Iniciar anticoagulacao. Completar avaliacao: calcular PESI, solicitar ECO (disfuncao VD) e troponina para definir nivel de cuidado."</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_6_5">
+          <text>"ALTA"</text>
+        </outputEntry>
+      </rule>
+
+      <!-- FALLBACK -->
+      <rule id="Rule_Fallback_SYN_VTE_003">
+        <description>Dados insuficientes para avaliacao</description>
+        <inputEntry id="InputEntry_F_1">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_F_2">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_F_3">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_F_4">
+          <text>-</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_F_1">
+          <text>"Revisar"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_F_2">
+          <text>"DADOS_INCOMPLETOS"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_F_3">
+          <text>false</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_F_4">
+          <text>"Dados insuficientes para calculo PESI. Verificar: idade, sinais vitais (FC, FR, PA, SatO2, temp), nivel consciencia, comorbidades (cancer, ICC, DPOC)."</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_F_5">
+          <text>"MEDIA"</text>
+        </outputEntry>
+      </rule>
+
+    </decisionTable>
+  </decision>
+
+  <dmndi:DMNDI>
+    <dmndi:DMNDiagram id="DMNDiagram_SYN_VTE_003">
+      <dmndi:DMNShape id="DMNShape_Decision_SYN_VTE_003" dmnElementRef="Decision_SYN_VTE_003">
+        <dc:Bounds height="80" width="180" x="160" y="100"/>
+      </dmndi:DMNShape>
+    </dmndi:DMNDiagram>
+  </dmndi:DMNDI>
+
+</definitions>

@@ -1,0 +1,277 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/"
+             xmlns:dc="http://www.omg.org/spec/DD/20100524/DC/"
+             xmlns:di="http://www.omg.org/spec/DD/20100524/DI/"
+             id="Definitions_VAS_AOR_001"
+             name="Aneurisma de Aorta Toracica - Limiares de Intervencao"
+             namespace="http://camunda.org/schema/1.0/dmn"
+             exporter="Camunda Modeler"
+             exporterVersion="5.0.0">
+  <!--
+    VAS-AOR-001 - Aneurisma de Aorta Toracica - Limiares de Tamanho
+    Versao: 1.0.0 (2026-02-07)
+    Especialidade: Cirurgia Vascular / Cirurgia Cardiovascular
+    Categoria: Cirurgia Aortica
+    TUSS Relacionados: 30907044, 30907052, 40901130
+
+    Limiares de Intervencao (SVS/ESVS 2019, ACC/AHA 2022):
+    - Aorta ascendente: maior ou igual a 5.5cm (ou 5.0cm em Marfan/bicuspide)
+    - Arco aortico: maior ou igual a 5.5cm
+    - Aorta descendente: maior ou igual a 6.0cm (ou 5.5cm se TEVAR viavel)
+    - Crescimento rapido: maior que 0.5cm/ano independente do tamanho
+
+    Fatores de Risco que Reduzem Limiar:
+    - Sindrome de Marfan ou outras colagenoses
+    - Valva aortica bicuspide
+    - Historia familiar de disseccao/ruptura
+    - Coarctacao de aorta
+    - Hipertensao nao controlada
+
+    Documentacao Obrigatoria:
+    - AngioTC ou angioRM com medicoes padronizadas
+    - Imagens seriadas para avaliacao de crescimento
+    - Avaliacao genetica se indicado
+    - Avaliacao cardiologica completa
+
+    Referencias Normativas:
+    - SVS/ESVS 2019 - Thoracic Aortic Aneurysm Guidelines
+    - ACC/AHA 2022 - Aortic Disease Guidelines
+    - SBCCV 2020 - Diretrizes Brasileiras
+    - DUT ANS 2024
+  -->
+
+  <decision id="Decision_VAS_AOR_001" name="Criterios de Intervencao - Aneurisma de Aorta Toracica">
+    <decisionTable id="DecisionTable_VAS_AOR_001" hitPolicy="FIRST">
+
+      <!-- Input 1: Diametro do Aneurisma -->
+      <input id="Input_diametro" label="Diametro Maximo do Aneurisma (cm)">
+        <inputExpression id="InputExpr_diametro" typeRef="string">
+          <text>diametroAneurisma</text>
+        </inputExpression>
+        <inputValues id="InputValues_diametro">
+          <text>"Menor_4.0","Entre_4.0_4.9","Entre_5.0_5.4","Entre_5.5_5.9","Maior_6.0"</text>
+        </inputValues>
+      </input>
+
+      <!-- Input 2: Localizacao do Aneurisma -->
+      <input id="Input_localizacao" label="Localizacao do Aneurisma">
+        <inputExpression id="InputExpr_localizacao" typeRef="string">
+          <text>localizacaoAneurisma</text>
+        </inputExpression>
+        <inputValues id="InputValues_localizacao">
+          <text>"Ascendente","Arco","Descendente","Toracoabdominal"</text>
+        </inputValues>
+      </input>
+
+      <!-- Input 3: Fatores de Risco Geneticos -->
+      <input id="Input_fatoresRisco" label="Fatores de Risco Geneticos/Conectivos">
+        <inputExpression id="InputExpr_fatoresRisco" typeRef="string">
+          <text>fatoresRisco</text>
+        </inputExpression>
+        <inputValues id="InputValues_fatoresRisco">
+          <text>"Marfan","Bicuspide_Aortica","Loeys_Dietz","Ehlers_Danlos","Historia_Familiar","Nenhum"</text>
+        </inputValues>
+      </input>
+
+      <!-- Input 4: Taxa de Crescimento -->
+      <input id="Input_taxaCrescimento" label="Taxa de Crescimento Anual">
+        <inputExpression id="InputExpr_taxaCrescimento" typeRef="string">
+          <text>taxaCrescimento</text>
+        </inputExpression>
+        <inputValues id="InputValues_taxaCrescimento">
+          <text>"Estavel","Menor_0.5cm_Ano","Maior_0.5cm_Ano","Crescimento_Rapido_Maior_1cm","Nao_Avaliado"</text>
+        </inputValues>
+      </input>
+
+      <!-- Input 5: Documentacao de Imagem -->
+      <input id="Input_documentacaoImagem" label="AngioTC/AngioRM com Medicoes Padronizadas">
+        <inputExpression id="InputExpr_documentacaoImagem" typeRef="boolean">
+          <text>documentacaoImagem</text>
+        </inputExpression>
+      </input>
+
+      <!-- Outputs -->
+      <output id="Output_resultado" label="Resultado" name="resultado" typeRef="string">
+        <outputValues id="OutputValues_resultado">
+          <text>"Aprovado","Reprovado","Pendente"</text>
+        </outputValues>
+      </output>
+      <output id="Output_observacao" label="Observacao Clinica" name="observacao" typeRef="string" />
+      <output id="Output_fundamentacao" label="Fundamentacao Legal/Tecnica" name="fundamentacao" typeRef="string" />
+
+      <output id="Output_alertasDesperdicio" name="alertasDesperdicio" typeRef="string">
+        <outputValues>
+          <text>"NENHUM","DUP","FREQ","ESC","DOC","PROT","MULTI"</text>
+        </outputValues>
+      </output>
+
+      <output id="Output_acaoRecomendada" name="acaoRecomendada" typeRef="string">
+        <outputValues>
+          <text>"APROVAR","NEGAR","SOLICITAR_INFO","AGUARDAR_PRAZO","SUGERIR_ALTERNATIVA"</text>
+        </outputValues>
+      </output>
+
+      <!-- ============================================== -->
+      <!-- REGRAS DE REPROVACAO                          -->
+      <!-- ============================================== -->
+
+      <rule id="Rule_VAS_AOR_001_Reprovacao_Pequeno">
+        <description>Reprovacao - Aneurisma menor que 4cm sem fatores de risco</description>
+        <inputEntry id="IE_Rep1_1"><text>"Menor_4.0"</text></inputEntry>
+        <inputEntry id="IE_Rep1_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_Rep1_3"><text>"Nenhum"</text></inputEntry>
+        <inputEntry id="IE_Rep1_4"><text>"Estavel","Menor_0.5cm_Ano"</text></inputEntry>
+        <inputEntry id="IE_Rep1_5"><text>-</text></inputEntry>
+        <outputEntry id="OE_Rep1_1"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OE_Rep1_2"><text>"Aneurisma de aorta toracica menor que 4cm estavel sem fatores de risco nao tem indicacao cirurgica - manter vigilancia com imagem anual"</text></outputEntry>
+        <outputEntry id="OE_Rep1_3"><text>"ACC/AHA 2022 - Vigilancia para aneurismas pequenos sem fatores de risco"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_VAS_AOR_001_Reprovacao_SemDocumentacao">
+        <description>Reprovacao - Documentacao de imagem inadequada</description>
+        <inputEntry id="IE_Rep2_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_Rep2_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_Rep2_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_Rep2_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_Rep2_5"><text>false</text></inputEntry>
+        <outputEntry id="OE_Rep2_1"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OE_Rep2_2"><text>"AngioTC ou angioRM com medicoes padronizadas eh obrigatorio - medicoes devem ser perpendiculares ao eixo do vaso"</text></outputEntry>
+        <outputEntry id="OE_Rep2_3"><text>"SVS/ESVS 2019 - Protocolo de imagem padronizado obrigatorio"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_VAS_AOR_001_Reprovacao_SemAvaliacao">
+        <description>Reprovacao - Taxa de crescimento nao avaliada em aneurisma intermediario</description>
+        <inputEntry id="IE_Rep3_1"><text>"Entre_4.0_4.9","Entre_5.0_5.4"</text></inputEntry>
+        <inputEntry id="IE_Rep3_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_Rep3_3"><text>"Nenhum"</text></inputEntry>
+        <inputEntry id="IE_Rep3_4"><text>"Nao_Avaliado"</text></inputEntry>
+        <inputEntry id="IE_Rep3_5"><text>true</text></inputEntry>
+        <outputEntry id="OE_Rep3_1"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OE_Rep3_2"><text>"Aneurisma de tamanho intermediario requer imagens seriadas para documentar taxa de crescimento antes de indicar intervencao"</text></outputEntry>
+        <outputEntry id="OE_Rep3_3"><text>"ACC/AHA 2022 - Avaliacao de crescimento obrigatoria para decisao terapeutica"</text></outputEntry>
+      </rule>
+
+      <!-- ============================================== -->
+      <!-- REGRAS DE APROVACAO                           -->
+      <!-- ============================================== -->
+
+      <rule id="Rule_VAS_AOR_001_Aprovacao_CrescimentoRapido">
+        <description>Aprovacao - Crescimento rapido maior que 1cm/ano independente do tamanho</description>
+        <inputEntry id="IE_Apr1_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_Apr1_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_Apr1_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_Apr1_4"><text>"Crescimento_Rapido_Maior_1cm"</text></inputEntry>
+        <inputEntry id="IE_Apr1_5"><text>true</text></inputEntry>
+        <outputEntry id="OE_Apr1_1"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OE_Apr1_2"><text>"Intervencao APROVADA - crescimento rapido maior que 1cm/ano indica alto risco de ruptura independente do diametro atual"</text></outputEntry>
+        <outputEntry id="OE_Apr1_3"><text>"ACC/AHA 2022 Classe I - Crescimento rapido eh indicacao absoluta de intervencao"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_VAS_AOR_001_Aprovacao_AscendenteMaior55">
+        <description>Aprovacao - Aneurisma ascendente maior que 5.5cm</description>
+        <inputEntry id="IE_Apr2_1"><text>"Entre_5.5_5.9","Maior_6.0"</text></inputEntry>
+        <inputEntry id="IE_Apr2_2"><text>"Ascendente"</text></inputEntry>
+        <inputEntry id="IE_Apr2_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_Apr2_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_Apr2_5"><text>true</text></inputEntry>
+        <outputEntry id="OE_Apr2_1"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OE_Apr2_2"><text>"Cirurgia de aorta ascendente APROVADA - diametro maior ou igual a 5.5cm atinge limiar de intervencao"</text></outputEntry>
+        <outputEntry id="OE_Apr2_3"><text>"ACC/AHA 2022 Classe I - Limiar de 5.5cm para aorta ascendente em pacientes sem fatores de risco"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_VAS_AOR_001_Aprovacao_AscendenteMarfan">
+        <description>Aprovacao - Aneurisma ascendente maior que 5.0cm com Marfan/Bicuspide</description>
+        <inputEntry id="IE_Apr3_1"><text>"Entre_5.0_5.4","Entre_5.5_5.9","Maior_6.0"</text></inputEntry>
+        <inputEntry id="IE_Apr3_2"><text>"Ascendente"</text></inputEntry>
+        <inputEntry id="IE_Apr3_3"><text>"Marfan","Bicuspide_Aortica","Loeys_Dietz"</text></inputEntry>
+        <inputEntry id="IE_Apr3_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_Apr3_5"><text>true</text></inputEntry>
+        <outputEntry id="OE_Apr3_1"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OE_Apr3_2"><text>"Cirurgia de aorta ascendente APROVADA - diametro maior ou igual a 5.0cm em paciente com sindrome genetica/bicuspide - limiar reduzido"</text></outputEntry>
+        <outputEntry id="OE_Apr3_3"><text>"ACC/AHA 2022 Classe I - Limiar de 5.0cm para Marfan, Loeys-Dietz e bicuspide aortica"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_VAS_AOR_001_Aprovacao_DescendenteMaior60">
+        <description>Aprovacao - Aneurisma descendente maior que 6.0cm</description>
+        <inputEntry id="IE_Apr4_1"><text>"Maior_6.0"</text></inputEntry>
+        <inputEntry id="IE_Apr4_2"><text>"Descendente","Toracoabdominal"</text></inputEntry>
+        <inputEntry id="IE_Apr4_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_Apr4_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_Apr4_5"><text>true</text></inputEntry>
+        <outputEntry id="OE_Apr4_1"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OE_Apr4_2"><text>"Intervencao em aorta descendente APROVADA - diametro maior que 6.0cm atinge limiar de intervencao - TEVAR preferencial se anatomia favoravel"</text></outputEntry>
+        <outputEntry id="OE_Apr4_3"><text>"SVS/ESVS 2019 Classe I - Limiar de 6.0cm para aorta descendente (5.5cm se TEVAR viavel)"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_VAS_AOR_001_Aprovacao_Descendente55_TEVAR">
+        <description>Aprovacao - Aneurisma descendente 5.5-6.0cm com anatomia favoravel para TEVAR</description>
+        <inputEntry id="IE_Apr5_1"><text>"Entre_5.5_5.9"</text></inputEntry>
+        <inputEntry id="IE_Apr5_2"><text>"Descendente"</text></inputEntry>
+        <inputEntry id="IE_Apr5_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_Apr5_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_Apr5_5"><text>true</text></inputEntry>
+        <outputEntry id="OE_Apr5_1"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OE_Apr5_2"><text>"TEVAR APROVADO - aneurisma descendente 5.5-6.0cm com anatomia favoravel para tratamento endovascular - menor morbimortalidade que cirurgia aberta"</text></outputEntry>
+        <outputEntry id="OE_Apr5_3"><text>"SVS/ESVS 2019 Classe IIa - TEVAR pode ser considerado a partir de 5.5cm se anatomia favoravel"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_VAS_AOR_001_Aprovacao_CrescimentoMaior05">
+        <description>Aprovacao - Crescimento maior que 0.5cm/ano</description>
+        <inputEntry id="IE_Apr6_1"><text>"Entre_4.0_4.9","Entre_5.0_5.4"</text></inputEntry>
+        <inputEntry id="IE_Apr6_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_Apr6_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_Apr6_4"><text>"Maior_0.5cm_Ano"</text></inputEntry>
+        <inputEntry id="IE_Apr6_5"><text>true</text></inputEntry>
+        <outputEntry id="OE_Apr6_1"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OE_Apr6_2"><text>"Intervencao APROVADA - taxa de crescimento maior que 0.5cm/ano indica instabilidade do aneurisma e maior risco de ruptura"</text></outputEntry>
+        <outputEntry id="OE_Apr6_3"><text>"ACC/AHA 2022 Classe IIa - Crescimento maior que 0.5cm/ano favorece intervencao mais precoce"</text></outputEntry>
+      </rule>
+
+      <!-- ============================================== -->
+      <!-- REGRAS DE PENDENCIA                           -->
+      <!-- ============================================== -->
+
+      <rule id="Rule_VAS_AOR_001_Pendente_Intermediario">
+        <description>Pendente - Aneurisma 5.0-5.4cm sem fatores de risco</description>
+        <inputEntry id="IE_Pend1_1"><text>"Entre_5.0_5.4"</text></inputEntry>
+        <inputEntry id="IE_Pend1_2"><text>"Ascendente","Arco"</text></inputEntry>
+        <inputEntry id="IE_Pend1_3"><text>"Nenhum"</text></inputEntry>
+        <inputEntry id="IE_Pend1_4"><text>"Estavel","Menor_0.5cm_Ano"</text></inputEntry>
+        <inputEntry id="IE_Pend1_5"><text>true</text></inputEntry>
+        <outputEntry id="OE_Pend1_1"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OE_Pend1_2"><text>"Aneurisma 5.0-5.4cm estavel sem fatores de risco - zona intermediaria - decisao deve ser individualizada considerando risco cirurgico e preferencia do paciente"</text></outputEntry>
+        <outputEntry id="OE_Pend1_3"><text>"ACC/AHA 2022 Classe IIb - Intervencao pode ser considerada entre 5.0-5.5cm em casos selecionados"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_VAS_AOR_001_Pendente_ArcoAortico">
+        <description>Pendente - Aneurisma de arco aortico requer planejamento complexo</description>
+        <inputEntry id="IE_Pend2_1"><text>"Entre_5.5_5.9","Maior_6.0"</text></inputEntry>
+        <inputEntry id="IE_Pend2_2"><text>"Arco"</text></inputEntry>
+        <inputEntry id="IE_Pend2_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_Pend2_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_Pend2_5"><text>true</text></inputEntry>
+        <outputEntry id="OE_Pend2_1"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OE_Pend2_2"><text>"Aneurisma de arco aortico requer planejamento cirurgico complexo - discussao em Heart Team para definir abordagem (hibrido vs convencional)"</text></outputEntry>
+        <outputEntry id="OE_Pend2_3"><text>"ACC/AHA 2022 - Cirurgia de arco requer centro especializado e planejamento multidisciplinar"</text></outputEntry>
+      </rule>
+
+      <!-- ============================================== -->
+      <!-- REGRA FALLBACK                                -->
+      <!-- ============================================== -->
+
+      <rule id="Rule_Fallback_VAS_AOR_001">
+        <description>Fallback - Casos nao cobertos requerem analise manual</description>
+        <inputEntry id="IE_Fallback_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_Fallback_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_Fallback_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_Fallback_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_Fallback_5"><text>-</text></inputEntry>
+        <outputEntry id="OE_Fallback_1"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OE_Fallback_2"><text>"Caso requer analise manual por auditor especializado em cirurgia cardiovascular/vascular"</text></outputEntry>
+        <outputEntry id="OE_Fallback_3"><text>"Auditoria especializada conforme RN 428/2017"</text></outputEntry>
+      </rule>
+
+    </decisionTable>
+  </decision>
+</definitions>

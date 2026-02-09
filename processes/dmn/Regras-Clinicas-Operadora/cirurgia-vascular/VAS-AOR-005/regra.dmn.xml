@@ -1,0 +1,254 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/"
+             xmlns:dc="http://www.omg.org/spec/DD/20100524/DC/"
+             xmlns:di="http://www.omg.org/spec/DD/20100524/DI/"
+             id="Definitions_VAS_AOR_005"
+             name="Ruptura de Aorta - Criterios de Emergencia"
+             namespace="http://camunda.org/schema/1.0/dmn"
+             exporter="Camunda Modeler"
+             exporterVersion="5.0.0">
+  <!--
+    VAS-AOR-005 - Ruptura de Aorta - Criterios de Emergencia
+    Versao: 1.0.0 (2026-02-07)
+    Especialidade: Cirurgia Vascular / Cirurgia Cardiovascular
+    Categoria: Cirurgia Aortica
+    TUSS Relacionados: 30907044, 30907052, 30907060
+
+    Tipos de Ruptura Aortica:
+    - Ruptura AAA: Mais comum, alta mortalidade (80-90% pre-hospitalar)
+    - Ruptura AAT: Disseccao complicada, trauma
+    - Ruptura Traumatica: Desaceleracao, alto impacto
+
+    Classificacao de Apresentacao:
+    - Ruptura Livre: Choque hemorragico, alta mortalidade
+    - Ruptura Contida: Tamponamento retroperitoneal, sobrevivencia maior
+    - Ruptura Iminente: Dor intensa, sinais de instabilidade
+
+    Indicacoes de Intervencao Emergencial:
+    - SEMPRE indicada se paciente chegar vivo ao hospital
+    - EVAR vs Cirurgia Aberta dependem de estabilidade e recursos
+    - Controle de danos (damage control surgery) em instabilidade extrema
+
+    Documentacao:
+    - Situacao emergencial pode dispensar exames extensos
+    - AngioTC rapida para planejamento se estavel
+    - Ecografia FAST para hemoperitoneo
+
+    Referencias Normativas:
+    - SVS/ESVS 2019 - Ruptured AAA Guidelines
+    - IMPROVE Trial - EVAR vs Open for rAAA
+    - ACC/AHA 2022
+    - DUT ANS 2024
+  -->
+
+  <decision id="Decision_VAS_AOR_005" name="Criterios de Emergencia - Ruptura de Aorta">
+    <decisionTable id="DecisionTable_VAS_AOR_005" hitPolicy="FIRST">
+
+      <!-- Input 1: Tipo de Ruptura -->
+      <input id="Input_tipoRuptura" label="Tipo de Ruptura Aortica">
+        <inputExpression id="InputExpr_tipoRuptura" typeRef="string">
+          <text>tipoRuptura</text>
+        </inputExpression>
+        <inputValues id="InputValues_tipoRuptura">
+          <text>"AAA_Ruptura_Livre","AAA_Ruptura_Contida","AAT_Ruptura","Traumatica","Ruptura_Iminente"</text>
+        </inputValues>
+      </input>
+
+      <!-- Input 2: Status Hemodinamico -->
+      <input id="Input_statusHemodinamico" label="Status Hemodinamico">
+        <inputExpression id="InputExpr_statusHemodinamico" typeRef="string">
+          <text>statusHemodinamico</text>
+        </inputExpression>
+        <inputValues id="InputValues_statusHemodinamico">
+          <text>"Estavel","Instavel_Responsivo","Choque_Refratario","PCR"</text>
+        </inputValues>
+      </input>
+
+      <!-- Input 3: Viabilidade de EVAR -->
+      <input id="Input_viabilidadeEVAR" label="Anatomia para EVAR Emergencial">
+        <inputExpression id="InputExpr_viabilidadeEVAR" typeRef="string">
+          <text>viabilidadeEVAR</text>
+        </inputExpression>
+        <inputValues id="InputValues_viabilidadeEVAR">
+          <text>"Favoravel","Marginal","Desfavoravel","Nao_Avaliada"</text>
+        </inputValues>
+      </input>
+
+      <!-- Input 4: Disponibilidade de Recursos -->
+      <input id="Input_recursos" label="Disponibilidade de Recursos">
+        <inputExpression id="InputExpr_recursos" typeRef="string">
+          <text>disponibilidadeRecursos</text>
+        </inputExpression>
+        <inputValues id="InputValues_recursos">
+          <text>"Centro_Referencia_EVAR","Apenas_Cirurgia_Aberta","Limitado"</text>
+        </inputValues>
+      </input>
+
+      <!-- Input 5: Confirmacao Diagnostica -->
+      <input id="Input_confirmacao" label="Confirmacao Diagnostica (TC/Eco/Clinica)">
+        <inputExpression id="InputExpr_confirmacao" typeRef="boolean">
+          <text>confirmacaoDiagnostica</text>
+        </inputExpression>
+      </input>
+
+      <!-- Outputs -->
+      <output id="Output_resultado" label="Resultado" name="resultado" typeRef="string">
+        <outputValues id="OutputValues_resultado">
+          <text>"Aprovado","Reprovado","Pendente"</text>
+        </outputValues>
+      </output>
+      <output id="Output_observacao" label="Observacao Clinica" name="observacao" typeRef="string" />
+      <output id="Output_fundamentacao" label="Fundamentacao Legal/Tecnica" name="fundamentacao" typeRef="string" />
+
+      <output id="Output_alertasDesperdicio" name="alertasDesperdicio" typeRef="string">
+        <outputValues>
+          <text>"NENHUM","DUP","FREQ","ESC","DOC","PROT","MULTI"</text>
+        </outputValues>
+      </output>
+
+      <output id="Output_acaoRecomendada" name="acaoRecomendada" typeRef="string">
+        <outputValues>
+          <text>"APROVAR","NEGAR","SOLICITAR_INFO","AGUARDAR_PRAZO","SUGERIR_ALTERNATIVA"</text>
+        </outputValues>
+      </output>
+
+      <!-- ============================================== -->
+      <!-- REGRAS DE REPROVACAO                          -->
+      <!-- ============================================== -->
+
+      <rule id="Rule_VAS_AOR_005_Reprovacao_PCR_Prolongada">
+        <description>Reprovacao - PCR prolongada sem retorno</description>
+        <inputEntry id="IE_Rep1_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_Rep1_2"><text>"PCR"</text></inputEntry>
+        <inputEntry id="IE_Rep1_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_Rep1_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_Rep1_5"><text>-</text></inputEntry>
+        <outputEntry id="OE_Rep1_1"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OE_Rep1_2"><text>"PCR em contexto de ruptura aortica com ressuscitacao prolongada sem retorno de circulacao espontanea - prognostico incompativel com sobrevida"</text></outputEntry>
+        <outputEntry id="OE_Rep1_3"><text>"SVS/ESVS 2019 - Futilidade em PCR prolongada por ruptura aortica"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_VAS_AOR_005_Reprovacao_SemConfirmacao">
+        <description>Reprovacao - Diagnostico nao confirmado em paciente estavel</description>
+        <inputEntry id="IE_Rep2_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_Rep2_2"><text>"Estavel"</text></inputEntry>
+        <inputEntry id="IE_Rep2_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_Rep2_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_Rep2_5"><text>false</text></inputEntry>
+        <outputEntry id="OE_Rep2_1"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OE_Rep2_2"><text>"Paciente estavel requer confirmacao diagnostica antes de procedimento de emergencia - solicitar AngioTC rapida"</text></outputEntry>
+        <outputEntry id="OE_Rep2_3"><text>"SVS/ESVS 2019 - Confirmacao diagnostica obrigatoria em paciente estavel"</text></outputEntry>
+      </rule>
+
+      <!-- ============================================== -->
+      <!-- REGRAS DE APROVACAO - EMERGENCIA ABSOLUTA     -->
+      <!-- ============================================== -->
+
+      <rule id="Rule_VAS_AOR_005_Aprovacao_RupturaLivre">
+        <description>Aprovacao Emergencia - Ruptura livre confirmada</description>
+        <inputEntry id="IE_Apr1_1"><text>"AAA_Ruptura_Livre"</text></inputEntry>
+        <inputEntry id="IE_Apr1_2"><text>"Instavel_Responsivo","Choque_Refratario"</text></inputEntry>
+        <inputEntry id="IE_Apr1_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_Apr1_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_Apr1_5"><text>true</text></inputEntry>
+        <outputEntry id="OE_Apr1_1"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OE_Apr1_2"><text>"CIRURGIA EMERGENCIAL APROVADA IMEDIATAMENTE - ruptura aortica livre com choque - cada minuto conta - EVAR ou aberta conforme disponibilidade"</text></outputEntry>
+        <outputEntry id="OE_Apr1_3"><text>"SVS/ESVS 2019 Classe I - Intervencao imediata obrigatoria em ruptura aortica"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_VAS_AOR_005_Aprovacao_RupturaContida">
+        <description>Aprovacao Emergencia - Ruptura contida</description>
+        <inputEntry id="IE_Apr2_1"><text>"AAA_Ruptura_Contida"</text></inputEntry>
+        <inputEntry id="IE_Apr2_2"><text>"Estavel","Instavel_Responsivo"</text></inputEntry>
+        <inputEntry id="IE_Apr2_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_Apr2_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_Apr2_5"><text>true</text></inputEntry>
+        <outputEntry id="OE_Apr2_1"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OE_Apr2_2"><text>"CIRURGIA EMERGENCIAL APROVADA - ruptura contida permite breve estabilizacao e planejamento - EVAR preferencial se anatomia favoravel e disponivel"</text></outputEntry>
+        <outputEntry id="OE_Apr2_3"><text>"IMPROVE Trial - EVAR reduz mortalidade em ruptura contida quando disponivel"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_VAS_AOR_005_Aprovacao_Traumatica">
+        <description>Aprovacao Emergencia - Ruptura traumatica de aorta</description>
+        <inputEntry id="IE_Apr3_1"><text>"Traumatica"</text></inputEntry>
+        <inputEntry id="IE_Apr3_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_Apr3_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_Apr3_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_Apr3_5"><text>true</text></inputEntry>
+        <outputEntry id="OE_Apr3_1"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OE_Apr3_2"><text>"TEVAR EMERGENCIAL APROVADO - ruptura traumatica de aorta - TEVAR eh tratamento de escolha em lesao traumatica quando anatomia permite"</text></outputEntry>
+        <outputEntry id="OE_Apr3_3"><text>"SVS/ESVS 2019 Classe I - TEVAR preferencial para lesao aortica traumatica"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_VAS_AOR_005_Aprovacao_AATRuptura">
+        <description>Aprovacao Emergencia - Ruptura de aneurisma toracico</description>
+        <inputEntry id="IE_Apr4_1"><text>"AAT_Ruptura"</text></inputEntry>
+        <inputEntry id="IE_Apr4_2"><text>"Estavel","Instavel_Responsivo","Choque_Refratario"</text></inputEntry>
+        <inputEntry id="IE_Apr4_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_Apr4_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_Apr4_5"><text>true</text></inputEntry>
+        <outputEntry id="OE_Apr4_1"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OE_Apr4_2"><text>"CIRURGIA EMERGENCIAL APROVADA - ruptura de aneurisma toracico - TEVAR ou cirurgia aberta conforme localizacao e recursos disponiveis"</text></outputEntry>
+        <outputEntry id="OE_Apr4_3"><text>"SVS/ESVS 2019 Classe I - Intervencao emergencial obrigatoria em ruptura toracica"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_VAS_AOR_005_Aprovacao_Iminente">
+        <description>Aprovacao Urgencia - Ruptura iminente (sinais de instabilidade)</description>
+        <inputEntry id="IE_Apr5_1"><text>"Ruptura_Iminente"</text></inputEntry>
+        <inputEntry id="IE_Apr5_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_Apr5_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_Apr5_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_Apr5_5"><text>true</text></inputEntry>
+        <outputEntry id="OE_Apr5_1"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OE_Apr5_2"><text>"CIRURGIA URGENTE APROVADA - sinais de ruptura iminente (dor intensa, crescimento rapido, trombo mural novo) - intervencao antes de ruptura franca"</text></outputEntry>
+        <outputEntry id="OE_Apr5_3"><text>"SVS/ESVS 2019 Classe I - Intervencao urgente em AAA sintomatico/iminente"</text></outputEntry>
+      </rule>
+
+      <!-- ============================================== -->
+      <!-- REGRAS DE APROVACAO - METODO ESPECIFICO       -->
+      <!-- ============================================== -->
+
+      <rule id="Rule_VAS_AOR_005_Aprovacao_EVAR_Favoravel">
+        <description>Aprovacao EVAR - Ruptura com anatomia favoravel em centro de referencia</description>
+        <inputEntry id="IE_Apr6_1"><text>"AAA_Ruptura_Contida"</text></inputEntry>
+        <inputEntry id="IE_Apr6_2"><text>"Estavel"</text></inputEntry>
+        <inputEntry id="IE_Apr6_3"><text>"Favoravel"</text></inputEntry>
+        <inputEntry id="IE_Apr6_4"><text>"Centro_Referencia_EVAR"</text></inputEntry>
+        <inputEntry id="IE_Apr6_5"><text>true</text></inputEntry>
+        <outputEntry id="OE_Apr6_1"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OE_Apr6_2"><text>"EVAR EMERGENCIAL APROVADO - ruptura contida com anatomia favoravel em centro com experiencia - IMPROVE trial demonstrou beneficio"</text></outputEntry>
+        <outputEntry id="OE_Apr6_3"><text>"IMPROVE Trial Classe I - EVAR preferencial em ruptura contida com anatomia favoravel"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_VAS_AOR_005_Aprovacao_Aberta_SemEVAR">
+        <description>Aprovacao Cirurgia Aberta - Ruptura sem disponibilidade de EVAR</description>
+        <inputEntry id="IE_Apr7_1"><text>"AAA_Ruptura_Livre","AAA_Ruptura_Contida"</text></inputEntry>
+        <inputEntry id="IE_Apr7_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_Apr7_3"><text>"Desfavoravel","Nao_Avaliada"</text></inputEntry>
+        <inputEntry id="IE_Apr7_4"><text>"Apenas_Cirurgia_Aberta"</text></inputEntry>
+        <inputEntry id="IE_Apr7_5"><text>true</text></inputEntry>
+        <outputEntry id="OE_Apr7_1"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OE_Apr7_2"><text>"CIRURGIA ABERTA EMERGENCIAL APROVADA - ruptura aortica sem disponibilidade de EVAR ou anatomia desfavoravel - nao atrasar para transferencia"</text></outputEntry>
+        <outputEntry id="OE_Apr7_3"><text>"SVS/ESVS 2019 - Cirurgia aberta quando EVAR nao disponivel ou contraindicado"</text></outputEntry>
+      </rule>
+
+      <!-- ============================================== -->
+      <!-- REGRA FALLBACK                                -->
+      <!-- ============================================== -->
+
+      <rule id="Rule_Fallback_VAS_AOR_005">
+        <description>Fallback - Ruptura confirmada sempre requer intervencao</description>
+        <inputEntry id="IE_Fallback_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_Fallback_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_Fallback_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_Fallback_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_Fallback_5"><text>-</text></inputEntry>
+        <outputEntry id="OE_Fallback_1"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OE_Fallback_2"><text>"Caso de emergencia aortica requer decisao imediata - contatar equipe de plantao vascular/cardiovascular para definicao de conduta"</text></outputEntry>
+        <outputEntry id="OE_Fallback_3"><text>"Emergencia vascular - autorizacao administrativa pode ser regularizada posteriormente conforme RN 259/2011"</text></outputEntry>
+      </rule>
+
+    </decisionTable>
+  </decision>
+</definitions>

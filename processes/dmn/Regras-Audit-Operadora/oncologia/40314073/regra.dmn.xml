@@ -1,0 +1,141 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             xmlns:camunda="http://camunda.org/schema/1.0/dmn"
+             id="Definitions_40314073"
+             name="ONQ-BIO-002: EGFR Testing Before TKIs"
+             namespace="http://camunda.org/schema/1.0/dmn">
+  <!--
+    Version: 3.1.0-LEAN-TIER2
+    Last Updated: 2026-02-08
+    Objective: Require documented EGFR mutation before osimertinib/erlotinib/gefitinib authorization
+    References: NCCN NSCLC Guidelines 2024, IASLC Molecular Testing Guidelines 2024
+    Clinical Rationale: EGFR-TKIs only effective in EGFR-mutated NSCLC (exon 19 del, L858R)
+    Waste Prevention Impact: Prevents ineffective TKI use in EGFR wild-type ($80k+ per year)
+  -->
+  <decision id="Decision_40314073" name="EGFR Testing Requirement for TKI Therapy [LEAN TIER-2]">
+    <decisionTable id="DecisionTable_40314073" hitPolicy="FIRST">
+      <input id="Input_egfrMutation" label="EGFR Mutation Status">
+        <inputExpression typeRef="string"><text>egfrMutation</text></inputExpression>
+        <inputValues>
+          <text>"EXON19_DEL","L858R","T790M","EXON20_INS","WILD_TYPE","NOT_TESTED","PENDING"</text>
+        </inputValues>
+      </input>
+      <input id="Input_tumorHistology" label="Tumor Histology">
+        <inputExpression typeRef="string"><text>tumorHistology</text></inputExpression>
+        <inputValues>
+          <text>"ADENOCARCINOMA","SQUAMOUS","LARGE_CELL","NOS","SMALL_CELL"</text>
+        </inputValues>
+      </input>
+      <input id="Input_stage" label="Disease Stage">
+        <inputExpression typeRef="string"><text>stage</text></inputExpression>
+        <inputValues>
+          <text>"IIIB","IIIC","IV","RECURRENT"</text>
+        </inputValues>
+      </input>
+      <input id="Input_requestedTKI" label="Requested TKI">
+        <inputExpression typeRef="string"><text>requestedTKI</text></inputExpression>
+        <inputValues>
+          <text>"OSIMERTINIB","ERLOTINIB","GEFITINIB","AFATINIB","DACOMITINIB"</text>
+        </inputValues>
+      </input>
+      <input id="Input_ultimoProcedimentoDias" label="Dias Desde Ultimo Procedimento">
+        <inputExpression id="InputExpression_ultimoProcedimentoDias" typeRef="number">
+          <text>ultimoProcedimentoDias</text>
+        </inputExpression>
+      </input>
+      <output id="Output_resultado" name="resultado" typeRef="string">
+        <outputValues><text>"Aprovado","Reprovado","Pendente"</text></outputValues>
+      </output>
+      <output id="Output_observacao" name="observacao" typeRef="string"/>
+      <output id="Output_fundamentacao" name="fundamentacao" typeRef="string"/>
+      <output id="Output_alertasDesperdicio" name="alertasDesperdicio" typeRef="string">
+        <outputValues><text>"NENHUM","DUP","FREQ","ESC","DOC","PROT","MULTI"</text></outputValues>
+      </output>
+      <output id="Output_acaoRecomendada" name="acaoRecomendada" typeRef="string">
+        <outputValues><text>"APROVAR","NEGAR","SOLICITAR_INFO","AGUARDAR_PRAZO","SUGERIR_ALTERNATIVA"</text></outputValues>
+      </output>
+
+      <!-- WASTE DETECTION: DUP - Reteste molecular duplicado -->
+      <rule id="Rule_40314073_DUP_reteste">
+        <description>DUP - Reteste molecular em menos de 90 dias sem justificativa clinica</description>
+        <inputEntry><text>-</text></inputEntry>
+        <inputEntry><text>-</text></inputEntry>
+        <inputEntry><text>-</text></inputEntry>
+        <inputEntry><text>-</text></inputEntry>
+        <inputEntry><text>&lt; 90</text></inputEntry>
+        <outputEntry><text>"Reprovado"</text></outputEntry>
+        <outputEntry><text>"Teste molecular repetido em menos de 90 dias. Resultado anterior ainda valido clinicamente"</text></outputEntry>
+        <outputEntry><text>"NCCN 2024: Reteste molecular so indicado se progressao, novo primario ou mudanca terapeutica. Intervalo minimo 90 dias"</text></outputEntry>
+        <outputEntry id="OE_40314073_DUP_alerta"><text>"DUP"</text></outputEntry>
+        <outputEntry id="OE_40314073_DUP_acao"><text>"NEGAR"</text></outputEntry>
+      </rule>
+
+      <!-- WASTE DETECTION: FREQ - Frequencia excessiva teste molecular -->
+      <rule id="Rule_40314073_FREQ_excessivo">
+        <description>FREQ - Avaliacao genetica limitada conforme protocolo NCCN/ESMO</description>
+        <inputEntry><text>-</text></inputEntry>
+        <inputEntry><text>-</text></inputEntry>
+        <inputEntry><text>-</text></inputEntry>
+        <inputEntry><text>-</text></inputEntry>
+        <inputEntry><text>-</text></inputEntry>
+        <outputEntry><text>"Pendente"</text></outputEntry>
+        <outputEntry><text>"Verificar frequencia de solicitacao deste teste. Limite: 2/ano salvo progressao documentada"</text></outputEntry>
+        <outputEntry><text>"NCCN/ESMO 2024: Reteste molecular limitado a progressao de doenca ou mudanca de linha terapeutica"</text></outputEntry>
+        <outputEntry id="OE_40314073_FREQ_alerta"><text>"FREQ"</text></outputEntry>
+        <outputEntry id="OE_40314073_FREQ_acao"><text>"SOLICITAR_INFO"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_EGFR_Wild_Type">
+        <inputEntry><text>"WILD_TYPE"</text></inputEntry>
+        <inputEntry><text></text></inputEntry>
+        <inputEntry><text></text></inputEntry>
+        <inputEntry><text></text></inputEntry>
+        <inputEntry><text>-</text></inputEntry>
+        <outputEntry><text>"Reprovado"</text></outputEntry>
+        <outputEntry><text>"EGFR wild-type: TKI não indicado"</text></outputEntry>
+        <outputEntry><text>"NCCN: EGFR-TKIs only for sensitizing mutations (exon 19 del, L858R)"</text></outputEntry>
+        <outputEntry id="OE_Rule_EGFR_Wild_Type_alerta"><text>"PROT"</text></outputEntry>
+        <outputEntry id="OE_Rule_EGFR_Wild_Type_acao"><text>"NEGAR"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Osimertinib_T790M">
+        <inputEntry><text>"T790M"</text></inputEntry>
+        <inputEntry><text>"ADENOCARCINOMA","NOS"</text></inputEntry>
+        <inputEntry><text>"IIIB","IIIC","IV","RECURRENT"</text></inputEntry>
+        <inputEntry><text>"OSIMERTINIB"</text></inputEntry>
+        <inputEntry id="IE_Rule_Osimertinib_T790M_ultimo"><text>-</text></inputEntry>
+        <outputEntry><text>"Aprovado"</text></outputEntry>
+        <outputEntry><text>"T790M+ após TKI 1ª/2ª geração: osimertinib aprovado"</text></outputEntry>
+        <outputEntry><text>"NCCN: Osimertinib indicated for T790M-mediated resistance"</text></outputEntry>
+        <outputEntry id="OE_Rule_Osimertinib_T790M_alerta"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_Rule_Osimertinib_T790M_acao"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_First_Gen_Sensitizing">
+        <inputEntry><text>"EXON19_DEL","L858R"</text></inputEntry>
+        <inputEntry><text>"ADENOCARCINOMA","NOS"</text></inputEntry>
+        <inputEntry><text>"IIIB","IIIC","IV","RECURRENT"</text></inputEntry>
+        <inputEntry><text>"ERLOTINIB","GEFITINIB","AFATINIB","DACOMITINIB","OSIMERTINIB"</text></inputEntry>
+        <inputEntry id="IE_Rule_First_Gen_Sensitizing_ultimo"><text>-</text></inputEntry>
+        <outputEntry><text>"Aprovado"</text></outputEntry>
+        <outputEntry><text>"Mutação EGFR sensibilizante: TKI de 1ª linha aprovado"</text></outputEntry>
+        <outputEntry><text>"NCCN: Category 1 recommendation for EGFR-TKI in exon 19 del or L858R"</text></outputEntry>
+        <outputEntry id="OE_Rule_First_Gen_Sensitizing_alerta"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_Rule_First_Gen_Sensitizing_acao"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Default_Fallback">
+        <inputEntry><text></text></inputEntry>
+        <inputEntry><text></text></inputEntry>
+        <inputEntry><text></text></inputEntry>
+        <inputEntry><text></text></inputEntry>
+        <inputEntry><text>-</text></inputEntry>
+        <outputEntry><text>"Pendente"</text></outputEntry>
+        <outputEntry><text>"Caso requer avaliação individual: enviar laudo molecular completo"</text></outputEntry>
+        <outputEntry><text>"Necessário: relatório de NGS ou PCR com status de EGFR (exons 18-21)"</text></outputEntry>
+        <outputEntry id="OE_Rule_Default_Fallback_alerta"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_Rule_Default_Fallback_acao"><text>"SOLICITAR_INFO"</text></outputEntry>
+      </rule>
+    </decisionTable>
+  </decision>
+</definitions>

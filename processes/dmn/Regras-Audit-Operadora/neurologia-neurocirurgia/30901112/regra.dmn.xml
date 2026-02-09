@@ -1,0 +1,329 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             xmlns:camunda="http://camunda.org/schema/1.0/dmn"
+             id="Definitions_30901112"
+             name="Tratamento de MAV Cerebral"
+             namespace="http://camunda.org/schema/1.0/dmn">
+
+  <!--
+    ===============================================================================
+    TUSS: 30901112
+    Procedimento: Tratamento de Malformacao Arteriovenosa (MAV) Cerebral
+    Versao: 3.1.0-LEAN-TIER2
+    Data: 2026-02-08
+    Enrichment: Added waste prevention rules (DUP+DOC)
+    ===============================================================================
+
+    INDICACOES CLINICAS (DUT/ANS):
+    MAV rota com hemorragia, MAV nao-rota com alto risco (Spetzler-Martin I-III),
+    MAV sintomatica (convulsoes, cefaleia refrataria, deficit progressivo),
+    MAV com aneurismas associados
+
+    CONTRAINDICACOES:
+    MAV assintomatica Spetzler-Martin IV-V (observacao recomendada),
+    risco cirurgico proibitivo, expectativa de vida limitada
+
+    DOCUMENTACAO OBRIGATORIA:
+    Angiografia digital com estudo superselativo, RM de cranio,
+    classificacao de Spetzler-Martin, avaliacao multidisciplinar
+
+    REFERENCIAS TECNICAS:
+    AHA/ASA AVM Guidelines 2023, ARUBA Trial, AANS/CNS 2024,
+    SBN 2023, ANS RN 465/2021, DUT 2024
+
+    ===============================================================================
+  -->
+
+  <decision id="Decision_30901112" name="Regra Clinica - Tratamento de MAV Cerebral">
+    <decisionTable id="DecisionTable_30901112" hitPolicy="FIRST">
+
+      <input id="Input_condicaoPaciente" label="Condicao do Paciente" camunda:inputVariable="condicaoPaciente">
+        <inputExpression id="InputExpression_condicaoPaciente" typeRef="string">
+          <text>condicaoPaciente</text>
+        </inputExpression>
+        <inputValues id="InputValues_condicaoPaciente">
+          <text>"MAVRotaHemorragia","MAVNaoRotaAltoRisco","MAVSintomatica","MAVComAneurisma","MAVAssintomaticaAltoGrau"</text>
+        </inputValues>
+      </input>
+
+      <input id="Input_historicoClinico" label="Historico Clinico" camunda:inputVariable="historicoClinico">
+        <inputExpression id="InputExpression_historicoClinico" typeRef="string">
+          <text>historicoClinico</text>
+        </inputExpression>
+        <inputValues id="InputValues_historicoClinico">
+          <text>"Adequado","Incompleto","NaoDocumentado"</text>
+        </inputValues>
+      </input>
+
+      <input id="Input_classeIndicacao" label="Classe de Indicacao (AHA/AANS)" camunda:inputVariable="classeIndicacao">
+        <inputExpression id="InputExpression_classeIndicacao" typeRef="string">
+          <text>classeIndicacao</text>
+        </inputExpression>
+        <inputValues id="InputValues_classeIndicacao">
+          <text>"Classe I","Classe IIa","Classe IIb","Classe III"</text>
+        </inputValues>
+      </input>
+
+      <input id="Input_examesComprobatorios" label="Exames Comprobatorios" camunda:inputVariable="examesComprobatorios">
+        <inputExpression id="InputExpression_examesComprobatorios" typeRef="string">
+          <text>examesComprobatorios</text>
+        </inputExpression>
+        <inputValues id="InputValues_examesComprobatorios">
+          <text>"AngiografiaSuperseletiva","AngioTCRM","ApenasRM","SemImagem"</text>
+        </inputValues>
+      </input>
+
+      <input id="Input_expectativaVidaSuperior1Ano" label="Expectativa de Vida Superior 1 Ano" camunda:inputVariable="expectativaVidaSuperior1Ano">
+        <inputExpression id="InputExpression_expectativaVidaSuperior1Ano" typeRef="boolean">
+          <text>expectativaVidaSuperior1Ano</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_ultimoProcedimentoDias" label="Dias Desde Ultimo Procedimento" camunda:inputVariable="ultimoProcedimentoDias">
+        <inputExpression id="InputExpression_ultimoProcedimentoDias" typeRef="integer">
+          <text>ultimoProcedimentoDias</text>
+        </inputExpression>
+      </input>
+
+      <output id="Output_resultado" label="Resultado" name="resultado" typeRef="string">
+        <outputValues id="OutputValues_resultado">
+          <text>"Aprovado","Reprovado","Pendente"</text>
+        </outputValues>
+      </output>
+
+      <output id="Output_observacao" label="Observacao Clinica" name="observacao" typeRef="string" />
+
+      <output id="Output_fundamentacao" label="Fundamentacao Tecnica" name="fundamentacao" typeRef="string" />
+      <!-- Output 4: Alertas de Desperdicio -->
+      <output id="Output_alertasDesperdicio" label="Alertas de Desperdicio" name="alertasDesperdicio" typeRef="string">
+        <outputValues id="OutputValues_alertasDesperdicio">
+          <text>"NENHUM","DUP","FREQ","ESC","DOC","PROT","MULTI"</text>
+        </outputValues>
+      </output>
+
+      <!-- Output 5: Acao Recomendada -->
+      <output id="Output_acaoRecomendada" label="Acao Recomendada" name="acaoRecomendada" typeRef="string">
+        <outputValues id="OutputValues_acaoRecomendada">
+          <text>"APROVAR","NEGAR","SOLICITAR_INFO","AGUARDAR_PRAZO","SUGERIR_ALTERNATIVA"</text>
+        </outputValues>
+      </output>
+
+
+      <!-- REPROVACOES -->
+      <rule id="Rule_Contraind_ClasseIII">
+        <description>Contraindicacao: Procedimento Classe III</description>
+        <inputEntry id="InputEntry_1_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_1_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_1_3"><text>"Classe III"</text></inputEntry>
+        <inputEntry id="InputEntry_1_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_1_5"><text>-</text></inputEntry>
+        <inputEntry id="IE_30901112_ClasseIII_6"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_1_1"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_1_2"><text>"Procedimento nao indicado - Classe III"</text></outputEntry>
+        <outputEntry id="OutputEntry_1_3"><text>"AHA/ASA AVM 2023 - Classe III: Sem indicacao"</text></outputEntry>
+        <outputEntry id="OE_Rule_Contraind_ClasseIII_4"><text>"PROT"</text></outputEntry>
+        <outputEntry id="OE_Rule_Contraind_ClasseIII_5"><text>"NEGAR"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Contraind_AssintomaticaAltoGrau">
+        <description>Contraindicacao: MAV assintomatica alto grau</description>
+        <inputEntry id="InputEntry_2_1"><text>"MAVAssintomaticaAltoGrau"</text></inputEntry>
+        <inputEntry id="InputEntry_2_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_2_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_2_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_2_5"><text>-</text></inputEntry>
+        <inputEntry id="IE_30901112_AssintomaticaAltoGrau_6"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_2_1"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_2_2"><text>"MAV assintomatica Spetzler-Martin IV-V - observacao recomendada"</text></outputEntry>
+        <outputEntry id="OutputEntry_2_3"><text>"ARUBA Trial, AHA/ASA 2023 - Observacao para MAV assintomatica alto grau"</text></outputEntry>
+        <outputEntry id="OE_Rule_Contraind_AssintomaticaAltoGrau_4"><text>"PROT"</text></outputEntry>
+        <outputEntry id="OE_Rule_Contraind_AssintomaticaAltoGrau_5"><text>"NEGAR"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Contraind_ExpectativaVida">
+        <description>Contraindicacao: Expectativa de vida menor que 1 ano</description>
+        <inputEntry id="InputEntry_3_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_3_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_3_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_3_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_3_5"><text>false</text></inputEntry>
+        <inputEntry id="IE_30901112_ExpectativaVida_6"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_3_1"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_3_2"><text>"Expectativa de vida insuficiente para tratamento definitivo"</text></outputEntry>
+        <outputEntry id="OutputEntry_3_3"><text>"AHA/ASA 2023 - Tratamento definitivo requer expectativa adequada"</text></outputEntry>
+        <outputEntry id="OE_Rule_Contraind_ExpectativaVida_4"><text>"PROT"</text></outputEntry>
+        <outputEntry id="OE_Rule_Contraind_ExpectativaVida_5"><text>"NEGAR"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Reprovado_SemImagem">
+        <description>Reprovado: Sem imagem</description>
+        <inputEntry id="InputEntry_4_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_4_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_4_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_4_4"><text>"SemImagem"</text></inputEntry>
+        <inputEntry id="InputEntry_4_5"><text>-</text></inputEntry>
+        <inputEntry id="IE_30901112_SemImagem_6"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_4_1"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_4_2"><text>"Angiografia obrigatoria para avaliacao de MAV"</text></outputEntry>
+        <outputEntry id="OutputEntry_4_3"><text>"AHA/ASA 2023 - Angiografia essencial para classificacao e planejamento"</text></outputEntry>
+        <outputEntry id="OE_Rule_Reprovado_SemImagem_4"><text>"PROT"</text></outputEntry>
+        <outputEntry id="OE_Rule_Reprovado_SemImagem_5"><text>"NEGAR"</text></outputEntry>
+      </rule>
+
+      <!-- WASTE PREVENTION RULES -->
+      <rule id="Rule_30901112_DUP_Vascular">
+        <description>DUP: Procedimento neurovascular repetido em menos de 90 dias</description>
+        <inputEntry id="IE_30901112_DUP_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_30901112_DUP_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_30901112_DUP_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_30901112_DUP_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_30901112_DUP_5"><text>-</text></inputEntry>
+        <inputEntry id="IE_30901112_DUP_6"><text>&lt; 90</text></inputEntry>
+        <outputEntry id="OE_30901112_DUP_1"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OE_30901112_DUP_2"><text>"Procedimento neurovascular repetido em menos de 90 dias. Justificar evento agudo ou aguardar intervalo"</text></outputEntry>
+        <outputEntry id="OE_30901112_DUP_3"><text>"SBNCV 2023, AANS/CNS 2024 - Intervalo minimo 90 dias entre procedimentos vasculares cerebrais eletivos"</text></outputEntry>
+        <outputEntry id="OE_30901112_DUP_4"><text>"DUP"</text></outputEntry>
+        <outputEntry id="OE_30901112_DUP_5"><text>"AGUARDAR_PRAZO"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_30901112_ESC_Conservador">
+        <description>ESC: Procedimento neurovascular sem tratamento conservador previo documentado</description>
+        <inputEntry id="IE_30901112_ESC_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_30901112_ESC_2"><text>"Incompleto","NaoDocumentado"</text></inputEntry>
+        <inputEntry id="IE_30901112_ESC_3"><text>"Classe IIb"</text></inputEntry>
+        <inputEntry id="IE_30901112_ESC_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_30901112_ESC_5"><text>-</text></inputEntry>
+        <inputEntry id="IE_30901112_ESC_6"><text>-</text></inputEntry>
+        <outputEntry id="OE_30901112_ESC_1"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OE_30901112_ESC_2"><text>"Escalonamento inadequado - documentar avaliacao multidisciplinar e tentativa de tratamento conservador antes de indicacao cirurgica"</text></outputEntry>
+        <outputEntry id="OE_30901112_ESC_3"><text>"AANS/CNS 2024, SBN 2023 - Tratamento conservador obrigatorio antes de procedimento invasivo eletivo"</text></outputEntry>
+        <outputEntry id="OE_30901112_ESC_4"><text>"ESC"</text></outputEntry>
+        <outputEntry id="OE_30901112_ESC_5"><text>"SUGERIR_ALTERNATIVA"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_30901112_DOC_Imagem">
+        <description>DOC: Procedimento neurocirurgico sem imagem atual</description>
+        <inputEntry id="IE_30901112_DOC_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_30901112_DOC_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_30901112_DOC_3"><text>"Classe I","Classe IIa"</text></inputEntry>
+        <inputEntry id="IE_30901112_DOC_4"><text>"ApenasRM","SemImagem"</text></inputEntry>
+        <inputEntry id="IE_30901112_DOC_5"><text>-</text></inputEntry>
+        <inputEntry id="IE_30901112_DOC_6"><text>-</text></inputEntry>
+        <outputEntry id="OE_30901112_DOC_1"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OE_30901112_DOC_2"><text>"Angiografia digital superseletiva obrigatoria para planejamento cirurgico"</text></outputEntry>
+        <outputEntry id="OE_30901112_DOC_3"><text>"AANS/CNS 2024, ANS RN 465/2021 - Imagem atual obrigatoria"</text></outputEntry>
+        <outputEntry id="OE_30901112_DOC_4"><text>"DOC"</text></outputEntry>
+        <outputEntry id="OE_30901112_DOC_5"><text>"SOLICITAR_INFO"</text></outputEntry>
+      </rule>
+
+      <!-- APROVACOES -->
+      <rule id="Rule_Aprovado_Rota">
+        <description>Aprovado: MAV rota com hemorragia</description>
+        <inputEntry id="InputEntry_5_1"><text>"MAVRotaHemorragia"</text></inputEntry>
+        <inputEntry id="InputEntry_5_2"><text>"Adequado"</text></inputEntry>
+        <inputEntry id="InputEntry_5_3"><text>"Classe I"</text></inputEntry>
+        <inputEntry id="InputEntry_5_4"><text>"AngiografiaSuperseletiva","AngioTCRM"</text></inputEntry>
+        <inputEntry id="InputEntry_5_5"><text>-</text></inputEntry>
+        <inputEntry id="IE_30901112_Rota_6"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_5_1"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_5_2"><text>"MAV rota - tratamento indicado para prevenir ressangramento"</text></outputEntry>
+        <outputEntry id="OutputEntry_5_3"><text>"AHA/ASA AVM 2023 - Tratamento indicado para MAV rota"</text></outputEntry>
+        <outputEntry id="OE_Rule_Aprovado_Rota_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_Rule_Aprovado_Rota_5"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Aprovado_AltoRisco">
+        <description>Aprovado: MAV nao-rota baixo grau (Spetzler-Martin I-II)</description>
+        <inputEntry id="InputEntry_6_1"><text>"MAVNaoRotaAltoRisco"</text></inputEntry>
+        <inputEntry id="InputEntry_6_2"><text>"Adequado"</text></inputEntry>
+        <inputEntry id="InputEntry_6_3"><text>"Classe I","Classe IIa"</text></inputEntry>
+        <inputEntry id="InputEntry_6_4"><text>"AngiografiaSuperseletiva"</text></inputEntry>
+        <inputEntry id="InputEntry_6_5"><text>true</text></inputEntry>
+        <inputEntry id="IE_30901112_AltoRisco_6"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_6_1"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_6_2"><text>"MAV baixo grau - tratamento curativo indicado"</text></outputEntry>
+        <outputEntry id="OutputEntry_6_3"><text>"AHA/ASA 2023 - Tratamento para MAV Spetzler-Martin I-II"</text></outputEntry>
+        <outputEntry id="OE_Rule_Aprovado_AltoRisco_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_Rule_Aprovado_AltoRisco_5"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Aprovado_Sintomatica">
+        <description>Aprovado: MAV sintomatica</description>
+        <inputEntry id="InputEntry_7_1"><text>"MAVSintomatica"</text></inputEntry>
+        <inputEntry id="InputEntry_7_2"><text>"Adequado"</text></inputEntry>
+        <inputEntry id="InputEntry_7_3"><text>"Classe I","Classe IIa"</text></inputEntry>
+        <inputEntry id="InputEntry_7_4"><text>"AngiografiaSuperseletiva"</text></inputEntry>
+        <inputEntry id="InputEntry_7_5"><text>true</text></inputEntry>
+        <inputEntry id="IE_30901112_Sintomatica_6"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_7_1"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_7_2"><text>"MAV sintomatica - tratamento para controle de sintomas"</text></outputEntry>
+        <outputEntry id="OutputEntry_7_3"><text>"AHA/ASA 2023 - Tratamento indicado para MAV sintomatica"</text></outputEntry>
+        <outputEntry id="OE_Rule_Aprovado_Sintomatica_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_Rule_Aprovado_Sintomatica_5"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Aprovado_ComAneurisma">
+        <description>Aprovado: MAV com aneurisma associado</description>
+        <inputEntry id="InputEntry_8_1"><text>"MAVComAneurisma"</text></inputEntry>
+        <inputEntry id="InputEntry_8_2"><text>"Adequado"</text></inputEntry>
+        <inputEntry id="InputEntry_8_3"><text>"Classe I"</text></inputEntry>
+        <inputEntry id="InputEntry_8_4"><text>"AngiografiaSuperseletiva"</text></inputEntry>
+        <inputEntry id="InputEntry_8_5"><text>true</text></inputEntry>
+        <inputEntry id="IE_30901112_ComAneurisma_6"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_8_1"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_8_2"><text>"MAV com aneurisma - tratamento do aneurisma indicado"</text></outputEntry>
+        <outputEntry id="OutputEntry_8_3"><text>"AHA/ASA 2023 - Aneurismas associados aumentam risco de ruptura"</text></outputEntry>
+        <outputEntry id="OE_Rule_Aprovado_ComAneurisma_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_Rule_Aprovado_ComAneurisma_5"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <!-- PENDENTES -->
+      <rule id="Rule_Pendente_SemAngiografiaCompleta">
+        <description>Pendente: Sem angiografia superseletiva</description>
+        <inputEntry id="InputEntry_9_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_9_2"><text>"Adequado"</text></inputEntry>
+        <inputEntry id="InputEntry_9_3"><text>"Classe I","Classe IIa"</text></inputEntry>
+        <inputEntry id="InputEntry_9_4"><text>"AngioTCRM","ApenasRM"</text></inputEntry>
+        <inputEntry id="InputEntry_9_5"><text>true</text></inputEntry>
+        <inputEntry id="IE_30901112_SemAngiografiaCompleta_6"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_9_1"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OutputEntry_9_2"><text>"Necessario angiografia digital superseletiva para planejamento"</text></outputEntry>
+        <outputEntry id="OutputEntry_9_3"><text>"AHA/ASA 2023 - Angiografia superseletiva obrigatoria para tratamento"</text></outputEntry>
+        <outputEntry id="OE_Rule_Pendente_SemAngiografiaCompleta_4"><text>"DOC"</text></outputEntry>
+        <outputEntry id="OE_Rule_Pendente_SemAngiografiaCompleta_5"><text>"SOLICITAR_INFO"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Pendente_DocIncompleta">
+        <description>Pendente: Documentacao incompleta</description>
+        <inputEntry id="InputEntry_10_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_10_2"><text>"Incompleto"</text></inputEntry>
+        <inputEntry id="InputEntry_10_3"><text>"Classe I","Classe IIa"</text></inputEntry>
+        <inputEntry id="InputEntry_10_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_10_5"><text>true</text></inputEntry>
+        <inputEntry id="IE_30901112_DocIncompleta_6"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_10_1"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OutputEntry_10_2"><text>"Documentar classificacao Spetzler-Martin e sintomas"</text></outputEntry>
+        <outputEntry id="OutputEntry_10_3"><text>"ANS RN 465/2021 - Documentacao adequada necessaria"</text></outputEntry>
+        <outputEntry id="OE_Rule_Pendente_DocIncompleta_4"><text>"DOC"</text></outputEntry>
+        <outputEntry id="OE_Rule_Pendente_DocIncompleta_5"><text>"SOLICITAR_INFO"</text></outputEntry>
+      </rule>
+
+      <!-- FALLBACK -->
+      <rule id="Rule_Fallback_30901112">
+        <description>Regra padrao - Analise adicional necessaria</description>
+        <inputEntry id="InputEntry_11_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_11_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_11_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_11_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_11_5"><text>-</text></inputEntry>
+        <inputEntry id="IE_30901112_Fallback_6"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_11_1"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OutputEntry_11_2"><text>"Caso requer avaliacao neurovascular multidisciplinar"</text></outputEntry>
+        <outputEntry id="OutputEntry_11_3"><text>"Avaliacao conforme AHA/ASA AVM Guidelines 2023"</text></outputEntry>
+        <outputEntry id="OE_Rule_Fallback_30901112_4"><text>"DOC"</text></outputEntry>
+        <outputEntry id="OE_Rule_Fallback_30901112_5"><text>"SOLICITAR_INFO"</text></outputEntry>
+      </rule>
+
+    </decisionTable>
+  </decision>
+</definitions>

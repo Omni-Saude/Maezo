@@ -1,0 +1,245 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/" xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/" xmlns:dc="http://www.omg.org/spec/DMN/20180521/DC/" xmlns:modeler="http://camunda.org/schema/modeler/1.0" id="Definitions_OVER002" name="DRD" namespace="http://camunda.org/schema/1.0/dmn" exporter="Camunda Modeler" exporterVersion="5.0.0" modeler:executionPlatform="Camunda Cloud" modeler:executionPlatformVersion="8.0.0">
+  <decision id="Decision_OVER002" name="OVER-002: Tempo de Internação Baseado em DRG">
+    <decisionTable id="DecisionTable_OVER002" hitPolicy="FIRST">
+      <input id="Input_drgEsperado" label="DRG Esperado">
+        <inputExpression id="InputExpression_drgEsperado" typeRef="string">
+          <text>drgEsperado</text>
+        </inputExpression>
+      </input>
+      <input id="Input_diasInternacao" label="Dias de Internação">
+        <inputExpression id="InputExpression_diasInternacao" typeRef="number">
+          <text>diasInternacao</text>
+        </inputExpression>
+      </input>
+      <input id="Input_complicacoesDocumentadas" label="Complicações Documentadas">
+        <inputExpression id="InputExpression_complicacoesDocumentadas" typeRef="boolean">
+          <text>complicacoesDocumentadas</text>
+        </inputExpression>
+      </input>
+      <input id="Input_criteriosAlta" label="Critérios de Alta Médica Atingidos">
+        <inputExpression id="InputExpression_criteriosAlta" typeRef="boolean">
+          <text>criteriosAlta</text>
+        </inputExpression>
+      </input>
+      <output id="Output_resultado" label="Resultado" name="resultado" typeRef="string">
+        <outputValues id="UnaryTests_resultado">
+          <text>"Aprovado","Reprovado","Pendente"</text>
+        </outputValues>
+      </output>
+      <output id="Output_observacao" label="Observação" name="observacao" typeRef="string" />
+      <output id="Output_fundamentacao" label="Fundamentação" name="fundamentacao" typeRef="string" />
+      <!-- Output 4: Alertas de Desperdicio -->
+      <output id="Output_alertasDesperdicio" label="Alertas de Desperdicio" name="alertasDesperdicio" typeRef="string">
+        <outputValues id="OutputValues_alertasDesperdicio">
+          <text>"NENHUM","DUP","FREQ","ESC","DOC","PROT","MULTI"</text>
+        </outputValues>
+      </output>
+
+      <!-- Output 5: Acao Recomendada -->
+      <output id="Output_acaoRecomendada" label="Acao Recomendada" name="acaoRecomendada" typeRef="string">
+        <outputValues id="OutputValues_acaoRecomendada">
+          <text>"APROVAR","NEGAR","SOLICITAR_INFO","AGUARDAR_PRAZO","SUGERIR_ALTERNATIVA"</text>
+        </outputValues>
+      </output>
+
+
+      <!-- REPROVADO: Excede 150% do DRG sem complicações -->
+      <rule id="DecisionRule_R001">
+        <inputEntry id="UnaryTests_R001_drg">
+          <text>"Parto Normal","Colecistectomia Laparoscópica","Apendicectomia"</text>
+        </inputEntry>
+        <inputEntry id="UnaryTests_R001_dias">
+          <text>&gt; 4</text>
+        </inputEntry>
+        <inputEntry id="UnaryTests_R001_complicacoes">
+          <text>false</text>
+        </inputEntry>
+        <inputEntry id="UnaryTests_R001_alta">
+          <text>true</text>
+        </inputEntry>
+        <outputEntry id="LiteralExpression_R001_resultado">
+          <text>"Reprovado"</text>
+        </outputEntry>
+        <outputEntry id="LiteralExpression_R001_observacao">
+          <text>"Tempo de internação excede 150% do DRG esperado (2-3 dias) sem complicações documentadas"</text>
+        </outputEntry>
+        <outputEntry id="LiteralExpression_R001_fundamentacao">
+          <text>"DRG brasileiro: Parto normal 2d, colecistectomia laparoscópica 2-3d, apendicectomia 2d. Critérios de alta atingidos"</text>
+        </outputEntry>
+        <outputEntry id="OE_DecisionRule_R001_4"><text>"PROT"</text></outputEntry>
+        <outputEntry id="OE_DecisionRule_R001_5"><text>"NEGAR"</text></outputEntry>
+      </rule>
+
+      <!-- REPROVADO: Excede 150% do DRG para cirurgia cardíaca -->
+      <rule id="DecisionRule_R002">
+        <inputEntry id="UnaryTests_R002_drg">
+          <text>"Revascularização Miocárdica","Troca Valvar"</text>
+        </inputEntry>
+        <inputEntry id="UnaryTests_R002_dias">
+          <text>&gt; 12</text>
+        </inputEntry>
+        <inputEntry id="UnaryTests_R002_complicacoes">
+          <text>false</text>
+        </inputEntry>
+        <inputEntry id="UnaryTests_R002_alta">
+          <text>true</text>
+        </inputEntry>
+        <outputEntry id="LiteralExpression_R002_resultado">
+          <text>"Reprovado"</text>
+        </outputEntry>
+        <outputEntry id="LiteralExpression_R002_observacao">
+          <text>"Tempo de internação excede 150% do DRG para cirurgia cardíaca (7-8 dias) sem complicações"</text>
+        </outputEntry>
+        <outputEntry id="LiteralExpression_R002_fundamentacao">
+          <text>"DRG SBC: Revascularização miocárdica 7-8 dias. Tempo adicional requer justificativa clínica (infecção, ICC, etc)"</text>
+        </outputEntry>
+        <outputEntry id="OE_DecisionRule_R002_4"><text>"PROT"</text></outputEntry>
+        <outputEntry id="OE_DecisionRule_R002_5"><text>"NEGAR"</text></outputEntry>
+      </rule>
+
+      <!-- REPROVADO: Excede 200% do DRG para cirurgia ortopédica -->
+      <rule id="DecisionRule_R003">
+        <inputEntry id="UnaryTests_R003_drg">
+          <text>"Artroplastia Quadril","Artroplastia Joelho","Artrodese Coluna"</text>
+        </inputEntry>
+        <inputEntry id="UnaryTests_R003_dias">
+          <text>&gt; 10</text>
+        </inputEntry>
+        <inputEntry id="UnaryTests_R003_complicacoes">
+          <text>false</text>
+        </inputEntry>
+        <inputEntry id="UnaryTests_R003_alta">
+          <text>true</text>
+        </inputEntry>
+        <outputEntry id="LiteralExpression_R003_resultado">
+          <text>"Reprovado"</text>
+        </outputEntry>
+        <outputEntry id="LiteralExpression_R003_observacao">
+          <text>"Tempo de internação excede 200% do DRG para cirurgia ortopédica de grande porte (4-5 dias)"</text>
+        </outputEntry>
+        <outputEntry id="LiteralExpression_R003_fundamentacao">
+          <text>"DRG SBOT: Artroplastias 4-5 dias. Fast-track protocols visam alta D3-D4. Excesso sem complicações não justificado"</text>
+        </outputEntry>
+        <outputEntry id="OE_DecisionRule_R003_4"><text>"PROT"</text></outputEntry>
+        <outputEntry id="OE_DecisionRule_R003_5"><text>"NEGAR"</text></outputEntry>
+      </rule>
+
+      <!-- APROVADO: Dentro do DRG esperado -->
+      <rule id="DecisionRule_R004">
+        <inputEntry id="UnaryTests_R004_drg">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="UnaryTests_R004_dias">
+          <text>&lt;= 7</text>
+        </inputEntry>
+        <inputEntry id="UnaryTests_R004_complicacoes">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="UnaryTests_R004_alta">
+          <text>false</text>
+        </inputEntry>
+        <outputEntry id="LiteralExpression_R004_resultado">
+          <text>"Aprovado"</text>
+        </outputEntry>
+        <outputEntry id="LiteralExpression_R004_observacao">
+          <text>"Tempo de internação dentro do esperado. Critérios de alta ainda não atingidos"</text>
+        </outputEntry>
+        <outputEntry id="LiteralExpression_R004_fundamentacao">
+          <text>"Tempo médio de internação apropriado para a maioria dos DRGs. Critérios clínicos de alta pendentes"</text>
+        </outputEntry>
+        <outputEntry id="OE_DecisionRule_R004_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_DecisionRule_R004_5"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <!-- APROVADO: Complicações justificam tempo adicional -->
+      <rule id="DecisionRule_R005">
+        <inputEntry id="UnaryTests_R005_drg">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="UnaryTests_R005_dias">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="UnaryTests_R005_complicacoes">
+          <text>true</text>
+        </inputEntry>
+        <inputEntry id="UnaryTests_R005_alta">
+          <text>false</text>
+        </inputEntry>
+        <outputEntry id="LiteralExpression_R005_resultado">
+          <text>"Aprovado"</text>
+        </outputEntry>
+        <outputEntry id="LiteralExpression_R005_observacao">
+          <text>"Complicações documentadas justificam tempo de internação adicional"</text>
+        </outputEntry>
+        <outputEntry id="LiteralExpression_R005_fundamentacao">
+          <text>"ANS Normativa 465/2021: Complicações médicas (infecção, sangramento, etc) justificam extensão do DRG"</text>
+        </outputEntry>
+        <outputEntry id="OE_DecisionRule_R005_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_DecisionRule_R005_5"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <!-- PENDENTE: Tempo excedido requer auditoria -->
+      <rule id="DecisionRule_R006">
+        <inputEntry id="UnaryTests_R006_drg">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="UnaryTests_R006_dias">
+          <text>&gt; 7</text>
+        </inputEntry>
+        <inputEntry id="UnaryTests_R006_complicacoes">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="UnaryTests_R006_alta">
+          <text>-</text>
+        </inputEntry>
+        <outputEntry id="LiteralExpression_R006_resultado">
+          <text>"Pendente"</text>
+        </outputEntry>
+        <outputEntry id="LiteralExpression_R006_observacao">
+          <text>"Tempo de internação prolongado. Necessária auditoria para avaliar justificativa clínica"</text>
+        </outputEntry>
+        <outputEntry id="LiteralExpression_R006_fundamentacao">
+          <text>"ANS: Internações >7 dias requerem revisão de prontuário e justificativa médica detalhada"</text>
+        </outputEntry>
+        <outputEntry id="OE_DecisionRule_R006_4"><text>"DOC"</text></outputEntry>
+        <outputEntry id="OE_DecisionRule_R006_5"><text>"SOLICITAR_INFO"</text></outputEntry>
+      </rule>
+
+      <!-- FALLBACK -->
+      <rule id="DecisionRule_Fallback">
+        <inputEntry id="UnaryTests_Fallback_drg">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="UnaryTests_Fallback_dias">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="UnaryTests_Fallback_complicacoes">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="UnaryTests_Fallback_alta">
+          <text>-</text>
+        </inputEntry>
+        <outputEntry id="LiteralExpression_Fallback_resultado">
+          <text>"Pendente"</text>
+        </outputEntry>
+        <outputEntry id="LiteralExpression_Fallback_observacao">
+          <text>"Análise manual necessária: DRG não mapeado ou dados insuficientes"</text>
+        </outputEntry>
+        <outputEntry id="LiteralExpression_Fallback_fundamentacao">
+          <text>"Avaliação por auditor médico requerida"</text>
+        </outputEntry>
+        <outputEntry id="OE_DecisionRule_Fallback_4"><text>"DOC"</text></outputEntry>
+        <outputEntry id="OE_DecisionRule_Fallback_5"><text>"SOLICITAR_INFO"</text></outputEntry>
+      </rule>
+    </decisionTable>
+  </decision>
+
+  <dmndi:DMNDI>
+    <dmndi:DMNDiagram>
+      <dmndi:DMNShape dmnElementRef="Decision_OVER002">
+        <dc:Bounds height="80" width="180" x="160" y="100" />
+      </dmndi:DMNShape>
+    </dmndi:DMNDiagram>
+  </dmndi:DMNDI>
+</definitions>

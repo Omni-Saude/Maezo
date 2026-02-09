@@ -1,0 +1,272 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             xmlns:camunda="http://camunda.org/schema/1.0/dmn"
+             id="Definitions_BAR004"
+             name="Revisao Sleeve para Bypass Gastrico"
+             namespace="http://camunda.org/schema/1.0/dmn">
+
+  <!--
+    ===============================================================================
+    TUSS: BAR-004
+    Procedimento: Revisao de Gastrectomia Vertical (Sleeve) para Bypass Gastrico
+    Especialidade: Cirurgia Bariatrica
+    Versao: 3.0.0-TIER1
+    Data: 2026-02-07
+    ===============================================================================
+
+    INDICACOES CLINICAS (SBCBM 2022, IFSO 2023):
+    - Reganho de peso significativo (>15% do peso minimo pos-operatorio)
+    - Refluxo gastroesofagico grave refratario (Los Angeles C/D)
+    - Estenose do sleeve com dilatacao insuficiente
+    - Diabetes tipo 2 descompensado apos perda inicial
+    - Falha metabolica documentada apos 2 anos
+
+    CONTRAINDICACOES:
+    - Menos de 18 meses da cirurgia primaria (exceto complicacoes)
+    - Transtorno alimentar ativo nao tratado
+    - Uso de substancias ativas
+    - ASA >= IV sem otimizacao clinica
+    - Ausencia de acompanhamento multidisciplinar previo
+
+    REFERENCIAS TECNICAS:
+    - SBCBM Consenso Brasileiro de Cirurgia Bariatrica 2022
+    - CFM Resolucao 2.131/2015
+    - IFSO Guidelines for Revision Surgery 2023
+    - ASMBS Revision Bariatric Surgery Statement 2022
+
+    ===============================================================================
+  -->
+
+  <decision id="Decision_BAR004" name="Regra Clinica - Revisao Sleeve para Bypass">
+    <decisionTable id="DecisionTable_BAR004" hitPolicy="FIRST">
+
+      <!-- ========== INPUTS (5) ========== -->
+
+      <input id="Input_indicacaoRevisao" label="Indicacao para Revisao" camunda:inputVariable="indicacaoRevisao">
+        <inputExpression id="InputExpression_indicacaoRevisao" typeRef="string">
+          <text>indicacaoRevisao</text>
+        </inputExpression>
+        <inputValues id="InputValues_indicacaoRevisao">
+          <text>"ReganhoPeso","RefluxoGrave","EstenoseSleeve","DiabetesDescompensado","FalhaMetabolica","OutraIndicacao"</text>
+        </inputValues>
+      </input>
+
+      <input id="Input_tempoPosCirurgiaPrimaria" label="Tempo Pos-Cirurgia Primaria (meses)" camunda:inputVariable="tempoPosCirurgiaPrimaria">
+        <inputExpression id="InputExpression_tempoPosCirurgiaPrimaria" typeRef="number">
+          <text>tempoPosCirurgiaPrimaria</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_acompanhamentoMultidisciplinar" label="Acompanhamento Multidisciplinar" camunda:inputVariable="acompanhamentoMultidisciplinar">
+        <inputExpression id="InputExpression_acompanhamentoMultidisciplinar" typeRef="string">
+          <text>acompanhamentoMultidisciplinar</text>
+        </inputExpression>
+        <inputValues id="InputValues_acompanhamentoMultidisciplinar">
+          <text>"Completo","Parcial","Ausente"</text>
+        </inputValues>
+      </input>
+
+      <input id="Input_classificacaoASA" label="Classificacao ASA" camunda:inputVariable="classificacaoASA">
+        <inputExpression id="InputExpression_classificacaoASA" typeRef="string">
+          <text>classificacaoASA</text>
+        </inputExpression>
+        <inputValues id="InputValues_classificacaoASA">
+          <text>"ASA I","ASA II","ASA III","ASA IV","ASA V"</text>
+        </inputValues>
+      </input>
+
+      <input id="Input_transtornoAlimentarAtivo" label="Transtorno Alimentar Ativo" camunda:inputVariable="transtornoAlimentarAtivo">
+        <inputExpression id="InputExpression_transtornoAlimentarAtivo" typeRef="boolean">
+          <text>transtornoAlimentarAtivo</text>
+        </inputExpression>
+      </input>
+
+      <!-- ========== OUTPUTS (3 - Padrao TIER-1) ========== -->
+
+      <output id="Output_resultado" label="Resultado" name="resultado" typeRef="string">
+        <outputValues id="OutputValues_resultado">
+          <text>"Aprovado","Reprovado","Pendente"</text>
+        </outputValues>
+      </output>
+
+      <output id="Output_observacao" label="Observacao Clinica" name="observacao" typeRef="string" />
+
+      <output id="Output_fundamentacao" label="Fundamentacao Tecnica" name="fundamentacao" typeRef="string" />
+
+      <!-- Output 4: Alertas Desperdicio -->
+      <output id="Output_alertasDesperdicio" label="Alertas de Desperdicio" name="alertasDesperdicio" typeRef="string">
+        <outputValues id="OutputValues_alertasDesperdicio">
+          <text>"NENHUM","DUP","FREQ","ESC","DOC","PROT","MULTI"</text>
+        </outputValues>
+      </output>
+
+      <!-- Output 5: Acao Recomendada -->
+      <output id="Output_acaoRecomendada" label="Acao Recomendada" name="acaoRecomendada" typeRef="string">
+        <outputValues id="OutputValues_acaoRecomendada">
+          <text>"APROVAR","NEGAR","SOLICITAR_INFO","AGUARDAR_PRAZO","SUGERIR_ALTERNATIVA"</text>
+        </outputValues>
+      </output>
+
+      <!-- ========== RULES ========== -->
+
+      <!-- CONTRAINDICACOES -->
+      <rule id="Rule_Contraind_TranstornoAlimentar">
+        <description>Contraindicacao: Transtorno alimentar ativo nao tratado</description>
+        <inputEntry id="InputEntry_TA_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_TA_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_TA_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_TA_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_TA_5"><text>true</text></inputEntry>
+        <outputEntry id="OutputEntry_TA_resultado"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_TA_observacao"><text>"Transtorno alimentar ativo e contraindicacao absoluta para revisao bariatrica"</text></outputEntry>
+        <outputEntry id="OutputEntry_TA_fundamentacao"><text>"SBCBM 2022, IFSO 2023 - Transtornos alimentares devem ser tratados antes de procedimentos revisionais"</text></outputEntry>
+      <outputEntry id="OE_Contraind_TranstornoAlimentar_4"><text>"PROT"</text></outputEntry>
+        <outputEntry id="OE_Contraind_TranstornoAlimentar_5"><text>"NEGAR"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Contraind_ASAAlto">
+        <description>Contraindicacao: Risco cirurgico muito elevado (ASA IV/V)</description>
+        <inputEntry id="InputEntry_ASA_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_ASA_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_ASA_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_ASA_4"><text>"ASA IV","ASA V"</text></inputEntry>
+        <inputEntry id="InputEntry_ASA_5"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_ASA_resultado"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_ASA_observacao"><text>"Risco cirurgico ASA IV/V requer otimizacao clinica antes do procedimento"</text></outputEntry>
+        <outputEntry id="OutputEntry_ASA_fundamentacao"><text>"SBCBM 2022 - Pacientes ASA IV/V devem ter comorbidades otimizadas antes de cirurgia revisional eletiva"</text></outputEntry>
+      <outputEntry id="OE_Contraind_ASAAlto_4"><text>"PROT"</text></outputEntry>
+        <outputEntry id="OE_Contraind_ASAAlto_5"><text>"NEGAR"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Contraind_TempoInsuficiente">
+        <description>Contraindicacao: Tempo insuficiente desde cirurgia primaria</description>
+        <inputEntry id="InputEntry_TI_1"><text>not("RefluxoGrave","EstenoseSleeve")</text></inputEntry>
+        <inputEntry id="InputEntry_TI_2"><text>&lt; 18</text></inputEntry>
+        <inputEntry id="InputEntry_TI_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_TI_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_TI_5"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_TI_resultado"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_TI_observacao"><text>"Minimo de 18 meses necessario para revisao por reganho de peso ou falha metabolica"</text></outputEntry>
+        <outputEntry id="OutputEntry_TI_fundamentacao"><text>"SBCBM 2022, IFSO 2023 - Periodo minimo de 18 meses para avaliar resposta ao sleeve, exceto complicacoes"</text></outputEntry>
+      <outputEntry id="OE_Contraind_TempoInsuficiente_4"><text>"PROT"</text></outputEntry>
+        <outputEntry id="OE_Contraind_TempoInsuficiente_5"><text>"NEGAR"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Contraind_SemAcompanhamento">
+        <description>Contraindicacao: Ausencia de acompanhamento multidisciplinar</description>
+        <inputEntry id="InputEntry_SA_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_SA_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_SA_3"><text>"Ausente"</text></inputEntry>
+        <inputEntry id="InputEntry_SA_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_SA_5"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_SA_resultado"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_SA_observacao"><text>"Acompanhamento multidisciplinar e obrigatorio para cirurgia revisional"</text></outputEntry>
+        <outputEntry id="OutputEntry_SA_fundamentacao"><text>"CFM 2.131/2015, SBCBM 2022 - Equipe multidisciplinar obrigatoria incluindo nutricao, psicologia e endocrinologia"</text></outputEntry>
+      <outputEntry id="OE_Contraind_SemAcompanhamento_4"><text>"PROT"</text></outputEntry>
+        <outputEntry id="OE_Contraind_SemAcompanhamento_5"><text>"NEGAR"</text></outputEntry>
+      </rule>
+
+      <!-- APROVACOES -->
+      <rule id="Rule_Aprovado_RefluxoGrave">
+        <description>Aprovado: Refluxo gastroesofagico grave refratario</description>
+        <inputEntry id="InputEntry_RG_1"><text>"RefluxoGrave"</text></inputEntry>
+        <inputEntry id="InputEntry_RG_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_RG_3"><text>"Completo","Parcial"</text></inputEntry>
+        <inputEntry id="InputEntry_RG_4"><text>"ASA I","ASA II","ASA III"</text></inputEntry>
+        <inputEntry id="InputEntry_RG_5"><text>false</text></inputEntry>
+        <outputEntry id="OutputEntry_RG_resultado"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_RG_observacao"><text>"Refluxo Los Angeles C/D refratario ao tratamento clinico - indicacao de conversao para bypass"</text></outputEntry>
+        <outputEntry id="OutputEntry_RG_fundamentacao"><text>"SBCBM 2022, IFSO 2023 - DRGE grave pos-sleeve e indicacao estabelecida para conversao a bypass"</text></outputEntry>
+      <outputEntry id="OE_Aprovado_RefluxoGrave_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_Aprovado_RefluxoGrave_5"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Aprovado_EstenoseSleeve">
+        <description>Aprovado: Estenose do sleeve refrataria</description>
+        <inputEntry id="InputEntry_ES_1"><text>"EstenoseSleeve"</text></inputEntry>
+        <inputEntry id="InputEntry_ES_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_ES_3"><text>"Completo","Parcial"</text></inputEntry>
+        <inputEntry id="InputEntry_ES_4"><text>"ASA I","ASA II","ASA III"</text></inputEntry>
+        <inputEntry id="InputEntry_ES_5"><text>false</text></inputEntry>
+        <outputEntry id="OutputEntry_ES_resultado"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_ES_observacao"><text>"Estenose de sleeve refrataria a dilatacao endoscopica - indicacao de revisao cirurgica"</text></outputEntry>
+        <outputEntry id="OutputEntry_ES_fundamentacao"><text>"SBCBM 2022 - Estenose persistente apos tentativas de dilatacao endoscopica indica revisao"</text></outputEntry>
+      <outputEntry id="OE_Aprovado_EstenoseSleeve_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_Aprovado_EstenoseSleeve_5"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Aprovado_ReganhoPeso">
+        <description>Aprovado: Reganho de peso significativo apos periodo adequado</description>
+        <inputEntry id="InputEntry_RP_1"><text>"ReganhoPeso"</text></inputEntry>
+        <inputEntry id="InputEntry_RP_2"><text>&gt;= 24</text></inputEntry>
+        <inputEntry id="InputEntry_RP_3"><text>"Completo"</text></inputEntry>
+        <inputEntry id="InputEntry_RP_4"><text>"ASA I","ASA II","ASA III"</text></inputEntry>
+        <inputEntry id="InputEntry_RP_5"><text>false</text></inputEntry>
+        <outputEntry id="OutputEntry_RP_resultado"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_RP_observacao"><text>"Reganho &gt;15% do peso minimo pos-op com acompanhamento completo - indicacao de revisao"</text></outputEntry>
+        <outputEntry id="OutputEntry_RP_fundamentacao"><text>"SBCBM 2022, ASMBS 2022 - Reganho significativo apos 24 meses com falha do tratamento conservador"</text></outputEntry>
+      <outputEntry id="OE_Aprovado_ReganhoPeso_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_Aprovado_ReganhoPeso_5"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Aprovado_DiabetesDescompensado">
+        <description>Aprovado: Diabetes tipo 2 descompensado apos perda inicial</description>
+        <inputEntry id="InputEntry_DD_1"><text>"DiabetesDescompensado"</text></inputEntry>
+        <inputEntry id="InputEntry_DD_2"><text>&gt;= 24</text></inputEntry>
+        <inputEntry id="InputEntry_DD_3"><text>"Completo"</text></inputEntry>
+        <inputEntry id="InputEntry_DD_4"><text>"ASA I","ASA II","ASA III"</text></inputEntry>
+        <inputEntry id="InputEntry_DD_5"><text>false</text></inputEntry>
+        <outputEntry id="OutputEntry_DD_resultado"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_DD_observacao"><text>"Diabetes recidivado/descompensado apos remissao inicial - bypass oferece melhor controle metabolico"</text></outputEntry>
+        <outputEntry id="OutputEntry_DD_fundamentacao"><text>"SBCBM 2022, IFSO 2023 - Bypass superior ao sleeve para controle de DM2 em casos de falha metabolica"</text></outputEntry>
+      <outputEntry id="OE_Aprovado_DiabetesDescompensado_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_Aprovado_DiabetesDescompensado_5"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Aprovado_FalhaMetabolica">
+        <description>Aprovado: Falha metabolica documentada</description>
+        <inputEntry id="InputEntry_FM_1"><text>"FalhaMetabolica"</text></inputEntry>
+        <inputEntry id="InputEntry_FM_2"><text>&gt;= 24</text></inputEntry>
+        <inputEntry id="InputEntry_FM_3"><text>"Completo"</text></inputEntry>
+        <inputEntry id="InputEntry_FM_4"><text>"ASA I","ASA II","ASA III"</text></inputEntry>
+        <inputEntry id="InputEntry_FM_5"><text>false</text></inputEntry>
+        <outputEntry id="OutputEntry_FM_resultado"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_FM_observacao"><text>"Falha metabolica documentada apos 2 anos - conversao para procedimento de maior efeito metabolico"</text></outputEntry>
+        <outputEntry id="OutputEntry_FM_fundamentacao"><text>"SBCBM 2022, IFSO 2023 - Cirurgia metabolica revisional indicada para falha de controle de comorbidades"</text></outputEntry>
+      <outputEntry id="OE_Aprovado_FalhaMetabolica_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_Aprovado_FalhaMetabolica_5"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <!-- PENDENTE -->
+      <rule id="Rule_Pendente_AcompanhamentoParcial">
+        <description>Pendente: Acompanhamento multidisciplinar parcial</description>
+        <inputEntry id="InputEntry_AP_1"><text>"ReganhoPeso","DiabetesDescompensado","FalhaMetabolica"</text></inputEntry>
+        <inputEntry id="InputEntry_AP_2"><text>&gt;= 18</text></inputEntry>
+        <inputEntry id="InputEntry_AP_3"><text>"Parcial"</text></inputEntry>
+        <inputEntry id="InputEntry_AP_4"><text>"ASA I","ASA II","ASA III"</text></inputEntry>
+        <inputEntry id="InputEntry_AP_5"><text>false</text></inputEntry>
+        <outputEntry id="OutputEntry_AP_resultado"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OutputEntry_AP_observacao"><text>"Completar acompanhamento multidisciplinar antes da autorizacao"</text></outputEntry>
+        <outputEntry id="OutputEntry_AP_fundamentacao"><text>"CFM 2.131/2015 - Documentacao completa da equipe multidisciplinar necessaria"</text></outputEntry>
+      <outputEntry id="OE_Pendente_AcompanhamentoParcial_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_Pendente_AcompanhamentoParcial_5"><text>"SOLICITAR_INFO"</text></outputEntry>
+      </rule>
+
+      <!-- FALLBACK RULE -->
+      <rule id="Rule_Fallback_BAR004">
+        <description>Regra padrao - Analise adicional necessaria</description>
+        <inputEntry id="InputEntry_Fallback_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Fallback_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Fallback_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Fallback_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Fallback_5"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_Fallback_resultado"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OutputEntry_Fallback_observacao"><text>"Caso requer analise clinica adicional pela equipe de auditoria bariatrica"</text></outputEntry>
+        <outputEntry id="OutputEntry_Fallback_fundamentacao"><text>"Avaliacao individualizada conforme SBCBM 2022 e CFM 2.131/2015"</text></outputEntry>
+      <outputEntry id="OE_Fallback_BAR004_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_Fallback_BAR004_5"><text>"SOLICITAR_INFO"</text></outputEntry>
+      </rule>
+
+    </decisionTable>
+  </decision>
+</definitions>

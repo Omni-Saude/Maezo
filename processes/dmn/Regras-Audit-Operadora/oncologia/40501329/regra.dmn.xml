@@ -1,0 +1,282 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  ONQ-DRUG-004: Pembrolizumab Duration Limit
+  TUSS: 40501329
+  Versao: 3.1.0-LEAN-TIER2 (2026-02-08)
+  Especialidade: Oncologia
+
+  ============================================================================
+  INDICACOES CLINICAS:
+  ============================================================================
+  - Duracao maxima padrao: 24 meses (35 ciclos) per KEYNOTE trials
+  - Melanoma: Pode considerar extensao alem de 24 meses se respondendo
+  - Retratamento: Permitido se recidiva apos parada por resposta
+
+  ============================================================================
+  REFERENCIAS NORMATIVAS:
+  ============================================================================
+  - KEYNOTE-001, KEYNOTE-006 (melanoma)
+  - KEYNOTE-010, KEYNOTE-024 (NSCLC)
+  - NCCN Immunotherapy Duration Guidelines
+-->
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/" xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/" xmlns:dc="http://www.omg.org/spec/DMN/20180521/DC/" xmlns:modeler="http://camunda.org/schema/modeler/1.0" id="Definitions_ONQ_DRUG_004" name="DRD" namespace="http://camunda.org/schema/1.0/dmn" exporter="Camunda Modeler" exporterVersion="5.14.0" modeler:executionPlatform="Camunda Cloud" modeler:executionPlatformVersion="8.2.0">
+  <decision id="Decision_ONQ_DRUG_004" name="ONQ-DRUG-004: Pembrolizumab Duration Limit [LEAN TIER-2]">
+    <decisionTable id="DecisionTable_ONQ_DRUG_004" hitPolicy="FIRST">
+      <input id="Input_indication" label="Indication">
+        <inputExpression id="InputExpression_indication" typeRef="string">
+          <text>indication</text>
+        </inputExpression>
+      </input>
+      <input id="Input_months_on_therapy" label="Months on Pembrolizumab">
+        <inputExpression id="InputExpression_months_on_therapy" typeRef="number">
+          <text>monthsOnTherapy</text>
+        </inputExpression>
+      </input>
+      <input id="Input_response" label="Current Response">
+        <inputExpression id="InputExpression_response" typeRef="string">
+          <text>currentResponse</text>
+        </inputExpression>
+      </input>
+      <input id="Input_iraes" label="Immune-Related AEs Grade">
+        <inputExpression id="InputExpression_iraes" typeRef="number">
+          <text>iraeGrade</text>
+        </inputExpression>
+      </input>
+      <!-- Input: Dias desde ultimo procedimento (DUP detection) -->
+      <input id="Input_ultimoProcedimentoDias" label="Dias Desde Ultimo Procedimento">
+        <inputExpression id="InputExpression_ultimoProcedimentoDias" typeRef="number">
+          <text>ultimoProcedimentoDias</text>
+        </inputExpression>
+      </input>
+
+      <output id="Output_resultado" label="Resultado" name="resultado" typeRef="string">
+        <outputValues id="UnaryTests_resultado">
+          <text>"Aprovado","Reprovado","Pendente"</text>
+        </outputValues>
+      </output>
+      <output id="Output_observacao" label="Observacao" name="observacao" typeRef="string" />
+      <output id="Output_fundamentacao" label="Fundamentacao" name="fundamentacao" typeRef="string" />
+      <!-- Output 4: Alertas de Desperdicio - Anti-Waste Intelligence -->
+      <output id="Output_alertasDesperdicio" label="Alertas de Desperdicio" name="alertasDesperdicio" typeRef="string">
+        <outputValues id="OutputValues_alertasDesperdicio">
+          <text>"NENHUM","DUP","FREQ","ESC","DOC","PROT","MULTI"</text>
+        </outputValues>
+      </output>
+      <!-- Output 5: Acao Recomendada -->
+      <output id="Output_acaoRecomendada" label="Acao Recomendada" name="acaoRecomendada" typeRef="string">
+        <outputValues id="OutputValues_acaoRecomendada">
+          <text>"APROVAR","NEGAR","SOLICITAR_INFO","AGUARDAR_PRAZO","SUGERIR_ALTERNATIVA"</text>
+        </outputValues>
+      </output>
+      <rule id="DecisionRule_reject_irae">
+        <description>Reject if significant irAE</description>
+        <inputEntry id="InputEntry_indication_irae">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_months_on_therapy_irae">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_response_irae">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_iraes_irae">
+          <text>[3..4]</text>
+        </inputEntry>
+        <inputEntry id="IE_DecisionRule_reject_irae_ultimo"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_resultado_irae">
+          <text>"Reprovado"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_observacao_irae">
+          <text>"irAE grau 3-4: suspender pembrolizumabe. Corticoterapia e manejo do evento"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_fundamentacao_irae">
+          <text>"irAE G3-4 requer suspensao permanente na maioria dos casos; G2 pode retomar apos resolucao"</text>
+        </outputEntry>
+        <outputEntry id="OE_DecisionRule_reject_irae_alertasDesperdicio">
+          <text>"PROT"</text>
+        </outputEntry>
+        <outputEntry id="OE_DecisionRule_reject_irae_acaoRecomendada">
+          <text>"NEGAR"</text>
+        </outputEntry>
+      </rule>
+      <rule id="DecisionRule_reject_pd">
+        <description>Reject if progressive disease</description>
+        <inputEntry id="InputEntry_indication_pd">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_months_on_therapy_pd">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_response_pd">
+          <text>"PD"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_iraes_pd">
+          <text>[0..2]</text>
+        </inputEntry>
+        <inputEntry id="IE_DecisionRule_reject_pd_ultimo"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_resultado_pd">
+          <text>"Reprovado"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_observacao_pd">
+          <text>"Progressao confirmada: descontinuar pembrolizumabe. Avaliar pseudoprogressao se clinica divergente"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_fundamentacao_pd">
+          <text>"PD confirmada por iRECIST: trocar linha ou combinar; pseudoprogressao rara (&lt;5%)"</text>
+        </outputEntry>
+        <outputEntry id="OE_DecisionRule_reject_pd_alertasDesperdicio">
+          <text>"PROT"</text>
+        </outputEntry>
+        <outputEntry id="OE_DecisionRule_reject_pd_acaoRecomendada">
+          <text>"NEGAR"</text>
+        </outputEntry>
+      </rule>
+      <rule id="DecisionRule_approve_within_24">
+        <description>Approve within 24 months with response</description>
+        <inputEntry id="InputEntry_indication_24">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_months_on_therapy_24">
+          <text>&lt;= 24</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_response_24">
+          <text>"CR","PR","SD"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_iraes_24">
+          <text>[0..2]</text>
+        </inputEntry>
+        <inputEntry id="IE_DecisionRule_approve_within_24_ultimo"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_resultado_24">
+          <text>"Aprovado"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_observacao_24">
+          <text>"Pembrolizumabe aprovado: dentro do limite de 24 meses, resposta mantida"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_fundamentacao_24">
+          <text>"KEYNOTE trials: duracao padrao 24 meses (35 ciclos) se tolerando e respondendo"</text>
+        </outputEntry>
+        <outputEntry id="OE_DecisionRule_approve_within_24_alertasDesperdicio">
+          <text>"NENHUM"</text>
+        </outputEntry>
+        <outputEntry id="OE_DecisionRule_approve_within_24_acaoRecomendada">
+          <text>"APROVAR"</text>
+        </outputEntry>
+      </rule>
+      <rule id="DecisionRule_pending_melanoma_beyond">
+        <description>Pending for melanoma beyond 24 months</description>
+        <inputEntry id="InputEntry_indication_mel">
+          <text>"melanoma"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_months_on_therapy_mel">
+          <text>&gt; 24</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_response_mel">
+          <text>"CR","PR"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_iraes_mel">
+          <text>[0..2]</text>
+        </inputEntry>
+        <inputEntry id="IE_DecisionRule_pending_melanoma_beyond_ultimo"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_resultado_mel">
+          <text>"Pendente"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_observacao_mel">
+          <text>"Melanoma alem de 24 meses: avaliacao individualizada. Considerar suspensao com vigilancia"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_fundamentacao_mel">
+          <text>"KEYNOTE-006 extension: 78% sem progressao apos parar em 2 anos; retratamento eficaz se recidiva"</text>
+        </outputEntry>
+        <outputEntry id="OE_DecisionRule_pending_melanoma_beyond_alertasDesperdicio">
+          <text>"NENHUM"</text>
+        </outputEntry>
+        <outputEntry id="OE_DecisionRule_pending_melanoma_beyond_acaoRecomendada">
+          <text>"SOLICITAR_INFO"</text>
+        </outputEntry>
+      </rule>
+      <rule id="DecisionRule_reject_other_beyond">
+        <description>Reject other indications beyond 24 months</description>
+        <inputEntry id="InputEntry_indication_other">
+          <text>not("melanoma")</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_months_on_therapy_other">
+          <text>&gt; 24</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_response_other">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_iraes_other">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="IE_DecisionRule_reject_other_beyond_ultimo"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_resultado_other">
+          <text>"Reprovado"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_observacao_other">
+          <text>"Pembrolizumabe: limite de 24 meses atingido para indicacao nao-melanoma"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_fundamentacao_other">
+          <text>"KEYNOTE-010/024: sem dados de extensao alem de 2 anos; plateau de beneficio"</text>
+        </outputEntry>
+        <outputEntry id="OE_DecisionRule_reject_other_beyond_alertasDesperdicio">
+          <text>"FREQ"</text>
+        </outputEntry>
+        <outputEntry id="OE_DecisionRule_reject_other_beyond_acaoRecomendada">
+          <text>"NEGAR"</text>
+        </outputEntry>
+      </rule>
+
+      <!-- WASTE DETECTION: DUP -->
+      <rule id="Rule_40501329_DUP">
+        <description>DUP - Pembrolizumab dose repetida em menos de 14 dias</description>
+        <inputEntry id="IE_DUP_40501329_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_DUP_40501329_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_DUP_40501329_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_DUP_40501329_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_DUP_40501329_ultimo"><text>&lt; 14</text></inputEntry>
+        <outputEntry id="OE_DUP_40501329_resultado"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OE_DUP_40501329_observacao"><text>"Pembrolizumab dose repetida em menos de 14 dias"</text></outputEntry>
+        <outputEntry id="OE_DUP_40501329_fundamentacao"><text>"Bula pembrolizumab: 200mg a cada 21 dias ou 400mg a cada 42 dias"</text></outputEntry>
+        <outputEntry id="OE_DUP_40501329_alertasDesperdicio"><text>"DUP"</text></outputEntry>
+        <outputEntry id="OE_DUP_40501329_acaoRecomendada"><text>"AGUARDAR_PRAZO"</text></outputEntry>
+      </rule>
+
+      <rule id="DecisionRule_fallback">
+        <description>Fallback rule</description>
+        <inputEntry id="InputEntry_indication_fallback">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_months_on_therapy_fallback">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_response_fallback">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_iraes_fallback">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="IE_DecisionRule_fallback_ultimo"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_resultado_fallback">
+          <text>"Pendente"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_observacao_fallback">
+          <text>"Dados insuficientes para avaliacao de duracao de pembrolizumabe"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_fundamentacao_fallback">
+          <text>"Necessario: indicacao, duracao atual, resposta, grau irAE"</text>
+        </outputEntry>
+        <outputEntry id="OE_DecisionRule_fallback_alertasDesperdicio">
+          <text>"NENHUM"</text>
+        </outputEntry>
+        <outputEntry id="OE_DecisionRule_fallback_acaoRecomendada">
+          <text>"SOLICITAR_INFO"</text>
+        </outputEntry>
+      </rule>
+    </decisionTable>
+  </decision>
+  <dmndi:DMNDI>
+    <dmndi:DMNDiagram>
+      <dmndi:DMNShape dmnElementRef="Decision_ONQ_DRUG_004">
+        <dc:Bounds height="80" width="180" x="160" y="100" />
+      </dmndi:DMNShape>
+    </dmndi:DMNDiagram>
+  </dmndi:DMNDI>
+</definitions>

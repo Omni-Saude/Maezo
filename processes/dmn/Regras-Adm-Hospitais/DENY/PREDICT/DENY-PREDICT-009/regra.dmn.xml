@@ -1,0 +1,142 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  ============================================================================
+  DENY-PREDICT-009 - Predicao Glosa por Tipo Procedimento
+  ============================================================================
+  Versao: 1.0.0 (2026-02-08)
+  Categoria: DENY-PREDICT
+  Perspectiva: HOSPITAL (Faturamento/Auditoria Administrativa)
+
+  ============================================================================
+  INDICACOES (Quando PROSSEGUIR):
+  ============================================================================
+  - Taxa de glosa historica do procedimento &lt; 10%
+  - Procedimento com baixa complexidade e documentacao simples
+
+  ============================================================================
+  CONTRAINDICACOES (Quando BLOQUEAR):
+  ============================================================================
+  - Taxa de glosa historica do procedimento &gt;= 40%
+  - Procedimentos de alto custo com historico de contestacao
+
+  ============================================================================
+  REFERENCIAS NORMATIVAS:
+  ============================================================================
+  - RN ANS 465/2021 - Diretrizes auditoria
+  - TISS 4.01.00 - Terminologia padrao
+  ============================================================================
+-->
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/"
+             xmlns:dc="http://www.omg.org/spec/DMN/20180521/DC/"
+             id="Definitions_DENY_PREDICT_009"
+             name="Predicao Glosa por Tipo Procedimento"
+             targetNamespace="http://camunda.org/schema/1.0/dmn">
+
+  <decision id="Decision_DENY_PREDICT_009" name="Predicao Glosa por Tipo Procedimento">
+    <decisionTable id="DecisionTable_DENY_PREDICT_009" hitPolicy="FIRST">
+
+      <!-- ========== INPUTS ========== -->
+      <input id="Input_1" label="Taxa Glosa Procedimento (%)">
+        <inputExpression id="InputExpression_1" typeRef="number">
+          <text>taxaGlosaProcedimento</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_2" label="Codigo TUSS Procedimento">
+        <inputExpression id="InputExpression_2" typeRef="string">
+          <text>codigoTUSS</text>
+        </inputExpression>
+      </input>
+
+      <!-- ========== OUTPUTS (5 STANDARD) ========== -->
+      <output id="Output_1" label="Resultado" name="resultado" typeRef="string">
+        <outputValues><text>"Prosseguir", "Bloquear", "Alertar", "Revisar"</text></outputValues>
+      </output>
+
+      <output id="Output_2" label="Observacao" name="observacao" typeRef="string"/>
+
+      <output id="Output_3" label="Acao Recomendada" name="acaoRecomendada" typeRef="string"/>
+
+      <output id="Output_4" label="Alertas Conformidade" name="alertasConformidade" typeRef="string">
+        <outputValues><text>"NENHUM", "DUP", "FREQ", "PRAZO", "DOC", "VALOR", "CRED", "CONTRATO"</text></outputValues>
+      </output>
+
+      <output id="Output_5" label="Risco Denial" name="riscoDenial" typeRef="string">
+        <outputValues><text>"BAIXO", "MEDIO", "ALTO", "CRITICO"</text></outputValues>
+      </output>
+
+      <!-- ========== RULES ========== -->
+
+      <!-- REGRA B1: Bloqueio - Taxa glosa procedimento &gt;= 40% -->
+      <rule id="Rule_Bloqueio_1">
+        <description>Procedimento com taxa de glosa &gt;= 40% - risco critico</description>
+        <inputEntry id="InputEntry_B1_1"><text>&gt;= 40</text></inputEntry>
+        <inputEntry id="InputEntry_B1_2"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_B1_1"><text>"Bloquear"</text></outputEntry>
+        <outputEntry id="OutputEntry_B1_2"><text>"RISCO CRITICO: Procedimento possui taxa historica de glosa &gt;= 40%. Revisar exaustivamente documentacao, justificativa clinica e autorizacao previa."</text></outputEntry>
+        <outputEntry id="OutputEntry_B1_3"><text>"Acionar auditoria medica para validacao de indicacao clinica. Verificar se ha autorizacao previa. Anexar todos laudos complementares. Considerar parecer tecnico."</text></outputEntry>
+        <outputEntry id="OutputEntry_B1_4"><text>"DOC"</text></outputEntry>
+        <outputEntry id="OutputEntry_B1_5"><text>"CRITICO"</text></outputEntry>
+      </rule>
+
+      <!-- REGRA A1: Alerta - Taxa glosa procedimento entre 20% e 40% -->
+      <rule id="Rule_Alerta_1">
+        <description>Procedimento com taxa de glosa entre 20% e 40% - risco alto</description>
+        <inputEntry id="InputEntry_A1_1"><text>[20..40)</text></inputEntry>
+        <inputEntry id="InputEntry_A1_2"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_A1_1"><text>"Alertar"</text></outputEntry>
+        <outputEntry id="OutputEntry_A1_2"><text>"RISCO ALTO: Procedimento possui taxa historica de glosa entre 20-40%. Verificar conformidade rigorosa com normativas ANS e documentacao complementar."</text></outputEntry>
+        <outputEntry id="OutputEntry_A1_3"><text>"Revisar checklist especifico do procedimento. Verificar todos laudos obrigatorios. Auditor interno deve validar antes de envio."</text></outputEntry>
+        <outputEntry id="OutputEntry_A1_4"><text>"DOC"</text></outputEntry>
+        <outputEntry id="OutputEntry_A1_5"><text>"ALTO"</text></outputEntry>
+      </rule>
+
+      <!-- REGRA A2: Alerta - Taxa glosa procedimento entre 10% e 20% -->
+      <rule id="Rule_Alerta_2">
+        <description>Procedimento com taxa de glosa entre 10% e 20% - risco medio</description>
+        <inputEntry id="InputEntry_A2_1"><text>[10..20)</text></inputEntry>
+        <inputEntry id="InputEntry_A2_2"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_A2_1"><text>"Alertar"</text></outputEntry>
+        <outputEntry id="OutputEntry_A2_2"><text>"RISCO MEDIO: Procedimento possui taxa historica de glosa entre 10-20%. Verificar documentacao obrigatoria antes de enviar."</text></outputEntry>
+        <outputEntry id="OutputEntry_A2_3"><text>"Validar checklist basico de documentacao. Verificar ausencia de erros de preenchimento e conformidade com TISS."</text></outputEntry>
+        <outputEntry id="OutputEntry_A2_4"><text>"DOC"</text></outputEntry>
+        <outputEntry id="OutputEntry_A2_5"><text>"MEDIO"</text></outputEntry>
+      </rule>
+
+      <!-- REGRA P1: Aprovado - Taxa glosa procedimento &lt; 10% -->
+      <rule id="Rule_Aprovado_1">
+        <description>Procedimento com taxa de glosa &lt; 10% - risco baixo</description>
+        <inputEntry id="InputEntry_P1_1"><text>&lt; 10</text></inputEntry>
+        <inputEntry id="InputEntry_P1_2"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_P1_1"><text>"Prosseguir"</text></outputEntry>
+        <outputEntry id="OutputEntry_P1_2"><text>"Procedimento possui taxa historica de glosa &lt; 10%. Baixo risco desde que documentacao minima esteja presente."</text></outputEntry>
+        <outputEntry id="OutputEntry_P1_3"><text>"Prosseguir com faturamento conforme procedimento padrao. Manter checklist basico de documentacao."</text></outputEntry>
+        <outputEntry id="OutputEntry_P1_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_P1_5"><text>"BAIXO"</text></outputEntry>
+      </rule>
+
+      <!-- REGRA F: Fallback - Requer revisao manual -->
+      <rule id="Rule_Fallback_DENY_PREDICT_009">
+        <description>Regra padrao - Requer avaliacao manual</description>
+        <inputEntry id="InputEntry_F_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_F_2"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_F_1"><text>"Revisar"</text></outputEntry>
+        <outputEntry id="OutputEntry_F_2"><text>"Situacao requer analise manual por nao corresponder a nenhum criterio automatico. Verificar historico especifico do procedimento."</text></outputEntry>
+        <outputEntry id="OutputEntry_F_3"><text>"Encaminhar para auditoria administrativa para consulta ao historico do procedimento e avaliacao caso a caso."</text></outputEntry>
+        <outputEntry id="OutputEntry_F_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_F_5"><text>"MEDIO"</text></outputEntry>
+      </rule>
+
+    </decisionTable>
+  </decision>
+
+  <dmndi:DMNDI>
+    <dmndi:DMNDiagram id="DMNDiagram_DENY_PREDICT_009">
+      <dmndi:DMNShape id="DMNShape_Decision_DENY_PREDICT_009" dmnElementRef="Decision_DENY_PREDICT_009">
+        <dc:Bounds height="80" width="180" x="160" y="100"/>
+      </dmndi:DMNShape>
+    </dmndi:DMNDiagram>
+  </dmndi:DMNDI>
+
+</definitions>

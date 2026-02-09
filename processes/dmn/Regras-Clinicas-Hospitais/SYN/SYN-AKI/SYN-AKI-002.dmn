@@ -1,0 +1,321 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/"
+             xmlns:dc="http://www.omg.org/spec/DMN/20180521/DC/"
+             id="Definitions_SYN_AKI_002"
+             name="Deteccao de Lesao Renal Aguda - Debito Urinario"
+             targetNamespace="http://camunda.org/schema/1.0/dmn">
+
+  <!--
+    SYN-AKI-002 - Deteccao de Lesao Renal Aguda (AKI) via Debito Urinario
+    Versao: 1.0.0 (2026-02-06)
+    Categoria: Alerta Clinico - Sindromes Criticas
+
+    CRITERIOS KDIGO 2012 - Debito Urinario:
+
+    ESTAGIO 1 (Risco):
+    - Debito urinario < 0.5 mL/kg/h por 6-12 horas
+
+    ESTAGIO 2 (Lesao):
+    - Debito urinario < 0.5 mL/kg/h por >= 12 horas
+
+    ESTAGIO 3 (Falencia):
+    - Debito urinario < 0.3 mL/kg/h por >= 24 horas OU
+    - Anuria por >= 12 horas
+
+    ACOES CLINICAS:
+    - Inserir cateter vesical para monitoramento preciso
+    - Avaliar volemia (PVC, ecografia VCI)
+    - Descartar obstrucao (USG rins e vias urinarias)
+
+    REFERENCIAS:
+    - KDIGO Clinical Practice Guideline for AKI (2012)
+    - Surviving Sepsis Campaign (monitoramento oliguria)
+  -->
+
+  <decision id="Decision_SYN_AKI_002" name="Deteccao AKI Debito Urinario">
+    <decisionTable id="DecisionTable_SYN_AKI_002" hitPolicy="FIRST">
+
+      <!-- INPUT 1: Debito Urinario -->
+      <input id="Input_1" label="Debito Urinario (mL/kg/h)">
+        <inputExpression id="InputExpression_1" typeRef="number">
+          <text>debitoUrinario</text>
+        </inputExpression>
+      </input>
+
+      <!-- INPUT 2: Duracao da Oliguria -->
+      <input id="Input_2" label="Duracao Oliguria (horas)">
+        <inputExpression id="InputExpression_2" typeRef="number">
+          <text>duracaoOliguria</text>
+        </inputExpression>
+      </input>
+
+      <!-- INPUT 3: Anuria -->
+      <input id="Input_3" label="Anuria Presente">
+        <inputExpression id="InputExpression_3" typeRef="boolean">
+          <text>anuria</text>
+        </inputExpression>
+      </input>
+
+      <!-- INPUT 4: Cateter Vesical -->
+      <input id="Input_4" label="Cateter Vesical Instalado">
+        <inputExpression id="InputExpression_4" typeRef="boolean">
+          <text>cateterVesical</text>
+        </inputExpression>
+      </input>
+
+      <!-- OUTPUTS -->
+      <output id="Output_1" label="Nivel Alerta" name="nivelAlerta" typeRef="string">
+        <outputValues id="OutputValues_1">
+          <text>"Alerta", "Atencao", "OK", "Revisar"</text>
+        </outputValues>
+      </output>
+
+      <output id="Output_2" label="Classificacao Sindrome" name="classificacaoSindrome" typeRef="string"/>
+
+      <output id="Output_3" label="Protocolo Ativado" name="protocoloAtivado" typeRef="boolean"/>
+
+      <output id="Output_4" label="Acao Requerida" name="acaoRequerida" typeRef="string"/>
+
+      <output id="Output_5" label="Urgencia" name="urgencia" typeRef="string">
+        <outputValues id="OutputValues_5">
+          <text>"CRITICA", "ALTA", "MEDIA", "BAIXA"</text>
+        </outputValues>
+      </output>
+
+      <!-- RULE 1: AKI Estagio 3 - Anuria >= 12h -->
+      <rule id="Rule_AKI_Estagio3_Anuria">
+        <description>AKI Estagio 3 KDIGO - Anuria por >= 12 horas</description>
+        <inputEntry id="InputEntry_1_1">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_1_2">
+          <text>&gt;= 12</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_1_3">
+          <text>true</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_1_4">
+          <text>-</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_1_1">
+          <text>"Alerta"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_1_2">
+          <text>"AKI_ESTAGIO_3_ANURIA"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_1_3">
+          <text>true</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_1_4">
+          <text>"AKI ESTAGIO 3 KDIGO - ANURIA >= 12 horas. EMERGENCIA NEFROLOGICA. Descartar obstrucao (USG urgente). Avaliar indicacao de dialise de emergencia. Verificar hipercalemia e acidose."</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_1_5">
+          <text>"CRITICA"</text>
+        </outputEntry>
+      </rule>
+
+      <!-- RULE 2: AKI Estagio 3 - Oliguria grave >= 24h -->
+      <rule id="Rule_AKI_Estagio3_Oliguria">
+        <description>AKI Estagio 3 KDIGO - DU < 0.3 mL/kg/h por >= 24h</description>
+        <inputEntry id="InputEntry_2_1">
+          <text>&lt; 0.3</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_2_2">
+          <text>&gt;= 24</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_2_3">
+          <text>false</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_2_4">
+          <text>true</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_2_1">
+          <text>"Alerta"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_2_2">
+          <text>"AKI_ESTAGIO_3"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_2_3">
+          <text>true</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_2_4">
+          <text>"AKI ESTAGIO 3 KDIGO - Oliguria grave (DU < 0.3 mL/kg/h) por >= 24h. Nefrologia urgente. Restringir aporte hidrico se hipervolemico. Preparar para terapia renal substitutiva."</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_2_5">
+          <text>"CRITICA"</text>
+        </outputEntry>
+      </rule>
+
+      <!-- RULE 3: AKI Estagio 2 - Oliguria >= 12h -->
+      <rule id="Rule_AKI_Estagio2">
+        <description>AKI Estagio 2 KDIGO - DU < 0.5 mL/kg/h por >= 12h</description>
+        <inputEntry id="InputEntry_3_1">
+          <text>&lt; 0.5</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_3_2">
+          <text>&gt;= 12</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_3_3">
+          <text>false</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_3_4">
+          <text>true</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_3_1">
+          <text>"Alerta"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_3_2">
+          <text>"AKI_ESTAGIO_2"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_3_3">
+          <text>true</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_3_4">
+          <text>"AKI ESTAGIO 2 KDIGO - Oliguria persistente >= 12h. Solicitar creatinina serica, eletrolitos, gasometria. Avaliar volemia (ecografia VCI). Considerar desafio de fluidos se hipovolemico."</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_3_5">
+          <text>"ALTA"</text>
+        </outputEntry>
+      </rule>
+
+      <!-- RULE 4: AKI Estagio 1 - Oliguria 6-12h -->
+      <rule id="Rule_AKI_Estagio1">
+        <description>AKI Estagio 1 KDIGO - DU < 0.5 mL/kg/h por 6-12h</description>
+        <inputEntry id="InputEntry_4_1">
+          <text>&lt; 0.5</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_4_2">
+          <text>[6..12)</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_4_3">
+          <text>false</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_4_4">
+          <text>true</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_4_1">
+          <text>"Atencao"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_4_2">
+          <text>"AKI_ESTAGIO_1"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_4_3">
+          <text>false</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_4_4">
+          <text>"AKI ESTAGIO 1 KDIGO - Oliguria 6-12h. Dosar creatinina para correlacao. Otimizar hidratacao. Revisar medicamentos que afetam funcao renal. Monitorar DU a cada 2h."</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_4_5">
+          <text>"ALTA"</text>
+        </outputEntry>
+      </rule>
+
+      <!-- RULE 5: Oliguria sem cateter - Instalar -->
+      <rule id="Rule_Oliguria_Sem_Cateter">
+        <description>Oliguria suspeita sem cateter vesical</description>
+        <inputEntry id="InputEntry_5_1">
+          <text>&lt; 0.5</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_5_2">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_5_3">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_5_4">
+          <text>false</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_5_1">
+          <text>"Atencao"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_5_2">
+          <text>"OLIGURIA_NAO_CONFIRMADA"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_5_3">
+          <text>false</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_5_4">
+          <text>"Oliguria suspeita sem cateter vesical de demora. INSTALAR CATETER VESICAL para monitoramento preciso de debito urinario. Registrar hora zero para contagem KDIGO."</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_5_5">
+          <text>"ALTA"</text>
+        </outputEntry>
+      </rule>
+
+      <!-- RULE 6: Debito urinario normal -->
+      <rule id="Rule_DU_Normal">
+        <description>Debito urinario dentro da normalidade</description>
+        <inputEntry id="InputEntry_6_1">
+          <text>&gt;= 0.5</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_6_2">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_6_3">
+          <text>false</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_6_4">
+          <text>-</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_6_1">
+          <text>"OK"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_6_2">
+          <text>"DU_NORMAL"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_6_3">
+          <text>false</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_6_4">
+          <text>"Debito urinario adequado (>= 0.5 mL/kg/h). Manter hidratacao e monitoramento de rotina."</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_6_5">
+          <text>"BAIXA"</text>
+        </outputEntry>
+      </rule>
+
+      <!-- FALLBACK -->
+      <rule id="Rule_Fallback_SYN_AKI_002">
+        <description>Dados insuficientes para avaliacao</description>
+        <inputEntry id="InputEntry_F_1">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_F_2">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_F_3">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_F_4">
+          <text>-</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_F_1">
+          <text>"Revisar"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_F_2">
+          <text>"DADOS_INCOMPLETOS"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_F_3">
+          <text>false</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_F_4">
+          <text>"Dados insuficientes para avaliacao de oliguria. Verificar: debito urinario (mL/kg/h), duracao da reducao, presenca de cateter vesical."</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_F_5">
+          <text>"MEDIA"</text>
+        </outputEntry>
+      </rule>
+
+    </decisionTable>
+  </decision>
+
+  <dmndi:DMNDI>
+    <dmndi:DMNDiagram id="DMNDiagram_SYN_AKI_002">
+      <dmndi:DMNShape id="DMNShape_Decision_SYN_AKI_002" dmnElementRef="Decision_SYN_AKI_002">
+        <dc:Bounds height="80" width="180" x="160" y="100"/>
+      </dmndi:DMNShape>
+    </dmndi:DMNDiagram>
+  </dmndi:DMNDI>
+
+</definitions>

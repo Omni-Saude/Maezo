@@ -1,0 +1,218 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             id="Definitions_31401120" name="Implante_Intratecal_Bomba_Infusao" targetNamespace="http://camunda.org/schema/1.0/dmn">
+  <!--
+    TUSS 31401120 - Implante intratecal de bomba para infusão de fármacos
+    Versao: 3.1.0-LEAN-TIER2 (2026-02-08)
+
+    ENRIQUECIMENTO LEAN TIER-2:
+    - Input 6: ultimoProcedimentoDias (frequencia/duplicacao)
+    - 3 Regras de desperdicio: ESC (neuromodulacao sem falha medicamentosa), DUP (troca precoce), DOC (sem laudo/exames)
+    - 5 outputs padronizados: resultado, observacao, fundamentacao, alertasDesperdicio, acaoRecomendada
+
+    Indicacoes Clinicas (DUT/ANS):
+    - Dor crônica oncológica refratária a opioides orais/transdérmicos
+    - Espasticidade grave refratária (esclerose múltipla, lesão medular, paralisia cerebral)
+    - Dor neuropática crônica não-oncológica refratária
+    - Teste de infusão intratecal bem-sucedido (melhora >50%)
+
+    Contraindicacoes:
+    - Infecção sistêmica ou local ativa
+    - Distúrbios de coagulação não corrigidos
+    - Anatomia espinhal inadequada (estenose grave)
+    - Expectativa de vida <3 meses (relativa)
+    - Falha no teste de infusão intratecal (<50% melhora)
+
+    Referencias:
+    - Diretrizes SBED (Sociedade Brasileira para Estudo da Dor) 2024
+    - International Neuromodulation Society Guidelines 2023
+    - RN ANS 465/2021
+  -->
+  <decision id="Decision_31401120" name="Indicacao para Implante Intratecal de Bomba">
+    <decisionTable id="DecisionTable_31401120" hitPolicy="FIRST">
+      <!-- Input 1: Diagnóstico principal -->
+      <input id="Input_1" label="Diagnostico Principal">
+        <inputExpression id="InputExpression_1" typeRef="string"><text>diagnosticoPrincipal</text></inputExpression>
+        <inputValues id="InputValues_1">
+          <text>"dor_oncologica","espasticidade","dor_neuropatica","outra"</text>
+        </inputValues>
+      </input>
+      <!-- Input 2: Resultado do teste intratecal (% melhora) -->
+      <input id="Input_2" label="Teste Intratecal (% melhora)">
+        <inputExpression id="InputExpression_2" typeRef="number"><text>testeIntratecal</text></inputExpression>
+      </input>
+      <!-- Input 3: Ausência de infecção -->
+      <input id="Input_3" label="Sem Infeccao">
+        <inputExpression id="InputExpression_3" typeRef="boolean"><text>semInfeccao</text></inputExpression>
+      </input>
+      <!-- Input 4: Laudo especializado (neurologista/algologista) -->
+      <input id="Input_4" label="Laudo Especializado">
+        <inputExpression id="InputExpression_4" typeRef="boolean"><text>laudoEspecializado</text></inputExpression>
+      </input>
+      <!-- Input 5: Expectativa de Vida Superior a 1 Ano -->
+      <input id="Input_5" label="Expectativa de Vida Superior a 1 Ano">
+        <inputExpression id="InputExpression_5" typeRef="boolean"><text>expectativaVidaSuperior1Ano</text></inputExpression>
+      </input>
+      <!-- Input 6: Dias desde ultimo procedimento -->
+      <input id="Input_ultimoProcedimentoDias" label="Dias Desde Ultimo Procedimento" camunda:inputVariable="ultimoProcedimentoDias">
+        <inputExpression id="InputExpression_ultimoProcedimentoDias" typeRef="integer">
+          <text>ultimoProcedimentoDias</text>
+        </inputExpression>
+      </input>
+      <!-- Output 1: Resultado da avaliação -->
+      <output id="Output_1" label="Resultado" name="resultado" typeRef="string">
+        <outputValues id="OutputValues_1">
+          <text>"Aprovado","Reprovado","Pendente"</text>
+        </outputValues>
+      </output>
+      <!-- Output 2: Observação clínica -->
+      <output id="Output_2" label="Observacao" name="observacao" typeRef="string"/>
+      <!-- Output 3: Fundamentação legal/técnica -->
+      <output id="Output_3" label="Fundamentacao" name="fundamentacao" typeRef="string"/>
+      <!-- Output 4: Alertas de Desperdicio -->
+      <output id="Output_4" label="Alertas de Desperdicio" name="alertasDesperdicio" typeRef="string">
+        <outputValues>
+          <text>"NENHUM","DUP","FREQ","ESC","DOC","PROT","MULTI"</text>
+        </outputValues>
+      </output>
+
+      <!-- Output 5: Acao Recomendada -->
+      <output id="Output_5" label="Acao Recomendada" name="acaoRecomendada" typeRef="string">
+        <outputValues>
+          <text>"APROVAR","NEGAR","SOLICITAR_INFO","AGUARDAR_PRAZO","SUGERIR_ALTERNATIVA"</text>
+        </outputValues>
+      </output>
+
+
+      <!-- CONTRAINDICATIONS -->
+      <rule id="Rule_Contraindicacao_Infeccao">
+        <inputEntry id="IE_1_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_1_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_1_3"><text>false</text></inputEntry>
+        <inputEntry id="IE_1_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_1_5"><text>-</text></inputEntry>
+        <inputEntry id="IE_1_6"><text>-</text></inputEntry>
+        <outputEntry id="OE_1_1"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OE_1_2"><text>"Infecção sistêmica ou local ativa. Alto risco de meningite com dispositivo intratecal. Tratamento da infecção obrigatório."</text></outputEntry>
+        <outputEntry id="OE_1_3"><text>"RN ANS 465/2021 - Segurança do paciente"</text></outputEntry>
+        <outputEntry id="OE_Rule_Contraindicacao_Infeccao_4"><text>"PROT"</text></outputEntry>
+        <outputEntry id="OE_Rule_Contraindicacao_Infeccao_5"><text>"NEGAR"</text></outputEntry>
+      </rule>
+      <rule id="Rule_Contraindicacao_TesteInsuficiente">
+        <inputEntry id="IE_2_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_2_2"><text>&lt; 50</text></inputEntry>
+        <inputEntry id="IE_2_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_2_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_2_5"><text>-</text></inputEntry>
+        <inputEntry id="IE_2_6"><text>-</text></inputEntry>
+        <outputEntry id="OE_2_1"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OE_2_2"><text>"Teste de infusão intratecal com resposta insuficiente (&lt;50% melhora). Bomba permanente não indicada sem resposta adequada ao teste."</text></outputEntry>
+        <outputEntry id="OE_2_3"><text>"International Neuromodulation Society Guidelines 2023"</text></outputEntry>
+        <outputEntry id="OE_Rule_Contraindicacao_TesteInsuficiente_4"><text>"PROT"</text></outputEntry>
+        <outputEntry id="OE_Rule_Contraindicacao_TesteInsuficiente_5"><text>"NEGAR"</text></outputEntry>
+      </rule>
+
+      <!-- WASTE RULES (LEAN TIER-2) -->
+      <rule id="Rule_31401120_ESC_Neuromod">
+        <description>ESC: Neuromodulacao sem falha de tratamento medicamentoso</description>
+        <inputEntry id="IE_31401120_ESC_NM_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_31401120_ESC_NM_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_31401120_ESC_NM_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_31401120_ESC_NM_4"><text>false</text></inputEntry>
+        <inputEntry id="IE_31401120_ESC_NM_5"><text>-</text></inputEntry>
+        <inputEntry id="IE_31401120_ESC_NM_6"><text>-</text></inputEntry>
+        <outputEntry id="OE_31401120_ESC_NM_1"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OE_31401120_ESC_NM_2"><text>"Neuromodulacao requer documentacao de falha terapeutica medicamentosa"</text></outputEntry>
+        <outputEntry id="OE_31401120_ESC_NM_3"><text>"AANS/CNS 2024 - Neuromodulacao indicada apos falha de terapia medicamentosa"</text></outputEntry>
+        <outputEntry id="OE_31401120_ESC_NM_4"><text>"ESC"</text></outputEntry>
+        <outputEntry id="OE_31401120_ESC_NM_5"><text>"SUGERIR_ALTERNATIVA"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_31401120_DUP_Implante">
+        <description>DUP: Troca de dispositivo em menos de 365 dias sem defeito</description>
+        <inputEntry id="IE_31401120_DUP_IMP_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_31401120_DUP_IMP_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_31401120_DUP_IMP_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_31401120_DUP_IMP_4"><text>false</text></inputEntry>
+        <inputEntry id="IE_31401120_DUP_IMP_5"><text>-</text></inputEntry>
+        <inputEntry id="IE_31401120_DUP_IMP_6"><text>&lt; 365</text></inputEntry>
+        <outputEntry id="OE_31401120_DUP_IMP_1"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OE_31401120_DUP_IMP_2"><text>"Troca de dispositivo em menos de 1 ano. Documentar defeito ou complicacao"</text></outputEntry>
+        <outputEntry id="OE_31401120_DUP_IMP_3"><text>"ANS RN 465/2021 - Troca precoce requer justificativa tecnica"</text></outputEntry>
+        <outputEntry id="OE_31401120_DUP_IMP_4"><text>"DUP"</text></outputEntry>
+        <outputEntry id="OE_31401120_DUP_IMP_5"><text>"SOLICITAR_INFO"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_31401120_DOC_Neurofunc">
+        <description>DOC: Implante sem laudo neurofisiologico</description>
+        <inputEntry id="IE_31401120_DOC_NF_1"><text>"dor_oncologica","espasticidade","dor_neuropatica"</text></inputEntry>
+        <inputEntry id="IE_31401120_DOC_NF_2"><text>&gt;= 50</text></inputEntry>
+        <inputEntry id="IE_31401120_DOC_NF_3"><text>true</text></inputEntry>
+        <inputEntry id="IE_31401120_DOC_NF_4"><text>false</text></inputEntry>
+        <inputEntry id="IE_31401120_DOC_NF_5"><text>-</text></inputEntry>
+        <inputEntry id="IE_31401120_DOC_NF_6"><text>-</text></inputEntry>
+        <outputEntry id="OE_31401120_DOC_NF_1"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OE_31401120_DOC_NF_2"><text>"Implante requer laudo neurofisiologico e escala funcional"</text></outputEntry>
+        <outputEntry id="OE_31401120_DOC_NF_3"><text>"AANS/CNS 2024 - Avaliacao neurofisiologica obrigatoria"</text></outputEntry>
+        <outputEntry id="OE_31401120_DOC_NF_4"><text>"DOC"</text></outputEntry>
+        <outputEntry id="OE_31401120_DOC_NF_5"><text>"SOLICITAR_INFO"</text></outputEntry>
+      </rule>
+
+      <!-- APPROVALS -->
+      <rule id="Rule_Aprovado_DorOncologica">
+        <inputEntry id="IE_3_1"><text>"dor_oncologica"</text></inputEntry>
+        <inputEntry id="IE_3_2"><text>&gt;= 50</text></inputEntry>
+        <inputEntry id="IE_3_3"><text>true</text></inputEntry>
+        <inputEntry id="IE_3_4"><text>true</text></inputEntry>
+        <inputEntry id="IE_3_5"><text>-</text></inputEntry>
+        <inputEntry id="IE_3_6"><text>-</text></inputEntry>
+        <outputEntry id="OE_3_1"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OE_3_2"><text>"Dor oncológica refratária a opioides sistêmicos com resposta positiva ao teste intratecal (≥50% melhora). Bomba de infusão intratecal de morfina/ziconotida indicada para controle da dor."</text></outputEntry>
+        <outputEntry id="OE_3_3"><text>"Diretrizes SBED 2024 + RN ANS 465/2021"</text></outputEntry>
+        <outputEntry id="OE_Rule_Aprovado_DorOncologica_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_Rule_Aprovado_DorOncologica_5"><text>"APROVAR"</text></outputEntry>
+      </rule>
+      <rule id="Rule_Aprovado_Espasticidade">
+        <inputEntry id="IE_4_1"><text>"espasticidade"</text></inputEntry>
+        <inputEntry id="IE_4_2"><text>&gt;= 50</text></inputEntry>
+        <inputEntry id="IE_4_3"><text>true</text></inputEntry>
+        <inputEntry id="IE_4_4"><text>true</text></inputEntry>
+        <inputEntry id="IE_4_5"><text>-</text></inputEntry>
+        <inputEntry id="IE_4_6"><text>-</text></inputEntry>
+        <outputEntry id="OE_4_1"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OE_4_2"><text>"Espasticidade grave refratária (EM, lesão medular, PC) com resposta positiva ao teste intratecal de baclofeno (≥50% melhora na escala Ashworth). Bomba de infusão intratecal de baclofeno indicada."</text></outputEntry>
+        <outputEntry id="OE_4_3"><text>"Diretrizes ABN 2024 + International Neuromodulation Society 2023"</text></outputEntry>
+        <outputEntry id="OE_Rule_Aprovado_Espasticidade_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_Rule_Aprovado_Espasticidade_5"><text>"APROVAR"</text></outputEntry>
+      </rule>
+      <rule id="Rule_Aprovado_DorNeuropatica">
+        <inputEntry id="IE_5_1"><text>"dor_neuropatica"</text></inputEntry>
+        <inputEntry id="IE_5_2"><text>&gt;= 50</text></inputEntry>
+        <inputEntry id="IE_5_3"><text>true</text></inputEntry>
+        <inputEntry id="IE_5_4"><text>true</text></inputEntry>
+        <inputEntry id="IE_5_5"><text>-</text></inputEntry>
+        <inputEntry id="IE_5_6"><text>-</text></inputEntry>
+        <outputEntry id="OE_5_1"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OE_5_2"><text>"Dor neuropática crônica não-oncológica refratária a todas as classes de analgésicos, com resposta positiva ao teste intratecal (≥50% melhora). Bomba de infusão intratecal indicada após falha de tratamento conservador."</text></outputEntry>
+        <outputEntry id="OE_5_3"><text>"Diretrizes SBED 2024 + RN ANS 465/2021"</text></outputEntry>
+        <outputEntry id="OE_Rule_Aprovado_DorNeuropatica_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_Rule_Aprovado_DorNeuropatica_5"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <!-- FALLBACK RULE -->
+      <rule id="Rule_Fallback_31401120">
+        <inputEntry id="IE_6_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_6_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_6_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_6_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_6_5"><text>-</text></inputEntry>
+        <inputEntry id="IE_6_6"><text>-</text></inputEntry>
+        <outputEntry id="OE_6_1"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OE_6_2"><text>"Caso não enquadrado nas regras automáticas. Requer avaliação por equipe de neurocirurgia funcional, algologia e auditor médico."</text></outputEntry>
+        <outputEntry id="OE_6_3"><text>"Análise caso a caso conforme RN ANS 465/2021"</text></outputEntry>
+        <outputEntry id="OE_Rule_Fallback_31401120_4"><text>"DOC"</text></outputEntry>
+        <outputEntry id="OE_Rule_Fallback_31401120_5"><text>"SOLICITAR_INFO"</text></outputEntry>
+      </rule>
+    </decisionTable>
+  </decision>
+</definitions>

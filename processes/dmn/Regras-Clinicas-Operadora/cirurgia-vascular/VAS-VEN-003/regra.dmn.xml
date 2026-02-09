@@ -1,0 +1,245 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/"
+             xmlns:dc="http://www.omg.org/spec/DD/20100524/DC/"
+             xmlns:di="http://www.omg.org/spec/DD/20100524/DI/"
+             id="Definitions_VAS_VEN_003"
+             name="Stent Venoso Iliaco - Sindrome de Compressao Iliaca"
+             namespace="http://camunda.org/schema/1.0/dmn"
+             exporter="Camunda Modeler"
+             exporterVersion="5.0.0">
+  <!--
+    VAS-VEN-003 - Stent Venoso Iliaco - Sindrome de Compressao Iliaca
+    Versao: 1.0.0 (2026-02-07)
+    Especialidade: Cirurgia Vascular / Radiologia Intervencionista
+    Categoria: Doenca Venosa Obstrutiva
+    TUSS Relacionados: 40907100, 40907119
+
+    Sindrome de May-Thurner (Cockett):
+    - Compressao da veia iliaca esquerda pela arteria iliaca direita
+    - Causa de 2-5% das TVPs em membros inferiores
+    - Predominio em mulheres jovens
+    - Risco de trombose recorrente se nao tratada
+
+    Indicacoes de Stent Venoso Iliaco (SVS/AVF 2012):
+    - Sintomatico: dor, edema, claudicacao venosa
+    - TVP aguda iliofemoral (com trombolise)
+    - TVP cronica com sintomas refratarios
+    - Ulcera venosa refrataria a tratamento conservador
+
+    Diagnostico:
+    - Duplex venoso: identificar compressao
+    - IVUS: padrao-ouro para avaliar estenose (>50%)
+    - Venografia: mapeamento anatomico
+    - CT/MR venografia: anatomia e etiologia
+
+    Resultados:
+    - Patencia primaria 1 ano: 80-90%
+    - Resolucao de sintomas: 70-85%
+    - Melhora de ulcera: significativa
+
+    Referencias Normativas:
+    - SVS/AVF 2012 - Iliac Vein Compression
+    - NICE 2020 - Deep Vein Thrombosis
+    - ESVS 2015 - Chronic Venous Disease
+    - DUT ANS 2024
+  -->
+
+  <decision id="Decision_VAS_VEN_003" name="Criterios de Indicacao - Stent Venoso Iliaco">
+    <decisionTable id="DecisionTable_VAS_VEN_003" hitPolicy="FIRST">
+
+      <!-- Input 1: Indicacao Clinica -->
+      <input id="Input_indicacao" label="Indicacao Clinica Principal">
+        <inputExpression id="InputExpr_indicacao" typeRef="string">
+          <text>indicacaoClinica</text>
+        </inputExpression>
+        <inputValues id="InputValues_indicacao">
+          <text>"May_Thurner_Sintomatico","TVP_Iliofemoral_Aguda","TVP_Cronica_Sintomatica","Ulcera_Venosa_Refrataria","Claudicacao_Venosa"</text>
+        </inputValues>
+      </input>
+
+      <!-- Input 2: Grau de Estenose -->
+      <input id="Input_estenose" label="Grau de Estenose Iliaca (IVUS/Venografia)">
+        <inputExpression id="InputExpr_estenose" typeRef="string">
+          <text>grauEstenose</text>
+        </inputExpression>
+        <inputValues id="InputValues_estenose">
+          <text>"Menor_50","Entre_50_70","Maior_70","Oclusao_Total","Nao_Avaliado"</text>
+        </inputValues>
+      </input>
+
+      <!-- Input 3: Tratamento Conservador -->
+      <input id="Input_conservador" label="Tratamento Conservador Previo">
+        <inputExpression id="InputExpr_conservador" typeRef="string">
+          <text>tratamentoConservador</text>
+        </inputExpression>
+        <inputValues id="InputValues_conservador">
+          <text>"Nao_Realizado","Parcial_Inadequado","Completo_Falhou","Nao_Aplicavel_Agudo"</text>
+        </inputValues>
+      </input>
+
+      <!-- Input 4: Classificacao CEAP -->
+      <input id="Input_ceap" label="Classificacao CEAP (se doenca venosa cronica)">
+        <inputExpression id="InputExpr_ceap" typeRef="string">
+          <text>classificacaoCEAP</text>
+        </inputExpression>
+        <inputValues id="InputValues_ceap">
+          <text>"C2_Varizes","C3_Edema","C4_Alteracoes_Cutaneas","C5_Ulcera_Cicatrizada","C6_Ulcera_Ativa","Nao_Aplicavel"</text>
+        </inputValues>
+      </input>
+
+      <!-- Input 5: Documentacao -->
+      <input id="Input_documentacao" label="Imagem Vascular (Duplex/IVUS/Venografia)">
+        <inputExpression id="InputExpr_documentacao" typeRef="boolean">
+          <text>documentacaoCompleta</text>
+        </inputExpression>
+      </input>
+
+      <!-- Outputs -->
+      <output id="Output_resultado" label="Resultado" name="resultado" typeRef="string">
+        <outputValues id="OutputValues_resultado">
+          <text>"Aprovado","Reprovado","Pendente"</text>
+        </outputValues>
+      </output>
+      <output id="Output_observacao" label="Observacao Clinica" name="observacao" typeRef="string" />
+      <output id="Output_fundamentacao" label="Fundamentacao Legal/Tecnica" name="fundamentacao" typeRef="string" />
+
+      <output id="Output_alertasDesperdicio" name="alertasDesperdicio" typeRef="string">
+        <outputValues>
+          <text>"NENHUM","DUP","FREQ","ESC","DOC","PROT","MULTI"</text>
+        </outputValues>
+      </output>
+
+      <output id="Output_acaoRecomendada" name="acaoRecomendada" typeRef="string">
+        <outputValues>
+          <text>"APROVAR","NEGAR","SOLICITAR_INFO","AGUARDAR_PRAZO","SUGERIR_ALTERNATIVA"</text>
+        </outputValues>
+      </output>
+
+      <!-- ============================================== -->
+      <!-- REGRAS DE REPROVACAO                          -->
+      <!-- ============================================== -->
+
+      <rule id="Rule_VAS_VEN_003_Reprovacao_SemDoc">
+        <description>Reprovacao - Documentacao incompleta</description>
+        <inputEntry id="IE_Rep1_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_Rep1_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_Rep1_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_Rep1_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_Rep1_5"><text>false</text></inputEntry>
+        <outputEntry id="OE_Rep1_1"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OE_Rep1_2"><text>"Documentacao incompleta - IVUS ou venografia obrigatorios para quantificar estenose e planejar stent"</text></outputEntry>
+        <outputEntry id="OE_Rep1_3"><text>"SVS/AVF 2012 - IVUS padrao-ouro para avaliacao de estenose iliaca"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_VAS_VEN_003_Reprovacao_Estenose_Leve">
+        <description>Reprovacao - Estenose menor que 50% sem sintomas significativos</description>
+        <inputEntry id="IE_Rep2_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_Rep2_2"><text>"Menor_50"</text></inputEntry>
+        <inputEntry id="IE_Rep2_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_Rep2_4"><text>"C2_Varizes","C3_Edema"</text></inputEntry>
+        <inputEntry id="IE_Rep2_5"><text>true</text></inputEntry>
+        <outputEntry id="OE_Rep2_1"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OE_Rep2_2"><text>"Stent NAO indicado - estenose menor que 50% com sintomas leves - tratamento conservador (compressao elastica)"</text></outputEntry>
+        <outputEntry id="OE_Rep2_3"><text>"SVS/AVF 2012 - Estenose maior 50% necessaria para indicar stent"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_VAS_VEN_003_Reprovacao_SemConservador">
+        <description>Reprovacao - Tratamento conservador nao tentado em doenca cronica</description>
+        <inputEntry id="IE_Rep3_1"><text>"May_Thurner_Sintomatico","TVP_Cronica_Sintomatica"</text></inputEntry>
+        <inputEntry id="IE_Rep3_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_Rep3_3"><text>"Nao_Realizado"</text></inputEntry>
+        <inputEntry id="IE_Rep3_4"><text>"C2_Varizes","C3_Edema","C4_Alteracoes_Cutaneas"</text></inputEntry>
+        <inputEntry id="IE_Rep3_5"><text>true</text></inputEntry>
+        <outputEntry id="OE_Rep3_1"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OE_Rep3_2"><text>"Tratamento conservador nao realizado - meias de compressao + medicamento venoativo por minimo 3 meses antes de considerar stent"</text></outputEntry>
+        <outputEntry id="OE_Rep3_3"><text>"ESVS 2015 - Tratamento conservador primeiro em DVC cronica"</text></outputEntry>
+      </rule>
+
+      <!-- ============================================== -->
+      <!-- REGRAS DE APROVACAO                           -->
+      <!-- ============================================== -->
+
+      <rule id="Rule_VAS_VEN_003_Aprovacao_Agudo">
+        <description>Aprovacao - TVP iliofemoral aguda com trombolise</description>
+        <inputEntry id="IE_Apr1_1"><text>"TVP_Iliofemoral_Aguda"</text></inputEntry>
+        <inputEntry id="IE_Apr1_2"><text>"Entre_50_70","Maior_70","Oclusao_Total"</text></inputEntry>
+        <inputEntry id="IE_Apr1_3"><text>"Nao_Aplicavel_Agudo"</text></inputEntry>
+        <inputEntry id="IE_Apr1_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_Apr1_5"><text>true</text></inputEntry>
+        <outputEntry id="OE_Apr1_1"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OE_Apr1_2"><text>"Stent iliaco APROVADO - TVP iliofemoral aguda - trombolise + stenting para estenose residual reduz sindrome pos-trombotica"</text></outputEntry>
+        <outputEntry id="OE_Apr1_3"><text>"SVS/AVF 2012 Classe I - Stenting apos trombolise em estenose residual"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_VAS_VEN_003_Aprovacao_Ulcera">
+        <description>Aprovacao - Ulcera venosa refrataria com estenose iliaca</description>
+        <inputEntry id="IE_Apr2_1"><text>"Ulcera_Venosa_Refrataria"</text></inputEntry>
+        <inputEntry id="IE_Apr2_2"><text>"Entre_50_70","Maior_70","Oclusao_Total"</text></inputEntry>
+        <inputEntry id="IE_Apr2_3"><text>"Completo_Falhou"</text></inputEntry>
+        <inputEntry id="IE_Apr2_4"><text>"C6_Ulcera_Ativa"</text></inputEntry>
+        <inputEntry id="IE_Apr2_5"><text>true</text></inputEntry>
+        <outputEntry id="OE_Apr2_1"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OE_Apr2_2"><text>"Stent iliaco APROVADO - ulcera venosa ativa refrataria com estenose iliaca significativa - correcao do outflow melhora cicatrizacao"</text></outputEntry>
+        <outputEntry id="OE_Apr2_3"><text>"ESVS 2015 - Correcao de obstrucao em DVC avancada"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_VAS_VEN_003_Aprovacao_MayThurner">
+        <description>Aprovacao - May-Thurner sintomatico com estenose significativa</description>
+        <inputEntry id="IE_Apr3_1"><text>"May_Thurner_Sintomatico"</text></inputEntry>
+        <inputEntry id="IE_Apr3_2"><text>"Maior_70","Oclusao_Total"</text></inputEntry>
+        <inputEntry id="IE_Apr3_3"><text>"Completo_Falhou"</text></inputEntry>
+        <inputEntry id="IE_Apr3_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_Apr3_5"><text>true</text></inputEntry>
+        <outputEntry id="OE_Apr3_1"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OE_Apr3_2"><text>"Stent iliaco APROVADO - May-Thurner sintomatico com estenose maior 70% e falha de tratamento conservador"</text></outputEntry>
+        <outputEntry id="OE_Apr3_3"><text>"SVS/AVF 2012 Classe I - Stenting indicado em May-Thurner sintomatico"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_VAS_VEN_003_Aprovacao_Claudicacao">
+        <description>Aprovacao - Claudicacao venosa limitante</description>
+        <inputEntry id="IE_Apr4_1"><text>"Claudicacao_Venosa"</text></inputEntry>
+        <inputEntry id="IE_Apr4_2"><text>"Maior_70","Oclusao_Total"</text></inputEntry>
+        <inputEntry id="IE_Apr4_3"><text>"Completo_Falhou"</text></inputEntry>
+        <inputEntry id="IE_Apr4_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_Apr4_5"><text>true</text></inputEntry>
+        <outputEntry id="OE_Apr4_1"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OE_Apr4_2"><text>"Stent iliaco APROVADO - claudicacao venosa limitante com obstrucao iliaca maior 70% - melhora significativa de qualidade de vida"</text></outputEntry>
+        <outputEntry id="OE_Apr4_3"><text>"SVS/AVF 2012 - Claudicacao venosa indicacao para stenting"</text></outputEntry>
+      </rule>
+
+      <!-- ============================================== -->
+      <!-- REGRAS DE PENDENCIA                           -->
+      <!-- ============================================== -->
+
+      <rule id="Rule_VAS_VEN_003_Pendente_IVUS">
+        <description>Pendente - Estenose nao quantificada por IVUS</description>
+        <inputEntry id="IE_Pend1_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_Pend1_2"><text>"Nao_Avaliado"</text></inputEntry>
+        <inputEntry id="IE_Pend1_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_Pend1_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_Pend1_5"><text>true</text></inputEntry>
+        <outputEntry id="OE_Pend1_1"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OE_Pend1_2"><text>"Estenose nao quantificada - realizar IVUS ou venografia para determinar grau de estenose e indicacao de stent"</text></outputEntry>
+        <outputEntry id="OE_Pend1_3"><text>"SVS/AVF 2012 - IVUS necessario para quantificar estenose iliaca"</text></outputEntry>
+      </rule>
+
+      <!-- ============================================== -->
+      <!-- REGRA FALLBACK                                -->
+      <!-- ============================================== -->
+
+      <rule id="Rule_Fallback_VAS_VEN_003">
+        <description>Fallback - Casos nao cobertos requerem analise manual</description>
+        <inputEntry id="IE_Fallback_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_Fallback_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_Fallback_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_Fallback_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_Fallback_5"><text>-</text></inputEntry>
+        <outputEntry id="OE_Fallback_1"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OE_Fallback_2"><text>"Caso requer analise por especialista em doenca venosa obstrutiva"</text></outputEntry>
+        <outputEntry id="OE_Fallback_3"><text>"Auditoria especializada conforme RN 428/2017"</text></outputEntry>
+      </rule>
+
+    </decisionTable>
+  </decision>
+</definitions>

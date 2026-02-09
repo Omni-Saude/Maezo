@@ -1,0 +1,280 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             xmlns:camunda="http://camunda.org/schema/1.0/dmn"
+             id="Definitions_30904178"
+             name="Assistencia Circulatoria Mecanica (LVAD)"
+             namespace="http://camunda.org/schema/1.0/dmn">
+
+  <!--
+    ===============================================================================
+    TUSS: 30904178
+    Procedimento: Assistencia Circulatoria Mecanica - LVAD (Left Ventricular Assist Device)
+    Versao: 1.0.0-LEAN-TIER2
+    Data: 2026-02-07
+    ===============================================================================
+
+    INDICACOES CLINICAS (ISHLT/ACC MCS 2024):
+    PONTE AO TRANSPLANTE (BTT):
+    - IC estagio D listado para transplante com deterioracao (Classe I)
+    - INTERMACS 1-3 aguardando transplante (Classe I)
+    - HP reversivel com LVAD permitindo transplante futuro (Classe IIa)
+
+    TERAPIA DEFINITIVA (DT - Destination Therapy):
+    - IC estagio D refrataria, inelegivel transplante, esperanca vida maior 1 ano (Classe I)
+    - INTERMACS 2-4 com contraindicacao transplante (Classe I)
+    - Melhora qualidade vida e sobrevida vs tratamento clinico (MOMENTUM 3)
+
+    PONTE A DECISAO (BTD):
+    - Choque cardiogenico agudo com recuperacao possivel (Classe IIa)
+    - Avaliacao candidatura transplante pendente (Classe IIa)
+
+    CONTRAINDICACOES:
+    - Falencia VD grave irreversivel (requer BiVAD ou TAH)
+    - Sepse ativa nao controlada
+    - Coagulopatia grave irreversivel
+    - Doenca neurologica grave irreversivel
+    - Suporte psicossocial inadequado
+    - Comorbidades limitando expectativa vida menor 2 anos
+
+    REFERENCIAS TECNICAS:
+    - ISHLT Mechanical Circulatory Support 2024
+    - ACC Expert Consensus MCS 2023
+    - MOMENTUM 3 Trial (HeartMate 3)
+
+    ALERTAS DE DESPERDICIO (LEAN TIER-2):
+    - ESC: Escalonamento inadequado - LVAD sem avaliacao MCS completa
+    - DOC: Documentacao insuficiente - Falta criterios ISHLT
+    - PROT: Protocolo nao seguido - Contraindicacao presente
+
+    ===============================================================================
+  -->
+
+  <decision id="Decision_30904178" name="Regra Clinica - Assistencia Circulatoria Mecanica (LVAD)">
+    <decisionTable id="DecisionTable_30904178" hitPolicy="FIRST">
+
+      <!-- ========== INPUTS (6 - Padrao LEAN TIER-2) ========== -->
+
+      <input id="Input_indicacao" label="Indicacao LVAD" camunda:inputVariable="indicacao">
+        <inputExpression id="InputExpression_indicacao" typeRef="string">
+          <text>indicacao</text>
+        </inputExpression>
+        <inputValues id="InputValues_indicacao">
+          <text>"BTT_Ponte_Transplante","DT_Terapia_Definitiva","BTD_Ponte_Decisao","BTR_Ponte_Recuperacao"</text>
+        </inputValues>
+      </input>
+
+      <input id="Input_perfil" label="Perfil Hemodinamico INTERMACS" camunda:inputVariable="perfil">
+        <inputExpression id="InputExpression_perfil" typeRef="string">
+          <text>perfil</text>
+        </inputExpression>
+        <inputValues id="InputValues_perfil">
+          <text>"INTERMACS_1","INTERMACS_2","INTERMACS_3","INTERMACS_4","INTERMACS_5_7"</text>
+        </inputValues>
+      </input>
+
+      <input id="Input_funcaoVD" label="Funcao Ventriculo Direito" camunda:inputVariable="funcaoVD">
+        <inputExpression id="InputExpression_funcaoVD" typeRef="string">
+          <text>funcaoVD</text>
+        </inputExpression>
+        <inputValues id="InputValues_funcaoVD">
+          <text>"Preservada","Disfuncao_Leve","Disfuncao_Moderada","Disfuncao_Grave","NaoAvaliada"</text>
+        </inputValues>
+      </input>
+
+      <input id="Input_candidatoTransplante" label="Candidato a Transplante" camunda:inputVariable="candidatoTransplante">
+        <inputExpression id="InputExpression_candidatoTransplante" typeRef="string">
+          <text>candidatoTransplante</text>
+        </inputExpression>
+        <inputValues id="InputValues_candidatoTransplante">
+          <text>"Listado","Elegivel_Nao_Listado","Contraindicacao_Temporaria","Contraindicacao_Permanente","Em_Avaliacao"</text>
+        </inputValues>
+      </input>
+
+      <input id="Input_suportePsicossocial" label="Suporte Psicossocial Adequado" camunda:inputVariable="suportePsicossocial">
+        <inputExpression id="InputExpression_suportePsicossocial" typeRef="boolean">
+          <text>suportePsicossocial</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_avaliacaoMCS" label="Avaliacao Centro MCS Completa" camunda:inputVariable="avaliacaoMCS">
+        <inputExpression id="InputExpression_avaliacaoMCS" typeRef="boolean">
+          <text>avaliacaoMCS</text>
+        </inputExpression>
+      </input>
+
+      <!-- ========== OUTPUTS (5 - Padrao LEAN TIER-2) ========== -->
+
+      <output id="Output_resultado" label="Resultado" name="resultado" typeRef="string">
+        <outputValues id="OutputValues_resultado">
+          <text>"Aprovado","Reprovado","Pendente"</text>
+        </outputValues>
+      </output>
+
+      <output id="Output_observacao" label="Observacao Clinica" name="observacao" typeRef="string" />
+
+      <output id="Output_fundamentacao" label="Fundamentacao Tecnica" name="fundamentacao" typeRef="string" />
+
+      <output id="Output_alertasDesperdicio" label="Alertas de Desperdicio" name="alertasDesperdicio" typeRef="string">
+        <outputValues id="OutputValues_alertasDesperdicio">
+          <text>"NENHUM","DUP","FREQ","ESC","DOC","PROT","MULTI"</text>
+        </outputValues>
+      </output>
+
+      <output id="Output_acaoRecomendada" label="Acao Recomendada" name="acaoRecomendada" typeRef="string">
+        <outputValues id="OutputValues_acaoRecomendada">
+          <text>"APROVAR","NEGAR","SOLICITAR_INFO","AGUARDAR_PRAZO","SUGERIR_ALTERNATIVA"</text>
+        </outputValues>
+      </output>
+
+      <!-- ========== RULES - REPROVACOES (Waste Detection First) ========== -->
+
+      <!-- RULE 1: Contraindicacao - Disfuncao VD grave -->
+      <rule id="Rule_Pendente_FalenciaVD">
+        <description>Pendente: Disfuncao VD grave - LVAD isolado pode ser insuficiente</description>
+        <inputEntry id="InputEntry_R1_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_R1_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_R1_3"><text>"Disfuncao_Grave"</text></inputEntry>
+        <inputEntry id="InputEntry_R1_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_R1_5"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_R1_6"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_R1_resultado"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OutputEntry_R1_observacao"><text>"Disfuncao VD grave - risco falencia VD pos-LVAD 30-40%. Avaliar BiVAD, TAH ou otimizacao VD pre-op"</text></outputEntry>
+        <outputEntry id="OutputEntry_R1_fundamentacao"><text>"ISHLT MCS 2024: Disfuncao VD grave aumenta mortalidade. Usar scores CRITT/Michigan/Utah para predizer falencia VD"</text></outputEntry>
+        <outputEntry id="OutputEntry_R1_alertasDesperdicio"><text>"ESC"</text></outputEntry>
+        <outputEntry id="OutputEntry_R1_acaoRecomendada"><text>"SUGERIR_ALTERNATIVA"</text></outputEntry>
+      </rule>
+
+      <!-- RULE 2: Contraindicacao - Suporte psicossocial inadequado -->
+      <rule id="Rule_Reprovado_SemSuporte">
+        <description>Reprovado: Suporte psicossocial inadequado - contraindicacao LVAD</description>
+        <inputEntry id="InputEntry_R2_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_R2_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_R2_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_R2_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_R2_5"><text>false</text></inputEntry>
+        <inputEntry id="InputEntry_R2_6"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_R2_resultado"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_R2_observacao"><text>"Suporte psicossocial inadequado. LVAD requer: cuidador 24h, troca baterias, cuidados driveline, adesao"</text></outputEntry>
+        <outputEntry id="OutputEntry_R2_fundamentacao"><text>"ISHLT MCS 2024: LVAD requer estrutura psicossocial. Instabilidade habitacional, abuso substancias, ausencia cuidador sao contraindicacoes"</text></outputEntry>
+        <outputEntry id="OutputEntry_R2_alertasDesperdicio"><text>"PROT"</text></outputEntry>
+        <outputEntry id="OutputEntry_R2_acaoRecomendada"><text>"NEGAR"</text></outputEntry>
+      </rule>
+
+      <!-- RULE 3: ESC - Avaliacao MCS ausente -->
+      <rule id="Rule_Pendente_SemAvaliacaoMCS">
+        <description>Pendente: Avaliacao centro MCS nao concluida</description>
+        <inputEntry id="InputEntry_R3_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_R3_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_R3_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_R3_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_R3_5"><text>true</text></inputEntry>
+        <inputEntry id="InputEntry_R3_6"><text>false</text></inputEntry>
+        <outputEntry id="OutputEntry_R3_resultado"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OutputEntry_R3_observacao"><text>"Avaliacao centro MCS obrigatoria: eco VD, cateterismo direito, funcao renal/hepatica, infeccao, psicossocial"</text></outputEntry>
+        <outputEntry id="OutputEntry_R3_fundamentacao"><text>"ISHLT MCS 2024: Avaliacao pre-LVAD multidisciplinar mandatoria. Heart Team MCS decide indicacao e tipo dispositivo"</text></outputEntry>
+        <outputEntry id="OutputEntry_R3_alertasDesperdicio"><text>"ESC"</text></outputEntry>
+        <outputEntry id="OutputEntry_R3_acaoRecomendada"><text>"SOLICITAR_INFO"</text></outputEntry>
+      </rule>
+
+      <!-- RULE 4: DOC - Funcao VD nao avaliada -->
+      <rule id="Rule_Pendente_VDNaoAvaliada">
+        <description>Pendente: Funcao VD nao avaliada - mandatoria pre-LVAD</description>
+        <inputEntry id="InputEntry_R4_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_R4_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_R4_3"><text>"NaoAvaliada"</text></inputEntry>
+        <inputEntry id="InputEntry_R4_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_R4_5"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_R4_6"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_R4_resultado"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OutputEntry_R4_observacao"><text>"Avaliacao VD obrigatoria pre-LVAD: eco VD (TAPSE, FAC, S TDI), cateterismo direito (PVC, RVSWI)"</text></outputEntry>
+        <outputEntry id="OutputEntry_R4_fundamentacao"><text>"ISHLT MCS 2024: Funcao VD e principal preditor de mortalidade pos-LVAD. Avaliacao mandatoria"</text></outputEntry>
+        <outputEntry id="OutputEntry_R4_alertasDesperdicio"><text>"DOC"</text></outputEntry>
+        <outputEntry id="OutputEntry_R4_acaoRecomendada"><text>"SOLICITAR_INFO"</text></outputEntry>
+      </rule>
+
+      <!-- ========== RULES - APROVACOES ========== -->
+
+      <!-- RULE 5: Aprovado - BTT paciente listado -->
+      <rule id="Rule_Aprovado_BTT">
+        <description>Aprovado: Ponte ao Transplante - Paciente listado com deterioracao</description>
+        <inputEntry id="InputEntry_R5_1"><text>"BTT_Ponte_Transplante"</text></inputEntry>
+        <inputEntry id="InputEntry_R5_2"><text>"INTERMACS_1","INTERMACS_2","INTERMACS_3"</text></inputEntry>
+        <inputEntry id="InputEntry_R5_3"><text>"Preservada","Disfuncao_Leve","Disfuncao_Moderada"</text></inputEntry>
+        <inputEntry id="InputEntry_R5_4"><text>"Listado"</text></inputEntry>
+        <inputEntry id="InputEntry_R5_5"><text>true</text></inputEntry>
+        <inputEntry id="InputEntry_R5_6"><text>true</text></inputEntry>
+        <outputEntry id="OutputEntry_R5_resultado"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_R5_observacao"><text>"LVAD BTT - Paciente listado com deterioracao. MOMENTUM 3: sobrevida 2 anos 84%. Estabiliza ate transplante"</text></outputEntry>
+        <outputEntry id="OutputEntry_R5_fundamentacao"><text>"ISHLT MCS 2024 Classe I: LVAD BTT indicado em paciente listado com deterioracao (INTERMACS 1-3)"</text></outputEntry>
+        <outputEntry id="OutputEntry_R5_alertasDesperdicio"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_R5_acaoRecomendada"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <!-- RULE 6: Aprovado - DT inelegivel transplante -->
+      <rule id="Rule_Aprovado_DT">
+        <description>Aprovado: Terapia Definitiva - Inelegivel transplante com expectativa vida adequada</description>
+        <inputEntry id="InputEntry_R6_1"><text>"DT_Terapia_Definitiva"</text></inputEntry>
+        <inputEntry id="InputEntry_R6_2"><text>"INTERMACS_2","INTERMACS_3","INTERMACS_4"</text></inputEntry>
+        <inputEntry id="InputEntry_R6_3"><text>"Preservada","Disfuncao_Leve","Disfuncao_Moderada"</text></inputEntry>
+        <inputEntry id="InputEntry_R6_4"><text>"Contraindicacao_Permanente"</text></inputEntry>
+        <inputEntry id="InputEntry_R6_5"><text>true</text></inputEntry>
+        <inputEntry id="InputEntry_R6_6"><text>true</text></inputEntry>
+        <outputEntry id="OutputEntry_R6_resultado"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_R6_observacao"><text>"LVAD DT - Inelegivel transplante com expectativa vida maior 1-2 anos. Sobrevida 84% em 2 anos (MOMENTUM 3)"</text></outputEntry>
+        <outputEntry id="OutputEntry_R6_fundamentacao"><text>"ISHLT MCS 2024 Classe I: LVAD DT indicado IC refrataria inelegivel transplante. Melhora sobrevida e QoL vs tratamento clinico"</text></outputEntry>
+        <outputEntry id="OutputEntry_R6_alertasDesperdicio"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_R6_acaoRecomendada"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <!-- RULE 7: Aprovado - BTD choque agudo -->
+      <rule id="Rule_Aprovado_BTD">
+        <description>Aprovado: Ponte a Decisao - Choque agudo, candidatura pendente</description>
+        <inputEntry id="InputEntry_R7_1"><text>"BTD_Ponte_Decisao"</text></inputEntry>
+        <inputEntry id="InputEntry_R7_2"><text>"INTERMACS_1","INTERMACS_2"</text></inputEntry>
+        <inputEntry id="InputEntry_R7_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_R7_4"><text>"Em_Avaliacao"</text></inputEntry>
+        <inputEntry id="InputEntry_R7_5"><text>true</text></inputEntry>
+        <inputEntry id="InputEntry_R7_6"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_R7_resultado"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_R7_observacao"><text>"LVAD BTD - Choque cardiogenico, candidatura transplante em avaliacao. Estabiliza para completar work-up"</text></outputEntry>
+        <outputEntry id="OutputEntry_R7_fundamentacao"><text>"ISHLT MCS 2024 Classe IIa: LVAD BTD razoavel em choque quando candidatura nao definida. Pode evoluir para BTT ou DT"</text></outputEntry>
+        <outputEntry id="OutputEntry_R7_alertasDesperdicio"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_R7_acaoRecomendada"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <!-- RULE 8: Aprovado - BTR ponte recuperacao -->
+      <rule id="Rule_Aprovado_BTR">
+        <description>Aprovado: Ponte a Recuperacao - Miocardite aguda, cardiomiopatia periparto</description>
+        <inputEntry id="InputEntry_R8_1"><text>"BTR_Ponte_Recuperacao"</text></inputEntry>
+        <inputEntry id="InputEntry_R8_2"><text>"INTERMACS_1","INTERMACS_2","INTERMACS_3"</text></inputEntry>
+        <inputEntry id="InputEntry_R8_3"><text>"Preservada","Disfuncao_Leve","Disfuncao_Moderada"</text></inputEntry>
+        <inputEntry id="InputEntry_R8_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_R8_5"><text>true</text></inputEntry>
+        <inputEntry id="InputEntry_R8_6"><text>true</text></inputEntry>
+        <outputEntry id="OutputEntry_R8_resultado"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_R8_observacao"><text>"LVAD BTR - Condicao potencialmente reversivel (miocardite, periparto). Objetivo: explante apos recuperacao"</text></outputEntry>
+        <outputEntry id="OutputEntry_R8_fundamentacao"><text>"ISHLT MCS 2024: LVAD BTR em condicoes reversiveis. Taxa recuperacao 10-30% dependendo etiologia"</text></outputEntry>
+        <outputEntry id="OutputEntry_R8_alertasDesperdicio"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_R8_acaoRecomendada"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <!-- ========== FALLBACK RULE ========== -->
+
+      <rule id="Rule_Fallback_30904178">
+        <description>Regra padrao - Encaminhar centro MCS especializado</description>
+        <inputEntry id="InputEntry_Fallback_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Fallback_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Fallback_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Fallback_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Fallback_5"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Fallback_6"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_Fallback_resultado"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OutputEntry_Fallback_observacao"><text>"Encaminhar centro MCS especializado credenciado para avaliacao LVAD e definicao de estrategia"</text></outputEntry>
+        <outputEntry id="OutputEntry_Fallback_fundamentacao"><text>"LVAD requer centro MCS especializado. Heart Team MCS define: BTT, DT, BTD ou BTR. HeartMate 3 e dispositivo padrao"</text></outputEntry>
+        <outputEntry id="OutputEntry_Fallback_alertasDesperdicio"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_Fallback_acaoRecomendada"><text>"SOLICITAR_INFO"</text></outputEntry>
+      </rule>
+
+    </decisionTable>
+  </decision>
+</definitions>

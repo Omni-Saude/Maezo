@@ -1,0 +1,260 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             xmlns:camunda="http://camunda.org/schema/1.0/dmn"
+             id="Definitions_REC004"
+             name="Reconstrucao Pos-Queimadura"
+             namespace="http://camunda.org/schema/1.0/dmn">
+
+  <!--
+    ===============================================================================
+    TUSS: REC-004
+    Procedimento: Reconstrucao de Sequelas de Queimaduras
+    Especialidade: Cirurgia Reconstrutiva / Cirurgia Plastica
+    Versao: 3.0.0-TIER1
+    Data: 2026-02-07
+    ===============================================================================
+
+    INDICACOES CLINICAS (SBCP 2022, SBQ 2021):
+    - Sequelas funcionais de queimaduras
+    - Contraturas cicatriciais com limitacao de movimento
+    - Ectropio/entropio pos-queimadura
+    - Microstomia
+    - Sindactilia cicatricial
+    - Bridas cervicais
+
+    CLASSIFICACAO DE PRIORIDADE:
+    - URGENTE: Limitacao funcional grave (maos, olhos, via aerea)
+    - ELETIVO: Sequelas esteticas sem limitacao funcional
+
+    REFERENCIAS TECNICAS:
+    - SBCP 2022 - Diretrizes Queimaduras
+    - SBQ (Sociedade Brasileira de Queimaduras) 2021
+    - ABA (American Burn Association) 2023
+    - ISBI Guidelines 2022
+
+    ===============================================================================
+  -->
+
+  <decision id="Decision_REC004" name="Regra Clinica - Reconstrucao Pos-Queimadura">
+    <decisionTable id="DecisionTable_REC004" hitPolicy="FIRST">
+
+      <!-- ========== INPUTS (5) ========== -->
+
+      <input id="Input_tipoSequela" label="Tipo de Sequela" camunda:inputVariable="tipoSequela">
+        <inputExpression id="InputExpression_tipoSequela" typeRef="string">
+          <text>tipoSequela</text>
+        </inputExpression>
+        <inputValues id="InputValues_tipoSequela">
+          <text>"ContraturaCervical","ContraturaMao","Ectropio","Microstomia","SindactiliaCicatricial","BridaArticular","CicatrizHipertrofica","SequelaTorax"</text>
+        </inputValues>
+      </input>
+
+      <input id="Input_limitacaoFuncional" label="Limitacao Funcional" camunda:inputVariable="limitacaoFuncional">
+        <inputExpression id="InputExpression_limitacaoFuncional" typeRef="string">
+          <text>limitacaoFuncional</text>
+        </inputExpression>
+        <inputValues id="InputValues_limitacaoFuncional">
+          <text>"GraveFuncional","ModeradaFuncional","LeveFuncional","ApenasCosmetico"</text>
+        </inputValues>
+      </input>
+
+      <input id="Input_tempoDesdeQueimadura" label="Tempo Desde Queimadura (meses)" camunda:inputVariable="tempoDesdeQueimadura">
+        <inputExpression id="InputExpression_tempoDesdeQueimadura" typeRef="number">
+          <text>tempoDesdeQueimadura</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_tratamentoConservador" label="Tratamento Conservador Previo" camunda:inputVariable="tratamentoConservador">
+        <inputExpression id="InputExpression_tratamentoConservador" typeRef="string">
+          <text>tratamentoConservador</text>
+        </inputExpression>
+        <inputValues id="InputValues_tratamentoConservador">
+          <text>"MalhaPressaoFalha","CorticoideFalha","FisioterapiaFalha","Completo","NaoAplicavel"</text>
+        </inputValues>
+      </input>
+
+      <input id="Input_procedimentoProposto" label="Procedimento Proposto" camunda:inputVariable="procedimentoProposto">
+        <inputExpression id="InputExpression_procedimentoProposto" typeRef="string">
+          <text>procedimentoProposto</text>
+        </inputExpression>
+        <inputValues id="InputValues_procedimentoProposto">
+          <text>"ZPlastia","Enxerto","Retalho","ExpansorTecidual","LiberacaoBrida","Resseccao"</text>
+        </inputValues>
+      </input>
+
+      <!-- ========== OUTPUTS (3 - Padrao TIER-1) ========== -->
+
+      <output id="Output_resultado" label="Resultado" name="resultado" typeRef="string">
+        <outputValues id="OutputValues_resultado">
+          <text>"Aprovado","Reprovado","Pendente"</text>
+        </outputValues>
+      </output>
+
+      <output id="Output_observacao" label="Observacao Clinica" name="observacao" typeRef="string" />
+
+      <output id="Output_fundamentacao" label="Fundamentacao Tecnica" name="fundamentacao" typeRef="string" />
+
+      <!-- Output 4: Alertas Desperdicio -->
+      <output id="Output_alertasDesperdicio" label="Alertas de Desperdicio" name="alertasDesperdicio" typeRef="string">
+        <outputValues id="OutputValues_alertasDesperdicio">
+          <text>"NENHUM","DUP","FREQ","ESC","DOC","PROT","MULTI"</text>
+        </outputValues>
+      </output>
+
+      <!-- Output 5: Acao Recomendada -->
+      <output id="Output_acaoRecomendada" label="Acao Recomendada" name="acaoRecomendada" typeRef="string">
+        <outputValues id="OutputValues_acaoRecomendada">
+          <text>"APROVAR","NEGAR","SOLICITAR_INFO","AGUARDAR_PRAZO","SUGERIR_ALTERNATIVA"</text>
+        </outputValues>
+      </output>
+
+      <!-- ========== RULES ========== -->
+
+      <!-- APROVACOES URGENTES - LIMITACAO FUNCIONAL GRAVE -->
+      <rule id="Rule_Aprovado_EctropioUrgente">
+        <description>Aprovado Urgente: Ectropio com exposicao corneana</description>
+        <inputEntry id="InputEntry_ECT_1"><text>"Ectropio"</text></inputEntry>
+        <inputEntry id="InputEntry_ECT_2"><text>"GraveFuncional"</text></inputEntry>
+        <inputEntry id="InputEntry_ECT_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_ECT_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_ECT_5"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_ECT_resultado"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_ECT_observacao"><text>"URGENTE - Ectropio com risco de exposicao corneana e perda visual"</text></outputEntry>
+        <outputEntry id="OutputEntry_ECT_fundamentacao"><text>"SBQ 2021, ISBI 2022 - Ectropio pos-queimadura e urgencia oftalmologica"</text></outputEntry>
+      <outputEntry id="OE_Aprovado_EctropioUrgente_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_Aprovado_EctropioUrgente_5"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Aprovado_ContraturaCervicalUrgente">
+        <description>Aprovado Urgente: Contratura cervical com limitacao de via aerea</description>
+        <inputEntry id="InputEntry_CCU_1"><text>"ContraturaCervical"</text></inputEntry>
+        <inputEntry id="InputEntry_CCU_2"><text>"GraveFuncional"</text></inputEntry>
+        <inputEntry id="InputEntry_CCU_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_CCU_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_CCU_5"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_CCU_resultado"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_CCU_observacao"><text>"URGENTE - Contratura cervical grave com limitacao de extensao cervical"</text></outputEntry>
+        <outputEntry id="OutputEntry_CCU_fundamentacao"><text>"SBQ 2021, ABA 2023 - Bridas cervicais graves requerem liberacao urgente"</text></outputEntry>
+      <outputEntry id="OE_Aprovado_ContraturaCervicalUrgente_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_Aprovado_ContraturaCervicalUrgente_5"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Aprovado_ContraturaMao">
+        <description>Aprovado: Contratura de mao com limitacao funcional</description>
+        <inputEntry id="InputEntry_CM_1"><text>"ContraturaMao","SindactiliaCicatricial"</text></inputEntry>
+        <inputEntry id="InputEntry_CM_2"><text>"GraveFuncional","ModeradaFuncional"</text></inputEntry>
+        <inputEntry id="InputEntry_CM_3"><text>&gt;= 6</text></inputEntry>
+        <inputEntry id="InputEntry_CM_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_CM_5"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_CM_resultado"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_CM_observacao"><text>"Contratura de mao pos-queimadura com limitacao funcional documentada"</text></outputEntry>
+        <outputEntry id="OutputEntry_CM_fundamentacao"><text>"SBCP 2022, ABA 2023 - Reconstrucao funcional de mao e prioridade"</text></outputEntry>
+      <outputEntry id="OE_Aprovado_ContraturaMao_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_Aprovado_ContraturaMao_5"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Aprovado_Microstomia">
+        <description>Aprovado: Microstomia limitando alimentacao</description>
+        <inputEntry id="InputEntry_MIC_1"><text>"Microstomia"</text></inputEntry>
+        <inputEntry id="InputEntry_MIC_2"><text>"GraveFuncional","ModeradaFuncional"</text></inputEntry>
+        <inputEntry id="InputEntry_MIC_3"><text>&gt;= 6</text></inputEntry>
+        <inputEntry id="InputEntry_MIC_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_MIC_5"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_MIC_resultado"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_MIC_observacao"><text>"Microstomia pos-queimadura limitando abertura oral e alimentacao"</text></outputEntry>
+        <outputEntry id="OutputEntry_MIC_fundamentacao"><text>"SBQ 2021 - Microstomia com abertura menor que 3cm e indicacao cirurgica"</text></outputEntry>
+      <outputEntry id="OE_Aprovado_Microstomia_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_Aprovado_Microstomia_5"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <!-- APROVACOES ELETIVAS -->
+      <rule id="Rule_Aprovado_BridaArticular">
+        <description>Aprovado: Brida articular apos tratamento conservador</description>
+        <inputEntry id="InputEntry_BA_1"><text>"BridaArticular"</text></inputEntry>
+        <inputEntry id="InputEntry_BA_2"><text>"ModeradaFuncional","LeveFuncional"</text></inputEntry>
+        <inputEntry id="InputEntry_BA_3"><text>&gt;= 12</text></inputEntry>
+        <inputEntry id="InputEntry_BA_4"><text>"FisioterapiaFalha","Completo"</text></inputEntry>
+        <inputEntry id="InputEntry_BA_5"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_BA_resultado"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_BA_observacao"><text>"Brida articular refrataria a fisioterapia - liberacao cirurgica indicada"</text></outputEntry>
+        <outputEntry id="OutputEntry_BA_fundamentacao"><text>"SBCP 2022 - Tratamento cirurgico apos falha conservadora por 6-12 meses"</text></outputEntry>
+      <outputEntry id="OE_Aprovado_BridaArticular_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_Aprovado_BridaArticular_5"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Aprovado_CicatrizHipertrofica">
+        <description>Aprovado: Cicatriz hipertrofica com limitacao</description>
+        <inputEntry id="InputEntry_CH_1"><text>"CicatrizHipertrofica"</text></inputEntry>
+        <inputEntry id="InputEntry_CH_2"><text>"ModeradaFuncional","LeveFuncional"</text></inputEntry>
+        <inputEntry id="InputEntry_CH_3"><text>&gt;= 12</text></inputEntry>
+        <inputEntry id="InputEntry_CH_4"><text>"MalhaPressaoFalha","CorticoideFalha"</text></inputEntry>
+        <inputEntry id="InputEntry_CH_5"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_CH_resultado"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_CH_observacao"><text>"Cicatriz hipertrofica refrataria a tratamento conservador por 12+ meses"</text></outputEntry>
+        <outputEntry id="OutputEntry_CH_fundamentacao"><text>"ISBI 2022 - Resseccao indicada apos falha de malha compressiva e corticoide"</text></outputEntry>
+      <outputEntry id="OE_Aprovado_CicatrizHipertrofica_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_Aprovado_CicatrizHipertrofica_5"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <!-- REPROVACOES -->
+      <rule id="Rule_Reprovado_ApenasCosmetico">
+        <description>Reprovado: Indicacao apenas cosmetica sem limitacao funcional</description>
+        <inputEntry id="InputEntry_COS_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_COS_2"><text>"ApenasCosmetico"</text></inputEntry>
+        <inputEntry id="InputEntry_COS_3"><text>&lt; 12</text></inputEntry>
+        <inputEntry id="InputEntry_COS_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_COS_5"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_COS_resultado"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_COS_observacao"><text>"Indicacao puramente estetica - aguardar maturacao cicatricial (12-24 meses)"</text></outputEntry>
+        <outputEntry id="OutputEntry_COS_fundamentacao"><text>"SBCP 2022, SBQ 2021 - Cirurgia cosmetica so apos estabilizacao cicatricial"</text></outputEntry>
+      <outputEntry id="OE_Reprovado_ApenasCosmetico_4"><text>"PROT"</text></outputEntry>
+        <outputEntry id="OE_Reprovado_ApenasCosmetico_5"><text>"NEGAR"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Reprovado_MuitoRecente">
+        <description>Reprovado: Queimadura muito recente</description>
+        <inputEntry id="InputEntry_REC_1"><text>not("Ectropio","ContraturaCervical")</text></inputEntry>
+        <inputEntry id="InputEntry_REC_2"><text>"LeveFuncional","ApenasCosmetico"</text></inputEntry>
+        <inputEntry id="InputEntry_REC_3"><text>&lt; 6</text></inputEntry>
+        <inputEntry id="InputEntry_REC_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_REC_5"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_REC_resultado"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_REC_observacao"><text>"Cicatriz ainda em fase de maturacao - aguardar minimo 6 meses"</text></outputEntry>
+        <outputEntry id="OutputEntry_REC_fundamentacao"><text>"SBQ 2021 - Reconstrucao eletiva so apos 6-12 meses de maturacao"</text></outputEntry>
+      <outputEntry id="OE_Reprovado_MuitoRecente_4"><text>"PROT"</text></outputEntry>
+        <outputEntry id="OE_Reprovado_MuitoRecente_5"><text>"NEGAR"</text></outputEntry>
+      </rule>
+
+      <!-- PENDENTE -->
+      <rule id="Rule_Pendente_TratamentoConservador">
+        <description>Pendente: Tratamento conservador nao tentado</description>
+        <inputEntry id="InputEntry_TC_1"><text>"CicatrizHipertrofica","BridaArticular"</text></inputEntry>
+        <inputEntry id="InputEntry_TC_2"><text>"LeveFuncional"</text></inputEntry>
+        <inputEntry id="InputEntry_TC_3"><text>[6..12]</text></inputEntry>
+        <inputEntry id="InputEntry_TC_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_TC_5"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_TC_resultado"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OutputEntry_TC_observacao"><text>"Iniciar tratamento conservador: malha compressiva, fisioterapia, silicone"</text></outputEntry>
+        <outputEntry id="OutputEntry_TC_fundamentacao"><text>"ISBI 2022 - Tratamento conservador e primeira linha para sequelas leves"</text></outputEntry>
+      <outputEntry id="OE_Pendente_TratamentoConservador_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_Pendente_TratamentoConservador_5"><text>"SOLICITAR_INFO"</text></outputEntry>
+      </rule>
+
+      <!-- FALLBACK RULE -->
+      <rule id="Rule_Fallback_REC004">
+        <description>Regra padrao - Analise adicional necessaria</description>
+        <inputEntry id="InputEntry_Fallback_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Fallback_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Fallback_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Fallback_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Fallback_5"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_Fallback_resultado"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OutputEntry_Fallback_observacao"><text>"Avaliar com centro de referencia em queimaduras"</text></outputEntry>
+        <outputEntry id="OutputEntry_Fallback_fundamentacao"><text>"SBQ 2021, SBCP 2022 - Sequelas complexas requerem avaliacao especializada"</text></outputEntry>
+      <outputEntry id="OE_Fallback_REC004_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_Fallback_REC004_5"><text>"SOLICITAR_INFO"</text></outputEntry>
+      </rule>
+
+    </decisionTable>
+  </decision>
+</definitions>

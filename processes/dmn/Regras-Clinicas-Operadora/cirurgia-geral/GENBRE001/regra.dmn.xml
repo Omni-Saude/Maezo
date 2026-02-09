@@ -1,0 +1,231 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             xmlns:camunda="http://camunda.org/schema/1.0/dmn"
+             id="Definitions_GEN_BRE_001"
+             name="Cirurgia Conservadora vs Mastectomia"
+             namespace="http://camunda.org/schema/1.0/dmn">
+
+  <!--
+    ===============================================================================
+    CODIGO: GEN-BRE-001
+    Procedimento: Cirurgia Conservadora da Mama vs Mastectomia - Criterios de Selecao
+    Especialidade: Cirurgia Geral - Mastologia
+    Versao: 3.0.0-TIER1
+    Data: 2026-02-07
+    ===============================================================================
+
+    INDICACOES PARA CIRURGIA CONSERVADORA:
+    - Tumor unico <= 5 cm
+    - Relacao tumor/mama favoravel
+    - Margens livres obteniveis
+    - Sem contraindicacao a radioterapia
+    - Preferencia da paciente
+
+    INDICACOES PARA MASTECTOMIA:
+    - Tumor > 5 cm ou relacao tumor/mama desfavoravel
+    - Tumores multicentricos
+    - Contraindicacao a radioterapia
+    - Mutacao BRCA com opcao por mastectomia profilatica
+    - Margem positiva persistente apos re-excisao
+
+    REFERENCIAS TECNICAS:
+    - NCCN Breast Cancer Guidelines 2024
+    - ASCO/SSO Margins Guidelines 2021
+    - SBM Guidelines 2023
+
+    ===============================================================================
+  -->
+
+  <decision id="Decision_GEN_BRE_001" name="Regra Clinica - Conservadora vs Mastectomia">
+    <decisionTable id="DecisionTable_GEN_BRE_001" hitPolicy="FIRST">
+
+      <!-- ========== INPUTS (5) ========== -->
+
+      <input id="Input_tamanhoTumor" label="Tamanho do Tumor (cm)" camunda:inputVariable="tamanhoTumor">
+        <inputExpression id="InputExpression_tamanhoTumor" typeRef="number">
+          <text>tamanhoTumor</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_multicentricidade" label="Multicentricidade/Multifocalidade" camunda:inputVariable="multicentricidade">
+        <inputExpression id="InputExpression_multicentricidade" typeRef="string">
+          <text>multicentricidade</text>
+        </inputExpression>
+        <inputValues id="InputValues_multicentricidade">
+          <text>"Multicentrico","MultifocalProximo","Unifocal"</text>
+        </inputValues>
+      </input>
+
+      <input id="Input_relacaoTumorMama" label="Relacao Tumor/Mama" camunda:inputVariable="relacaoTumorMama">
+        <inputExpression id="InputExpression_relacaoTumorMama" typeRef="string">
+          <text>relacaoTumorMama</text>
+        </inputExpression>
+        <inputValues id="InputValues_relacaoTumorMama">
+          <text>"Favoravel","Desfavoravel","Intermediario"</text>
+        </inputValues>
+      </input>
+
+      <input id="Input_contraindicacaoRT" label="Contraindicacao a Radioterapia" camunda:inputVariable="contraindicacaoRT">
+        <inputExpression id="InputExpression_contraindicacaoRT" typeRef="boolean">
+          <text>contraindicacaoRT</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_preferenciaPaciente" label="Preferencia da Paciente" camunda:inputVariable="preferenciaPaciente">
+        <inputExpression id="InputExpression_preferenciaPaciente" typeRef="string">
+          <text>preferenciaPaciente</text>
+        </inputExpression>
+        <inputValues id="InputValues_preferenciaPaciente">
+          <text>"Conservadora","Mastectomia","SemPreferencia"</text>
+        </inputValues>
+      </input>
+
+      <!-- ========== OUTPUTS (3) ========== -->
+
+      <output id="Output_resultado" label="Resultado" name="resultado" typeRef="string">
+        <outputValues id="OutputValues_resultado">
+          <text>"Aprovado","Reprovado","Pendente"</text>
+        </outputValues>
+      </output>
+
+      <output id="Output_observacao" label="Observacao Clinica" name="observacao" typeRef="string" />
+
+      <output id="Output_fundamentacao" label="Fundamentacao Tecnica" name="fundamentacao" typeRef="string" />
+
+      <!-- Output 4: Alertas Desperdicio -->
+      <output id="Output_alertasDesperdicio" label="Alertas de Desperdicio" name="alertasDesperdicio" typeRef="string">
+        <outputValues id="OutputValues_alertasDesperdicio">
+          <text>"NENHUM","DUP","FREQ","ESC","DOC","PROT","MULTI"</text>
+        </outputValues>
+      </output>
+
+      <!-- Output 5: Acao Recomendada -->
+      <output id="Output_acaoRecomendada" label="Acao Recomendada" name="acaoRecomendada" typeRef="string">
+        <outputValues id="OutputValues_acaoRecomendada">
+          <text>"APROVAR","NEGAR","SOLICITAR_INFO","AGUARDAR_PRAZO","SUGERIR_ALTERNATIVA"</text>
+        </outputValues>
+      </output>
+
+      <!-- ========== REGRAS DE REPROVACAO ========== -->
+
+      <rule id="Rule_Reprovado_SemIndicacao">
+        <description>Reprovado: Tumor nao confirmado ou in situ de baixo risco</description>
+        <inputEntry id="IE_Rep1_1"><text>&lt; 0.5</text></inputEntry>
+        <inputEntry id="IE_Rep1_2"><text>"Unifocal"</text></inputEntry>
+        <inputEntry id="IE_Rep1_3"><text>"Favoravel"</text></inputEntry>
+        <inputEntry id="IE_Rep1_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_Rep1_5"><text>-</text></inputEntry>
+        <outputEntry id="OE_Rep1_1"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OE_Rep1_2"><text>"Microtumor ou lesao in situ de baixo risco - avaliar vigilancia ativa vs excisao local apenas"</text></outputEntry>
+        <outputEntry id="OE_Rep1_3"><text>"NCCN 2024 - Opcoes para CDIS de baixo risco incluem vigilancia"</text></outputEntry>
+      <outputEntry id="OE_Reprovado_SemIndicacao_4"><text>"PROT"</text></outputEntry>
+        <outputEntry id="OE_Reprovado_SemIndicacao_5"><text>"NEGAR"</text></outputEntry>
+      </rule>
+
+      <!-- ========== REGRAS DE APROVACAO - CONSERVADORA ========== -->
+
+      <rule id="Rule_Aprovado_ConservadoraIdeal">
+        <description>Aprovado: Candidata ideal para conservadora</description>
+        <inputEntry id="IE_AprC1_1"><text>&lt;= 3</text></inputEntry>
+        <inputEntry id="IE_AprC1_2"><text>"Unifocal"</text></inputEntry>
+        <inputEntry id="IE_AprC1_3"><text>"Favoravel"</text></inputEntry>
+        <inputEntry id="IE_AprC1_4"><text>false</text></inputEntry>
+        <inputEntry id="IE_AprC1_5"><text>"Conservadora","SemPreferencia"</text></inputEntry>
+        <outputEntry id="OE_AprC1_1"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OE_AprC1_2"><text>"Candidata ideal para cirurgia conservadora - tumor pequeno, unifocal, relacao favoravel"</text></outputEntry>
+        <outputEntry id="OE_AprC1_3"><text>"NCCN 2024 - Cirurgia conservadora + RT tem sobrevida equivalente a mastectomia"</text></outputEntry>
+      <outputEntry id="OE_Aprovado_ConservadoraIdeal_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_Aprovado_ConservadoraIdeal_5"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Aprovado_ConservadoraViavel">
+        <description>Aprovado: Conservadora viavel com tumor ate 5cm</description>
+        <inputEntry id="IE_AprC2_1"><text>[3..5]</text></inputEntry>
+        <inputEntry id="IE_AprC2_2"><text>"Unifocal","MultifocalProximo"</text></inputEntry>
+        <inputEntry id="IE_AprC2_3"><text>"Favoravel","Intermediario"</text></inputEntry>
+        <inputEntry id="IE_AprC2_4"><text>false</text></inputEntry>
+        <inputEntry id="IE_AprC2_5"><text>"Conservadora","SemPreferencia"</text></inputEntry>
+        <outputEntry id="OE_AprC2_1"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OE_AprC2_2"><text>"Cirurgia conservadora viavel - avaliar margens intraoperatorias"</text></outputEntry>
+        <outputEntry id="OE_AprC2_3"><text>"ASCO/SSO 2021 - Margens negativas (no ink on tumor) sao adequadas"</text></outputEntry>
+      <outputEntry id="OE_Aprovado_ConservadoraViavel_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_Aprovado_ConservadoraViavel_5"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <!-- ========== REGRAS DE APROVACAO - MASTECTOMIA ========== -->
+
+      <rule id="Rule_Aprovado_MastectomiaMulticentrico">
+        <description>Aprovado: Mastectomia por multicentricidade</description>
+        <inputEntry id="IE_AprM1_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_AprM1_2"><text>"Multicentrico"</text></inputEntry>
+        <inputEntry id="IE_AprM1_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_AprM1_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_AprM1_5"><text>-</text></inputEntry>
+        <outputEntry id="OE_AprM1_1"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OE_AprM1_2"><text>"Tumor multicentrico - mastectomia indicada, considerar reconstrucao imediata"</text></outputEntry>
+        <outputEntry id="OE_AprM1_3"><text>"NCCN 2024 - Multicentricidade e contraindicacao relativa a conservadora"</text></outputEntry>
+      <outputEntry id="OE_Aprovado_MastectomiaMulticentrico_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_Aprovado_MastectomiaMulticentrico_5"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Aprovado_MastectomiaContraRT">
+        <description>Aprovado: Mastectomia por contraindicacao a RT</description>
+        <inputEntry id="IE_AprM2_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_AprM2_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_AprM2_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_AprM2_4"><text>true</text></inputEntry>
+        <inputEntry id="IE_AprM2_5"><text>-</text></inputEntry>
+        <outputEntry id="OE_AprM2_1"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OE_AprM2_2"><text>"Contraindicacao a radioterapia - mastectomia indicada"</text></outputEntry>
+        <outputEntry id="OE_AprM2_3"><text>"NCCN 2024 - Conservadora requer RT adjuvante"</text></outputEntry>
+      <outputEntry id="OE_Aprovado_MastectomiaContraRT_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_Aprovado_MastectomiaContraRT_5"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Aprovado_MastectomiaPreferencia">
+        <description>Aprovado: Mastectomia por preferencia informada</description>
+        <inputEntry id="IE_AprM3_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_AprM3_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_AprM3_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_AprM3_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_AprM3_5"><text>"Mastectomia"</text></inputEntry>
+        <outputEntry id="OE_AprM3_1"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OE_AprM3_2"><text>"Mastectomia por preferencia informada da paciente - respeitar decisao compartilhada"</text></outputEntry>
+        <outputEntry id="OE_AprM3_3"><text>"NCCN 2024 - Decisao compartilhada e fundamental na escolha do tipo de cirurgia"</text></outputEntry>
+      <outputEntry id="OE_Aprovado_MastectomiaPreferencia_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_Aprovado_MastectomiaPreferencia_5"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Aprovado_MastectomiaTumorGrande">
+        <description>Aprovado: Mastectomia por tumor grande</description>
+        <inputEntry id="IE_AprM4_1"><text>&gt; 5</text></inputEntry>
+        <inputEntry id="IE_AprM4_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_AprM4_3"><text>"Desfavoravel"</text></inputEntry>
+        <inputEntry id="IE_AprM4_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_AprM4_5"><text>-</text></inputEntry>
+        <outputEntry id="OE_AprM4_1"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OE_AprM4_2"><text>"Tumor &gt; 5cm com relacao desfavoravel - mastectomia indicada"</text></outputEntry>
+        <outputEntry id="OE_AprM4_3"><text>"SBM Guidelines 2023 - Considerar quimioterapia neoadjuvante para downstaging"</text></outputEntry>
+      <outputEntry id="OE_Aprovado_MastectomiaTumorGrande_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_Aprovado_MastectomiaTumorGrande_5"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <!-- ========== REGRA FALLBACK ========== -->
+
+      <rule id="Rule_Fallback_GEN_BRE_001">
+        <description>Pendente: Discussao em junta de mama</description>
+        <inputEntry id="IE_FB_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_FB_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_FB_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_FB_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_FB_5"><text>-</text></inputEntry>
+        <outputEntry id="OE_FB_1"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OE_FB_2"><text>"Discussao em junta multidisciplinar de mama para definicao de conduta individualizada"</text></outputEntry>
+        <outputEntry id="OE_FB_3"><text>"NCCN 2024 - Casos complexos requerem discussao multidisciplinar"</text></outputEntry>
+      <outputEntry id="OE_Fallback_GEN_BRE_001_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_Fallback_GEN_BRE_001_5"><text>"SOLICITAR_INFO"</text></outputEntry>
+      </rule>
+
+    </decisionTable>
+  </decision>
+</definitions>

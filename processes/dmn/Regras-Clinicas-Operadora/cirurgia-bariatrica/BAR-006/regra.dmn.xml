@@ -1,0 +1,228 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             xmlns:camunda="http://camunda.org/schema/1.0/dmn"
+             id="Definitions_BAR006"
+             name="Tratamento Fistula Pos-Bariatrica"
+             namespace="http://camunda.org/schema/1.0/dmn">
+
+  <!--
+    ===============================================================================
+    TUSS: BAR-006
+    Procedimento: Tratamento Cirurgico de Fistula Pos-Bariatrica
+    Especialidade: Cirurgia Bariatrica
+    Versao: 3.0.0-TIER1
+    Data: 2026-02-07
+    ===============================================================================
+
+    INDICACOES CLINICAS (SBCBM 2022):
+    - Fistula gastrica/enteral pos-operatoria persistente
+    - Fistula gastro-gastrica pos-bypass
+    - Fistula gastro-cutanea cronica
+    - Falha do tratamento endoscopico/conservador
+
+    CLASSIFICACAO DE FISTULAS (Csendes):
+    - Tipo I: Fistula subclinica (tratamento conservador)
+    - Tipo II: Fistula com colecao localizada (drenagem)
+    - Tipo III: Fistula com colecao difusa (cirurgia urgente)
+    - Tipo IV: Fistula com necrose (cirurgia emergencial)
+
+    REFERENCIAS TECNICAS:
+    - SBCBM 2022 - Manejo de Complicacoes
+    - SAGES Guidelines Leak Management 2020
+    - IFSO Consensus on Complications 2021
+
+    ===============================================================================
+  -->
+
+  <decision id="Decision_BAR006" name="Regra Clinica - Tratamento Fistula Pos-Bariatrica">
+    <decisionTable id="DecisionTable_BAR006" hitPolicy="FIRST">
+
+      <!-- ========== INPUTS (5) ========== -->
+
+      <input id="Input_tipoFistula" label="Tipo de Fistula (Csendes)" camunda:inputVariable="tipoFistula">
+        <inputExpression id="InputExpression_tipoFistula" typeRef="string">
+          <text>tipoFistula</text>
+        </inputExpression>
+        <inputValues id="InputValues_tipoFistula">
+          <text>"TipoI","TipoII","TipoIII","TipoIV"</text>
+        </inputValues>
+      </input>
+
+      <input id="Input_tempoEvolucao" label="Tempo de Evolucao (dias)" camunda:inputVariable="tempoEvolucao">
+        <inputExpression id="InputExpression_tempoEvolucao" typeRef="number">
+          <text>tempoEvolucao</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_tratamentoConservador" label="Tratamento Conservador Previo" camunda:inputVariable="tratamentoConservador">
+        <inputExpression id="InputExpression_tratamentoConservador" typeRef="string">
+          <text>tratamentoConservador</text>
+        </inputExpression>
+        <inputValues id="InputValues_tratamentoConservador">
+          <text>"Sucesso","Falha","EmAndamento","NaoRealizado"</text>
+        </inputValues>
+      </input>
+
+      <input id="Input_tratamentoEndoscopico" label="Tratamento Endoscopico Previo" camunda:inputVariable="tratamentoEndoscopico">
+        <inputExpression id="InputExpression_tratamentoEndoscopico" typeRef="string">
+          <text>tratamentoEndoscopico</text>
+        </inputExpression>
+        <inputValues id="InputValues_tratamentoEndoscopico">
+          <text>"Sucesso","Falha","Contraindicado","NaoRealizado"</text>
+        </inputValues>
+      </input>
+
+      <input id="Input_sepsisAtiva" label="Sepsis Ativa" camunda:inputVariable="sepsisAtiva">
+        <inputExpression id="InputExpression_sepsisAtiva" typeRef="boolean">
+          <text>sepsisAtiva</text>
+        </inputExpression>
+      </input>
+
+      <!-- ========== OUTPUTS (3 - Padrao TIER-1) ========== -->
+
+      <output id="Output_resultado" label="Resultado" name="resultado" typeRef="string">
+        <outputValues id="OutputValues_resultado">
+          <text>"Aprovado","Reprovado","Pendente"</text>
+        </outputValues>
+      </output>
+
+      <output id="Output_observacao" label="Observacao Clinica" name="observacao" typeRef="string" />
+
+      <output id="Output_fundamentacao" label="Fundamentacao Tecnica" name="fundamentacao" typeRef="string" />
+
+      <!-- Output 4: Alertas Desperdicio -->
+      <output id="Output_alertasDesperdicio" label="Alertas de Desperdicio" name="alertasDesperdicio" typeRef="string">
+        <outputValues id="OutputValues_alertasDesperdicio">
+          <text>"NENHUM","DUP","FREQ","ESC","DOC","PROT","MULTI"</text>
+        </outputValues>
+      </output>
+
+      <!-- Output 5: Acao Recomendada -->
+      <output id="Output_acaoRecomendada" label="Acao Recomendada" name="acaoRecomendada" typeRef="string">
+        <outputValues id="OutputValues_acaoRecomendada">
+          <text>"APROVAR","NEGAR","SOLICITAR_INFO","AGUARDAR_PRAZO","SUGERIR_ALTERNATIVA"</text>
+        </outputValues>
+      </output>
+
+      <!-- ========== RULES ========== -->
+
+      <!-- APROVACOES URGENTES -->
+      <rule id="Rule_Aprovado_TipoIV_Emergencia">
+        <description>Aprovado Emergencial: Fistula tipo IV com necrose</description>
+        <inputEntry id="InputEntry_T4_1"><text>"TipoIV"</text></inputEntry>
+        <inputEntry id="InputEntry_T4_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_T4_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_T4_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_T4_5"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_T4_resultado"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_T4_observacao"><text>"EMERGENCIA - Fistula tipo IV com necrose requer intervencao cirurgica imediata"</text></outputEntry>
+        <outputEntry id="OutputEntry_T4_fundamentacao"><text>"SBCBM 2022, SAGES 2020 - Fistula tipo IV e emergencia cirurgica por risco de morte"</text></outputEntry>
+      <outputEntry id="OE_Aprovado_TipoIV_Emergencia_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_Aprovado_TipoIV_Emergencia_5"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Aprovado_TipoIII_Sepsis">
+        <description>Aprovado Urgente: Fistula tipo III com sepsis</description>
+        <inputEntry id="InputEntry_T3S_1"><text>"TipoIII"</text></inputEntry>
+        <inputEntry id="InputEntry_T3S_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_T3S_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_T3S_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_T3S_5"><text>true</text></inputEntry>
+        <outputEntry id="OutputEntry_T3S_resultado"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_T3S_observacao"><text>"URGENTE - Fistula tipo III com sepsis ativa requer cirurgia de controle de danos"</text></outputEntry>
+        <outputEntry id="OutputEntry_T3S_fundamentacao"><text>"SBCBM 2022 - Colecao difusa com sepsis indica drenagem cirurgica urgente"</text></outputEntry>
+      <outputEntry id="OE_Aprovado_TipoIII_Sepsis_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_Aprovado_TipoIII_Sepsis_5"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Aprovado_TipoIII_SemSepsis">
+        <description>Aprovado: Fistula tipo III sem sepsis</description>
+        <inputEntry id="InputEntry_T3_1"><text>"TipoIII"</text></inputEntry>
+        <inputEntry id="InputEntry_T3_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_T3_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_T3_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_T3_5"><text>false</text></inputEntry>
+        <outputEntry id="OutputEntry_T3_resultado"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_T3_observacao"><text>"Fistula tipo III com colecao difusa - indicacao de drenagem cirurgica"</text></outputEntry>
+        <outputEntry id="OutputEntry_T3_fundamentacao"><text>"SBCBM 2022, IFSO 2021 - Colecoes difusas requerem abordagem cirurgica para drenagem adequada"</text></outputEntry>
+      <outputEntry id="OE_Aprovado_TipoIII_SemSepsis_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_Aprovado_TipoIII_SemSepsis_5"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <!-- APROVACOES ELETIVAS -->
+      <rule id="Rule_Aprovado_Cronica_FalhaEndo">
+        <description>Aprovado: Fistula cronica com falha endoscopica</description>
+        <inputEntry id="InputEntry_FE_1"><text>"TipoI","TipoII"</text></inputEntry>
+        <inputEntry id="InputEntry_FE_2"><text>&gt; 90</text></inputEntry>
+        <inputEntry id="InputEntry_FE_3"><text>"Falha"</text></inputEntry>
+        <inputEntry id="InputEntry_FE_4"><text>"Falha"</text></inputEntry>
+        <inputEntry id="InputEntry_FE_5"><text>false</text></inputEntry>
+        <outputEntry id="OutputEntry_FE_resultado"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_FE_observacao"><text>"Fistula cronica (&gt;90 dias) refrataria - indicacao de correcao cirurgica definitiva"</text></outputEntry>
+        <outputEntry id="OutputEntry_FE_fundamentacao"><text>"SAGES 2020, IFSO 2021 - Fistulas cronicas sem resposta a tratamento conservador/endoscopico requerem cirurgia"</text></outputEntry>
+      <outputEntry id="OE_Aprovado_Cronica_FalhaEndo_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_Aprovado_Cronica_FalhaEndo_5"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Aprovado_GastroGastrica">
+        <description>Aprovado: Fistula gastro-gastrica pos-bypass</description>
+        <inputEntry id="InputEntry_GG_1"><text>"TipoI","TipoII"</text></inputEntry>
+        <inputEntry id="InputEntry_GG_2"><text>&gt; 30</text></inputEntry>
+        <inputEntry id="InputEntry_GG_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_GG_4"><text>"Falha","Contraindicado"</text></inputEntry>
+        <inputEntry id="InputEntry_GG_5"><text>false</text></inputEntry>
+        <outputEntry id="OutputEntry_GG_resultado"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_GG_observacao"><text>"Fistula gastro-gastrica persistente - correcao cirurgica para restaurar anatomia"</text></outputEntry>
+        <outputEntry id="OutputEntry_GG_fundamentacao"><text>"SBCBM 2022 - Fistula GG causa reganho de peso e requer correcao cirurgica"</text></outputEntry>
+      <outputEntry id="OE_Aprovado_GastroGastrica_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_Aprovado_GastroGastrica_5"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <!-- REPROVACOES -->
+      <rule id="Rule_Reprovado_TratamentoEmAndamento">
+        <description>Reprovado: Tratamento conservador ainda em andamento</description>
+        <inputEntry id="InputEntry_EA_1"><text>"TipoI","TipoII"</text></inputEntry>
+        <inputEntry id="InputEntry_EA_2"><text>&lt;= 30</text></inputEntry>
+        <inputEntry id="InputEntry_EA_3"><text>"EmAndamento"</text></inputEntry>
+        <inputEntry id="InputEntry_EA_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_EA_5"><text>false</text></inputEntry>
+        <outputEntry id="OutputEntry_EA_resultado"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_EA_observacao"><text>"Manter tratamento conservador - cirurgia prematura para fistula tipo I/II recente"</text></outputEntry>
+        <outputEntry id="OutputEntry_EA_fundamentacao"><text>"SBCBM 2022, SAGES 2020 - Fistulas tipo I/II respondem a tratamento conservador em 60-80% dos casos"</text></outputEntry>
+      <outputEntry id="OE_Reprovado_TratamentoEmAndamento_4"><text>"PROT"</text></outputEntry>
+        <outputEntry id="OE_Reprovado_TratamentoEmAndamento_5"><text>"NEGAR"</text></outputEntry>
+      </rule>
+
+      <!-- PENDENTE -->
+      <rule id="Rule_Pendente_EndoscopiaNaoRealizada">
+        <description>Pendente: Tentativa endoscopica nao realizada</description>
+        <inputEntry id="InputEntry_EN_1"><text>"TipoI","TipoII"</text></inputEntry>
+        <inputEntry id="InputEntry_EN_2"><text>[31..90]</text></inputEntry>
+        <inputEntry id="InputEntry_EN_3"><text>"Falha"</text></inputEntry>
+        <inputEntry id="InputEntry_EN_4"><text>"NaoRealizado"</text></inputEntry>
+        <inputEntry id="InputEntry_EN_5"><text>false</text></inputEntry>
+        <outputEntry id="OutputEntry_EN_resultado"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OutputEntry_EN_observacao"><text>"Considerar tentativa de tratamento endoscopico antes de cirurgia"</text></outputEntry>
+        <outputEntry id="OutputEntry_EN_fundamentacao"><text>"SAGES 2020, IFSO 2021 - Tratamento endoscopico e opcao menos invasiva para fistulas I/II"</text></outputEntry>
+      <outputEntry id="OE_Pendente_EndoscopiaNaoRealizada_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_Pendente_EndoscopiaNaoRealizada_5"><text>"SOLICITAR_INFO"</text></outputEntry>
+      </rule>
+
+      <!-- FALLBACK RULE -->
+      <rule id="Rule_Fallback_BAR006">
+        <description>Regra padrao - Analise adicional necessaria</description>
+        <inputEntry id="InputEntry_Fallback_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Fallback_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Fallback_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Fallback_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Fallback_5"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_Fallback_resultado"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OutputEntry_Fallback_observacao"><text>"Caso complexo - avaliar com equipe de cirurgia bariatrica e endoscopia"</text></outputEntry>
+        <outputEntry id="OutputEntry_Fallback_fundamentacao"><text>"SBCBM 2022 - Decisao terapeutica multidisciplinar para fistulas complexas"</text></outputEntry>
+      <outputEntry id="OE_Fallback_BAR006_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_Fallback_BAR006_5"><text>"SOLICITAR_INFO"</text></outputEntry>
+      </rule>
+
+    </decisionTable>
+  </decision>
+</definitions>

@@ -1,0 +1,170 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  ============================================================================
+  AUTH-PREAUTH-007 - Divergencia CID Autorizacao vs Atendimento
+  ============================================================================
+  Versao: 1.0.0 (2026-02-08)
+  Categoria: AUTH-PREAUTH
+  Perspectiva: HOSPITAL (Faturamento/Auditoria)
+
+  ============================================================================
+  INDICACOES (Quando PROSSEGUIR):
+  ============================================================================
+  - CID da autorizacao compativel com CID do atendimento
+  - CID principal e secundarios coerentes
+  - Documentacao de evolucao diagnostica presente
+
+  ============================================================================
+  CONTRAINDICACOES (Quando BLOQUEAR):
+  ============================================================================
+  - CID do atendimento divergente da autorizacao
+  - CID incompativel com procedimento realizado
+  - Alteracao diagnostica nao justificada
+
+  ============================================================================
+  REFERENCIAS NORMATIVAS:
+  ============================================================================
+  - RN 424/2017 (Autorizacao Previa)
+  - TISS 4.01.00 (Codificacao Diagnostica)
+  - CID-10 (Classificacao Internacional de Doencas)
+  - Lei 9.656/1998 Art. 12 (Cobertura)
+  ============================================================================
+-->
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/"
+             xmlns:dc="http://www.omg.org/spec/DMN/20180521/DC/"
+             id="Definitions_AUTH_PREAUTH_007"
+             name="Divergencia CID Autorizacao vs Atendimento"
+             targetNamespace="http://camunda.org/schema/1.0/dmn">
+
+  <decision id="Decision_AUTH_PREAUTH_007" name="Verificar Compatibilidade CID Autorizacao vs Atendimento">
+    <decisionTable id="DecisionTable_AUTH_PREAUTH_007" hitPolicy="FIRST">
+
+      <!-- ========== INPUTS ========== -->
+      <input id="Input_1" label="CID Autorizacao">
+        <inputExpression id="InputExpression_1" typeRef="string">
+          <text>cidAutorizacao</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_2" label="CID Atendimento">
+        <inputExpression id="InputExpression_2" typeRef="string">
+          <text>cidAtendimento</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_3" label="Tem Autorizacao">
+        <inputExpression id="InputExpression_3" typeRef="boolean">
+          <text>temAutorizacao</text>
+        </inputExpression>
+      </input>
+
+      <!-- ========== OUTPUTS (5 STANDARD) ========== -->
+      <output id="Output_1" label="Resultado" name="resultado" typeRef="string">
+        <outputValues><text>"Prosseguir", "Bloquear", "Alertar", "Revisar"</text></outputValues>
+      </output>
+
+      <output id="Output_2" label="Observacao" name="observacao" typeRef="string"/>
+
+      <output id="Output_3" label="Acao Recomendada" name="acaoRecomendada" typeRef="string"/>
+
+      <output id="Output_4" label="Alertas Conformidade" name="alertasConformidade" typeRef="string">
+        <outputValues><text>"NENHUM", "DUP", "FREQ", "PRAZO", "DOC", "VALOR", "CRED", "CONTRATO"</text></outputValues>
+      </output>
+
+      <output id="Output_5" label="Risco Denial" name="riscoDenial" typeRef="string">
+        <outputValues><text>"BAIXO", "MEDIO", "ALTO", "CRITICO"</text></outputValues>
+      </output>
+
+      <!-- ========== RULES ========== -->
+
+      <!-- REGRA B1: Bloqueio - Sem autorizacao -->
+      <rule id="Rule_Bloqueio_1">
+        <description>Atendimento sem autorizacao previa</description>
+        <inputEntry id="InputEntry_B1_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_B1_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_B1_3"><text>false</text></inputEntry>
+        <outputEntry id="OutputEntry_B1_1"><text>"Bloquear"</text></outputEntry>
+        <outputEntry id="OutputEntry_B1_2"><text>"Atendimento sem autorizacao previa registrada. Impossivel validar CID."</text></outputEntry>
+        <outputEntry id="OutputEntry_B1_3"><text>"Solicitar autorizacao com CID correspondente ao diagnostico do atendimento."</text></outputEntry>
+        <outputEntry id="OutputEntry_B1_4"><text>"DOC"</text></outputEntry>
+        <outputEntry id="OutputEntry_B1_5"><text>"ALTO"</text></outputEntry>
+      </rule>
+
+      <!-- REGRA B2: Bloqueio - CID autorizacao ausente -->
+      <rule id="Rule_Bloqueio_2">
+        <description>CID da autorizacao nao informado</description>
+        <inputEntry id="InputEntry_B2_1"><text>null</text></inputEntry>
+        <inputEntry id="InputEntry_B2_2"><text>not(null)</text></inputEntry>
+        <inputEntry id="InputEntry_B2_3"><text>true</text></inputEntry>
+        <outputEntry id="OutputEntry_B2_1"><text>"Bloquear"</text></outputEntry>
+        <outputEntry id="OutputEntry_B2_2"><text>"CID da autorizacao nao informado. Impossivel validar compatibilidade diagnostica."</text></outputEntry>
+        <outputEntry id="OutputEntry_B2_3"><text>"Solicitar complemento da autorizacao com CID especificado."</text></outputEntry>
+        <outputEntry id="OutputEntry_B2_4"><text>"DOC"</text></outputEntry>
+        <outputEntry id="OutputEntry_B2_5"><text>"ALTO"</text></outputEntry>
+      </rule>
+
+      <!-- REGRA B3: Bloqueio - CID atendimento ausente -->
+      <rule id="Rule_Bloqueio_3">
+        <description>CID do atendimento nao informado</description>
+        <inputEntry id="InputEntry_B3_1"><text>not(null)</text></inputEntry>
+        <inputEntry id="InputEntry_B3_2"><text>null</text></inputEntry>
+        <inputEntry id="InputEntry_B3_3"><text>true</text></inputEntry>
+        <outputEntry id="OutputEntry_B3_1"><text>"Bloquear"</text></outputEntry>
+        <outputEntry id="OutputEntry_B3_2"><text>"CID do atendimento nao informado na documentacao assistencial."</text></outputEntry>
+        <outputEntry id="OutputEntry_B3_3"><text>"Medico assistente deve registrar CID principal no prontuario antes de faturar."</text></outputEntry>
+        <outputEntry id="OutputEntry_B3_4"><text>"DOC"</text></outputEntry>
+        <outputEntry id="OutputEntry_B3_5"><text>"ALTO"</text></outputEntry>
+      </rule>
+
+      <!-- REGRA A1: Alerta - CID divergente -->
+      <rule id="Rule_Alerta_1">
+        <description>CID autorizacao diferente do CID atendimento</description>
+        <inputEntry id="InputEntry_A1_1"><text>not(null)</text></inputEntry>
+        <inputEntry id="InputEntry_A1_2"><text>not(null)</text></inputEntry>
+        <inputEntry id="InputEntry_A1_3"><text>true</text></inputEntry>
+        <outputEntry id="OutputEntry_A1_1"><text>"Alertar"</text></outputEntry>
+        <outputEntry id="OutputEntry_A1_2"><text>"CID da autorizacao diverge do CID do atendimento. Requer justificativa clinica de evolucao diagnostica."</text></outputEntry>
+        <outputEntry id="OutputEntry_A1_3"><text>"Solicitar relatorio medico justificando mudanca de diagnostico ou solicitar nova autorizacao."</text></outputEntry>
+        <outputEntry id="OutputEntry_A1_4"><text>"DOC"</text></outputEntry>
+        <outputEntry id="OutputEntry_A1_5"><text>"MEDIO"</text></outputEntry>
+      </rule>
+
+      <!-- REGRA P1: Aprovado - CID compativel (validacao simplificada por limitacoes tecnicas) -->
+      <rule id="Rule_Aprovado_1">
+        <description>CID informado em ambos documentos</description>
+        <inputEntry id="InputEntry_P1_1"><text>not(null)</text></inputEntry>
+        <inputEntry id="InputEntry_P1_2"><text>not(null)</text></inputEntry>
+        <inputEntry id="InputEntry_P1_3"><text>true</text></inputEntry>
+        <outputEntry id="OutputEntry_P1_1"><text>"Prosseguir"</text></outputEntry>
+        <outputEntry id="OutputEntry_P1_2"><text>"CID da autorizacao e atendimento informados. Compatibilidade deve ser validada manualmente."</text></outputEntry>
+        <outputEntry id="OutputEntry_P1_3"><text>"Prosseguir com faturamento apos validacao manual de compatibilidade CID."</text></outputEntry>
+        <outputEntry id="OutputEntry_P1_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_P1_5"><text>"BAIXO"</text></outputEntry>
+      </rule>
+
+      <!-- REGRA F: Fallback - Requer revisao manual -->
+      <rule id="Rule_Fallback_AUTH_PREAUTH_007">
+        <description>Regra padrao - Requer avaliacao manual</description>
+        <inputEntry id="InputEntry_F_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_F_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_F_3"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_F_1"><text>"Revisar"</text></outputEntry>
+        <outputEntry id="OutputEntry_F_2"><text>"Situacao de divergencia CID requer analise manual especializada."</text></outputEntry>
+        <outputEntry id="OutputEntry_F_3"><text>"Encaminhar para auditoria medica avaliar compatibilidade diagnostica."</text></outputEntry>
+        <outputEntry id="OutputEntry_F_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_F_5"><text>"MEDIO"</text></outputEntry>
+      </rule>
+
+    </decisionTable>
+  </decision>
+
+  <dmndi:DMNDI>
+    <dmndi:DMNDiagram id="DMNDiagram_AUTH_PREAUTH_007">
+      <dmndi:DMNShape id="DMNShape_Decision_AUTH_PREAUTH_007" dmnElementRef="Decision_AUTH_PREAUTH_007">
+        <dc:Bounds height="80" width="180" x="160" y="100"/>
+      </dmndi:DMNShape>
+    </dmndi:DMNDiagram>
+  </dmndi:DMNDI>
+
+</definitions>

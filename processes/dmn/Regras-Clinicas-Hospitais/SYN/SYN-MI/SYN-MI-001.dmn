@@ -1,0 +1,324 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/"
+             xmlns:dc="http://www.omg.org/spec/DMN/20180521/DC/"
+             id="Definitions_SYN_MI_001"
+             name="Deteccao de STEMI - Elevacao ST"
+             targetNamespace="http://camunda.org/schema/1.0/dmn">
+
+  <!--
+    SYN-MI-001 - Deteccao de Infarto Agudo do Miocardio com Supra ST (STEMI)
+    Versao: 1.0.0 (2026-02-06)
+    Categoria: Alerta Clinico - Sindromes Criticas
+
+    CRITERIOS PARA STEMI (Fourth Universal Definition 2018):
+
+    ELEVACAO DO SEGMENTO ST:
+    - Homens >= 40 anos: >= 2mm em V2-V3 ou >= 1mm em outras derivacoes
+    - Homens < 40 anos: >= 2.5mm em V2-V3 ou >= 1mm em outras
+    - Mulheres: >= 1.5mm em V2-V3 ou >= 1mm em outras
+    - Em 2 derivacoes contiguas
+
+    EQUIVALENTES DE STEMI:
+    - BRE novo (criterios de Sgarbossa)
+    - Infarto posterior (infradesnivelamento V1-V3)
+    - Infarto de VD (supra em V4R)
+    - Sindrome de Wellens (inversao de T em V2-V3)
+    - Sindrome de de Winter (infradesnivelamento ascendente + T apiculada)
+
+    TEMPO E JANELA:
+    - Porta-balao (ICP): <= 90 minutos (ideal <= 60min)
+    - Porta-agulha (fibrinolitico): <= 30 minutos se ICP > 120min
+
+    REFERENCIAS:
+    - Fourth Universal Definition of MI (ESC/ACC 2018)
+    - ESC STEMI Guidelines 2023
+    - AHA STEMI Guidelines 2021
+  -->
+
+  <decision id="Decision_SYN_MI_001" name="Deteccao STEMI">
+    <decisionTable id="DecisionTable_SYN_MI_001" hitPolicy="FIRST">
+
+      <!-- INPUT 1: Elevacao ST (mm) -->
+      <input id="Input_1" label="Elevacao ST maxima (mm)">
+        <inputExpression id="InputExpression_1" typeRef="number">
+          <text>elevacaoSTmm</text>
+        </inputExpression>
+      </input>
+
+      <!-- INPUT 2: Dor Toracica Isquemica -->
+      <input id="Input_2" label="Dor Toracica Isquemica">
+        <inputExpression id="InputExpression_2" typeRef="boolean">
+          <text>dorToracicaIsquemica</text>
+        </inputExpression>
+      </input>
+
+      <!-- INPUT 3: Equivalente STEMI -->
+      <input id="Input_3" label="Equivalente STEMI">
+        <inputExpression id="InputExpression_3" typeRef="string">
+          <text>equivalenteSTEMI</text>
+        </inputExpression>
+      </input>
+
+      <!-- INPUT 4: Tempo desde inicio sintomas -->
+      <input id="Input_4" label="Horas desde Inicio">
+        <inputExpression id="InputExpression_4" typeRef="number">
+          <text>horasDesdeInicio</text>
+        </inputExpression>
+      </input>
+
+      <!-- OUTPUTS -->
+      <output id="Output_1" label="Nivel Alerta" name="nivelAlerta" typeRef="string">
+        <outputValues id="OutputValues_1">
+          <text>"Alerta", "Atencao", "OK", "Revisar"</text>
+        </outputValues>
+      </output>
+
+      <output id="Output_2" label="Classificacao Sindrome" name="classificacaoSindrome" typeRef="string"/>
+
+      <output id="Output_3" label="Protocolo Ativado" name="protocoloAtivado" typeRef="boolean"/>
+
+      <output id="Output_4" label="Acao Requerida" name="acaoRequerida" typeRef="string"/>
+
+      <output id="Output_5" label="Urgencia" name="urgencia" typeRef="string">
+        <outputValues id="OutputValues_5">
+          <text>"CRITICA", "ALTA", "MEDIA", "BAIXA"</text>
+        </outputValues>
+      </output>
+
+      <!-- RULE 1: STEMI com instabilidade -->
+      <rule id="Rule_STEMI_Instavel">
+        <description>STEMI com instabilidade hemodinamica - ICP primaria emergencial</description>
+        <inputEntry id="InputEntry_1_1">
+          <text>&gt;= 2</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_1_2">
+          <text>true</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_1_3">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_1_4">
+          <text>&lt;= 12</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_1_1">
+          <text>"Alerta"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_1_2">
+          <text>"STEMI_ATIVO"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_1_3">
+          <text>true</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_1_4">
+          <text>"STEMI ATIVO - CODIGO INFARTO! ATIVAR HEMODINAMICA IMEDIATAMENTE. Meta porta-balao <= 90 min. AAS 300mg + Clopidogrel 600mg + Heparina. Monitorizar ritmo. Ter desfibrilador proximo. Nao aguardar troponina para ICP."</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_1_5">
+          <text>"CRITICA"</text>
+        </outputEntry>
+      </rule>
+
+      <!-- RULE 2: Equivalente STEMI - BRE novo -->
+      <rule id="Rule_Equivalente_BRE">
+        <description>Equivalente STEMI - BRE novo com sintomas isquemicos</description>
+        <inputEntry id="InputEntry_2_1">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_2_2">
+          <text>true</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_2_3">
+          <text>"BRE_NOVO"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_2_4">
+          <text>&lt;= 12</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_2_1">
+          <text>"Alerta"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_2_2">
+          <text>"STEMI_EQUIVALENTE_BRE"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_2_3">
+          <text>true</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_2_4">
+          <text>"EQUIVALENTE STEMI - BRE NOVO com sintomas isquemicos. Tratar como STEMI. Aplicar criterios de Sgarbossa para confirmacao. ATIVAR HEMODINAMICA. Meta porta-balao <= 90 min."</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_2_5">
+          <text>"CRITICA"</text>
+        </outputEntry>
+      </rule>
+
+      <!-- RULE 3: Equivalente STEMI - Posterior -->
+      <rule id="Rule_Equivalente_Posterior">
+        <description>Equivalente STEMI - Infarto posterior</description>
+        <inputEntry id="InputEntry_3_1">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_3_2">
+          <text>true</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_3_3">
+          <text>"POSTERIOR"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_3_4">
+          <text>&lt;= 12</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_3_1">
+          <text>"Alerta"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_3_2">
+          <text>"STEMI_POSTERIOR"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_3_3">
+          <text>true</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_3_4">
+          <text>"STEMI POSTERIOR (infra ST V1-V3 com R alto). Fazer derivacoes posteriores V7-V9. ATIVAR HEMODINAMICA. Frequentemente subdiagnosticado - alta suspeicao clinica."</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_3_5">
+          <text>"CRITICA"</text>
+        </outputEntry>
+      </rule>
+
+      <!-- RULE 4: STEMI tardio (> 12h) -->
+      <rule id="Rule_STEMI_Tardio">
+        <description>STEMI tardio > 12h - avaliar individualmente</description>
+        <inputEntry id="InputEntry_4_1">
+          <text>&gt;= 2</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_4_2">
+          <text>true</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_4_3">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_4_4">
+          <text>&gt; 12</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_4_1">
+          <text>"Alerta"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_4_2">
+          <text>"STEMI_TARDIO"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_4_3">
+          <text>true</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_4_4">
+          <text>"STEMI TARDIO (> 12h). ICP ainda indicada se: sintomas persistentes, instabilidade hemodinamica, arritmias, ou evidencia de miocardio viavel. Discutir com cardiologista. Anticoagulacao plena."</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_4_5">
+          <text>"ALTA"</text>
+        </outputEntry>
+      </rule>
+
+      <!-- RULE 5: Elevacao ST sem sintomas tipicos -->
+      <rule id="Rule_ST_Sem_Sintomas">
+        <description>Elevacao ST sem dor toracica tipica - avaliar mimicos</description>
+        <inputEntry id="InputEntry_5_1">
+          <text>&gt;= 1</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_5_2">
+          <text>false</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_5_3">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_5_4">
+          <text>-</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_5_1">
+          <text>"Atencao"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_5_2">
+          <text>"ELEVACAO_ST_ATIPICA"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_5_3">
+          <text>false</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_5_4">
+          <text>"Elevacao ST sem sintomas tipicos. Considerar mimicos: pericardite, repolarizacao precoce, Takotsubo, hipercalemia. Dosar troponina seriada. ECO urgente. Discutir com cardiologista antes de ativar hemodinamica."</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_5_5">
+          <text>"ALTA"</text>
+        </outputEntry>
+      </rule>
+
+      <!-- RULE 6: ECG normal com dor -->
+      <rule id="Rule_ECG_Normal_Dor">
+        <description>ECG normal mas dor toracica suspeita</description>
+        <inputEntry id="InputEntry_6_1">
+          <text>&lt; 1</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_6_2">
+          <text>true</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_6_3">
+          <text>"NENHUM"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_6_4">
+          <text>-</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_6_1">
+          <text>"Atencao"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_6_2">
+          <text>"SCA_POSSIVEL"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_6_3">
+          <text>false</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_6_4">
+          <text>"Dor toracica isquemica com ECG nao diagnostico. Pode ser NSTEMI ou angina instavel. ECG seriado a cada 15-30 min. Troponina seriada (0h, 1h ou 3h). Ver SYN-MI-002 para avaliacao NSTEMI."</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_6_5">
+          <text>"ALTA"</text>
+        </outputEntry>
+      </rule>
+
+      <!-- FALLBACK -->
+      <rule id="Rule_Fallback_SYN_MI_001">
+        <description>Dados insuficientes para avaliacao</description>
+        <inputEntry id="InputEntry_F_1">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_F_2">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_F_3">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_F_4">
+          <text>-</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_F_1">
+          <text>"Revisar"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_F_2">
+          <text>"DADOS_INCOMPLETOS"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_F_3">
+          <text>false</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_F_4">
+          <text>"Dados insuficientes para avaliacao de STEMI. Obter: ECG 12 derivacoes (+ V3R-V4R, V7-V9 se suspeita), caracterizacao da dor, tempo desde inicio dos sintomas."</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_F_5">
+          <text>"MEDIA"</text>
+        </outputEntry>
+      </rule>
+
+    </decisionTable>
+  </decision>
+
+  <dmndi:DMNDI>
+    <dmndi:DMNDiagram id="DMNDiagram_SYN_MI_001">
+      <dmndi:DMNShape id="DMNShape_Decision_SYN_MI_001" dmnElementRef="Decision_SYN_MI_001">
+        <dc:Bounds height="80" width="180" x="160" y="100"/>
+      </dmndi:DMNShape>
+    </dmndi:DMNDiagram>
+  </dmndi:DMNDI>
+
+</definitions>

@@ -1,0 +1,215 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             xmlns:camunda="http://camunda.org/schema/1.0/dmn"
+             id="Definitions_GEN_EME_009"
+             name="Gangrena de Fournier - Classificacao de Urgencia"
+             namespace="http://camunda.org/schema/1.0/dmn">
+
+  <!--
+    ===============================================================================
+    CODIGO: GEN-EME-009
+    Procedimento: Gangrena de Fournier - Desbridamento de Emergencia
+    Especialidade: Cirurgia Geral - Infeccoes Necrosantes
+    Versao: 3.0.0-TIER1
+    Data: 2026-02-07
+    ===============================================================================
+
+    INDICACOES CIRURGICAS (TODAS SAO EMERGENCIA):
+    - Diagnostico confirmado de Gangrena de Fournier
+    - Fournier Gangrene Severity Index (FGSI) qualquer valor
+    - Extensao para parede abdominal
+    - Sepse de origem perineal
+
+    NOTA: Gangrena de Fournier e SEMPRE emergencia cirurgica
+    - Mortalidade aumenta a cada hora de atraso
+    - Desbridamento radical inicial, reoperacoes seriadas
+
+    CONTRAINDICACOES:
+    - Nao ha contraindicacoes absolutas ao desbridamento
+    - Mesmo em pacientes terminais, considerar paliacao da sepse
+
+    REFERENCIAS TECNICAS:
+    - WSES Guidelines 2018 - Necrotizing Soft Tissue Infections
+    - AUA Guidelines 2023 - Urological Emergencies
+    - World J Emerg Surg 2020 - Fournier Gangrene
+
+    ===============================================================================
+  -->
+
+  <decision id="Decision_GEN_EME_009" name="Regra Clinica - Gangrena de Fournier">
+    <decisionTable id="DecisionTable_GEN_EME_009" hitPolicy="FIRST">
+
+      <!-- ========== INPUTS (5) ========== -->
+
+      <input id="Input_fgsiScore" label="FGSI Score" camunda:inputVariable="fgsiScore">
+        <inputExpression id="InputExpression_fgsiScore" typeRef="number">
+          <text>fgsiScore</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_extensaoLesao" label="Extensao da Lesao" camunda:inputVariable="extensaoLesao">
+        <inputExpression id="InputExpression_extensaoLesao" typeRef="string">
+          <text>extensaoLesao</text>
+        </inputExpression>
+        <inputValues id="InputValues_extensaoLesao">
+          <text>"Perineal","Escrotal","ParedeAbdominal","Coxa","Gluteo","Multiplas"</text>
+        </inputValues>
+      </input>
+
+      <input id="Input_sinaisSepse" label="Sinais de Sepse" camunda:inputVariable="sinaisSepse">
+        <inputExpression id="InputExpression_sinaisSepse" typeRef="string">
+          <text>sinaisSepse</text>
+        </inputExpression>
+        <inputValues id="InputValues_sinaisSepse">
+          <text>"ChoqueSeptico","SepseSevera","SIRS","Ausente"</text>
+        </inputValues>
+      </input>
+
+      <input id="Input_origemInfeccao" label="Origem da Infeccao" camunda:inputVariable="origemInfeccao">
+        <inputExpression id="InputExpression_origemInfeccao" typeRef="string">
+          <text>origemInfeccao</text>
+        </inputExpression>
+        <inputValues id="InputValues_origemInfeccao">
+          <text>"Urogenital","Anorretal","Cutanea","Desconhecida"</text>
+        </inputValues>
+      </input>
+
+      <input id="Input_tempoSintomas" label="Tempo de Sintomas (horas)" camunda:inputVariable="tempoSintomas">
+        <inputExpression id="InputExpression_tempoSintomas" typeRef="number">
+          <text>tempoSintomas</text>
+        </inputExpression>
+      </input>
+
+      <!-- ========== OUTPUTS (3) ========== -->
+
+      <output id="Output_resultado" label="Resultado" name="resultado" typeRef="string">
+        <outputValues id="OutputValues_resultado">
+          <text>"Aprovado","Reprovado","Pendente"</text>
+        </outputValues>
+      </output>
+
+      <output id="Output_observacao" label="Observacao Clinica" name="observacao" typeRef="string" />
+
+      <output id="Output_fundamentacao" label="Fundamentacao Tecnica" name="fundamentacao" typeRef="string" />
+
+      <!-- Output 4: Alertas Desperdicio -->
+      <output id="Output_alertasDesperdicio" label="Alertas de Desperdicio" name="alertasDesperdicio" typeRef="string">
+        <outputValues id="OutputValues_alertasDesperdicio">
+          <text>"NENHUM","DUP","FREQ","ESC","DOC","PROT","MULTI"</text>
+        </outputValues>
+      </output>
+
+      <!-- Output 5: Acao Recomendada -->
+      <output id="Output_acaoRecomendada" label="Acao Recomendada" name="acaoRecomendada" typeRef="string">
+        <outputValues id="OutputValues_acaoRecomendada">
+          <text>"APROVAR","NEGAR","SOLICITAR_INFO","AGUARDAR_PRAZO","SUGERIR_ALTERNATIVA"</text>
+        </outputValues>
+      </output>
+
+      <!-- ========== REGRAS DE REPROVACAO ========== -->
+
+      <rule id="Rule_Reprovado_DiagnosticoIncerto">
+        <description>Reprovado: Abscesso perianal simples sem necrose</description>
+        <inputEntry id="IE_Rep1_1"><text>&lt; 3</text></inputEntry>
+        <inputEntry id="IE_Rep1_2"><text>"Perineal"</text></inputEntry>
+        <inputEntry id="IE_Rep1_3"><text>"Ausente"</text></inputEntry>
+        <inputEntry id="IE_Rep1_4"><text>"Anorretal"</text></inputEntry>
+        <inputEntry id="IE_Rep1_5"><text>&lt; 24</text></inputEntry>
+        <outputEntry id="OE_Rep1_1"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OE_Rep1_2"><text>"Abscesso perianal simples sem sinais de necrose - drenagem simples, nao desbridamento radical"</text></outputEntry>
+        <outputEntry id="OE_Rep1_3"><text>"Diferenciacao entre abscesso simples e Fournier - WSES Guidelines 2018"</text></outputEntry>
+      <outputEntry id="OE_Reprovado_DiagnosticoIncerto_4"><text>"PROT"</text></outputEntry>
+        <outputEntry id="OE_Reprovado_DiagnosticoIncerto_5"><text>"NEGAR"</text></outputEntry>
+      </rule>
+
+      <!-- ========== REGRAS DE APROVACAO ========== -->
+
+      <rule id="Rule_Aprovado_ChoqueSeptico">
+        <description>Aprovado: Choque septico de origem perineal - maxima urgencia</description>
+        <inputEntry id="IE_Apr1_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_Apr1_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_Apr1_3"><text>"ChoqueSeptico"</text></inputEntry>
+        <inputEntry id="IE_Apr1_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_Apr1_5"><text>-</text></inputEntry>
+        <outputEntry id="OE_Apr1_1"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OE_Apr1_2"><text>"Choque septico por Gangrena de Fournier - desbridamento de emergencia imediata, maxima prioridade"</text></outputEntry>
+        <outputEntry id="OE_Apr1_3"><text>"WSES Guidelines 2018 - Cada hora de atraso aumenta mortalidade em 9%"</text></outputEntry>
+      <outputEntry id="OE_Aprovado_ChoqueSeptico_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_Aprovado_ChoqueSeptico_5"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Aprovado_FGSIAlto">
+        <description>Aprovado: FGSI elevado indica alta mortalidade</description>
+        <inputEntry id="IE_Apr2_1"><text>&gt;= 9</text></inputEntry>
+        <inputEntry id="IE_Apr2_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_Apr2_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_Apr2_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_Apr2_5"><text>-</text></inputEntry>
+        <outputEntry id="OE_Apr2_1"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OE_Apr2_2"><text>"FGSI &gt;= 9 indica mortalidade &gt; 75% sem tratamento - desbridamento agressivo imediato"</text></outputEntry>
+        <outputEntry id="OE_Apr2_3"><text>"World J Emerg Surg 2020 - FGSI como preditor de mortalidade"</text></outputEntry>
+      <outputEntry id="OE_Aprovado_FGSIAlto_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_Aprovado_FGSIAlto_5"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Aprovado_ExtensaoMultipla">
+        <description>Aprovado: Extensao para multiplas regioes</description>
+        <inputEntry id="IE_Apr3_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_Apr3_2"><text>"Multiplas","ParedeAbdominal"</text></inputEntry>
+        <inputEntry id="IE_Apr3_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_Apr3_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_Apr3_5"><text>-</text></inputEntry>
+        <outputEntry id="OE_Apr3_1"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OE_Apr3_2"><text>"Extensao para parede abdominal ou multiplas regioes - desbridamento extenso, possivelmente ostomia"</text></outputEntry>
+        <outputEntry id="OE_Apr3_3"><text>"AUA Guidelines 2023 - Extensao indica agressividade da infeccao"</text></outputEntry>
+      <outputEntry id="OE_Aprovado_ExtensaoMultipla_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_Aprovado_ExtensaoMultipla_5"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Aprovado_DiagnosticoConfirmado">
+        <description>Aprovado: Diagnostico clinico de Fournier</description>
+        <inputEntry id="IE_Apr4_1"><text>&gt;= 3</text></inputEntry>
+        <inputEntry id="IE_Apr4_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_Apr4_3"><text>"SIRS","SepseSevera"</text></inputEntry>
+        <inputEntry id="IE_Apr4_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_Apr4_5"><text>-</text></inputEntry>
+        <outputEntry id="OE_Apr4_1"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OE_Apr4_2"><text>"Gangrena de Fournier confirmada - desbridamento cirurgico de emergencia, antibioticos de amplo espectro"</text></outputEntry>
+        <outputEntry id="OE_Apr4_3"><text>"WSES Guidelines 2018 - Todo caso confirmado e emergencia cirurgica"</text></outputEntry>
+      <outputEntry id="OE_Aprovado_DiagnosticoConfirmado_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_Aprovado_DiagnosticoConfirmado_5"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Aprovado_SepsePerineal">
+        <description>Aprovado: Sepse de origem perineal</description>
+        <inputEntry id="IE_Apr5_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_Apr5_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_Apr5_3"><text>"SepseSevera"</text></inputEntry>
+        <inputEntry id="IE_Apr5_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_Apr5_5"><text>-</text></inputEntry>
+        <outputEntry id="OE_Apr5_1"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OE_Apr5_2"><text>"Sepse de provavel origem perineal - exploracao cirurgica urgente para controle de foco"</text></outputEntry>
+        <outputEntry id="OE_Apr5_3"><text>"Surviving Sepsis Campaign 2021 - Controle de foco em sepse abdominal/pelvica"</text></outputEntry>
+      <outputEntry id="OE_Aprovado_SepsePerineal_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_Aprovado_SepsePerineal_5"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <!-- ========== REGRA FALLBACK ========== -->
+
+      <rule id="Rule_Fallback_GEN_EME_009">
+        <description>Pendente: Suspeita requer avaliacao cirurgica imediata</description>
+        <inputEntry id="IE_FB_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_FB_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_FB_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_FB_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_FB_5"><text>-</text></inputEntry>
+        <outputEntry id="OE_FB_1"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OE_FB_2"><text>"Suspeita de Fournier requer avaliacao cirurgica imediata - na duvida, explorar"</text></outputEntry>
+        <outputEntry id="OE_FB_3"><text>"WSES Guidelines 2018 - Baixo limiar para exploracao em suspeita de Fournier"</text></outputEntry>
+      <outputEntry id="OE_Fallback_GEN_EME_009_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_Fallback_GEN_EME_009_5"><text>"SOLICITAR_INFO"</text></outputEntry>
+      </rule>
+
+    </decisionTable>
+  </decision>
+</definitions>

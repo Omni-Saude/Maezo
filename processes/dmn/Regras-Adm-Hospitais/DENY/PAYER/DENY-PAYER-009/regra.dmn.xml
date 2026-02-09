@@ -1,0 +1,207 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  ============================================================================
+  DENY-PAYER-009 - Padrao Glosa SUS
+  ============================================================================
+  Versao: 1.0.0 (2026-02-06)
+  Categoria: DENY-PAYER (Padrao Especifico de Operadora)
+
+  OBJETIVO:
+  Identificar padroes de glosa do SUS relacionados a procedimentos
+  autorizados, tabela SIGTAP e tetos financeiros.
+
+  REFERENCIAS:
+  - Tabela SIGTAP - Sistema de Gerenciamento da Tabela de Procedimentos
+  - Portaria GM/MS 1.606/2001 - Tetos Financeiros
+  - Manual AIH/BPA
+  - Instrucoes Normativas SUS
+  ============================================================================
+-->
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/"
+             xmlns:dc="http://www.omg.org/spec/DMN/20180521/DC/" id="Definitions_DENY_PAYER_009" name="Padrao Glosa SUS" targetNamespace="http://camunda.org/schema/1.0/dmn">
+
+  <decision id="Decision_DENY_PAYER_009" name="Detectar Padrao Glosa SUS">
+    <decisionTable id="DecisionTable_DENY_PAYER_009" hitPolicy="FIRST">
+
+      <input id="Input_1" label="Origem Atendimento">
+        <inputExpression id="InputExpression_1" typeRef="string">
+          <text>origemAtendimento</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_2" label="Procedimento Autorizado">
+        <inputExpression id="InputExpression_2" typeRef="boolean">
+          <text>procedimentoAutorizado</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_3" label="Codigo SIGTAP Valido">
+        <inputExpression id="InputExpression_3" typeRef="boolean">
+          <text>codigoSigtapValido</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_4" label="Percentual Teto Utilizado">
+        <inputExpression id="InputExpression_4" typeRef="integer">
+          <text>percentualTetoUtilizado</text>
+        </inputExpression>
+      </input>
+
+      <!-- OUTPUTS - Hospital Perspective -->
+      <!-- ========== OUTPUTS (5 STANDARD) ========== -->
+      <output id="Output_1" label="Resultado" name="resultado" typeRef="string">
+        <outputValues><text>"Prosseguir", "Bloquear", "Alertar", "Revisar"</text></outputValues>
+      </output>
+
+      <output id="Output_2" label="Observacao" name="observacao" typeRef="string"/>
+
+      <output id="Output_3" label="Acao Recomendada" name="acaoRecomendada" typeRef="string"/>
+
+      <output id="Output_4" label="Alertas Conformidade" name="alertasConformidade" typeRef="string">
+        <outputValues><text>"NENHUM", "DUP", "FREQ", "PRAZO", "DOC", "VALOR", "CRED", "CONTRATO"</text></outputValues>
+      </output>
+
+      <output id="Output_5" label="Risco Denial" name="riscoDenial" typeRef="string">
+        <outputValues><text>"BAIXO", "MEDIO", "ALTO", "CRITICO"</text></outputValues>
+      </output>
+
+      <!-- ========== RULES ========== -->
+
+      <rule id="Rule_Block_1">
+        <description>SUS com procedimento nao autorizado na AIH/APAC</description>
+        <inputEntry id="InputEntry_B1_1"><text>"SUS", "DATASUS"</text></inputEntry>
+        <inputEntry id="InputEntry_B1_2"><text>false</text></inputEntry>
+        <inputEntry id="InputEntry_B1_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_B1_4"><text>-</text></inputEntry>
+<outputEntry id="OutputEntry_B1_1"><text>"Bloquear"</text></outputEntry>
+<outputEntry id="OutputEntry_B1_2"><text>"GLOSA CERTA: Procedimento SUS nao autorizado na AIH/APAC. Obter autorizacao antes de executar ou faturar."</text></outputEntry>
+        <outputEntry id=""><text></text></outputEntry>
+        <outputEntry id=""><text>"NENHUM"</text></outputEntry>
+<outputEntry id="OutputEntry_B1_3"><text>"CRITICO"</text></outputEntry>
+      </rule>
+
+      <!-- REGRA 2: BLOQUEIO - Codigo SIGTAP invalido -->
+      <rule id="Rule_Block_2">
+        <description>SUS com codigo SIGTAP invalido ou descontinuado</description>
+        <inputEntry id="InputEntry_B2_1"><text>"SUS", "DATASUS"</text></inputEntry>
+        <inputEntry id="InputEntry_B2_2"><text>true</text></inputEntry>
+        <inputEntry id="InputEntry_B2_3"><text>false</text></inputEntry>
+        <inputEntry id="InputEntry_B2_4"><text>-</text></inputEntry>
+<outputEntry id="OutputEntry_B2_1"><text>"Bloquear"</text></outputEntry>
+<outputEntry id="OutputEntry_B2_2"><text>"GLOSA CERTA: Codigo SIGTAP invalido ou descontinuado. Verificar tabela SIGTAP vigente e substituir codigo."</text></outputEntry>
+        <outputEntry id=""><text></text></outputEntry>
+        <outputEntry id=""><text>"NENHUM"</text></outputEntry>
+<outputEntry id="OutputEntry_B2_3"><text>"CRITICO"</text></outputEntry>
+      </rule>
+
+      <!-- REGRA 3: BLOQUEIO - Teto financeiro excedido -->
+      <rule id="Rule_Block_3">
+        <description>SUS com teto financeiro do estabelecimento excedido</description>
+        <inputEntry id="InputEntry_B3_1"><text>"SUS", "DATASUS"</text></inputEntry>
+        <inputEntry id="InputEntry_B3_2"><text>true</text></inputEntry>
+        <inputEntry id="InputEntry_B3_3"><text>true</text></inputEntry>
+        <inputEntry id="InputEntry_B3_4"><text>&gt;= 100</text></inputEntry>
+<outputEntry id="OutputEntry_B3_1"><text>"Bloquear"</text></outputEntry>
+<outputEntry id="OutputEntry_B3_2"><text>"GLOSA CERTA: Teto financeiro SUS do estabelecimento excedido. Aguardar proximo periodo ou solicitar remanejamento."</text></outputEntry>
+        <outputEntry id=""><text></text></outputEntry>
+        <outputEntry id=""><text>"NENHUM"</text></outputEntry>
+<outputEntry id="OutputEntry_B3_3"><text>"CRITICO"</text></outputEntry>
+      </rule>
+
+      <!-- REGRA 4: ALERTA - Teto proximo do limite -->
+      <rule id="Rule_Alert_1">
+        <description>SUS com teto proximo do limite mensal</description>
+        <inputEntry id="InputEntry_A1_1"><text>"SUS", "DATASUS"</text></inputEntry>
+        <inputEntry id="InputEntry_A1_2"><text>true</text></inputEntry>
+        <inputEntry id="InputEntry_A1_3"><text>true</text></inputEntry>
+        <inputEntry id="InputEntry_A1_4"><text>[90..100)</text></inputEntry>
+<outputEntry id="OutputEntry_A1_1"><text>"Alertar"</text></outputEntry>
+<outputEntry id="OutputEntry_A1_2"><text>"ATENCAO: Teto SUS em 90% ou mais. Priorizar procedimentos de maior valor e solicitar remanejamento preventivamente."</text></outputEntry>
+        <outputEntry id=""><text></text></outputEntry>
+        <outputEntry id=""><text>"NENHUM"</text></outputEntry>
+<outputEntry id="OutputEntry_A1_3"><text>"ALTO"</text></outputEntry>
+      </rule>
+
+      <!-- REGRA 5: ALERTA - Teto entre 75% e 90% -->
+      <rule id="Rule_Alert_2">
+        <description>SUS com consumo significativo do teto</description>
+        <inputEntry id="InputEntry_A2_1"><text>"SUS", "DATASUS"</text></inputEntry>
+        <inputEntry id="InputEntry_A2_2"><text>true</text></inputEntry>
+        <inputEntry id="InputEntry_A2_3"><text>true</text></inputEntry>
+        <inputEntry id="InputEntry_A2_4"><text>[75..90)</text></inputEntry>
+<outputEntry id="OutputEntry_A2_1"><text>"Alertar"</text></outputEntry>
+<outputEntry id="OutputEntry_A2_2"><text>"RISCO: Teto SUS entre 75-90%. Monitorar consumo e planejar distribuicao de producao."</text></outputEntry>
+        <outputEntry id=""><text></text></outputEntry>
+        <outputEntry id=""><text>"NENHUM"</text></outputEntry>
+<outputEntry id="OutputEntry_A2_3"><text>"MEDIO"</text></outputEntry>
+      </rule>
+
+      <!-- REGRA 6: PROSSEGUIR - Autorizado e teto ok -->
+      <rule id="Rule_Proceed_1">
+        <description>SUS com procedimento autorizado e teto disponivel</description>
+        <inputEntry id="InputEntry_P1_1"><text>"SUS", "DATASUS"</text></inputEntry>
+        <inputEntry id="InputEntry_P1_2"><text>true</text></inputEntry>
+        <inputEntry id="InputEntry_P1_3"><text>true</text></inputEntry>
+        <inputEntry id="InputEntry_P1_4"><text>&lt; 75</text></inputEntry>
+<outputEntry id="OutputEntry_P1_1"><text>"Prosseguir"</text></outputEntry>
+<outputEntry id="OutputEntry_P1_2"><text>"SUS com procedimento autorizado e teto disponivel. Faturar normalmente."</text></outputEntry>
+        <outputEntry id=""><text></text></outputEntry>
+        <outputEntry id=""><text>"NENHUM"</text></outputEntry>
+<outputEntry id="OutputEntry_P1_3"><text>"BAIXO"</text></outputEntry>
+      </rule>
+
+      <!-- REGRA 7: PROSSEGUIR - BPA sem restricao de teto -->
+      <rule id="Rule_Proceed_2">
+        <description>SUS procedimento ambulatorial BPA padrao</description>
+        <inputEntry id="InputEntry_P2_1"><text>"SUS", "DATASUS"</text></inputEntry>
+        <inputEntry id="InputEntry_P2_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_P2_3"><text>true</text></inputEntry>
+        <inputEntry id="InputEntry_P2_4"><text>-</text></inputEntry>
+<outputEntry id="OutputEntry_P2_1"><text>"Prosseguir"</text></outputEntry>
+<outputEntry id="OutputEntry_P2_2"><text>"Procedimento BPA com codigo SIGTAP valido."</text></outputEntry>
+        <outputEntry id=""><text></text></outputEntry>
+        <outputEntry id=""><text>"NENHUM"</text></outputEntry>
+<outputEntry id="OutputEntry_P2_3"><text>"BAIXO"</text></outputEntry>
+      </rule>
+
+      <!-- REGRA 8: REVISAR - Outras origens -->
+      <rule id="Rule_Review_1">
+        <description>Regra nao aplicavel - origem nao e SUS</description>
+        <inputEntry id="InputEntry_R1_1"><text>not("SUS", "DATASUS")</text></inputEntry>
+        <inputEntry id="InputEntry_R1_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_R1_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_R1_4"><text>-</text></inputEntry>
+<outputEntry id="OutputEntry_R1_1"><text>"Prosseguir"</text></outputEntry>
+<outputEntry id="OutputEntry_R1_2"><text>"Origem nao e SUS. Esta regra nao se aplica."</text></outputEntry>
+        <outputEntry id=""><text></text></outputEntry>
+        <outputEntry id=""><text>"NENHUM"</text></outputEntry>
+<outputEntry id="OutputEntry_R1_3"><text>"BAIXO"</text></outputEntry>
+      </rule>
+
+      <!-- REGRA FALLBACK -->
+      <rule id="Rule_Fallback_DENY_PAYER_009">
+        <description>Caso padrao SUS - verificar autorizacao e teto</description>
+        <inputEntry id="InputEntry_F_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_F_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_F_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_F_4"><text>-</text></inputEntry>
+<outputEntry id="OutputEntry_F_1"><text>"Revisar"</text></outputEntry>
+<outputEntry id="OutputEntry_F_2"><text>"Verificar autorizacao (AIH/APAC), codigo SIGTAP e situacao de teto."</text></outputEntry>
+        <outputEntry id=""><text></text></outputEntry>
+        <outputEntry id=""><text>"NENHUM"</text></outputEntry>
+<outputEntry id="OutputEntry_F_3"><text>"MEDIO"</text></outputEntry>
+      </rule>
+
+    </decisionTable>
+  </decision>
+
+  <dmndi:DMNDI>
+    <dmndi:DMNDiagram id="DMNDiagram_DENY_PAYER_009">
+      <dmndi:DMNShape id="DMNShape_Decision_DENY_PAYER_009" dmnElementRef="Decision_DENY_PAYER_009">
+        <dc:Bounds height="80" width="180" x="160" y="100"/>
+      </dmndi:DMNShape>
+    </dmndi:DMNDiagram>
+  </dmndi:DMNDI>
+
+</definitions>

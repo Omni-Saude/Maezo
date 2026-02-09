@@ -1,0 +1,207 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/"
+             xmlns:dc="http://www.omg.org/spec/DD/20100524/DC/"
+             xmlns:di="http://www.omg.org/spec/DD/20100524/DI/"
+             id="Definitions_30101271"
+             name="Dermolipectomia - Abdômen em Avental"
+             namespace="http://camunda.org/schema/1.0/dmn"
+             exporter="Camunda Modeler"
+             exporterVersion="5.0.0">
+  <!--
+    TUSS 30101271 - Dermolipectomia para correção de abdômen em avental
+    Versao: 3.0.0 (2026-02-07)
+    Especialidade: Cirurgia Plastica
+    Categoria: Procedimentos Cirurgicos Reparadores
+
+    Indicacoes Clinicas (SBCP 2024 / DUT ANS 2024):
+    - Excesso de pele e gordura abdominal apos perda ponderal significativa (>30kg)
+    - Abdomen em avental com complicacoes funcionais (dermatite, úlceras, limitacao mobilidade)
+    - Falha documentada de tratamento conservador por 6+ meses
+    - Paciente com expectativa realistica e motivacao documentada
+
+    Contraindicacoes Absolutas:
+    - Peso nao estabilizado (variação > 5kg em ultimos 3 meses)
+    - IMC > 35 ou < 18,5
+    - Paciente com risco cirurgico ASA V
+    - Ausencia de documentacao medica (fotos, laudos)
+
+    Documentacao Obrigatoria:
+    - Diagnostico confirmado (CID-10 L98.1 ou R12)
+    - Fotografias clinicas documentadas (frontal, lateral, sentado, em pe)
+    - Laudo de indicacao cirurgica com descricao de complicacoes
+    - Classificacao de risco cirurgico (ASA I-IV)
+    - Consentimento informado assinado
+    - Comprovacao de estabilidade ponderal >= 3 meses
+
+    Referencias Normativas:
+    - DUT ANS 2024 - Diretrizes de Utilizacao para Procedimentos Cirurgicos
+    - SBCP 2024 - Abdominoplastia e Contorno Corporal
+    - RN 211/2010 - Procedimentos Reparadores pos-Bariatrica
+    - Resolucao CFM 1.886/2008 - Etica em Cirurgia Plastica
+  -->
+
+  <decision id="Decision_30101271" name="Criterios de Autorizacao - Dermolipectomia Abdômen em Avental">
+    <decisionTable id="DecisionTable_30101271" hitPolicy="FIRST">
+
+      <!-- Input 1: Indice de Massa Corporal (IMC) -->
+      <input id="Input_IMC" label="Indice de Massa Corporal (IMC)">
+        <inputExpression id="InputExpr_IMC" typeRef="number">
+          <text>imc</text>
+        </inputExpression>
+      </input>
+
+      <!-- Input 2: Meses de Estabilidade Ponderal -->
+      <input id="Input_estabilidadePonderal" label="Meses de Estabilidade Ponderal (variação < 5kg)">
+        <inputExpression id="InputExpr_estabilidadePonderal" typeRef="number">
+          <text>mesesEstabilidadePonderal</text>
+        </inputExpression>
+      </input>
+
+      <!-- Input 3: Risco Cirurgico (ASA) -->
+      <input id="Input_riscoCirurgico" label="Classificacao de Risco Cirurgico (ASA)">
+        <inputExpression id="InputExpr_riscoCirurgico" typeRef="string">
+          <text>riscoCirurgico</text>
+        </inputExpression>
+        <inputValues id="InputValues_riscoCirurgico">
+          <text>"ASA_I","ASA_II","ASA_III","ASA_IV","ASA_V"</text>
+        </inputValues>
+      </input>
+
+      <!-- Input 4: Documentacao Fotografica -->
+      <input id="Input_fotosDocumentadas" label="Fotos Clinicas Completas Documentadas">
+        <inputExpression id="InputExpr_fotosDocumentadas" typeRef="boolean">
+          <text>fotosDocumentadas</text>
+        </inputExpression>
+      </input>
+
+      <!-- Input 5: Laudo de Indicacao -->
+      <input id="Input_laudoIndicacao" label="Laudo de Indicacao Cirurgica Anexado">
+        <inputExpression id="InputExpr_laudoIndicacao" typeRef="boolean">
+          <text>laudoIndicacao</text>
+        </inputExpression>
+      </input>
+
+      <!-- Output 1: Resultado -->
+      <output id="Output_resultado" label="Resultado" name="resultado" typeRef="string">
+        <outputValues id="OutputValues_resultado">
+          <text>"Aprovado","Reprovado","Pendente"</text>
+        </outputValues>
+      </output>
+
+      <!-- Output 2: Observacao -->
+      <output id="Output_observacao" label="Observacao Clinica" name="observacao" typeRef="string" />
+
+      <!-- Output 3: Fundamentacao -->
+      <output id="Output_fundamentacao" label="Fundamentacao Legal/Tecnica" name="fundamentacao" typeRef="string" />
+
+      <output id="Output_alertasDesperdicio" name="alertasDesperdicio" typeRef="string">
+        <outputValues>
+          <text>"NENHUM","DUP","FREQ","ESC","DOC","PROT","MULTI"</text>
+        </outputValues>
+      </output>
+
+      <output id="Output_acaoRecomendada" name="acaoRecomendada" typeRef="string">
+        <outputValues>
+          <text>"APROVAR","NEGAR","SOLICITAR_INFO","AGUARDAR_PRAZO","SUGERIR_ALTERNATIVA"</text>
+        </outputValues>
+      </output>
+
+      <!-- ============================================== -->
+      <!-- CONTRAINDICATION RULES (FIRST PRIORITY)       -->
+      <!-- ============================================== -->
+
+      <rule id="Rule_30101271_Contraindicacao_IMCAlto">
+        <description>Contraindicacao - IMC acima do limite seguro (> 35)</description>
+        <inputEntry id="IE_Contra1_1"><text>&gt; 35</text></inputEntry>
+        <inputEntry id="IE_Contra1_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_Contra1_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_Contra1_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_Contra1_5"><text>-</text></inputEntry>
+        <outputEntry id="OE_Contra1_1"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OE_Contra1_2"><text>"IMC > 35 representa risco cirurgico elevado para dermolipectomia abdominal. Recomenda-se perda ponderal adicional ou avaliação especializada."</text></outputEntry>
+        <outputEntry id="OE_Contra1_3"><text>"SBCP 2024 - Criterios de Seguranca em Contorno Corporal"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_30101271_Contraindicacao_IMCBaixo">
+        <description>Contraindicacao - IMC abaixo do limite minimo (< 18,5)</description>
+        <inputEntry id="IE_Contra2_1"><text>&lt; 18.5</text></inputEntry>
+        <inputEntry id="IE_Contra2_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_Contra2_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_Contra2_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_Contra2_5"><text>-</text></inputEntry>
+        <outputEntry id="OE_Contra2_1"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OE_Contra2_2"><text>"IMC < 18,5 indica desnutricao. Dermolipectomia contraindicada por risco elevado de complicacoes nutricionais e cicatrizacao."</text></outputEntry>
+        <outputEntry id="OE_Contra2_3"><text>"SBCP 2024 - Estado Nutricional pre-operatorio"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_30101271_Contraindicacao_RiscoProibitivo">
+        <description>Contraindicacao - Risco cirurgico ASA V</description>
+        <inputEntry id="IE_Contra3_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_Contra3_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_Contra3_3"><text>"ASA_V"</text></inputEntry>
+        <inputEntry id="IE_Contra3_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_Contra3_5"><text>-</text></inputEntry>
+        <outputEntry id="OE_Contra3_1"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OE_Contra3_2"><text>"Paciente ASA V apresenta risco cirurgico proibitivo. Dermolipectomia abdominal contraindicada exceto situacao de extrema urgencia."</text></outputEntry>
+        <outputEntry id="OE_Contra3_3"><text>"ASA Classification Guidelines - Risco Cirurgico Proibitivo"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_30101271_Contraindicacao_PesoInstavel">
+        <description>Contraindicacao - Peso nao estabilizado (< 3 meses)</description>
+        <inputEntry id="IE_Contra4_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_Contra4_2"><text>&lt; 3</text></inputEntry>
+        <inputEntry id="IE_Contra4_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_Contra4_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_Contra4_5"><text>-</text></inputEntry>
+        <outputEntry id="OE_Contra4_1"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OE_Contra4_2"><text>"Peso nao estabilizado. Necessario comprovar estabilidade ponderal minima de 3 meses (variação < 5kg) antes de dermolipectomia."</text></outputEntry>
+        <outputEntry id="OE_Contra4_3"><text>"SBCP 2024 - Estabilidade Ponderal pre-Contorno Corporal"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_30101271_Contraindicacao_SemDocumentacao">
+        <description>Contraindicacao - Documentacao obrigatoria ausente</description>
+        <inputEntry id="IE_Contra5_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_Contra5_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_Contra5_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_Contra5_4"><text>false</text></inputEntry>
+        <inputEntry id="IE_Contra5_5"><text>false</text></inputEntry>
+        <outputEntry id="OE_Contra5_1"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OE_Contra5_2"><text>"Documentacao obrigatoria ausente: fotos clinicas e laudo de indicacao sao requeridos para autorizacao de dermolipectomia."</text></outputEntry>
+        <outputEntry id="OE_Contra5_3"><text>"RN 465/2021 Art. 5 - Documentacao Minima Obrigatoria"</text></outputEntry>
+      </rule>
+
+      <!-- ============================================== -->
+      <!-- APPROVAL RULES (AFTER CONTRAINDICATIONS)      -->
+      <!-- ============================================== -->
+
+      <rule id="Rule_30101271_Aprovacao_Indicacao">
+        <description>Aprovacao - Abdomen em avental com complicacoes funcionais documentadas</description>
+        <inputEntry id="IE_Aprov1_1"><text>&gt;= 18.5 and &lt;= 35</text></inputEntry>
+        <inputEntry id="IE_Aprov1_2"><text>&gt;= 3</text></inputEntry>
+        <inputEntry id="IE_Aprov1_3"><text>"ASA_I","ASA_II","ASA_III","ASA_IV"</text></inputEntry>
+        <inputEntry id="IE_Aprov1_4"><text>true</text></inputEntry>
+        <inputEntry id="IE_Aprov1_5"><text>true</text></inputEntry>
+        <outputEntry id="OE_Aprov1_1"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OE_Aprov1_2"><text>"Abdomen em avental com complicacoes funcionais documentadas (dermatite, úlceras, limitacao mobilidade). Peso estavel >= 3 meses, IMC adequado (18,5-35), risco cirurgico aceitavel. Critérios SBCP 2024 atendidos."</text></outputEntry>
+        <outputEntry id="OE_Aprov1_3"><text>"DUT ANS 2024 + SBCP 2024 - Dermolipectomia Reparadora"</text></outputEntry>
+      </rule>
+
+      <!-- ============================================== -->
+      <!-- FALLBACK RULE - Casos nao cobertos            -->
+      <!-- ============================================== -->
+      <rule id="Rule_Fallback_30101271">
+        <description>Regra padrao - Casos nao cobertos requerem analise manual por auditor medico especializado</description>
+        <inputEntry id="IE_Fallback_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_Fallback_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_Fallback_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_Fallback_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_Fallback_5"><text>-</text></inputEntry>
+        <outputEntry id="OE_Fallback_1"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OE_Fallback_2"><text>"Caso requer analise manual por auditor medico especializado - criterios de autorizacao automatica nao foram atendidos."</text></outputEntry>
+        <outputEntry id="OE_Fallback_3"><text>"Processo de auditoria medica especializada conforme RN 428/2017"</text></outputEntry>
+      </rule>
+
+    </decisionTable>
+  </decision>
+</definitions>

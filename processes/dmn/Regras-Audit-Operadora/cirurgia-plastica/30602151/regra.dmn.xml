@@ -1,0 +1,321 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             xmlns:camunda="http://camunda.org/schema/1.0/dmn"
+             id="Definitions_30602151"
+             name="Correcao de Paralisia Facial"
+             namespace="http://camunda.org/schema/1.0/dmn">
+
+  <!--
+    ===============================================================================
+    TUSS: 30602151
+    Procedimento: Correcao de Paralisia Facial
+    Especialidade: Cirurgia Plastica
+    Versao: 3.0.0-LEAN-TIER2
+    Data: 2026-02-07
+    ===============================================================================
+
+    INDICACOES CLINICAS (DUT/ANS):
+    - Paralisia facial de Bell sem recuperacao apos 12 meses
+    - Paralisia facial pos-resseccao de neurinoma do acustico
+    - Paralisia facial pos-trauma ou iatrogena
+    - Sindrome de Moebius ou paralisia facial congenita
+    - Assimetria facial com impacto funcional (incompetencia labial, lagoftalmo)
+    - Paralisia facial pos-parotidectomia
+
+    CONTRAINDICACOES:
+    - Paralisia facial em fase aguda (menos de 12 meses) exceto trauma
+    - Doenca sistemica grave descompensada
+    - Expectativas irrealistas quanto ao resultado
+    - Infeccao ativa na regiao facial
+    - Ausencia de inervacao disponivel para enxerto (casos tardios)
+
+    DOCUMENTACAO OBRIGATORIA:
+    - Eletroneuromiografia (ENMG) facial
+    - Avaliacao oftalmologica (lagoftalmo, exposicao corneana)
+    - Documentacao fotografica e de video (movimento facial)
+    - Escala de House-Brackmann documentada
+    - RM de cranio quando causa central
+    - Tempo de evolucao da paralisia
+
+    REFERENCIAS TECNICAS:
+    - Sir Charles Bell Society Guidelines (2024)
+    - Facial Nerve Grading System 2.0 (2023)
+    - SBCP Reconstrucao de Paralisia Facial (2024)
+    - AAFPRS Facial Reanimation (2024)
+    - ANS RN 465/2021, DUT 2024
+
+    ===============================================================================
+  -->
+
+  <decision id="Decision_30602151" name="Regra Clinica - Correcao de Paralisia Facial">
+    <decisionTable id="DecisionTable_30602151" hitPolicy="FIRST">
+
+      <!-- ========== INPUTS (5 - Padrao TIER-1) ========== -->
+
+      <input id="Input_condicaoPaciente" label="Condicao do Paciente" camunda:inputVariable="condicaoPaciente">
+        <inputExpression id="InputExpression_condicaoPaciente" typeRef="string">
+          <text>condicaoPaciente</text>
+        </inputExpression>
+        <inputValues id="InputValues_condicaoPaciente">
+          <text>"ParalisiaBellTardia","ParalisiaPosNeurinoma","ParalisiaPosTrauma","SindromeMoebius","ParalisiaCongenita","IncompetenciaLabial","Lagoftalmo","FaseAguda"</text>
+        </inputValues>
+      </input>
+
+      <input id="Input_historicoClinico" label="Historico Clinico" camunda:inputVariable="historicoClinico">
+        <inputExpression id="InputExpression_historicoClinico" typeRef="string">
+          <text>historicoClinico</text>
+        </inputExpression>
+        <inputValues id="InputValues_historicoClinico">
+          <text>"Adequado","Incompleto","NaoDocumentado"</text>
+        </inputValues>
+      </input>
+
+      <input id="Input_classeIndicacao" label="Classe de Indicacao" camunda:inputVariable="classeIndicacao">
+        <inputExpression id="InputExpression_classeIndicacao" typeRef="string">
+          <text>classeIndicacao</text>
+        </inputExpression>
+        <inputValues id="InputValues_classeIndicacao">
+          <text>"Classe I","Classe IIa","Classe IIb","Classe III"</text>
+        </inputValues>
+      </input>
+
+      <input id="Input_examesComprobatorios" label="Exames Comprobatorios" camunda:inputVariable="examesComprobatorios">
+        <inputExpression id="InputExpression_examesComprobatorios" typeRef="string">
+          <text>examesComprobatorios</text>
+        </inputExpression>
+        <inputValues id="InputValues_examesComprobatorios">
+          <text>"ENMG","AvaliacaoOftalmo","DocumentacaoVideo","HouseBrackmann","RMCranio","Completos","Incompleto","Ausente"</text>
+        </inputValues>
+      </input>
+
+      <input id="Input_expectativaVidaSuperior1Ano" label="Expectativa de Vida Superior 1 Ano" camunda:inputVariable="expectativaVidaSuperior1Ano">
+        <inputExpression id="InputExpression_expectativaVidaSuperior1Ano" typeRef="boolean">
+          <text>expectativaVidaSuperior1Ano</text>
+        </inputExpression>
+      </input>
+
+      <!-- ========== OUTPUTS (5 - LEAN TIER-2) ========== -->
+
+      <output id="Output_resultado" label="Resultado" name="resultado" typeRef="string">
+        <outputValues id="OutputValues_resultado">
+          <text>"Aprovado","Reprovado","Pendente"</text>
+        </outputValues>
+      </output>
+
+      <output id="Output_observacao" label="Observacao Clinica" name="observacao" typeRef="string" />
+
+      <output id="Output_fundamentacao" label="Fundamentacao Tecnica" name="fundamentacao" typeRef="string" />
+
+      <output id="Output_alertasDesperdicio" name="alertasDesperdicio" typeRef="string">
+        <outputValues>
+          <text>"NENHUM","DUP","FREQ","ESC","DOC","PROT","MULTI"</text>
+        </outputValues>
+      </output>
+
+      <output id="Output_acaoRecomendada" name="acaoRecomendada" typeRef="string">
+        <outputValues>
+          <text>"APROVAR","NEGAR","SOLICITAR_INFO","AGUARDAR_PRAZO","SUGERIR_ALTERNATIVA"</text>
+        </outputValues>
+      </output>
+
+      <!-- ========== RULES ========== -->
+
+      <!-- REPROVACOES -->
+      <rule id="Rule_Contraind_ClasseIII">
+        <description>Contraindicacao: Procedimento Classe III</description>
+        <inputEntry id="InputEntry_Contraind_ClasseIII_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Contraind_ClasseIII_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Contraind_ClasseIII_3"><text>"Classe III"</text></inputEntry>
+        <inputEntry id="InputEntry_Contraind_ClasseIII_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Contraind_ClasseIII_5"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_Contraind_ClasseIII_resultado"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_Contraind_ClasseIII_observacao"><text>"Procedimento nao indicado - Classe III"</text></outputEntry>
+        <outputEntry id="OutputEntry_Contraind_ClasseIII_fundamentacao"><text>"Bell Society 2024 - Reanimacao facial contraindicada quando tecnicas disponiveis insuficientes"</text></outputEntry>
+        <outputEntry id="OutputEntry_Contraind_ClasseIII_alertasDesperdicio"><text>"PROT"</text></outputEntry>
+        <outputEntry id="OutputEntry_Contraind_ClasseIII_acaoRecomendada"><text>"NEGAR"</text></outputEntry>
+        <outputEntry id="OutputEntry_Contraind_ClasseIII_alertasDesperdicio"><text>"PROT"</text></outputEntry>
+        <outputEntry id="OutputEntry_Contraind_ClasseIII_acaoRecomendada"><text>"NEGAR"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Contraind_ExpectativaVida">
+        <description>Contraindicacao: Expectativa de vida menor que 1 ano</description>
+        <inputEntry id="InputEntry_Contraind_ExpVida_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Contraind_ExpVida_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Contraind_ExpVida_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Contraind_ExpVida_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Contraind_ExpVida_5"><text>false</text></inputEntry>
+        <outputEntry id="OutputEntry_Contraind_ExpVida_resultado"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_Contraind_ExpVida_observacao"><text>"Reabilitacao da paralisia facial requer tempo prolongado"</text></outputEntry>
+        <outputEntry id="OutputEntry_Contraind_ExpVida_fundamentacao"><text>"AAFPRS 2024 - Reinerva cao muscular leva 6-18 meses para resultado"</text></outputEntry>
+        <outputEntry id="OutputEntry_Contraind_ExpectativaVida_alertasDesperdicio"><text>"PROT"</text></outputEntry>
+        <outputEntry id="OutputEntry_Contraind_ExpectativaVida_acaoRecomendada"><text>"NEGAR"</text></outputEntry>
+        <outputEntry id="OutputEntry_Contraind_ExpectativaVida_alertasDesperdicio"><text>"PROT"</text></outputEntry>
+        <outputEntry id="OutputEntry_Contraind_ExpectativaVida_acaoRecomendada"><text>"NEGAR"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Contraind_FaseAguda">
+        <description>Contraindicacao: Paralisia em fase aguda</description>
+        <inputEntry id="InputEntry_Contraind_Aguda_1"><text>"FaseAguda"</text></inputEntry>
+        <inputEntry id="InputEntry_Contraind_Aguda_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Contraind_Aguda_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Contraind_Aguda_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Contraind_Aguda_5"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_Contraind_Aguda_resultado"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_Contraind_Aguda_observacao"><text>"Aguardar 12 meses para avaliar recuperacao espontanea"</text></outputEntry>
+        <outputEntry id="OutputEntry_Contraind_Aguda_fundamentacao"><text>"Bell Society 2024 - Paralisia de Bell recupera espontaneamente em 70% ate 12 meses"</text></outputEntry>
+        <outputEntry id="OutputEntry_Contraind_FaseAguda_alertasDesperdicio"><text>"PROT"</text></outputEntry>
+        <outputEntry id="OutputEntry_Contraind_FaseAguda_acaoRecomendada"><text>"NEGAR"</text></outputEntry>
+        <outputEntry id="OutputEntry_Contraind_FaseAguda_alertasDesperdicio"><text>"PROT"</text></outputEntry>
+        <outputEntry id="OutputEntry_Contraind_FaseAguda_acaoRecomendada"><text>"NEGAR"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Reprovado_DocAusente">
+        <description>Reprovado: Documentacao ausente</description>
+        <inputEntry id="InputEntry_Reprovado_Doc_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Reprovado_Doc_2"><text>"NaoDocumentado"</text></inputEntry>
+        <inputEntry id="InputEntry_Reprovado_Doc_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Reprovado_Doc_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Reprovado_Doc_5"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_Reprovado_Doc_resultado"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_Reprovado_Doc_observacao"><text>"Documentacao obrigatoria nao apresentada"</text></outputEntry>
+        <outputEntry id="OutputEntry_Reprovado_Doc_fundamentacao"><text>"ANS RN 465/2021 - ENMG e escala de House-Brackmann obrigatorios"</text></outputEntry>
+        <outputEntry id="OutputEntry_Reprovado_DocAusente_alertasDesperdicio"><text>"DOC"</text></outputEntry>
+        <outputEntry id="OutputEntry_Reprovado_DocAusente_acaoRecomendada"><text>"NEGAR"</text></outputEntry>
+        <outputEntry id="OutputEntry_Reprovado_DocAusente_alertasDesperdicio"><text>"DOC"</text></outputEntry>
+        <outputEntry id="OutputEntry_Reprovado_DocAusente_acaoRecomendada"><text>"NEGAR"</text></outputEntry>
+      </rule>
+
+      <!-- APROVACOES -->
+      <rule id="Rule_Aprovado_BellTardia_ClasseI">
+        <description>Aprovado: Paralisia de Bell tardia sem recuperacao</description>
+        <inputEntry id="InputEntry_Aprovado_Bell_1"><text>"ParalisiaBellTardia"</text></inputEntry>
+        <inputEntry id="InputEntry_Aprovado_Bell_2"><text>"Adequado"</text></inputEntry>
+        <inputEntry id="InputEntry_Aprovado_Bell_3"><text>"Classe I"</text></inputEntry>
+        <inputEntry id="InputEntry_Aprovado_Bell_4"><text>"ENMG","HouseBrackmann","Completos"</text></inputEntry>
+        <inputEntry id="InputEntry_Aprovado_Bell_5"><text>true</text></inputEntry>
+        <outputEntry id="OutputEntry_Aprovado_Bell_resultado"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprovado_Bell_observacao"><text>"Reanimacao facial para paralisia de Bell sem recuperacao apos 12 meses"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprovado_Bell_fundamentacao"><text>"AAFPRS 2024 - HB V-VI apos 12 meses indica reanimacao cirurgica"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprovado_BellTardia_ClasseI_alertasDesperdicio"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprovado_BellTardia_ClasseI_acaoRecomendada"><text>"APROVAR"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprovado_BellTardia_ClasseI_alertasDesperdicio"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprovado_BellTardia_ClasseI_acaoRecomendada"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Aprovado_PosNeurinoma_ClasseI">
+        <description>Aprovado: Pos-resseccao de neurinoma</description>
+        <inputEntry id="InputEntry_Aprovado_Neurinoma_1"><text>"ParalisiaPosNeurinoma"</text></inputEntry>
+        <inputEntry id="InputEntry_Aprovado_Neurinoma_2"><text>"Adequado"</text></inputEntry>
+        <inputEntry id="InputEntry_Aprovado_Neurinoma_3"><text>"Classe I"</text></inputEntry>
+        <inputEntry id="InputEntry_Aprovado_Neurinoma_4"><text>"ENMG","RMCranio","Completos"</text></inputEntry>
+        <inputEntry id="InputEntry_Aprovado_Neurinoma_5"><text>true</text></inputEntry>
+        <outputEntry id="OutputEntry_Aprovado_Neurinoma_resultado"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprovado_Neurinoma_observacao"><text>"Reanimacao facial pos-neurinoma - transferencia de nervo ou gracilis livre"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprovado_Neurinoma_fundamentacao"><text>"Bell Society 2024 - Lesao iatrogena do facial indica reconstrucao precoce ou transferencia"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprovado_PosNeurinoma_ClasseI_alertasDesperdicio"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprovado_PosNeurinoma_ClasseI_acaoRecomendada"><text>"APROVAR"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprovado_PosNeurinoma_ClasseI_alertasDesperdicio"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprovado_PosNeurinoma_ClasseI_acaoRecomendada"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Aprovado_Congenita_ClasseI">
+        <description>Aprovado: Paralisia congenita ou Moebius</description>
+        <inputEntry id="InputEntry_Aprovado_Congenita_1"><text>"SindromeMoebius","ParalisiaCongenita"</text></inputEntry>
+        <inputEntry id="InputEntry_Aprovado_Congenita_2"><text>"Adequado"</text></inputEntry>
+        <inputEntry id="InputEntry_Aprovado_Congenita_3"><text>"Classe I"</text></inputEntry>
+        <inputEntry id="InputEntry_Aprovado_Congenita_4"><text>"ENMG","DocumentacaoVideo","Completos"</text></inputEntry>
+        <inputEntry id="InputEntry_Aprovado_Congenita_5"><text>true</text></inputEntry>
+        <outputEntry id="OutputEntry_Aprovado_Congenita_resultado"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprovado_Congenita_observacao"><text>"Reanimacao facial congenita - transferencia de gracilis livre"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprovado_Congenita_fundamentacao"><text>"SBCP 2024 - Moebius e paralisia congenita indicam gracilis livre a partir de 5-6 anos"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprovado_Congenita_ClasseI_alertasDesperdicio"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprovado_Congenita_ClasseI_acaoRecomendada"><text>"APROVAR"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprovado_Congenita_ClasseI_alertasDesperdicio"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprovado_Congenita_ClasseI_acaoRecomendada"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Aprovado_ClasseIIa">
+        <description>Aprovado: Indicacao Classe IIa documentada</description>
+        <inputEntry id="InputEntry_Aprovado_IIa_1"><text>"ParalisiaPosTrauma","IncompetenciaLabial","Lagoftalmo"</text></inputEntry>
+        <inputEntry id="InputEntry_Aprovado_IIa_2"><text>"Adequado"</text></inputEntry>
+        <inputEntry id="InputEntry_Aprovado_IIa_3"><text>"Classe IIa"</text></inputEntry>
+        <inputEntry id="InputEntry_Aprovado_IIa_4"><text>"ENMG","AvaliacaoOftalmo","Completos"</text></inputEntry>
+        <inputEntry id="InputEntry_Aprovado_IIa_5"><text>true</text></inputEntry>
+        <outputEntry id="OutputEntry_Aprovado_IIa_resultado"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprovado_IIa_observacao"><text>"Correcao de paralisia facial com impacto funcional documentado"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprovado_IIa_fundamentacao"><text>"AAFPRS 2024 - Incompetencia labial ou lagoftalmo indicam procedimento funcional"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprovado_ClasseIIa_alertasDesperdicio"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprovado_ClasseIIa_acaoRecomendada"><text>"APROVAR"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprovado_ClasseIIa_alertasDesperdicio"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprovado_ClasseIIa_acaoRecomendada"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <!-- PENDENTES -->
+      <rule id="Rule_Pendente_DocIncompleta">
+        <description>Pendente: Documentacao incompleta</description>
+        <inputEntry id="InputEntry_Pendente_Doc_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Pendente_Doc_2"><text>"Incompleto"</text></inputEntry>
+        <inputEntry id="InputEntry_Pendente_Doc_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Pendente_Doc_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Pendente_Doc_5"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_Pendente_Doc_resultado"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OutputEntry_Pendente_Doc_observacao"><text>"Complementar ENMG e documentacao em video"</text></outputEntry>
+        <outputEntry id="OutputEntry_Pendente_Doc_fundamentacao"><text>"Bell Society 2024 - ENMG define viabilidade muscular para tecnica"</text></outputEntry>
+        <outputEntry id="OutputEntry_Pendente_DocIncompleta_alertasDesperdicio"><text>"DOC"</text></outputEntry>
+        <outputEntry id="OutputEntry_Pendente_DocIncompleta_acaoRecomendada"><text>"SOLICITAR_INFO"</text></outputEntry>
+        <outputEntry id="OutputEntry_Pendente_DocIncompleta_alertasDesperdicio"><text>"DOC"</text></outputEntry>
+        <outputEntry id="OutputEntry_Pendente_DocIncompleta_acaoRecomendada"><text>"SOLICITAR_INFO"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Pendente_ExamesIncompletos">
+        <description>Pendente: Exames incompletos</description>
+        <inputEntry id="InputEntry_Pendente_Exames_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Pendente_Exames_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Pendente_Exames_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Pendente_Exames_4"><text>"Incompleto","Ausente"</text></inputEntry>
+        <inputEntry id="InputEntry_Pendente_Exames_5"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_Pendente_Exames_resultado"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OutputEntry_Pendente_Exames_observacao"><text>"Solicitar ENMG facial e escala de House-Brackmann"</text></outputEntry>
+        <outputEntry id="OutputEntry_Pendente_Exames_fundamentacao"><text>"AAFPRS 2024 - Estadiamento preciso necessario para escolha da tecnica"</text></outputEntry>
+        <outputEntry id="OutputEntry_Pendente_ExamesIncompletos_alertasDesperdicio"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_Pendente_ExamesIncompletos_acaoRecomendada"><text>"SOLICITAR_INFO"</text></outputEntry>
+        <outputEntry id="OutputEntry_Pendente_ExamesIncompletos_alertasDesperdicio"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_Pendente_ExamesIncompletos_acaoRecomendada"><text>"SOLICITAR_INFO"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Pendente_ClasseIIb">
+        <description>Pendente: Classe IIb requer junta medica</description>
+        <inputEntry id="InputEntry_Pendente_IIb_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Pendente_IIb_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Pendente_IIb_3"><text>"Classe IIb"</text></inputEntry>
+        <inputEntry id="InputEntry_Pendente_IIb_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Pendente_IIb_5"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_Pendente_IIb_resultado"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OutputEntry_Pendente_IIb_observacao"><text>"Indicacao limitrofe requer parecer de centro de referencia"</text></outputEntry>
+        <outputEntry id="OutputEntry_Pendente_IIb_fundamentacao"><text>"SBCP 2024 - Casos complexos requerem avaliacao multidisciplinar"</text></outputEntry>
+        <outputEntry id="OutputEntry_Pendente_ClasseIIb_alertasDesperdicio"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_Pendente_ClasseIIb_acaoRecomendada"><text>"SOLICITAR_INFO"</text></outputEntry>
+        <outputEntry id="OutputEntry_Pendente_ClasseIIb_alertasDesperdicio"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_Pendente_ClasseIIb_acaoRecomendada"><text>"SOLICITAR_INFO"</text></outputEntry>
+      </rule>
+
+      <!-- FALLBACK -->
+      <rule id="Rule_Fallback_30602151">
+        <description>Regra padrao - Analise adicional</description>
+        <inputEntry id="InputEntry_Fallback_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Fallback_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Fallback_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Fallback_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Fallback_5"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_Fallback_resultado"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OutputEntry_Fallback_observacao"><text>"Caso requer analise por equipe de reanimacao facial"</text></outputEntry>
+        <outputEntry id="OutputEntry_Fallback_fundamentacao"><text>"Avaliacao individualizada conforme protocolos Bell Society/AAFPRS"</text></outputEntry>
+        <outputEntry id="OutputEntry_Fallback_30602151_alertasDesperdicio"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_Fallback_30602151_acaoRecomendada"><text>"SOLICITAR_INFO"</text></outputEntry>
+        <outputEntry id="OutputEntry_Fallback_30602151_alertasDesperdicio"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_Fallback_30602151_acaoRecomendada"><text>"SOLICITAR_INFO"</text></outputEntry>
+      </rule>
+
+    </decisionTable>
+  </decision>
+</definitions>

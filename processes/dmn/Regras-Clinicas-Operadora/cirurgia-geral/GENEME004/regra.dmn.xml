@@ -1,0 +1,213 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             xmlns:camunda="http://camunda.org/schema/1.0/dmn"
+             id="Definitions_GEN_EME_004"
+             name="Perfuracao Visceral - Controle de Foco"
+             namespace="http://camunda.org/schema/1.0/dmn">
+
+  <!--
+    ===============================================================================
+    CODIGO: GEN-EME-004
+    Procedimento: Perfuracao de Viscera Oca - Controle Cirurgico de Foco
+    Especialidade: Cirurgia Geral - Emergencia
+    Versao: 3.0.0-TIER1
+    Data: 2026-02-07
+    ===============================================================================
+
+    INDICACOES CIRURGICAS:
+    - Perfuracao gastrica ou duodenal
+    - Perfuracao de intestino delgado
+    - Perfuracao colonico com peritonite
+    - Perfuracao de apendice com abscesso nao drenavel
+    - Perfuracao de vesicula biliar
+
+    CONTRAINDICACOES:
+    - Ulcera perfurada bloqueada sem peritonite (tratamento conservador)
+    - Micro-perfuracoes pos-colonoscopia estáveis
+    - Risco cirurgico proibitivo sem beneficio
+
+    REFERENCIAS TECNICAS:
+    - WSES Guidelines 2020 - Perforated Peptic Ulcer
+    - EAST Guidelines 2023 - Hollow Viscus Injury
+    - Surviving Sepsis Campaign 2021
+
+    ===============================================================================
+  -->
+
+  <decision id="Decision_GEN_EME_004" name="Regra Clinica - Perfuracao Visceral">
+    <decisionTable id="DecisionTable_GEN_EME_004" hitPolicy="FIRST">
+
+      <!-- ========== INPUTS (5) ========== -->
+
+      <input id="Input_localPerfuracao" label="Local da Perfuracao" camunda:inputVariable="localPerfuracao">
+        <inputExpression id="InputExpression_localPerfuracao" typeRef="string">
+          <text>localPerfuracao</text>
+        </inputExpression>
+        <inputValues id="InputValues_localPerfuracao">
+          <text>"Gastrica","Duodenal","IntestinoDelgado","Colon","Apendice","VesiculaBiliar","NaoIdentificado"</text>
+        </inputValues>
+      </input>
+
+      <input id="Input_peritonite" label="Grau de Peritonite" camunda:inputVariable="peritonite">
+        <inputExpression id="InputExpression_peritonite" typeRef="string">
+          <text>peritonite</text>
+        </inputExpression>
+        <inputValues id="InputValues_peritonite">
+          <text>"Difusa","Localizada","Bloqueada","Ausente"</text>
+        </inputValues>
+      </input>
+
+      <input id="Input_pneumoperitonio" label="Pneumoperitonio" camunda:inputVariable="pneumoperitonio">
+        <inputExpression id="InputExpression_pneumoperitonio" typeRef="boolean">
+          <text>pneumoperitonio</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_tempoEvento" label="Tempo desde Evento (horas)" camunda:inputVariable="tempoEvento">
+        <inputExpression id="InputExpression_tempoEvento" typeRef="number">
+          <text>tempoEvento</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_sinaisSepse" label="Sinais de Sepse" camunda:inputVariable="sinaisSepse">
+        <inputExpression id="InputExpression_sinaisSepse" typeRef="string">
+          <text>sinaisSepse</text>
+        </inputExpression>
+        <inputValues id="InputValues_sinaisSepse">
+          <text>"ChoqueSeptico","SepseSevera","SIRS","Ausente"</text>
+        </inputValues>
+      </input>
+
+      <!-- ========== OUTPUTS (3) ========== -->
+
+      <output id="Output_resultado" label="Resultado" name="resultado" typeRef="string">
+        <outputValues id="OutputValues_resultado">
+          <text>"Aprovado","Reprovado","Pendente"</text>
+        </outputValues>
+      </output>
+
+      <output id="Output_observacao" label="Observacao Clinica" name="observacao" typeRef="string" />
+
+      <output id="Output_fundamentacao" label="Fundamentacao Tecnica" name="fundamentacao" typeRef="string" />
+
+      <!-- Output 4: Alertas Desperdicio -->
+      <output id="Output_alertasDesperdicio" label="Alertas de Desperdicio" name="alertasDesperdicio" typeRef="string">
+        <outputValues id="OutputValues_alertasDesperdicio">
+          <text>"NENHUM","DUP","FREQ","ESC","DOC","PROT","MULTI"</text>
+        </outputValues>
+      </output>
+
+      <!-- Output 5: Acao Recomendada -->
+      <output id="Output_acaoRecomendada" label="Acao Recomendada" name="acaoRecomendada" typeRef="string">
+        <outputValues id="OutputValues_acaoRecomendada">
+          <text>"APROVAR","NEGAR","SOLICITAR_INFO","AGUARDAR_PRAZO","SUGERIR_ALTERNATIVA"</text>
+        </outputValues>
+      </output>
+
+      <!-- ========== REGRAS DE REPROVACAO ========== -->
+
+      <rule id="Rule_Reprovado_PerfuracaoBloqueada">
+        <description>Reprovado: Perfuracao bloqueada sem sinais de sepse</description>
+        <inputEntry id="IE_Rep1_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_Rep1_2"><text>"Bloqueada"</text></inputEntry>
+        <inputEntry id="IE_Rep1_3"><text>false</text></inputEntry>
+        <inputEntry id="IE_Rep1_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_Rep1_5"><text>"Ausente"</text></inputEntry>
+        <outputEntry id="OE_Rep1_1"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OE_Rep1_2"><text>"Perfuracao bloqueada estavel sem sepse - tratamento conservador com antibioticos pode ser considerado"</text></outputEntry>
+        <outputEntry id="OE_Rep1_3"><text>"WSES Guidelines 2020 - Manejo conservador de ulcera perfurada bloqueada"</text></outputEntry>
+      <outputEntry id="OE_Reprovado_PerfuracaoBloqueada_4"><text>"PROT"</text></outputEntry>
+        <outputEntry id="OE_Reprovado_PerfuracaoBloqueada_5"><text>"NEGAR"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Reprovado_SemDocumentacao">
+        <description>Reprovado: Perfuracao nao confirmada</description>
+        <inputEntry id="IE_Rep2_1"><text>"NaoIdentificado"</text></inputEntry>
+        <inputEntry id="IE_Rep2_2"><text>"Ausente"</text></inputEntry>
+        <inputEntry id="IE_Rep2_3"><text>false</text></inputEntry>
+        <inputEntry id="IE_Rep2_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_Rep2_5"><text>"Ausente"</text></inputEntry>
+        <outputEntry id="OE_Rep2_1"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OE_Rep2_2"><text>"Perfuracao nao documentada e quadro clinico estavel - investigacao adicional necessaria antes de indicacao cirurgica"</text></outputEntry>
+        <outputEntry id="OE_Rep2_3"><text>"EAST Guidelines 2023 - Confirmacao diagnostica obrigatoria"</text></outputEntry>
+      <outputEntry id="OE_Reprovado_SemDocumentacao_4"><text>"PROT"</text></outputEntry>
+        <outputEntry id="OE_Reprovado_SemDocumentacao_5"><text>"NEGAR"</text></outputEntry>
+      </rule>
+
+      <!-- ========== REGRAS DE APROVACAO ========== -->
+
+      <rule id="Rule_Aprovado_PeritoniteDifusa">
+        <description>Aprovado: Peritonite difusa por perfuracao</description>
+        <inputEntry id="IE_Apr1_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_Apr1_2"><text>"Difusa"</text></inputEntry>
+        <inputEntry id="IE_Apr1_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_Apr1_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_Apr1_5"><text>-</text></inputEntry>
+        <outputEntry id="OE_Apr1_1"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OE_Apr1_2"><text>"Peritonite difusa secundaria a perfuracao - laparotomia de emergencia para controle de foco"</text></outputEntry>
+        <outputEntry id="OE_Apr1_3"><text>"Surviving Sepsis Campaign 2021 - Controle de foco em ate 6-12h"</text></outputEntry>
+      <outputEntry id="OE_Aprovado_PeritoniteDifusa_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_Aprovado_PeritoniteDifusa_5"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Aprovado_Pneumoperitonio">
+        <description>Aprovado: Pneumoperitonio livre</description>
+        <inputEntry id="IE_Apr2_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_Apr2_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_Apr2_3"><text>true</text></inputEntry>
+        <inputEntry id="IE_Apr2_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_Apr2_5"><text>-</text></inputEntry>
+        <outputEntry id="OE_Apr2_1"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OE_Apr2_2"><text>"Pneumoperitonio livre indica perfuracao de viscera oca - exploracao cirurgica de emergencia"</text></outputEntry>
+        <outputEntry id="OE_Apr2_3"><text>"WSES Guidelines 2020 - Pneumoperitonio e indicacao cirurgica absoluta"</text></outputEntry>
+      <outputEntry id="OE_Aprovado_Pneumoperitonio_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_Aprovado_Pneumoperitonio_5"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Aprovado_SepseGrave">
+        <description>Aprovado: Sepse grave secundaria a perfuracao</description>
+        <inputEntry id="IE_Apr3_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_Apr3_2"><text>"Localizada","Difusa"</text></inputEntry>
+        <inputEntry id="IE_Apr3_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_Apr3_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_Apr3_5"><text>"ChoqueSeptico","SepseSevera"</text></inputEntry>
+        <outputEntry id="OE_Apr3_1"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OE_Apr3_2"><text>"Sepse grave com foco abdominal - controle cirurgico de foco e prioritario"</text></outputEntry>
+        <outputEntry id="OE_Apr3_3"><text>"Surviving Sepsis Campaign 2021 - Controle de foco infeccioso"</text></outputEntry>
+      <outputEntry id="OE_Aprovado_SepseGrave_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_Aprovado_SepseGrave_5"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Aprovado_PerfuracaoColonCancer">
+        <description>Aprovado: Perfuracao colonica</description>
+        <inputEntry id="IE_Apr4_1"><text>"Colon"</text></inputEntry>
+        <inputEntry id="IE_Apr4_2"><text>"Localizada","Difusa"</text></inputEntry>
+        <inputEntry id="IE_Apr4_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_Apr4_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_Apr4_5"><text>-</text></inputEntry>
+        <outputEntry id="OE_Apr4_1"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OE_Apr4_2"><text>"Perfuracao colonica com peritonite - colectomia de emergencia com ou sem ostomia"</text></outputEntry>
+        <outputEntry id="OE_Apr4_3"><text>"WSES Guidelines 2020 - Manejo de perfuracao colonica"</text></outputEntry>
+      <outputEntry id="OE_Aprovado_PerfuracaoColonCancer_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_Aprovado_PerfuracaoColonCancer_5"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <!-- ========== REGRA FALLBACK ========== -->
+
+      <rule id="Rule_Fallback_GEN_EME_004">
+        <description>Pendente: Avaliacao adicional necessaria</description>
+        <inputEntry id="IE_FB_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_FB_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_FB_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_FB_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_FB_5"><text>-</text></inputEntry>
+        <outputEntry id="OE_FB_1"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OE_FB_2"><text>"Avaliacao clinica adicional necessaria - monitoramento e reavaliacao em curto intervalo"</text></outputEntry>
+        <outputEntry id="OE_FB_3"><text>"Discussao com equipe de cirurgia geral para definicao de conduta"</text></outputEntry>
+      <outputEntry id="OE_Fallback_GEN_EME_004_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_Fallback_GEN_EME_004_5"><text>"SOLICITAR_INFO"</text></outputEntry>
+      </rule>
+
+    </decisionTable>
+  </decision>
+</definitions>

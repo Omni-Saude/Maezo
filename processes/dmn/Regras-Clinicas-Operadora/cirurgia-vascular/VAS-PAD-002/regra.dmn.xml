@@ -1,0 +1,244 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/"
+             xmlns:dc="http://www.omg.org/spec/DD/20100524/DC/"
+             xmlns:di="http://www.omg.org/spec/DD/20100524/DI/"
+             id="Definitions_VAS_PAD_002"
+             name="Isquemia Critica de Membro - Criterios de Revascularizacao"
+             namespace="http://camunda.org/schema/1.0/dmn"
+             exporter="Camunda Modeler"
+             exporterVersion="5.0.0">
+  <!--
+    VAS-PAD-002 - Isquemia Critica de Membro (CLI/CLTI) - Revascularizacao
+    Versao: 1.0.0 (2026-02-07)
+    Especialidade: Cirurgia Vascular
+    Categoria: Doenca Arterial Periferica
+    TUSS Relacionados: 30907087, 30907095, 30907109
+
+    Definicao de Isquemia Critica (CLTI - Chronic Limb-Threatening Ischemia):
+    - Dor de repouso isquemica (Fontaine III) por mais de 2 semanas
+    - Ulcera ou gangrena isquemica (Fontaine IV)
+    - Pressao do tornozelo menor 50mmHg ou TcPO2 menor 30mmHg
+
+    Classificacao WIfI (Wound, Ischemia, foot Infection):
+    - W0-3: Gravidade da ferida
+    - I0-3: Grau de isquemia
+    - fI0-3: Extensao da infeccao
+    - Estratifica risco de amputacao e beneficio de revascularizacao
+
+    Indicacoes de Revascularizacao em CLTI:
+    - SEMPRE indicada quando tecnicamente viavel
+    - Objetivo: cicatrizacao de ferida e salvamento de membro
+    - Endovascular vs Bypass baseado em anatomia (GLASS)
+
+    Documentacao Obrigatoria:
+    - Pressao do tornozelo e hálux ou TcPO2
+    - Classificacao WIfI documentada
+    - Imagem arterial (duplex + angioTC ou arteriografia)
+    - Avaliacao de runoff distal
+
+    Referencias Normativas:
+    - GVG CLTI Guidelines 2019
+    - GLASS Classification 2019
+    - ACC/AHA PAD 2016
+    - DUT ANS 2024
+  -->
+
+  <decision id="Decision_VAS_PAD_002" name="Criterios de Revascularizacao - Isquemia Critica de Membro">
+    <decisionTable id="DecisionTable_VAS_PAD_002" hitPolicy="FIRST">
+
+      <!-- Input 1: Classificacao Fontaine/Rutherford -->
+      <input id="Input_classificacao" label="Classificacao Clinica">
+        <inputExpression id="InputExpr_classificacao" typeRef="string">
+          <text>classificacaoClinica</text>
+        </inputExpression>
+        <inputValues id="InputValues_classificacao">
+          <text>"Fontaine_III_Dor_Repouso","Fontaine_IV_Ulcera","Fontaine_IV_Gangrena","Rutherford_4","Rutherford_5","Rutherford_6"</text>
+        </inputValues>
+      </input>
+
+      <!-- Input 2: Score WIfI -->
+      <input id="Input_wifiScore" label="Classificacao WIfI (Risco de Amputacao)">
+        <inputExpression id="InputExpr_wifiScore" typeRef="string">
+          <text>wifiRisco</text>
+        </inputExpression>
+        <inputValues id="InputValues_wifiScore">
+          <text>"Muito_Baixo","Baixo","Moderado","Alto"</text>
+        </inputValues>
+      </input>
+
+      <!-- Input 3: Viabilidade de Revascularizacao -->
+      <input id="Input_viabilidade" label="Viabilidade Tecnica de Revascularizacao">
+        <inputExpression id="InputExpr_viabilidade" typeRef="string">
+          <text>viabilidadeRevasc</text>
+        </inputExpression>
+        <inputValues id="InputValues_viabilidade">
+          <text>"Viavel_Endovascular","Viavel_Bypass","Viavel_Hibrido","Tecnicamente_Dificil","Inviavel"</text>
+        </inputValues>
+      </input>
+
+      <!-- Input 4: Comorbidades -->
+      <input id="Input_comorbidades" label="Status de Comorbidades">
+        <inputExpression id="InputExpr_comorbidades" typeRef="string">
+          <text>statusComorbidades</text>
+        </inputExpression>
+        <inputValues id="InputValues_comorbidades">
+          <text>"Controladas","Moderadas","Graves_Nao_Proibitivas","Proibitivas"</text>
+        </inputValues>
+      </input>
+
+      <!-- Input 5: Documentacao -->
+      <input id="Input_documentacao" label="Documentacao Completa (Pressoes + Imagem + WIfI)">
+        <inputExpression id="InputExpr_documentacao" typeRef="boolean">
+          <text>documentacaoCompleta</text>
+        </inputExpression>
+      </input>
+
+      <!-- Outputs -->
+      <output id="Output_resultado" label="Resultado" name="resultado" typeRef="string">
+        <outputValues id="OutputValues_resultado">
+          <text>"Aprovado","Reprovado","Pendente"</text>
+        </outputValues>
+      </output>
+      <output id="Output_observacao" label="Observacao Clinica" name="observacao" typeRef="string" />
+      <output id="Output_fundamentacao" label="Fundamentacao Legal/Tecnica" name="fundamentacao" typeRef="string" />
+
+      <output id="Output_alertasDesperdicio" name="alertasDesperdicio" typeRef="string">
+        <outputValues>
+          <text>"NENHUM","DUP","FREQ","ESC","DOC","PROT","MULTI"</text>
+        </outputValues>
+      </output>
+
+      <output id="Output_acaoRecomendada" name="acaoRecomendada" typeRef="string">
+        <outputValues>
+          <text>"APROVAR","NEGAR","SOLICITAR_INFO","AGUARDAR_PRAZO","SUGERIR_ALTERNATIVA"</text>
+        </outputValues>
+      </output>
+
+      <!-- ============================================== -->
+      <!-- REGRAS DE REPROVACAO                          -->
+      <!-- ============================================== -->
+
+      <rule id="Rule_VAS_PAD_002_Reprovacao_Inviavel">
+        <description>Reprovacao - Revascularizacao tecnicamente inviavel</description>
+        <inputEntry id="IE_Rep1_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_Rep1_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_Rep1_3"><text>"Inviavel"</text></inputEntry>
+        <inputEntry id="IE_Rep1_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_Rep1_5"><text>-</text></inputEntry>
+        <outputEntry id="OE_Rep1_1"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OE_Rep1_2"><text>"Revascularizacao NAO aprovada - ausencia de runoff distal adequado ou anatomia que impede qualquer forma de revascularizacao - considerar amputacao primaria"</text></outputEntry>
+        <outputEntry id="OE_Rep1_3"><text>"GVG CLTI 2019 - Amputacao primaria quando revascularizacao eh tecnicamente inviavel"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_VAS_PAD_002_Reprovacao_Proibitivo">
+        <description>Reprovacao - Comorbidades proibitivas para intervencao</description>
+        <inputEntry id="IE_Rep2_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_Rep2_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_Rep2_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_Rep2_4"><text>"Proibitivas"</text></inputEntry>
+        <inputEntry id="IE_Rep2_5"><text>-</text></inputEntry>
+        <outputEntry id="OE_Rep2_1"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OE_Rep2_2"><text>"Revascularizacao NAO aprovada - comorbidades proibitivas (expectativa de vida menor 6 meses, demencia avancada, acamado) - cuidados paliativos ou amputacao primaria"</text></outputEntry>
+        <outputEntry id="OE_Rep2_3"><text>"GVG CLTI 2019 - Decisao compartilhada considerando estado funcional e expectativa de vida"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_VAS_PAD_002_Reprovacao_SemDoc">
+        <description>Reprovacao - Documentacao incompleta</description>
+        <inputEntry id="IE_Rep3_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_Rep3_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_Rep3_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_Rep3_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_Rep3_5"><text>false</text></inputEntry>
+        <outputEntry id="OE_Rep3_1"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OE_Rep3_2"><text>"Documentacao incompleta - necessario pressao de tornozelo/halux ou TcPO2, classificacao WIfI e imagem arterial para planejamento"</text></outputEntry>
+        <outputEntry id="OE_Rep3_3"><text>"RN 465/2021 - Documentacao minima obrigatoria"</text></outputEntry>
+      </rule>
+
+      <!-- ============================================== -->
+      <!-- REGRAS DE APROVACAO                           -->
+      <!-- ============================================== -->
+
+      <rule id="Rule_VAS_PAD_002_Aprovacao_Gangrena">
+        <description>Aprovacao - Gangrena isquemica com revascularizacao viavel</description>
+        <inputEntry id="IE_Apr1_1"><text>"Fontaine_IV_Gangrena","Rutherford_6"</text></inputEntry>
+        <inputEntry id="IE_Apr1_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_Apr1_3"><text>"Viavel_Endovascular","Viavel_Bypass","Viavel_Hibrido"</text></inputEntry>
+        <inputEntry id="IE_Apr1_4"><text>"Controladas","Moderadas","Graves_Nao_Proibitivas"</text></inputEntry>
+        <inputEntry id="IE_Apr1_5"><text>true</text></inputEntry>
+        <outputEntry id="OE_Apr1_1"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OE_Apr1_2"><text>"Revascularizacao APROVADA - gangrena isquemica (Fontaine IV/Rutherford 6) com possibilidade tecnica de revascularizacao para salvamento de membro"</text></outputEntry>
+        <outputEntry id="OE_Apr1_3"><text>"GVG CLTI 2019 Classe I - Revascularizacao indicada em CLTI quando tecnicamente viavel"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_VAS_PAD_002_Aprovacao_Ulcera">
+        <description>Aprovacao - Ulcera isquemica que nao cicatriza</description>
+        <inputEntry id="IE_Apr2_1"><text>"Fontaine_IV_Ulcera","Rutherford_5"</text></inputEntry>
+        <inputEntry id="IE_Apr2_2"><text>"Moderado","Alto"</text></inputEntry>
+        <inputEntry id="IE_Apr2_3"><text>"Viavel_Endovascular","Viavel_Bypass","Viavel_Hibrido"</text></inputEntry>
+        <inputEntry id="IE_Apr2_4"><text>"Controladas","Moderadas","Graves_Nao_Proibitivas"</text></inputEntry>
+        <inputEntry id="IE_Apr2_5"><text>true</text></inputEntry>
+        <outputEntry id="OE_Apr2_1"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OE_Apr2_2"><text>"Revascularizacao APROVADA - ulcera isquemica (Fontaine IV/Rutherford 5) com risco moderado/alto de amputacao - revascularizacao para promover cicatrizacao"</text></outputEntry>
+        <outputEntry id="OE_Apr2_3"><text>"GVG CLTI 2019 Classe I - Revascularizacao necessaria para cicatrizacao de ulcera isquemica"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_VAS_PAD_002_Aprovacao_DorRepouso">
+        <description>Aprovacao - Dor de repouso isquemica</description>
+        <inputEntry id="IE_Apr3_1"><text>"Fontaine_III_Dor_Repouso","Rutherford_4"</text></inputEntry>
+        <inputEntry id="IE_Apr3_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_Apr3_3"><text>"Viavel_Endovascular","Viavel_Bypass","Viavel_Hibrido"</text></inputEntry>
+        <inputEntry id="IE_Apr3_4"><text>"Controladas","Moderadas","Graves_Nao_Proibitivas"</text></inputEntry>
+        <inputEntry id="IE_Apr3_5"><text>true</text></inputEntry>
+        <outputEntry id="OE_Apr3_1"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OE_Apr3_2"><text>"Revascularizacao APROVADA - dor de repouso isquemica (Fontaine III/Rutherford 4) indica isquemia critica - revascularizacao para alivio de dor e prevencao de ulceracao"</text></outputEntry>
+        <outputEntry id="OE_Apr3_3"><text>"GVG CLTI 2019 Classe I - Dor de repouso isquemica eh indicacao de revascularizacao"</text></outputEntry>
+      </rule>
+
+      <!-- ============================================== -->
+      <!-- REGRAS DE PENDENCIA                           -->
+      <!-- ============================================== -->
+
+      <rule id="Rule_VAS_PAD_002_Pendente_TecnicamenteDificil">
+        <description>Pendente - Revascularizacao tecnicamente dificil</description>
+        <inputEntry id="IE_Pend1_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_Pend1_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_Pend1_3"><text>"Tecnicamente_Dificil"</text></inputEntry>
+        <inputEntry id="IE_Pend1_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_Pend1_5"><text>true</text></inputEntry>
+        <outputEntry id="OE_Pend1_1"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OE_Pend1_2"><text>"Revascularizacao tecnicamente desafiadora - caso requer discussao em junta vascular para definir estrategia (tentativa endovascular primeiro vs bypass vs hibrido)"</text></outputEntry>
+        <outputEntry id="OE_Pend1_3"><text>"GVG CLTI 2019 - Casos complexos requerem Heart Team vascular"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_VAS_PAD_002_Pendente_BaixoRisco">
+        <description>Pendente - WIfI baixo risco pode tentar tratamento conservador</description>
+        <inputEntry id="IE_Pend2_1"><text>"Fontaine_IV_Ulcera"</text></inputEntry>
+        <inputEntry id="IE_Pend2_2"><text>"Muito_Baixo","Baixo"</text></inputEntry>
+        <inputEntry id="IE_Pend2_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_Pend2_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_Pend2_5"><text>true</text></inputEntry>
+        <outputEntry id="OE_Pend2_1"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OE_Pend2_2"><text>"Ulcera com WIfI baixo risco de amputacao - considerar tratamento conservador otimizado (curativos, controle infeccao) antes de revascularizacao"</text></outputEntry>
+        <outputEntry id="OE_Pend2_3"><text>"GVG CLTI 2019 - WIfI baixo risco pode permitir trial de tratamento conservador"</text></outputEntry>
+      </rule>
+
+      <!-- ============================================== -->
+      <!-- REGRA FALLBACK                                -->
+      <!-- ============================================== -->
+
+      <rule id="Rule_Fallback_VAS_PAD_002">
+        <description>Fallback - Casos nao cobertos requerem analise manual</description>
+        <inputEntry id="IE_Fallback_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_Fallback_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_Fallback_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_Fallback_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_Fallback_5"><text>-</text></inputEntry>
+        <outputEntry id="OE_Fallback_1"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OE_Fallback_2"><text>"Caso requer analise manual por junta vascular especializada em salvamento de membro"</text></outputEntry>
+        <outputEntry id="OE_Fallback_3"><text>"Auditoria especializada conforme RN 428/2017"</text></outputEntry>
+      </rule>
+
+    </decisionTable>
+  </decision>
+</definitions>

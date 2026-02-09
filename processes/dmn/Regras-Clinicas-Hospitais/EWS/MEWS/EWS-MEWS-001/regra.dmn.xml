@@ -1,0 +1,258 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  ============================================================================
+  EWS-MEWS-001: MEWS Critical Score (>=5) - IMMEDIATE ALERT
+  ============================================================================
+
+  Modified Early Warning Score (MEWS) for acute illness detection in adults.
+  This rule triggers IMMEDIATE clinical response for high-risk patients.
+
+  Evidence Base: Subbe et al. (2001), QJM
+  MEWS Components:
+  - Systolic BP: <70=3, 71-80=2, 81-100=1, 101-199=0, >=200=2
+  - Heart Rate: <40=2, 41-50=1, 51-100=0, 101-110=1, 111-129=2, >=130=3
+  - Respiratory Rate: <9=2, 9-14=0, 15-20=1, 21-29=2, >=30=3
+  - Temperature: <35=2, 35-38.4=0, >=38.5=2
+  - AVPU: Alert=0, Verbal=1, Pain=2, Unresponsive=3
+
+  ============================================================================
+-->
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/"
+             xmlns:dc="http://www.omg.org/spec/DMN/20180521/DC/"
+             id="Definitions_EWS_MEWS_001"
+             name="MEWS Critical Alert"
+             targetNamespace="http://camunda.org/schema/1.0/dmn">
+
+  <!--
+    ═══════════════════════════════════════════════════════════════════════════
+    EWS-MEWS-001: MEWS Critical Score Alert (>=5)
+    Version: 1.0.0 (2026-02-06)
+    Clinical Domain: Emergency Medicine / Acute Care
+    ═══════════════════════════════════════════════════════════════════════════
+
+    TRIGGER CONDITIONS:
+    - MEWS total score >= 5 points (high risk of deterioration)
+    - Score range: 0-14 (5 parameters, max 3 points each except BP max 2)
+
+    CLINICAL ACTIONS REQUIRED:
+    - Immediate medical review
+    - Continuous vital sign monitoring
+    - Consider ICU/HDU transfer
+    - Sepsis screening recommended
+
+    EVIDENCE BASE:
+    - Subbe CP et al. QJM 2001;94:521-526
+    - MEWS >=5: 5.4x increased mortality risk
+    - Sensitivity for cardiac arrest: 75%
+    ═══════════════════════════════════════════════════════════════════════════
+  -->
+
+  <decision id="Decision_EWS_MEWS_001" name="MEWS Critical Score Evaluation">
+    <decisionTable id="DecisionTable_EWS_MEWS_001" hitPolicy="FIRST">
+
+      <!-- INPUT 1: MEWS Total Score (0-14 range) -->
+      <input id="Input_1" label="MEWS Score Total">
+        <inputExpression id="InputExpression_1" typeRef="number">
+          <text>mewsScoreTotal</text>
+        </inputExpression>
+      </input>
+
+      <!-- INPUT 2: AVPU Score Component -->
+      <input id="Input_2" label="AVPU Score">
+        <inputExpression id="InputExpression_2" typeRef="string">
+          <text>avpuScore</text>
+        </inputExpression>
+      </input>
+
+      <!-- INPUT 3: Patient Age -->
+      <input id="Input_3" label="Idade Paciente">
+        <inputExpression id="InputExpression_3" typeRef="number">
+          <text>idadePaciente</text>
+        </inputExpression>
+      </input>
+
+      <!-- INPUT 4: Is Post-Operative Patient -->
+      <input id="Input_4" label="Pos Operatorio">
+        <inputExpression id="InputExpression_4" typeRef="boolean">
+          <text>posOperatorio</text>
+        </inputExpression>
+      </input>
+
+      <!-- OUTPUT 1: Alert Level -->
+      <output id="Output_1" label="Nivel Alerta" name="nivelAlerta" typeRef="string">
+        <outputValues id="OutputValues_1">
+          <text>"Alerta", "Atencao", "Informativo", "OK", "Revisar"</text>
+        </outputValues>
+      </output>
+
+      <!-- OUTPUT 2: Urgency -->
+      <output id="Output_2" label="Urgencia" name="urgencia" typeRef="string">
+        <outputValues id="OutputValues_2">
+          <text>"IMEDIATA", "URGENTE", "ROTINA", "INFORMATIVA"</text>
+        </outputValues>
+      </output>
+
+      <!-- OUTPUT 3: Required Action -->
+      <output id="Output_3" label="Acao Requerida" name="acaoRequerida" typeRef="string"/>
+
+      <!-- OUTPUT 4: Clinical Justification -->
+      <output id="Output_4" label="Justificativa Cientifica" name="justificativaCientifica" typeRef="string"/>
+
+      <!-- RULE 1: CRITICAL - MEWS >= 5 (High Risk) -->
+      <rule id="Rule_Critical_Score5">
+        <description>MEWS score >=5 indicates high risk requiring immediate response</description>
+        <inputEntry id="InputEntry_1_1">
+          <text>&gt;= 5</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_1_2">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_1_3">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_1_4">
+          <text>-</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_1_1">
+          <text>"Alerta"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_1_2">
+          <text>"IMEDIATA"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_1_3">
+          <text>"Avaliacao IMEDIATA por medico plantonista. Iniciar monitoramento continuo. Colher gasometria arterial e lactato. Considerar transferencia para UTI/Semi-intensiva. Avaliar necessidade de suporte hemodinamico."</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_1_4">
+          <text>"MEWS >=5 associado a risco 5.4x maior de mortalidade intra-hospitalar (Subbe et al. 2001). Sensibilidade de 75% para deteccao de parada cardiaca nas proximas 24h. Requer intervencao clinica imediata."</text>
+        </outputEntry>
+      </rule>
+
+      <!-- RULE 2: CRITICAL - Unresponsive (AVPU = U) -->
+      <rule id="Rule_Critical_Unresponsive">
+        <description>AVPU Unresponsive is a critical finding regardless of total score</description>
+        <inputEntry id="InputEntry_2_1">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_2_2">
+          <text>"U"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_2_3">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_2_4">
+          <text>-</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_2_1">
+          <text>"Alerta"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_2_2">
+          <text>"IMEDIATA"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_2_3">
+          <text>"EMERGENCIA: Paciente nao responsivo. Chamar equipe de resposta rapida. Garantir via aerea pervia. Acesso venoso se ausente. Glicemia capilar imediata. Preparar para possivel intubacao."</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_2_4">
+          <text>"AVPU = Unresponsive indica comprometimento neurologico grave. Score isolado de 3 pontos. Causas incluem: AVC, hipoglicemia, overdose, TCE, choque. Mortalidade elevada sem intervencao imediata."</text>
+        </outputEntry>
+      </rule>
+
+      <!-- RULE 3: HIGH RISK - Score 4 + Elderly -->
+      <rule id="Rule_HighRisk_Elderly">
+        <description>Borderline MEWS in elderly requires enhanced surveillance</description>
+        <inputEntry id="InputEntry_3_1">
+          <text>4</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_3_2">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_3_3">
+          <text>&gt;= 70</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_3_4">
+          <text>-</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_3_1">
+          <text>"Atencao"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_3_2">
+          <text>"URGENTE"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_3_3">
+          <text>"Avaliacao medica dentro de 1 hora. Paciente idoso com MEWS no limiar critico. Aumentar frequencia de sinais vitais para cada 2 horas. Revisar lista de medicamentos. Avaliar funcao renal."</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_3_4">
+          <text>"MEWS 4 em idosos >= 70 anos representa maior risco de progressao rapida devido a reserva fisiologica reduzida. Comorbidades frequentes amplificam o risco. Vigilancia intensificada recomendada."</text>
+        </outputEntry>
+      </rule>
+
+      <!-- RULE 4: POST-OP - Score 3-4 requires attention -->
+      <rule id="Rule_PostOp_Warning">
+        <description>Post-operative patients with moderate MEWS need close monitoring</description>
+        <inputEntry id="InputEntry_4_1">
+          <text>[3..4]</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_4_2">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_4_3">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_4_4">
+          <text>true</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_4_1">
+          <text>"Atencao"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_4_2">
+          <text>"URGENTE"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_4_3">
+          <text>"Comunicar equipe cirurgica. Paciente pos-operatorio com MEWS elevando. Avaliar sinais de sangramento, infeccao de sitio cirurgico, tromboembolismo. Revisar debito urinario e balanco hidrico."</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_4_4">
+          <text>"Pacientes pos-operatorios tem risco aumentado de deterioracao subita. MEWS 3-4 pode indicar complicacoes precoces: hemorragia oculta, sepse, TEP. Deteccao precoce melhora desfecho."</text>
+        </outputEntry>
+      </rule>
+
+      <!-- RULE 5: FALLBACK - Data review needed -->
+      <rule id="Rule_Fallback_EWS_MEWS_001">
+        <description>Dados incompletos ou score invalido - requer revisao manual</description>
+        <inputEntry id="InputEntry_F_1">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_F_2">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_F_3">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_F_4">
+          <text>-</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_F_1">
+          <text>"Revisar"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_F_2">
+          <text>"ROTINA"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_F_3">
+          <text>"Verificar calculo do MEWS. Confirmar coleta completa dos 5 parametros. Garantir valores dentro da faixa fisiologica. Recalcular se necessario."</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_F_4">
+          <text>"Score MEWS fora dos padroes esperados (0-14) ou dados incompletos. Necessario revisao manual para garantir avaliacao clinica apropriada."</text>
+        </outputEntry>
+      </rule>
+
+    </decisionTable>
+  </decision>
+
+  <dmndi:DMNDI>
+    <dmndi:DMNDiagram id="DMNDiagram_EWS_MEWS_001">
+      <dmndi:DMNShape id="DMNShape_Decision_EWS_MEWS_001" dmnElementRef="Decision_EWS_MEWS_001">
+        <dc:Bounds height="80" width="180" x="160" y="100"/>
+      </dmndi:DMNShape>
+    </dmndi:DMNDiagram>
+  </dmndi:DMNDI>
+
+</definitions>

@@ -1,0 +1,337 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             xmlns:camunda="http://camunda.org/schema/1.0/dmn"
+             id="Definitions_40808041"
+             name="Angiotomografia Coronariana"
+             namespace="http://camunda.org/schema/1.0/dmn">
+
+  <!--
+    ===============================================================================
+    TUSS: 40808041
+    Procedimento: Angiotomografia Coronariana (CTA)
+    Versao: 1.0.0-LEAN-TIER2
+    Data: 2026-02-07
+    ===============================================================================
+
+    INDICACOES CLINICAS (DUT/ANS + ACC AUC 2024):
+    - Dor toracica aguda baixo/intermediario risco (HEART 0-3)
+    - Avaliacao de DAC em sintomaticos PTP baixo-intermediario
+    - Follow-up pos-revascularizacao (enxertos)
+    - Anomalias coronarianas
+    - Escore de calcio coronariano
+
+    CONTRAINDICACOES:
+    - Alergia grave ao contraste iodado
+    - DRC grave (TFGe menor 30) sem preparo
+    - FA com RVR nao controlada
+    - Gravidez
+
+    REFERENCIAS TECNICAS:
+    ACC/AHA AUC 2024, SCCT Guidelines 2024, ESC CCS 2024
+
+    ALERTAS DE DESPERDICIO (LEAN TIER-2):
+    - NENHUM: Sem alertas
+    - DUP: Duplicidade de procedimento
+    - FREQ: Frequencia inadequada
+    - ESC: Escalonamento inadequado
+    - DOC: Documentacao insuficiente
+    - PROT: Fora de protocolo clinico
+    - MULTI: Multiplos alertas combinados
+
+    ===============================================================================
+  -->
+
+  <decision id="Decision_40808041" name="Regra Clinica - Angiotomografia Coronariana">
+    <decisionTable id="DecisionTable_40808041" hitPolicy="FIRST">
+
+      <!-- ========== INPUTS (6 - Padrao LEAN TIER-2 Imagem) ========== -->
+
+      <input id="Input_indicacaoClinica" label="Indicacao Clinica" camunda:inputVariable="indicacaoClinica">
+        <inputExpression id="InputExpression_indicacaoClinica" typeRef="string">
+          <text>indicacaoClinica</text>
+        </inputExpression>
+        <inputValues id="InputValues_indicacaoClinica">
+          <text>"DorToracicaAguda","AvaliacaoDACSintomatico","FollowUpRevascularizacao","AnomaliaCoronariana","EscoreCalcio","PreOperatorioNaoCardiaco","RastreamentoAssintomatico"</text>
+        </inputValues>
+      </input>
+
+      <input id="Input_historicoClinico" label="Historico Clinico" camunda:inputVariable="historicoClinico">
+        <inputExpression id="InputExpression_historicoClinico" typeRef="string">
+          <text>historicoClinico</text>
+        </inputExpression>
+        <inputValues id="InputValues_historicoClinico">
+          <text>"Adequado","Incompleto","NaoDocumentado"</text>
+        </inputValues>
+      </input>
+
+      <input id="Input_classeIndicacao" label="Classe de Indicacao (ACC AUC)" camunda:inputVariable="classeIndicacao">
+        <inputExpression id="InputExpression_classeIndicacao" typeRef="string">
+          <text>classeIndicacao</text>
+        </inputExpression>
+        <inputValues id="InputValues_classeIndicacao">
+          <text>"Apropriado","PodeSerApropriado","RaramenteApropriado"</text>
+        </inputValues>
+      </input>
+
+      <input id="Input_ultimoProcedimentoDias" label="Ultimo Procedimento Similar (dias)" camunda:inputVariable="ultimoProcedimentoDias">
+        <inputExpression id="InputExpression_ultimoProcedimentoDias" typeRef="integer">
+          <text>ultimoProcedimentoDias</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_tfge" label="TFGe (mL/min/1.73m2)" camunda:inputVariable="tfge">
+        <inputExpression id="InputExpression_tfge" typeRef="string">
+          <text>tfge</text>
+        </inputExpression>
+        <inputValues id="InputValues_tfge">
+          <text>"maior60","45-60","30-45","menor30"</text>
+        </inputValues>
+      </input>
+
+      <input id="Input_alergiaContraste" label="Alergia ao Contraste Iodado" camunda:inputVariable="alergiaContraste">
+        <inputExpression id="InputExpression_alergiaContraste" typeRef="boolean">
+          <text>alergiaContraste</text>
+        </inputExpression>
+      </input>
+
+      <!-- ========== OUTPUTS (5 - Padrao LEAN TIER-2) ========== -->
+
+      <output id="Output_resultado" label="Resultado" name="resultado" typeRef="string">
+        <outputValues id="OutputValues_resultado">
+          <text>"Aprovado","Reprovado","Pendente"</text>
+        </outputValues>
+      </output>
+
+      <output id="Output_observacao" label="Observacao Clinica" name="observacao" typeRef="string" />
+
+      <output id="Output_fundamentacao" label="Fundamentacao Tecnica" name="fundamentacao" typeRef="string" />
+
+      <output id="Output_alertasDesperdicio" label="Alertas de Desperdicio" name="alertasDesperdicio" typeRef="string">
+        <outputValues id="OutputValues_alertasDesperdicio">
+          <text>"NENHUM","DUP","FREQ","ESC","DOC","PROT","MULTI"</text>
+        </outputValues>
+      </output>
+
+      <output id="Output_acaoRecomendada" label="Acao Recomendada" name="acaoRecomendada" typeRef="string">
+        <outputValues id="OutputValues_acaoRecomendada">
+          <text>"APROVAR","NEGAR","SOLICITAR_INFO","AGUARDAR_PRAZO","SUGERIR_ALTERNATIVA"</text>
+        </outputValues>
+      </output>
+
+      <!-- ========== RULES - REPROVACOES (Primeiro na ordem FIRST) ========== -->
+
+      <!-- CONTRAINDICACAO: Alergia grave ao contraste -->
+      <rule id="Rule_Reprovado_Alergia">
+        <description>Contraindicacao: Alergia grave ao contraste iodado</description>
+        <inputEntry id="InputEntry_Reprovado_Alerg_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Reprovado_Alerg_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Reprovado_Alerg_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Reprovado_Alerg_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Reprovado_Alerg_5"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Reprovado_Alerg_6"><text>true</text></inputEntry>
+        <outputEntry id="OutputEntry_Reprovado_Alerg_resultado"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_Reprovado_Alerg_observacao"><text>"Alergia ao contraste iodado - CTA contraindicada. Considerar alternativas sem contraste"</text></outputEntry>
+        <outputEntry id="OutputEntry_Reprovado_Alerg_fundamentacao"><text>"SCCT 2024: Alergia grave a contraste e contraindicacao. Alternativas: RM cardiaca, cintilografia, eco estresse"</text></outputEntry>
+        <outputEntry id="OutputEntry_Reprovado_Alerg_alertas"><text>"PROT"</text></outputEntry>
+        <outputEntry id="OutputEntry_Reprovado_Alerg_acao"><text>"SUGERIR_ALTERNATIVA"</text></outputEntry>
+      </rule>
+
+      <!-- CONTRAINDICACAO: DRC grave sem preparo -->
+      <rule id="Rule_Reprovado_DRC">
+        <description>Contraindicacao: DRC grave (TFGe menor 30) sem preparo</description>
+        <inputEntry id="InputEntry_Reprovado_DRC_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Reprovado_DRC_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Reprovado_DRC_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Reprovado_DRC_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Reprovado_DRC_5"><text>"menor30"</text></inputEntry>
+        <inputEntry id="InputEntry_Reprovado_DRC_6"><text>false</text></inputEntry>
+        <outputEntry id="OutputEntry_Reprovado_DRC_resultado"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_Reprovado_DRC_observacao"><text>"DRC grave (TFGe menor 30) - alto risco de nefropatia por contraste"</text></outputEntry>
+        <outputEntry id="OutputEntry_Reprovado_DRC_fundamentacao"><text>"SCCT 2024, KDIGO 2024: TFGe menor 30 requer hidratacao IV e avaliacao nefrologia"</text></outputEntry>
+        <outputEntry id="OutputEntry_Reprovado_DRC_alertas"><text>"PROT"</text></outputEntry>
+        <outputEntry id="OutputEntry_Reprovado_DRC_acao"><text>"SUGERIR_ALTERNATIVA"</text></outputEntry>
+      </rule>
+
+      <!-- REPROVADO: Raramente apropriado (Rastreamento baixo risco) -->
+      <rule id="Rule_Reprovado_Rastreamento">
+        <description>Reprovado: Rastreamento em assintomaticos baixo risco</description>
+        <inputEntry id="InputEntry_Reprovado_Rast_1"><text>"RastreamentoAssintomatico"</text></inputEntry>
+        <inputEntry id="InputEntry_Reprovado_Rast_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Reprovado_Rast_3"><text>"RaramenteApropriado"</text></inputEntry>
+        <inputEntry id="InputEntry_Reprovado_Rast_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Reprovado_Rast_5"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Reprovado_Rast_6"><text>false</text></inputEntry>
+        <outputEntry id="OutputEntry_Reprovado_Rast_resultado"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_Reprovado_Rast_observacao"><text>"CTA nao indicada para rastreamento em assintomaticos de baixo risco"</text></outputEntry>
+        <outputEntry id="OutputEntry_Reprovado_Rast_fundamentacao"><text>"ACC AUC 2024: Raramente apropriado para rastreamento de DAC em baixo risco"</text></outputEntry>
+        <outputEntry id="OutputEntry_Reprovado_Rast_alertas"><text>"PROT"</text></outputEntry>
+        <outputEntry id="OutputEntry_Reprovado_Rast_acao"><text>"NEGAR"</text></outputEntry>
+      </rule>
+
+      <!-- REPROVADO: Duplicidade recente (<90 dias) -->
+      <rule id="Rule_Reprovado_Duplicidade">
+        <description>Reprovado: CTA realizada ha menos de 90 dias</description>
+        <inputEntry id="InputEntry_Reprovado_Dup_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Reprovado_Dup_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Reprovado_Dup_3"><text>"PodeSerApropriado"</text></inputEntry>
+        <inputEntry id="InputEntry_Reprovado_Dup_4"><text>&lt; 90</text></inputEntry>
+        <inputEntry id="InputEntry_Reprovado_Dup_5"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Reprovado_Dup_6"><text>false</text></inputEntry>
+        <outputEntry id="OutputEntry_Reprovado_Dup_resultado"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_Reprovado_Dup_observacao"><text>"CTA realizada ha menos de 90 dias - duplicidade sem justificativa"</text></outputEntry>
+        <outputEntry id="OutputEntry_Reprovado_Dup_fundamentacao"><text>"ACC AUC 2024 - Repeticao de CTA em menos de 90 dias requer mudanca clinica significativa"</text></outputEntry>
+        <outputEntry id="OutputEntry_Reprovado_Dup_alertas"><text>"DUP"</text></outputEntry>
+        <outputEntry id="OutputEntry_Reprovado_Dup_acao"><text>"NEGAR"</text></outputEntry>
+      </rule>
+
+      <!-- ========== RULES - APROVACOES ========== -->
+
+      <!-- APROVADO: Dor toracica aguda Apropriado -->
+      <rule id="Rule_Aprovado_DorToracica">
+        <description>Aprovado: Dor toracica aguda baixo-intermediario risco</description>
+        <inputEntry id="InputEntry_Aprovado_Dor_1"><text>"DorToracicaAguda"</text></inputEntry>
+        <inputEntry id="InputEntry_Aprovado_Dor_2"><text>"Adequado"</text></inputEntry>
+        <inputEntry id="InputEntry_Aprovado_Dor_3"><text>"Apropriado"</text></inputEntry>
+        <inputEntry id="InputEntry_Aprovado_Dor_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Aprovado_Dor_5"><text>"maior60","45-60"</text></inputEntry>
+        <inputEntry id="InputEntry_Aprovado_Dor_6"><text>false</text></inputEntry>
+        <outputEntry id="OutputEntry_Aprovado_Dor_resultado"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprovado_Dor_observacao"><text>"Dor toracica aguda baixo-intermediario risco - CTA estrategia de escolha para rule-out"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprovado_Dor_fundamentacao"><text>"ACC AUC 2024, SCCT 2024: CTA apropriado para exclusao de DAC em baixo-intermediario risco"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprovado_Dor_alertas"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprovado_Dor_acao"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <!-- APROVADO: Avaliacao DAC sintomatico -->
+      <rule id="Rule_Aprovado_DAC">
+        <description>Aprovado: Avaliacao de DAC em sintomaticos PTP baixo-intermediario</description>
+        <inputEntry id="InputEntry_Aprovado_DAC_1"><text>"AvaliacaoDACSintomatico"</text></inputEntry>
+        <inputEntry id="InputEntry_Aprovado_DAC_2"><text>"Adequado"</text></inputEntry>
+        <inputEntry id="InputEntry_Aprovado_DAC_3"><text>"Apropriado"</text></inputEntry>
+        <inputEntry id="InputEntry_Aprovado_DAC_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Aprovado_DAC_5"><text>"maior60","45-60","30-45"</text></inputEntry>
+        <inputEntry id="InputEntry_Aprovado_DAC_6"><text>false</text></inputEntry>
+        <outputEntry id="OutputEntry_Aprovado_DAC_resultado"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprovado_DAC_observacao"><text>"DAC sintomatico com PTP baixo-intermediario - CTA primeira linha"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprovado_DAC_fundamentacao"><text>"ESC CCS 2024, ACC AUC 2024: CTA e primeira linha para PTP 5-50%"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprovado_DAC_alertas"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprovado_DAC_acao"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <!-- APROVADO: Anomalia coronariana -->
+      <rule id="Rule_Aprovado_Anomalia">
+        <description>Aprovado: Avaliacao de anomalia coronariana</description>
+        <inputEntry id="InputEntry_Aprovado_Anom_1"><text>"AnomaliaCoronariana"</text></inputEntry>
+        <inputEntry id="InputEntry_Aprovado_Anom_2"><text>"Adequado"</text></inputEntry>
+        <inputEntry id="InputEntry_Aprovado_Anom_3"><text>"Apropriado"</text></inputEntry>
+        <inputEntry id="InputEntry_Aprovado_Anom_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Aprovado_Anom_5"><text>"maior60","45-60","30-45"</text></inputEntry>
+        <inputEntry id="InputEntry_Aprovado_Anom_6"><text>false</text></inputEntry>
+        <outputEntry id="OutputEntry_Aprovado_Anom_resultado"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprovado_Anom_observacao"><text>"Avaliacao de anomalia coronariana - CTA exame de escolha"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprovado_Anom_fundamentacao"><text>"SCCT 2024: CTA e padrao-ouro para avaliacao anatomica de anomalias coronarianas"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprovado_Anom_alertas"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprovado_Anom_acao"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <!-- APROVADO: Follow-up revascularizacao -->
+      <rule id="Rule_Aprovado_FollowUp">
+        <description>Aprovado: Follow-up pos-revascularizacao (enxertos)</description>
+        <inputEntry id="InputEntry_Aprovado_FU_1"><text>"FollowUpRevascularizacao"</text></inputEntry>
+        <inputEntry id="InputEntry_Aprovado_FU_2"><text>"Adequado"</text></inputEntry>
+        <inputEntry id="InputEntry_Aprovado_FU_3"><text>"Apropriado","PodeSerApropriado"</text></inputEntry>
+        <inputEntry id="InputEntry_Aprovado_FU_4"><text>&gt;= 365</text></inputEntry>
+        <inputEntry id="InputEntry_Aprovado_FU_5"><text>"maior60","45-60"</text></inputEntry>
+        <inputEntry id="InputEntry_Aprovado_FU_6"><text>false</text></inputEntry>
+        <outputEntry id="OutputEntry_Aprovado_FU_resultado"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprovado_FU_observacao"><text>"Follow-up pos-revascularizacao - CTA adequada para avaliacao de enxertos"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprovado_FU_fundamentacao"><text>"ACC AUC 2024: CTA apropriada para avaliacao de perviedade de enxertos"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprovado_FU_alertas"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_Aprovado_FU_acao"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <!-- ========== RULES - PENDENTES (Alertas de Desperdicio) ========== -->
+
+      <!-- PENDENTE: FREQ - CTA em 90-365 dias -->
+      <rule id="Rule_Pendente_FREQ_Recente">
+        <description>Pendente: CTA em intervalo curto (90-365 dias)</description>
+        <inputEntry id="InputEntry_Pendente_FREQ_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Pendente_FREQ_2"><text>"Adequado"</text></inputEntry>
+        <inputEntry id="InputEntry_Pendente_FREQ_3"><text>"PodeSerApropriado"</text></inputEntry>
+        <inputEntry id="InputEntry_Pendente_FREQ_4"><text>[90..365]</text></inputEntry>
+        <inputEntry id="InputEntry_Pendente_FREQ_5"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Pendente_FREQ_6"><text>false</text></inputEntry>
+        <outputEntry id="OutputEntry_Pendente_FREQ_resultado"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OutputEntry_Pendente_FREQ_observacao"><text>"CTA recente (90-365 dias) - justificar mudanca clinica para repeticao"</text></outputEntry>
+        <outputEntry id="OutputEntry_Pendente_FREQ_fundamentacao"><text>"ACC AUC 2024 - Repeticao de CTA em menos de 1 ano requer justificativa clinica"</text></outputEntry>
+        <outputEntry id="OutputEntry_Pendente_FREQ_alertas"><text>"FREQ"</text></outputEntry>
+        <outputEntry id="OutputEntry_Pendente_FREQ_acao"><text>"SOLICITAR_INFO"</text></outputEntry>
+      </rule>
+
+      <!-- PENDENTE: ESC - DRC moderada sem preparo -->
+      <rule id="Rule_Pendente_ESC_DRCModerada">
+        <description>Pendente: DRC moderada - preparo necessario</description>
+        <inputEntry id="InputEntry_Pendente_ESC_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Pendente_ESC_2"><text>"Adequado"</text></inputEntry>
+        <inputEntry id="InputEntry_Pendente_ESC_3"><text>"Apropriado","PodeSerApropriado"</text></inputEntry>
+        <inputEntry id="InputEntry_Pendente_ESC_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Pendente_ESC_5"><text>"30-45"</text></inputEntry>
+        <inputEntry id="InputEntry_Pendente_ESC_6"><text>false</text></inputEntry>
+        <outputEntry id="OutputEntry_Pendente_ESC_resultado"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OutputEntry_Pendente_ESC_observacao"><text>"DRC moderada (TFGe 30-45) - hidratacao pre-procedimento recomendada"</text></outputEntry>
+        <outputEntry id="OutputEntry_Pendente_ESC_fundamentacao"><text>"KDIGO 2024: TFGe 30-45 requer hidratacao e monitoramento de funcao renal"</text></outputEntry>
+        <outputEntry id="OutputEntry_Pendente_ESC_alertas"><text>"ESC"</text></outputEntry>
+        <outputEntry id="OutputEntry_Pendente_ESC_acao"><text>"SOLICITAR_INFO"</text></outputEntry>
+      </rule>
+
+      <!-- PENDENTE: DOC - Documentacao incompleta -->
+      <rule id="Rule_Pendente_DOC_Incompleta">
+        <description>Pendente: Documentacao clinica incompleta</description>
+        <inputEntry id="InputEntry_Pendente_DOC_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Pendente_DOC_2"><text>"Incompleto","NaoDocumentado"</text></inputEntry>
+        <inputEntry id="InputEntry_Pendente_DOC_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Pendente_DOC_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Pendente_DOC_5"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Pendente_DOC_6"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_Pendente_DOC_resultado"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OutputEntry_Pendente_DOC_observacao"><text>"Documentacao incompleta - anexar historia clinica, ECG, funcao renal"</text></outputEntry>
+        <outputEntry id="OutputEntry_Pendente_DOC_fundamentacao"><text>"ANS RN 465/2021 - Exames de imagem requerem justificativa clinica"</text></outputEntry>
+        <outputEntry id="OutputEntry_Pendente_DOC_alertas"><text>"DOC"</text></outputEntry>
+        <outputEntry id="OutputEntry_Pendente_DOC_acao"><text>"SOLICITAR_INFO"</text></outputEntry>
+      </rule>
+
+      <!-- PENDENTE: PROT - Pode ser apropriado sem justificativa -->
+      <rule id="Rule_Pendente_PROT_PodeSerApropriado">
+        <description>Pendente: Pode ser apropriado requer justificativa</description>
+        <inputEntry id="InputEntry_Pendente_PROT_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Pendente_PROT_2"><text>"Adequado"</text></inputEntry>
+        <inputEntry id="InputEntry_Pendente_PROT_3"><text>"PodeSerApropriado"</text></inputEntry>
+        <inputEntry id="InputEntry_Pendente_PROT_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Pendente_PROT_5"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Pendente_PROT_6"><text>false</text></inputEntry>
+        <outputEntry id="OutputEntry_Pendente_PROT_resultado"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OutputEntry_Pendente_PROT_observacao"><text>"Indicacao 'pode ser apropriado' - justificar por que CTA e melhor opcao"</text></outputEntry>
+        <outputEntry id="OutputEntry_Pendente_PROT_fundamentacao"><text>"ACC AUC 2024 - Categoria intermediaria requer justificativa clinica detalhada"</text></outputEntry>
+        <outputEntry id="OutputEntry_Pendente_PROT_alertas"><text>"PROT"</text></outputEntry>
+        <outputEntry id="OutputEntry_Pendente_PROT_acao"><text>"SOLICITAR_INFO"</text></outputEntry>
+      </rule>
+
+      <!-- ========== FALLBACK RULE ========== -->
+      <rule id="Rule_Fallback_40808041">
+        <description>Regra padrao - Analise clinica adicional</description>
+        <inputEntry id="InputEntry_Fallback_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Fallback_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Fallback_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Fallback_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Fallback_5"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_Fallback_6"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_Fallback_resultado"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OutputEntry_Fallback_observacao"><text>"Caso requer analise clinica adicional para CTA"</text></outputEntry>
+        <outputEntry id="OutputEntry_Fallback_fundamentacao"><text>"ACC AUC 2024: Avaliacao individualizada necessaria"</text></outputEntry>
+        <outputEntry id="OutputEntry_Fallback_alertas"><text>"DOC"</text></outputEntry>
+        <outputEntry id="OutputEntry_Fallback_acao"><text>"SOLICITAR_INFO"</text></outputEntry>
+      </rule>
+
+    </decisionTable>
+  </decision>
+</definitions>

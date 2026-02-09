@@ -1,0 +1,255 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/"
+             xmlns:dc="http://www.omg.org/spec/DD/20100524/DC/"
+             xmlns:di="http://www.omg.org/spec/DD/20100524/DI/"
+             id="Definitions_VAS_PAD_001"
+             name="Claudicacao Intermitente - Tratamento Conservador Primeiro"
+             namespace="http://camunda.org/schema/1.0/dmn"
+             exporter="Camunda Modeler"
+             exporterVersion="5.0.0">
+  <!--
+    VAS-PAD-001 - Claudicacao Intermitente (Fontaine II) - Conservador Primeiro
+    Versao: 1.0.0 (2026-02-07)
+    Especialidade: Cirurgia Vascular
+    Categoria: Doenca Arterial Periferica
+    TUSS Relacionados: 30907087, 30907095, 40901156
+
+    Classificacao de Fontaine:
+    - I: Assintomatico
+    - IIa: Claudicacao leve (maior 200m)
+    - IIb: Claudicacao moderada/severa (menor 200m)
+    - III: Dor de repouso
+    - IV: Lesao trofica/gangrena
+
+    Tratamento Conservador Obrigatorio (Fontaine II):
+    - Cessacao do tabagismo (OBRIGATORIA)
+    - Exercicio supervisionado (caminhada) por minimo 3-6 meses
+    - Controle de fatores de risco (DM, HAS, dislipidemia)
+    - Cilostazol se tolerado
+    - Antiplaquetario (AAS ou clopidogrel)
+    - Estatina de alta potencia
+
+    Indicacoes para Revascularizacao em Fontaine II:
+    - Falha de tratamento conservador adequado por 3-6 meses
+    - Limitacao funcional severa impactando qualidade de vida
+    - Claudicacao incapacitante para atividade laboral
+    - Impossibilidade de exercicio por outras comorbidades
+
+    Referencias Normativas:
+    - ACC/AHA PAD Guidelines 2016
+    - SVS/ESVS 2019 - PAD Management
+    - SBACV 2020
+    - DUT ANS 2024
+  -->
+
+  <decision id="Decision_VAS_PAD_001" name="Criterios de Tratamento - Claudicacao Intermitente">
+    <decisionTable id="DecisionTable_VAS_PAD_001" hitPolicy="FIRST">
+
+      <!-- Input 1: Classificacao de Fontaine -->
+      <input id="Input_fontaine" label="Classificacao de Fontaine">
+        <inputExpression id="InputExpr_fontaine" typeRef="string">
+          <text>classificacaoFontaine</text>
+        </inputExpression>
+        <inputValues id="InputValues_fontaine">
+          <text>"Fontaine_I","Fontaine_IIa","Fontaine_IIb","Fontaine_III","Fontaine_IV"</text>
+        </inputValues>
+      </input>
+
+      <!-- Input 2: Tratamento Conservador -->
+      <input id="Input_tratamentoConservador" label="Tratamento Conservador Realizado">
+        <inputExpression id="InputExpr_tratamentoConservador" typeRef="string">
+          <text>tratamentoConservador</text>
+        </inputExpression>
+        <inputValues id="InputValues_tratamentoConservador">
+          <text>"Completo_6_Meses","Completo_3_Meses","Parcial","Nao_Realizado","Contraindicado"</text>
+        </inputValues>
+      </input>
+
+      <!-- Input 3: Resposta ao Tratamento -->
+      <input id="Input_resposta" label="Resposta ao Tratamento Conservador">
+        <inputExpression id="InputExpr_resposta" typeRef="string">
+          <text>respostaTratamento</text>
+        </inputExpression>
+        <inputValues id="InputValues_resposta">
+          <text>"Melhora_Significativa","Melhora_Parcial","Sem_Melhora","Piora","Nao_Avaliada"</text>
+        </inputValues>
+      </input>
+
+      <!-- Input 4: Impacto Funcional -->
+      <input id="Input_impacto" label="Impacto na Qualidade de Vida/Trabalho">
+        <inputExpression id="InputExpr_impacto" typeRef="string">
+          <text>impactoFuncional</text>
+        </inputExpression>
+        <inputValues id="InputValues_impacto">
+          <text>"Leve","Moderado","Severo_Incapacitante"</text>
+        </inputValues>
+      </input>
+
+      <!-- Input 5: Documentacao -->
+      <input id="Input_documentacao" label="ITB e Imagem Vascular Documentados">
+        <inputExpression id="InputExpr_documentacao" typeRef="boolean">
+          <text>documentacaoCompleta</text>
+        </inputExpression>
+      </input>
+
+      <!-- Outputs -->
+      <output id="Output_resultado" label="Resultado" name="resultado" typeRef="string">
+        <outputValues id="OutputValues_resultado">
+          <text>"Aprovado","Reprovado","Pendente"</text>
+        </outputValues>
+      </output>
+      <output id="Output_observacao" label="Observacao Clinica" name="observacao" typeRef="string" />
+      <output id="Output_fundamentacao" label="Fundamentacao Legal/Tecnica" name="fundamentacao" typeRef="string" />
+
+      <output id="Output_alertasDesperdicio" name="alertasDesperdicio" typeRef="string">
+        <outputValues>
+          <text>"NENHUM","DUP","FREQ","ESC","DOC","PROT","MULTI"</text>
+        </outputValues>
+      </output>
+
+      <output id="Output_acaoRecomendada" name="acaoRecomendada" typeRef="string">
+        <outputValues>
+          <text>"APROVAR","NEGAR","SOLICITAR_INFO","AGUARDAR_PRAZO","SUGERIR_ALTERNATIVA"</text>
+        </outputValues>
+      </output>
+
+      <!-- ============================================== -->
+      <!-- REGRAS DE REPROVACAO                          -->
+      <!-- ============================================== -->
+
+      <rule id="Rule_VAS_PAD_001_Reprovacao_SemConservador">
+        <description>Reprovacao - Tratamento conservador nao tentado em Fontaine II</description>
+        <inputEntry id="IE_Rep1_1"><text>"Fontaine_IIa","Fontaine_IIb"</text></inputEntry>
+        <inputEntry id="IE_Rep1_2"><text>"Nao_Realizado"</text></inputEntry>
+        <inputEntry id="IE_Rep1_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_Rep1_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_Rep1_5"><text>-</text></inputEntry>
+        <outputEntry id="OE_Rep1_1"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OE_Rep1_2"><text>"Revascularizacao NAO aprovada - tratamento conservador (exercicio supervisionado + medicamentos + cessacao tabagismo) eh OBRIGATORIO antes de revascularizacao em Fontaine II"</text></outputEntry>
+        <outputEntry id="OE_Rep1_3"><text>"ACC/AHA PAD 2016 Classe I - Tratamento conservador eh primeira linha para claudicacao"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_VAS_PAD_001_Reprovacao_Parcial">
+        <description>Reprovacao - Tratamento conservador incompleto</description>
+        <inputEntry id="IE_Rep2_1"><text>"Fontaine_IIa","Fontaine_IIb"</text></inputEntry>
+        <inputEntry id="IE_Rep2_2"><text>"Parcial"</text></inputEntry>
+        <inputEntry id="IE_Rep2_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_Rep2_4"><text>"Leve","Moderado"</text></inputEntry>
+        <inputEntry id="IE_Rep2_5"><text>-</text></inputEntry>
+        <outputEntry id="OE_Rep2_1"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OE_Rep2_2"><text>"Revascularizacao NAO aprovada - tratamento conservador incompleto com impacto funcional leve/moderado - completar programa de exercicio supervisionado por minimo 3 meses"</text></outputEntry>
+        <outputEntry id="OE_Rep2_3"><text>"ACC/AHA PAD 2016 - Exercicio supervisionado deve ser tentado adequadamente antes de intervencao"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_VAS_PAD_001_Reprovacao_FontaineI">
+        <description>Reprovacao - Fontaine I assintomatico</description>
+        <inputEntry id="IE_Rep3_1"><text>"Fontaine_I"</text></inputEntry>
+        <inputEntry id="IE_Rep3_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_Rep3_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_Rep3_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_Rep3_5"><text>-</text></inputEntry>
+        <outputEntry id="OE_Rep3_1"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OE_Rep3_2"><text>"Revascularizacao NAO indicada em DAP assintomatica (Fontaine I) - manter tratamento clinico e vigilancia"</text></outputEntry>
+        <outputEntry id="OE_Rep3_3"><text>"ACC/AHA PAD 2016 Classe III - Revascularizacao nao indicada em paciente assintomatico"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_VAS_PAD_001_Reprovacao_Melhora">
+        <description>Reprovacao - Tratamento conservador com melhora significativa</description>
+        <inputEntry id="IE_Rep4_1"><text>"Fontaine_IIa","Fontaine_IIb"</text></inputEntry>
+        <inputEntry id="IE_Rep4_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_Rep4_3"><text>"Melhora_Significativa"</text></inputEntry>
+        <inputEntry id="IE_Rep4_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_Rep4_5"><text>-</text></inputEntry>
+        <outputEntry id="OE_Rep4_1"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OE_Rep4_2"><text>"Revascularizacao NAO indicada - tratamento conservador obteve melhora significativa - manter programa de exercicio e medicamentos"</text></outputEntry>
+        <outputEntry id="OE_Rep4_3"><text>"ACC/AHA PAD 2016 - Manter tratamento conservador quando eficaz"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_VAS_PAD_001_Reprovacao_SemDoc">
+        <description>Reprovacao - Documentacao incompleta</description>
+        <inputEntry id="IE_Rep5_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_Rep5_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_Rep5_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_Rep5_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_Rep5_5"><text>false</text></inputEntry>
+        <outputEntry id="OE_Rep5_1"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OE_Rep5_2"><text>"Documentacao incompleta - ITB e imagem vascular (duplex ou angioTC) obrigatorios para planejamento de revascularizacao"</text></outputEntry>
+        <outputEntry id="OE_Rep5_3"><text>"RN 465/2021 - Documentacao minima obrigatoria"</text></outputEntry>
+      </rule>
+
+      <!-- ============================================== -->
+      <!-- REGRAS DE APROVACAO                           -->
+      <!-- ============================================== -->
+
+      <rule id="Rule_VAS_PAD_001_Aprovacao_Falha6Meses">
+        <description>Aprovacao - Falha de tratamento conservador completo por 6 meses</description>
+        <inputEntry id="IE_Apr1_1"><text>"Fontaine_IIb"</text></inputEntry>
+        <inputEntry id="IE_Apr1_2"><text>"Completo_6_Meses"</text></inputEntry>
+        <inputEntry id="IE_Apr1_3"><text>"Sem_Melhora","Piora"</text></inputEntry>
+        <inputEntry id="IE_Apr1_4"><text>"Severo_Incapacitante"</text></inputEntry>
+        <inputEntry id="IE_Apr1_5"><text>true</text></inputEntry>
+        <outputEntry id="OE_Apr1_1"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OE_Apr1_2"><text>"Revascularizacao APROVADA - falha de tratamento conservador completo por 6 meses com claudicacao incapacitante (Fontaine IIb)"</text></outputEntry>
+        <outputEntry id="OE_Apr1_3"><text>"ACC/AHA PAD 2016 Classe IIa - Revascularizacao indicada apos falha de tratamento conservador em claudicacao severa"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_VAS_PAD_001_Aprovacao_Falha3Meses">
+        <description>Aprovacao - Falha de tratamento conservador por 3 meses com claudicacao incapacitante</description>
+        <inputEntry id="IE_Apr2_1"><text>"Fontaine_IIb"</text></inputEntry>
+        <inputEntry id="IE_Apr2_2"><text>"Completo_3_Meses"</text></inputEntry>
+        <inputEntry id="IE_Apr2_3"><text>"Sem_Melhora","Piora"</text></inputEntry>
+        <inputEntry id="IE_Apr2_4"><text>"Severo_Incapacitante"</text></inputEntry>
+        <inputEntry id="IE_Apr2_5"><text>true</text></inputEntry>
+        <outputEntry id="OE_Apr2_1"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OE_Apr2_2"><text>"Revascularizacao APROVADA - claudicacao incapacitante refrataria a 3 meses de tratamento conservador adequado"</text></outputEntry>
+        <outputEntry id="OE_Apr2_3"><text>"ACC/AHA PAD 2016 Classe IIb - Revascularizacao pode ser considerada apos 3 meses em casos severos"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_VAS_PAD_001_Aprovacao_Contraindicado">
+        <description>Aprovacao - Exercicio contraindicado por comorbidades</description>
+        <inputEntry id="IE_Apr3_1"><text>"Fontaine_IIb"</text></inputEntry>
+        <inputEntry id="IE_Apr3_2"><text>"Contraindicado"</text></inputEntry>
+        <inputEntry id="IE_Apr3_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_Apr3_4"><text>"Severo_Incapacitante"</text></inputEntry>
+        <inputEntry id="IE_Apr3_5"><text>true</text></inputEntry>
+        <outputEntry id="OE_Apr3_1"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OE_Apr3_2"><text>"Revascularizacao APROVADA - exercicio supervisionado contraindicado por comorbidades (cardiopatia severa, artropatia, etc) com claudicacao incapacitante"</text></outputEntry>
+        <outputEntry id="OE_Apr3_3"><text>"ACC/AHA PAD 2016 - Revascularizacao pode ser primeira opcao quando exercicio eh contraindicado"</text></outputEntry>
+      </rule>
+
+      <!-- ============================================== -->
+      <!-- REGRAS DE PENDENCIA                           -->
+      <!-- ============================================== -->
+
+      <rule id="Rule_VAS_PAD_001_Pendente_3Meses_Moderado">
+        <description>Pendente - Tratamento conservador 3 meses com impacto moderado</description>
+        <inputEntry id="IE_Pend1_1"><text>"Fontaine_IIb"</text></inputEntry>
+        <inputEntry id="IE_Pend1_2"><text>"Completo_3_Meses"</text></inputEntry>
+        <inputEntry id="IE_Pend1_3"><text>"Sem_Melhora","Melhora_Parcial"</text></inputEntry>
+        <inputEntry id="IE_Pend1_4"><text>"Moderado"</text></inputEntry>
+        <inputEntry id="IE_Pend1_5"><text>true</text></inputEntry>
+        <outputEntry id="OE_Pend1_1"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OE_Pend1_2"><text>"Tratamento conservador por 3 meses com impacto moderado - considerar estender exercicio supervisionado por mais 3 meses ou analise individualizada"</text></outputEntry>
+        <outputEntry id="OE_Pend1_3"><text>"ACC/AHA PAD 2016 - Decisao individualizada em casos intermediarios"</text></outputEntry>
+      </rule>
+
+      <!-- ============================================== -->
+      <!-- REGRA FALLBACK                                -->
+      <!-- ============================================== -->
+
+      <rule id="Rule_Fallback_VAS_PAD_001">
+        <description>Fallback - Casos nao cobertos requerem analise manual</description>
+        <inputEntry id="IE_Fallback_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_Fallback_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_Fallback_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_Fallback_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_Fallback_5"><text>-</text></inputEntry>
+        <outputEntry id="OE_Fallback_1"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OE_Fallback_2"><text>"Caso requer analise manual por auditor especializado em cirurgia vascular"</text></outputEntry>
+        <outputEntry id="OE_Fallback_3"><text>"Auditoria especializada conforme RN 428/2017"</text></outputEntry>
+      </rule>
+
+    </decisionTable>
+  </decision>
+</definitions>

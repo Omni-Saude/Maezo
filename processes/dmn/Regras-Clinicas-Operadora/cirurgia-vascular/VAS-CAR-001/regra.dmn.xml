@@ -1,0 +1,257 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/"
+             xmlns:dc="http://www.omg.org/spec/DD/20100524/DC/"
+             xmlns:di="http://www.omg.org/spec/DD/20100524/DI/"
+             id="Definitions_VAS_CAR_001"
+             name="Endarterectomia Carotidea - Paciente Sintomatico"
+             namespace="http://camunda.org/schema/1.0/dmn"
+             exporter="Camunda Modeler"
+             exporterVersion="5.0.0">
+  <!--
+    VAS-CAR-001 - Endarterectomia Carotidea - Paciente Sintomatico
+    Versao: 1.0.0 (2026-02-07)
+    Especialidade: Cirurgia Vascular
+    Categoria: Cirurgia Carotidea
+    TUSS Relacionados: 30907010, 30907028
+
+    Indicacoes Clinicas (SVS/ESVS 2019, SBACV 2020):
+    - Estenose carotidea sintomatica maior que 50% com AIT ou AVC nos ultimos 6 meses
+    - Sintomas hemisfericos ipsilaterais (amaurose fugax, AIT, AVC menor)
+    - Estenose documentada por duplex scan, angioTC ou angioRM
+    - Risco cirurgico aceitavel (morbimortalidade menor que 6%)
+
+    Contraindicacoes:
+    - AVC maior com sequela incapacitante (Rankin maior ou igual a 4)
+    - Estenose menor que 50% em paciente sintomatico
+    - Oclus carotidea total cronica (sem fluxo)
+    - Expectativa de vida menor que 2 anos
+    - Comorbidades graves descompensadas
+
+    Documentacao Obrigatoria:
+    - Duplex scan carotideo com quantificacao de estenose
+    - Relatorio neurologico documentando sintomas
+    - Avaliacao cardiologica pre-operatoria
+    - TC ou RM de cranio recente
+
+    Referencias Normativas:
+    - SVS/ESVS Guidelines 2019 - Carotid Artery Disease Management
+    - SBACV 2020 - Diretrizes Brasileiras de Doenca Carotidea
+    - NASCET/ECST Criteria - Quantificacao de Estenose
+    - DUT ANS 2024 - Procedimentos Vasculares
+  -->
+
+  <decision id="Decision_VAS_CAR_001" name="Criterios de Autorizacao - Endarterectomia Carotidea Sintomatica">
+    <decisionTable id="DecisionTable_VAS_CAR_001" hitPolicy="FIRST">
+
+      <!-- Input 1: Grau de Estenose Carotidea -->
+      <input id="Input_grauEstenose" label="Grau de Estenose Carotidea (%)">
+        <inputExpression id="InputExpr_grauEstenose" typeRef="string">
+          <text>grauEstenose</text>
+        </inputExpression>
+        <inputValues id="InputValues_grauEstenose">
+          <text>"Menor_50","Entre_50_69","Entre_70_99","Oclusao_Total"</text>
+        </inputValues>
+      </input>
+
+      <!-- Input 2: Status Sintomatico -->
+      <input id="Input_statusSintomatico" label="Sintomas Neurologicos Ipsilaterais">
+        <inputExpression id="InputExpr_statusSintomatico" typeRef="string">
+          <text>statusSintomatico</text>
+        </inputExpression>
+        <inputValues id="InputValues_statusSintomatico">
+          <text>"Sintomatico_AIT","Sintomatico_AVC_Menor","Sintomatico_Amaurose","Assintomatico","Sintomatico_AVC_Maior"</text>
+        </inputValues>
+      </input>
+
+      <!-- Input 3: Tempo desde Ultimo Evento -->
+      <input id="Input_tempoEvento" label="Tempo desde Ultimo Evento Neurologico">
+        <inputExpression id="InputExpr_tempoEvento" typeRef="string">
+          <text>tempoEvento</text>
+        </inputExpression>
+        <inputValues id="InputValues_tempoEvento">
+          <text>"Menor_2_Semanas","Entre_2_6_Semanas","Entre_6_Semanas_6_Meses","Maior_6_Meses","Nao_Aplicavel"</text>
+        </inputValues>
+      </input>
+
+      <!-- Input 4: Risco Cirurgico -->
+      <input id="Input_riscoCirurgico" label="Risco Cirurgico Estimado">
+        <inputExpression id="InputExpr_riscoCirurgico" typeRef="string">
+          <text>riscoCirurgico</text>
+        </inputExpression>
+        <inputValues id="InputValues_riscoCirurgico">
+          <text>"Baixo_Menor_3","Intermediario_3_6","Alto_Maior_6"</text>
+        </inputValues>
+      </input>
+
+      <!-- Input 5: Documentacao Imagem -->
+      <input id="Input_documentacaoImagem" label="Exames de Imagem Documentados">
+        <inputExpression id="InputExpr_documentacaoImagem" typeRef="boolean">
+          <text>documentacaoImagem</text>
+        </inputExpression>
+      </input>
+
+      <!-- Output 1: Resultado -->
+      <output id="Output_resultado" label="Resultado" name="resultado" typeRef="string">
+        <outputValues id="OutputValues_resultado">
+          <text>"Aprovado","Reprovado","Pendente"</text>
+        </outputValues>
+      </output>
+
+      <!-- Output 2: Observacao -->
+      <output id="Output_observacao" label="Observacao Clinica" name="observacao" typeRef="string" />
+
+      <!-- Output 3: Fundamentacao -->
+      <output id="Output_fundamentacao" label="Fundamentacao Legal/Tecnica" name="fundamentacao" typeRef="string" />
+
+      <output id="Output_alertasDesperdicio" name="alertasDesperdicio" typeRef="string">
+        <outputValues>
+          <text>"NENHUM","DUP","FREQ","ESC","DOC","PROT","MULTI"</text>
+        </outputValues>
+      </output>
+
+      <output id="Output_acaoRecomendada" name="acaoRecomendada" typeRef="string">
+        <outputValues>
+          <text>"APROVAR","NEGAR","SOLICITAR_INFO","AGUARDAR_PRAZO","SUGERIR_ALTERNATIVA"</text>
+        </outputValues>
+      </output>
+
+      <!-- ============================================== -->
+      <!-- REGRAS DE REPROVACAO (PRIORIDADE MAXIMA)      -->
+      <!-- ============================================== -->
+
+      <rule id="Rule_VAS_CAR_001_Reprovacao_OclusaoTotal">
+        <description>Reprovacao - Oclusao carotidea total nao eh candidata a endarterectomia</description>
+        <inputEntry id="IE_Rep1_1"><text>"Oclusao_Total"</text></inputEntry>
+        <inputEntry id="IE_Rep1_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_Rep1_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_Rep1_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_Rep1_5"><text>-</text></inputEntry>
+        <outputEntry id="OE_Rep1_1"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OE_Rep1_2"><text>"Oclusao carotidea total cronica nao eh indicacao para endarterectomia - ausencia de fluxo impede procedimento"</text></outputEntry>
+        <outputEntry id="OE_Rep1_3"><text>"SVS/ESVS 2019 - Contraindicacao absoluta para CEA em oclusao total"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_VAS_CAR_001_Reprovacao_EstenoseBaixa">
+        <description>Reprovacao - Estenose menor que 50% em sintomatico nao tem beneficio cirurgico</description>
+        <inputEntry id="IE_Rep2_1"><text>"Menor_50"</text></inputEntry>
+        <inputEntry id="IE_Rep2_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_Rep2_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_Rep2_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_Rep2_5"><text>-</text></inputEntry>
+        <outputEntry id="OE_Rep2_1"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OE_Rep2_2"><text>"Estenose carotidea menor que 50% nao apresenta beneficio com endarterectomia mesmo em pacientes sintomaticos - manter tratamento clinico otimizado"</text></outputEntry>
+        <outputEntry id="OE_Rep2_3"><text>"NASCET Trial - Sem beneficio cirurgico para estenose menor que 50%"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_VAS_CAR_001_Reprovacao_AVCMaior">
+        <description>Reprovacao - AVC maior com sequela incapacitante</description>
+        <inputEntry id="IE_Rep3_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_Rep3_2"><text>"Sintomatico_AVC_Maior"</text></inputEntry>
+        <inputEntry id="IE_Rep3_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_Rep3_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_Rep3_5"><text>-</text></inputEntry>
+        <outputEntry id="OE_Rep3_1"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OE_Rep3_2"><text>"AVC maior com sequela incapacitante (Rankin maior ou igual a 4) contraindica endarterectomia - risco supera beneficio potencial"</text></outputEntry>
+        <outputEntry id="OE_Rep3_3"><text>"SVS/ESVS 2019 - Contraindicacao relativa forte em AVC incapacitante"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_VAS_CAR_001_Reprovacao_RiscoAlto">
+        <description>Reprovacao - Risco cirurgico maior que 6% supera beneficio</description>
+        <inputEntry id="IE_Rep4_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_Rep4_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_Rep4_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_Rep4_4"><text>"Alto_Maior_6"</text></inputEntry>
+        <inputEntry id="IE_Rep4_5"><text>-</text></inputEntry>
+        <outputEntry id="OE_Rep4_1"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OE_Rep4_2"><text>"Risco cirurgico estimado maior que 6% supera o beneficio da endarterectomia - considerar stenting carotideo ou tratamento clinico"</text></outputEntry>
+        <outputEntry id="OE_Rep4_3"><text>"SVS/ESVS 2019 - Morbimortalidade aceitavel para CEA deve ser menor que 6%"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_VAS_CAR_001_Reprovacao_SemDocumentacao">
+        <description>Reprovacao - Documentacao de imagem obrigatoria ausente</description>
+        <inputEntry id="IE_Rep5_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_Rep5_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_Rep5_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_Rep5_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_Rep5_5"><text>false</text></inputEntry>
+        <outputEntry id="OE_Rep5_1"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OE_Rep5_2"><text>"Documentacao de imagem (duplex scan, angioTC ou angioRM) com quantificacao de estenose eh obrigatoria para autorizacao"</text></outputEntry>
+        <outputEntry id="OE_Rep5_3"><text>"RN 465/2021 - Documentacao minima obrigatoria para procedimentos vasculares"</text></outputEntry>
+      </rule>
+
+      <!-- ============================================== -->
+      <!-- REGRAS DE APROVACAO                           -->
+      <!-- ============================================== -->
+
+      <rule id="Rule_VAS_CAR_001_Aprovacao_Ideal">
+        <description>Aprovacao - Estenose 70-99% sintomatica recente com risco baixo</description>
+        <inputEntry id="IE_Apr1_1"><text>"Entre_70_99"</text></inputEntry>
+        <inputEntry id="IE_Apr1_2"><text>"Sintomatico_AIT","Sintomatico_AVC_Menor","Sintomatico_Amaurose"</text></inputEntry>
+        <inputEntry id="IE_Apr1_3"><text>"Menor_2_Semanas","Entre_2_6_Semanas"</text></inputEntry>
+        <inputEntry id="IE_Apr1_4"><text>"Baixo_Menor_3","Intermediario_3_6"</text></inputEntry>
+        <inputEntry id="IE_Apr1_5"><text>true</text></inputEntry>
+        <outputEntry id="OE_Apr1_1"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OE_Apr1_2"><text>"Endarterectomia carotidea APROVADA - estenose 70-99% sintomatica com evento recente e risco cirurgico aceitavel - maior beneficio quando realizada precocemente"</text></outputEntry>
+        <outputEntry id="OE_Apr1_3"><text>"SVS/ESVS 2019 Classe IA - Beneficio maximo em CEA precoce para estenose severa sintomatica"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_VAS_CAR_001_Aprovacao_Moderada">
+        <description>Aprovacao - Estenose 50-69% sintomatica recente</description>
+        <inputEntry id="IE_Apr2_1"><text>"Entre_50_69"</text></inputEntry>
+        <inputEntry id="IE_Apr2_2"><text>"Sintomatico_AIT","Sintomatico_AVC_Menor","Sintomatico_Amaurose"</text></inputEntry>
+        <inputEntry id="IE_Apr2_3"><text>"Menor_2_Semanas","Entre_2_6_Semanas","Entre_6_Semanas_6_Meses"</text></inputEntry>
+        <inputEntry id="IE_Apr2_4"><text>"Baixo_Menor_3","Intermediario_3_6"</text></inputEntry>
+        <inputEntry id="IE_Apr2_5"><text>true</text></inputEntry>
+        <outputEntry id="OE_Apr2_1"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OE_Apr2_2"><text>"Endarterectomia carotidea APROVADA - estenose 50-69% sintomatica com beneficio moderado demonstrado em NASCET"</text></outputEntry>
+        <outputEntry id="OE_Apr2_3"><text>"SVS/ESVS 2019 Classe IB - Beneficio demonstrado para estenose moderada sintomatica"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_VAS_CAR_001_Aprovacao_SeveraTardia">
+        <description>Aprovacao - Estenose 70-99% sintomatica com evento entre 6 semanas e 6 meses</description>
+        <inputEntry id="IE_Apr3_1"><text>"Entre_70_99"</text></inputEntry>
+        <inputEntry id="IE_Apr3_2"><text>"Sintomatico_AIT","Sintomatico_AVC_Menor","Sintomatico_Amaurose"</text></inputEntry>
+        <inputEntry id="IE_Apr3_3"><text>"Entre_6_Semanas_6_Meses"</text></inputEntry>
+        <inputEntry id="IE_Apr3_4"><text>"Baixo_Menor_3","Intermediario_3_6"</text></inputEntry>
+        <inputEntry id="IE_Apr3_5"><text>true</text></inputEntry>
+        <outputEntry id="OE_Apr3_1"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OE_Apr3_2"><text>"Endarterectomia carotidea APROVADA - estenose severa sintomatica ainda com beneficio dentro de 6 meses do evento"</text></outputEntry>
+        <outputEntry id="OE_Apr3_3"><text>"SVS/ESVS 2019 - Beneficio presente ate 6 meses do evento indice"</text></outputEntry>
+      </rule>
+
+      <!-- ============================================== -->
+      <!-- REGRA DE PENDENCIA                            -->
+      <!-- ============================================== -->
+
+      <rule id="Rule_VAS_CAR_001_Pendente_EventoAntigo">
+        <description>Pendente - Evento maior que 6 meses requer reavaliacao</description>
+        <inputEntry id="IE_Pend1_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_Pend1_2"><text>"Sintomatico_AIT","Sintomatico_AVC_Menor","Sintomatico_Amaurose"</text></inputEntry>
+        <inputEntry id="IE_Pend1_3"><text>"Maior_6_Meses"</text></inputEntry>
+        <inputEntry id="IE_Pend1_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_Pend1_5"><text>true</text></inputEntry>
+        <outputEntry id="OE_Pend1_1"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OE_Pend1_2"><text>"Evento neurologico maior que 6 meses - beneficio de CEA diminui significativamente - requer analise individualizada por auditor"</text></outputEntry>
+        <outputEntry id="OE_Pend1_3"><text>"SVS/ESVS 2019 - Apos 6 meses, paciente deve ser reclassificado como assintomatico"</text></outputEntry>
+      </rule>
+
+      <!-- ============================================== -->
+      <!-- REGRA FALLBACK                                -->
+      <!-- ============================================== -->
+
+      <rule id="Rule_Fallback_VAS_CAR_001">
+        <description>Fallback - Casos nao cobertos requerem analise manual</description>
+        <inputEntry id="IE_Fallback_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_Fallback_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_Fallback_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_Fallback_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_Fallback_5"><text>-</text></inputEntry>
+        <outputEntry id="OE_Fallback_1"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OE_Fallback_2"><text>"Caso requer analise manual por auditor especializado em cirurgia vascular - criterios automaticos nao atendidos"</text></outputEntry>
+        <outputEntry id="OE_Fallback_3"><text>"Auditoria especializada conforme RN 428/2017 e protocolos SVS/ESVS"</text></outputEntry>
+      </rule>
+
+    </decisionTable>
+  </decision>
+</definitions>

@@ -1,0 +1,287 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             xmlns:camunda="http://camunda.org/schema/1.0/dmn"
+             id="Definitions_30904153"
+             name="Implante de Cardiodesfibrilador Implantavel (CDI) - LEAN Anti-Desperdicio"
+             namespace="http://camunda.org/schema/1.0/dmn">
+
+  <!--
+    ===============================================================================
+    TUSS: 30904153
+    Procedimento: Implante de Cardiodesfibrilador Implantavel (CDI)
+    Versao: 1.0.0-LEAN-TIER2
+    Data: 2026-02-07
+    ===============================================================================
+
+    INDICACOES CLINICAS (ACC/AHA/HRS 2024):
+    PREVENCAO SECUNDARIA (Classe I):
+    - Sobrevivente de parada cardiaca por FV/TV sustentada
+    - TV sustentada espontanea com cardiopatia estrutural
+    - Sincope inexplicada com TV sustentada induzivel
+
+    PREVENCAO PRIMARIA (Classe I):
+    - FEVE menor ou igual 35% + IC NYHA II-III apos TMO 3+ meses
+    - FEVE menor ou igual 30% pos-IAM (40 dias) com IC NYHA I
+    - CMH de alto risco (SCD risk maior 6%)
+    - DAVD com fator de risco major
+    - Canalopatias de alto risco (SQTL, Brugada, TVPC)
+
+    CONTRAINDICACOES:
+    - Expectativa de vida menor 1 ano
+    - IC refrataria sem candidato a transplante/LVAD
+    - Causa reversivel nao tratada
+    - Classe III: FEVE maior 35% sem indicacao especifica
+
+    REFERENCIAS TECNICAS:
+    - ACC/AHA/HRS 2024 Guidelines Ventricular Arrhythmias/SCD Prevention
+    - ESC 2022 Ventricular Arrhythmias Guidelines
+    - SBC/DECA 2023 Diretrizes Dispositivos
+
+    ALERTAS DE DESPERDICIO (LEAN TIER-2):
+    - NENHUM: Sem alertas identificados
+    - DUP: Duplicidade (CDI previo funcional)
+    - FREQ: Troca precoce sem indicacao
+    - ESC: Escalonamento inadequado (CDI sem TMO otimizada)
+    - DOC: Documentacao insuficiente (FEVE, classe NYHA)
+    - PROT: Protocolo nao seguido (menos de 40 dias pos-IAM, sem TMO)
+    - MULTI: Multiplos alertas combinados
+
+    ===============================================================================
+  -->
+
+  <decision id="Decision_30904153" name="Regra Clinica LEAN - CDI">
+    <decisionTable id="DecisionTable_30904153" hitPolicy="FIRST">
+
+      <!-- ========== INPUTS (5 - Padrao LEAN TIER-2 Cardiologia) ========== -->
+
+      <input id="Input_indicacao" label="Tipo de Indicacao" camunda:inputVariable="indicacao">
+        <inputExpression id="InputExpression_indicacao" typeRef="string">
+          <text>indicacao</text>
+        </inputExpression>
+        <inputValues id="InputValues_indicacao">
+          <text>"PrevencaoSecundaria","PrevencaoPrimariaCMI","PrevencaoPrimariaCMNI","PrevencaoPrimariaCMH","PrevencaoPrimariaCanalopatia","SincopeInexplicada"</text>
+        </inputValues>
+      </input>
+
+      <input id="Input_historicoClinico" label="Historico Clinico" camunda:inputVariable="historicoClinico">
+        <inputExpression id="InputExpression_historicoClinico" typeRef="string">
+          <text>historicoClinico</text>
+        </inputExpression>
+        <inputValues id="InputValues_historicoClinico">
+          <text>"Adequado","Incompleto","NaoDocumentado"</text>
+        </inputValues>
+      </input>
+
+      <input id="Input_classeIndicacao" label="Classe de Indicacao (ACC/AHA/HRS)" camunda:inputVariable="classeIndicacao">
+        <inputExpression id="InputExpression_classeIndicacao" typeRef="string">
+          <text>classeIndicacao</text>
+        </inputExpression>
+        <inputValues id="InputValues_classeIndicacao">
+          <text>"Classe I","Classe IIa","Classe IIb","Classe III"</text>
+        </inputValues>
+      </input>
+
+      <input id="Input_ultimoProcedimentoDias" label="Dias desde Ultimo Procedimento CDI" camunda:inputVariable="ultimoProcedimentoDias">
+        <inputExpression id="InputExpression_ultimoProcedimentoDias" typeRef="integer">
+          <text>ultimoProcedimentoDias</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_tmoOtimizada" label="TMO Otimizada por 3+ Meses" camunda:inputVariable="tmoOtimizada">
+        <inputExpression id="InputExpression_tmoOtimizada" typeRef="string">
+          <text>tmoOtimizada</text>
+        </inputExpression>
+        <inputValues id="InputValues_tmoOtimizada">
+          <text>"Sim_3Meses","Sim_Menos3Meses","Nao","NaoDocumentado"</text>
+        </inputValues>
+      </input>
+
+      <!-- ========== OUTPUTS (5 - Padrao LEAN TIER-2) ========== -->
+
+      <output id="Output_resultado" label="Resultado" name="resultado" typeRef="string">
+        <outputValues id="OutputValues_resultado">
+          <text>"Aprovado","Reprovado","Pendente"</text>
+        </outputValues>
+      </output>
+
+      <output id="Output_observacao" label="Observacao Clinica" name="observacao" typeRef="string" />
+
+      <output id="Output_fundamentacao" label="Fundamentacao Tecnica" name="fundamentacao" typeRef="string" />
+
+      <output id="Output_alertasDesperdicio" label="Alertas de Desperdicio" name="alertasDesperdicio" typeRef="string">
+        <outputValues id="OutputValues_alertasDesperdicio">
+          <text>"NENHUM","DUP","FREQ","ESC","DOC","PROT","MULTI"</text>
+        </outputValues>
+      </output>
+
+      <output id="Output_acaoRecomendada" label="Acao Recomendada" name="acaoRecomendada" typeRef="string">
+        <outputValues id="OutputValues_acaoRecomendada">
+          <text>"APROVAR","NEGAR","SOLICITAR_INFO","AGUARDAR_PRAZO","SUGERIR_ALTERNATIVA"</text>
+        </outputValues>
+      </output>
+
+      <!-- ========== RULES - CONTRAINDICACOES ========== -->
+
+      <rule id="Rule_Reprovado_ClasseIII">
+        <description>Reprovado: Classe III - CDI nao indicado</description>
+        <inputEntry id="IE_CI3_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_CI3_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_CI3_3"><text>"Classe III"</text></inputEntry>
+        <inputEntry id="IE_CI3_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_CI3_5"><text>-</text></inputEntry>
+        <outputEntry id="OE_CI3_resultado"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OE_CI3_observacao"><text>"Classe III - CDI nao indicado. Reavalar apos otimizacao de TMO e FEVE"</text></outputEntry>
+        <outputEntry id="OE_CI3_fundamentacao"><text>"ACC/AHA/HRS 2024 - Classe III: CDI nao indicado sem criterios estabelecidos"</text></outputEntry>
+        <outputEntry id="OE_CI3_alerta"><text>"PROT"</text></outputEntry>
+        <outputEntry id="OE_CI3_acao"><text>"NEGAR"</text></outputEntry>
+      </rule>
+
+      <!-- ========== RULES - ALERTAS DE DESPERDICIO ========== -->
+
+      <rule id="Rule_Reprovado_PROT_SemTMO">
+        <description>Reprovado PROT: Prevencao primaria sem TMO otimizada</description>
+        <inputEntry id="IE_PROT_1"><text>"PrevencaoPrimariaCMI","PrevencaoPrimariaCMNI"</text></inputEntry>
+        <inputEntry id="IE_PROT_2"><text>"Adequado"</text></inputEntry>
+        <inputEntry id="IE_PROT_3"><text>"Classe I","Classe IIa"</text></inputEntry>
+        <inputEntry id="IE_PROT_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_PROT_5"><text>"Nao"</text></inputEntry>
+        <outputEntry id="OE_PROT_resultado"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OE_PROT_observacao"><text>"CDI para prevencao primaria requer TMO otimizada por minimo 3 meses antes do implante"</text></outputEntry>
+        <outputEntry id="OE_PROT_fundamentacao"><text>"ACC/AHA/HRS 2024 Classe I: TMO otimizada (ARNI/IECA+BB+MRA+iSGLT2) por 3 meses e obrigatoria antes de CDI"</text></outputEntry>
+        <outputEntry id="OE_PROT_alerta"><text>"PROT"</text></outputEntry>
+        <outputEntry id="OE_PROT_acao"><text>"NEGAR"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Pendente_ESC_TMOMenos3Meses">
+        <description>Pendente ESC: TMO iniciada ha menos de 3 meses</description>
+        <inputEntry id="IE_ESC_1"><text>"PrevencaoPrimariaCMI","PrevencaoPrimariaCMNI"</text></inputEntry>
+        <inputEntry id="IE_ESC_2"><text>"Adequado"</text></inputEntry>
+        <inputEntry id="IE_ESC_3"><text>"Classe I","Classe IIa"</text></inputEntry>
+        <inputEntry id="IE_ESC_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_ESC_5"><text>"Sim_Menos3Meses"</text></inputEntry>
+        <outputEntry id="OE_ESC_resultado"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OE_ESC_observacao"><text>"TMO iniciada ha menos de 3 meses. Aguardar completar periodo minimo e reavaliar FEVE"</text></outputEntry>
+        <outputEntry id="OE_ESC_fundamentacao"><text>"ACC/AHA/HRS 2024: FEVE pode melhorar com TMO. Aguardar 3 meses para decisao definitiva sobre CDI"</text></outputEntry>
+        <outputEntry id="OE_ESC_alerta"><text>"ESC"</text></outputEntry>
+        <outputEntry id="OE_ESC_acao"><text>"AGUARDAR_PRAZO"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Pendente_DOC_Incompleto">
+        <description>Pendente DOC: Documentacao clinica incompleta</description>
+        <inputEntry id="IE_Doc_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_Doc_2"><text>"Incompleto"</text></inputEntry>
+        <inputEntry id="IE_Doc_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_Doc_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_Doc_5"><text>-</text></inputEntry>
+        <outputEntry id="OE_Doc_resultado"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OE_Doc_observacao"><text>"Documentacao incompleta - solicitar: Eco com FEVE, classe NYHA, TMO em uso, indicacao especifica"</text></outputEntry>
+        <outputEntry id="OE_Doc_fundamentacao"><text>"ANS RN 465/2021 - Documentacao completa necessaria para autorizacao de dispositivos"</text></outputEntry>
+        <outputEntry id="OE_Doc_alerta"><text>"DOC"</text></outputEntry>
+        <outputEntry id="OE_Doc_acao"><text>"SOLICITAR_INFO"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Reprovado_DOC_Ausente">
+        <description>Reprovado DOC: Documentacao clinica ausente</description>
+        <inputEntry id="IE_Doc_Aus_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_Doc_Aus_2"><text>"NaoDocumentado"</text></inputEntry>
+        <inputEntry id="IE_Doc_Aus_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_Doc_Aus_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_Doc_Aus_5"><text>-</text></inputEntry>
+        <outputEntry id="OE_Doc_Aus_resultado"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OE_Doc_Aus_observacao"><text>"Documentacao clinica essencial ausente - impossivel avaliar indicacao de CDI"</text></outputEntry>
+        <outputEntry id="OE_Doc_Aus_fundamentacao"><text>"ANS RN 465/2021, CPC 25 - Autorizacao impossivel sem documentacao minima exigida"</text></outputEntry>
+        <outputEntry id="OE_Doc_Aus_alerta"><text>"DOC"</text></outputEntry>
+        <outputEntry id="OE_Doc_Aus_acao"><text>"NEGAR"</text></outputEntry>
+      </rule>
+
+      <!-- ========== RULES - APROVACOES ========== -->
+
+      <rule id="Rule_Aprovado_PrevencaoSecundaria">
+        <description>Aprovado: Prevencao secundaria - sobrevivente FV/TV</description>
+        <inputEntry id="IE_PS_1"><text>"PrevencaoSecundaria"</text></inputEntry>
+        <inputEntry id="IE_PS_2"><text>"Adequado"</text></inputEntry>
+        <inputEntry id="IE_PS_3"><text>"Classe I"</text></inputEntry>
+        <inputEntry id="IE_PS_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_PS_5"><text>-</text></inputEntry>
+        <outputEntry id="OE_PS_resultado"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OE_PS_observacao"><text>"Classe I - Prevencao secundaria: sobrevivente de evento arritmico maligno. Indicacao absoluta"</text></outputEntry>
+        <outputEntry id="OE_PS_fundamentacao"><text>"ACC/AHA/HRS 2024 Classe I, Nivel A. AVID/CIDS/CASH - Reducao mortalidade significativa"</text></outputEntry>
+        <outputEntry id="OE_PS_alerta"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_PS_acao"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Aprovado_CMI_TMO">
+        <description>Aprovado: CMI com FEVE baixa e TMO otimizada 3+ meses</description>
+        <inputEntry id="IE_CMI_1"><text>"PrevencaoPrimariaCMI"</text></inputEntry>
+        <inputEntry id="IE_CMI_2"><text>"Adequado"</text></inputEntry>
+        <inputEntry id="IE_CMI_3"><text>"Classe I"</text></inputEntry>
+        <inputEntry id="IE_CMI_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_CMI_5"><text>"Sim_3Meses"</text></inputEntry>
+        <outputEntry id="OE_CMI_resultado"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OE_CMI_observacao"><text>"Classe I - CMI com FEVE menor ou igual 35% e TMO otimizada por 3+ meses"</text></outputEntry>
+        <outputEntry id="OE_CMI_fundamentacao"><text>"ACC/AHA/HRS 2024 Classe I. MADIT-II/SCD-HeFT - NNT 8-14 para salvar vida"</text></outputEntry>
+        <outputEntry id="OE_CMI_alerta"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_CMI_acao"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Aprovado_CMNI_TMO">
+        <description>Aprovado: CMNI com FEVE baixa e TMO otimizada 3+ meses</description>
+        <inputEntry id="IE_CMNI_1"><text>"PrevencaoPrimariaCMNI"</text></inputEntry>
+        <inputEntry id="IE_CMNI_2"><text>"Adequado"</text></inputEntry>
+        <inputEntry id="IE_CMNI_3"><text>"Classe I"</text></inputEntry>
+        <inputEntry id="IE_CMNI_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_CMNI_5"><text>"Sim_3Meses"</text></inputEntry>
+        <outputEntry id="OE_CMNI_resultado"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OE_CMNI_observacao"><text>"Classe I - CMNI com FEVE menor ou igual 35% e IC NYHA II-III apos TMO 3+ meses"</text></outputEntry>
+        <outputEntry id="OE_CMNI_fundamentacao"><text>"ACC/AHA/HRS 2024 Classe I. DEFINITE/SCD-HeFT - Beneficio demonstrado"</text></outputEntry>
+        <outputEntry id="OE_CMNI_alerta"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_CMNI_acao"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Aprovado_CMH">
+        <description>Aprovado: CMH com alto risco de MSC</description>
+        <inputEntry id="IE_CMH_1"><text>"PrevencaoPrimariaCMH"</text></inputEntry>
+        <inputEntry id="IE_CMH_2"><text>"Adequado"</text></inputEntry>
+        <inputEntry id="IE_CMH_3"><text>"Classe I"</text></inputEntry>
+        <inputEntry id="IE_CMH_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_CMH_5"><text>-</text></inputEntry>
+        <outputEntry id="OE_CMH_resultado"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OE_CMH_observacao"><text>"Classe I - CMH com alto risco de MSC (score ESC maior ou igual 6%)"</text></outputEntry>
+        <outputEntry id="OE_CMH_fundamentacao"><text>"ACC/AHA/HRS 2024 Classe I. ESC HCM Risk-SCD Calculator utilizado para estratificacao"</text></outputEntry>
+        <outputEntry id="OE_CMH_alerta"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_CMH_acao"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Aprovado_Canalopatia">
+        <description>Aprovado: Canalopatia de alto risco</description>
+        <inputEntry id="IE_Can_1"><text>"PrevencaoPrimariaCanalopatia"</text></inputEntry>
+        <inputEntry id="IE_Can_2"><text>"Adequado"</text></inputEntry>
+        <inputEntry id="IE_Can_3"><text>"Classe I","Classe IIa"</text></inputEntry>
+        <inputEntry id="IE_Can_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_Can_5"><text>-</text></inputEntry>
+        <outputEntry id="OE_Can_resultado"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OE_Can_observacao"><text>"Classe I/IIa - Canalopatia de alto risco (Brugada tipo 1, SQTL de alto risco)"</text></outputEntry>
+        <outputEntry id="OE_Can_fundamentacao"><text>"ACC/AHA/HRS 2024. HRS Channelopathy Guidelines - CDI indicado em canalopatias com alto risco"</text></outputEntry>
+        <outputEntry id="OE_Can_alerta"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_Can_acao"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <!-- ========== FALLBACK RULE ========== -->
+
+      <rule id="Rule_Fallback_30904153">
+        <description>Regra padrao - Parecer eletrofisiologista</description>
+        <inputEntry id="IE_FB_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_FB_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_FB_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_FB_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_FB_5"><text>-</text></inputEntry>
+        <outputEntry id="OE_FB_resultado"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OE_FB_observacao"><text>"Caso complexo - solicitar parecer de eletrofisiologista com estratificacao de risco detalhada"</text></outputEntry>
+        <outputEntry id="OE_FB_fundamentacao"><text>"ACC/AHA/HRS 2024: Avaliacao individualizada por especialista em arritmias"</text></outputEntry>
+        <outputEntry id="OE_FB_alerta"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_FB_acao"><text>"SOLICITAR_INFO"</text></outputEntry>
+      </rule>
+
+    </decisionTable>
+  </decision>
+</definitions>

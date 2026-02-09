@@ -1,0 +1,194 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/"
+             xmlns:dc="http://www.omg.org/spec/DD/20100524/DC/"
+             xmlns:di="http://www.omg.org/spec/DD/20100524/DI/"
+             id="Definitions_DUP_002"
+             name="Prevencao de Duplicidade - Exames de Imagem Repetidos"
+             namespace="http://camunda.org/schema/1.0/dmn"
+             exporter="Camunda Modeler"
+             exporterVersion="5.0.0">
+  <!--
+    DUP-002 - Prevencao de Duplicidade de Exames de Imagem Repetidos
+    Versao: 1.0.0 (2026-02-07)
+    Especialidade: Controle de Desperdicio
+    Categoria: Duplicate Procedure Prevention
+
+    Objetivo:
+    - Bloquear repeticao de exames de imagem (RX, TC, RM) sem intervalo clinico adequado
+    - Evitar exposicao desnecessaria a radiacao
+    - Otimizar uso de recursos de alto custo
+
+    Indicacoes para Bloqueio:
+    - Radiografia repetida em menos de 7 dias sem mudanca clinica
+    - TC repetida em menos de 30 dias sem progressao documentada
+    - RM repetida em menos de 60 dias sem indicacao especifica
+
+    Excecoes Permitidas:
+    - Acompanhamento pos-operatorio imediato
+    - Trauma agudo ou mudanca clinica documentada
+    - Protocolo oncologico de estadiamento
+
+    Referencias Normativas:
+    - ANS - Diretrizes de Controle de Desperdicio 2024
+    - CBR - Criterios de Adequacao em Radiologia 2023
+    - Choosing Wisely Brasil - Uso Racional de Imagem 2024
+  -->
+
+  <decision id="Decision_DUP_002" name="Prevencao Duplicidade - Exames de Imagem Repetidos">
+    <decisionTable id="DecisionTable_DUP_002" hitPolicy="FIRST">
+
+      <!-- Input 1: Exame de imagem recente -->
+      <input id="Input_exameImagemRecente" label="Exame de Imagem Recente (dentro do intervalo minimo)">
+        <inputExpression id="InputExpr_exameImagemRecente" typeRef="boolean">
+          <text>exameImagemRecente</text>
+        </inputExpression>
+      </input>
+
+      <!-- Input 2: Mudanca clinica documentada -->
+      <input id="Input_mudancaClinicaDocumentada" label="Mudanca Clinica Documentada">
+        <inputExpression id="InputExpr_mudancaClinicaDocumentada" typeRef="boolean">
+          <text>mudancaClinicaDocumentada</text>
+        </inputExpression>
+      </input>
+
+      <!-- Input 3: Pos-operatorio imediato -->
+      <input id="Input_posOperatorioImediato" label="Pos-Operatorio Imediato">
+        <inputExpression id="InputExpr_posOperatorioImediato" typeRef="boolean">
+          <text>posOperatorioImediato</text>
+        </inputExpression>
+      </input>
+
+      <!-- Input 4: Protocolo oncologico -->
+      <input id="Input_protocoloOncologico" label="Protocolo Oncologico de Estadiamento">
+        <inputExpression id="InputExpr_protocoloOncologico" typeRef="boolean">
+          <text>protocoloOncologico</text>
+        </inputExpression>
+      </input>
+
+      <!-- Output 1: Resultado -->
+      <output id="Output_resultado" label="Resultado" name="resultado" typeRef="string">
+        <outputValues id="OutputValues_resultado">
+          <text>"Aprovado","Reprovado","Pendente"</text>
+        </outputValues>
+      </output>
+
+      <!-- Output 2: Observacao -->
+      <output id="Output_observacao" label="Observacao" name="observacao" typeRef="string" />
+
+      <!-- Output 3: Fundamentacao -->
+      <output id="Output_fundamentacao" label="Fundamentacao Legal" name="fundamentacao" typeRef="string" />
+      <!-- Output 4: Alertas de Desperdicio -->
+      <output id="Output_alertasDesperdicio" label="Alertas de Desperdicio" name="alertasDesperdicio" typeRef="string">
+        <outputValues id="OutputValues_alertasDesperdicio">
+          <text>"NENHUM","DUP","FREQ","ESC","DOC","PROT","MULTI"</text>
+        </outputValues>
+      </output>
+
+      <!-- Output 5: Acao Recomendada -->
+      <output id="Output_acaoRecomendada" label="Acao Recomendada" name="acaoRecomendada" typeRef="string">
+        <outputValues id="OutputValues_acaoRecomendada">
+          <text>"APROVAR","NEGAR","SOLICITAR_INFO","AGUARDAR_PRAZO","SUGERIR_ALTERNATIVA"</text>
+        </outputValues>
+      </output>
+
+
+      <!-- ============================================== -->
+      <!-- REPROVADO: Repeticao sem justificativa        -->
+      <!-- ============================================== -->
+      <rule id="Rule_DUP_002_Reprovado_SemJustificativa">
+        <description>Reprovado - Exame de imagem repetido sem justificativa clinica</description>
+        <inputEntry id="IE_Rep1_1"><text>true</text></inputEntry>
+        <inputEntry id="IE_Rep1_2"><text>false</text></inputEntry>
+        <inputEntry id="IE_Rep1_3"><text>false</text></inputEntry>
+        <inputEntry id="IE_Rep1_4"><text>false</text></inputEntry>
+        <outputEntry id="OE_Rep1_1"><text>"Reprovado"</text></outputEntry>
+        <outputEntry id="OE_Rep1_2"><text>"Exame de imagem repetido dentro do intervalo minimo sem justificativa clinica. Intervalo recomendado: RX 7d, TC 30d, RM 60d."</text></outputEntry>
+        <outputEntry id="OE_Rep1_3"><text>"CBR Criterios Adequacao 2023; ANS Controle Desperdicio 2024"</text></outputEntry>
+        <outputEntry id="OE_Rule_DUP_002_Reprovado_SemJustificativa_4"><text>"DUP"</text></outputEntry>
+        <outputEntry id="OE_Rule_DUP_002_Reprovado_SemJustificativa_5"><text>"NEGAR"</text></outputEntry>
+      </rule>
+
+      <!-- ============================================== -->
+      <!-- APROVADO: Protocolo oncologico                -->
+      <!-- ============================================== -->
+      <rule id="Rule_DUP_002_Aprovado_ProtocoloOnco">
+        <description>Aprovado - Protocolo oncologico de estadiamento</description>
+        <inputEntry id="IE_Aprov1_1"><text>true</text></inputEntry>
+        <inputEntry id="IE_Aprov1_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_Aprov1_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_Aprov1_4"><text>true</text></inputEntry>
+        <outputEntry id="OE_Aprov1_1"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OE_Aprov1_2"><text>"Repeticao autorizada - Protocolo oncologico de estadiamento ou reavaliacao terapeutica."</text></outputEntry>
+        <outputEntry id="OE_Aprov1_3"><text>"Protocolo Oncologico - Excecao justificada"</text></outputEntry>
+        <outputEntry id="OE_Rule_DUP_002_Aprovado_ProtocoloOnco_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_Rule_DUP_002_Aprovado_ProtocoloOnco_5"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <!-- ============================================== -->
+      <!-- APROVADO: Pos-operatorio imediato             -->
+      <!-- ============================================== -->
+      <rule id="Rule_DUP_002_Aprovado_PosOp">
+        <description>Aprovado - Acompanhamento pos-operatorio imediato</description>
+        <inputEntry id="IE_Aprov2_1"><text>true</text></inputEntry>
+        <inputEntry id="IE_Aprov2_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_Aprov2_3"><text>true</text></inputEntry>
+        <inputEntry id="IE_Aprov2_4"><text>-</text></inputEntry>
+        <outputEntry id="OE_Aprov2_1"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OE_Aprov2_2"><text>"Repeticao autorizada - Controle pos-operatorio imediato conforme protocolo cirurgico."</text></outputEntry>
+        <outputEntry id="OE_Aprov2_3"><text>"Protocolo Pos-Operatorio - Excecao justificada"</text></outputEntry>
+        <outputEntry id="OE_Rule_DUP_002_Aprovado_PosOp_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_Rule_DUP_002_Aprovado_PosOp_5"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <!-- ============================================== -->
+      <!-- APROVADO: Mudanca clinica documentada         -->
+      <!-- ============================================== -->
+      <rule id="Rule_DUP_002_Aprovado_MudancaClinica">
+        <description>Aprovado - Mudanca clinica documentada justifica repeticao</description>
+        <inputEntry id="IE_Aprov3_1"><text>true</text></inputEntry>
+        <inputEntry id="IE_Aprov3_2"><text>true</text></inputEntry>
+        <inputEntry id="IE_Aprov3_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_Aprov3_4"><text>-</text></inputEntry>
+        <outputEntry id="OE_Aprov3_1"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OE_Aprov3_2"><text>"Repeticao autorizada - Mudanca no quadro clinico documentada justifica novo exame."</text></outputEntry>
+        <outputEntry id="OE_Aprov3_3"><text>"Justificativa clinica aceita - CBR 2023"</text></outputEntry>
+        <outputEntry id="OE_Rule_DUP_002_Aprovado_MudancaClinica_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_Rule_DUP_002_Aprovado_MudancaClinica_5"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <!-- ============================================== -->
+      <!-- APROVADO: Sem duplicidade                     -->
+      <!-- ============================================== -->
+      <rule id="Rule_DUP_002_Aprovado_SemDuplicidade">
+        <description>Aprovado - Intervalo adequado entre exames</description>
+        <inputEntry id="IE_Aprov4_1"><text>false</text></inputEntry>
+        <inputEntry id="IE_Aprov4_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_Aprov4_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_Aprov4_4"><text>-</text></inputEntry>
+        <outputEntry id="OE_Aprov4_1"><text>"Aprovado"</text></outputEntry>
+        <outputEntry id="OE_Aprov4_2"><text>"Exame autorizado - Intervalo adequado desde ultimo exame de imagem."</text></outputEntry>
+        <outputEntry id="OE_Aprov4_3"><text>"Verificacao de intervalo - OK"</text></outputEntry>
+        <outputEntry id="OE_Rule_DUP_002_Aprovado_SemDuplicidade_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_Rule_DUP_002_Aprovado_SemDuplicidade_5"><text>"APROVAR"</text></outputEntry>
+      </rule>
+
+      <!-- ============================================== -->
+      <!-- PENDENTE: Fallback                            -->
+      <!-- ============================================== -->
+      <rule id="Rule_DUP_002_Pendente_Fallback">
+        <description>Pendente - Requer analise manual por auditor</description>
+        <inputEntry id="IE_Pend_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_Pend_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_Pend_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_Pend_4"><text>-</text></inputEntry>
+        <outputEntry id="OE_Pend_1"><text>"Pendente"</text></outputEntry>
+        <outputEntry id="OE_Pend_2"><text>"Caso requer analise manual por auditor medico para validacao de intervalo adequado."</text></outputEntry>
+        <outputEntry id="OE_Pend_3"><text>"Auditoria medica - Processo manual"</text></outputEntry>
+        <outputEntry id="OE_Rule_DUP_002_Pendente_Fallback_4"><text>"DOC"</text></outputEntry>
+        <outputEntry id="OE_Rule_DUP_002_Pendente_Fallback_5"><text>"SOLICITAR_INFO"</text></outputEntry>
+      </rule>
+
+    </decisionTable>
+  </decision>
+</definitions>

@@ -1,0 +1,294 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/"
+             xmlns:dc="http://www.omg.org/spec/DMN/20180521/DC/"
+             id="Definitions_SYN_DKA_003"
+             name="Monitoramento de Potassio na CAD"
+             targetNamespace="http://camunda.org/schema/1.0/dmn">
+
+  <!--
+    SYN-DKA-003 - Monitoramento de Potassio na Cetoacidose Diabetica
+    Versao: 1.0.0 (2026-02-06)
+    Categoria: Alerta Clinico - Sindromes Criticas
+
+    POTASSIO NA CAD:
+
+    PARADOXO DO POTASSIO:
+    - K+ serico pode estar NORMAL ou ELEVADO na apresentacao
+    - Porem ha DEPLEÇAO TOTAL de K+ corporal (deficit 3-5 mEq/kg)
+    - Causas: acidose (shift transcelular), diurese osmotica, vomitos
+
+    DURANTE TRATAMENTO:
+    - Insulina e correcao da acidose fazem K+ CAIR rapidamente
+    - Risco de HIPOCALEMIA grave (arritmias fatais)
+
+    PROTOCOLO DE REPOSICAO:
+    - K+ < 3.3 mEq/L: PARAR insulina ate K+ >= 3.3. Repor K+ 20-30 mEq/h
+    - K+ 3.3-5.2 mEq/L: Adicionar K+ 20-30 mEq/L de soro
+    - K+ > 5.3 mEq/L: Nao adicionar K+, monitorar a cada 2h
+
+    MONITORAMENTO:
+    - Dosar K+ a cada 2h nas primeiras 4-6h
+    - ECG se K+ < 3.0 ou > 6.0
+    - Meta: manter K+ 4.0-5.0 mEq/L
+
+    REFERENCIAS:
+    - ADA Standards of Care 2024
+    - Joint British Diabetes Societies DKA Guidelines
+    - Kitabchi Protocol for DKA
+  -->
+
+  <decision id="Decision_SYN_DKA_003" name="Monitoramento K+ CAD">
+    <decisionTable id="DecisionTable_SYN_DKA_003" hitPolicy="FIRST">
+
+      <!-- INPUT 1: Potassio Serico -->
+      <input id="Input_1" label="Potassio (mEq/L)">
+        <inputExpression id="InputExpression_1" typeRef="number">
+          <text>potassio</text>
+        </inputExpression>
+      </input>
+
+      <!-- INPUT 2: Insulina em Infusao -->
+      <input id="Input_2" label="Insulina IV em Infusao">
+        <inputExpression id="InputExpression_2" typeRef="boolean">
+          <text>insulinaEmInfusao</text>
+        </inputExpression>
+      </input>
+
+      <!-- INPUT 3: Alteracoes ECG -->
+      <input id="Input_3" label="Alteracoes ECG">
+        <inputExpression id="InputExpression_3" typeRef="string">
+          <text>alteracoesECG</text>
+        </inputExpression>
+      </input>
+
+      <!-- INPUT 4: Fase do Tratamento -->
+      <input id="Input_4" label="Horas de Tratamento">
+        <inputExpression id="InputExpression_4" typeRef="number">
+          <text>horasTratamento</text>
+        </inputExpression>
+      </input>
+
+      <!-- OUTPUTS -->
+      <output id="Output_1" label="Nivel Alerta" name="nivelAlerta" typeRef="string">
+        <outputValues id="OutputValues_1">
+          <text>"Alerta", "Atencao", "OK", "Revisar"</text>
+        </outputValues>
+      </output>
+
+      <output id="Output_2" label="Classificacao Sindrome" name="classificacaoSindrome" typeRef="string"/>
+
+      <output id="Output_3" label="Protocolo Ativado" name="protocoloAtivado" typeRef="boolean"/>
+
+      <output id="Output_4" label="Acao Requerida" name="acaoRequerida" typeRef="string"/>
+
+      <output id="Output_5" label="Urgencia" name="urgencia" typeRef="string">
+        <outputValues id="OutputValues_5">
+          <text>"CRITICA", "ALTA", "MEDIA", "BAIXA"</text>
+        </outputValues>
+      </output>
+
+      <!-- RULE 1: Hipocalemia grave com insulina -->
+      <rule id="Rule_Hipocalemia_Grave">
+        <description>K+ < 3.3 com insulina em infusao - PARAR INSULINA</description>
+        <inputEntry id="InputEntry_1_1">
+          <text>&lt; 3.3</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_1_2">
+          <text>true</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_1_3">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_1_4">
+          <text>-</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_1_1">
+          <text>"Alerta"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_1_2">
+          <text>"HIPOCALEMIA_GRAVE_CAD"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_1_3">
+          <text>true</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_1_4">
+          <text>"HIPOCALEMIA GRAVE EM CAD - PARAR INSULINA IMEDIATAMENTE! Repor KCl 20-40 mEq/h IV (acesso central preferivel). ECG URGENTE. Manter monitoracao cardiaca. Reiniciar insulina SOMENTE quando K+ >= 3.3 mEq/L."</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_1_5">
+          <text>"CRITICA"</text>
+        </outputEntry>
+      </rule>
+
+      <!-- RULE 2: Hipocalemia com alteracoes ECG -->
+      <rule id="Rule_Hipocalemia_ECG">
+        <description>Hipocalemia com alteracoes ECG</description>
+        <inputEntry id="InputEntry_2_1">
+          <text>&lt; 3.0</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_2_2">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_2_3">
+          <text>"ALTERADO"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_2_4">
+          <text>-</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_2_1">
+          <text>"Alerta"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_2_2">
+          <text>"HIPOCALEMIA_ARRITMIA"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_2_3">
+          <text>true</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_2_4">
+          <text>"HIPOCALEMIA COM ALTERACOES ECG (onda U, QT longo). Risco de arritmia ventricular. Reposicao de K+ URGENTE. Considerar magnesio IV se refratario. Monitoracao cardiaca continua."</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_2_5">
+          <text>"CRITICA"</text>
+        </outputEntry>
+      </rule>
+
+      <!-- RULE 3: Hipercalemia inicial -->
+      <rule id="Rule_Hipercalemia_Inicial">
+        <description>K+ > 5.3 no inicio do tratamento</description>
+        <inputEntry id="InputEntry_3_1">
+          <text>&gt; 5.3</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_3_2">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_3_3">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_3_4">
+          <text>&lt; 2</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_3_1">
+          <text>"Atencao"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_3_2">
+          <text>"HIPERCALEMIA_INICIAL"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_3_3">
+          <text>false</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_3_4">
+          <text>"K+ > 5.3 mEq/L no inicio - NAO adicionar K+ ao soro. Aguardar queda fisiologica com insulina. Repetir K+ em 2h. Muito provavelmente vai cair rapidamente - antecipar necessidade de reposicao."</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_3_5">
+          <text>"ALTA"</text>
+        </outputEntry>
+      </rule>
+
+      <!-- RULE 4: K+ na faixa de reposicao -->
+      <rule id="Rule_K_Reposicao">
+        <description>K+ na faixa de reposicao - adicionar ao soro</description>
+        <inputEntry id="InputEntry_4_1">
+          <text>[3.3..5.2]</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_4_2">
+          <text>true</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_4_3">
+          <text>"NORMAL"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_4_4">
+          <text>-</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_4_1">
+          <text>"Atencao"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_4_2">
+          <text>"K_REPOSICAO_CONTINUA"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_4_3">
+          <text>false</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_4_4">
+          <text>"K+ em faixa de reposicao. Adicionar KCl 20-30 mEq/L de soro. Meta: manter K+ 4.0-5.0 mEq/L. Monitorar a cada 2h nas primeiras 4-6h. Deficit total pode ser 3-5 mEq/kg."</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_4_5">
+          <text>"MEDIA"</text>
+        </outputEntry>
+      </rule>
+
+      <!-- RULE 5: K+ em faixa ideal -->
+      <rule id="Rule_K_Ideal">
+        <description>K+ em faixa ideal durante tratamento</description>
+        <inputEntry id="InputEntry_5_1">
+          <text>[4.0..5.0]</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_5_2">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_5_3">
+          <text>"NORMAL"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_5_4">
+          <text>&gt;= 4</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_5_1">
+          <text>"OK"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_5_2">
+          <text>"K_ADEQUADO"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_5_3">
+          <text>false</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_5_4">
+          <text>"K+ na faixa ideal (4.0-5.0 mEq/L). Manter reposicao conforme protocolo. Monitorar a cada 4h na fase de manutencao. Ajustar velocidade de reposicao conforme tendencia."</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_5_5">
+          <text>"BAIXA"</text>
+        </outputEntry>
+      </rule>
+
+      <!-- FALLBACK -->
+      <rule id="Rule_Fallback_SYN_DKA_003">
+        <description>Dados insuficientes para avaliacao</description>
+        <inputEntry id="InputEntry_F_1">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_F_2">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_F_3">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_F_4">
+          <text>-</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_F_1">
+          <text>"Revisar"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_F_2">
+          <text>"DADOS_INCOMPLETOS"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_F_3">
+          <text>false</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_F_4">
+          <text>"Dados insuficientes para monitoramento de K+. Verificar: potassio serico, status da insulina, ECG se K+ extremo."</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_F_5">
+          <text>"MEDIA"</text>
+        </outputEntry>
+      </rule>
+
+    </decisionTable>
+  </decision>
+
+  <dmndi:DMNDI>
+    <dmndi:DMNDiagram id="DMNDiagram_SYN_DKA_003">
+      <dmndi:DMNShape id="DMNShape_Decision_SYN_DKA_003" dmnElementRef="Decision_SYN_DKA_003">
+        <dc:Bounds height="80" width="180" x="160" y="100"/>
+      </dmndi:DMNShape>
+    </dmndi:DMNDiagram>
+  </dmndi:DMNDI>
+
+</definitions>

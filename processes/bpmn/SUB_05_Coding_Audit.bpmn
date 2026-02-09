@@ -1,0 +1,371 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" xmlns:camunda="http://camunda.org/schema/1.0/bpmn" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" id="Definitions_SUB05" targetNamespace="http://bpmn.io/schema/bpmn" exporter="Camunda Modeler" exporterVersion="5.0.0">
+  <bpmn:collaboration id="Collaboration_SUB05">
+    <bpmn:participant id="Participant_SUB05" name="SUB 05 - Codificação e Auditoria Interna" processRef="Process_SUB_05_Coding_Audit" />
+  </bpmn:collaboration>
+  <bpmn:process id="Process_SUB_05_Coding_Audit" name="Codificação e Auditoria Interna" isExecutable="true" camunda:historyTimeToLive="P365D">
+    <bpmn:laneSet id="LaneSet_SUB05">
+      <bpmn:lane id="Lane_AI_Coding" name="Codificação Automática (IA)">
+        <bpmn:flowNodeRef>Event_Start_Coding</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_AI_TUSS_Suggestion</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_AI_DRG_Coding</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_Validate_CID_Proc</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Gateway_AI_Confidence</bpmn:flowNodeRef>
+      </bpmn:lane>
+      <bpmn:lane id="Lane_Human_Coding" name="Codificadores">
+        <bpmn:flowNodeRef>Task_Human_Review</bpmn:flowNodeRef>
+      </bpmn:lane>
+      <bpmn:lane id="Lane_Audit" name="Auditoria Interna">
+        <bpmn:flowNodeRef>Task_Completeness_Check</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Gateway_Complete</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_Request_Docs</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_Internal_Audit</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Gateway_Audit_Pass</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_Apply_Corrections</bpmn:flowNodeRef>
+      </bpmn:lane>
+      <bpmn:lane id="Lane_Quality" name="Qualidade">
+        <bpmn:flowNodeRef>Task_Quality_Score</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Event_End_Coded</bpmn:flowNodeRef>
+      </bpmn:lane>
+    </bpmn:laneSet>
+
+    <bpmn:startEvent id="Event_Start_Coding" name="Conta Pronta para Codificação">
+      <bpmn:outgoing>Flow_Start_To_TUSS</bpmn:outgoing>
+    </bpmn:startEvent>
+
+    <bpmn:serviceTask id="Task_AI_TUSS_Suggestion" name="Sugestão TUSS por IA" camunda:asyncBefore="true" camunda:delegateExpression="${assignCodes}">
+      <bpmn:extensionElements>
+        <camunda:inputOutput>
+          <camunda:inputParameter name="accountId">${accountId}</camunda:inputParameter>
+          <camunda:inputParameter name="clinicalData">${clinicalData}</camunda:inputParameter>
+          <camunda:outputParameter name="suggestedTUSSCodes">${suggestedTUSSCodes}</camunda:outputParameter>
+          <camunda:outputParameter name="aiConfidence">${aiConfidence}</camunda:outputParameter>
+        </camunda:inputOutput>
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_Start_To_TUSS</bpmn:incoming>
+      <bpmn:outgoing>Flow_TUSS_To_DRG</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <bpmn:serviceTask id="Task_AI_DRG_Coding" name="Codificação DRG" camunda:asyncBefore="true" camunda:delegateExpression="${aiDRGCodingDelegate}">
+      <bpmn:extensionElements>
+        <camunda:inputOutput>
+          <camunda:inputParameter name="accountId">${accountId}</camunda:inputParameter>
+          <camunda:inputParameter name="tussCodes">${suggestedTUSSCodes}</camunda:inputParameter>
+          <camunda:inputParameter name="cidCodes">${cidCodes}</camunda:inputParameter>
+          <camunda:outputParameter name="suggestedDRG">${suggestedDRG}</camunda:outputParameter>
+        </camunda:inputOutput>
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_TUSS_To_DRG</bpmn:incoming>
+      <bpmn:outgoing>Flow_DRG_To_Validate</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <bpmn:businessRuleTask id="Task_Validate_CID_Proc" name="Validar CID x Procedimento" camunda:asyncBefore="true" camunda:decisionRef="coding-validation" camunda:mapDecisionResult="singleResult" camunda:resultVariable="validationDecision">
+      <bpmn:extensionElements>
+        <camunda:inputOutput>
+          <camunda:inputParameter name="cidCodes">${cidCodes}</camunda:inputParameter>
+          <camunda:inputParameter name="tussCodes">${suggestedTUSSCodes}</camunda:inputParameter>
+          <camunda:inputParameter name="procedureType">${procedureType}</camunda:inputParameter>
+          <camunda:outputParameter name="validationPassed">${validationDecision.isValid}</camunda:outputParameter>
+          <camunda:outputParameter name="validationErrors">${validationDecision.errors}</camunda:outputParameter>
+        </camunda:inputOutput>
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_DRG_To_Validate</bpmn:incoming>
+      <bpmn:outgoing>Flow_Validate_To_Gateway</bpmn:outgoing>
+    </bpmn:businessRuleTask>
+
+    <bpmn:exclusiveGateway id="Gateway_AI_Confidence" name="Confiança IA > 95%?">
+      <bpmn:incoming>Flow_Validate_To_Gateway</bpmn:incoming>
+      <bpmn:outgoing>Flow_Confidence_High</bpmn:outgoing>
+      <bpmn:outgoing>Flow_Confidence_Low</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+
+    <bpmn:userTask id="Task_Human_Review" name="Revisão Humana" camunda:assignee="${codificador}">
+      <bpmn:extensionElements>
+        <camunda:formData>
+          <camunda:formField id="revisedTUSSCodes" label="Códigos TUSS Revisados" type="string" />
+          <camunda:formField id="revisedDRG" label="DRG Revisado" type="string" />
+          <camunda:formField id="observations" label="Observações" type="string" />
+        </camunda:formData>
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_Confidence_Low</bpmn:incoming>
+      <bpmn:outgoing>Flow_Review_To_Completeness</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <bpmn:serviceTask id="Task_Completeness_Check" name="Verificar Completude" camunda:asyncBefore="true" camunda:delegateExpression="${completenessCheckDelegate}">
+      <bpmn:extensionElements>
+        <camunda:inputOutput>
+          <camunda:inputParameter name="accountId">${accountId}</camunda:inputParameter>
+          <camunda:outputParameter name="isComplete">${isComplete}</camunda:outputParameter>
+          <camunda:outputParameter name="missingDocs">${missingDocs}</camunda:outputParameter>
+        </camunda:inputOutput>
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_Confidence_High</bpmn:incoming>
+      <bpmn:incoming>Flow_Review_To_Completeness</bpmn:incoming>
+      <bpmn:outgoing>Flow_Completeness_To_Gateway</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <bpmn:exclusiveGateway id="Gateway_Complete" name="Documentação Completa?">
+      <bpmn:incoming>Flow_Completeness_To_Gateway</bpmn:incoming>
+      <bpmn:outgoing>Flow_Complete_Yes</bpmn:outgoing>
+      <bpmn:outgoing>Flow_Complete_No</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+
+    <bpmn:serviceTask id="Task_Request_Docs" name="Solicitar Documentos" camunda:asyncBefore="true" camunda:type="external" camunda:topic="notification-service">
+      <bpmn:extensionElements>
+        <camunda:inputOutput>
+          <camunda:inputParameter name="missingDocs">${missingDocs}</camunda:inputParameter>
+          <camunda:inputParameter name="notificationType">document_request</camunda:inputParameter>
+        </camunda:inputOutput>
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_Complete_No</bpmn:incoming>
+      <bpmn:outgoing>Flow_Request_To_Audit</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <bpmn:serviceTask id="Task_Internal_Audit" name="Auditoria Interna" camunda:asyncBefore="true" camunda:delegateExpression="${internalAuditDelegate}">
+      <bpmn:extensionElements>
+        <camunda:inputOutput>
+          <camunda:inputParameter name="accountId">${accountId}</camunda:inputParameter>
+          <camunda:inputParameter name="tussCodes">${suggestedTUSSCodes}</camunda:inputParameter>
+          <camunda:inputParameter name="cidCodes">${cidCodes}</camunda:inputParameter>
+          <camunda:outputParameter name="auditPassed">${auditPassed}</camunda:outputParameter>
+          <camunda:outputParameter name="auditFindings">${auditFindings}</camunda:outputParameter>
+        </camunda:inputOutput>
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_Complete_Yes</bpmn:incoming>
+      <bpmn:incoming>Flow_Request_To_Audit</bpmn:incoming>
+      <bpmn:outgoing>Flow_Audit_To_Gateway</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <bpmn:exclusiveGateway id="Gateway_Audit_Pass" name="Aprovado Auditoria?">
+      <bpmn:incoming>Flow_Audit_To_Gateway</bpmn:incoming>
+      <bpmn:outgoing>Flow_Audit_Pass</bpmn:outgoing>
+      <bpmn:outgoing>Flow_Audit_Fail</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+
+    <bpmn:serviceTask id="Task_Apply_Corrections" name="Aplicar Correções" camunda:asyncBefore="true" camunda:delegateExpression="${applyCorrectionsDelegate}">
+      <bpmn:extensionElements>
+        <camunda:inputOutput>
+          <camunda:inputParameter name="auditFindings">${auditFindings}</camunda:inputParameter>
+          <camunda:inputParameter name="accountId">${accountId}</camunda:inputParameter>
+        </camunda:inputOutput>
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_Audit_Fail</bpmn:incoming>
+      <bpmn:outgoing>Flow_Corrections_To_Quality</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <bpmn:serviceTask id="Task_Quality_Score" name="Calcular Score Qualidade" camunda:asyncBefore="true" camunda:delegateExpression="${qualityScoreDelegate}">
+      <bpmn:extensionElements>
+        <camunda:inputOutput>
+          <camunda:inputParameter name="accountId">${accountId}</camunda:inputParameter>
+          <camunda:inputParameter name="aiConfidence">${aiConfidence}</camunda:inputParameter>
+          <camunda:inputParameter name="auditPassed">${auditPassed}</camunda:inputParameter>
+          <camunda:outputParameter name="qualityScore">${qualityScore}</camunda:outputParameter>
+        </camunda:inputOutput>
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_Audit_Pass</bpmn:incoming>
+      <bpmn:incoming>Flow_Corrections_To_Quality</bpmn:incoming>
+      <bpmn:outgoing>Flow_Quality_To_End</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <bpmn:endEvent id="Event_End_Coded" name="Codificação Concluída">
+      <bpmn:incoming>Flow_Quality_To_End</bpmn:incoming>
+    </bpmn:endEvent>
+
+    <!-- Sequence Flows -->
+    <bpmn:sequenceFlow id="Flow_Start_To_TUSS" sourceRef="Event_Start_Coding" targetRef="Task_AI_TUSS_Suggestion" />
+    <bpmn:sequenceFlow id="Flow_TUSS_To_DRG" sourceRef="Task_AI_TUSS_Suggestion" targetRef="Task_AI_DRG_Coding" />
+    <bpmn:sequenceFlow id="Flow_DRG_To_Validate" sourceRef="Task_AI_DRG_Coding" targetRef="Task_Validate_CID_Proc" />
+    <bpmn:sequenceFlow id="Flow_Validate_To_Gateway" sourceRef="Task_Validate_CID_Proc" targetRef="Gateway_AI_Confidence" />
+    <bpmn:sequenceFlow id="Flow_Confidence_High" name="Sim" sourceRef="Gateway_AI_Confidence" targetRef="Task_Completeness_Check">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${aiConfidence &gt; 0.95}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_Confidence_Low" name="Não" sourceRef="Gateway_AI_Confidence" targetRef="Task_Human_Review">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${aiConfidence &lt;= 0.95}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_Review_To_Completeness" sourceRef="Task_Human_Review" targetRef="Task_Completeness_Check" />
+    <bpmn:sequenceFlow id="Flow_Completeness_To_Gateway" sourceRef="Task_Completeness_Check" targetRef="Gateway_Complete" />
+    <bpmn:sequenceFlow id="Flow_Complete_Yes" name="Sim" sourceRef="Gateway_Complete" targetRef="Task_Internal_Audit">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${isComplete == true}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_Complete_No" name="Não" sourceRef="Gateway_Complete" targetRef="Task_Request_Docs">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${isComplete == false}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_Request_To_Audit" sourceRef="Task_Request_Docs" targetRef="Task_Internal_Audit" />
+    <bpmn:sequenceFlow id="Flow_Audit_To_Gateway" sourceRef="Task_Internal_Audit" targetRef="Gateway_Audit_Pass" />
+    <bpmn:sequenceFlow id="Flow_Audit_Pass" name="Sim" sourceRef="Gateway_Audit_Pass" targetRef="Task_Quality_Score">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${auditPassed == true}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_Audit_Fail" name="Não" sourceRef="Gateway_Audit_Pass" targetRef="Task_Apply_Corrections">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${auditPassed == false}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_Corrections_To_Quality" sourceRef="Task_Apply_Corrections" targetRef="Task_Quality_Score" />
+    <bpmn:sequenceFlow id="Flow_Quality_To_End" sourceRef="Task_Quality_Score" targetRef="Event_End_Coded" />
+  </bpmn:process>
+
+  <bpmndi:BPMNDiagram id="BPMNDiagram_SUB05">
+    <bpmndi:BPMNPlane id="BPMNPlane_SUB05" bpmnElement="Collaboration_SUB05">
+      <bpmndi:BPMNShape id="Participant_SUB05_di" bpmnElement="Participant_SUB05" isHorizontal="true">
+        <dc:Bounds x="160" y="80" width="2200" height="720" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Lane_AI_Coding_di" bpmnElement="Lane_AI_Coding" isHorizontal="true">
+        <dc:Bounds x="190" y="80" width="2170" height="200" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Lane_Human_Coding_di" bpmnElement="Lane_Human_Coding" isHorizontal="true">
+        <dc:Bounds x="190" y="280" width="2170" height="120" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Lane_Audit_di" bpmnElement="Lane_Audit" isHorizontal="true">
+        <dc:Bounds x="190" y="400" width="2170" height="250" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Lane_Quality_di" bpmnElement="Lane_Quality" isHorizontal="true">
+        <dc:Bounds x="190" y="650" width="2170" height="150" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Event_Start_Coding_di" bpmnElement="Event_Start_Coding">
+        <dc:Bounds x="252" y="152" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="230" y="195" width="80" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_AI_TUSS_Suggestion_di" bpmnElement="Task_AI_TUSS_Suggestion">
+        <dc:Bounds x="340" y="130" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_AI_DRG_Coding_di" bpmnElement="Task_AI_DRG_Coding">
+        <dc:Bounds x="490" y="130" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_Validate_CID_Proc_di" bpmnElement="Task_Validate_CID_Proc">
+        <dc:Bounds x="640" y="130" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Gateway_AI_Confidence_di" bpmnElement="Gateway_AI_Confidence" isMarkerVisible="true">
+        <dc:Bounds x="795" y="145" width="50" height="50" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="782" y="115" width="76" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_Human_Review_di" bpmnElement="Task_Human_Review">
+        <dc:Bounds x="770" y="300" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_Completeness_Check_di" bpmnElement="Task_Completeness_Check">
+        <dc:Bounds x="920" y="430" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Gateway_Complete_di" bpmnElement="Gateway_Complete" isMarkerVisible="true">
+        <dc:Bounds x="1075" y="445" width="50" height="50" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1067" y="502" width="66" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_Request_Docs_di" bpmnElement="Task_Request_Docs">
+        <dc:Bounds x="1050" y="560" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_Internal_Audit_di" bpmnElement="Task_Internal_Audit">
+        <dc:Bounds x="1200" y="430" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Gateway_Audit_Pass_di" bpmnElement="Gateway_Audit_Pass" isMarkerVisible="true">
+        <dc:Bounds x="1355" y="445" width="50" height="50" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1347" y="502" width="66" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_Apply_Corrections_di" bpmnElement="Task_Apply_Corrections">
+        <dc:Bounds x="1330" y="560" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_Quality_Score_di" bpmnElement="Task_Quality_Score">
+        <dc:Bounds x="1480" y="680" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Event_End_Coded_di" bpmnElement="Event_End_Coded">
+        <dc:Bounds x="1642" y="702" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1627" y="745" width="66" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Flow_Start_To_TUSS_di" bpmnElement="Flow_Start_To_TUSS">
+        <di:waypoint x="288" y="170" />
+        <di:waypoint x="340" y="170" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_TUSS_To_DRG_di" bpmnElement="Flow_TUSS_To_DRG">
+        <di:waypoint x="440" y="170" />
+        <di:waypoint x="490" y="170" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_DRG_To_Validate_di" bpmnElement="Flow_DRG_To_Validate">
+        <di:waypoint x="590" y="170" />
+        <di:waypoint x="640" y="170" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Validate_To_Gateway_di" bpmnElement="Flow_Validate_To_Gateway">
+        <di:waypoint x="740" y="170" />
+        <di:waypoint x="795" y="170" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Confidence_High_di" bpmnElement="Flow_Confidence_High">
+        <di:waypoint x="820" y="195" />
+        <di:waypoint x="820" y="470" />
+        <di:waypoint x="920" y="470" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="826" y="330" width="19" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Confidence_Low_di" bpmnElement="Flow_Confidence_Low">
+        <di:waypoint x="820" y="195" />
+        <di:waypoint x="820" y="300" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="826" y="245" width="20" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Review_To_Completeness_di" bpmnElement="Flow_Review_To_Completeness">
+        <di:waypoint x="870" y="340" />
+        <di:waypoint x="895" y="340" />
+        <di:waypoint x="895" y="470" />
+        <di:waypoint x="920" y="470" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Completeness_To_Gateway_di" bpmnElement="Flow_Completeness_To_Gateway">
+        <di:waypoint x="1020" y="470" />
+        <di:waypoint x="1075" y="470" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Complete_Yes_di" bpmnElement="Flow_Complete_Yes">
+        <di:waypoint x="1125" y="470" />
+        <di:waypoint x="1200" y="470" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1154" y="452" width="19" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Complete_No_di" bpmnElement="Flow_Complete_No">
+        <di:waypoint x="1100" y="495" />
+        <di:waypoint x="1100" y="560" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1106" y="525" width="20" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Request_To_Audit_di" bpmnElement="Flow_Request_To_Audit">
+        <di:waypoint x="1150" y="600" />
+        <di:waypoint x="1175" y="600" />
+        <di:waypoint x="1175" y="470" />
+        <di:waypoint x="1200" y="470" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Audit_To_Gateway_di" bpmnElement="Flow_Audit_To_Gateway">
+        <di:waypoint x="1300" y="470" />
+        <di:waypoint x="1355" y="470" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Audit_Pass_di" bpmnElement="Flow_Audit_Pass">
+        <di:waypoint x="1380" y="495" />
+        <di:waypoint x="1380" y="720" />
+        <di:waypoint x="1480" y="720" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1386" y="605" width="19" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Audit_Fail_di" bpmnElement="Flow_Audit_Fail">
+        <di:waypoint x="1380" y="495" />
+        <di:waypoint x="1380" y="560" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1386" y="525" width="20" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Corrections_To_Quality_di" bpmnElement="Flow_Corrections_To_Quality">
+        <di:waypoint x="1430" y="600" />
+        <di:waypoint x="1455" y="600" />
+        <di:waypoint x="1455" y="720" />
+        <di:waypoint x="1480" y="720" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Quality_To_End_di" bpmnElement="Flow_Quality_To_End">
+        <di:waypoint x="1580" y="720" />
+        <di:waypoint x="1642" y="720" />
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>
