@@ -1,0 +1,333 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+                   xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+                   xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+                   xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
+                   xmlns:camunda="http://camunda.org/schema/1.0/bpmn"
+                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                   id="Definitions_PatientAccess"
+                   targetNamespace="http://bpmn.io/schema/bpmn"
+                   exporter="Camunda Modeler"
+                   exporterVersion="5.0.0">
+
+  <bpmn:error id="Error_PatientAccess" name="PATIENT_ACCESS_ERROR" errorCode="PATIENT_ACCESS_ERROR" />
+
+  <bpmn:process id="Process_PatientAccess" name="Acesso do Paciente" isExecutable="true">
+
+    <!-- Start Event -->
+    <bpmn:startEvent id="StartEvent_PatientAccess" name="Início do Acesso do Paciente">
+      <bpmn:outgoing>Flow_ToRegistration</bpmn:outgoing>
+    </bpmn:startEvent>
+
+    <!-- Registration Subprocess -->
+    <bpmn:subProcess id="SubProcess_Registration" name="Registro de Paciente">
+      <bpmn:incoming>Flow_ToRegistration</bpmn:incoming>
+      <bpmn:outgoing>Flow_ToScheduling</bpmn:outgoing>
+
+      <bpmn:startEvent id="StartEvent_Registration" name="Início do Registro">
+        <bpmn:outgoing>Flow_ToValidateData</bpmn:outgoing>
+      </bpmn:startEvent>
+
+      <!-- Task 1: Validate Patient Data -->
+      <bpmn:serviceTask id="Task_ValidatePatientData" name="Validar Dados do Paciente"
+                        camunda:type="external"
+                        camunda:topic="patient.validate_data">
+        <bpmn:incoming>Flow_ToValidateData</bpmn:incoming>
+        <bpmn:outgoing>Flow_ToCheckExisting</bpmn:outgoing>
+      </bpmn:serviceTask>
+
+      <!-- Task 2: Check Existing Patient -->
+      <bpmn:serviceTask id="Task_CheckExistingPatient" name="Verificar Paciente Existente"
+                        camunda:type="external"
+                        camunda:topic="patient.check_existing">
+        <bpmn:incoming>Flow_ToCheckExisting</bpmn:incoming>
+        <bpmn:outgoing>Flow_ToCreateRecord</bpmn:outgoing>
+      </bpmn:serviceTask>
+
+      <!-- Task 3: Create Patient Record -->
+      <bpmn:serviceTask id="Task_CreatePatientRecord" name="Criar Registro do Paciente"
+                        camunda:type="external"
+                        camunda:topic="patient.create_record">
+        <bpmn:incoming>Flow_ToCreateRecord</bpmn:incoming>
+        <bpmn:outgoing>Flow_ToVerifyInsurance</bpmn:outgoing>
+      </bpmn:serviceTask>
+
+      <!-- Task 4: Verify Insurance Coverage -->
+      <bpmn:serviceTask id="Task_VerifyInsuranceCoverage" name="Verificar Cobertura do Plano"
+                        camunda:type="external"
+                        camunda:topic="patient.verify_insurance">
+        <bpmn:incoming>Flow_ToVerifyInsurance</bpmn:incoming>
+        <bpmn:outgoing>Flow_ToCheckAuthorization</bpmn:outgoing>
+      </bpmn:serviceTask>
+
+      <!-- Task 5: Check Authorization Requirements -->
+      <bpmn:serviceTask id="Task_CheckAuthorizationRequirements" name="Verificar Requisitos de Autorização"
+                        camunda:type="external"
+                        camunda:topic="patient.check_authorization">
+        <bpmn:incoming>Flow_ToCheckAuthorization</bpmn:incoming>
+        <bpmn:outgoing>Flow_ToCaptureDemographics</bpmn:outgoing>
+      </bpmn:serviceTask>
+
+      <!-- Task 6: Capture Demographics -->
+      <bpmn:serviceTask id="Task_CaptureDemographics" name="Capturar Dados Demográficos"
+                        camunda:type="external"
+                        camunda:topic="patient.capture_demographics">
+        <bpmn:incoming>Flow_ToCaptureDemographics</bpmn:incoming>
+        <bpmn:outgoing>Flow_ToValidateDocumentation</bpmn:outgoing>
+      </bpmn:serviceTask>
+
+      <!-- Task 7: Validate Documentation -->
+      <bpmn:serviceTask id="Task_ValidateDocumentation" name="Validar Documentação"
+                        camunda:type="external"
+                        camunda:topic="patient.validate_documentation">
+        <bpmn:incoming>Flow_ToValidateDocumentation</bpmn:incoming>
+        <bpmn:outgoing>Flow_ToAssignMRN</bpmn:outgoing>
+      </bpmn:serviceTask>
+
+      <!-- Task 8: Assign Medical Record Number -->
+      <bpmn:serviceTask id="Task_AssignMedicalRecordNumber" name="Atribuir Número de Prontuário"
+                        camunda:type="external"
+                        camunda:topic="patient.assign_mrn">
+        <bpmn:incoming>Flow_ToAssignMRN</bpmn:incoming>
+        <bpmn:outgoing>Flow_ToRegisterDependent</bpmn:outgoing>
+      </bpmn:serviceTask>
+
+      <!-- Task 9: Register Dependent -->
+      <bpmn:serviceTask id="Task_RegisterDependent" name="Registrar Dependente"
+                        camunda:type="external"
+                        camunda:topic="patient.register_dependent">
+        <bpmn:incoming>Flow_ToRegisterDependent</bpmn:incoming>
+        <bpmn:outgoing>Flow_ToUpdateRegistry</bpmn:outgoing>
+      </bpmn:serviceTask>
+
+      <!-- Task 10: Update Patient Registry -->
+      <bpmn:serviceTask id="Task_UpdatePatientRegistry" name="Atualizar Registro do Paciente"
+                        camunda:type="external"
+                        camunda:topic="patient.update_registry">
+        <bpmn:incoming>Flow_ToUpdateRegistry</bpmn:incoming>
+        <bpmn:outgoing>Flow_ToGenerateCard</bpmn:outgoing>
+      </bpmn:serviceTask>
+
+      <!-- Task 11: Generate Patient Card -->
+      <bpmn:serviceTask id="Task_GeneratePatientCard" name="Gerar Cartão do Paciente"
+                        camunda:type="external"
+                        camunda:topic="patient.generate_card">
+        <bpmn:incoming>Flow_ToGenerateCard</bpmn:incoming>
+        <bpmn:outgoing>Flow_ToNotifyRegistration</bpmn:outgoing>
+      </bpmn:serviceTask>
+
+      <!-- Task 12: Notify Registration Complete -->
+      <bpmn:serviceTask id="Task_NotifyRegistrationComplete" name="Notificar Conclusão do Registro"
+                        camunda:type="external"
+                        camunda:topic="patient.notify_registration">
+        <bpmn:incoming>Flow_ToNotifyRegistration</bpmn:incoming>
+        <bpmn:outgoing>Flow_RegistrationEnd</bpmn:outgoing>
+      </bpmn:serviceTask>
+
+      <bpmn:endEvent id="EndEvent_Registration" name="Fim do Registro">
+        <bpmn:incoming>Flow_RegistrationEnd</bpmn:incoming>
+      </bpmn:endEvent>
+
+      <!-- Sequence Flows for Registration -->
+      <bpmn:sequenceFlow id="Flow_ToValidateData" sourceRef="StartEvent_Registration" targetRef="Task_ValidatePatientData" />
+      <bpmn:sequenceFlow id="Flow_ToCheckExisting" sourceRef="Task_ValidatePatientData" targetRef="Task_CheckExistingPatient" />
+      <bpmn:sequenceFlow id="Flow_ToCreateRecord" sourceRef="Task_CheckExistingPatient" targetRef="Task_CreatePatientRecord" />
+      <bpmn:sequenceFlow id="Flow_ToVerifyInsurance" sourceRef="Task_CreatePatientRecord" targetRef="Task_VerifyInsuranceCoverage" />
+      <bpmn:sequenceFlow id="Flow_ToCheckAuthorization" sourceRef="Task_VerifyInsuranceCoverage" targetRef="Task_CheckAuthorizationRequirements" />
+      <bpmn:sequenceFlow id="Flow_ToCaptureDemographics" sourceRef="Task_CheckAuthorizationRequirements" targetRef="Task_CaptureDemographics" />
+      <bpmn:sequenceFlow id="Flow_ToValidateDocumentation" sourceRef="Task_CaptureDemographics" targetRef="Task_ValidateDocumentation" />
+      <bpmn:sequenceFlow id="Flow_ToAssignMRN" sourceRef="Task_ValidateDocumentation" targetRef="Task_AssignMedicalRecordNumber" />
+      <bpmn:sequenceFlow id="Flow_ToRegisterDependent" sourceRef="Task_AssignMedicalRecordNumber" targetRef="Task_RegisterDependent" />
+      <bpmn:sequenceFlow id="Flow_ToUpdateRegistry" sourceRef="Task_RegisterDependent" targetRef="Task_UpdatePatientRegistry" />
+      <bpmn:sequenceFlow id="Flow_ToGenerateCard" sourceRef="Task_UpdatePatientRegistry" targetRef="Task_GeneratePatientCard" />
+      <bpmn:sequenceFlow id="Flow_ToNotifyRegistration" sourceRef="Task_GeneratePatientCard" targetRef="Task_NotifyRegistrationComplete" />
+      <bpmn:sequenceFlow id="Flow_RegistrationEnd" sourceRef="Task_NotifyRegistrationComplete" targetRef="EndEvent_Registration" />
+    </bpmn:subProcess>
+
+    <!-- Scheduling Subprocess -->
+    <bpmn:subProcess id="SubProcess_Scheduling" name="Agendamento de Consultas">
+      <bpmn:incoming>Flow_ToScheduling</bpmn:incoming>
+      <bpmn:outgoing>Flow_ToEnd</bpmn:outgoing>
+
+      <bpmn:startEvent id="StartEvent_Scheduling" name="Início do Agendamento">
+        <bpmn:outgoing>Flow_ToCheckAvailability</bpmn:outgoing>
+      </bpmn:startEvent>
+
+      <!-- Task 13: Check Availability -->
+      <bpmn:serviceTask id="Task_CheckAvailability" name="Verificar Disponibilidade"
+                        camunda:type="external"
+                        camunda:topic="scheduling.check_availability">
+        <bpmn:incoming>Flow_ToCheckAvailability</bpmn:incoming>
+        <bpmn:outgoing>Flow_ToValidateRules</bpmn:outgoing>
+      </bpmn:serviceTask>
+
+      <!-- Task 14: Validate Appointment Rules -->
+      <bpmn:serviceTask id="Task_ValidateAppointmentRules" name="Validar Regras de Agendamento"
+                        camunda:type="external"
+                        camunda:topic="scheduling.validate_rules">
+        <bpmn:incoming>Flow_ToValidateRules</bpmn:incoming>
+        <bpmn:outgoing>Flow_ToCreateAppointment</bpmn:outgoing>
+      </bpmn:serviceTask>
+
+      <!-- Task 15: Create Appointment -->
+      <bpmn:serviceTask id="Task_CreateAppointment" name="Criar Agendamento"
+                        camunda:type="external"
+                        camunda:topic="scheduling.create_appointment">
+        <bpmn:incoming>Flow_ToCreateAppointment</bpmn:incoming>
+        <bpmn:outgoing>Flow_ToAssignResources</bpmn:outgoing>
+      </bpmn:serviceTask>
+
+      <!-- Task 16: Assign Resources -->
+      <bpmn:serviceTask id="Task_AssignResources" name="Alocar Recursos"
+                        camunda:type="external"
+                        camunda:topic="scheduling.assign_resources">
+        <bpmn:incoming>Flow_ToAssignResources</bpmn:incoming>
+        <bpmn:outgoing>Flow_ToCalculateDuration</bpmn:outgoing>
+      </bpmn:serviceTask>
+
+      <!-- Task 17: Calculate Estimated Duration -->
+      <bpmn:serviceTask id="Task_CalculateEstimatedDuration" name="Calcular Duração Estimada"
+                        camunda:type="external"
+                        camunda:topic="scheduling.calculate_duration">
+        <bpmn:incoming>Flow_ToCalculateDuration</bpmn:incoming>
+        <bpmn:outgoing>Flow_ToCheckPreAuth</bpmn:outgoing>
+      </bpmn:serviceTask>
+
+      <!-- Task 18: Check Pre-Authorization -->
+      <bpmn:serviceTask id="Task_CheckPreAuthorization" name="Verificar Pré-Autorização"
+                        camunda:type="external"
+                        camunda:topic="scheduling.check_pre_auth">
+        <bpmn:incoming>Flow_ToCheckPreAuth</bpmn:incoming>
+        <bpmn:outgoing>Flow_ToSendConfirmation</bpmn:outgoing>
+      </bpmn:serviceTask>
+
+      <!-- Task 19: Send Appointment Confirmation -->
+      <bpmn:serviceTask id="Task_SendAppointmentConfirmation" name="Enviar Confirmação de Agendamento"
+                        camunda:type="external"
+                        camunda:topic="scheduling.send_confirmation">
+        <bpmn:incoming>Flow_ToSendConfirmation</bpmn:incoming>
+        <bpmn:outgoing>Flow_ToGenerateChecklist</bpmn:outgoing>
+      </bpmn:serviceTask>
+
+      <!-- Task 20: Generate Pre-Admission Checklist -->
+      <bpmn:serviceTask id="Task_GeneratePreAdmissionChecklist" name="Gerar Checklist de Pré-Admissão"
+                        camunda:type="external"
+                        camunda:topic="scheduling.generate_checklist">
+        <bpmn:incoming>Flow_ToGenerateChecklist</bpmn:incoming>
+        <bpmn:outgoing>Flow_ToSendReminder</bpmn:outgoing>
+      </bpmn:serviceTask>
+
+      <!-- Task 21: Send Reminder Notification -->
+      <bpmn:serviceTask id="Task_SendReminderNotification" name="Enviar Notificação de Lembrete"
+                        camunda:type="external"
+                        camunda:topic="scheduling.send_reminder">
+        <bpmn:incoming>Flow_ToSendReminder</bpmn:incoming>
+        <bpmn:outgoing>Flow_ToHandleCancellation</bpmn:outgoing>
+      </bpmn:serviceTask>
+
+      <!-- Task 22: Handle Cancellation -->
+      <bpmn:serviceTask id="Task_HandleCancellation" name="Gerenciar Cancelamento"
+                        camunda:type="external"
+                        camunda:topic="scheduling.handle_cancellation">
+        <bpmn:incoming>Flow_ToHandleCancellation</bpmn:incoming>
+        <bpmn:outgoing>Flow_ToUpdateSystem</bpmn:outgoing>
+      </bpmn:serviceTask>
+
+      <!-- Task 23: Update Scheduling System -->
+      <bpmn:serviceTask id="Task_UpdateSchedulingSystem" name="Atualizar Sistema de Agendamento"
+                        camunda:type="external"
+                        camunda:topic="scheduling.update_system">
+        <bpmn:incoming>Flow_ToUpdateSystem</bpmn:incoming>
+        <bpmn:outgoing>Flow_SchedulingEnd</bpmn:outgoing>
+      </bpmn:serviceTask>
+
+      <bpmn:endEvent id="EndEvent_Scheduling" name="Fim do Agendamento">
+        <bpmn:incoming>Flow_SchedulingEnd</bpmn:incoming>
+      </bpmn:endEvent>
+
+      <!-- Sequence Flows for Scheduling -->
+      <bpmn:sequenceFlow id="Flow_ToCheckAvailability" sourceRef="StartEvent_Scheduling" targetRef="Task_CheckAvailability" />
+      <bpmn:sequenceFlow id="Flow_ToValidateRules" sourceRef="Task_CheckAvailability" targetRef="Task_ValidateAppointmentRules" />
+      <bpmn:sequenceFlow id="Flow_ToCreateAppointment" sourceRef="Task_ValidateAppointmentRules" targetRef="Task_CreateAppointment" />
+      <bpmn:sequenceFlow id="Flow_ToAssignResources" sourceRef="Task_CreateAppointment" targetRef="Task_AssignResources" />
+      <bpmn:sequenceFlow id="Flow_ToCalculateDuration" sourceRef="Task_AssignResources" targetRef="Task_CalculateEstimatedDuration" />
+      <bpmn:sequenceFlow id="Flow_ToCheckPreAuth" sourceRef="Task_CalculateEstimatedDuration" targetRef="Task_CheckPreAuthorization" />
+      <bpmn:sequenceFlow id="Flow_ToSendConfirmation" sourceRef="Task_CheckPreAuthorization" targetRef="Task_SendAppointmentConfirmation" />
+      <bpmn:sequenceFlow id="Flow_ToGenerateChecklist" sourceRef="Task_SendAppointmentConfirmation" targetRef="Task_GeneratePreAdmissionChecklist" />
+      <bpmn:sequenceFlow id="Flow_ToSendReminder" sourceRef="Task_GeneratePreAdmissionChecklist" targetRef="Task_SendReminderNotification" />
+      <bpmn:sequenceFlow id="Flow_ToHandleCancellation" sourceRef="Task_SendReminderNotification" targetRef="Task_HandleCancellation" />
+      <bpmn:sequenceFlow id="Flow_ToUpdateSystem" sourceRef="Task_HandleCancellation" targetRef="Task_UpdateSchedulingSystem" />
+      <bpmn:sequenceFlow id="Flow_SchedulingEnd" sourceRef="Task_UpdateSchedulingSystem" targetRef="EndEvent_Scheduling" />
+    </bpmn:subProcess>
+
+    <!-- Error Boundary Events -->
+    <bpmn:boundaryEvent id="BoundaryEvent_RegistrationError" name="Erro no Registro" attachedToRef="SubProcess_Registration">
+      <bpmn:errorEventDefinition errorRef="Error_PatientAccess" />
+      <bpmn:outgoing>Flow_RegistrationErrorToEnd</bpmn:outgoing>
+    </bpmn:boundaryEvent>
+
+    <bpmn:boundaryEvent id="BoundaryEvent_SchedulingError" name="Erro no Agendamento" attachedToRef="SubProcess_Scheduling">
+      <bpmn:errorEventDefinition errorRef="Error_PatientAccess" />
+      <bpmn:outgoing>Flow_SchedulingErrorToEnd</bpmn:outgoing>
+    </bpmn:boundaryEvent>
+
+    <!-- End Event -->
+    <bpmn:endEvent id="EndEvent_PatientAccess" name="Fim do Acesso do Paciente">
+      <bpmn:incoming>Flow_ToEnd</bpmn:incoming>
+      <bpmn:incoming>Flow_RegistrationErrorToEnd</bpmn:incoming>
+      <bpmn:incoming>Flow_SchedulingErrorToEnd</bpmn:incoming>
+    </bpmn:endEvent>
+
+    <!-- Main Sequence Flows -->
+    <bpmn:sequenceFlow id="Flow_ToRegistration" sourceRef="StartEvent_PatientAccess" targetRef="SubProcess_Registration" />
+    <bpmn:sequenceFlow id="Flow_ToScheduling" sourceRef="SubProcess_Registration" targetRef="SubProcess_Scheduling" />
+    <bpmn:sequenceFlow id="Flow_ToEnd" sourceRef="SubProcess_Scheduling" targetRef="EndEvent_PatientAccess" />
+    <bpmn:sequenceFlow id="Flow_RegistrationErrorToEnd" sourceRef="BoundaryEvent_RegistrationError" targetRef="EndEvent_PatientAccess" />
+    <bpmn:sequenceFlow id="Flow_SchedulingErrorToEnd" sourceRef="BoundaryEvent_SchedulingError" targetRef="EndEvent_PatientAccess" />
+
+  </bpmn:process>
+
+  <!-- BPMN Diagram Information -->
+  <bpmndi:BPMNDiagram id="BPMNDiagram_PatientAccess">
+    <bpmndi:BPMNPlane id="BPMNPlane_PatientAccess" bpmnElement="Process_PatientAccess">
+
+      <!-- Start Event -->
+      <bpmndi:BPMNShape id="Shape_StartEvent_PatientAccess" bpmnElement="StartEvent_PatientAccess">
+        <dc:Bounds x="152" y="102" width="36" height="36" />
+      </bpmndi:BPMNShape>
+
+      <!-- Registration Subprocess -->
+      <bpmndi:BPMNShape id="Shape_SubProcess_Registration" bpmnElement="SubProcess_Registration" isExpanded="true">
+        <dc:Bounds x="240" y="50" width="1200" height="500" />
+      </bpmndi:BPMNShape>
+
+      <!-- Scheduling Subprocess -->
+      <bpmndi:BPMNShape id="Shape_SubProcess_Scheduling" bpmnElement="SubProcess_Scheduling" isExpanded="true">
+        <dc:Bounds x="1520" y="50" width="1200" height="500" />
+      </bpmndi:BPMNShape>
+
+      <!-- End Event -->
+      <bpmndi:BPMNShape id="Shape_EndEvent_PatientAccess" bpmnElement="EndEvent_PatientAccess">
+        <dc:Bounds x="2800" y="102" width="36" height="36" />
+      </bpmndi:BPMNShape>
+
+      <!-- Main Sequence Flows -->
+      <bpmndi:BPMNEdge id="Edge_Flow_ToRegistration" bpmnElement="Flow_ToRegistration">
+        <di:waypoint x="188" y="120" />
+        <di:waypoint x="240" y="120" />
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_Flow_ToScheduling" bpmnElement="Flow_ToScheduling">
+        <di:waypoint x="1440" y="120" />
+        <di:waypoint x="1520" y="120" />
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_Flow_ToEnd" bpmnElement="Flow_ToEnd">
+        <di:waypoint x="2720" y="120" />
+        <di:waypoint x="2800" y="120" />
+      </bpmndi:BPMNEdge>
+
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+
+</bpmn:definitions>

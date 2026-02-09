@@ -1,0 +1,244 @@
+"""
+Send Appointment Confirmation Worker
+
+CIB7 External Task Topic: scheduling.send_confirmation
+BPMN Error Code: PATIENT_ACCESS_ERROR
+
+Sends WhatsApp/SMS confirmation messages with appointment details.
+Supports templates in Portuguese (pt_BR) with structured data.
+"""
+
+from __future__ import annotations
+
+from abc import ABC, abstractmethod
+from typing import Any, Protocol
+
+from pydantic import BaseModel, Field
+
+from platform.shared.domain.exceptions import DomainException
+from platform.shared.i18n import _
+from platform.shared.multi_tenant.context import get_required_tenant
+from platform.shared.multi_tenant.decorators import require_tenant
+from platform.shared.observability.logging import get_logger
+from platform.shared.observability.metrics import track_task_execution
+
+
+class PatientAccessException(DomainException):
+    """Domain exception for patient access operations."""
+
+    def __init__(self, message: str, details: dict[str, Any] | None = None):
+        super().__init__(
+            message=message,
+            code="PATIENT_ACCESS_ERROR",
+            details=details,
+            bpmn_error_code="PATIENT_ACCESS_ERROR",
+        )
+
+
+class WhatsAppClientProtocol(Protocol):
+    """Protocol for WhatsApp messaging client."""
+
+    async def send_template_message(
+        self,
+        phone_number: str,
+        template_name: str,
+        language_code: str,
+        parameters: dict[str, Any],
+    ) -> dict[str, Any]:
+        """Send a template message via WhatsApp."""
+        ...
+
+
+class SendAppointmentConfirmationInput(BaseModel):
+    """Input DTO for appointment confirmation."""
+
+    appointment_id: str = Field(..., description="FHIR Appointment ID")
+    patient_id: str = Field(..., description="FHIR Patient ID")
+    phone_number: str = Field(..., description="Patient phone number (E.164 format)")
+    appointment_date: str = Field(..., description="Appointment date (ISO 8601)")
+    appointment_time: str = Field(..., description="Appointment time (HH:MM)")
+    location_name: str = Field(..., description="Facility/clinic name")
+    doctor_name: str = Field(..., description="Doctor's full name")
+    specialty: str = Field(..., description="Medical specialty")
+    preparation_instructions: str | None = Field(
+        None, description="Pre-appointment preparation instructions"
+    )
+    notification_channel: str = Field(
+        default="whatsapp", description="Notification channel (whatsapp or sms)"
+    )
+
+
+class SendAppointmentConfirmationOutput(BaseModel):
+    """Output DTO for appointment confirmation."""
+
+    confirmation_sent: bool = Field(..., description="Whether confirmation was sent")
+    message_id: str | None = Field(None, description="Message ID from provider")
+    channel_used: str = Field(..., description="Channel used (whatsapp or sms)")
+    sent_at: str = Field(..., description="Timestamp of sending (ISO 8601)")
+    delivery_status: str = Field(
+        default="sent", description="Delivery status (sent, delivered, failed)"
+    )
+    error_message: str | None = Field(None, description="Error message if failed")
+
+
+class AppointmentConfirmationSenderProtocol(ABC):
+    """Protocol for sending appointment confirmations."""
+
+    @abstractmethod
+    async def send_confirmation(
+        self,
+        appointment_id: str,
+        patient_id: str,
+        phone_number: str,
+        appointment_details: dict[str, Any],
+        channel: str,
+    ) -> dict[str, Any]:
+        """
+        Send appointment confirmation to patient.
+
+        Args:
+            appointment_id: FHIR Appointment ID
+            patient_id: FHIR Patient ID
+            phone_number: Patient phone number (E.164 format)
+            appointment_details: Appointment details for template
+            channel: Notification channel (whatsapp or sms)
+
+        Returns:
+            Dictionary with confirmation status
+        """
+        pass
+
+
+class StubAppointmentConfirmationSender(AppointmentConfirmationSenderProtocol):
+    """Stub implementation for testing."""
+
+    def __init__(self):
+        self.logger = get_logger(__name__, worker="scheduling.send_confirmation")
+
+    async def send_confirmation(
+        self,
+        appointment_id: str,
+        patient_id: str,
+        phone_number: str,
+        appointment_details: dict[str, Any],
+        channel: str,
+    ) -> dict[str, Any]:
+        """Stub implementation - logs and returns success."""
+        # NEVER log phone numbers for LGPD compliance
+        self.logger.info(
+            "stub_confirmation_sent",
+            appointment_id=appointment_id,
+            patient_id=patient_id,
+            channel=channel,
+            phone_masked=f"***{phone_number[-4:]}" if len(phone_number) > 4 else "****",
+        )
+
+        from datetime import datetime, timezone
+
+        return {
+            "confirmation_sent": True,
+            "message_id": f"stub_msg_{appointment_id}",
+            "channel_used": channel,
+            "sent_at": datetime.now(timezone.utc).isoformat(),
+            "delivery_status": "sent",
+            "error_message": None,
+        }
+
+
+class SendAppointmentConfirmationWorker:
+    """Worker to send appointment confirmation messages."""
+
+    TOPIC = "scheduling.send_confirmation"
+
+    def __init__(
+        self,
+        confirmation_sender: AppointmentConfirmationSenderProtocol | None = None,
+    ):
+        """
+        Initialize worker.
+
+        Args:
+            confirmation_sender: Service to send confirmations (defaults to stub)
+        """
+        self.confirmation_sender = confirmation_sender or StubAppointmentConfirmationSender()
+        self.logger = get_logger(__name__, worker=self.TOPIC)
+
+    @require_tenant
+    @track_task_execution(task_type="scheduling.send_confirmation")
+    async def execute(self, task_variables: dict[str, Any]) -> dict[str, Any]:
+        """
+        Execute appointment confirmation sending.
+
+        Args:
+            task_variables: Task variables from CIB7 process
+
+        Returns:
+            Dictionary with confirmation status
+
+        Raises:
+            PatientAccessException: If confirmation fails
+        """
+        tenant_id = get_required_tenant()
+
+        try:
+            # Parse and validate input
+            input_data = SendAppointmentConfirmationInput(**task_variables)
+
+            self.logger.info(
+                "sending_appointment_confirmation",
+                tenant_id=tenant_id,
+                appointment_id=input_data.appointment_id,
+                patient_id=input_data.patient_id,
+                channel=input_data.notification_channel,
+            )
+
+            # Prepare appointment details for template
+            appointment_details = {
+                "appointment_date": input_data.appointment_date,
+                "appointment_time": input_data.appointment_time,
+                "location_name": input_data.location_name,
+                "doctor_name": input_data.doctor_name,
+                "specialty": input_data.specialty,
+                "preparation_instructions": input_data.preparation_instructions or _("Nenhuma preparação especial necessária"),
+            }
+
+            # Send confirmation
+            result = await self.confirmation_sender.send_confirmation(
+                appointment_id=input_data.appointment_id,
+                patient_id=input_data.patient_id,
+                phone_number=input_data.phone_number,
+                appointment_details=appointment_details,
+                channel=input_data.notification_channel,
+            )
+
+            # Validate output
+            output = SendAppointmentConfirmationOutput(**result)
+
+            self.logger.info(
+                "appointment_confirmation_sent",
+                tenant_id=tenant_id,
+                appointment_id=input_data.appointment_id,
+                message_id=output.message_id,
+                channel=output.channel_used,
+                delivery_status=output.delivery_status,
+            )
+
+            return output.model_dump()
+
+        except Exception as e:
+            self.logger.error(
+                "appointment_confirmation_failed",
+                tenant_id=tenant_id,
+                error=str(e),
+                error_type=type(e).__name__,
+            )
+            raise PatientAccessException(
+                message=_("Falha ao enviar confirmação de agendamento: {error}").format(
+                    error=str(e)
+                ),
+                details={
+                    "appointment_id": task_variables.get("appointment_id"),
+                    "patient_id": task_variables.get("patient_id"),
+                    "error_type": type(e).__name__,
+                },
+            ) from e

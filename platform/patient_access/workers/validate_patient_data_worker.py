@@ -1,0 +1,227 @@
+"""
+Patient Data Validation Worker
+
+CIB7 External Task Topic: patient.validate_data
+BPMN Error Code: PATIENT_ACCESS_ERROR
+
+Validates patient data including CPF, CNS, name, birth date, and gender.
+All PII is hashed using SHA-256 before storage.
+"""
+
+from __future__ import annotations
+
+from abc import ABC, abstractmethod
+from typing import Any
+from datetime import date
+
+from pydantic import BaseModel, Field
+
+from platform.shared.domain.exceptions import DomainException
+from platform.shared.domain.value_objects import CPF, CNS
+from platform.shared.i18n import _
+from platform.shared.multi_tenant.context import get_required_tenant
+from platform.shared.multi_tenant.decorators import require_tenant
+from platform.shared.observability.logging import get_logger
+from platform.shared.observability.metrics import track_task_execution
+
+
+class PatientAccessException(DomainException):
+    """Exception for patient access domain errors."""
+
+    def __init__(self, message: str, details: dict[str, Any] | None = None):
+        super().__init__(message, details)
+        self.bpmn_error_code = "PATIENT_ACCESS_ERROR"
+
+
+class ValidatePatientDataInput(BaseModel):
+    """Input model for patient data validation."""
+
+    cpf: str = Field(..., description="CPF do paciente (11 dígitos)")
+    cns: str | None = Field(None, description="CNS do paciente (15 dígitos)")
+    name: str = Field(..., description="Nome completo do paciente")
+    birth_date: str = Field(..., description="Data de nascimento (YYYY-MM-DD)")
+    gender: str = Field(..., description="Gênero (male/female/other/unknown)")
+
+
+class ValidatePatientDataOutput(BaseModel):
+    """Output model for patient data validation."""
+
+    is_valid: bool = Field(..., description="Se os dados são válidos")
+    cpf_hash: str = Field(..., description="Hash SHA-256 do CPF")
+    cns_hash: str | None = Field(None, description="Hash SHA-256 do CNS")
+    validation_errors: list[str] = Field(
+        default_factory=list, description="Lista de erros de validação"
+    )
+
+
+class PatientDataValidator(ABC):
+    """Protocol for patient data validation."""
+
+    @abstractmethod
+    async def validate_cpf(self, cpf: str) -> CPF:
+        """Validate and hash CPF."""
+        pass
+
+    @abstractmethod
+    async def validate_cns(self, cns: str) -> CNS:
+        """Validate and hash CNS."""
+        pass
+
+    @abstractmethod
+    async def validate_demographic_data(
+        self, name: str, birth_date: str, gender: str
+    ) -> dict[str, Any]:
+        """Validate demographic data."""
+        pass
+
+
+class StubPatientDataValidator(PatientDataValidator):
+    """Stub implementation for testing."""
+
+    async def validate_cpf(self, cpf: str) -> CPF:
+        """Validate and hash CPF."""
+        return CPF.from_raw(cpf)
+
+    async def validate_cns(self, cns: str) -> CNS:
+        """Validate and hash CNS."""
+        return CNS.from_raw(cns)
+
+    async def validate_demographic_data(
+        self, name: str, birth_date: str, gender: str
+    ) -> dict[str, Any]:
+        """Validate demographic data."""
+        errors = []
+
+        # Validate name
+        if not name or len(name.strip()) < 3:
+            errors.append(_("Nome deve ter pelo menos 3 caracteres"))
+
+        # Validate birth date
+        try:
+            birth_date_obj = date.fromisoformat(birth_date)
+            if birth_date_obj > date.today():
+                errors.append(_("Data de nascimento não pode ser no futuro"))
+        except ValueError:
+            errors.append(_("Data de nascimento inválida (formato: YYYY-MM-DD)"))
+
+        # Validate gender
+        valid_genders = ["male", "female", "other", "unknown"]
+        if gender not in valid_genders:
+            errors.append(
+                _("Gênero inválido (valores válidos: male, female, other, unknown)")
+            )
+
+        return {"is_valid": len(errors) == 0, "errors": errors}
+
+
+class ValidatePatientDataWorker:
+    """Worker for validating patient data."""
+
+    TOPIC = "patient.validate_data"
+
+    def __init__(self, validator: PatientDataValidator | None = None):
+        """Initialize worker with validator."""
+        self.validator = validator or StubPatientDataValidator()
+        self.logger = get_logger(__name__, worker=self.TOPIC)
+
+    @require_tenant
+    @track_task_execution(task_type="patient.validate_data")
+    async def execute(self, task_variables: dict[str, Any]) -> dict[str, Any]:
+        """
+        Execute patient data validation.
+
+        Args:
+            task_variables: Task variables containing patient data
+
+        Returns:
+            Validation result with hashed PII
+
+        Raises:
+            PatientAccessException: If validation fails critically
+        """
+        tenant_id = get_required_tenant()
+        self.logger.info(
+            "Validando dados do paciente",
+            extra={"tenant_id": tenant_id, "task_variables": task_variables},
+        )
+
+        try:
+            # Parse input
+            input_data = ValidatePatientDataInput(**task_variables)
+
+            validation_errors = []
+            cpf_hash = None
+            cns_hash = None
+
+            # Validate and hash CPF
+            try:
+                cpf_obj = await self.validator.validate_cpf(input_data.cpf)
+                cpf_hash = cpf_obj.hashed_value
+                self.logger.info(
+                    "CPF validado com sucesso",
+                    extra={"tenant_id": tenant_id, "cpf_hash": cpf_hash},
+                )
+            except ValueError as e:
+                error_msg = _("CPF inválido: {error}").format(error=str(e))
+                validation_errors.append(error_msg)
+                self.logger.warning(
+                    "Erro na validação do CPF",
+                    extra={"tenant_id": tenant_id, "error": str(e)},
+                )
+
+            # Validate and hash CNS if provided
+            if input_data.cns:
+                try:
+                    cns_obj = await self.validator.validate_cns(input_data.cns)
+                    cns_hash = cns_obj.hashed_value
+                    self.logger.info(
+                        "CNS validado com sucesso",
+                        extra={"tenant_id": tenant_id, "cns_hash": cns_hash},
+                    )
+                except ValueError as e:
+                    error_msg = _("CNS inválido: {error}").format(error=str(e))
+                    validation_errors.append(error_msg)
+                    self.logger.warning(
+                        "Erro na validação do CNS",
+                        extra={"tenant_id": tenant_id, "error": str(e)},
+                    )
+
+            # Validate demographic data
+            demographic_validation = await self.validator.validate_demographic_data(
+                input_data.name, input_data.birth_date, input_data.gender
+            )
+
+            if not demographic_validation["is_valid"]:
+                validation_errors.extend(demographic_validation["errors"])
+
+            # Determine overall validity
+            is_valid = len(validation_errors) == 0 and cpf_hash is not None
+
+            output = ValidatePatientDataOutput(
+                is_valid=is_valid,
+                cpf_hash=cpf_hash or "",
+                cns_hash=cns_hash,
+                validation_errors=validation_errors,
+            )
+
+            self.logger.info(
+                "Validação de dados do paciente concluída",
+                extra={
+                    "tenant_id": tenant_id,
+                    "is_valid": is_valid,
+                    "error_count": len(validation_errors),
+                },
+            )
+
+            return output.model_dump()
+
+        except Exception as e:
+            self.logger.error(
+                "Erro ao validar dados do paciente",
+                extra={"tenant_id": tenant_id, "error": str(e)},
+                exc_info=True,
+            )
+            raise PatientAccessException(
+                _("Erro ao validar dados do paciente: {error}").format(error=str(e)),
+                details={"original_error": str(e)},
+            )

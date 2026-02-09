@@ -11,6 +11,7 @@ from pydantic import BaseModel, Field
 from platform.shared.i18n import _
 
 from platform.shared.domain.enums import (
+    AppointmentStatus,
     AuthorizationStatus,
     BillingStatus,
     ClaimStatus,
@@ -215,3 +216,27 @@ class MedicationRequest(DomainEntity):
     route: CodedValue | None = None
     authorized: bool = False
     authorization_status: AuthorizationStatus | None = None
+
+
+# ── FHIR Appointment ─────────────────────────────────────────────────
+
+
+class Appointment(DomainEntity):
+    """FHIR Appointment - agendamento de consulta / procedimento."""
+
+    status: AppointmentStatus = AppointmentStatus.PROPOSED
+    patient_reference: FHIRReference = Field(...)
+    practitioner_reference: FHIRReference | None = None
+    location_reference: FHIRReference | None = None
+    service_type: CodedValue | None = None
+    specialty: CodedValue | None = None
+    appointment_type: CodedValue | None = None
+    reason_codes: list[CodedValue] = Field(default_factory=list)
+    start: datetime | None = None
+    end: datetime | None = None
+    duration_minutes: int | None = Field(default=None, ge=1)
+    slot_reference: str | None = None
+    coverage_reference: FHIRReference | None = None
+    pre_authorization_number: str | None = None
+    notes: str = ""
+    cancellation_reason: str | None = None
