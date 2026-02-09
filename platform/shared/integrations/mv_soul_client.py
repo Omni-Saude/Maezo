@@ -13,6 +13,7 @@ from typing import Any, Protocol
 from pydantic import BaseModel, Field
 
 from platform.shared.domain.exceptions import ExternalServiceException
+from platform.shared.i18n import _
 from platform.shared.integrations.base import BaseIntegrationClient
 from platform.shared.multi_tenant.context import TenantContext
 from platform.shared.observability.logging import get_logger
@@ -250,7 +251,7 @@ class MvSoulClient(BaseIntegrationClient):
         if event.tenant_id != self.tenant_context.tenant_id:
             raise ExternalServiceException(
                 service=SERVICE_NAME,
-                message="Tenant mismatch in CDC event",
+                message=_("Evento CDC com tenant incompatível"),
             )
 
         # Process based on table and operation
@@ -283,7 +284,7 @@ class MvSoulClient(BaseIntegrationClient):
         if not self.fhir_base_url:
             raise ExternalServiceException(
                 service=SERVICE_NAME,
-                message="FHIR base URL not configured",
+                message=_("URL base FHIR não configurada"),
             )
 
         logger.info(
@@ -294,7 +295,7 @@ class MvSoulClient(BaseIntegrationClient):
         # Delegate to FHIR API
         # In production, this would call the FHIR client
         raise NotImplementedError(
-            "Patient snapshot retrieval via FHIR not yet implemented"
+            _("Recuperação de snapshot de paciente via FHIR não implementada ainda")
         )
 
     @track_api_call(service_name=SERVICE_NAME)
@@ -308,7 +309,7 @@ class MvSoulClient(BaseIntegrationClient):
         if not self.fhir_base_url:
             raise ExternalServiceException(
                 service=SERVICE_NAME,
-                message="FHIR base URL not configured",
+                message=_("URL base FHIR não configurada"),
             )
 
         logger.info(
@@ -319,7 +320,7 @@ class MvSoulClient(BaseIntegrationClient):
         # Delegate to FHIR API
         # In production, this would call the FHIR client
         raise NotImplementedError(
-            "Encounter snapshot retrieval via FHIR not yet implemented"
+            _("Recuperação de snapshot de atendimento via FHIR não implementada ainda")
         )
 
     @track_api_call(service_name=SERVICE_NAME)
@@ -333,7 +334,7 @@ class MvSoulClient(BaseIntegrationClient):
         if not self.fhir_base_url:
             raise ExternalServiceException(
                 service=SERVICE_NAME,
-                message="FHIR base URL not configured",
+                message=_("URL base FHIR não configurada"),
             )
 
         logger.info(
@@ -344,7 +345,7 @@ class MvSoulClient(BaseIntegrationClient):
         # Delegate to FHIR API
         # In production, this would call the FHIR client
         raise NotImplementedError(
-            "Billing items retrieval via FHIR not yet implemented"
+            _("Recuperação de itens de faturamento via FHIR não implementada ainda")
         )
 
 

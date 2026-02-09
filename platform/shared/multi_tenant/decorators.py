@@ -12,6 +12,7 @@ from typing import Any, Callable, TypeVar, overload
 
 from platform.shared.domain.enums import TenantCode
 from platform.shared.domain.exceptions import InvalidTenant
+from platform.shared.i18n import _
 from platform.shared.multi_tenant.context import (
     TenantContext,
     clear_tenant,
@@ -36,8 +37,8 @@ def require_tenant(func: F) -> F:
             ctx = get_current_tenant()
             if ctx is None:
                 raise InvalidTenant(
-                    f"Tenant context required for {func.__qualname__}. "
-                    "Ensure TenantMiddleware is active or use @with_tenant_context."
+                    _("Contexto do tenant necessário para {}. "
+                      "Certifique-se de que TenantMiddleware está ativo ou use @with_tenant_context.").format(func.__qualname__)
                 )
             return await func(*args, **kwargs)
         return async_wrapper  # type: ignore[return-value]
@@ -47,8 +48,8 @@ def require_tenant(func: F) -> F:
         ctx = get_current_tenant()
         if ctx is None:
             raise InvalidTenant(
-                f"Tenant context required for {func.__qualname__}. "
-                "Ensure TenantMiddleware is active or use @with_tenant_context."
+                _("Contexto do tenant necessário para {}. "
+                  "Certifique-se de que TenantMiddleware está ativo ou use @with_tenant_context.").format(func.__qualname__)
             )
         return func(*args, **kwargs)
     return sync_wrapper  # type: ignore[return-value]

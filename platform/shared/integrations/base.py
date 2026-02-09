@@ -23,6 +23,7 @@ from tenacity import (
 )
 
 from platform.shared.domain.exceptions import ExternalServiceException
+from platform.shared.i18n import _
 from platform.shared.multi_tenant.context import TenantContext, get_current_tenant
 from platform.shared.observability.logging import get_logger
 
@@ -62,7 +63,7 @@ class CircuitBreaker:
         current = self.state
         if current == CircuitState.OPEN:
             raise ExternalServiceException(
-                "Circuit breaker OPEN — service unavailable",
+                _("Disjuntor ABERTO — serviço indisponível"),
                 service_name="circuit_breaker",
                 operation="call",
             )
@@ -154,8 +155,7 @@ class BaseIntegrationClient:
     def _ensure_client(self) -> httpx.AsyncClient:
         if self._client is None:
             raise RuntimeError(
-                f"{self.SERVICE_NAME} client not initialized. "
-                "Call initialize() or use as async context manager."
+                _("Cliente {} não inicializado. Chame initialize() ou use como gerenciador de contexto assíncrono.").format(self.SERVICE_NAME)
             )
         return self._client
 
@@ -180,14 +180,14 @@ class BaseIntegrationClient:
             return await self._circuit_breaker.call(_do_request)
         except httpx.HTTPStatusError as exc:
             raise ExternalServiceException(
-                f"{self.SERVICE_NAME} returned {exc.response.status_code}",
+                _("{} retornou {}").format(self.SERVICE_NAME, exc.response.status_code),
                 service_name=self.SERVICE_NAME,
                 operation=f"{method} {path}",
                 status_code=exc.response.status_code,
             ) from exc
         except httpx.TimeoutException as exc:
             raise ExternalServiceException(
-                f"{self.SERVICE_NAME} timed out",
+                _("{} tempo limite excedido").format(self.SERVICE_NAME),
                 service_name=self.SERVICE_NAME,
                 operation=f"{method} {path}",
             ) from exc
@@ -197,7 +197,7 @@ class BaseIntegrationClient:
         ctx = get_current_tenant()
         if ctx is None:
             raise ExternalServiceException(
-                "Tenant context required",
+                _("Contexto de tenant obrigatório"),
                 service_name=self.SERVICE_NAME,
                 operation="get_tenant",
             )

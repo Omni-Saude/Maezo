@@ -10,6 +10,8 @@ from __future__ import annotations
 import re
 from typing import Any
 
+from platform.shared.i18n import _
+
 
 # Compiled regex patterns for performance
 _PATTERNS: dict[str, re.Pattern] = {

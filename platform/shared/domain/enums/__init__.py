@@ -2,6 +2,8 @@
 from __future__ import annotations
 from enum import StrEnum, unique
 
+from platform.shared.i18n import _
+
 # -- Coverage / Insurance --
 @unique
 class CoverageStatus(StrEnum):

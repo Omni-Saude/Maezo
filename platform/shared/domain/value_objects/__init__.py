@@ -8,6 +8,8 @@ from typing import Self
 
 from pydantic import BaseModel, Field, field_validator, model_validator
 
+from platform.shared.i18n import _
+
 
 class Money(BaseModel, frozen=True):
     """Monetary value with BRL currency support."""
@@ -17,12 +19,12 @@ class Money(BaseModel, frozen=True):
 
     def __add__(self, other: Money) -> Money:
         if self.currency != other.currency:
-            raise ValueError(f"Cannot add {self.currency} and {other.currency}")
+            raise ValueError(_("Não é possível somar {} e {}").format(self.currency, other.currency))
         return Money(amount=self.amount + other.amount, currency=self.currency)
 
     def __sub__(self, other: Money) -> Money:
         if self.currency != other.currency:
-            raise ValueError(f"Cannot subtract {self.currency} and {other.currency}")
+            raise ValueError(_("Não é possível subtrair {} e {}").format(self.currency, other.currency))
         return Money(amount=self.amount - other.amount, currency=self.currency)
 
     def __mul__(self, factor: Decimal | int | float) -> Money:
@@ -46,7 +48,7 @@ class CPF(BaseModel, frozen=True):
     @classmethod
     def validate_hash(cls, v: str) -> str:
         if not re.match(r"^[a-f0-9]{64}$", v):
-            raise ValueError("CPF hash must be a valid SHA-256 hex digest")
+            raise ValueError(_("Hash do CPF deve ser um digest SHA-256 hexadecimal válido"))
         return v
 
     @classmethod
@@ -55,16 +57,16 @@ class CPF(BaseModel, frozen=True):
         import hashlib
         digits = re.sub(r"\D", "", raw_cpf)
         if len(digits) != 11:
-            raise ValueError("CPF must have exactly 11 digits")
+            raise ValueError(_("CPF deve ter exatamente 11 dígitos"))
         if digits == digits[0] * 11:
-            raise ValueError("Invalid CPF: all digits are the same")
+            raise ValueError(_("CPF inválido: todos os dígitos são iguais"))
         # Validate check digits
         for i in range(9, 11):
             total = sum(int(digits[j]) * ((i + 1) - j) for j in range(i))
             remainder = total % 11
             digit = 0 if remainder < 2 else 11 - remainder
             if int(digits[i]) != digit:
-                raise ValueError("Invalid CPF check digits")
+                raise ValueError(_("Dígitos verificadores do CPF inválidos"))
         return cls(hash_value=hashlib.sha256(digits.encode()).hexdigest())
 
 
@@ -77,7 +79,7 @@ class CNS(BaseModel, frozen=True):
     @classmethod
     def validate_hash(cls, v: str) -> str:
         if not re.match(r"^[a-f0-9]{64}$", v):
-            raise ValueError("CNS hash must be a valid SHA-256 hex digest")
+            raise ValueError(_("Hash do CNS deve ser um digest SHA-256 hexadecimal válido"))
         return v
 
     @classmethod
@@ -86,7 +88,7 @@ class CNS(BaseModel, frozen=True):
         import hashlib
         digits = re.sub(r"\D", "", raw_cns)
         if len(digits) != 15:
-            raise ValueError("CNS must have exactly 15 digits")
+            raise ValueError(_("CNS deve ter exatamente 15 dígitos"))
         return cls(hash_value=hashlib.sha256(digits.encode()).hexdigest())
 
 
@@ -102,7 +104,7 @@ class InsuranceCard(BaseModel, frozen=True):
     @model_validator(mode="after")
     def check_dates(self) -> Self:
         if self.valid_from and self.valid_until and self.valid_from > self.valid_until:
-            raise ValueError("valid_from must be before valid_until")
+            raise ValueError(_("valid_from deve ser anterior a valid_until"))
         return self
 
 
@@ -146,5 +148,5 @@ class FHIRReference(BaseModel, frozen=True):
     @classmethod
     def validate_reference(cls, v: str) -> str:
         if "/" not in v:
-            raise ValueError("FHIR reference must be in format 'ResourceType/id'")
+            raise ValueError(_("Referência FHIR deve estar no formato 'ResourceType/id'"))
         return v

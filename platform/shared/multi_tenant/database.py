@@ -11,6 +11,7 @@ from typing import Any, Protocol
 from platform.shared.domain.enums import TenantCode
 from platform.shared.domain.exceptions import InvalidTenant
 from platform.shared.multi_tenant.context import TENANT_ID_MAP, get_required_tenant
+from platform.shared.i18n import _
 
 logger = logging.getLogger(__name__)
 
@@ -56,7 +57,7 @@ class TenantDatabaseManager:
 
         if tenant_code not in TENANT_ID_MAP:
             raise InvalidTenant(
-                f"Unknown tenant: {tenant_code!r}",
+                _("Tenant desconhecido: {}").format(tenant_code),
                 details={"tenant_code": str(tenant_code)},
             )
 
@@ -83,8 +84,8 @@ class TenantDatabaseManager:
             import asyncpg  # type: ignore[import-untyped]
         except ImportError as exc:
             raise RuntimeError(
-                "asyncpg is required for TenantDatabaseManager. "
-                "Install with: pip install asyncpg"
+                _("asyncpg é necessário para TenantDatabaseManager. "
+                  "Instale com: pip install asyncpg")
             ) from exc
 
         return await asyncpg.create_pool(

@@ -14,6 +14,7 @@ from typing import Protocol
 from pydantic import BaseModel, Field
 
 from platform.shared.domain.exceptions import ExternalServiceException
+from platform.shared.i18n import _
 from platform.shared.integrations.base import BaseIntegrationClient
 from platform.shared.observability.logging import get_logger
 from platform.shared.observability.metrics import track_api_call
@@ -183,7 +184,7 @@ class PACSClient(BaseIntegrationClient):
             if not study_id:
                 raise ExternalServiceException(
                     service=SERVICE_NAME,
-                    message="PACS response missing study_id",
+                    message=_("Resposta PACS sem study_id"),
                 )
 
             self._logger.info(
@@ -199,7 +200,7 @@ class PACSClient(BaseIntegrationClient):
             )
             raise ExternalServiceException(
                 service=SERVICE_NAME,
-                message=f"Failed to submit imaging order: {e}",
+                message=_("Falha ao enviar pedido de imagem: {}").format(e),
             ) from e
 
     @track_api_call(service_name=SERVICE_NAME, operation="get_study_status")
@@ -215,7 +216,7 @@ class PACSClient(BaseIntegrationClient):
             if not status_str:
                 raise ExternalServiceException(
                     service=SERVICE_NAME,
-                    message="PACS response missing status",
+                    message=_("Resposta PACS sem status"),
                 )
 
             return ImagingStudyStatus(status_str)
@@ -227,7 +228,7 @@ class PACSClient(BaseIntegrationClient):
             )
             raise ExternalServiceException(
                 service=SERVICE_NAME,
-                message=f"Failed to get study status: {e}",
+                message=_("Falha ao obter status do estudo: {}").format(e),
             ) from e
 
     @track_api_call(service_name=SERVICE_NAME, operation="get_study_metadata")
@@ -248,7 +249,7 @@ class PACSClient(BaseIntegrationClient):
             )
             raise ExternalServiceException(
                 service=SERVICE_NAME,
-                message=f"Failed to get study metadata: {e}",
+                message=_("Falha ao obter metadados do estudo: {}").format(e),
             ) from e
 
     @track_api_call(service_name=SERVICE_NAME, operation="get_report_url")
@@ -264,7 +265,7 @@ class PACSClient(BaseIntegrationClient):
             if not url:
                 raise ExternalServiceException(
                     service=SERVICE_NAME,
-                    message="PACS response missing report_url",
+                    message=_("Resposta PACS sem report_url"),
                 )
 
             return url
@@ -276,7 +277,7 @@ class PACSClient(BaseIntegrationClient):
             )
             raise ExternalServiceException(
                 service=SERVICE_NAME,
-                message=f"Failed to get report URL: {e}",
+                message=_("Falha ao obter URL do relatório: {}").format(e),
             ) from e
 
 
@@ -316,7 +317,7 @@ class StubPACSClient:
         if study_id not in self._studies:
             raise ExternalServiceException(
                 service=SERVICE_NAME,
-                message=f"Study not found: {study_id}",
+                message=_("Estudo não encontrado: {}").format(study_id),
             )
         return self._studies[study_id].status
 
@@ -325,7 +326,7 @@ class StubPACSClient:
         if study_id not in self._studies:
             raise ExternalServiceException(
                 service=SERVICE_NAME,
-                message=f"Study not found: {study_id}",
+                message=_("Estudo não encontrado: {}").format(study_id),
             )
         return self._studies[study_id]
 
@@ -334,6 +335,6 @@ class StubPACSClient:
         if study_id not in self._studies:
             raise ExternalServiceException(
                 service=SERVICE_NAME,
-                message=f"Study not found: {study_id}",
+                message=_("Estudo não encontrado: {}").format(study_id),
             )
         return f"https://pacs.example.com/reports/{study_id}"

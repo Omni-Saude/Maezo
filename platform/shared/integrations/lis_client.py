@@ -12,6 +12,7 @@ from typing import Any
 from pydantic import BaseModel, Field
 
 from platform.shared.domain.exceptions import ExternalServiceException
+from platform.shared.i18n import _
 from platform.shared.integrations.base import BaseIntegrationClient, IntegrationSettings
 from platform.shared.observability.logging import get_logger
 from platform.shared.observability.metrics import track_api_call
@@ -165,7 +166,7 @@ class LISClient(BaseIntegrationClient, LISClientProtocol):
         order_id = data.get("order_id")
         if not order_id:
             raise ExternalServiceException(
-                "LIS did not return order_id",
+                _("LIS não retornou order_id"),
                 service_name=self.SERVICE_NAME,
                 operation="submit_order",
             )
@@ -195,7 +196,7 @@ class LISClient(BaseIntegrationClient, LISClientProtocol):
             status = LabOrderStatus(status_str)
         except ValueError:
             raise ExternalServiceException(
-                f"Invalid status from LIS: {status_str}",
+                _("Status inválido do LIS: {}").format(status_str),
                 service_name=self.SERVICE_NAME,
                 operation="get_order_status",
             )
@@ -278,7 +279,7 @@ class StubLISClient(LISClientProtocol):
         """Return status from in-memory store."""
         if order_id not in self._orders:
             raise ExternalServiceException(
-                f"Order not found: {order_id}",
+                _("Pedido não encontrado: {}").format(order_id),
                 service_name=SERVICE_NAME,
                 operation="get_order_status",
             )
@@ -291,7 +292,7 @@ class StubLISClient(LISClientProtocol):
         """Return results from in-memory store."""
         if order_id not in self._orders:
             raise ExternalServiceException(
-                f"Order not found: {order_id}",
+                _("Pedido não encontrado: {}").format(order_id),
                 service_name=SERVICE_NAME,
                 operation="get_results",
             )
@@ -304,7 +305,7 @@ class StubLISClient(LISClientProtocol):
         """Mark order as cancelled in memory."""
         if order_id not in self._orders:
             raise ExternalServiceException(
-                f"Order not found: {order_id}",
+                _("Pedido não encontrado: {}").format(order_id),
                 service_name=SERVICE_NAME,
                 operation="cancel_order",
             )

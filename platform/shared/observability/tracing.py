@@ -16,6 +16,7 @@ from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import BatchSpanProcessor, ConsoleSpanExporter
 from opentelemetry.trace import StatusCode
 
+from platform.shared.i18n import _
 from platform.shared.observability.correlation import get_current_context
 
 _configured = False

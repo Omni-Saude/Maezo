@@ -20,6 +20,7 @@ from typing import Any, Protocol
 import httpx
 
 from platform.shared.domain.exceptions import ExternalServiceException
+from platform.shared.i18n import _
 from platform.shared.integrations.base import BaseIntegrationClient
 from platform.shared.observability.logging import get_logger
 from platform.shared.observability.metrics import track_api_call
@@ -229,7 +230,7 @@ class FHIRClient(BaseIntegrationClient, FHIRClientProtocol):
                 raise ExternalServiceException(
                     service=SERVICE_NAME,
                     operation="fhir_request",
-                    message=f"FHIR error: {error_msg}",
+                    message=_("Erro FHIR: {}").format(error_msg),
                     status_code=response.status_code,
                 )
         except Exception as e:
@@ -243,7 +244,7 @@ class FHIRClient(BaseIntegrationClient, FHIRClientProtocol):
         raise ExternalServiceException(
             service=SERVICE_NAME,
             operation="fhir_request",
-            message=f"HTTP {response.status_code}: {response.text[:200]}",
+            message=_("HTTP {}: {}").format(response.status_code, response.text[:200]),
             status_code=response.status_code,
         )
 
@@ -270,7 +271,7 @@ class FHIRClient(BaseIntegrationClient, FHIRClientProtocol):
             raise ExternalServiceException(
                 service=SERVICE_NAME,
                 operation="read",
-                message=f"Timeout reading {resource_type}",
+                message=_("Tempo limite excedido ao ler {}").format(resource_type),
             ) from e
         except httpx.RequestError as e:
             self._logger.error(
@@ -279,7 +280,7 @@ class FHIRClient(BaseIntegrationClient, FHIRClientProtocol):
             raise ExternalServiceException(
                 service=SERVICE_NAME,
                 operation="read",
-                message=f"Connection error: {str(e)}",
+                message=_("Erro de conexão: {}").format(str(e)),
             ) from e
 
     @track_api_call(service_name=SERVICE_NAME)
@@ -313,7 +314,7 @@ class FHIRClient(BaseIntegrationClient, FHIRClientProtocol):
             raise ExternalServiceException(
                 service=SERVICE_NAME,
                 operation="search",
-                message=f"Timeout searching {resource_type}",
+                message=_("Tempo limite excedido ao buscar {}").format(resource_type),
             ) from e
         except httpx.RequestError as e:
             self._logger.error(
@@ -322,7 +323,7 @@ class FHIRClient(BaseIntegrationClient, FHIRClientProtocol):
             raise ExternalServiceException(
                 service=SERVICE_NAME,
                 operation="search",
-                message=f"Connection error: {str(e)}",
+                message=_("Erro de conexão: {}").format(str(e)),
             ) from e
 
     @track_api_call(service_name=SERVICE_NAME)
@@ -349,7 +350,7 @@ class FHIRClient(BaseIntegrationClient, FHIRClientProtocol):
             raise ExternalServiceException(
                 service=SERVICE_NAME,
                 operation="create",
-                message=f"Timeout creating {resource_type}",
+                message=_("Tempo limite excedido ao criar {}").format(resource_type),
             ) from e
         except httpx.RequestError as e:
             self._logger.error(
@@ -358,7 +359,7 @@ class FHIRClient(BaseIntegrationClient, FHIRClientProtocol):
             raise ExternalServiceException(
                 service=SERVICE_NAME,
                 operation="create",
-                message=f"Connection error: {str(e)}",
+                message=_("Erro de conexão: {}").format(str(e)),
             ) from e
 
     @track_api_call(service_name=SERVICE_NAME)
@@ -388,7 +389,7 @@ class FHIRClient(BaseIntegrationClient, FHIRClientProtocol):
             raise ExternalServiceException(
                 service=SERVICE_NAME,
                 operation="update",
-                message=f"Timeout updating {resource_type}",
+                message=_("Tempo limite excedido ao atualizar {}").format(resource_type),
             ) from e
         except httpx.RequestError as e:
             self._logger.error(
@@ -397,7 +398,7 @@ class FHIRClient(BaseIntegrationClient, FHIRClientProtocol):
             raise ExternalServiceException(
                 service=SERVICE_NAME,
                 operation="update",
-                message=f"Connection error: {str(e)}",
+                message=_("Erro de conexão: {}").format(str(e)),
             ) from e
 
     async def get_patient(self, patient_id: str) -> dict[str, Any]:
@@ -443,7 +444,7 @@ class StubFHIRClient(FHIRClientProtocol):
             raise ExternalServiceException(
                 service=SERVICE_NAME,
                 operation="read",
-                message=f"Resource not found: {resource_type}/{resource_id}",
+                message=_("Recurso não encontrado: {}/{}").format(resource_type, resource_id),
                 status_code=404,
             )
         return self._resources[key]
@@ -479,7 +480,7 @@ class StubFHIRClient(FHIRClientProtocol):
             raise ExternalServiceException(
                 service=SERVICE_NAME,
                 operation="update",
-                message=f"Resource not found: {resource_type}/{resource_id}",
+                message=_("Recurso não encontrado: {}/{}").format(resource_type, resource_id),
                 status_code=404,
             )
         self._resources[key] = resource

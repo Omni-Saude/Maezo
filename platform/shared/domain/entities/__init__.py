@@ -8,6 +8,8 @@ from uuid import UUID, uuid4
 
 from pydantic import BaseModel, Field
 
+from platform.shared.i18n import _
+
 from platform.shared.domain.enums import (
     AuthorizationStatus,
     BillingStatus,

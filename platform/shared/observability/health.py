@@ -14,6 +14,8 @@ from typing import Any, Awaitable, Callable
 
 from prometheus_client import Gauge
 
+from platform.shared.i18n import _
+
 HEALTH_STATUS = Gauge(
     "cib7_health_status",
     "Health check status (1=healthy, 0=unhealthy)",

@@ -3,6 +3,8 @@ from __future__ import annotations
 
 from typing import Any
 
+from platform.shared.i18n import _
+
 
 class DomainException(Exception):
     """Base domain exception with BPMN error code support."""

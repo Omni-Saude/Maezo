@@ -12,6 +12,7 @@ from typing import Any
 
 from platform.shared.domain.enums import TenantCode
 from platform.shared.domain.exceptions import InvalidTenant
+from platform.shared.i18n import _
 
 logger = logging.getLogger(__name__)
 
@@ -44,8 +45,9 @@ class TenantContext:
         code = TENANT_ID_REVERSE.get(tenant_id)
         if code is None:
             raise InvalidTenant(
-                f"Unknown tenant_id: {tenant_id!r}. "
-                f"Valid: {list(TENANT_ID_REVERSE.keys())}",
+                _("Tenant desconhecido: {}. Válidos: {}").format(
+                    tenant_id, list(TENANT_ID_REVERSE.keys())
+                ),
                 details={"tenant_id": tenant_id},
             )
         return cls(tenant_code=code, tenant_id=tenant_id, correlation_id=correlation_id)
@@ -58,7 +60,7 @@ class TenantContext:
         tenant_id = TENANT_ID_MAP.get(code)
         if tenant_id is None:
             raise InvalidTenant(
-                f"Unknown TenantCode: {code!r}",
+                _("TenantCode desconhecido: {}").format(code),
                 details={"tenant_code": str(code)},
             )
         return cls(tenant_code=code, tenant_id=tenant_id, correlation_id=correlation_id)
@@ -86,7 +88,7 @@ def get_required_tenant() -> TenantContext:
     """Get tenant context, raising if not set."""
     ctx = _tenant_ctx_var.get()
     if ctx is None:
-        raise InvalidTenant("Tenant context not set. Call set_current_tenant first.")
+        raise InvalidTenant(_("Contexto do tenant não definido. Chame set_current_tenant primeiro."))
     return ctx
 
 

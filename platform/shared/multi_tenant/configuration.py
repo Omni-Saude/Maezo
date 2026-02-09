@@ -12,6 +12,7 @@ from typing import Any
 from platform.shared.domain.enums import TenantCode
 from platform.shared.domain.exceptions import InvalidTenant
 from platform.shared.multi_tenant.context import TENANT_ID_MAP, get_required_tenant
+from platform.shared.i18n import _
 
 logger = logging.getLogger(__name__)
 
@@ -62,7 +63,7 @@ class TenantConfigurationManager:
         """Register or update configuration for a tenant."""
         if tenant_code not in TENANT_ID_MAP:
             raise InvalidTenant(
-                f"Unknown tenant: {tenant_code!r}",
+                _("Tenant desconhecido: {}").format(tenant_code),
                 details={"tenant_code": str(tenant_code)},
             )
 
@@ -90,7 +91,7 @@ class TenantConfigurationManager:
 
         if tenant_code not in TENANT_ID_MAP:
             raise InvalidTenant(
-                f"Unknown tenant: {tenant_code!r}",
+                _("Tenant desconhecido: {}").format(tenant_code),
                 details={"tenant_code": str(tenant_code)},
             )
 

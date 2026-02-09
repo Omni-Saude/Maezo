@@ -15,6 +15,7 @@ from typing import Any, Protocol
 from pydantic import BaseModel, ConfigDict, Field
 
 from platform.shared.domain.exceptions import ExternalServiceException
+from platform.shared.i18n import _
 from platform.shared.integrations.base import BaseIntegrationClient, IntegrationSettings
 from platform.shared.multi_tenant.context import get_current_tenant
 from platform.shared.observability.logging import get_logger
@@ -135,7 +136,7 @@ class TasyClient(BaseIntegrationClient, TasyClientProtocol):
         ctx = self._get_tenant_context()
         if ctx.tenant_id != event.tenant_id:
             raise ExternalServiceException(
-                "CDC event tenant mismatch",
+                _("Evento CDC com tenant incompatível"),
                 service_name=self.SERVICE_NAME,
                 operation="process_cdc_event",
             )

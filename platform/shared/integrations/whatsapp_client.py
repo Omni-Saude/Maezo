@@ -18,6 +18,7 @@ from typing import Protocol
 from pydantic import BaseModel, Field
 
 from platform.shared.domain.exceptions import ExternalServiceException
+from platform.shared.i18n import _
 from platform.shared.integrations.base import BaseIntegrationClient, IntegrationSettings
 from platform.shared.observability.logging import get_logger
 from platform.shared.observability.metrics import track_api_call
@@ -172,7 +173,7 @@ class WhatsAppClient(BaseIntegrationClient, WhatsAppClientProtocol):
 
         if not phone_number_id or not access_token:
             raise ExternalServiceException(
-                "WhatsApp credentials not configured for tenant",
+                _("Credenciais WhatsApp não configuradas para o tenant"),
                 service_name=SERVICE_NAME,
                 operation="send_template_message",
             )
@@ -220,7 +221,7 @@ class WhatsAppClient(BaseIntegrationClient, WhatsAppClientProtocol):
 
         if not phone_number_id or not access_token:
             raise ExternalServiceException(
-                "WhatsApp credentials not configured for tenant",
+                _("Credenciais WhatsApp não configuradas para o tenant"),
                 service_name=SERVICE_NAME,
                 operation="send_text_message",
             )
@@ -260,7 +261,7 @@ class WhatsAppClient(BaseIntegrationClient, WhatsAppClientProtocol):
 
         if not access_token:
             raise ExternalServiceException(
-                "WhatsApp credentials not configured for tenant",
+                _("Credenciais WhatsApp não configuradas para o tenant"),
                 service_name=SERVICE_NAME,
                 operation="get_delivery_status",
             )
@@ -300,7 +301,7 @@ class WhatsAppClient(BaseIntegrationClient, WhatsAppClientProtocol):
 
         if not phone_number_id or not access_token:
             raise ExternalServiceException(
-                "WhatsApp credentials not configured for tenant",
+                _("Credenciais WhatsApp não configuradas para o tenant"),
                 service_name=SERVICE_NAME,
                 operation="send_document",
             )

@@ -21,6 +21,7 @@ from platform.shared.domain.exceptions import (
     TISSSchemaError,
     TISSValidationError,
 )
+from platform.shared.i18n import _
 from platform.shared.integrations.base import BaseIntegrationClient
 from platform.shared.observability.logging import get_logger
 from platform.shared.observability.metrics import track_api_call
@@ -231,7 +232,7 @@ class TISSClient(BaseIntegrationClient, TISSClientProtocol):
             elif guide.guide_type == TISSGuideType.EMERGENCY:
                 self._add_emergency_content(root, guide)
             else:
-                raise TISSSchemaError(f"Unsupported guide type: {guide.guide_type}")
+                raise TISSSchemaError(_("Tipo de guia não suportado: {}").format(guide.guide_type))
 
             # Convert to string
             xml_string = ET.tostring(root, encoding="unicode", method="xml")
@@ -240,7 +241,7 @@ class TISSClient(BaseIntegrationClient, TISSClientProtocol):
 
         except Exception as e:
             logger.error("Failed to generate TISS XML", extra={"error": str(e)})
-            raise TISSSchemaError(f"XML generation failed: {e}") from e
+            raise TISSSchemaError(_("Falha na geração de XML: {}").format(e)) from e
 
     def _add_sadt_content(self, root: ET.Element, guide: TISSGuideDTO) -> None:
         """Add SADT (Support and Diagnostic Therapy) specific content."""
@@ -302,22 +303,22 @@ class TISSClient(BaseIntegrationClient, TISSClientProtocol):
 
         # Basic validations
         if not guide.guide_number:
-            errors.append("Guide number is required")
+            errors.append(_("Número da guia é obrigatório"))
 
         if not guide.payer_id:
-            errors.append("Payer ID is required")
+            errors.append(_("ID da operadora é obrigatório"))
 
         if not guide.provider_id:
-            errors.append("Provider ID is required")
+            errors.append(_("ID do prestador é obrigatório"))
 
         # Type-specific validations
         if guide.guide_type == TISSGuideType.HOSPITALIZATION:
             if not guide.admission_date:
-                errors.append("Admission date is required for hospitalization")
+                errors.append(_("Data de internação é obrigatória para hospitalização"))
 
         if guide.guide_type in [TISSGuideType.SADT, TISSGuideType.CONSULTATION]:
             if not guide.items and not guide.procedure_codes:
-                errors.append("Procedures are required")
+                errors.append(_("Procedimentos são obrigatórios"))
 
         logger.debug("Validated TISS guide", extra={
             "guide_number": guide.guide_number,
@@ -355,7 +356,7 @@ class TISSClient(BaseIntegrationClient, TISSClientProtocol):
 
         except Exception as e:
             logger.error("TISS submission failed", extra={"error": str(e), "payer_id": payer_id})
-            raise TISSException(f"Submission failed: {e}") from e
+            raise TISSException(_("Falha no envio: {}").format(e)) from e
 
     @track_api_call(service_name=SERVICE_NAME, operation="submit_batch")
     async def submit_batch(self, batch: TISSBatchDTO) -> TISSSubmissionResult:
@@ -380,7 +381,7 @@ class TISSClient(BaseIntegrationClient, TISSClientProtocol):
 
         except Exception as e:
             logger.error("TISS batch submission failed", extra={"error": str(e)})
-            raise TISSException(f"Batch submission failed: {e}") from e
+            raise TISSException(_("Falha no envio em lote: {}").format(e)) from e
 
     def _create_batch_xml(self, batch_id: str, guide_xmls: list[str]) -> str:
         """Create batch XML wrapper."""
@@ -418,7 +419,7 @@ class TISSClient(BaseIntegrationClient, TISSClientProtocol):
 
         except Exception as e:
             logger.error("Status check failed", extra={"error": str(e), "protocol": protocol_number})
-            raise TISSException(f"Status check failed: {e}") from e
+            raise TISSException(_("Falha na verificação de status: {}").format(e)) from e
 
 
 # ============================================================================

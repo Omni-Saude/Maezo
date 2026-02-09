@@ -15,6 +15,7 @@ from typing import Any, Protocol
 from platform.shared.domain.enums import TenantCode
 from platform.shared.domain.exceptions import InvalidTenant, TenantAccessDenied
 from platform.shared.multi_tenant.context import TENANT_ID_MAP, get_required_tenant
+from platform.shared.i18n import _
 
 logger = logging.getLogger(__name__)
 
@@ -79,7 +80,7 @@ class TenantCredentialManager:
 
         if tenant_code not in TENANT_ID_MAP:
             raise InvalidTenant(
-                f"Unknown tenant: {tenant_code!r}",
+                _("Tenant desconhecido: {}").format(tenant_code),
                 details={"tenant_code": str(tenant_code)},
             )
 
@@ -99,7 +100,7 @@ class TenantCredentialManager:
 
         if self._vault_client is None:
             raise RuntimeError(
-                f"vault_client required for backend {self._vault_backend}"
+                _("vault_client necessário para o backend {}").format(self._vault_backend)
             )
 
         path = self._secret_path_template.format(tenant_id=tenant_id)
@@ -107,7 +108,7 @@ class TenantCredentialManager:
             secrets = await self._vault_client.get_secret(path)
         except Exception as exc:
             raise TenantAccessDenied(
-                f"Failed to fetch credentials for tenant {tenant_id}",
+                _("Falha ao buscar credenciais para o tenant {}").format(tenant_id),
                 details={"tenant_id": tenant_id, "vault_path": path},
             ) from exc
 

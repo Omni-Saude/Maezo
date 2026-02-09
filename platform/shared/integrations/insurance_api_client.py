@@ -13,6 +13,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from platform.shared.domain.enums import CoverageStatus
 from platform.shared.domain.exceptions import ExternalServiceException
+from platform.shared.i18n import _
 from platform.shared.integrations.base import BaseIntegrationClient, IntegrationSettings
 from platform.shared.observability.logging import get_logger
 from platform.shared.observability.metrics import track_api_call
@@ -142,7 +143,7 @@ class InsuranceAPIClient(BaseIntegrationClient, InsuranceAPIClientProtocol):
         config = self._payer_configs.get(payer_id)
         if not config:
             raise ExternalServiceException(
-                f"Payer not configured: {payer_id}",
+                _("Operadora não configurada: {}").format(payer_id),
                 service_name=self.SERVICE_NAME,
                 operation="get_payer_config",
             )

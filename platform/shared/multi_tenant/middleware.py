@@ -17,6 +17,7 @@ from starlette.requests import Request
 from starlette.responses import JSONResponse, Response
 
 from platform.shared.domain.exceptions import InvalidTenant, TenantAccessDenied
+from platform.shared.i18n import _
 from platform.shared.multi_tenant.context import (
     TENANT_ID_REVERSE,
     TenantContext,
@@ -87,7 +88,7 @@ class TenantMiddleware(BaseHTTPMiddleware):
                 status_code=400,
                 content={
                     "error": "missing_tenant",
-                    "detail": "Tenant identification required via JWT, header, or query param.",
+                    "detail": _("Identificação do tenant necessária via JWT, cabeçalho, ou parâmetro de consulta."),
                 },
             )
 
@@ -118,7 +119,7 @@ class TenantMiddleware(BaseHTTPMiddleware):
                     return tenant_id
                 if tenant_id:
                     raise InvalidTenant(
-                        f"JWT contains unknown tenant: {tenant_id!r}",
+                        _("JWT contém tenant desconhecido: {}").format(tenant_id),
                         details={"tenant_id": tenant_id},
                     )
             except InvalidTenant:
@@ -131,7 +132,7 @@ class TenantMiddleware(BaseHTTPMiddleware):
         if header_value:
             if header_value not in TENANT_ID_REVERSE:
                 raise InvalidTenant(
-                    f"Invalid {self._header_name}: {header_value!r}",
+                    _("Cabeçalho {} inválido: {}").format(self._header_name, header_value),
                     details={"tenant_id": header_value},
                 )
             return header_value
@@ -142,7 +143,7 @@ class TenantMiddleware(BaseHTTPMiddleware):
             if qp:
                 if qp not in TENANT_ID_REVERSE:
                     raise InvalidTenant(
-                        f"Invalid tenant_id query param: {qp!r}",
+                        _("Parâmetro de consulta tenant_id inválido: {}").format(qp),
                         details={"tenant_id": qp},
                     )
                 return qp

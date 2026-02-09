@@ -17,6 +17,8 @@ from contextvars import ContextVar
 from dataclasses import dataclass, field
 from typing import Any
 
+from platform.shared.i18n import _
+
 
 @dataclass(frozen=True)
 class CorrelationContext:

@@ -19,6 +19,7 @@ from typing import Any
 
 import structlog
 
+from platform.shared.i18n import _
 from platform.shared.observability.correlation import get_current_context
 from platform.shared.observability.redaction import PIIRedactor
 

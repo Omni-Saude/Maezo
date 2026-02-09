@@ -13,6 +13,7 @@ from typing import Any
 
 from pydantic import BaseModel, Field
 
+from platform.shared.i18n import _
 from platform.shared.integrations.base import BaseIntegrationClient
 from platform.shared.observability.logging import get_logger
 from platform.shared.observability.metrics import track_api_call
@@ -215,7 +216,7 @@ class ANSClient(BaseIntegrationClient, ANSClientProtocol):
 
             # No cache available
             self._logger.error("Failed to fetch procedure", extra={"code": code, "error": str(e)})
-            raise ValueError(f"Procedure {code} not found and no cached data available") from e
+            raise ValueError(_("Procedimento {} não encontrado e sem dados em cache disponíveis").format(code)) from e
 
     @track_api_call(service_name=SERVICE_NAME)
     async def check_coverage(self, code: str, coverage_type: str) -> bool:
@@ -331,7 +332,7 @@ class StubANSClient(ANSClientProtocol):
         """Get procedure details (stub)."""
         procedure = self._procedures.get(code)
         if not procedure:
-            raise ValueError(f"Procedure {code} not found in stub data")
+            raise ValueError(_("Procedimento {} não encontrado nos dados de stub").format(code))
         return procedure
 
     async def check_coverage(self, code: str, coverage_type: str) -> bool:
