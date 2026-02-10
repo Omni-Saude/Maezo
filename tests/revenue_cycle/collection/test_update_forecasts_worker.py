@@ -4,7 +4,7 @@ from datetime import date, timedelta
 
 import pytest
 
-from platform.revenue_cycle.collection.workers.update_forecasts_worker import UpdateForecastsWorker
+from healthcare_platform.revenue_cycle.collection.workers.update_forecasts_worker import UpdateForecastsWorker
 
 
 @pytest.mark.asyncio

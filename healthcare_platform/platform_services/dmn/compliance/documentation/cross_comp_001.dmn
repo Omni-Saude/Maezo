@@ -1,0 +1,127 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             xmlns:camunda="http://camunda.org/schema/1.0/dmn"
+             id="Definitions_DocumentationGate"
+             name="SHARED: Documentation Completeness Gate"
+             namespace="http://camunda.org/schema/1.0/dmn">
+  <!--
+    Version: 1.0.0
+    Last Updated: 2026-02-08
+    Purpose: Universal documentation completeness check (applies to ALL specialties)
+
+    REUSABLE DOCUMENTATION GATE:
+    This rule should be near the TOP of every decision table to catch incomplete documentation
+    before evaluating specialty-specific clinical criteria.
+
+    Usage Pattern:
+    1. Copy the input definition + first rule to your specialty DMN
+    2. Place BEFORE specialty-specific rules
+    3. Adjust variable names if needed (documentacaoClinica is standard)
+
+    Deduplication Impact:
+    - Found in ~600+ files across all specialties
+    - Saves 600+ rules × 30 lines = 18,000 lines of XML
+  -->
+
+  <decision id="Decision_DocumentationGate" name="Documentation Completeness Check">
+    <decisionTable id="DecisionTable_DocumentationGate" hitPolicy="FIRST">
+
+      <!-- INPUT: Documentation Status -->
+      <input id="Input_documentacao" label="Status da Documentação Clínica">
+        <inputExpression typeRef="string">
+          <text>documentacaoClinica</text>
+        </inputExpression>
+        <inputValues>
+          <text>"Completa","Incompleta","NaoDocumentado","EmAnalise"</text>
+        </inputValues>
+      </input>
+
+      <!-- STANDARD 5 OUTPUTS (copy from standard-outputs.dmn.xml) -->
+      <output id="Output_resultado" name="resultado" typeRef="string">
+        <outputValues><text>"Aprovado","Reprovado","Pendente"</text></outputValues>
+      </output>
+      <output id="Output_observacao" name="observacao" typeRef="string"/>
+      <output id="Output_fundamentacao" name="fundamentacao" typeRef="string"/>
+      <output id="Output_alertasDesperdicio" name="alertasDesperdicio" typeRef="string">
+        <outputValues><text>"NENHUM","DUP","FREQ","ESC","DOC","PROT","MULTI"</text></outputValues>
+      </output>
+      <output id="Output_acaoRecomendada" name="acaoRecomendada" typeRef="string">
+        <outputValues><text>"APROVAR","NEGAR","SOLICITAR_INFO","AGUARDAR_PRAZO","SUGERIR_ALTERNATIVA"</text></outputValues>
+      </output>
+
+      <!-- RULE 1: Missing Documentation (UNIVERSAL BLOCKER) -->
+      <rule id="Rule_Documentation_Missing">
+        <description>Bloqueia aprovação se documentação clínica não está completa</description>
+        <inputEntry>
+          <text>"NaoDocumentado","Incompleta"</text>
+        </inputEntry>
+        <outputEntry><text>"Reprovado"</text></outputEntry>
+        <outputEntry><text>"Documentação clínica incompleta ou ausente"</text></outputEntry>
+        <outputEntry><text>"ANS Resolução Normativa: Documentação clínica completa obrigatória para autorização"</text></outputEntry>
+        <outputEntry id="OE_Rule_Documentation_Missing_alerta"><text>"DOC"</text></outputEntry>
+        <outputEntry id="OE_Rule_Documentation_Missing_acao"><text>"SOLICITAR_INFO"</text></outputEntry>
+      </rule>
+
+      <!-- RULE 2: Under Review (Wait State) -->
+      <rule id="Rule_Documentation_UnderReview">
+        <description>Aguarda análise completa da documentação médica</description>
+        <inputEntry>
+          <text>"EmAnalise"</text>
+        </inputEntry>
+        <outputEntry><text>"Pendente"</text></outputEntry>
+        <outputEntry><text>"Documentação médica em análise pela equipe técnica"</text></outputEntry>
+        <outputEntry><text>"Aguardar conclusão da revisão documental antes da decisão final"</text></outputEntry>
+        <outputEntry id="OE_Rule_Documentation_UnderReview_alerta"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_Rule_Documentation_UnderReview_acao"><text>"AGUARDAR_PRAZO"</text></outputEntry>
+      </rule>
+
+      <!-- RULE 3: Documentation Complete (PASS-THROUGH to specialty rules) -->
+      <rule id="Rule_Documentation_Complete">
+        <description>Documentação completa: prosseguir para avaliação de critérios específicos</description>
+        <inputEntry>
+          <text>"Completa"</text>
+        </inputEntry>
+        <outputEntry><text>"Pendente"</text></outputEntry>
+        <outputEntry><text>"Documentação completa: avaliar critérios clínicos específicos"</text></outputEntry>
+        <outputEntry><text>"Prosseguir para avaliação de indicações e contraindicações específicas"</text></outputEntry>
+        <outputEntry id="OE_Rule_Documentation_Complete_alerta"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_Rule_Documentation_Complete_acao"><text>"SOLICITAR_INFO"</text></outputEntry>
+      </rule>
+
+      <!-- DEFAULT FALLBACK -->
+      <rule id="Rule_Default_Documentation">
+        <description>Status de documentação desconhecido - solicitar esclarecimento</description>
+        <inputEntry><text></text></inputEntry>
+        <outputEntry><text>"Pendente"</text></outputEntry>
+        <outputEntry><text>"Status de documentação não informado"</text></outputEntry>
+        <outputEntry><text>"Solicitar status atualizado da documentação clínica"</text></outputEntry>
+        <outputEntry id="OE_Rule_Default_Documentation_alerta"><text>"DOC"</text></outputEntry>
+        <outputEntry id="OE_Rule_Default_Documentation_acao"><text>"SOLICITAR_INFO"</text></outputEntry>
+      </rule>
+
+    </decisionTable>
+  </decision>
+
+  <!--
+    INTEGRATION NOTES:
+
+    1. ADD THIS INPUT to your specialty DMN (BEFORE specialty-specific inputs):
+       <input id="Input_documentacao" label="Status da Documentação Clínica">
+         <inputExpression typeRef="string">
+           <text>documentacaoClinica</text>
+         </inputExpression>
+         <inputValues>
+           <text>"Completa","Incompleta","NaoDocumentado","EmAnalise"</text>
+         </inputValues>
+       </input>
+
+    2. COPY Rule_Documentation_Missing as FIRST RULE in your table
+
+    3. Your specialty rules should only fire if documentacaoClinica == "Completa"
+
+    4. This creates a 2-stage filter:
+       Stage 1: Documentation gate (universal)
+       Stage 2: Specialty-specific clinical criteria
+  -->
+
+</definitions>

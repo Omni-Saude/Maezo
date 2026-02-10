@@ -5,7 +5,7 @@ from unittest.mock import patch
 
 import pytest
 
-from platform.revenue_cycle.collection.workers.apply_penalties_worker import (
+from healthcare_platform.revenue_cycle.collection.workers.apply_penalties_worker import (
     ApplyPenaltiesWorker,
 )
 

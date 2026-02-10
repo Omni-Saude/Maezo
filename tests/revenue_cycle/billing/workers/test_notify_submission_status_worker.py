@@ -5,8 +5,8 @@ import types
 
 import pytest
 
-from platform.revenue_cycle.billing.workers.notify_submission_status_worker import NotifySubmissionStatusWorker
-from platform.shared.integrations.whatsapp_client import StubWhatsAppClient
+from healthcare_platform.revenue_cycle.billing.workers.notify_submission_status_worker import NotifySubmissionStatusWorker
+from healthcare_platform.shared.integrations.whatsapp_client import StubWhatsAppClient
 
 
 @pytest.fixture

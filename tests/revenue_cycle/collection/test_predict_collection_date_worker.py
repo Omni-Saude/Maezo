@@ -4,7 +4,7 @@ from datetime import date
 
 import pytest
 
-from platform.revenue_cycle.collection.workers.predict_collection_date_worker import PredictCollectionDateWorker
+from healthcare_platform.revenue_cycle.collection.workers.predict_collection_date_worker import PredictCollectionDateWorker
 
 
 @pytest.mark.asyncio

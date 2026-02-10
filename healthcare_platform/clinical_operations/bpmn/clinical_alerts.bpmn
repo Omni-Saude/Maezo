@@ -1,0 +1,322 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+                  xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+                  xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+                  xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
+                  xmlns:camunda="http://camunda.org/schema/1.0/bpmn"
+                  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                  id="Definitions_ClinicalAlerts"
+                  targetNamespace="http://cib7.health/clinical/alerts"
+                  exporter="Claude Code"
+                  exporterVersion="1.0">
+
+  <bpmn:process id="Process_ClinicalAlerts" name="SP-CA-000 Clinical Alerts Processing" isExecutable="true">
+
+    <bpmn:startEvent id="Start_AlertReceived" name="Clinical Alert Received">
+      <bpmn:outgoing>Flow_ToClassify</bpmn:outgoing>
+    </bpmn:startEvent>
+
+    <!-- Classify alert type -->
+    <bpmn:serviceTask id="Task_ClassifyAlert" name="Classify Alert"
+                      camunda:type="external" camunda:topic="clinical.adverse_events">
+      <bpmn:incoming>Flow_ToClassify</bpmn:incoming>
+      <bpmn:outgoing>Flow_ToGateway</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Route by alert type -->
+    <bpmn:exclusiveGateway id="Gateway_AlertType" name="Alert Type?">
+      <bpmn:incoming>Flow_ToGateway</bpmn:incoming>
+      <bpmn:outgoing>Flow_VitalSigns</bpmn:outgoing>
+      <bpmn:outgoing>Flow_Medication</bpmn:outgoing>
+      <bpmn:outgoing>Flow_LabResult</bpmn:outgoing>
+      <bpmn:outgoing>Flow_Default</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+
+    <!-- Vital Signs Alert -->
+    <bpmn:serviceTask id="Task_VitalSigns" name="Monitor Vital Signs"
+                      camunda:type="external" camunda:topic="clinical.vital_signs">
+      <bpmn:incoming>Flow_VitalSigns</bpmn:incoming>
+      <bpmn:outgoing>Flow_VitalToEWS</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Early Warning Score -->
+    <bpmn:businessRuleTask id="Task_EWS" name="Calculate Early Warning Score"
+                           camunda:decisionRef="ews_news_001"
+                           camunda:mapDecisionResult="singleResult">
+      <bpmn:incoming>Flow_VitalToEWS</bpmn:incoming>
+      <bpmn:outgoing>Flow_EWSToEscalation</bpmn:outgoing>
+    </bpmn:businessRuleTask>
+
+    <!-- Medication Alert -->
+    <bpmn:serviceTask id="Task_Medication" name="Check Drug Interactions"
+                      camunda:type="external" camunda:topic="clinical.medication">
+      <bpmn:incoming>Flow_Medication</bpmn:incoming>
+      <bpmn:outgoing>Flow_MedToMerge</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Lab Result Alert -->
+    <bpmn:serviceTask id="Task_LabResult" name="Evaluate Lab Results"
+                      camunda:type="external" camunda:topic="clinical.lab_results">
+      <bpmn:incoming>Flow_LabResult</bpmn:incoming>
+      <bpmn:outgoing>Flow_LabToMerge</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Default handler -->
+    <bpmn:serviceTask id="Task_Default" name="Process Clinical Alert"
+                      camunda:type="external" camunda:topic="clinical.decision_support">
+      <bpmn:incoming>Flow_Default</bpmn:incoming>
+      <bpmn:outgoing>Flow_DefaultToMerge</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Escalation check -->
+    <bpmn:exclusiveGateway id="Gateway_Escalation" name="Requires Escalation?">
+      <bpmn:incoming>Flow_EWSToEscalation</bpmn:incoming>
+      <bpmn:outgoing>Flow_Escalate</bpmn:outgoing>
+      <bpmn:outgoing>Flow_NoEscalate</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+
+    <!-- Escalation task -->
+    <bpmn:serviceTask id="Task_Escalate" name="Escalate to Care Team"
+                      camunda:type="external" camunda:topic="clinical.care_team">
+      <bpmn:incoming>Flow_Escalate</bpmn:incoming>
+      <bpmn:outgoing>Flow_EscalateToMerge</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Merge gateway -->
+    <bpmn:exclusiveGateway id="Gateway_Merge" name="Merge">
+      <bpmn:incoming>Flow_MedToMerge</bpmn:incoming>
+      <bpmn:incoming>Flow_LabToMerge</bpmn:incoming>
+      <bpmn:incoming>Flow_DefaultToMerge</bpmn:incoming>
+      <bpmn:incoming>Flow_EscalateToMerge</bpmn:incoming>
+      <bpmn:incoming>Flow_NoEscalate</bpmn:incoming>
+      <bpmn:outgoing>Flow_ToDocument</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+
+    <!-- Document alert -->
+    <bpmn:serviceTask id="Task_Document" name="Document Alert"
+                      camunda:type="external" camunda:topic="clinical.documentation">
+      <bpmn:incoming>Flow_ToDocument</bpmn:incoming>
+      <bpmn:outgoing>Flow_ToEnd</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <bpmn:endEvent id="End_AlertProcessed" name="Alert Processed">
+      <bpmn:incoming>Flow_ToEnd</bpmn:incoming>
+    </bpmn:endEvent>
+
+    <!-- Sequence Flows -->
+    <bpmn:sequenceFlow id="Flow_ToClassify" sourceRef="Start_AlertReceived" targetRef="Task_ClassifyAlert"/>
+    <bpmn:sequenceFlow id="Flow_ToGateway" sourceRef="Task_ClassifyAlert" targetRef="Gateway_AlertType"/>
+    <bpmn:sequenceFlow id="Flow_VitalSigns" sourceRef="Gateway_AlertType" targetRef="Task_VitalSigns">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${alert_type == 'vital_signs'}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_Medication" sourceRef="Gateway_AlertType" targetRef="Task_Medication">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${alert_type == 'medication'}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_LabResult" sourceRef="Gateway_AlertType" targetRef="Task_LabResult">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${alert_type == 'lab_result'}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_Default" sourceRef="Gateway_AlertType" targetRef="Task_Default"/>
+    <bpmn:sequenceFlow id="Flow_VitalToEWS" sourceRef="Task_VitalSigns" targetRef="Task_EWS"/>
+    <bpmn:sequenceFlow id="Flow_EWSToEscalation" sourceRef="Task_EWS" targetRef="Gateway_Escalation"/>
+    <bpmn:sequenceFlow id="Flow_Escalate" sourceRef="Gateway_Escalation" targetRef="Task_Escalate">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${ews_score >= 5}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_NoEscalate" sourceRef="Gateway_Escalation" targetRef="Gateway_Merge"/>
+    <bpmn:sequenceFlow id="Flow_MedToMerge" sourceRef="Task_Medication" targetRef="Gateway_Merge"/>
+    <bpmn:sequenceFlow id="Flow_LabToMerge" sourceRef="Task_LabResult" targetRef="Gateway_Merge"/>
+    <bpmn:sequenceFlow id="Flow_DefaultToMerge" sourceRef="Task_Default" targetRef="Gateway_Merge"/>
+    <bpmn:sequenceFlow id="Flow_EscalateToMerge" sourceRef="Task_Escalate" targetRef="Gateway_Merge"/>
+    <bpmn:sequenceFlow id="Flow_ToDocument" sourceRef="Gateway_Merge" targetRef="Task_Document"/>
+    <bpmn:sequenceFlow id="Flow_ToEnd" sourceRef="Task_Document" targetRef="End_AlertProcessed"/>
+
+  </bpmn:process>
+
+  <!-- Diagram Interchange -->
+  <bpmndi:BPMNDiagram id="BPMNDiagram_ClinicalAlerts">
+    <bpmndi:BPMNPlane id="BPMNPlane_ClinicalAlerts" bpmnElement="Process_ClinicalAlerts">
+
+      <!-- Start Event -->
+      <bpmndi:BPMNShape id="Shape_Start_AlertReceived" bpmnElement="Start_AlertReceived">
+        <dc:Bounds x="152" y="102" width="36" height="36"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="135" y="145" width="70" height="27"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+
+      <!-- Classify Alert -->
+      <bpmndi:BPMNShape id="Shape_Task_ClassifyAlert" bpmnElement="Task_ClassifyAlert">
+        <dc:Bounds x="240" y="80" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <!-- Alert Type Gateway -->
+      <bpmndi:BPMNShape id="Shape_Gateway_AlertType" bpmnElement="Gateway_AlertType" isMarkerVisible="true">
+        <dc:Bounds x="395" y="95" width="50" height="50"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="387" y="152" width="66" height="14"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+
+      <!-- Vital Signs Task -->
+      <bpmndi:BPMNShape id="Shape_Task_VitalSigns" bpmnElement="Task_VitalSigns">
+        <dc:Bounds x="500" y="80" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <!-- EWS Task -->
+      <bpmndi:BPMNShape id="Shape_Task_EWS" bpmnElement="Task_EWS">
+        <dc:Bounds x="650" y="80" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <!-- Escalation Gateway -->
+      <bpmndi:BPMNShape id="Shape_Gateway_Escalation" bpmnElement="Gateway_Escalation" isMarkerVisible="true">
+        <dc:Bounds x="805" y="95" width="50" height="50"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="789" y="58" width="82" height="27"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+
+      <!-- Escalate Task -->
+      <bpmndi:BPMNShape id="Shape_Task_Escalate" bpmnElement="Task_Escalate">
+        <dc:Bounds x="910" y="80" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <!-- Medication Task -->
+      <bpmndi:BPMNShape id="Shape_Task_Medication" bpmnElement="Task_Medication">
+        <dc:Bounds x="500" y="200" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <!-- Lab Result Task -->
+      <bpmndi:BPMNShape id="Shape_Task_LabResult" bpmnElement="Task_LabResult">
+        <dc:Bounds x="500" y="320" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <!-- Default Task -->
+      <bpmndi:BPMNShape id="Shape_Task_Default" bpmnElement="Task_Default">
+        <dc:Bounds x="500" y="440" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <!-- Merge Gateway -->
+      <bpmndi:BPMNShape id="Shape_Gateway_Merge" bpmnElement="Gateway_Merge" isMarkerVisible="true">
+        <dc:Bounds x="1065" y="275" width="50" height="50"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1125" y="293" width="33" height="14"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+
+      <!-- Document Task -->
+      <bpmndi:BPMNShape id="Shape_Task_Document" bpmnElement="Task_Document">
+        <dc:Bounds x="1170" y="260" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <!-- End Event -->
+      <bpmndi:BPMNShape id="Shape_End_AlertProcessed" bpmnElement="End_AlertProcessed">
+        <dc:Bounds x="1332" y="282" width="36" height="36"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1310" y="325" width="81" height="14"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+
+      <!-- Sequence Flow Edges -->
+      <bpmndi:BPMNEdge id="Edge_Flow_ToClassify" bpmnElement="Flow_ToClassify">
+        <di:waypoint x="188" y="120"/>
+        <di:waypoint x="240" y="120"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_Flow_ToGateway" bpmnElement="Flow_ToGateway">
+        <di:waypoint x="340" y="120"/>
+        <di:waypoint x="395" y="120"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_Flow_VitalSigns" bpmnElement="Flow_VitalSigns">
+        <di:waypoint x="445" y="120"/>
+        <di:waypoint x="500" y="120"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="450" y="102" width="55" height="14"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_Flow_Medication" bpmnElement="Flow_Medication">
+        <di:waypoint x="420" y="145"/>
+        <di:waypoint x="420" y="240"/>
+        <di:waypoint x="500" y="240"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="430" y="222" width="58" height="14"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_Flow_LabResult" bpmnElement="Flow_LabResult">
+        <di:waypoint x="420" y="145"/>
+        <di:waypoint x="420" y="360"/>
+        <di:waypoint x="500" y="360"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="430" y="342" width="53" height="14"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_Flow_Default" bpmnElement="Flow_Default">
+        <di:waypoint x="420" y="145"/>
+        <di:waypoint x="420" y="480"/>
+        <di:waypoint x="500" y="480"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_Flow_VitalToEWS" bpmnElement="Flow_VitalToEWS">
+        <di:waypoint x="600" y="120"/>
+        <di:waypoint x="650" y="120"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_Flow_EWSToEscalation" bpmnElement="Flow_EWSToEscalation">
+        <di:waypoint x="750" y="120"/>
+        <di:waypoint x="805" y="120"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_Flow_Escalate" bpmnElement="Flow_Escalate">
+        <di:waypoint x="855" y="120"/>
+        <di:waypoint x="910" y="120"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="860" y="102" width="45" height="14"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_Flow_NoEscalate" bpmnElement="Flow_NoEscalate">
+        <di:waypoint x="830" y="145"/>
+        <di:waypoint x="830" y="300"/>
+        <di:waypoint x="1065" y="300"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_Flow_MedToMerge" bpmnElement="Flow_MedToMerge">
+        <di:waypoint x="600" y="240"/>
+        <di:waypoint x="1090" y="240"/>
+        <di:waypoint x="1090" y="275"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_Flow_LabToMerge" bpmnElement="Flow_LabToMerge">
+        <di:waypoint x="600" y="360"/>
+        <di:waypoint x="1090" y="360"/>
+        <di:waypoint x="1090" y="325"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_Flow_DefaultToMerge" bpmnElement="Flow_DefaultToMerge">
+        <di:waypoint x="600" y="480"/>
+        <di:waypoint x="1090" y="480"/>
+        <di:waypoint x="1090" y="325"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_Flow_EscalateToMerge" bpmnElement="Flow_EscalateToMerge">
+        <di:waypoint x="1010" y="120"/>
+        <di:waypoint x="1090" y="120"/>
+        <di:waypoint x="1090" y="275"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_Flow_ToDocument" bpmnElement="Flow_ToDocument">
+        <di:waypoint x="1115" y="300"/>
+        <di:waypoint x="1170" y="300"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_Flow_ToEnd" bpmnElement="Flow_ToEnd">
+        <di:waypoint x="1270" y="300"/>
+        <di:waypoint x="1332" y="300"/>
+      </bpmndi:BPMNEdge>
+
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+
+</bpmn:definitions>

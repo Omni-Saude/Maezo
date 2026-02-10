@@ -10,12 +10,12 @@ from unittest.mock import AsyncMock, Mock
 
 import pytest
 
-from platform.revenue_cycle.glosa.workers.identify_glosa_worker import (
+from healthcare_platform.revenue_cycle.glosa.workers.identify_glosa_worker import (
     IdentifyGlosaWorker,
 )
-from platform.shared.domain.entities import ClaimResponse
-from platform.shared.domain.enums import GlosaReasonCode
-from platform.shared.domain.exceptions import GlosaException
+from healthcare_platform.shared.domain.entities import ClaimResponse
+from healthcare_platform.shared.domain.enums import GlosaReasonCode
+from healthcare_platform.shared.domain.exceptions import GlosaException
 
 
 @pytest.fixture

@@ -8,8 +8,8 @@ from uuid import uuid4
 
 import pytest
 
-from platform.revenue_cycle.billing.workers.consolidate_charges_worker import ConsolidateChargesWorker
-from platform.shared.domain.enums import BillingStatus
+from healthcare_platform.revenue_cycle.billing.workers.consolidate_charges_worker import ConsolidateChargesWorker
+from healthcare_platform.shared.domain.enums import BillingStatus
 
 
 @pytest.fixture

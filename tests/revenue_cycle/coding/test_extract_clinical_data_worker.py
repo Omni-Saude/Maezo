@@ -3,7 +3,7 @@
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 
-from revenue_cycle.coding.workers.extract_clinical_data_worker import (
+from healthcare_platform.revenue_cycle.coding.workers.extract_clinical_data_worker import (
     ExtractClinicalDataWorker,
     ExtractClinicalDataInput,
     ExtractClinicalDataOutput,

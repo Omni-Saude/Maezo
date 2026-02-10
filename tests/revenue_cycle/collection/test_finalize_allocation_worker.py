@@ -3,8 +3,8 @@ from __future__ import annotations
 
 import pytest
 
-from platform.revenue_cycle.collection.exceptions import PaymentAllocationError
-from platform.revenue_cycle.collection.workers.finalize_allocation_worker import FinalizeAllocationWorker
+from healthcare_platform.revenue_cycle.collection.exceptions import PaymentAllocationError
+from healthcare_platform.revenue_cycle.collection.workers.finalize_allocation_worker import FinalizeAllocationWorker
 
 
 @pytest.fixture

@@ -6,11 +6,11 @@ from unittest.mock import AsyncMock
 
 import pytest
 
-from platform.revenue_cycle.collection.workers.persist_payment_worker import (
+from healthcare_platform.revenue_cycle.collection.workers.persist_payment_worker import (
     PersistPaymentWorker,
 )
-from platform.revenue_cycle.collection.entities import Payment
-from platform.revenue_cycle.collection.exceptions import CollectionException
+from healthcare_platform.revenue_cycle.collection.entities import Payment
+from healthcare_platform.revenue_cycle.collection.exceptions import CollectionException
 
 
 class MockPaymentRepository:

@@ -5,8 +5,8 @@ from uuid import uuid4
 
 import pytest
 
-from platform.revenue_cycle.collection.exceptions import ERPSyncError
-from platform.revenue_cycle.collection.workers.export_to_erp_worker import ExportToERPWorker
+from healthcare_platform.revenue_cycle.collection.exceptions import ERPSyncError
+from healthcare_platform.revenue_cycle.collection.workers.export_to_erp_worker import ExportToERPWorker
 
 
 @pytest.mark.asyncio

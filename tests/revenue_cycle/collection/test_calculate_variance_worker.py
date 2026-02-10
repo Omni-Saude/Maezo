@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import pytest
 
-from platform.revenue_cycle.collection.workers.calculate_variance_worker import CalculateVarianceWorker
+from healthcare_platform.revenue_cycle.collection.workers.calculate_variance_worker import CalculateVarianceWorker
 
 
 @pytest.fixture

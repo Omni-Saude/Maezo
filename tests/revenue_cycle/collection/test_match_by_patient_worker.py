@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import pytest
 
-from platform.revenue_cycle.collection.workers.match_by_patient_worker import MatchByPatientWorker
+from healthcare_platform.revenue_cycle.collection.workers.match_by_patient_worker import MatchByPatientWorker
 
 
 @pytest.fixture

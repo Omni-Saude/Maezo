@@ -6,10 +6,10 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from platform.revenue_cycle.glosa.workers.analyze_glosa_reason_worker import (
+from healthcare_platform.revenue_cycle.glosa.workers.analyze_glosa_reason_worker import (
     AnalyzeGlosaReasonWorker,
 )
-from platform.shared.domain.enums import GlosaReasonCode, GlosaType
+from healthcare_platform.shared.domain.enums import GlosaReasonCode, GlosaType
 
 
 @pytest.fixture

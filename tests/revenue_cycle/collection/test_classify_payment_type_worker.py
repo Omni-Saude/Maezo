@@ -5,7 +5,7 @@ from decimal import Decimal
 
 import pytest
 
-from platform.revenue_cycle.collection.workers.classify_payment_type_worker import (
+from healthcare_platform.revenue_cycle.collection.workers.classify_payment_type_worker import (
     ClassifyPaymentTypeWorker,
 )
 

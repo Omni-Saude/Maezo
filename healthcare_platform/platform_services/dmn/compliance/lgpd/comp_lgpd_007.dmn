@@ -1,0 +1,175 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  ============================================================================
+  COMP-LGPD-007 - Compartilhamento Dados com Operadora
+  ============================================================================
+  Versao: 1.0.0 (2026-02-08)
+  Categoria: COMP-LGPD
+  Perspectiva: HOSPITAL (Compliance & Privacy)
+
+  ============================================================================
+  INDICACOES (Quando PROSSEGUIR):
+  ============================================================================
+  - Paciente autorizou compartilhamento com operadora de saude
+  - Finalidade do compartilhamento explicita e legitima
+  - Dados compartilhados limitados ao necessario
+
+  ============================================================================
+  CONTRAINDICACOES (Quando BLOQUEAR):
+  ============================================================================
+  - Ausencia de consentimento para compartilhamento
+  - Compartilhamento sem finalidade explicita
+  - Envio de dados sensiveis sem base legal adequada
+
+  ============================================================================
+  REFERENCIAS NORMATIVAS:
+  ============================================================================
+  - Lei 13.709/2018 LGPD Art. 7 IX (Tratamento compartilhado)
+  - RN ANS 412/2016 (Padrao TISS - Privacidade)
+  - CFM Resolucao 1.821/2007 (Sigilo Medico)
+  ============================================================================
+-->
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/"
+             xmlns:dc="http://www.omg.org/spec/DMN/20180521/DC/"
+             id="Definitions_COMP_LGPD_007"
+             name="Compartilhamento Dados com Operadora"
+             targetNamespace="http://camunda.org/schema/1.0/dmn">
+
+  <decision id="Decision_COMP_LGPD_007" name="Compartilhamento Dados com Operadora">
+    <decisionTable id="DecisionTable_COMP_LGPD_007" hitPolicy="FIRST">
+
+      <!-- ========== INPUTS ========== -->
+      <input id="Input_1" label="Tem Consentimento">
+        <inputExpression id="InputExpression_1" typeRef="boolean">
+          <text>temConsentimento</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_2" label="Tipo Consentimento">
+        <inputExpression id="InputExpression_2" typeRef="string">
+          <text>tipoConsentimento</text>
+        </inputExpression>
+        <inputValues id="InputValues_2">
+          <text>"PRESENCIAL", "TELEMEDICINA", "EMERGENCIA"</text>
+        </inputValues>
+      </input>
+
+      <input id="Input_3" label="Dados Compartilhados">
+        <inputExpression id="InputExpression_3" typeRef="string">
+          <text>dadosCompartilhados</text>
+        </inputExpression>
+        <inputValues id="InputValues_3">
+          <text>"CLINICO", "ADMINISTRATIVO", "COMPLETO"</text>
+        </inputValues>
+      </input>
+
+      <!-- ========== OUTPUTS (5 STANDARD) ========== -->
+      <output id="Output_1" label="Resultado" name="resultado" typeRef="string">
+        <outputValues><text>"Prosseguir", "Bloquear", "Alertar", "Revisar"</text></outputValues>
+      </output>
+
+      <output id="Output_2" label="Observacao" name="observacao" typeRef="string"/>
+
+      <output id="Output_3" label="Acao Recomendada" name="acaoRecomendada" typeRef="string"/>
+
+      <output id="Output_4" label="Alertas Conformidade" name="alertasConformidade" typeRef="string">
+        <outputValues><text>"NENHUM", "DUP", "FREQ", "PRAZO", "DOC", "VALOR", "CRED", "CONTRATO"</text></outputValues>
+      </output>
+
+      <output id="Output_5" label="Risco Denial" name="riscoDenial" typeRef="string">
+        <outputValues><text>"BAIXO", "MEDIO", "ALTO", "CRITICO"</text></outputValues>
+      </output>
+
+      <!-- ========== RULES ========== -->
+
+      <!-- REGRA B1: Bloqueio - Sem consentimento -->
+      <rule id="Rule_Bloqueio_1">
+        <description>Compartilhamento com operadora sem consentimento</description>
+        <inputEntry id="InputEntry_B1_1"><text>false</text></inputEntry>
+        <inputEntry id="InputEntry_B1_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_B1_3"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_B1_1"><text>"Bloquear"</text></outputEntry>
+        <outputEntry id="OutputEntry_B1_2"><text>"Compartilhamento de dados com operadora requer consentimento expresso do paciente conforme LGPD Art. 7 IX e CFM Res. 1.821/2007."</text></outputEntry>
+        <outputEntry id="OutputEntry_B1_3"><text>"Obter consentimento especifico para compartilhamento com operadora antes de enviar guias ou documentacao clinica."</text></outputEntry>
+        <outputEntry id="OutputEntry_B1_4"><text>"DOC"</text></outputEntry>
+        <outputEntry id="OutputEntry_B1_5"><text>"CRITICO"</text></outputEntry>
+      </rule>
+
+      <!-- REGRA B2: Bloqueio - Dados completos sem emergencia -->
+      <rule id="Rule_Bloqueio_2">
+        <description>Compartilhamento completo sem justificativa de emergencia</description>
+        <inputEntry id="InputEntry_B2_1"><text>true</text></inputEntry>
+        <inputEntry id="InputEntry_B2_2"><text>"PRESENCIAL", "TELEMEDICINA"</text></inputEntry>
+        <inputEntry id="InputEntry_B2_3"><text>"COMPLETO"</text></inputEntry>
+        <outputEntry id="OutputEntry_B2_1"><text>"Bloquear"</text></outputEntry>
+        <outputEntry id="OutputEntry_B2_2"><text>"Compartilhamento de dados completos com operadora viola principio da minimizacao (LGPD Art. 6 III). Apenas dados necessarios para autorizacao/faturamento."</text></outputEntry>
+        <outputEntry id="OutputEntry_B2_3"><text>"Limitar compartilhamento a dados administrativos e clinicos essenciais (CID, procedimento, justificativa). Excluir anamnese completa."</text></outputEntry>
+        <outputEntry id="OutputEntry_B2_4"><text>"DOC"</text></outputEntry>
+        <outputEntry id="OutputEntry_B2_5"><text>"ALTO"</text></outputEntry>
+      </rule>
+
+      <!-- REGRA A1: Alerta - Dados clinicos amplos -->
+      <rule id="Rule_Alerta_1">
+        <description>Compartilhamento de dados clinicos requer documentacao</description>
+        <inputEntry id="InputEntry_A1_1"><text>true</text></inputEntry>
+        <inputEntry id="InputEntry_A1_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_A1_3"><text>"CLINICO"</text></inputEntry>
+        <outputEntry id="OutputEntry_A1_1"><text>"Alertar"</text></outputEntry>
+        <outputEntry id="OutputEntry_A1_2"><text>"Compartilhamento de dados clinicos com operadora. Verificar se finalidade esta documentada e limitada a autorizacao/auditoria."</text></outputEntry>
+        <outputEntry id="OutputEntry_A1_3"><text>"Documentar finalidade especifica do compartilhamento. Revisar relatorio de impacto a privacidade (RIPD) se aplicavel."</text></outputEntry>
+        <outputEntry id="OutputEntry_A1_4"><text>"DOC"</text></outputEntry>
+        <outputEntry id="OutputEntry_A1_5"><text>"MEDIO"</text></outputEntry>
+      </rule>
+
+      <!-- REGRA P1: Aprovado - Dados administrativos -->
+      <rule id="Rule_Aprovado_1">
+        <description>Compartilhamento de dados administrativos autorizado</description>
+        <inputEntry id="InputEntry_P1_1"><text>true</text></inputEntry>
+        <inputEntry id="InputEntry_P1_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_P1_3"><text>"ADMINISTRATIVO"</text></inputEntry>
+        <outputEntry id="OutputEntry_P1_1"><text>"Prosseguir"</text></outputEntry>
+        <outputEntry id="OutputEntry_P1_2"><text>"Compartilhamento de dados administrativos com operadora autorizado. Finalidade: faturamento e autorizacao conforme RN ANS 412/2016."</text></outputEntry>
+        <outputEntry id="OutputEntry_P1_3"><text>"Prosseguir com envio de guia TISS. Garantir criptografia em transito (TLS 1.2+) e anonimizacao quando possivel."</text></outputEntry>
+        <outputEntry id="OutputEntry_P1_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_P1_5"><text>"BAIXO"</text></outputEntry>
+      </rule>
+
+      <!-- REGRA P2: Aprovado - Emergencia com dados completos -->
+      <rule id="Rule_Aprovado_2">
+        <description>Emergencia justifica compartilhamento amplo</description>
+        <inputEntry id="InputEntry_P2_1"><text>true</text></inputEntry>
+        <inputEntry id="InputEntry_P2_2"><text>"EMERGENCIA"</text></inputEntry>
+        <inputEntry id="InputEntry_P2_3"><text>"COMPLETO"</text></inputEntry>
+        <outputEntry id="OutputEntry_P2_1"><text>"Prosseguir"</text></outputEntry>
+        <outputEntry id="OutputEntry_P2_2"><text>"Situacao de emergencia justifica compartilhamento amplo conforme LGPD Art. 7 VII (protecao a vida). Documentar natureza da emergencia."</text></outputEntry>
+        <outputEntry id="OutputEntry_P2_3"><text>"Prosseguir com compartilhamento. Registrar justificativa de emergencia no prontuario. Notificar paciente posteriormente."</text></outputEntry>
+        <outputEntry id="OutputEntry_P2_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_P2_5"><text>"BAIXO"</text></outputEntry>
+      </rule>
+
+      <!-- REGRA F: Fallback - Requer revisao manual -->
+      <rule id="Rule_Fallback_COMP_LGPD_007">
+        <description>Regra padrao - Requer avaliacao manual</description>
+        <inputEntry id="InputEntry_F_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_F_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_F_3"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_F_1"><text>"Revisar"</text></outputEntry>
+        <outputEntry id="OutputEntry_F_2"><text>"Situacao de compartilhamento com operadora requer analise manual. Verificar consentimento, finalidade e abrangencia dos dados."</text></outputEntry>
+        <outputEntry id="OutputEntry_F_3"><text>"Encaminhar para DPO para avaliacao de conformidade LGPD e adequacao ao principio da minimizacao."</text></outputEntry>
+        <outputEntry id="OutputEntry_F_4"><text>"DOC"</text></outputEntry>
+        <outputEntry id="OutputEntry_F_5"><text>"MEDIO"</text></outputEntry>
+      </rule>
+
+    </decisionTable>
+  </decision>
+
+  <dmndi:DMNDI>
+    <dmndi:DMNDiagram id="DMNDiagram_COMP_LGPD_007">
+      <dmndi:DMNShape id="DMNShape_Decision_COMP_LGPD_007" dmnElementRef="Decision_COMP_LGPD_007">
+        <dc:Bounds height="80" width="180" x="160" y="100"/>
+      </dmndi:DMNShape>
+    </dmndi:DMNDiagram>
+  </dmndi:DMNDI>
+
+</definitions>

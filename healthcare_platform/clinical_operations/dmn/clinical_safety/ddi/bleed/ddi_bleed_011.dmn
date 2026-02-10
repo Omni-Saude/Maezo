@@ -1,0 +1,165 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/" xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/" xmlns:dc="http://www.omg.org/spec/DMN/20180521/DC/" xmlns:di="http://www.omg.org/spec/DMN/20180521/DI/" id="DDI_BLEED_011" name="DDI-BLEED-011: DOACs + AINEs" namespace="http://camunda.org/schema/1.0/dmn">
+  <decision id="ddi_bleed_011_decision" name="DOACs + NSAIDs Bleeding Risk">
+    <decisionTable id="ddi_bleed_011_table" hitPolicy="FIRST">
+      <input id="input_medicamentos_ativos" label="Medicamentos Ativos">
+        <inputExpression id="input_expr_medicamentos_ativos" typeRef="string">
+          <text>medicamentosAtivos</text>
+        </inputExpression>
+      </input>
+      <input id="input_medicamento_novo" label="Medicamento Novo">
+        <inputExpression id="input_expr_medicamento_novo" typeRef="string">
+          <text>medicamentoNovo</text>
+        </inputExpression>
+      </input>
+      <input id="input_tfg" label="TFG (ml/min)">
+        <inputExpression id="input_expr_tfg" typeRef="number">
+          <text>taxaFiltracaoGlomerular</text>
+        </inputExpression>
+      </input>
+      <input id="input_idade" label="Idade (anos)">
+        <inputExpression id="input_expr_idade" typeRef="number">
+          <text>idade</text>
+        </inputExpression>
+      </input>
+
+      <output id="output_nivel_alerta" name="nivelAlerta" typeRef="string">
+        <outputValues>
+          <text>"Alerta","Atencao","Informativo","OK"</text>
+        </outputValues>
+      </output>
+      <output id="output_urgencia" name="urgencia" typeRef="string">
+        <outputValues>
+          <text>"IMEDIATA","URGENTE","ROTINA"</text>
+        </outputValues>
+      </output>
+      <output id="output_medicamentos_conflitantes" name="medicamentosConflitantes" typeRef="string" />
+      <output id="output_mecanismo_interacao" name="mecanismoInteracao" typeRef="string" />
+      <output id="output_acao_requerida" name="acaoRequerida" typeRef="string" />
+
+      <!-- Rule 1: DOAC + AINE com insuficiência renal moderada-grave -->
+      <rule id="rule_doac_aine_renal">
+        <inputEntry id="input_medicamentos_doac">
+          <text>list contains(medicamentosAtivos, "APIXABANA") or list contains(medicamentosAtivos, "RIVAROXABANA") or list contains(medicamentosAtivos, "DABIGATRANA") or list contains(medicamentosAtivos, "EDOXABANA")</text>
+        </inputEntry>
+        <inputEntry id="input_novo_aine">
+          <text>"DICLOFENACO" or "IBUPROFENO" or "NAPROXENO" or "CETOPROFENO" or "PIROXICAM" or "MELOXICAM" or "INDOMETACINA"</text>
+        </inputEntry>
+        <inputEntry id="input_tfg_baixo">
+          <text>&lt; 60</text>
+        </inputEntry>
+        <inputEntry id="input_idade_any">
+          <text>-</text>
+        </inputEntry>
+        <outputEntry id="output_alerta_renal">
+          <text>"Alerta"</text>
+        </outputEntry>
+        <outputEntry id="output_urgencia_renal">
+          <text>"IMEDIATA"</text>
+        </outputEntry>
+        <outputEntry id="output_conflitantes_renal">
+          <text>"DOAC + AINE (TFG &lt;60 ml/min)"</text>
+        </outputEntry>
+        <outputEntry id="output_mecanismo_renal">
+          <text>"RISCO CRÍTICO: (1) DOACs têm eliminação renal (rivaroxabana 66%, apixabana 27%, dabigatrana 80%, edoxabana 50%), (2) AINEs reduzem TFG (vasoconstricção arteriola aferente renal) → ACÚMULO DOAC, (3) AINEs inibem função plaquetária + lesam mucosa GI, (4) Insuficiência renal = sangramento 3-5x aumentado. COMBINAÇÃO PERIGOSA."</text>
+        </outputEntry>
+        <outputEntry id="output_acao_renal">
+          <text>"EVITAR ABSOLUTAMENTE AINEs: (1) SUSPENDER AINE imediatamente, (2) Analgesia: paracetamol 4g/dia ou tramadol, (3) REAVALIAR dose DOAC conforme TFG (apixabana 2.5mg 12/12h se TFG 15-29, dabigatrana contraindicado TFG &lt;30), (4) Monitorar função renal semanalmente, (5) IBP profilático se AINE ABSOLUTAMENTE necessário (raro), (6) Considerar switch para warfarin se TFG &lt;30 (melhor controlável)."</text>
+        </outputEntry>
+      </rule>
+
+      <!-- Rule 2: DOAC + AINE em idosos ≥75 anos -->
+      <rule id="rule_doac_aine_idoso">
+        <inputEntry id="input_medicamentos_doac_id">
+          <text>list contains(medicamentosAtivos, "APIXABANA") or list contains(medicamentosAtivos, "RIVAROXABANA") or list contains(medicamentosAtivos, "DABIGATRANA") or list contains(medicamentosAtivos, "EDOXABANA")</text>
+        </inputEntry>
+        <inputEntry id="input_novo_aine_id">
+          <text>"DICLOFENACO" or "IBUPROFENO" or "NAPROXENO" or "CETOPROFENO" or "PIROXICAM" or "MELOXICAM" or "INDOMETACINA"</text>
+        </inputEntry>
+        <inputEntry id="input_tfg_preservado">
+          <text>&gt;= 60</text>
+        </inputEntry>
+        <inputEntry id="input_idade_alta">
+          <text>&gt;= 75</text>
+        </inputEntry>
+        <outputEntry id="output_alerta_idoso">
+          <text>"Alerta"</text>
+        </outputEntry>
+        <outputEntry id="output_urgencia_idoso">
+          <text>"IMEDIATA"</text>
+        </outputEntry>
+        <outputEntry id="output_conflitantes_idoso">
+          <text>"DOAC + AINE (idade ≥75 anos)"</text>
+        </outputEntry>
+        <outputEntry id="output_mecanismo_idoso">
+          <text>"Risco sangramento GI 4-5x aumentado em idosos. Mecanismo: (1) DOAC inibe trombina/fator Xa, (2) AINE inibe COX-1 plaquetária + lesa mucosa gástrica, (3) Idosos: menor clearance DOAC + mucosa gástrica frágil + polifarmácia. Sangramento GI GRAVE comum."</text>
+        </outputEntry>
+        <outputEntry id="output_acao_idoso">
+          <text>"EVITAR AINEs: (1) Suspender AINE, (2) Paracetamol 3g/dia primeira linha (reduzir dose em idosos frágeis), (3) Se AINE ESSENCIAL: celecoxibe 100mg/dia (dose MENOR) + IBP (omeprazol 40mg/dia), (4) Limitar AINE máximo 5 dias, (5) Monitorar Hb 7 dias após início AINE, (6) Educar sinais sangramento (melena, vômito escuro)."</text>
+        </outputEntry>
+      </rule>
+
+      <!-- Rule 3: DOAC + AINE em adultos <75 anos, função renal normal -->
+      <rule id="rule_doac_aine_adulto">
+        <inputEntry id="input_medicamentos_doac_ad">
+          <text>list contains(medicamentosAtivos, "APIXABANA") or list contains(medicamentosAtivos, "RIVAROXABANA") or list contains(medicamentosAtivos, "DABIGATRANA") or list contains(medicamentosAtivos, "EDOXABANA")</text>
+        </inputEntry>
+        <inputEntry id="input_novo_aine_ad">
+          <text>"DICLOFENACO" or "IBUPROFENO" or "NAPROXENO" or "CETOPROFENO" or "PIROXICAM" or "MELOXICAM" or "INDOMETACINA"</text>
+        </inputEntry>
+        <inputEntry id="input_tfg_normal">
+          <text>&gt;= 60</text>
+        </inputEntry>
+        <inputEntry id="input_idade_normal">
+          <text>&lt; 75</text>
+        </inputEntry>
+        <outputEntry id="output_alerta_adulto">
+          <text>"Alerta"</text>
+        </outputEntry>
+        <outputEntry id="output_urgencia_adulto">
+          <text>"IMEDIATA"</text>
+        </outputEntry>
+        <outputEntry id="output_conflitantes_adulto">
+          <text>"DOAC + AINE"</text>
+        </outputEntry>
+        <outputEntry id="output_mecanismo_adulto">
+          <text>"Risco sangramento GI 2-3x aumentado. DOACs + AINEs = duplo mecanismo pró-hemorrágico (anticoagulação + disfunção plaquetária + lesão mucosa)."</text>
+        </outputEntry>
+        <outputEntry id="output_acao_adulto">
+          <text>"PREFERIR alternativas: (1) SUSPENDER AINE, usar paracetamol, (2) Se AINE necessário: (a) Celecoxibe 200mg/dia (COX-2 seletivo - 50% menos risco GI), (b) IBP obrigatório (omeprazol 20mg/dia), (c) Limitar duração AINE ≤7 dias, (3) Evitar AINEs alta potência (indometacina, piroxicam), (4) Monitorar sinais sangramento, (5) Reavaliar necessidade AINE em 3-5 dias."</text>
+        </outputEntry>
+      </rule>
+
+      <!-- Fallback Rule -->
+      <rule id="rule_fallback">
+        <inputEntry id="input_fallback_1">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="input_fallback_2">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="input_fallback_3">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="input_fallback_4">
+          <text>-</text>
+        </inputEntry>
+        <outputEntry id="output_fallback_1">
+          <text>"OK"</text>
+        </outputEntry>
+        <outputEntry id="output_fallback_2">
+          <text>"ROTINA"</text>
+        </outputEntry>
+        <outputEntry id="output_fallback_3">
+          <text>""</text>
+        </outputEntry>
+        <outputEntry id="output_fallback_4">
+          <text>""</text>
+        </outputEntry>
+        <outputEntry id="output_fallback_5">
+          <text>""</text>
+        </outputEntry>
+      </rule>
+    </decisionTable>
+  </decision>
+</definitions>

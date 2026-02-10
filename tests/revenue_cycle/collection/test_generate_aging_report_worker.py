@@ -4,8 +4,8 @@ from datetime import date
 
 import pytest
 
-from platform.revenue_cycle.collection.enums import AgingBucket
-from platform.revenue_cycle.collection.workers.generate_aging_report_worker import GenerateAgingReportWorker
+from healthcare_platform.revenue_cycle.collection.enums import AgingBucket
+from healthcare_platform.revenue_cycle.collection.workers.generate_aging_report_worker import GenerateAgingReportWorker
 
 
 @pytest.mark.asyncio

@@ -3,7 +3,7 @@
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 
-from revenue_cycle.coding.workers.check_code_compatibility_worker import (
+from healthcare_platform.revenue_cycle.coding.workers.check_code_compatibility_worker import (
     CheckCodeCompatibilityWorker,
     CheckCodeCompatibilityInput,
     CheckCodeCompatibilityOutput,

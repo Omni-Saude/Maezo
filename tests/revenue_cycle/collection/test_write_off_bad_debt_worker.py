@@ -2,9 +2,9 @@ from __future__ import annotations
 
 import pytest
 
-from platform.revenue_cycle.collection.enums import CollectionStatus
-from platform.revenue_cycle.collection.exceptions import WriteOffError
-from platform.revenue_cycle.collection.workers.write_off_bad_debt_worker import (
+from healthcare_platform.revenue_cycle.collection.enums import CollectionStatus
+from healthcare_platform.revenue_cycle.collection.exceptions import WriteOffError
+from healthcare_platform.revenue_cycle.collection.workers.write_off_bad_debt_worker import (
     WriteOffBadDebtWorker,
 )
 

@@ -5,10 +5,10 @@ import json
 
 import pytest
 
-from platform.revenue_cycle.collection.workers.receive_payment_notification_worker import (
+from healthcare_platform.revenue_cycle.collection.workers.receive_payment_notification_worker import (
     ReceivePaymentNotificationWorker,
 )
-from platform.revenue_cycle.collection.exceptions import PaymentValidationError
+from healthcare_platform.revenue_cycle.collection.exceptions import PaymentValidationError
 
 
 @pytest.mark.asyncio

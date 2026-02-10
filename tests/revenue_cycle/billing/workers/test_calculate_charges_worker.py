@@ -7,8 +7,8 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from platform.revenue_cycle.billing.workers.calculate_charges_worker import CalculateChargesWorker
-from platform.shared.domain.exceptions import BillingException
+from healthcare_platform.revenue_cycle.billing.workers.calculate_charges_worker import CalculateChargesWorker
+from healthcare_platform.shared.domain.exceptions import BillingException
 
 
 @pytest.fixture

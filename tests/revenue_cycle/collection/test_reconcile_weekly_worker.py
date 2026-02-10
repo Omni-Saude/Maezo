@@ -4,8 +4,8 @@ from datetime import date, timedelta
 
 import pytest
 
-from platform.revenue_cycle.collection.enums import ReconciliationPeriod
-from platform.revenue_cycle.collection.workers.reconcile_weekly_worker import ReconcileWeeklyWorker
+from healthcare_platform.revenue_cycle.collection.enums import ReconciliationPeriod
+from healthcare_platform.revenue_cycle.collection.workers.reconcile_weekly_worker import ReconcileWeeklyWorker
 
 
 @pytest.mark.asyncio

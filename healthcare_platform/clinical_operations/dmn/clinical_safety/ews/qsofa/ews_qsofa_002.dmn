@@ -1,0 +1,280 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  ============================================================================
+  EWS-qSOFA-002: qSOFA with Lactate Integration
+  ============================================================================
+
+  Quick SOFA combined with lactate for enhanced sepsis detection.
+  Lactate adds sensitivity to qSOFA screening.
+
+  Evidence Base: Sepsis-3, Surviving Sepsis Campaign 2021
+  Lactate >2 mmol/L with qSOFA >=2 confirms organ dysfunction
+
+  ============================================================================
+-->
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/"
+             xmlns:dc="http://www.omg.org/spec/DMN/20180521/DC/"
+             id="Definitions_EWS_qSOFA_002"
+             name="qSOFA Lactate Integration"
+             targetNamespace="http://camunda.org/schema/1.0/dmn">
+
+  <!--
+    ═══════════════════════════════════════════════════════════════════════════
+    EWS-qSOFA-002: qSOFA with Lactate Integration
+    Version: 1.0.0 (2026-02-06)
+    Clinical Domain: Critical Care / Infectious Disease
+    ═══════════════════════════════════════════════════════════════════════════
+
+    TRIGGER CONDITIONS:
+    - Lactate >2 mmol/L (hyperlactatemia)
+    - Lactate >4 mmol/L (severe hyperlactatemia)
+    - Combined with qSOFA criteria
+
+    CLINICAL SIGNIFICANCE:
+    - Lactate clearance target: >10% decrease in 2-4 hours
+    - Lactate >4 with hypotension = septic shock definition
+
+    EVIDENCE BASE:
+    - Sepsis-3: Lactate >2 with need for vasopressors = septic shock
+    - Serial lactate monitoring guides resuscitation
+    ═══════════════════════════════════════════════════════════════════════════
+  -->
+
+  <decision id="Decision_EWS_qSOFA_002" name="qSOFA Lactate Integration Evaluation">
+    <decisionTable id="DecisionTable_EWS_qSOFA_002" hitPolicy="FIRST">
+
+      <!-- INPUT 1: Lactate Level -->
+      <input id="Input_1" label="Lactato">
+        <inputExpression id="InputExpression_1" typeRef="number">
+          <text>lactato</text>
+        </inputExpression>
+      </input>
+
+      <!-- INPUT 2: qSOFA Score -->
+      <input id="Input_2" label="qSOFA Score">
+        <inputExpression id="InputExpression_2" typeRef="number">
+          <text>qsofaScore</text>
+        </inputExpression>
+      </input>
+
+      <!-- INPUT 3: Requiring Vasopressors -->
+      <input id="Input_3" label="Vasopressores">
+        <inputExpression id="InputExpression_3" typeRef="boolean">
+          <text>emUsoVasopressores</text>
+        </inputExpression>
+      </input>
+
+      <!-- INPUT 4: Lactate Trend (if serial) -->
+      <input id="Input_4" label="Tendencia Lactato">
+        <inputExpression id="InputExpression_4" typeRef="string">
+          <text>tendenciaLactato</text>
+        </inputExpression>
+      </input>
+
+      <!-- OUTPUT 1: Alert Level -->
+      <output id="Output_1" label="Nivel Alerta" name="nivelAlerta" typeRef="string">
+        <outputValues id="OutputValues_1">
+          <text>"Alerta", "Atencao", "Informativo", "OK", "Revisar"</text>
+        </outputValues>
+      </output>
+
+      <!-- OUTPUT 2: Urgency -->
+      <output id="Output_2" label="Urgencia" name="urgencia" typeRef="string">
+        <outputValues id="OutputValues_2">
+          <text>"IMEDIATA", "URGENTE", "ROTINA", "INFORMATIVA"</text>
+        </outputValues>
+      </output>
+
+      <!-- OUTPUT 3: Required Action -->
+      <output id="Output_3" label="Acao Requerida" name="acaoRequerida" typeRef="string"/>
+
+      <!-- OUTPUT 4: Clinical Justification -->
+      <output id="Output_4" label="Justificativa Cientifica" name="justificativaCientifica" typeRef="string"/>
+
+      <!-- RULE 1: CRITICAL - Lactate >4 + Vasopressors (Septic Shock) -->
+      <rule id="Rule_Critical_SepticShock">
+        <description>Lactate >4 with vasopressors defines septic shock</description>
+        <inputEntry id="InputEntry_1_1">
+          <text>&gt; 4</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_1_2">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_1_3">
+          <text>true</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_1_4">
+          <text>-</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_1_1">
+          <text>"Alerta"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_1_2">
+          <text>"IMEDIATA"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_1_3">
+          <text>"CHOQUE SEPTICO DEFINIDO (Sepsis-3). Lactato >4 + vasopressores = mortalidade 40-50%. Otimizar ressuscitacao. Target PAM >=65mmHg. Repetir lactato em 2h - meta clareamento >10%. Considerar corticoide se refratario. UTI obrigatoria."</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_1_4">
+          <text>"Definicao Sepsis-3 de choque septico: necessidade de vasopressores + lactato >2mmol/L apos ressuscitacao volemica. Lactato >4 indica hipoperfusao severa. Mortalidade sem clareamento de lactato: >60%."</text>
+        </outputEntry>
+      </rule>
+
+      <!-- RULE 2: CRITICAL - Severe Hyperlactatemia (>4) -->
+      <rule id="Rule_Critical_SevereLactate">
+        <description>Lactate >4 mmol/L indicates severe tissue hypoperfusion</description>
+        <inputEntry id="InputEntry_2_1">
+          <text>&gt; 4</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_2_2">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_2_3">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_2_4">
+          <text>-</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_2_1">
+          <text>"Alerta"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_2_2">
+          <text>"IMEDIATA"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_2_3">
+          <text>"HIPERLACTATEMIA GRAVE. Indicador de hipoperfusao tecidual severa. Ressuscitacao volemica agressiva. Identificar e tratar causa (sepse, choque, isquemia). Repetir lactato em 2 horas. Avaliar gasometria. Preparar para UTI."</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_2_4">
+          <text>"Lactato >4mmol/L indica metabolismo anaerobico significativo por hipoperfusao. Causas: sepse, choque cardiogenico, isquemia mesenterica. Clareamento de lactato e melhor preditor de sobrevida que valor absoluto."</text>
+        </outputEntry>
+      </rule>
+
+      <!-- RULE 3: HIGH RISK - Lactate 2-4 + qSOFA positive -->
+      <rule id="Rule_HighRisk_ModerateLactate_qSOFA">
+        <description>Moderate lactate elevation with positive qSOFA</description>
+        <inputEntry id="InputEntry_3_1">
+          <text>[2..4]</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_3_2">
+          <text>&gt;= 2</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_3_3">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_3_4">
+          <text>-</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_3_1">
+          <text>"Alerta"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_3_2">
+          <text>"URGENTE"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_3_3">
+          <text>"SEPSE com disfuncao organica confirmada. Lactato 2-4 com qSOFA positivo. Completar bundle sepse hora-1. Antibiotico se nao iniciado. Ressuscitacao guiada por lactato. Meta: clareamento >=10% em 2-4h. Monitorar PAM e debito urinario."</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_3_4">
+          <text>"Combinacao de qSOFA >=2 + lactato 2-4 mmol/L confirma sepse com disfuncao organica. Sensibilidade combinada: 67%. Ressuscitacao precoce guiada por lactato reduz mortalidade em 20%."</text>
+        </outputEntry>
+      </rule>
+
+      <!-- RULE 4: ATTENTION - Rising Lactate Trend -->
+      <rule id="Rule_Attention_RisingLactate">
+        <description>Lactate increasing despite treatment - poor response</description>
+        <inputEntry id="InputEntry_4_1">
+          <text>&gt; 2</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_4_2">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_4_3">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_4_4">
+          <text>"aumentando"</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_4_1">
+          <text>"Alerta"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_4_2">
+          <text>"URGENTE"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_4_3">
+          <text>"LACTATO EM ASCENSAO apesar de tratamento. Indicador de deterioracao. Reavaliar fonte de infeccao - nao controlada? Adequacao de antibiotico? Necessidade de drenagem cirurgica? Perfusao adequada? Intensificar suporte."</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_4_4">
+          <text>"Lactato em ascensao durante tratamento indica falha terapeutica: fonte de infeccao nao controlada, antibiotico inadequado, ou perfusao insuficiente. Associado a mortalidade >50%. Mandatoria reavaliacao agressiva."</text>
+        </outputEntry>
+      </rule>
+
+      <!-- RULE 5: INFO - Lactate Clearing -->
+      <rule id="Rule_Info_LactateClearance">
+        <description>Lactate decreasing - positive response to treatment</description>
+        <inputEntry id="InputEntry_5_1">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_5_2">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_5_3">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_5_4">
+          <text>"clareando"</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_5_1">
+          <text>"Informativo"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_5_2">
+          <text>"INFORMATIVA"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_5_3">
+          <text>"Lactato em clareamento - resposta positiva ao tratamento. Manter conduta atual. Continuar monitoramento seriado ate normalizacao (&lt;2mmol/L). Considerar desescalonamento de suporte quando estavel por >6h."</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_5_4">
+          <text>"Clareamento de lactato >=10% em 2-4h associado a reducao de 11% na mortalidade por hora de clareamento. Melhor preditor de sobrevida em sepse que valor absoluto ou ScvO2."</text>
+        </outputEntry>
+      </rule>
+
+      <!-- RULE 6: FALLBACK -->
+      <rule id="Rule_Fallback_EWS_qSOFA_002">
+        <description>Lactato normal ou dados incompletos</description>
+        <inputEntry id="InputEntry_F_1">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_F_2">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_F_3">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_F_4">
+          <text>-</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_F_1">
+          <text>"Revisar"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_F_2">
+          <text>"ROTINA"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_F_3">
+          <text>"Lactato &lt;2mmol/L ou nao dosado. Se suspeita de sepse, dosar lactato como parte do screening. Lactato normal nao exclui sepse mas indica menor risco de choque."</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_F_4">
+          <text>"Lactato deve ser dosado em todo paciente com suspeita de sepse (Surviving Sepsis Campaign). Valor normal (&lt;2mmol/L) tem bom prognostico mas nao exclui infeccao. Seguir avaliacao clinica."</text>
+        </outputEntry>
+      </rule>
+
+    </decisionTable>
+  </decision>
+
+  <dmndi:DMNDI>
+    <dmndi:DMNDiagram id="DMNDiagram_EWS_qSOFA_002">
+      <dmndi:DMNShape id="DMNShape_Decision_EWS_qSOFA_002" dmnElementRef="Decision_EWS_qSOFA_002">
+        <dc:Bounds height="80" width="180" x="160" y="100"/>
+      </dmndi:DMNShape>
+    </dmndi:DMNDiagram>
+  </dmndi:DMNDI>
+
+</definitions>

@@ -6,9 +6,9 @@ from datetime import datetime
 
 import pytest
 
-from platform.revenue_cycle.billing.workers.submit_to_payer_worker import SubmitToPayerWorker
-from platform.shared.domain.exceptions import ClaimSubmissionError
-from platform.shared.integrations.tiss_client import StubTISSClient, TISSSubmissionResult
+from healthcare_platform.revenue_cycle.billing.workers.submit_to_payer_worker import SubmitToPayerWorker
+from healthcare_platform.shared.domain.exceptions import ClaimSubmissionError
+from healthcare_platform.shared.integrations.tiss_client import StubTISSClient, TISSSubmissionResult
 
 
 @pytest.fixture

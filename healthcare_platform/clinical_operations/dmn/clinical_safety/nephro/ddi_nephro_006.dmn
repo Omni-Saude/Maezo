@@ -1,0 +1,100 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- ============================================================================
+     DDI-NEPHRO-006: Ciclosporina + AINEs - Nefrotoxicidade Sinergica
+
+     EVIDENCIA CLINICA:
+     - Micromedex: Major Interaction
+     - KDIGO Guidelines - Drug Interactions in CKD
+     - Koren G et al. Clin Pharmacol Ther. 1987;42:601-4
+
+     MECANISMO: Ciclosporina causa vasoconstriccao arteriolar aferente renal.
+     AINEs inibem prostaglandinas vasodilatadoras compensatorias. Combinacao
+     resulta em isquemia glomerular e reducao acentuada da TFG.
+
+     INCIDENCIA: Reducao TFG >25% em 40-60% dos pacientes
+     ============================================================================ -->
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/" xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/" xmlns:dc="http://www.omg.org/spec/DMN/20180521/DC/" xmlns:di="http://www.omg.org/spec/DMN/20180521/DI/" id="DDI_NEPHRO_006" name="DDI-NEPHRO-006: Ciclosporina + AINEs" namespace="http://camunda.org/schema/1.0/dmn">
+  <decision id="ddi_nephro_006_decision" name="Ciclosporina + AINEs - Nefrotoxicidade Sinergica">
+    <decisionTable id="ddi_nephro_006_table" hitPolicy="FIRST">
+      <input id="input_medicamentos_ativos" label="Medicamentos Ativos">
+        <inputExpression id="input_expr_medicamentos" typeRef="string">
+          <text>medicamentosAtivos</text>
+        </inputExpression>
+      </input>
+      <input id="input_medicamento_novo" label="Medicamento Novo">
+        <inputExpression id="input_expr_novo" typeRef="string">
+          <text>medicamentoNovo</text>
+        </inputExpression>
+      </input>
+      <input id="input_nivel_ciclosporina" label="Nivel Serico Ciclosporina (ng/mL)">
+        <inputExpression id="input_expr_nivel" typeRef="number">
+          <text>nivelCiclosporina</text>
+        </inputExpression>
+      </input>
+
+      <output id="output_nivel_alerta" name="nivelAlerta" typeRef="string">
+        <outputValues><text>"Alerta","Atencao","Informativo","OK"</text></outputValues>
+      </output>
+      <output id="output_acao_requerida" name="acaoRequerida" typeRef="string" />
+      <output id="output_justificativa" name="justificativaCientifica" typeRef="string" />
+
+      <!-- Rule 1: Ciclosporina + AINE + nivel alto -->
+      <rule id="rule_ciclo_aine_alto">
+        <inputEntry id="ie_ciclosporina_ativa">
+          <text>list contains(medicamentosAtivos, "CICLOSPORINA")</text>
+        </inputEntry>
+        <inputEntry id="ie_aine_novo">
+          <text>"IBUPROFENO" or "DICLOFENACO" or "NAPROXENO" or "PIROXICAM" or "INDOMETACINA" or "MELOXICAM" or "NIMESULIDA"</text>
+        </inputEntry>
+        <inputEntry id="ie_nivel_alto">
+          <text>&gt; 200</text>
+        </inputEntry>
+        <outputEntry id="oe_alerta_alto"><text>"Alerta"</text></outputEntry>
+        <outputEntry id="oe_acao_alto"><text>"EVITAR AINE. Nivel ciclosporina&gt; 200ng/mL = alto risco nefrotoxicidade. Usar paracetamol para dor. Se AINE absolutamente necessario, usar menor dose por max 3-5 dias, monitorar creatinina em 48h e ajustar dose ciclosporina."</text></outputEntry>
+        <outputEntry id="oe_just_alto"><text>"Ciclosporina + AINE: reducao TFG 30-50% por vasoconstriccao sinergica. Alto risco com niveis elevados. KDIGO Guidelines."</text></outputEntry>
+      </rule>
+
+      <!-- Rule 2: Ciclosporina + AINE + nivel terapeutico -->
+      <rule id="rule_ciclo_aine_normal">
+        <inputEntry id="ie_ciclosporina_ativa2">
+          <text>list contains(medicamentosAtivos, "CICLOSPORINA")</text>
+        </inputEntry>
+        <inputEntry id="ie_aine_novo2">
+          <text>"IBUPROFENO" or "DICLOFENACO" or "NAPROXENO" or "PIROXICAM" or "MELOXICAM" or "NIMESULIDA"</text>
+        </inputEntry>
+        <inputEntry id="ie_nivel_normal">
+          <text>[100..200]</text>
+        </inputEntry>
+        <outputEntry id="oe_atencao_normal"><text>"Atencao"</text></outputEntry>
+        <outputEntry id="oe_acao_normal"><text>"Preferir paracetamol ou tramadol. Se AINE necessario, usar por curto periodo (&lt; 5 dias), menor dose eficaz. Monitorar creatinina antes, em 3 e 7 dias. Orientar hidratacao adequada."</text></outputEntry>
+        <outputEntry id="oe_just_normal"><text>"Risco moderado de reducao TFG. Uso intermitente e curto pode ser tolerado com monitorizacao. Koren G, Clin Pharmacol Ther 1987."</text></outputEntry>
+      </rule>
+
+      <!-- Rule 3: AINE em uso + Ciclosporina nova -->
+      <rule id="rule_aine_ciclosporina">
+        <inputEntry id="ie_aine_ativo">
+          <text>list contains(medicamentosAtivos, "IBUPROFENO") or list contains(medicamentosAtivos, "DICLOFENACO") or list contains(medicamentosAtivos, "NAPROXENO") or list contains(medicamentosAtivos, "NIMESULIDA")</text>
+        </inputEntry>
+        <inputEntry id="ie_ciclosporina_nova">
+          <text>"CICLOSPORINA"</text>
+        </inputEntry>
+        <inputEntry id="ie_nivel_any">
+          <text>-</text>
+        </inputEntry>
+        <outputEntry id="oe_atencao_ciclo"><text>"Atencao"</text></outputEntry>
+        <outputEntry id="oe_acao_ciclo"><text>"Descontinuar ou substituir AINE antes de iniciar ciclosporina se possivel. Se AINE indispensavel, monitorar funcao renal de perto e considerar reducao dose inicial de ciclosporina."</text></outputEntry>
+        <outputEntry id="oe_just_ciclo"><text>"Iniciar ciclosporina em paciente com AINE aumenta risco IRA precoce. Reavaliar necessidade do AINE."</text></outputEntry>
+      </rule>
+
+      <!-- Fallback Rule -->
+      <rule id="Rule_Fallback">
+        <inputEntry id="ie_fallback1"><text>-</text></inputEntry>
+        <inputEntry id="ie_fallback2"><text>-</text></inputEntry>
+        <inputEntry id="ie_fallback3"><text>-</text></inputEntry>
+        <outputEntry id="oe_fallback1"><text>"OK"</text></outputEntry>
+        <outputEntry id="oe_fallback2"><text>""</text></outputEntry>
+        <outputEntry id="oe_fallback3"><text>""</text></outputEntry>
+      </rule>
+    </decisionTable>
+  </decision>
+</definitions>

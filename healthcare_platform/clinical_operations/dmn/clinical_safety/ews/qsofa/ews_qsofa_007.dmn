@@ -1,0 +1,253 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  ============================================================================
+  EWS-qSOFA-007: qSOFA Post-Surgical Patient Evaluation
+  ============================================================================
+
+  Quick SOFA evaluation adapted for post-surgical patients.
+  Surgery causes expected inflammatory response - modified interpretation.
+
+  Evidence Base: Sepsis-3 + Surgical literature
+  Considerations:
+  - Post-op SIRS is expected (surgical stress response)
+  - Surgical site infections develop 3-7 days post-op
+  - Anastomotic leaks present day 5-7
+  - Early signs may be subtle
+
+  ============================================================================
+-->
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/"
+             xmlns:dc="http://www.omg.org/spec/DMN/20180521/DC/"
+             id="Definitions_EWS_qSOFA_007"
+             name="qSOFA Post-Surgical"
+             targetNamespace="http://camunda.org/schema/1.0/dmn">
+
+  <!--
+    ═══════════════════════════════════════════════════════════════════════════
+    EWS-qSOFA-007: qSOFA Post-Surgical Patient Evaluation
+    Version: 1.0.0 (2026-02-06)
+    Clinical Domain: Surgical Critical Care
+    ═══════════════════════════════════════════════════════════════════════════
+
+    POST-SURGICAL TIMELINE:
+    - Day 0-2: Expected surgical stress response
+    - Day 3-5: Watch for developing infection
+    - Day 5-7: Peak risk for anastomotic leak
+    - Day 7+: Late complications (abscess, pneumonia)
+
+    MODIFIED INTERPRETATION:
+    - Expected tachycardia/tachypnea post-op day 0-2
+    - New abnormalities after day 3 are concerning
+    - Return to baseline expected by day 3-4
+    ═══════════════════════════════════════════════════════════════════════════
+  -->
+
+  <decision id="Decision_EWS_qSOFA_007" name="qSOFA Post-Surgical Evaluation">
+    <decisionTable id="DecisionTable_EWS_qSOFA_007" hitPolicy="FIRST">
+
+      <!-- INPUT 1: Days Post-Surgery -->
+      <input id="Input_1" label="Dias Pos Cirurgia">
+        <inputExpression id="InputExpression_1" typeRef="number">
+          <text>diasPosCirurgia</text>
+        </inputExpression>
+      </input>
+
+      <!-- INPUT 2: qSOFA Score -->
+      <input id="Input_2" label="qSOFA Score">
+        <inputExpression id="InputExpression_2" typeRef="number">
+          <text>qsofaScore</text>
+        </inputExpression>
+      </input>
+
+      <!-- INPUT 3: Surgery Type -->
+      <input id="Input_3" label="Tipo Cirurgia">
+        <inputExpression id="InputExpression_3" typeRef="string">
+          <text>tipoCirurgia</text>
+        </inputExpression>
+      </input>
+
+      <!-- INPUT 4: Worsening Trend -->
+      <input id="Input_4" label="Tendencia Piora">
+        <inputExpression id="InputExpression_4" typeRef="boolean">
+          <text>tendenciaPiora</text>
+        </inputExpression>
+      </input>
+
+      <!-- OUTPUT 1: Alert Level -->
+      <output id="Output_1" label="Nivel Alerta" name="nivelAlerta" typeRef="string">
+        <outputValues id="OutputValues_1">
+          <text>"Alerta", "Atencao", "Informativo", "OK", "Revisar"</text>
+        </outputValues>
+      </output>
+
+      <!-- OUTPUT 2: Urgency -->
+      <output id="Output_2" label="Urgencia" name="urgencia" typeRef="string">
+        <outputValues id="OutputValues_2">
+          <text>"IMEDIATA", "URGENTE", "ROTINA", "INFORMATIVA"</text>
+        </outputValues>
+      </output>
+
+      <!-- OUTPUT 3: Required Action -->
+      <output id="Output_3" label="Acao Requerida" name="acaoRequerida" typeRef="string"/>
+
+      <!-- OUTPUT 4: Clinical Justification -->
+      <output id="Output_4" label="Justificativa Cientifica" name="justificativaCientifica" typeRef="string"/>
+
+      <!-- RULE 1: CRITICAL - Day 5-7 post-abdominal surgery with qSOFA >=2 -->
+      <rule id="Rule_Critical_AnastomoticLeakWindow">
+        <description>Peak anastomotic leak risk window with positive qSOFA</description>
+        <inputEntry id="InputEntry_1_1">
+          <text>[5..7]</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_1_2">
+          <text>&gt;= 2</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_1_3">
+          <text>"abdominal"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_1_4">
+          <text>-</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_1_1">
+          <text>"Alerta"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_1_2">
+          <text>"IMEDIATA"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_1_3">
+          <text>"ALERTA DEISCENCIA/FISTULA. qSOFA positivo em D5-7 pos cirurgia abdominal - periodo de pico para deiscencia de anastomose. TC abdome URGENTE com contraste oral. Comunicar cirurgiao. Jejum. Antibiotico amplo espectro se nao em uso."</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_1_4">
+          <text>"Deiscencia de anastomose apresenta-se tipicamente entre D5-7 pos-op. qSOFA positivo neste periodo tem VPP >60% para complicacao grave. TC com contraste oral detecta vazamento em 95% dos casos. Mortalidade de deiscencia: 20-30%."</text>
+        </outputEntry>
+      </rule>
+
+      <!-- RULE 2: HIGH RISK - qSOFA >=2 after day 3 (any surgery) -->
+      <rule id="Rule_HighRisk_qSOFA2_AfterDay3">
+        <description>qSOFA positive after day 3 - unexpected, investigate</description>
+        <inputEntry id="InputEntry_2_1">
+          <text>&gt;= 3</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_2_2">
+          <text>&gt;= 2</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_2_3">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_2_4">
+          <text>-</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_2_1">
+          <text>"Alerta"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_2_2">
+          <text>"URGENTE"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_2_3">
+          <text>"qSOFA positivo apos D3 pos-operatorio - INESPERADO. Resposta cirurgica deve ter normalizado. Investigar complicacao: infeccao de sitio, abscesso, pneumonia, ITU, TEP. Hemograma, PCR, lactato. Imagem se indicado."</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_2_4">
+          <text>"Resposta inflamatoria cirurgica normaliza em 48-72h. qSOFA positivo apos D3 indica complicacao ate prova em contrario. Infeccao de sitio cirurgico desenvolve-se tipicamente D3-7. Nao atribuir a 'pos-operatorio normal'."</text>
+        </outputEntry>
+      </rule>
+
+      <!-- RULE 3: ATTENTION - Worsening trend in post-op patient -->
+      <rule id="Rule_Attention_WorseningTrend">
+        <description>Any post-op patient with worsening qSOFA trend</description>
+        <inputEntry id="InputEntry_3_1">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_3_2">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_3_3">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_3_4">
+          <text>true</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_3_1">
+          <text>"Atencao"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_3_2">
+          <text>"URGENTE"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_3_3">
+          <text>"Tendencia de PIORA em paciente pos-operatorio. Mesmo que qSOFA ainda &lt;2, piora progressiva requer atencao. Examinar ferida operatoria. Revisar drenos. Avaliar abdome se cirurgia abdominal. Comunicar equipe cirurgica."</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_3_4">
+          <text>"Em pos-operatorio, a TENDENCIA e mais importante que valor absoluto. Melhora progressiva e esperada; qualquer piora apos melhora inicial sugere complicacao. Cirurgioes valorizam muito 'nao vai bem' da equipe de enfermagem."</text>
+        </outputEntry>
+      </rule>
+
+      <!-- RULE 4: INFO - Day 0-2 with qSOFA 1-2 (expected response) -->
+      <rule id="Rule_Info_ExpectedResponse">
+        <description>Early post-op period with mild abnormalities - likely surgical stress</description>
+        <inputEntry id="InputEntry_4_1">
+          <text>[0..2]</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_4_2">
+          <text>[1..2]</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_4_3">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_4_4">
+          <text>false</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_4_1">
+          <text>"Informativo"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_4_2">
+          <text>"ROTINA"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_4_3">
+          <text>"qSOFA positivo em D0-2 pode representar resposta inflamatoria cirurgica esperada. Monitorar tendencia - deve melhorar progressivamente. Se piora ou persistencia alem de D2, investigar complicacao. Manter analgesia adequada."</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_4_4">
+          <text>"Resposta ao estresse cirurgico inclui taquicardia, taquipneia, leucocitose - criterios qSOFA e SIRS. Normalizacao esperada em 48-72h. Importante: tendencia deve ser de melhora, nao piora."</text>
+        </outputEntry>
+      </rule>
+
+      <!-- RULE 5: FALLBACK -->
+      <rule id="Rule_Fallback_EWS_qSOFA_007">
+        <description>Paciente nao pos-operatorio ou dados incompletos</description>
+        <inputEntry id="InputEntry_F_1">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_F_2">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_F_3">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_F_4">
+          <text>-</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_F_1">
+          <text>"Revisar"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_F_2">
+          <text>"ROTINA"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_F_3">
+          <text>"Paciente nao identificado como pos-operatorio ou dados incompletos. Se pos-cirurgico, documentar data e tipo da cirurgia. Usar regras qSOFA padrao (001-006) se nao pos-operatorio."</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_F_4">
+          <text>"Esta regra e especifica para pacientes pos-cirurgicos. Contexto cirurgico modifica interpretacao de qSOFA devido a resposta inflamatoria esperada. Informacao sobre tempo e tipo de cirurgia e essencial."</text>
+        </outputEntry>
+      </rule>
+
+    </decisionTable>
+  </decision>
+
+  <dmndi:DMNDI>
+    <dmndi:DMNDiagram id="DMNDiagram_EWS_qSOFA_007">
+      <dmndi:DMNShape id="DMNShape_Decision_EWS_qSOFA_007" dmnElementRef="Decision_EWS_qSOFA_007">
+        <dc:Bounds height="80" width="180" x="160" y="100"/>
+      </dmndi:DMNShape>
+    </dmndi:DMNDiagram>
+  </dmndi:DMNDI>
+
+</definitions>

@@ -8,7 +8,7 @@ import pytest
 from decimal import Decimal
 from unittest.mock import Mock
 
-from platform.revenue_cycle.glosa.workers.update_payment_worker import UpdatePaymentWorker
+from healthcare_platform.revenue_cycle.glosa.workers.update_payment_worker import UpdatePaymentWorker
 
 
 @pytest.fixture

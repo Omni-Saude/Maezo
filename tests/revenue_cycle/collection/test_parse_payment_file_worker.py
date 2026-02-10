@@ -3,10 +3,10 @@ from __future__ import annotations
 
 import pytest
 
-from platform.revenue_cycle.collection.workers.parse_payment_file_worker import (
+from healthcare_platform.revenue_cycle.collection.workers.parse_payment_file_worker import (
     ParsePaymentFileWorker,
 )
-from platform.revenue_cycle.collection.exceptions import CNABParsingError
+from healthcare_platform.revenue_cycle.collection.exceptions import CNABParsingError
 
 
 @pytest.mark.asyncio

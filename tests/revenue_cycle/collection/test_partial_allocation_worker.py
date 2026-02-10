@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import pytest
 
-from platform.revenue_cycle.collection.workers.partial_allocation_worker import PartialAllocationWorker
+from healthcare_platform.revenue_cycle.collection.workers.partial_allocation_worker import PartialAllocationWorker
 
 
 @pytest.fixture

@@ -5,8 +5,8 @@ import types
 
 import pytest
 
-from platform.revenue_cycle.billing.workers.retry_failed_submission_worker import RetryFailedSubmissionWorker
-from platform.shared.integrations.tiss_client import StubTISSClient, TISSSubmissionResult
+from healthcare_platform.revenue_cycle.billing.workers.retry_failed_submission_worker import RetryFailedSubmissionWorker
+from healthcare_platform.shared.integrations.tiss_client import StubTISSClient, TISSSubmissionResult
 
 
 @pytest.fixture

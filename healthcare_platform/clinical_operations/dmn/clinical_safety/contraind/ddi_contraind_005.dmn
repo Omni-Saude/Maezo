@@ -1,0 +1,148 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/" xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/" xmlns:dc="http://www.omg.org/spec/DMN/20180521/DC/" xmlns:di="http://www.omg.org/spec/DMN/20180521/DI/" id="DDI_CONTRAIND_005" name="DDI-CONTRAIND-005: Varfarina + Fluconazol (dose alta)" namespace="http://camunda.org/schema/1.0/dmn">
+  <decision id="ddi_contraind_005_decision" name="Varfarina + Fluconazol Interaction">
+    <decisionTable id="ddi_contraind_005_table" hitPolicy="FIRST">
+      <input id="input_medicamentos_ativos" label="Medicamentos Ativos">
+        <inputExpression id="input_expr_medicamentos_ativos" typeRef="string">
+          <text>medicamentosAtivos</text>
+        </inputExpression>
+      </input>
+      <input id="input_medicamento_novo" label="Medicamento Novo">
+        <inputExpression id="input_expr_medicamento_novo" typeRef="string">
+          <text>medicamentoNovo</text>
+        </inputExpression>
+      </input>
+      <input id="input_dose_fluconazol" label="Dose Fluconazol (mg)">
+        <inputExpression id="input_expr_dose" typeRef="number">
+          <text>doseFluconazol</text>
+        </inputExpression>
+      </input>
+
+      <output id="output_nivel_alerta" name="nivelAlerta" typeRef="string">
+        <outputValues>
+          <text>"Alerta","Atencao","Informativo"</text>
+        </outputValues>
+      </output>
+      <output id="output_urgencia" name="urgencia" typeRef="string">
+        <outputValues>
+          <text>"IMEDIATA","URGENTE","ROTINA"</text>
+        </outputValues>
+      </output>
+      <output id="output_medicamentos_conflitantes" name="medicamentosConflitantes" typeRef="string" />
+      <output id="output_mecanismo_interacao" name="mecanismoInteracao" typeRef="string" />
+      <output id="output_acao_requerida" name="acaoRequerida" typeRef="string" />
+
+      <!-- Rule 1: Varfarina + Fluconazol ≥400mg (dose alta) -->
+      <rule id="rule_varf_fluco_alta">
+        <inputEntry id="input_medicamentos_varf">
+          <text>list contains(medicamentosAtivos, "VARFARINA") or list contains(medicamentosAtivos, "WARFARIN")</text>
+        </inputEntry>
+        <inputEntry id="input_novo_fluco">
+          <text>"FLUCONAZOL"</text>
+        </inputEntry>
+        <inputEntry id="input_dose_alta">
+          <text>&gt;= 400</text>
+        </inputEntry>
+        <outputEntry id="output_alerta_alta">
+          <text>"Alerta"</text>
+        </outputEntry>
+        <outputEntry id="output_urgencia_alta">
+          <text>"IMEDIATA"</text>
+        </outputEntry>
+        <outputEntry id="output_conflitantes_alta">
+          <text>"Varfarina + Fluconazol ≥400mg"</text>
+        </outputEntry>
+        <outputEntry id="output_mecanismo_alta">
+          <text>"Fluconazol dose alta inibe CYP2C9 POTENTE = acumulo varfarina = INR CRITICO (&gt;8) = hemorragia GRAVE (intracraniana, GI). Risco mortalidade."</text>
+        </outputEntry>
+        <outputEntry id="output_acao_alta">
+          <text>"EVITAR: Reduzir varfarina 30-50% profilático. INR a cada 48h. Suspender se INR&gt;5. Vitamina K 2.5-5mg VO se INR 5-9. Alternativa: equinocandina (micafungina, anidulafungina - sem interação varfarina)."</text>
+        </outputEntry>
+      </rule>
+
+      <!-- Rule 2: Varfarina + Fluconazol 200mg (dose moderada) -->
+      <rule id="rule_varf_fluco_mod">
+        <inputEntry id="input_medicamentos_varf_mod">
+          <text>list contains(medicamentosAtivos, "VARFARINA") or list contains(medicamentosAtivos, "WARFARIN")</text>
+        </inputEntry>
+        <inputEntry id="input_novo_fluco_mod">
+          <text>"FLUCONAZOL"</text>
+        </inputEntry>
+        <inputEntry id="input_dose_mod">
+          <text>&gt;= 200, &lt; 400</text>
+        </inputEntry>
+        <outputEntry id="output_alerta_mod">
+          <text>"Atencao"</text>
+        </outputEntry>
+        <outputEntry id="output_urgencia_mod">
+          <text>"URGENTE"</text>
+        </outputEntry>
+        <outputEntry id="output_conflitantes_mod">
+          <text>"Varfarina + Fluconazol 200mg"</text>
+        </outputEntry>
+        <outputEntry id="output_mecanismo_mod">
+          <text>"Inibicao CYP2C9 moderada = risco INR elevado"</text>
+        </outputEntry>
+        <outputEntry id="output_acao_mod">
+          <text>"Reduzir varfarina 20-30%. INR basal + 3 dias, 7 dias. Se INR&gt;3.5, suspender 1 dose e reduzir dose semanal."</text>
+        </outputEntry>
+      </rule>
+
+      <!-- Rule 3: Fluconazol em uso + prescrição varfarina -->
+      <rule id="rule_fluco_varf">
+        <inputEntry id="input_medicamentos_fluco">
+          <text>list contains(medicamentosAtivos, "FLUCONAZOL")</text>
+        </inputEntry>
+        <inputEntry id="input_novo_varf">
+          <text>"VARFARINA" or "WARFARIN"</text>
+        </inputEntry>
+        <inputEntry id="input_dose_any">
+          <text>-</text>
+        </inputEntry>
+        <outputEntry id="output_alerta_fluco">
+          <text>"Alerta"</text>
+        </outputEntry>
+        <outputEntry id="output_urgencia_fluco">
+          <text>"IMEDIATA"</text>
+        </outputEntry>
+        <outputEntry id="output_conflitantes_fluco">
+          <text>"Fluconazol ativo + Varfarina prescrita"</text>
+        </outputEntry>
+        <outputEntry id="output_mecanismo_fluco">
+          <text>"CYP2C9 ja inibido = iniciar varfarina com dose REDUZIDA"</text>
+        </outputEntry>
+        <outputEntry id="output_acao_fluco">
+          <text>"Iniciar varfarina com 50-70% dose usual. INR diario dias 1-5. Ajustar dose conforme INR. Considerar DOAC se apropriado (apixabana, rivaroxabana - sem interacao fluconazol)."</text>
+        </outputEntry>
+      </rule>
+
+      <!-- Fallback Rule -->
+      <rule id="rule_fallback">
+        <inputEntry id="input_fallback_1">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="input_fallback_2">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="input_fallback_3">
+          <text>-</text>
+        </inputEntry>
+        <outputEntry id="output_fallback_1">
+          <text>"Informativo"</text>
+        </outputEntry>
+        <outputEntry id="output_fallback_2">
+          <text>"ROTINA"</text>
+        </outputEntry>
+        <outputEntry id="output_fallback_3">
+          <text>""</text>
+        </outputEntry>
+        <outputEntry id="output_fallback_4">
+          <text>""</text>
+        </outputEntry>
+        <outputEntry id="output_fallback_5">
+          <text>""</text>
+        </outputEntry>
+      </rule>
+    </decisionTable>
+  </decision>
+</definitions>

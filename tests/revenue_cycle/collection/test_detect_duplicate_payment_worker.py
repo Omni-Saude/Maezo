@@ -6,10 +6,10 @@ from unittest.mock import AsyncMock
 
 import pytest
 
-from platform.revenue_cycle.collection.workers.detect_duplicate_payment_worker import (
+from healthcare_platform.revenue_cycle.collection.workers.detect_duplicate_payment_worker import (
     DetectDuplicatePaymentWorker,
 )
-from platform.revenue_cycle.collection.exceptions import DuplicatePaymentError
+from healthcare_platform.revenue_cycle.collection.exceptions import DuplicatePaymentError
 
 
 class MockPaymentRepository:

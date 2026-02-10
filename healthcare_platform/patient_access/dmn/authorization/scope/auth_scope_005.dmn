@@ -1,0 +1,152 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  ============================================================================
+  AUTH-SCOPE-005 - Via de Acesso Autorizada (Cirurgia)
+  ============================================================================
+  Versao: 1.0.0 (2026-02-08)
+  Categoria: AUTH-SCOPE
+  Perspectiva: HOSPITAL (Faturamento/Auditoria)
+
+  ============================================================================
+  INDICACOES (Quando PROSSEGUIR):
+  ============================================================================
+  - Via de acesso cirurgica corresponde ao autorizado
+  - Tecnica cirurgica compativel com autorizacao
+  - Modalidade adequada ao procedimento
+
+  ============================================================================
+  CONTRAINDICACOES (Quando BLOQUEAR):
+  ============================================================================
+  - Via de acesso diferente da autorizada
+  - Tecnica cirurgica nao autorizada
+  - Conversao de tecnica sem autorizacao
+
+  ============================================================================
+  REFERENCIAS NORMATIVAS:
+  ============================================================================
+  - RN 424/2017 (Autorizacao Previa)
+  - RN 465/2021 (Procedimentos Regulados)
+  - TISS 4.01.00 (Guia Cirurgica)
+  - Lei 9.656/1998 Art. 12 (Cobertura Obrigatoria)
+  ============================================================================
+-->
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/"
+             xmlns:dc="http://www.omg.org/spec/DMN/20180521/DC/"
+             id="Definitions_AUTH_SCOPE_005"
+             name="Via de Acesso Autorizada (Cirurgia)"
+             targetNamespace="http://camunda.org/schema/1.0/dmn">
+
+  <decision id="Decision_AUTH_SCOPE_005" name="Verificar Via de Acesso Autorizada (Cirurgia)">
+    <decisionTable id="DecisionTable_AUTH_SCOPE_005" hitPolicy="FIRST">
+
+      <!-- ========== INPUTS ========== -->
+      <input id="Input_1" label="Via Autorizada">
+        <inputExpression id="InputExpression_1" typeRef="string">
+          <text>viaAutorizada</text>
+        </inputExpression>
+        <inputValues id="InputValues_1">
+          <text>"ABERTA", "VIDEOLAPAROSCOPICA", "ROBOTICA"</text>
+        </inputValues>
+      </input>
+
+      <input id="Input_2" label="Via Realizada">
+        <inputExpression id="InputExpression_2" typeRef="string">
+          <text>viaRealizada</text>
+        </inputExpression>
+        <inputValues id="InputValues_2">
+          <text>"ABERTA", "VIDEOLAPAROSCOPICA", "ROBOTICA"</text>
+        </inputValues>
+      </input>
+
+      <!-- ========== OUTPUTS (5 STANDARD) ========== -->
+      <output id="Output_1" label="Resultado" name="resultado" typeRef="string">
+        <outputValues><text>"Prosseguir", "Bloquear", "Alertar", "Revisar"</text></outputValues>
+      </output>
+
+      <output id="Output_2" label="Observacao" name="observacao" typeRef="string"/>
+
+      <output id="Output_3" label="Acao Recomendada" name="acaoRecomendada" typeRef="string"/>
+
+      <output id="Output_4" label="Alertas Conformidade" name="alertasConformidade" typeRef="string">
+        <outputValues><text>"NENHUM", "DUP", "FREQ", "PRAZO", "DOC", "VALOR", "CRED", "CONTRATO"</text></outputValues>
+      </output>
+
+      <output id="Output_5" label="Risco Denial" name="riscoDenial" typeRef="string">
+        <outputValues><text>"BAIXO", "MEDIO", "ALTO", "CRITICO"</text></outputValues>
+      </output>
+
+      <!-- ========== RULES ========== -->
+
+      <!-- REGRA B1: Bloqueio - Via divergente -->
+      <rule id="Rule_Bloqueio_1">
+        <description>Via de acesso realizada difere da autorizada</description>
+        <inputEntry id="InputEntry_B1_1"><text>not("" + viaRealizada = "" + viaAutorizada)</text></inputEntry>
+        <inputEntry id="InputEntry_B1_2"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_B1_1"><text>"Bloquear"</text></outputEntry>
+        <outputEntry id="OutputEntry_B1_2"><text>"Via de acesso cirurgica realizada difere da autorizada. Faturamento bloqueado."</text></outputEntry>
+        <outputEntry id="OutputEntry_B1_3"><text>"Solicitar autorizacao para via realizada ou justificar conversao de tecnica cirurgica."</text></outputEntry>
+        <outputEntry id="OutputEntry_B1_4"><text>"DOC"</text></outputEntry>
+        <outputEntry id="OutputEntry_B1_5"><text>"ALTO"</text></outputEntry>
+      </rule>
+
+      <!-- REGRA A1: Alerta - Conversao de videolaparoscopica para aberta -->
+      <rule id="Rule_Alerta_1">
+        <description>Conversao de cirurgia minimamente invasiva para aberta</description>
+        <inputEntry id="InputEntry_A1_1"><text>"VIDEOLAPAROSCOPICA", "ROBOTICA"</text></inputEntry>
+        <inputEntry id="InputEntry_A1_2"><text>"ABERTA"</text></inputEntry>
+        <outputEntry id="OutputEntry_A1_1"><text>"Alertar"</text></outputEntry>
+        <outputEntry id="OutputEntry_A1_2"><text>"Conversao de tecnica minimamente invasiva para cirurgia aberta. Requer justificativa."</text></outputEntry>
+        <outputEntry id="OutputEntry_A1_3"><text>"Documentar motivo da conversao (sangramento, aderencias, anatomia). Notificar operadora."</text></outputEntry>
+        <outputEntry id="OutputEntry_A1_4"><text>"DOC"</text></outputEntry>
+        <outputEntry id="OutputEntry_A1_5"><text>"MEDIO"</text></outputEntry>
+      </rule>
+
+      <!-- REGRA A2: Alerta - Conversao de aberta para videolaparoscopica -->
+      <rule id="Rule_Alerta_2">
+        <description>Conversao de cirurgia aberta para minimamente invasiva</description>
+        <inputEntry id="InputEntry_A2_1"><text>"ABERTA"</text></inputEntry>
+        <inputEntry id="InputEntry_A2_2"><text>"VIDEOLAPAROSCOPICA", "ROBOTICA"</text></inputEntry>
+        <outputEntry id="OutputEntry_A2_1"><text>"Alertar"</text></outputEntry>
+        <outputEntry id="OutputEntry_A2_2"><text>"Cirurgia autorizada como aberta mas realizada por via minimamente invasiva. Requer anuencia."</text></outputEntry>
+        <outputEntry id="OutputEntry_A2_3"><text>"Solicitar anuencia da operadora para tecnica minimamente invasiva. Pode gerar glosa de materiais."</text></outputEntry>
+        <outputEntry id="OutputEntry_A2_4"><text>"DOC"</text></outputEntry>
+        <outputEntry id="OutputEntry_A2_5"><text>"MEDIO"</text></outputEntry>
+      </rule>
+
+      <!-- REGRA P1: Aprovado - Via identica -->
+      <rule id="Rule_Aprovado_1">
+        <description>Via de acesso realizada identica a autorizada</description>
+        <inputEntry id="InputEntry_P1_1"><text>"" + viaRealizada = "" + viaAutorizada</text></inputEntry>
+        <inputEntry id="InputEntry_P1_2"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_P1_1"><text>"Prosseguir"</text></outputEntry>
+        <outputEntry id="OutputEntry_P1_2"><text>"Via de acesso cirurgica realizada corresponde a autorizada."</text></outputEntry>
+        <outputEntry id="OutputEntry_P1_3"><text>"Prosseguir com faturamento conforme via de acesso autorizada."</text></outputEntry>
+        <outputEntry id="OutputEntry_P1_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_P1_5"><text>"BAIXO"</text></outputEntry>
+      </rule>
+
+      <!-- REGRA F: Fallback - Requer revisao manual -->
+      <rule id="Rule_Fallback_AUTH_SCOPE_005">
+        <description>Regra padrao - Requer avaliacao manual</description>
+        <inputEntry id="InputEntry_F_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_F_2"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_F_1"><text>"Revisar"</text></outputEntry>
+        <outputEntry id="OutputEntry_F_2"><text>"Situacao de via de acesso cirurgica requer analise manual."</text></outputEntry>
+        <outputEntry id="OutputEntry_F_3"><text>"Encaminhar para auditoria verificar compatibilidade de via de acesso cirurgica."</text></outputEntry>
+        <outputEntry id="OutputEntry_F_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_F_5"><text>"MEDIO"</text></outputEntry>
+      </rule>
+
+    </decisionTable>
+  </decision>
+
+  <dmndi:DMNDI>
+    <dmndi:DMNDiagram id="DMNDiagram_AUTH_SCOPE_005">
+      <dmndi:DMNShape id="DMNShape_Decision_AUTH_SCOPE_005" dmnElementRef="Decision_AUTH_SCOPE_005">
+        <dc:Bounds height="80" width="180" x="160" y="100"/>
+      </dmndi:DMNShape>
+    </dmndi:DMNDiagram>
+  </dmndi:DMNDI>
+
+</definitions>

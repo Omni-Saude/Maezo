@@ -1,0 +1,224 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             xmlns:camunda="http://camunda.org/schema/1.0/dmn"
+             id="Definitions_ContraindicationsUniversal"
+             name="SHARED: Universal Clinical Contraindications"
+             namespace="http://camunda.org/schema/1.0/dmn">
+  <!--
+    Version: 1.0.0
+    Last Updated: 2026-02-08
+    Purpose: Universal contraindication checks that apply across multiple specialties
+
+    UNIVERSAL CONTRAINDICATIONS:
+    These clinical conditions contraindicate MANY procedures/medications across specialties:
+    - Life expectancy < 1 year (for long-term/curative treatments)
+    - Missing informed consent (legal requirement)
+    - Active uncontrolled infection (for invasive procedures)
+    - Severe organ failure (ECOG 3-4, for intensive therapies)
+    - Pregnancy contraindications (for teratogenic medications/radiation)
+
+    Usage Pattern:
+    1. Copy relevant input definitions to your specialty DMN
+    2. Copy relevant contraindication rules BEFORE specialty-specific approval rules
+    3. These act as "safety gates" that reject requests early
+
+    Deduplication Impact:
+    - Life expectancy check: Found in ~150+ oncology/cardiology files
+    - Informed consent: Found in ~400+ surgical/invasive procedure files
+    - Pregnancy checks: Found in ~200+ radiology/medication files
+    - Total savings: ~750+ rules × 25 lines = 18,750 lines of XML
+  -->
+
+  <decision id="Decision_ContraindicationsUniversal" name="Universal Clinical Contraindication Checks">
+    <decisionTable id="DecisionTable_ContraindicationsUniversal" hitPolicy="FIRST">
+
+      <!-- INPUT 1: Life Expectancy (for oncology, cardiology, major surgery) -->
+      <input id="Input_lifeExpectancy" label="Expectativa de Vida Superior a 1 Ano">
+        <inputExpression typeRef="boolean">
+          <text>expectativaVidaSuperior1Ano</text>
+        </inputExpression>
+      </input>
+
+      <!-- INPUT 2: Informed Consent (for surgical, invasive procedures) -->
+      <input id="Input_informedConsent" label="Consentimento Informado Assinado">
+        <inputExpression typeRef="boolean">
+          <text>consentimentoInformado</text>
+        </inputExpression>
+      </input>
+
+      <!-- INPUT 3: Active Infection (for invasive procedures, immunosuppression) -->
+      <input id="Input_activeInfection" label="Infecção Ativa Não Controlada">
+        <inputExpression typeRef="boolean">
+          <text>infeccaoAtivaNaoControlada</text>
+        </inputExpression>
+      </input>
+
+      <!-- INPUT 4: Performance Status (ECOG for intensive therapies) -->
+      <input id="Input_ecogStatus" label="ECOG Performance Status">
+        <inputExpression typeRef="integer">
+          <text>ecogStatus</text>
+        </inputExpression>
+        <inputValues>
+          <text>0,1,2,3,4</text>
+        </inputValues>
+      </input>
+
+      <!-- INPUT 5: Pregnancy Status (for radiation, teratogens) -->
+      <input id="Input_pregnancy" label="Paciente Grávida">
+        <inputExpression typeRef="boolean">
+          <text>pacienteGravida</text>
+        </inputExpression>
+      </input>
+
+      <!-- STANDARD 5 OUTPUTS -->
+      <output id="Output_resultado" name="resultado" typeRef="string">
+        <outputValues><text>"Aprovado","Reprovado","Pendente"</text></outputValues>
+      </output>
+      <output id="Output_observacao" name="observacao" typeRef="string"/>
+      <output id="Output_fundamentacao" name="fundamentacao" typeRef="string"/>
+      <output id="Output_alertasDesperdicio" name="alertasDesperdicio" typeRef="string">
+        <outputValues><text>"NENHUM","DUP","FREQ","ESC","DOC","PROT","MULTI"</text></outputValues>
+      </output>
+      <output id="Output_acaoRecomendada" name="acaoRecomendada" typeRef="string">
+        <outputValues><text>"APROVAR","NEGAR","SOLICITAR_INFO","AGUARDAR_PRAZO","SUGERIR_ALTERNATIVA"</text></outputValues>
+      </output>
+
+      <!-- CONTRAINDICATION RULES (REJECTION RULES - HIGHEST PRIORITY) -->
+
+      <!-- Rule 1: Life Expectancy < 1 Year (for curative/long-term treatments) -->
+      <rule id="Rule_LifeExpectancy_LessThan1Year">
+        <description>Expectativa de vida inferior a 1 ano contraindica tratamentos curativos intensivos</description>
+        <inputEntry><text>false</text></inputEntry>
+        <inputEntry><text></text></inputEntry>
+        <inputEntry><text></text></inputEntry>
+        <inputEntry><text></text></inputEntry>
+        <inputEntry><text></text></inputEntry>
+        <outputEntry><text>"Reprovado"</text></outputEntry>
+        <outputEntry><text>"Expectativa de vida < 1 ano: tratamento curativo intensivo não indicado"</text></outputEntry>
+        <outputEntry><text>"NCCN Guidelines: Considerar cuidados paliativos em pacientes com expectativa de vida limitada"</text></outputEntry>
+        <outputEntry id="OE_Rule_LifeExpectancy_LessThan1Year_alerta"><text>"PROT"</text></outputEntry>
+        <outputEntry id="OE_Rule_LifeExpectancy_LessThan1Year_acao"><text>"SUGERIR_ALTERNATIVA"</text></outputEntry>
+      </rule>
+
+      <!-- Rule 2: Missing Informed Consent (legal requirement) -->
+      <rule id="Rule_InformedConsent_Missing">
+        <description>Ausência de consentimento informado impede realização de procedimentos eletivos</description>
+        <inputEntry><text></text></inputEntry>
+        <inputEntry><text>false</text></inputEntry>
+        <inputEntry><text></text></inputEntry>
+        <inputEntry><text></text></inputEntry>
+        <inputEntry><text></text></inputEntry>
+        <outputEntry><text>"Reprovado"</text></outputEntry>
+        <outputEntry><text>"Consentimento informado não assinado"</text></outputEntry>
+        <outputEntry><text>"Código de Ética Médica Art. 22: É vedado deixar de obter consentimento do paciente ou de seu representante legal após esclarecê-lo sobre o procedimento"</text></outputEntry>
+        <outputEntry id="OE_Rule_InformedConsent_Missing_alerta"><text>"DOC"</text></outputEntry>
+        <outputEntry id="OE_Rule_InformedConsent_Missing_acao"><text>"SOLICITAR_INFO"</text></outputEntry>
+      </rule>
+
+      <!-- Rule 3: Active Uncontrolled Infection (for invasive procedures) -->
+      <rule id="Rule_ActiveInfection_Present">
+        <description>Infecção ativa não controlada contraindica procedimentos invasivos eletivos</description>
+        <inputEntry><text></text></inputEntry>
+        <inputEntry><text></text></inputEntry>
+        <inputEntry><text>true</text></inputEntry>
+        <inputEntry><text></text></inputEntry>
+        <inputEntry><text></text></inputEntry>
+        <outputEntry><text>"Reprovado"</text></outputEntry>
+        <outputEntry><text>"Infecção ativa não controlada: adiar procedimento eletivo"</text></outputEntry>
+        <outputEntry><text>"Protocolo de Segurança Cirúrgica: Controlar infecção ativa antes de procedimentos eletivos"</text></outputEntry>
+        <outputEntry id="OE_Rule_ActiveInfection_Present_alerta"><text>"PROT"</text></outputEntry>
+        <outputEntry id="OE_Rule_ActiveInfection_Present_acao"><text>"AGUARDAR_PRAZO"</text></outputEntry>
+      </rule>
+
+      <!-- Rule 4: Poor Performance Status (ECOG 3-4 for intensive therapies) -->
+      <rule id="Rule_ECOG_PoorStatus">
+        <description>ECOG 3-4 contraindica terapias intensivas (reservar para cuidados paliativos)</description>
+        <inputEntry><text></text></inputEntry>
+        <inputEntry><text></text></inputEntry>
+        <inputEntry><text></text></inputEntry>
+        <inputEntry><text>3,4</text></inputEntry>
+        <inputEntry><text></text></inputEntry>
+        <outputEntry><text>"Reprovado"</text></outputEntry>
+        <outputEntry><text>"ECOG 3-4: paciente acamado/dependente de cuidados não tolera terapia intensiva"</text></outputEntry>
+        <outputEntry><text>"NCCN: ECOG 3-4 requer abordagem paliativa; terapias intensivas oferecem mais toxicidade que benefício"</text></outputEntry>
+        <outputEntry id="OE_Rule_ECOG_PoorStatus_alerta"><text>"PROT"</text></outputEntry>
+        <outputEntry id="OE_Rule_ECOG_PoorStatus_acao"><text>"SUGERIR_ALTERNATIVA"</text></outputEntry>
+      </rule>
+
+      <!-- Rule 5: Pregnancy Contraindication (for teratogenic treatments) -->
+      <rule id="Rule_Pregnancy_Contraindicated">
+        <description>Gravidez contraindica radioterapia e medicações teratogênicas</description>
+        <inputEntry><text></text></inputEntry>
+        <inputEntry><text></text></inputEntry>
+        <inputEntry><text></text></inputEntry>
+        <inputEntry><text></text></inputEntry>
+        <inputEntry><text>true</text></inputEntry>
+        <outputEntry><text>"Reprovado"</text></outputEntry>
+        <outputEntry><text>"Paciente grávida: tratamento contraindicado por risco teratogênico"</text></outputEntry>
+        <outputEntry><text>"ACOG/FDA: Radioterapia e medicações categoria X/D contraindicadas na gravidez"</text></outputEntry>
+        <outputEntry id="OE_Rule_Pregnancy_Contraindicated_alerta"><text>"PROT"</text></outputEntry>
+        <outputEntry id="OE_Rule_Pregnancy_Contraindicated_acao"><text>"NEGAR"</text></outputEntry>
+      </rule>
+
+      <!-- PASS-THROUGH RULE: No Contraindications Detected -->
+      <rule id="Rule_No_Contraindications">
+        <description>Nenhuma contraindicação universal detectada: prosseguir para critérios específicos</description>
+        <inputEntry><text>true</text></inputEntry>
+        <inputEntry><text>true</text></inputEntry>
+        <inputEntry><text>false</text></inputEntry>
+        <inputEntry><text>0,1,2</text></inputEntry>
+        <inputEntry><text>false</text></inputEntry>
+        <outputEntry><text>"Pendente"</text></outputEntry>
+        <outputEntry><text>"Critérios de segurança básicos atendidos: avaliar indicações específicas"</text></outputEntry>
+        <outputEntry><text>"Prosseguir para avaliação de critérios clínicos específicos da especialidade"</text></outputEntry>
+        <outputEntry id="OE_Rule_No_Contraindications_alerta"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OE_Rule_No_Contraindications_acao"><text>"SOLICITAR_INFO"</text></outputEntry>
+      </rule>
+
+      <!-- DEFAULT FALLBACK -->
+      <rule id="Rule_Default_Contraindications">
+        <description>Dados insuficientes para avaliação de contraindicações</description>
+        <inputEntry><text></text></inputEntry>
+        <inputEntry><text></text></inputEntry>
+        <inputEntry><text></text></inputEntry>
+        <inputEntry><text></text></inputEntry>
+        <inputEntry><text></text></inputEntry>
+        <outputEntry><text>"Pendente"</text></outputEntry>
+        <outputEntry><text>"Dados clínicos incompletos: solicitar avaliação de contraindicações"</text></outputEntry>
+        <outputEntry><text>"Necessário: status ECOG, consentimento informado, expectativa de vida, infecções ativas"</text></outputEntry>
+        <outputEntry id="OE_Rule_Default_Contraindications_alerta"><text>"DOC"</text></outputEntry>
+        <outputEntry id="OE_Rule_Default_Contraindications_acao"><text>"SOLICITAR_INFO"</text></outputEntry>
+      </rule>
+
+    </decisionTable>
+  </decision>
+
+  <!--
+    INTEGRATION NOTES:
+
+    1. SELECT RELEVANT INPUTS for your specialty:
+       - Oncology → Use ALL 5 inputs (life expectancy, consent, infection, ECOG, pregnancy)
+       - Surgery → Use consent, infection, ECOG (skip life expectancy if not relevant)
+       - Radiology (pregnant patients) → Use pregnancy, consent inputs
+       - Cardiology (invasive) → Use life expectancy, consent, infection, ECOG
+
+    2. COPY RELEVANT RULES to your specialty DMN as EARLY REJECTION RULES
+       (Place AFTER documentation gate, BEFORE approval rules)
+
+    3. CUSTOMIZE observacao/fundamentacao text if needed for specialty context
+
+    4. These rules create a 3-stage filter:
+       Stage 1: Documentation gate (shared-rules/documentation-gate.dmn.xml)
+       Stage 2: Universal contraindications (THIS FILE)
+       Stage 3: Specialty-specific clinical criteria (your custom rules)
+
+    SPECIALTY-SPECIFIC CUSTOMIZATION EXAMPLES:
+
+    - Oncology: Keep ALL rules (life expectancy critical for chemo/radiation)
+    - Surgery: Skip pregnancy rule if not teratogenic, keep consent/infection/ECOG
+    - Radiology (CT/MRI): Skip life expectancy/ECOG, keep pregnancy for contrast agents
+    - Cardiology (cath lab): Keep consent/infection/ECOG, skip pregnancy unless radiation
+    - Medicine Nuclear: Keep ALL rules (radiation + intensive monitoring requirements)
+  -->
+
+</definitions>

@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import pytest
 
-from platform.revenue_cycle.collection.enums import AgingBucket
-from platform.revenue_cycle.collection.workers.calculate_aging_bucket_worker import (
+from healthcare_platform.revenue_cycle.collection.enums import AgingBucket
+from healthcare_platform.revenue_cycle.collection.workers.calculate_aging_bucket_worker import (
     CalculateAgingBucketWorker,
 )
 

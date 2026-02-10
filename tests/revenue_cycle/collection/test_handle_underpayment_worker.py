@@ -3,8 +3,8 @@ from __future__ import annotations
 
 import pytest
 
-from platform.revenue_cycle.collection.exceptions import UnderpaymentError
-from platform.revenue_cycle.collection.workers.handle_underpayment_worker import HandleUnderpaymentWorker
+from healthcare_platform.revenue_cycle.collection.exceptions import UnderpaymentError
+from healthcare_platform.revenue_cycle.collection.workers.handle_underpayment_worker import HandleUnderpaymentWorker
 
 
 @pytest.fixture

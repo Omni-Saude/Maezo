@@ -4,7 +4,7 @@ from datetime import datetime, timedelta, timezone
 
 import pytest
 
-from platform.revenue_cycle.collection.workers.identify_overdue_worker import (
+from healthcare_platform.revenue_cycle.collection.workers.identify_overdue_worker import (
     IdentifyOverdueWorker,
 )
 

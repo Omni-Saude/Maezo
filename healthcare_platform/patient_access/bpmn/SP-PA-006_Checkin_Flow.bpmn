@@ -1,0 +1,243 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+                  xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+                  xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+                  xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
+                  xmlns:camunda="http://camunda.org/schema/1.0/bpmn"
+                  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                  id="Definitions_CheckinFlow"
+                  targetNamespace="http://cib7.health/patient/checkin"
+                  exporter="Claude Code"
+                  exporterVersion="1.0">
+
+  <bpmn:process id="Process_CheckinFlow" name="SP-PA-006 Check-In Flow" isExecutable="true">
+
+    <!-- Start Event: Patient Arrival -->
+    <bpmn:startEvent id="Start_PatientArrival" name="Patient Arrival">
+      <bpmn:outgoing>Flow_ToValidateRules</bpmn:outgoing>
+    </bpmn:startEvent>
+
+    <!-- Task 1: Validate Appointment Rules -->
+    <bpmn:serviceTask id="Task_ValidateAppointmentRules" name="Validate Appointment Rules"
+                      camunda:type="external" camunda:topic="patient.validate_appointment_rules">
+      <bpmn:incoming>Flow_ToValidateRules</bpmn:incoming>
+      <bpmn:outgoing>Flow_ToBusinessRule</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Business Rule Task: Appointment Rules -->
+    <bpmn:businessRuleTask id="Task_AppointmentRules" name="Apply Appointment Rules"
+                           camunda:decisionRef="auth_timing_003"
+                           camunda:mapDecisionResult="singleResult">
+      <bpmn:incoming>Flow_ToBusinessRule</bpmn:incoming>
+      <bpmn:outgoing>Flow_ToGateway</bpmn:outgoing>
+    </bpmn:businessRuleTask>
+
+    <!-- Gateway: Appointment Valid? -->
+    <bpmn:exclusiveGateway id="Gateway_AppointmentValid" name="Appointment Valid?">
+      <bpmn:incoming>Flow_ToGateway</bpmn:incoming>
+      <bpmn:outgoing>Flow_Valid</bpmn:outgoing>
+      <bpmn:outgoing>Flow_Invalid</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+
+    <!-- Task 2: Handle Cancellation -->
+    <bpmn:serviceTask id="Task_HandleCancellation" name="Handle Cancellation"
+                      camunda:type="external" camunda:topic="scheduling.handle_cancellation">
+      <bpmn:incoming>Flow_Invalid</bpmn:incoming>
+      <bpmn:outgoing>Flow_CancellationToEnd</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Task 3: Send Appointment Confirmation -->
+    <bpmn:serviceTask id="Task_SendConfirmation" name="Send Appointment Confirmation"
+                      camunda:type="external" camunda:topic="scheduling.send_appointment_confirmation">
+      <bpmn:incoming>Flow_Valid</bpmn:incoming>
+      <bpmn:outgoing>Flow_ToSendReminder</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Task 4: Send Reminder Notification -->
+    <bpmn:serviceTask id="Task_SendReminder" name="Send Reminder Notification"
+                      camunda:type="external" camunda:topic="scheduling.send_reminder_notification">
+      <bpmn:incoming>Flow_ToSendReminder</bpmn:incoming>
+      <bpmn:outgoing>Flow_ToCheckIn</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Task 5: Complete Check-In -->
+    <bpmn:serviceTask id="Task_CompleteCheckIn" name="Complete Check-In"
+                      camunda:type="external" camunda:topic="patient.complete_checkin">
+      <bpmn:incoming>Flow_ToCheckIn</bpmn:incoming>
+      <bpmn:outgoing>Flow_ToVerifyDocuments</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Task 6: Verify Documents at Check-In -->
+    <bpmn:serviceTask id="Task_VerifyDocuments" name="Verify Documents at Check-In"
+                      camunda:type="external" camunda:topic="patient.verify_documents_checkin">
+      <bpmn:incoming>Flow_ToVerifyDocuments</bpmn:incoming>
+      <bpmn:outgoing>Flow_ToNotifyTeam</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Task 7: Notify Care Team -->
+    <bpmn:serviceTask id="Task_NotifyCareTeam" name="Notify Care Team"
+                      camunda:type="external" camunda:topic="patient.notify_care_team">
+      <bpmn:incoming>Flow_ToNotifyTeam</bpmn:incoming>
+      <bpmn:outgoing>Flow_ToEnd</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- End Event -->
+    <bpmn:endEvent id="End_CheckInComplete" name="Check-In Complete">
+      <bpmn:incoming>Flow_ToEnd</bpmn:incoming>
+      <bpmn:incoming>Flow_CancellationToEnd</bpmn:incoming>
+    </bpmn:endEvent>
+
+    <!-- Sequence Flows -->
+    <bpmn:sequenceFlow id="Flow_ToValidateRules" sourceRef="Start_PatientArrival" targetRef="Task_ValidateAppointmentRules"/>
+    <bpmn:sequenceFlow id="Flow_ToBusinessRule" sourceRef="Task_ValidateAppointmentRules" targetRef="Task_AppointmentRules"/>
+    <bpmn:sequenceFlow id="Flow_ToGateway" sourceRef="Task_AppointmentRules" targetRef="Gateway_AppointmentValid"/>
+    <bpmn:sequenceFlow id="Flow_Valid" sourceRef="Gateway_AppointmentValid" targetRef="Task_SendConfirmation">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${appointment_valid == true}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_Invalid" sourceRef="Gateway_AppointmentValid" targetRef="Task_HandleCancellation">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${appointment_valid == false}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_CancellationToEnd" sourceRef="Task_HandleCancellation" targetRef="End_CheckInComplete"/>
+    <bpmn:sequenceFlow id="Flow_ToSendReminder" sourceRef="Task_SendConfirmation" targetRef="Task_SendReminder"/>
+    <bpmn:sequenceFlow id="Flow_ToCheckIn" sourceRef="Task_SendReminder" targetRef="Task_CompleteCheckIn"/>
+    <bpmn:sequenceFlow id="Flow_ToVerifyDocuments" sourceRef="Task_CompleteCheckIn" targetRef="Task_VerifyDocuments"/>
+    <bpmn:sequenceFlow id="Flow_ToNotifyTeam" sourceRef="Task_VerifyDocuments" targetRef="Task_NotifyCareTeam"/>
+    <bpmn:sequenceFlow id="Flow_ToEnd" sourceRef="Task_NotifyCareTeam" targetRef="End_CheckInComplete"/>
+
+  </bpmn:process>
+
+  <!-- Diagram Interchange -->
+  <bpmndi:BPMNDiagram id="BPMNDiagram_CheckinFlow">
+    <bpmndi:BPMNPlane id="BPMNPlane_CheckinFlow" bpmnElement="Process_CheckinFlow">
+
+      <!-- Start Event -->
+      <bpmndi:BPMNShape id="Shape_Start_PatientArrival" bpmnElement="Start_PatientArrival">
+        <dc:Bounds x="152" y="102" width="36" height="36"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="133" y="145" width="74" height="14"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+
+      <!-- Validate Appointment Rules -->
+      <bpmndi:BPMNShape id="Shape_Task_ValidateAppointmentRules" bpmnElement="Task_ValidateAppointmentRules">
+        <dc:Bounds x="240" y="80" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <!-- Appointment Rules -->
+      <bpmndi:BPMNShape id="Shape_Task_AppointmentRules" bpmnElement="Task_AppointmentRules">
+        <dc:Bounds x="390" y="80" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <!-- Appointment Valid Gateway -->
+      <bpmndi:BPMNShape id="Shape_Gateway_AppointmentValid" bpmnElement="Gateway_AppointmentValid" isMarkerVisible="true">
+        <dc:Bounds x="545" y="95" width="50" height="50"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="528" y="58" width="84" height="27"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+
+      <!-- Handle Cancellation -->
+      <bpmndi:BPMNShape id="Shape_Task_HandleCancellation" bpmnElement="Task_HandleCancellation">
+        <dc:Bounds x="520" y="220" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <!-- Send Confirmation -->
+      <bpmndi:BPMNShape id="Shape_Task_SendConfirmation" bpmnElement="Task_SendConfirmation">
+        <dc:Bounds x="650" y="80" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <!-- Send Reminder -->
+      <bpmndi:BPMNShape id="Shape_Task_SendReminder" bpmnElement="Task_SendReminder">
+        <dc:Bounds x="800" y="80" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <!-- Complete Check-In -->
+      <bpmndi:BPMNShape id="Shape_Task_CompleteCheckIn" bpmnElement="Task_CompleteCheckIn">
+        <dc:Bounds x="950" y="80" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <!-- Verify Documents -->
+      <bpmndi:BPMNShape id="Shape_Task_VerifyDocuments" bpmnElement="Task_VerifyDocuments">
+        <dc:Bounds x="1100" y="80" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <!-- Notify Care Team -->
+      <bpmndi:BPMNShape id="Shape_Task_NotifyCareTeam" bpmnElement="Task_NotifyCareTeam">
+        <dc:Bounds x="1250" y="80" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <!-- End Event -->
+      <bpmndi:BPMNShape id="Shape_End_CheckInComplete" bpmnElement="End_CheckInComplete">
+        <dc:Bounds x="1412" y="102" width="36" height="36"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1390" y="145" width="80" height="27"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+
+      <!-- Sequence Flow Edges -->
+      <bpmndi:BPMNEdge id="Edge_Flow_ToValidateRules" bpmnElement="Flow_ToValidateRules">
+        <di:waypoint x="188" y="120"/>
+        <di:waypoint x="240" y="120"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_Flow_ToBusinessRule" bpmnElement="Flow_ToBusinessRule">
+        <di:waypoint x="340" y="120"/>
+        <di:waypoint x="390" y="120"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_Flow_ToGateway" bpmnElement="Flow_ToGateway">
+        <di:waypoint x="490" y="120"/>
+        <di:waypoint x="545" y="120"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_Flow_Valid" bpmnElement="Flow_Valid">
+        <di:waypoint x="595" y="120"/>
+        <di:waypoint x="650" y="120"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="600" y="102" width="45" height="14"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_Flow_Invalid" bpmnElement="Flow_Invalid">
+        <di:waypoint x="570" y="145"/>
+        <di:waypoint x="570" y="220"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="540" y="180" width="60" height="14"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_Flow_CancellationToEnd" bpmnElement="Flow_CancellationToEnd">
+        <di:waypoint x="620" y="260"/>
+        <di:waypoint x="1430" y="260"/>
+        <di:waypoint x="1430" y="138"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_Flow_ToSendReminder" bpmnElement="Flow_ToSendReminder">
+        <di:waypoint x="750" y="120"/>
+        <di:waypoint x="800" y="120"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_Flow_ToCheckIn" bpmnElement="Flow_ToCheckIn">
+        <di:waypoint x="900" y="120"/>
+        <di:waypoint x="950" y="120"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_Flow_ToVerifyDocuments" bpmnElement="Flow_ToVerifyDocuments">
+        <di:waypoint x="1050" y="120"/>
+        <di:waypoint x="1100" y="120"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_Flow_ToNotifyTeam" bpmnElement="Flow_ToNotifyTeam">
+        <di:waypoint x="1200" y="120"/>
+        <di:waypoint x="1250" y="120"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_Flow_ToEnd" bpmnElement="Flow_ToEnd">
+        <di:waypoint x="1350" y="120"/>
+        <di:waypoint x="1412" y="120"/>
+      </bpmndi:BPMNEdge>
+
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+
+</bpmn:definitions>

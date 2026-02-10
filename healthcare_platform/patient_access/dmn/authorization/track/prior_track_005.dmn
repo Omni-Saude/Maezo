@@ -1,0 +1,173 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  ============================================================================
+  PRIOR-TRACK-005 - Rastreamento Recurso em Andamento
+  ============================================================================
+  Versao: 1.0.0 (2026-02-08)
+  Categoria: PRIOR-TRACK
+  Perspectiva: HOSPITAL (Faturamento/Auditoria)
+
+  ============================================================================
+  INDICACOES (Quando PROSSEGUIR):
+  ============================================================================
+  - Recurso em andamento com prazo adequado
+  - Instancia de recurso apropriada
+  - Documentacao completa
+
+  ============================================================================
+  CONTRAINDICACOES (Quando BLOQUEAR):
+  ============================================================================
+  - Recurso com prazo excedido
+  - Falta documentacao complementar
+  - Instancia inadequada
+
+  ============================================================================
+  REFERENCIAS NORMATIVAS:
+  ============================================================================
+  - RN 424/2017 (Autorizacao Previa)
+  - RN 389/2015 (Direito ao Recurso - Prazos)
+  - RN 465/2021 (Procedimentos Regulados)
+  - Lei 9.656/1998 Art. 12 (Cobertura Obrigatoria)
+  ============================================================================
+-->
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/"
+             xmlns:dc="http://www.omg.org/spec/DMN/20180521/DC/"
+             id="Definitions_PRIOR_TRACK_005"
+             name="Rastreamento Recurso em Andamento"
+             targetNamespace="http://camunda.org/schema/1.0/dmn">
+
+  <decision id="Decision_PRIOR_TRACK_005" name="Verificar Rastreamento Recurso em Andamento">
+    <decisionTable id="DecisionTable_PRIOR_TRACK_005" hitPolicy="FIRST">
+
+      <!-- ========== INPUTS ========== -->
+      <input id="Input_1" label="Tem Recurso Aberto">
+        <inputExpression id="InputExpression_1" typeRef="boolean">
+          <text>temRecursoAberto</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_2" label="Dias Recurso">
+        <inputExpression id="InputExpression_2" typeRef="integer">
+          <text>diasRecurso</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_3" label="Instancia Recurso">
+        <inputExpression id="InputExpression_3" typeRef="string">
+          <text>instanciaRecurso</text>
+        </inputExpression>
+        <inputValues id="InputValues_3">
+          <text>"1A", "2A", "ANS"</text>
+        </inputValues>
+      </input>
+
+      <!-- ========== OUTPUTS (5 STANDARD) ========== -->
+      <output id="Output_1" label="Resultado" name="resultado" typeRef="string">
+        <outputValues><text>"Prosseguir", "Bloquear", "Alertar", "Revisar"</text></outputValues>
+      </output>
+
+      <output id="Output_2" label="Observacao" name="observacao" typeRef="string"/>
+
+      <output id="Output_3" label="Acao Recomendada" name="acaoRecomendada" typeRef="string"/>
+
+      <output id="Output_4" label="Alertas Conformidade" name="alertasConformidade" typeRef="string">
+        <outputValues><text>"NENHUM", "DUP", "FREQ", "PRAZO", "DOC", "VALOR", "CRED", "CONTRATO"</text></outputValues>
+      </output>
+
+      <output id="Output_5" label="Risco Denial" name="riscoDenial" typeRef="string">
+        <outputValues><text>"BAIXO", "MEDIO", "ALTO", "CRITICO"</text></outputValues>
+      </output>
+
+      <!-- ========== RULES ========== -->
+
+      <!-- REGRA B1: Bloqueio - Recurso ANS com prazo excedido -->
+      <rule id="Rule_Bloqueio_1">
+        <description>Recurso na ANS ha mais de 60 dias sem resposta</description>
+        <inputEntry id="InputEntry_B1_1"><text>true</text></inputEntry>
+        <inputEntry id="InputEntry_B1_2"><text>&gt; 60</text></inputEntry>
+        <inputEntry id="InputEntry_B1_3"><text>"ANS"</text></inputEntry>
+        <outputEntry id="OutputEntry_B1_1"><text>"Bloquear"</text></outputEntry>
+        <outputEntry id="OutputEntry_B1_2"><text>"Recurso na ANS ha mais de 60 dias sem resposta. Prazo critico excedido."</text></outputEntry>
+        <outputEntry id="OutputEntry_B1_3"><text>"Contatar ANS para obter posicionamento. Considerar acoes judiciais se necessario."</text></outputEntry>
+        <outputEntry id="OutputEntry_B1_4"><text>"PRAZO"</text></outputEntry>
+        <outputEntry id="OutputEntry_B1_5"><text>"CRITICO"</text></outputEntry>
+      </rule>
+
+      <!-- REGRA B2: Bloqueio - Sem recurso aberto -->
+      <rule id="Rule_Bloqueio_2">
+        <description>Nao ha recurso aberto para acompanhamento</description>
+        <inputEntry id="InputEntry_B2_1"><text>false</text></inputEntry>
+        <inputEntry id="InputEntry_B2_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_B2_3"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_B2_1"><text>"Bloquear"</text></outputEntry>
+        <outputEntry id="OutputEntry_B2_2"><text>"Nao ha recurso aberto para rastreamento. Regra nao se aplica."</text></outputEntry>
+        <outputEntry id="OutputEntry_B2_3"><text>"Verificar necessidade de interpor recurso ou aplicar regra correspondente."</text></outputEntry>
+        <outputEntry id="OutputEntry_B2_4"><text>"DOC"</text></outputEntry>
+        <outputEntry id="OutputEntry_B2_5"><text>"ALTO"</text></outputEntry>
+      </rule>
+
+      <!-- REGRA A1: Alerta - Recurso 2a instancia com prazo longo -->
+      <rule id="Rule_Alerta_1">
+        <description>Recurso em 2a instancia ha mais de 30 dias</description>
+        <inputEntry id="InputEntry_A1_1"><text>true</text></inputEntry>
+        <inputEntry id="InputEntry_A1_2"><text>&gt; 30</text></inputEntry>
+        <inputEntry id="InputEntry_A1_3"><text>"2A"</text></inputEntry>
+        <outputEntry id="OutputEntry_A1_1"><text>"Alertar"</text></outputEntry>
+        <outputEntry id="OutputEntry_A1_2"><text>"Recurso em 2a instancia ha mais de 30 dias. Acompanhamento necessario."</text></outputEntry>
+        <outputEntry id="OutputEntry_A1_3"><text>"Contatar operadora para obter status do recurso. Preparar documentacao para ANS se negado."</text></outputEntry>
+        <outputEntry id="OutputEntry_A1_4"><text>"PRAZO"</text></outputEntry>
+        <outputEntry id="OutputEntry_A1_5"><text>"ALTO"</text></outputEntry>
+      </rule>
+
+      <!-- REGRA A2: Alerta - Recurso 1a instancia com prazo longo -->
+      <rule id="Rule_Alerta_2">
+        <description>Recurso em 1a instancia ha mais de 15 dias</description>
+        <inputEntry id="InputEntry_A2_1"><text>true</text></inputEntry>
+        <inputEntry id="InputEntry_A2_2"><text>&gt; 15</text></inputEntry>
+        <inputEntry id="InputEntry_A2_3"><text>"1A"</text></inputEntry>
+        <outputEntry id="OutputEntry_A2_1"><text>"Alertar"</text></outputEntry>
+        <outputEntry id="OutputEntry_A2_2"><text>"Recurso em 1a instancia ha mais de 15 dias. Monitoramento necessario."</text></outputEntry>
+        <outputEntry id="OutputEntry_A2_3"><text>"Contatar operadora para agilizar resposta. Verificar se ha documentacao complementar pendente."</text></outputEntry>
+        <outputEntry id="OutputEntry_A2_4"><text>"PRAZO"</text></outputEntry>
+        <outputEntry id="OutputEntry_A2_5"><text>"MEDIO"</text></outputEntry>
+      </rule>
+
+      <!-- REGRA P1: Aprovado - Recurso recente -->
+      <rule id="Rule_Aprovado_1">
+        <description>Recurso em andamento com prazo adequado</description>
+        <inputEntry id="InputEntry_P1_1"><text>true</text></inputEntry>
+        <inputEntry id="InputEntry_P1_2"><text>&lt;= 15</text></inputEntry>
+        <inputEntry id="InputEntry_P1_3"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_P1_1"><text>"Prosseguir"</text></outputEntry>
+        <outputEntry id="OutputEntry_P1_2"><text>"Recurso em andamento com prazo adequado para resposta."</text></outputEntry>
+        <outputEntry id="OutputEntry_P1_3"><text>"Aguardar resposta da instancia de recurso. Monitorar prazo."</text></outputEntry>
+        <outputEntry id="OutputEntry_P1_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_P1_5"><text>"BAIXO"</text></outputEntry>
+      </rule>
+
+      <!-- REGRA F: Fallback - Requer revisao manual -->
+      <rule id="Rule_Fallback_PRIOR_TRACK_005">
+        <description>Regra padrao - Requer avaliacao manual</description>
+        <inputEntry id="InputEntry_F_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_F_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_F_3"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_F_1"><text>"Revisar"</text></outputEntry>
+        <outputEntry id="OutputEntry_F_2"><text>"Situacao de recurso em andamento requer analise manual."</text></outputEntry>
+        <outputEntry id="OutputEntry_F_3"><text>"Encaminhar para auditoria verificar status do recurso."</text></outputEntry>
+        <outputEntry id="OutputEntry_F_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_F_5"><text>"MEDIO"</text></outputEntry>
+      </rule>
+
+    </decisionTable>
+  </decision>
+
+  <dmndi:DMNDI>
+    <dmndi:DMNDiagram id="DMNDiagram_PRIOR_TRACK_005">
+      <dmndi:DMNShape id="DMNShape_Decision_PRIOR_TRACK_005" dmnElementRef="Decision_PRIOR_TRACK_005">
+        <dc:Bounds height="80" width="180" x="160" y="100"/>
+      </dmndi:DMNShape>
+    </dmndi:DMNDiagram>
+  </dmndi:DMNDI>
+
+</definitions>

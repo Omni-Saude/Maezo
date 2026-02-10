@@ -1,0 +1,216 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+                  xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+                  xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+                  xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
+                  xmlns:camunda="http://camunda.org/schema/1.0/bpmn"
+                  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                  id="Definitions_DemandCapture"
+                  targetNamespace="http://cib7.health/patient/demand"
+                  exporter="Claude Code"
+                  exporterVersion="1.0">
+
+  <bpmn:process id="Process_DemandCapture" name="SP-PA-001 Demand Capture" isExecutable="true">
+
+    <!-- Start Event: WhatsApp/Portal Message -->
+    <bpmn:startEvent id="Start_MessageReceived" name="Demand Request Received">
+      <bpmn:extensionElements>
+        <camunda:formData>
+          <camunda:formField id="channel" label="Channel" type="string" defaultValue="whatsapp"/>
+          <camunda:formField id="message" label="Message" type="string"/>
+        </camunda:formData>
+      </bpmn:extensionElements>
+      <bpmn:outgoing>Flow_ToValidate</bpmn:outgoing>
+    </bpmn:startEvent>
+
+    <!-- Task 1: Validate Patient Data -->
+    <bpmn:serviceTask id="Task_ValidatePatientData" name="Validate Patient Data"
+                      camunda:type="external" camunda:topic="patient.validate_patient_data">
+      <bpmn:incoming>Flow_ToValidate</bpmn:incoming>
+      <bpmn:outgoing>Flow_ToCheckExisting</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Task 2: Check Existing Patient -->
+    <bpmn:serviceTask id="Task_CheckExistingPatient" name="Check Existing Patient"
+                      camunda:type="external" camunda:topic="patient.check_existing_patient">
+      <bpmn:incoming>Flow_ToCheckExisting</bpmn:incoming>
+      <bpmn:outgoing>Flow_ToGateway</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Gateway: Patient Exists? -->
+    <bpmn:exclusiveGateway id="Gateway_PatientExists" name="Patient Exists?">
+      <bpmn:incoming>Flow_ToGateway</bpmn:incoming>
+      <bpmn:outgoing>Flow_NewPatient</bpmn:outgoing>
+      <bpmn:outgoing>Flow_ExistingPatient</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+
+    <!-- Task 3: Capture Demographics (New Patient) -->
+    <bpmn:serviceTask id="Task_CaptureDemographics" name="Capture Demographics"
+                      camunda:type="external" camunda:topic="patient.capture_demographics">
+      <bpmn:incoming>Flow_NewPatient</bpmn:incoming>
+      <bpmn:outgoing>Flow_ToBusinessRule</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Business Rule Task: Patient Validation Rules -->
+    <bpmn:businessRuleTask id="Task_ValidationRules" name="Apply Patient Validation Rules"
+                           camunda:decisionRef="fed_auth_001"
+                           camunda:mapDecisionResult="singleResult">
+      <bpmn:incoming>Flow_ToBusinessRule</bpmn:incoming>
+      <bpmn:incoming>Flow_ExistingPatient</bpmn:incoming>
+      <bpmn:outgoing>Flow_ToMerge</bpmn:outgoing>
+    </bpmn:businessRuleTask>
+
+    <!-- Merge Gateway -->
+    <bpmn:exclusiveGateway id="Gateway_Merge" name="Merge">
+      <bpmn:incoming>Flow_ToMerge</bpmn:incoming>
+      <bpmn:outgoing>Flow_ToRegister</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+
+    <!-- Task 4: Register Demand -->
+    <bpmn:serviceTask id="Task_RegisterDemand" name="Register Demand"
+                      camunda:type="external" camunda:topic="patient.register_demand">
+      <bpmn:incoming>Flow_ToRegister</bpmn:incoming>
+      <bpmn:outgoing>Flow_ToEnd</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- End Event -->
+    <bpmn:endEvent id="End_DemandRegistered" name="Demand Registered">
+      <bpmn:incoming>Flow_ToEnd</bpmn:incoming>
+    </bpmn:endEvent>
+
+    <!-- Sequence Flows -->
+    <bpmn:sequenceFlow id="Flow_ToValidate" sourceRef="Start_MessageReceived" targetRef="Task_ValidatePatientData"/>
+    <bpmn:sequenceFlow id="Flow_ToCheckExisting" sourceRef="Task_ValidatePatientData" targetRef="Task_CheckExistingPatient"/>
+    <bpmn:sequenceFlow id="Flow_ToGateway" sourceRef="Task_CheckExistingPatient" targetRef="Gateway_PatientExists"/>
+    <bpmn:sequenceFlow id="Flow_NewPatient" sourceRef="Gateway_PatientExists" targetRef="Task_CaptureDemographics">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${patient_exists == false}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_ExistingPatient" sourceRef="Gateway_PatientExists" targetRef="Task_ValidationRules">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${patient_exists == true}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_ToBusinessRule" sourceRef="Task_CaptureDemographics" targetRef="Task_ValidationRules"/>
+    <bpmn:sequenceFlow id="Flow_ToMerge" sourceRef="Task_ValidationRules" targetRef="Gateway_Merge"/>
+    <bpmn:sequenceFlow id="Flow_ToRegister" sourceRef="Gateway_Merge" targetRef="Task_RegisterDemand"/>
+    <bpmn:sequenceFlow id="Flow_ToEnd" sourceRef="Task_RegisterDemand" targetRef="End_DemandRegistered"/>
+
+  </bpmn:process>
+
+  <!-- Diagram Interchange -->
+  <bpmndi:BPMNDiagram id="BPMNDiagram_DemandCapture">
+    <bpmndi:BPMNPlane id="BPMNPlane_DemandCapture" bpmnElement="Process_DemandCapture">
+
+      <!-- Start Event -->
+      <bpmndi:BPMNShape id="Shape_Start_MessageReceived" bpmnElement="Start_MessageReceived">
+        <dc:Bounds x="152" y="102" width="36" height="36"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="135" y="145" width="70" height="27"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+
+      <!-- Validate Patient Data -->
+      <bpmndi:BPMNShape id="Shape_Task_ValidatePatientData" bpmnElement="Task_ValidatePatientData">
+        <dc:Bounds x="240" y="80" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <!-- Check Existing Patient -->
+      <bpmndi:BPMNShape id="Shape_Task_CheckExistingPatient" bpmnElement="Task_CheckExistingPatient">
+        <dc:Bounds x="390" y="80" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <!-- Patient Exists Gateway -->
+      <bpmndi:BPMNShape id="Shape_Gateway_PatientExists" bpmnElement="Gateway_PatientExists" isMarkerVisible="true">
+        <dc:Bounds x="545" y="95" width="50" height="50"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="530" y="152" width="80" height="14"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+
+      <!-- Capture Demographics -->
+      <bpmndi:BPMNShape id="Shape_Task_CaptureDemographics" bpmnElement="Task_CaptureDemographics">
+        <dc:Bounds x="650" y="80" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <!-- Validation Rules -->
+      <bpmndi:BPMNShape id="Shape_Task_ValidationRules" bpmnElement="Task_ValidationRules">
+        <dc:Bounds x="800" y="80" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <!-- Merge Gateway -->
+      <bpmndi:BPMNShape id="Shape_Gateway_Merge" bpmnElement="Gateway_Merge" isMarkerVisible="true">
+        <dc:Bounds x="955" y="95" width="50" height="50"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="963" y="152" width="34" height="14"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+
+      <!-- Register Demand -->
+      <bpmndi:BPMNShape id="Shape_Task_RegisterDemand" bpmnElement="Task_RegisterDemand">
+        <dc:Bounds x="1060" y="80" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <!-- End Event -->
+      <bpmndi:BPMNShape id="Shape_End_DemandRegistered" bpmnElement="End_DemandRegistered">
+        <dc:Bounds x="1222" y="102" width="36" height="36"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1200" y="145" width="80" height="14"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+
+      <!-- Sequence Flow Edges -->
+      <bpmndi:BPMNEdge id="Edge_Flow_ToValidate" bpmnElement="Flow_ToValidate">
+        <di:waypoint x="188" y="120"/>
+        <di:waypoint x="240" y="120"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_Flow_ToCheckExisting" bpmnElement="Flow_ToCheckExisting">
+        <di:waypoint x="340" y="120"/>
+        <di:waypoint x="390" y="120"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_Flow_ToGateway" bpmnElement="Flow_ToGateway">
+        <di:waypoint x="490" y="120"/>
+        <di:waypoint x="545" y="120"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_Flow_NewPatient" bpmnElement="Flow_NewPatient">
+        <di:waypoint x="595" y="120"/>
+        <di:waypoint x="650" y="120"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="600" y="102" width="40" height="14"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_Flow_ExistingPatient" bpmnElement="Flow_ExistingPatient">
+        <di:waypoint x="570" y="145"/>
+        <di:waypoint x="570" y="220"/>
+        <di:waypoint x="850" y="220"/>
+        <di:waypoint x="850" y="160"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="600" y="202" width="48" height="14"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_Flow_ToBusinessRule" bpmnElement="Flow_ToBusinessRule">
+        <di:waypoint x="750" y="120"/>
+        <di:waypoint x="800" y="120"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_Flow_ToMerge" bpmnElement="Flow_ToMerge">
+        <di:waypoint x="900" y="120"/>
+        <di:waypoint x="955" y="120"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_Flow_ToRegister" bpmnElement="Flow_ToRegister">
+        <di:waypoint x="1005" y="120"/>
+        <di:waypoint x="1060" y="120"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_Flow_ToEnd" bpmnElement="Flow_ToEnd">
+        <di:waypoint x="1160" y="120"/>
+        <di:waypoint x="1222" y="120"/>
+      </bpmndi:BPMNEdge>
+
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+
+</bpmn:definitions>

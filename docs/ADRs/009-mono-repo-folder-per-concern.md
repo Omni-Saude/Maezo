@@ -24,7 +24,7 @@ With poly-repo, ensuring consistency between a BPMN topic name change and the co
 
 Single **mono-repo** (`austa-orchestration-platform`) with this top-level structure:
 
-```
+```text
 /
 ├── bpmn/                  # BPMN process models (.bpmn)
 ├── dmn/
@@ -84,3 +84,179 @@ Single **mono-repo** (`austa-orchestration-platform`) with this top-level struct
 - All developers can read all code (review gates via CODEOWNERS, not access control). Acceptable for current team size.
 
 **Trade-off:** If team scales beyond 20 devs or independent product teams emerge, revisit in favor of multi-repo with shared library strategy.
+
+---
+
+## Amendment 1: Domain-Driven Structure Evolution (2026-02-09)
+
+**Status:** Accepted  
+**Deciders:** Tech Lead, Architecture Review
+
+### Context for Amendment
+
+During Phase 7-8 implementation, the original centralized structure (`/dmn/`, `/workers/` at root) created several friction points:
+
+1. **Cognitive Load:** 600+ workers in flat `/workers/` folder made navigation difficult
+2. **Domain Coupling:** DMN tables semantically belong with their consuming workers
+3. **ADR-007 Alignment:** DMN Federation requires domain-aware path resolution
+4. **Team Scaling:** Domain teams need clear ownership boundaries
+
+### Revised Decision
+
+Evolve to **domain-driven structure** within mono-repo:
+
+```text
+platform/
+├── patient_access/           # Domain: Scheduling, Registration, Authorization
+│   ├── bpmn/                 # Domain-specific process models
+│   ├── dmn/                  # Domain decision tables
+│   │   └── authorization/    # 68 DMN (authorization rules)
+│   └── workers/              # Domain workers
+│       ├── check_authorization_requirements_worker.py
+│       ├── validate_eligibility_worker.py
+│       └── ...
+├── clinical_operations/      # Domain: Clinical Production, Safety, Documentation
+│   ├── bpmn/
+│   ├── dmn/
+│   │   └── clinical_safety/  # 268 DMN (DDI, EWS, LAB, MED, RSK, etc.)
+│   └── workers/
+├── revenue_cycle/            # Domain: Billing, Coding, Collections, Denial Management
+│   ├── bpmn/
+│   ├── dmn/
+│   │   ├── billing/          # Billing rules
+│   │   ├── coding_audit/     # Coding validation
+│   │   ├── glosa_prevention/ # Denial prevention
+│   │   ├── revenue_recovery/ # Appeal/collection rules
+│   │   ├── pricing/          # Pricing tables
+│   │   └── cash_operations/  # Cash management
+│   └── workers/
+├── platform_services/        # Domain: Cross-cutting services
+│   ├── bpmn/
+│   ├── dmn/
+│   │   ├── compliance/       # LGPD, regulatory compliance
+│   │   ├── credentialing/    # Provider credentialing
+│   │   ├── access_control/   # Permission rules
+│   │   └── infrastructure/   # System configuration
+│   └── workers/
+└── shared/                   # Shared across all domains
+    ├── dmn/
+    │   ├── federation_service.py  # ADR-007 tenant-aware resolution
+    │   └── tenant_overrides/      # Tenant-specific DMN overrides
+    │       ├── {tenant}/
+    │       │   ├── patient_access/
+    │       │   ├── clinical_operations/
+    │       │   ├── revenue_cycle/
+    │       │   └── platform_services/
+    ├── protocols/            # Shared interfaces
+    ├── models/               # Shared data models
+    └── utils/                # Shared utilities
+```
+
+### Domain Mapping Reference
+
+| Category | Domain | Rationale |
+|----------|--------|-----------|
+| authorization | patient_access | Pre-service eligibility/auth |
+| clinical_safety (DDI, EWS, LAB, MED, RSK, SYN, VIT, DDX, DLI) | clinical_operations | Clinical decision support |
+| billing, coding_audit, glosa_prevention, revenue_recovery, pricing, cash_operations | revenue_cycle | Financial operations |
+| compliance, credentialing, access_control, infrastructure | platform_services | Cross-cutting concerns |
+
+### Federation Service Integration
+
+Per ADR-007, the `FederatedDMNService` resolves DMN tables in priority order:
+
+1. **Tenant Override:** `platform/shared/dmn/tenant_overrides/{tenant}/{domain}/{category}/{table}.dmn`
+2. **Domain Base:** `platform/{domain}/dmn/{category}/{table}.dmn`
+3. **Fallback Error:** If not found, raise `DMNNotFoundException`
+
+### CODEOWNERS Update
+
+```text
+# Domain ownership
+/platform/patient_access/     → @patient-access-team + Tech Lead
+/platform/clinical_operations/ → @clinical-team + Medical Informatics Lead
+/platform/revenue_cycle/       → @revenue-team + Tech Lead
+/platform/platform_services/   → @platform-team + Tech Lead
+/platform/shared/              → Tech Lead (approval required)
+```
+
+### Consequences of Amendment
+
+**Positive:**
+
+- Domain teams have clear ownership boundaries
+- Reduced cognitive load (workers with their DMN)
+- Aligns with ADR-007 DMN Federation tenant override structure
+- Supports independent domain deployments in future
+
+**Negative:**
+
+- Deeper directory nesting
+- Federation service must resolve domain paths (implemented)
+- Cross-domain imports require explicit shared module usage
+
+**Migration Note:** Phase 7.5.2 migrated 633 legacy DMN files to domain structure. Legacy centralized DMN archived in `Legacy processes/dmn-phase6-inferior/`.
+
+---
+
+## Amendment 2: Revenue Cycle Subdomain Structure (2026-02-09)
+
+**Status:** Accepted  
+**Deciders:** Tech Lead, Architecture Review
+
+### Context for Amendment 2
+
+The `revenue_cycle` domain contains 89 workers — significantly larger than other domains (patient_access: 23, clinical_operations: 20, platform_services: 29). A flat `workers/` folder would create navigation challenges.
+
+### Revised Decision for Large Domains
+
+Allow **subdomain folders** within `revenue_cycle` as an exception for large domains (50+ workers):
+
+```text
+platform/revenue_cycle/
+├── billing/                  # Subdomain: TISS generation, submission
+│   ├── bpmn/
+│   └── workers/              # 13 workers
+├── coding/                   # Subdomain: Coding, audit, validation
+│   ├── bpmn/
+│   └── workers/              # 10 workers
+├── collection/               # Subdomain: Payment, reconciliation
+│   └── workers/              # 48 workers (largest)
+├── glosa/                    # Subdomain: Denial management, appeals
+│   ├── bpmn/
+│   └── workers/              # 10 workers
+├── production/               # Subdomain: Charge capture, pricing
+│   ├── bpmn/
+│   └── workers/              # 8 workers
+├── bpmn/                     # Domain-level BPMN (SP-RC-001 to SP-RC-010)
+├── dmn/                      # Domain DMN (follows standard structure)
+│   ├── billing/
+│   ├── coding_audit/
+│   ├── glosa_prevention/
+│   ├── revenue_recovery/
+│   ├── pricing/
+│   └── cash_operations/
+└── services/                 # Domain services (DMN aggregation)
+    ├── billing_rules_service.py
+    ├── glosa_prevention_service.py
+    ├── appeal_strategy_service.py
+    └── pricing_service.py
+```
+
+### Rationale
+
+1. **Scale**: 89 workers require subdomain organization
+2. **Team Structure**: Billing, coding, collection teams work independently
+3. **Import Clarity**: `platform.revenue_cycle.billing.workers.X` is explicit
+4. **No Breaking Changes**: Structure was established in Phase 2
+
+### Applicability
+
+This variant is **only acceptable** for domains with 50+ workers. Other domains must follow flat `workers/` structure.
+
+| Domain | Workers | Structure |
+|--------|---------|-----------|
+| patient_access | 23 | Flat `workers/` |
+| clinical_operations | 20 | Flat `workers/` |
+| platform_services | 29 | Flat `workers/` |
+| **revenue_cycle** | **89** | **Subdomain folders** (exception) |

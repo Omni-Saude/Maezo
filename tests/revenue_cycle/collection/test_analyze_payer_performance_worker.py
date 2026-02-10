@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import pytest
 
-from platform.revenue_cycle.collection.workers.analyze_payer_performance_worker import (
+from healthcare_platform.revenue_cycle.collection.workers.analyze_payer_performance_worker import (
     AnalyzePayerPerformanceWorker,
 )
 

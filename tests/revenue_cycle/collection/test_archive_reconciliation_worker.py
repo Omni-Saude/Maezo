@@ -4,7 +4,7 @@ from datetime import date, timedelta
 
 import pytest
 
-from platform.revenue_cycle.collection.workers.archive_reconciliation_worker import ArchiveReconciliationWorker
+from healthcare_platform.revenue_cycle.collection.workers.archive_reconciliation_worker import ArchiveReconciliationWorker
 
 
 @pytest.mark.asyncio

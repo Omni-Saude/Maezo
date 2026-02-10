@@ -9,10 +9,10 @@ from unittest.mock import Mock
 
 import pytest
 
-from platform.revenue_cycle.glosa.workers.classify_glosa_type_worker import (
+from healthcare_platform.revenue_cycle.glosa.workers.classify_glosa_type_worker import (
     ClassifyGlosaTypeWorker,
 )
-from platform.shared.domain.enums import GlosaReasonCode, GlosaType
+from healthcare_platform.shared.domain.enums import GlosaReasonCode, GlosaType
 
 
 @pytest.fixture

@@ -4,7 +4,7 @@ from datetime import date, timedelta
 
 import pytest
 
-from platform.revenue_cycle.collection.workers.calculate_dso_worker import CalculateDSOWorker
+from healthcare_platform.revenue_cycle.collection.workers.calculate_dso_worker import CalculateDSOWorker
 
 
 @pytest.mark.asyncio

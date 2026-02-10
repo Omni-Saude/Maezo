@@ -1,0 +1,100 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- ============================================================================
+     DDI-HEPATO-004: Esquema RIP (Rifampicina+Isoniazida+Pirazinamida) - Hepatotoxicidade
+
+     EVIDENCIA CLINICA:
+     - WHO Guidelines for TB Treatment
+     - Saukkonen JJ et al. Am J Respir Crit Care Med. 2006;174:935-52
+     - Tostmann A et al. J Gastroenterol Hepatol. 2008;23:192-202
+
+     MECANISMO: Isoniazida metabolizada por NAT2 a acetil-hidrazina (hepatotoxico).
+     Rifampicina induz CYP2E1, aumentando acetil-hidrazina. Pirazinamida adiciona
+     hepatotoxicidade idiosincratica. Triplice combinacao sinergica.
+
+     INCIDENCIA: Hepatotoxicidade clinica em 5-28% (maior em idosos, HIV+, hepatopatas)
+     ============================================================================ -->
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/" xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/" xmlns:dc="http://www.omg.org/spec/DMN/20180521/DC/" xmlns:di="http://www.omg.org/spec/DMN/20180521/DI/" id="DDI_HEPATO_004" name="DDI-HEPATO-004: Esquema RIP Tuberculose" namespace="http://camunda.org/schema/1.0/dmn">
+  <decision id="ddi_hepato_004_decision" name="Esquema RIP - Hepatotoxicidade Tuberculostaticos">
+    <decisionTable id="ddi_hepato_004_table" hitPolicy="FIRST">
+      <input id="input_medicamentos" label="Medicamentos TB">
+        <inputExpression id="input_expr_medicamentos" typeRef="string">
+          <text>medicamentosAtivos</text>
+        </inputExpression>
+      </input>
+      <input id="input_fator_risco" label="Fatores de Risco Hepatico">
+        <inputExpression id="input_expr_fator" typeRef="string">
+          <text>fatoresRiscoHepatico</text>
+        </inputExpression>
+      </input>
+      <input id="input_tgo_basal" label="TGO/TGP Basal (U/L)">
+        <inputExpression id="input_expr_tgo" typeRef="number">
+          <text>transaminasesBasal</text>
+        </inputExpression>
+      </input>
+
+      <output id="output_nivel_alerta" name="nivelAlerta" typeRef="string">
+        <outputValues><text>"Alerta","Atencao","Informativo","OK"</text></outputValues>
+      </output>
+      <output id="output_acao_requerida" name="acaoRequerida" typeRef="string" />
+      <output id="output_justificativa" name="justificativaCientifica" typeRef="string" />
+
+      <!-- Rule 1: Esquema RIP + Fatores de risco + TGO elevada -->
+      <rule id="rule_rip_alto_risco">
+        <inputEntry id="ie_rip_completo">
+          <text>list contains(medicamentosAtivos, "RIFAMPICINA") and list contains(medicamentosAtivos, "ISONIAZIDA") and list contains(medicamentosAtivos, "PIRAZINAMIDA")</text>
+        </inputEntry>
+        <inputEntry id="ie_fator_alto">
+          <text>"HIV" or "HEPATITE_CRONICA" or "CIRROSE" or "ETILISMO"</text>
+        </inputEntry>
+        <inputEntry id="ie_tgo_elevada">
+          <text>&gt; 40</text>
+        </inputEntry>
+        <outputEntry id="oe_alerta_alto"><text>"Alerta"</text></outputEntry>
+        <outputEntry id="oe_acao_alto"><text>"ALTO RISCO hepatotoxicidade (15-28%). Monitorar TGO/TGP SEMANAL nas primeiras 8 semanas. Se TGO&gt; 3x LSN com sintomas OU >5x LSN sem sintomas: SUSPENDER todos, investigar. Reintroduzir um a um apos normalizacao. Considerar esquema alternativo sem pirazinamida se disponivel."</text></outputEntry>
+        <outputEntry id="oe_just_alto"><text>"Paciente alto risco: HIV, hepatite, etilismo potencializam hepatotoxicidade do esquema RIP. Saukkonen JJ, Am J Respir Crit Care Med 2006."</text></outputEntry>
+      </rule>
+
+      <!-- Rule 2: Esquema RIP + Idade >60 -->
+      <rule id="rule_rip_idoso">
+        <inputEntry id="ie_rip_completo2">
+          <text>list contains(medicamentosAtivos, "RIFAMPICINA") and list contains(medicamentosAtivos, "ISONIAZIDA")</text>
+        </inputEntry>
+        <inputEntry id="ie_idoso">
+          <text>"IDOSO" or "IDADE_MAIOR_60"</text>
+        </inputEntry>
+        <inputEntry id="ie_tgo_any">
+          <text>-</text>
+        </inputEntry>
+        <outputEntry id="oe_atencao_idoso"><text>"Atencao"</text></outputEntry>
+        <outputEntry id="oe_acao_idoso"><text>"Risco aumentado em idosos (hepatotoxicidade 2-3x maior). Monitorar TGO/TGP a cada 2 semanas por 2 meses, depois mensal. Orientar sinais de alerta (nausea, ictericia, urina escura). Considerar reducao dose isoniazida se possivel."</text></outputEntry>
+        <outputEntry id="oe_just_idoso"><text>"Incidencia hepatotoxicidade aumenta com idade: 0.3% em&lt; 35 anos vs 2% em >50 anos. WHO TB Guidelines."</text></outputEntry>
+      </rule>
+
+      <!-- Rule 3: Esquema RIP padrao sem fatores de risco -->
+      <rule id="rule_rip_padrao">
+        <inputEntry id="ie_rip_completo3">
+          <text>list contains(medicamentosAtivos, "RIFAMPICINA") and list contains(medicamentosAtivos, "ISONIAZIDA") and list contains(medicamentosAtivos, "PIRAZINAMIDA")</text>
+        </inputEntry>
+        <inputEntry id="ie_fator_nenhum">
+          <text>"NENHUM" or "AUSENTE"</text>
+        </inputEntry>
+        <inputEntry id="ie_tgo_normal">
+          <text>&lt;= 40</text>
+        </inputEntry>
+        <outputEntry id="oe_atencao_padrao"><text>"Atencao"</text></outputEntry>
+        <outputEntry id="oe_acao_padrao"><text>"Monitoramento padrao: TGO/TGP basal, depois apenas se sintomas. Orientar sinais de hepatotoxicidade. Se sintomas GI ou ictericia, dosar transaminases imediatamente."</text></outputEntry>
+        <outputEntry id="oe_just_padrao"><text>"Risco basal 5-10% em populacao geral. Monitorizacao clinica suficiente em baixo risco. Tostmann A, J Gastroenterol Hepatol 2008."</text></outputEntry>
+      </rule>
+
+      <!-- Fallback Rule -->
+      <rule id="Rule_Fallback">
+        <inputEntry id="ie_fallback1"><text>-</text></inputEntry>
+        <inputEntry id="ie_fallback2"><text>-</text></inputEntry>
+        <inputEntry id="ie_fallback3"><text>-</text></inputEntry>
+        <outputEntry id="oe_fallback1"><text>"OK"</text></outputEntry>
+        <outputEntry id="oe_fallback2"><text>""</text></outputEntry>
+        <outputEntry id="oe_fallback3"><text>""</text></outputEntry>
+      </rule>
+    </decisionTable>
+  </decision>
+</definitions>

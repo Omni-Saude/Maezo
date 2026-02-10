@@ -5,8 +5,8 @@ from unittest.mock import patch
 
 import pytest
 
-from platform.revenue_cycle.collection.enums import AgingBucket
-from platform.revenue_cycle.collection.workers.generate_collection_letter_worker import (
+from healthcare_platform.revenue_cycle.collection.enums import AgingBucket
+from healthcare_platform.revenue_cycle.collection.workers.generate_collection_letter_worker import (
     GenerateCollectionLetterWorker,
 )
 

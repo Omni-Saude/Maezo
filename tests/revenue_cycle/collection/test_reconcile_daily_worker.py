@@ -5,8 +5,8 @@ from decimal import Decimal
 
 import pytest
 
-from platform.revenue_cycle.collection.enums import ReconciliationStatus
-from platform.revenue_cycle.collection.workers.reconcile_daily_worker import ReconcileDailyWorker
+from healthcare_platform.revenue_cycle.collection.enums import ReconciliationStatus
+from healthcare_platform.revenue_cycle.collection.workers.reconcile_daily_worker import ReconcileDailyWorker
 
 
 @pytest.mark.asyncio

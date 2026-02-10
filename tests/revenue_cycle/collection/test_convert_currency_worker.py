@@ -5,7 +5,7 @@ from decimal import Decimal
 
 import pytest
 
-from platform.revenue_cycle.collection.workers.convert_currency_worker import (
+from healthcare_platform.revenue_cycle.collection.workers.convert_currency_worker import (
     ConvertCurrencyWorker,
 )
 

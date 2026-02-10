@@ -285,6 +285,150 @@ npx @claude-flow/cli@latest memory store \
 
 ---
 
+## Swarm Spawn Best Practices (CRITICAL)
+
+**ESTABLISHED WORKFLOW (Proven Pattern - 2026-02-09):**
+
+### Agent-User Collaboration Protocol
+
+**AGENT RESPONSIBILITIES:**
+1. Execute pre-task hooks (`npx @claude-flow/cli@latest hooks pre-task`)
+2. Store task context in memory system (not markdown files)
+3. Prepare swarm spawn command with complete objective
+4. **Display command in code block for manual copy-paste**
+5. Wait for user notification of completion (no active monitoring)
+6. Execute post-task hooks and neural training
+7. Store completion status in memory
+
+**USER RESPONSIBILITIES:**
+1. Copy swarm command from agent's code block
+2. Paste into separate terminal window
+3. Monitor swarm execution progress
+4. Notify agent when swarm completes
+
+### ✅ CORRECT: Display Command for Manual Copy-Paste
+
+```markdown
+Agent provides in dialog:
+
+\`\`\`bash
+npx @claude-flow/cli@latest hive-mind spawn \
+  --workers 4 \
+  --topology hierarchical-mesh \
+  --consensus byzantine \
+  --claude \
+  --model-routing intelligent \
+  --namespace healthcare-platform \
+  --use-memory \
+  --use-patterns \
+  --use-vectors \
+  --use-learning \
+  --objective "
+[Complete detailed objective here...]
+"
+\`\`\`
+
+**Copy the entire command above and paste it into your other terminal window.**
+```
+
+**WHY THIS WORKS:**
+- ✅ User has full visibility and control
+- ✅ No terminal automation conflicts (heredoc, pipes, escaping)
+- ✅ User can review command before execution
+- ✅ Separate terminal preserves swarm output
+- ✅ No interruption of agent-user dialog
+- ✅ User determines execution timing
+
+### ❌ INCORRECT: Automated Execution Attempts
+
+**DO NOT USE:**
+```bash
+# ❌ run_in_terminal with swarm spawn (blocks dialog)
+npx @claude-flow/cli@latest hive-mind spawn ... 
+
+# ❌ Heredoc to file then cat (extra steps, no benefit)
+cat << 'EOF' > /tmp/command.txt
+npx @claude-flow/cli@latest hive-mind spawn ...
+EOF
+cat /tmp/command.txt
+
+# ❌ Background execution in agent terminal
+npx @claude-flow/cli@latest hive-mind spawn ... &
+```
+
+**WHY THESE FAIL:**
+- Terminal conflicts with user's active shell
+- Escaping issues with complex objectives
+- Lost swarm output visibility
+- Blocks agent-user dialog during execution
+- No user control over timing
+
+### Command Format Requirements
+
+**COMPLETE COMMAND STRUCTURE:**
+```bash
+npx @claude-flow/cli@latest hive-mind spawn \
+  --workers <N> \                          # Worker count based on task
+  --topology hierarchical-mesh \           # Best for complex tasks
+  --consensus byzantine \                  # Fault-tolerant voting
+  --claude \                               # Use Claude models
+  --model-routing intelligent \            # Cost optimization
+  --namespace healthcare-platform \        # Project namespace
+  --use-memory \                           # Memory system access
+  --use-patterns \                         # Pattern library access
+  --use-vectors \                          # Semantic search
+  --use-learning \                         # Neural learning
+  --objective "
+[DETAILED OBJECTIVE WITH:]
+- **CONTEXT:** What we're building and why
+- **MEMORY CONTEXT:** Keys to retrieve (phase context, patterns)
+- **WORKER ROLES:** Specific assignments per agent
+- **DELIVERABLES:** Exact files/artifacts to create
+- **SUCCESS CRITERIA:** Validation checkpoints
+- **VALIDATION COMMANDS:** How to verify completion
+- **ESTIMATED TIME:** Expected duration
+"
+```
+
+**OBJECTIVE SIZE:** Typically 3-10KB for comprehensive tasks. Include all context agents need.
+
+### Phase Workflow Pattern
+
+**Standard Phase Execution:**
+```
+1. Agent: Execute pre-task hook
+   → npx @claude-flow/cli@latest hooks pre-task --task-id "phase-X"
+
+2. Agent: Store phase scope in memory
+   → npx @claude-flow/cli@latest memory store --key "phase-X-scope"
+
+3. Agent: Display swarm command in code block (manual copy-paste)
+   → User copies and pastes into separate terminal
+
+4. User: Executes swarm in separate terminal
+   → Monitor progress, wait for completion
+
+5. User: Notifies agent "Phase X complete" or similar
+   → Agent proceeds to post-task routine
+
+6. Agent: Verify deliverables
+   → find, wc, grep commands to validate output
+
+7. Agent: Execute post-task hook
+   → npx @claude-flow/cli@latest hooks post-task --task-id "phase-X" --success
+
+8. Agent: Neural training on generated code
+   → npx @claude-flow/cli@latest neural train --data-source "..."
+
+9. Agent: Store completion status in memory
+   → npx @claude-flow/cli@latest memory store --key "phase-X-complete"
+
+10. Agent: Prepare next phase swarm command
+    → Repeat cycle
+```
+
+---
+
 ## Compliance Verification
 
 Before any code generation sprint:

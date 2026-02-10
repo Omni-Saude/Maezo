@@ -6,7 +6,7 @@ from uuid import uuid4
 
 import pytest
 
-from platform.revenue_cycle.billing.workers.validate_claim_worker import ValidateClaimWorker
+from healthcare_platform.revenue_cycle.billing.workers.validate_claim_worker import ValidateClaimWorker
 
 
 @pytest.fixture

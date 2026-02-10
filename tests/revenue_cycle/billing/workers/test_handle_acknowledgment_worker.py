@@ -5,8 +5,8 @@ import types
 
 import pytest
 
-from platform.revenue_cycle.billing.workers.handle_acknowledgment_worker import HandleAcknowledgmentWorker
-from platform.shared.domain.enums import BillingStatus
+from healthcare_platform.revenue_cycle.billing.workers.handle_acknowledgment_worker import HandleAcknowledgmentWorker
+from healthcare_platform.shared.domain.enums import BillingStatus
 
 
 @pytest.fixture

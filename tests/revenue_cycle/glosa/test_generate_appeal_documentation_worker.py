@@ -7,10 +7,10 @@ evidence checklists, and regulatory references.
 
 import pytest
 
-from platform.revenue_cycle.glosa.workers.generate_appeal_documentation_worker import (
+from healthcare_platform.revenue_cycle.glosa.workers.generate_appeal_documentation_worker import (
     GenerateAppealDocumentationWorker,
 )
-from platform.shared.domain.enums import GlosaReasonCode, GlosaType
+from healthcare_platform.shared.domain.enums import GlosaReasonCode, GlosaType
 
 
 @pytest.fixture

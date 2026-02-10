@@ -6,9 +6,9 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from platform.revenue_cycle.billing.workers.group_by_guide_worker import GroupByGuideWorker
-from platform.shared.domain.enums import TISSGuideType
-from platform.shared.domain.exceptions import BillingException
+from healthcare_platform.revenue_cycle.billing.workers.group_by_guide_worker import GroupByGuideWorker
+from healthcare_platform.shared.domain.enums import TISSGuideType
+from healthcare_platform.shared.domain.exceptions import BillingException
 
 
 @pytest.fixture

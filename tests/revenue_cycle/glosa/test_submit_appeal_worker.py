@@ -8,9 +8,9 @@ import pytest
 from datetime import datetime, timezone
 from unittest.mock import AsyncMock, Mock
 
-from platform.revenue_cycle.glosa.workers.submit_appeal_worker import SubmitAppealWorker
-from platform.shared.domain.exceptions import GlosaException
-from platform.shared.integrations.tiss_client import TISSGuideDTO, TISSSubmissionResult
+from healthcare_platform.revenue_cycle.glosa.workers.submit_appeal_worker import SubmitAppealWorker
+from healthcare_platform.shared.domain.exceptions import GlosaException
+from healthcare_platform.shared.integrations.tiss_client import TISSGuideDTO, TISSSubmissionResult
 
 
 @pytest.fixture

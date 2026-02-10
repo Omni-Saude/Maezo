@@ -7,10 +7,10 @@ team routing, and systemic issue detection.
 
 import pytest
 
-from platform.revenue_cycle.glosa.workers.escalate_to_supervisor_worker import (
+from healthcare_platform.revenue_cycle.glosa.workers.escalate_to_supervisor_worker import (
     EscalateToSupervisorWorker,
 )
-from platform.shared.domain.enums import GlosaReasonCode, GlosaType
+from healthcare_platform.shared.domain.enums import GlosaReasonCode, GlosaType
 
 
 @pytest.fixture

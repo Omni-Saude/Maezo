@@ -1,0 +1,100 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- ============================================================================
+     DDI-NEPHRO-002: AINEs + IECA/BRA - Lesao Renal Aguda Hemodinamica
+
+     EVIDENCIA CLINICA:
+     - Micromedex: Major Interaction
+     - Lapi F et al. BMJ. 2013;346:e8525 (Triple Whammy Study)
+     - Dreischulte T et al. BMJ. 2015;350:h949
+
+     MECANISMO: AINEs inibem prostaglandinas renais (vasodilatadoras da arteríola
+     aferente). IECA/BRA dilatam arteriola eferente. Combinacao reduz pressao
+     intraglomerular e TFG. "Triple Whammy" quando associado a diuretico.
+
+     INCIDENCIA: Risco IRA aumenta 31% (dupla) a 82% (tripla com diuretico)
+     ============================================================================ -->
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/" xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/" xmlns:dc="http://www.omg.org/spec/DMN/20180521/DC/" xmlns:di="http://www.omg.org/spec/DMN/20180521/DI/" id="DDI_NEPHRO_002" name="DDI-NEPHRO-002: AINEs + IECA/BRA" namespace="http://camunda.org/schema/1.0/dmn">
+  <decision id="ddi_nephro_002_decision" name="AINEs + IECA/BRA - Lesao Renal Hemodinamica">
+    <decisionTable id="ddi_nephro_002_table" hitPolicy="FIRST">
+      <input id="input_medicamentos_ativos" label="Medicamentos Ativos">
+        <inputExpression id="input_expr_medicamentos" typeRef="string">
+          <text>medicamentosAtivos</text>
+        </inputExpression>
+      </input>
+      <input id="input_medicamento_novo" label="Medicamento Novo">
+        <inputExpression id="input_expr_novo" typeRef="string">
+          <text>medicamentoNovo</text>
+        </inputExpression>
+      </input>
+      <input id="input_diuretico_uso" label="Diuretico em Uso">
+        <inputExpression id="input_expr_diuretico" typeRef="boolean">
+          <text>diureticoEmUso</text>
+        </inputExpression>
+      </input>
+
+      <output id="output_nivel_alerta" name="nivelAlerta" typeRef="string">
+        <outputValues><text>"Alerta","Atencao","Informativo","OK"</text></outputValues>
+      </output>
+      <output id="output_acao_requerida" name="acaoRequerida" typeRef="string" />
+      <output id="output_justificativa" name="justificativaCientifica" typeRef="string" />
+
+      <!-- Rule 1: IECA/BRA + AINE + Diuretico = Triple Whammy -->
+      <rule id="rule_triple_whammy">
+        <inputEntry id="ie_ieca_bra_ativo">
+          <text>list contains(medicamentosAtivos, "ENALAPRIL") or list contains(medicamentosAtivos, "CAPTOPRIL") or list contains(medicamentosAtivos, "LOSARTANA") or list contains(medicamentosAtivos, "VALSARTANA") or list contains(medicamentosAtivos, "LISINOPRIL") or list contains(medicamentosAtivos, "RAMIPRIL")</text>
+        </inputEntry>
+        <inputEntry id="ie_aine_novo">
+          <text>"IBUPROFENO" or "DICLOFENACO" or "NAPROXENO" or "PIROXICAM" or "MELOXICAM" or "CETOPROFENO" or "NIMESULIDA"</text>
+        </inputEntry>
+        <inputEntry id="ie_diuretico_sim">
+          <text>true</text>
+        </inputEntry>
+        <outputEntry id="oe_alerta_triple"><text>"Alerta"</text></outputEntry>
+        <outputEntry id="oe_acao_triple"><text>"TRIPLE WHAMMY: Risco IRA 82% maior. EVITAR AINE. Usar paracetamol ou opioide fraco para dor. Se AINE indispensavel, suspender diuretico temporariamente e monitorar creatinina em 48-72h."</text></outputEntry>
+        <outputEntry id="oe_just_triple"><text>"Triple Whammy: AINE+IECA/BRA+Diuretico. HR 1.82 para IRA. Lapi F, BMJ 2013;346:e8525."</text></outputEntry>
+      </rule>
+
+      <!-- Rule 2: IECA/BRA + AINE sem Diuretico -->
+      <rule id="rule_dupla_ieca_aine">
+        <inputEntry id="ie_ieca_bra_ativo2">
+          <text>list contains(medicamentosAtivos, "ENALAPRIL") or list contains(medicamentosAtivos, "CAPTOPRIL") or list contains(medicamentosAtivos, "LOSARTANA") or list contains(medicamentosAtivos, "VALSARTANA") or list contains(medicamentosAtivos, "LISINOPRIL")</text>
+        </inputEntry>
+        <inputEntry id="ie_aine_novo2">
+          <text>"IBUPROFENO" or "DICLOFENACO" or "NAPROXENO" or "PIROXICAM" or "MELOXICAM" or "CETOPROFENO" or "NIMESULIDA"</text>
+        </inputEntry>
+        <inputEntry id="ie_diuretico_nao">
+          <text>false</text>
+        </inputEntry>
+        <outputEntry id="oe_atencao_dupla"><text>"Atencao"</text></outputEntry>
+        <outputEntry id="oe_acao_dupla"><text>"Risco IRA 31% maior. Preferir paracetamol. Se AINE necessario, usar menor dose pelo menor tempo. Monitorar creatinina em 7 dias. Orientar hidratacao adequada."</text></outputEntry>
+        <outputEntry id="oe_just_dupla"><text>"Combinacao AINE+IECA/BRA reduz TFG por mecanismo hemodinamico. HR 1.31 para IRA. Dreischulte T, BMJ 2015."</text></outputEntry>
+      </rule>
+
+      <!-- Rule 3: AINE ativo + IECA/BRA novo -->
+      <rule id="rule_aine_ativo_ieca_novo">
+        <inputEntry id="ie_aine_ativo">
+          <text>list contains(medicamentosAtivos, "IBUPROFENO") or list contains(medicamentosAtivos, "DICLOFENACO") or list contains(medicamentosAtivos, "NAPROXENO") or list contains(medicamentosAtivos, "NIMESULIDA")</text>
+        </inputEntry>
+        <inputEntry id="ie_ieca_novo">
+          <text>"ENALAPRIL" or "CAPTOPRIL" or "LOSARTANA" or "VALSARTANA" or "LISINOPRIL" or "RAMIPRIL"</text>
+        </inputEntry>
+        <inputEntry id="ie_diuretico_any">
+          <text>-</text>
+        </inputEntry>
+        <outputEntry id="oe_atencao_ieca"><text>"Atencao"</text></outputEntry>
+        <outputEntry id="oe_acao_ieca"><text>"Reavaliar necessidade de AINE cronico. Se HAS essencial, iniciar IECA/BRA e monitorar funcao renal. Considerar suspender AINE ou substituir por paracetamol."</text></outputEntry>
+        <outputEntry id="oe_just_ieca"><text>"AINEs reduzem eficacia anti-hipertensiva e aumentam risco renal. Reavaliar balanco risco-beneficio."</text></outputEntry>
+      </rule>
+
+      <!-- Fallback Rule -->
+      <rule id="Rule_Fallback">
+        <inputEntry id="ie_fallback1"><text>-</text></inputEntry>
+        <inputEntry id="ie_fallback2"><text>-</text></inputEntry>
+        <inputEntry id="ie_fallback3"><text>-</text></inputEntry>
+        <outputEntry id="oe_fallback1"><text>"OK"</text></outputEntry>
+        <outputEntry id="oe_fallback2"><text>""</text></outputEntry>
+        <outputEntry id="oe_fallback3"><text>""</text></outputEntry>
+      </rule>
+    </decisionTable>
+  </decision>
+</definitions>

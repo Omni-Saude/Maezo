@@ -1,0 +1,162 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/"
+             xmlns:dc="http://www.omg.org/spec/DMN/20180521/DC/"
+             id="Definitions_DLI_RENAL_001"
+             name="Alerta: Metformina em Insuficiencia Renal Grave"
+             targetNamespace="http://camunda.org/schema/1.0/dmn">
+
+  <!--
+    ═══════════════════════════════════════════════════════════════════════════
+    DLI-RENAL-001 - Metformina + CrCl <30 mL/min
+    Versao: 1.0.0 (2026-02-06)
+    Categoria: Alerta Critico Drug-Lab Interaction
+    ═══════════════════════════════════════════════════════════════════════════
+
+    RISCO CLINICO: Acidose latica fatal (mortalidade >50%)
+
+    CONTRAINDICACAO ABSOLUTA:
+    - Metformina em clearance de creatinina <30 mL/min
+    - Risco de acumulo e acidose latica
+    - FDA Black Box Warning
+
+    REFERENCIAS:
+    - FDA Metformin Label 2016
+    - Kidney Disease: Improving Global Outcomes (KDIGO) 2024
+    - American Diabetes Association Standards 2024
+    ═══════════════════════════════════════════════════════════════════════════
+  -->
+
+  <decision id="Decision_DLI_RENAL_001" name="Verificar Metformina vs Funcao Renal">
+    <decisionTable id="DecisionTable_DLI_RENAL_001" hitPolicy="FIRST">
+
+      <input id="Input_1" label="Medicamento Atual">
+        <inputExpression id="InputExpression_1" typeRef="string">
+          <text>medicamentoAtual</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_2" label="Clearance Creatinina (mL/min)">
+        <inputExpression id="InputExpression_2" typeRef="number">
+          <text>clearanceCreatinina</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_3" label="Funcao Renal">
+        <inputExpression id="InputExpression_3" typeRef="string">
+          <text>funcaoRenal</text>
+        </inputExpression>
+        <inputValues id="InputValues_3">
+          <text>"OK", "LEVE", "MODERADA", "GRAVE", "DIALISE"</text>
+        </inputValues>
+      </input>
+
+      <output id="Output_1" label="Nivel de Alerta" name="nivelAlerta" typeRef="string">
+        <outputValues id="OutputValues_1">
+          <text>"Informativo", "Atencao", "Alerta", "Alerta"</text>
+        </outputValues>
+      </output>
+
+      <output id="Output_2" label="Ajuste Recomendado" name="ajusteDoseRecomendado" typeRef="string"/>
+      <output id="Output_3" label="Dose Maxima Segura (mg/dia)" name="doseMaximaSegura" typeRef="number"/>
+      <output id="Output_4" label="Frequencia Recomendada" name="frequenciaRecomendada" typeRef="string"/>
+      <output id="Output_5" label="Monitoramento Requerido" name="monitoramentoRequerido" typeRef="string"/>
+
+      <!-- ALERTA CRITICO: CrCl <30 ou GRAVE/DIALISE -->
+      <rule id="Rule_Critico_1">
+        <description>Metformina CONTRAINDICADA em CrCl &lt;30 mL/min (acidose latica fatal)</description>
+        <inputEntry id="InputEntry_C1_1">
+          <text>"METFORMINA", "CLORIDRATO_METFORMINA", "GLIFAGE", "GLUCOFORMIN"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_C1_2">
+          <text>&lt; 30</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_C1_3">
+          <text>-</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_C1_1">
+          <text>"Alerta"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_C1_2">
+          <text>"SUSPENDER METFORMINA IMEDIATAMENTE - Risco de acidose latica fatal (mortalidade >50%). Considerar insulina ou outros antidiabeticos seguros em DRC."</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_C1_3">
+          <text>0</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_C1_4">
+          <text>"SUSPENDER"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_C1_5">
+          <text>"Lactato serico, pH arterial, bicarbonato. Avaliar substituicao por insulina basal."</text>
+        </outputEntry>
+      </rule>
+
+      <rule id="Rule_Critico_2">
+        <description>Metformina CONTRAINDICADA em funcao renal GRAVE ou DIALISE</description>
+        <inputEntry id="InputEntry_C2_1">
+          <text>"METFORMINA", "CLORIDRATO_METFORMINA", "GLIFAGE", "GLUCOFORMIN"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_C2_2">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_C2_3">
+          <text>"GRAVE", "DIALISE"</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_C2_1">
+          <text>"Alerta"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_C2_2">
+          <text>"SUSPENDER METFORMINA IMEDIATAMENTE - Contraindicacao absoluta em DRC Grave/Dialise. Risco de acidose latica. Substituir por insulina."</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_C2_3">
+          <text>0</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_C2_4">
+          <text>"SUSPENDER"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_C2_5">
+          <text>"Lactato serico, nefrologia. Planejar insulinizacao."</text>
+        </outputEntry>
+      </rule>
+
+      <!-- FALLBACK: Medicamento nao e metformina ou funcao renal OK -->
+      <rule id="Rule_Fallback_DLI_RENAL_001">
+        <description>Regra padrao - Sem alerta para este medicamento/funcao renal</description>
+        <inputEntry id="InputEntry_F_1">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_F_2">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_F_3">
+          <text>-</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_F_1">
+          <text>"Informativo"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_F_2">
+          <text>"Sem ajuste necessario."</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_F_3">
+          <text>null</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_F_4">
+          <text>"Conforme prescricao"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_F_5">
+          <text>"Rotina"</text>
+        </outputEntry>
+      </rule>
+
+    </decisionTable>
+  </decision>
+
+  <dmndi:DMNDI>
+    <dmndi:DMNDiagram id="DMNDiagram_DLI_RENAL_001">
+      <dmndi:DMNShape id="DMNShape_Decision_DLI_RENAL_001" dmnElementRef="Decision_DLI_RENAL_001">
+        <dc:Bounds height="80" width="180" x="160" y="100"/>
+      </dmndi:DMNShape>
+    </dmndi:DMNDiagram>
+  </dmndi:DMNDI>
+
+</definitions>

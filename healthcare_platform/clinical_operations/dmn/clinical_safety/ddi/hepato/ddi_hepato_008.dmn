@@ -1,0 +1,100 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- ============================================================================
+     DDI-HEPATO-008: Azatioprina + Alopurinol - Mielossupressao e Hepatotoxicidade
+
+     EVIDENCIA CLINICA:
+     - Micromedex: Major Interaction
+     - Venkat Raman G et al. Clin Pharmacol Ther. 1990;47:690-3
+     - Ansari A et al. Gut. 2008;57:1652-6
+
+     MECANISMO: Alopurinol inibe xantina oxidase, que metaboliza azatioprina a
+     metabolitos inativos. Resultado: acumulo de 6-mercaptopurina (metabolito ativo),
+     causando mielotoxicidade e hepatotoxicidade severas.
+
+     INCIDENCIA: Mielossupressao grave em 30-50% se combinacao sem ajuste de dose
+     ============================================================================ -->
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/" xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/" xmlns:dc="http://www.omg.org/spec/DMN/20180521/DC/" xmlns:di="http://www.omg.org/spec/DMN/20180521/DI/" id="DDI_HEPATO_008" name="DDI-HEPATO-008: Azatioprina + Alopurinol" namespace="http://camunda.org/schema/1.0/dmn">
+  <decision id="ddi_hepato_008_decision" name="Azatioprina + Alopurinol - Toxicidade Severa">
+    <decisionTable id="ddi_hepato_008_table" hitPolicy="FIRST">
+      <input id="input_medicamentos_ativos" label="Medicamentos Ativos">
+        <inputExpression id="input_expr_medicamentos" typeRef="string">
+          <text>medicamentosAtivos</text>
+        </inputExpression>
+      </input>
+      <input id="input_medicamento_novo" label="Medicamento Novo">
+        <inputExpression id="input_expr_novo" typeRef="string">
+          <text>medicamentoNovo</text>
+        </inputExpression>
+      </input>
+      <input id="input_dose_azatioprina" label="Dose Azatioprina (mg/dia)">
+        <inputExpression id="input_expr_dose" typeRef="number">
+          <text>doseAzatioprina</text>
+        </inputExpression>
+      </input>
+
+      <output id="output_nivel_alerta" name="nivelAlerta" typeRef="string">
+        <outputValues><text>"Alerta","Atencao","Informativo","OK"</text></outputValues>
+      </output>
+      <output id="output_acao_requerida" name="acaoRequerida" typeRef="string" />
+      <output id="output_justificativa" name="justificativaCientifica" typeRef="string" />
+
+      <!-- Rule 1: Azatioprina dose padrao + Alopurinol novo -->
+      <rule id="rule_azatioprina_alopurinol">
+        <inputEntry id="ie_azatioprina_ativa">
+          <text>list contains(medicamentosAtivos, "AZATIOPRINA")</text>
+        </inputEntry>
+        <inputEntry id="ie_alopurinol_novo">
+          <text>"ALOPURINOL"</text>
+        </inputEntry>
+        <inputEntry id="ie_dose_padrao">
+          <text>&gt;= 75</text>
+        </inputEntry>
+        <outputEntry id="oe_alerta_padrao"><text>"Alerta"</text></outputEntry>
+        <outputEntry id="oe_acao_padrao"><text>"REDUZIR AZATIOPRINA 75% se alopurinol necessario. Alopurinol bloqueia metabolismo, aumentando 6-MP 5x. Sem reducao = mielossupressao e hepatotoxicidade graves. Alternativa: febuxostat (menor interacao) ou evitar combinacao."</text></outputEntry>
+        <outputEntry id="oe_just_padrao"><text>"Interacao bem documentada. Reducao 75% obrigatoria. Venkat Raman G, Clin Pharmacol Ther 1990."</text></outputEntry>
+      </rule>
+
+      <!-- Rule 2: Alopurinol ativo + Azatioprina nova -->
+      <rule id="rule_alopurinol_azatioprina">
+        <inputEntry id="ie_alopurinol_ativo">
+          <text>list contains(medicamentosAtivos, "ALOPURINOL")</text>
+        </inputEntry>
+        <inputEntry id="ie_azatioprina_nova">
+          <text>"AZATIOPRINA"</text>
+        </inputEntry>
+        <inputEntry id="ie_dose_any">
+          <text>-</text>
+        </inputEntry>
+        <outputEntry id="oe_alerta_nova"><text>"Alerta"</text></outputEntry>
+        <outputEntry id="oe_acao_nova"><text>"INICIAR AZATIOPRINA com 25% da dose usual (ex: 25-50mg em vez de 100-150mg). Monitorar hemograma semanal por 4 semanas. TGO/TGP a cada 2 semanas. Se mielossupressao, suspender e reavaliar."</text></outputEntry>
+        <outputEntry id="oe_just_nova"><text>"Azatioprina deve ser iniciada em dose reduzida em pacientes ja em alopurinol. Ansari A, Gut 2008."</text></outputEntry>
+      </rule>
+
+      <!-- Rule 3: Azatioprina/6-MP + Alopurinol dose baixa ja ajustada -->
+      <rule id="rule_dose_ja_ajustada">
+        <inputEntry id="ie_azatioprina_ativa2">
+          <text>list contains(medicamentosAtivos, "AZATIOPRINA") or list contains(medicamentosAtivos, "6_MERCAPTOPURINA")</text>
+        </inputEntry>
+        <inputEntry id="ie_alopurinol_novo2">
+          <text>"ALOPURINOL"</text>
+        </inputEntry>
+        <inputEntry id="ie_dose_baixa">
+          <text>&lt; 75</text>
+        </inputEntry>
+        <outputEntry id="oe_atencao_baixa"><text>"Atencao"</text></outputEntry>
+        <outputEntry id="oe_acao_baixa"><text>"Dose azatioprina ja reduzida. Verificar se ajuste foi intencional para uso com alopurinol. Monitorar hemograma semanal por 4 semanas, depois mensal. TGO/TGP basal e em 4 semanas."</text></outputEntry>
+        <outputEntry id="oe_just_baixa"><text>"Com dose ja ajustada, combinacao pode ser segura com monitorizacao rigorosa."</text></outputEntry>
+      </rule>
+
+      <!-- Fallback Rule -->
+      <rule id="Rule_Fallback">
+        <inputEntry id="ie_fallback1"><text>-</text></inputEntry>
+        <inputEntry id="ie_fallback2"><text>-</text></inputEntry>
+        <inputEntry id="ie_fallback3"><text>-</text></inputEntry>
+        <outputEntry id="oe_fallback1"><text>"OK"</text></outputEntry>
+        <outputEntry id="oe_fallback2"><text>""</text></outputEntry>
+        <outputEntry id="oe_fallback3"><text>""</text></outputEntry>
+      </rule>
+    </decisionTable>
+  </decision>
+</definitions>

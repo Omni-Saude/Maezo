@@ -1,0 +1,100 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- ============================================================================
+     DDI-NEPHRO-005: Anfotericina B + Aminoglicosideos - Nefrotoxicidade Severa
+
+     EVIDENCIA CLINICA:
+     - Bates DW et al. Am J Med. 2001;111:177-81
+     - Deray G. Am J Kidney Dis. 2002;40:S11-S17
+     - IDSA Guidelines for Invasive Fungal Infections
+
+     MECANISMO: Anfotericina B forma poros na membrana celular tubular, causando
+     perda de potassio e magnesio, acidose tubular e IRA. Aminoglicosideos
+     potencializam toxicidade tubular. Incidencia IRA: 50-80% com combinacao.
+
+     INCIDENCIA: IRA em 25-30% anfotericina isolada; 50-80% com aminoglicosideo
+     ============================================================================ -->
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/" xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/" xmlns:dc="http://www.omg.org/spec/DMN/20180521/DC/" xmlns:di="http://www.omg.org/spec/DMN/20180521/DI/" id="DDI_NEPHRO_005" name="DDI-NEPHRO-005: Anfotericina B + Aminoglicosideos" namespace="http://camunda.org/schema/1.0/dmn">
+  <decision id="ddi_nephro_005_decision" name="Anfotericina B + Aminoglicosideos - Nefrotoxicidade Severa">
+    <decisionTable id="ddi_nephro_005_table" hitPolicy="FIRST">
+      <input id="input_medicamentos_ativos" label="Medicamentos Ativos">
+        <inputExpression id="input_expr_medicamentos" typeRef="string">
+          <text>medicamentosAtivos</text>
+        </inputExpression>
+      </input>
+      <input id="input_medicamento_novo" label="Medicamento Novo">
+        <inputExpression id="input_expr_novo" typeRef="string">
+          <text>medicamentoNovo</text>
+        </inputExpression>
+      </input>
+      <input id="input_formulacao_anfotericina" label="Formulacao Anfotericina">
+        <inputExpression id="input_expr_formulacao" typeRef="string">
+          <text>formulacaoAnfotericina</text>
+        </inputExpression>
+      </input>
+
+      <output id="output_nivel_alerta" name="nivelAlerta" typeRef="string">
+        <outputValues><text>"Alerta","Atencao","Informativo","OK"</text></outputValues>
+      </output>
+      <output id="output_acao_requerida" name="acaoRequerida" typeRef="string" />
+      <output id="output_justificativa" name="justificativaCientifica" typeRef="string" />
+
+      <!-- Rule 1: Anfotericina deoxicolato + Aminoglicosideo -->
+      <rule id="rule_anfotericina_deoxi_amino">
+        <inputEntry id="ie_anfotericina_ativa">
+          <text>list contains(medicamentosAtivos, "ANFOTERICINA_B") or list contains(medicamentosAtivos, "ANFOTERICINA_B_DEOXICOLATO")</text>
+        </inputEntry>
+        <inputEntry id="ie_amino_novo">
+          <text>"GENTAMICINA" or "AMICACINA" or "TOBRAMICINA"</text>
+        </inputEntry>
+        <inputEntry id="ie_formulacao_deoxi">
+          <text>"DEOXICOLATO" or "CONVENCIONAL"</text>
+        </inputEntry>
+        <outputEntry id="oe_alerta_deoxi"><text>"Alerta"</text></outputEntry>
+        <outputEntry id="oe_acao_deoxi"><text>"EVITAR COMBINACAO. Risco IRA >80%. Substituir anfotericina por formulacao lipidica (lipossomal, complexo lipidico) OU substituir aminoglicosideo por alternativa (fluoroquinolona, cefepime). Se ambos indispensaveis: hidratar com SF 500mL antes infusao, repor K/Mg, creatinina diaria."</text></outputEntry>
+        <outputEntry id="oe_just_deoxi"><text>"Anfotericina deoxicolato: nefrotoxicidade alta (30%). Aminoglicosideo potencializa para >80%. Bates DW, Am J Med 2001."</text></outputEntry>
+      </rule>
+
+      <!-- Rule 2: Anfotericina lipossomal + Aminoglicosideo -->
+      <rule id="rule_anfotericina_lipo_amino">
+        <inputEntry id="ie_anfotericina_lipo">
+          <text>list contains(medicamentosAtivos, "ANFOTERICINA_B_LIPOSSOMAL") or list contains(medicamentosAtivos, "AMBISOME")</text>
+        </inputEntry>
+        <inputEntry id="ie_amino_novo2">
+          <text>"GENTAMICINA" or "AMICACINA" or "TOBRAMICINA"</text>
+        </inputEntry>
+        <inputEntry id="ie_formulacao_lipo">
+          <text>"LIPOSSOMAL" or "LIPIDICA"</text>
+        </inputEntry>
+        <outputEntry id="oe_atencao_lipo"><text>"Atencao"</text></outputEntry>
+        <outputEntry id="oe_acao_lipo"><text>"Risco IRA moderado (20-30%). Monitorar creatinina, K, Mg diariamente. Hidratar com SF pre-infusao. Considerar dose unica diaria de aminoglicosideo. Reavaliar necessidade de combinacao em 48-72h."</text></outputEntry>
+        <outputEntry id="oe_just_lipo"><text>"Formulacao lipossomal reduz nefrotoxicidade, mas combinacao ainda tem risco. IDSA Guidelines."</text></outputEntry>
+      </rule>
+
+      <!-- Rule 3: Aminoglicosideo ativo + Anfotericina nova -->
+      <rule id="rule_amino_anfotericina">
+        <inputEntry id="ie_amino_ativo">
+          <text>list contains(medicamentosAtivos, "GENTAMICINA") or list contains(medicamentosAtivos, "AMICACINA") or list contains(medicamentosAtivos, "TOBRAMICINA")</text>
+        </inputEntry>
+        <inputEntry id="ie_anfotericina_nova">
+          <text>"ANFOTERICINA_B" or "ANFOTERICINA_B_LIPOSSOMAL" or "AMBISOME"</text>
+        </inputEntry>
+        <inputEntry id="ie_formulacao_any">
+          <text>-</text>
+        </inputEntry>
+        <outputEntry id="oe_atencao_anfo"><text>"Atencao"</text></outputEntry>
+        <outputEntry id="oe_acao_anfo"><text>"Preferir formulacao lipossomal de anfotericina. Avaliar suspensao de aminoglicosideo se possivel. Monitoramento renal intensivo obrigatorio. Hidratar vigorosamente."</text></outputEntry>
+        <outputEntry id="oe_just_anfo"><text>"Combinacao altamente nefrotoxica. Sempre usar formulacao lipidica de anfotericina se disponivel."</text></outputEntry>
+      </rule>
+
+      <!-- Fallback Rule -->
+      <rule id="Rule_Fallback">
+        <inputEntry id="ie_fallback1"><text>-</text></inputEntry>
+        <inputEntry id="ie_fallback2"><text>-</text></inputEntry>
+        <inputEntry id="ie_fallback3"><text>-</text></inputEntry>
+        <outputEntry id="oe_fallback1"><text>"OK"</text></outputEntry>
+        <outputEntry id="oe_fallback2"><text>""</text></outputEntry>
+        <outputEntry id="oe_fallback3"><text>""</text></outputEntry>
+      </rule>
+    </decisionTable>
+  </decision>
+</definitions>

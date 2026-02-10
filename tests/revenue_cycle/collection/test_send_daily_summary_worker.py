@@ -5,7 +5,7 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from platform.revenue_cycle.collection.workers.send_daily_summary_worker import (
+from healthcare_platform.revenue_cycle.collection.workers.send_daily_summary_worker import (
     SendDailySummaryWorker,
 )
 

@@ -1,0 +1,248 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+                  xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+                  xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+                  xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
+                  xmlns:camunda="http://camunda.org/schema/1.0/bpmn"
+                  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                  id="Definitions_SystemConfig"
+                  targetNamespace="http://cib7.health/platform/infrastructure"
+                  exporter="Claude Code"
+                  exporterVersion="1.0">
+
+  <bpmn:process id="Process_SystemConfig" name="SP-PS-004 System Configuration" isExecutable="true">
+
+    <!-- Start: Configuration change requested -->
+    <bpmn:startEvent id="Start_ConfigRequest" name="Configuration Change Requested">
+      <bpmn:outgoing>Flow_ToLoadConfig</bpmn:outgoing>
+    </bpmn:startEvent>
+
+    <!-- Step 1: Load current configuration -->
+    <bpmn:serviceTask id="Task_LoadConfig" name="Load Current Configuration"
+                      camunda:type="external" camunda:topic="infrastructure.config">
+      <bpmn:extensionElements>
+        <camunda:inputOutput>
+          <camunda:inputParameter name="dmnTable">infra_001</camunda:inputParameter>
+        </camunda:inputOutput>
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_ToLoadConfig</bpmn:incoming>
+      <bpmn:outgoing>Flow_ToValidateParams</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Step 2: Validate configuration parameters via DMN -->
+    <bpmn:businessRuleTask id="Task_ValidateParams" name="Validate Parameters"
+                           camunda:decisionRef="infra_002"
+                           camunda:mapDecisionResult="singleResult">
+      <bpmn:incoming>Flow_ToValidateParams</bpmn:incoming>
+      <bpmn:outgoing>Flow_ToValidationGateway</bpmn:outgoing>
+    </bpmn:businessRuleTask>
+
+    <!-- Gateway: Parameters valid? -->
+    <bpmn:exclusiveGateway id="Gateway_Validation" name="Parameters Valid?">
+      <bpmn:incoming>Flow_ToValidationGateway</bpmn:incoming>
+      <bpmn:outgoing>Flow_Valid</bpmn:outgoing>
+      <bpmn:outgoing>Flow_Invalid</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+
+    <!-- Invalid: reject configuration -->
+    <bpmn:serviceTask id="Task_RejectConfig" name="Reject Invalid Configuration"
+                      camunda:type="external" camunda:topic="infrastructure.rejection">
+      <bpmn:incoming>Flow_Invalid</bpmn:incoming>
+      <bpmn:outgoing>Flow_RejectToEnd</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Step 3: Apply configuration changes -->
+    <bpmn:serviceTask id="Task_ApplyConfig" name="Apply Configuration"
+                      camunda:type="external" camunda:topic="infrastructure.deployment">
+      <bpmn:incoming>Flow_Valid</bpmn:incoming>
+      <bpmn:outgoing>Flow_ToHealthCheck</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Step 4: Run health check after applying -->
+    <bpmn:serviceTask id="Task_HealthCheck" name="Run Health Check"
+                      camunda:type="external" camunda:topic="infrastructure.health">
+      <bpmn:incoming>Flow_ToHealthCheck</bpmn:incoming>
+      <bpmn:outgoing>Flow_ToHealthGateway</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Gateway: Health check passed? -->
+    <bpmn:exclusiveGateway id="Gateway_HealthCheck" name="Health Check Passed?">
+      <bpmn:incoming>Flow_ToHealthGateway</bpmn:incoming>
+      <bpmn:outgoing>Flow_HealthOk</bpmn:outgoing>
+      <bpmn:outgoing>Flow_HealthFail</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+
+    <!-- Health failed: rollback configuration -->
+    <bpmn:serviceTask id="Task_Rollback" name="Rollback Configuration"
+                      camunda:type="external" camunda:topic="infrastructure.rollback">
+      <bpmn:incoming>Flow_HealthFail</bpmn:incoming>
+      <bpmn:outgoing>Flow_RollbackToEnd</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Health passed: confirm deployment -->
+    <bpmn:serviceTask id="Task_ConfirmDeployment" name="Confirm Deployment"
+                      camunda:type="external" camunda:topic="infrastructure.confirmation">
+      <bpmn:incoming>Flow_HealthOk</bpmn:incoming>
+      <bpmn:outgoing>Flow_ConfirmToEnd</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Merge before end -->
+    <bpmn:exclusiveGateway id="Gateway_MergeEnd" name="Merge">
+      <bpmn:incoming>Flow_RejectToEnd</bpmn:incoming>
+      <bpmn:incoming>Flow_RollbackToEnd</bpmn:incoming>
+      <bpmn:incoming>Flow_ConfirmToEnd</bpmn:incoming>
+      <bpmn:outgoing>Flow_ToEnd</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+
+    <bpmn:endEvent id="End_ConfigComplete" name="Configuration Complete">
+      <bpmn:incoming>Flow_ToEnd</bpmn:incoming>
+    </bpmn:endEvent>
+
+    <!-- Sequence Flows -->
+    <bpmn:sequenceFlow id="Flow_ToLoadConfig" sourceRef="Start_ConfigRequest" targetRef="Task_LoadConfig"/>
+    <bpmn:sequenceFlow id="Flow_ToValidateParams" sourceRef="Task_LoadConfig" targetRef="Task_ValidateParams"/>
+    <bpmn:sequenceFlow id="Flow_ToValidationGateway" sourceRef="Task_ValidateParams" targetRef="Gateway_Validation"/>
+    <bpmn:sequenceFlow id="Flow_Valid" sourceRef="Gateway_Validation" targetRef="Task_ApplyConfig">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${params_valid == true}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_Invalid" sourceRef="Gateway_Validation" targetRef="Task_RejectConfig">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${params_valid == false}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_ToHealthCheck" sourceRef="Task_ApplyConfig" targetRef="Task_HealthCheck"/>
+    <bpmn:sequenceFlow id="Flow_ToHealthGateway" sourceRef="Task_HealthCheck" targetRef="Gateway_HealthCheck"/>
+    <bpmn:sequenceFlow id="Flow_HealthOk" sourceRef="Gateway_HealthCheck" targetRef="Task_ConfirmDeployment">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${health_status == 'HEALTHY'}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_HealthFail" sourceRef="Gateway_HealthCheck" targetRef="Task_Rollback">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${health_status != 'HEALTHY'}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_RejectToEnd" sourceRef="Task_RejectConfig" targetRef="Gateway_MergeEnd"/>
+    <bpmn:sequenceFlow id="Flow_RollbackToEnd" sourceRef="Task_Rollback" targetRef="Gateway_MergeEnd"/>
+    <bpmn:sequenceFlow id="Flow_ConfirmToEnd" sourceRef="Task_ConfirmDeployment" targetRef="Gateway_MergeEnd"/>
+    <bpmn:sequenceFlow id="Flow_ToEnd" sourceRef="Gateway_MergeEnd" targetRef="End_ConfigComplete"/>
+
+  </bpmn:process>
+
+  <!-- Diagram Interchange -->
+  <bpmndi:BPMNDiagram id="BPMNDiagram_SystemConfig">
+    <bpmndi:BPMNPlane id="BPMNPlane_SystemConfig" bpmnElement="Process_SystemConfig">
+
+      <bpmndi:BPMNShape id="Shape_Start" bpmnElement="Start_ConfigRequest">
+        <dc:Bounds x="152" y="202" width="36" height="36"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Shape_LoadConfig" bpmnElement="Task_LoadConfig">
+        <dc:Bounds x="240" y="180" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Shape_ValidateParams" bpmnElement="Task_ValidateParams">
+        <dc:Bounds x="400" y="180" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Shape_ValidationGateway" bpmnElement="Gateway_Validation" isMarkerVisible="true">
+        <dc:Bounds x="555" y="195" width="50" height="50"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Shape_RejectConfig" bpmnElement="Task_RejectConfig">
+        <dc:Bounds x="530" y="340" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Shape_ApplyConfig" bpmnElement="Task_ApplyConfig">
+        <dc:Bounds x="670" y="180" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Shape_HealthCheck" bpmnElement="Task_HealthCheck">
+        <dc:Bounds x="830" y="180" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Shape_HealthGateway" bpmnElement="Gateway_HealthCheck" isMarkerVisible="true">
+        <dc:Bounds x="985" y="195" width="50" height="50"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Shape_Rollback" bpmnElement="Task_Rollback">
+        <dc:Bounds x="960" y="340" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Shape_ConfirmDeployment" bpmnElement="Task_ConfirmDeployment">
+        <dc:Bounds x="1090" y="180" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Shape_MergeEnd" bpmnElement="Gateway_MergeEnd" isMarkerVisible="true">
+        <dc:Bounds x="1245" y="195" width="50" height="50"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Shape_End" bpmnElement="End_ConfigComplete">
+        <dc:Bounds x="1352" y="202" width="36" height="36"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNEdge id="Edge_ToLoadConfig" bpmnElement="Flow_ToLoadConfig">
+        <di:waypoint x="188" y="220"/>
+        <di:waypoint x="240" y="220"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_ToValidateParams" bpmnElement="Flow_ToValidateParams">
+        <di:waypoint x="340" y="220"/>
+        <di:waypoint x="400" y="220"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_ToValidationGateway" bpmnElement="Flow_ToValidationGateway">
+        <di:waypoint x="500" y="220"/>
+        <di:waypoint x="555" y="220"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_Valid" bpmnElement="Flow_Valid">
+        <di:waypoint x="605" y="220"/>
+        <di:waypoint x="670" y="220"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_Invalid" bpmnElement="Flow_Invalid">
+        <di:waypoint x="580" y="245"/>
+        <di:waypoint x="580" y="340"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_ToHealthCheck" bpmnElement="Flow_ToHealthCheck">
+        <di:waypoint x="770" y="220"/>
+        <di:waypoint x="830" y="220"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_ToHealthGateway" bpmnElement="Flow_ToHealthGateway">
+        <di:waypoint x="930" y="220"/>
+        <di:waypoint x="985" y="220"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_HealthOk" bpmnElement="Flow_HealthOk">
+        <di:waypoint x="1035" y="220"/>
+        <di:waypoint x="1090" y="220"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_HealthFail" bpmnElement="Flow_HealthFail">
+        <di:waypoint x="1010" y="245"/>
+        <di:waypoint x="1010" y="340"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_RejectToEnd" bpmnElement="Flow_RejectToEnd">
+        <di:waypoint x="630" y="380"/>
+        <di:waypoint x="1270" y="380"/>
+        <di:waypoint x="1270" y="245"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_RollbackToEnd" bpmnElement="Flow_RollbackToEnd">
+        <di:waypoint x="1060" y="380"/>
+        <di:waypoint x="1270" y="380"/>
+        <di:waypoint x="1270" y="245"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_ConfirmToEnd" bpmnElement="Flow_ConfirmToEnd">
+        <di:waypoint x="1190" y="220"/>
+        <di:waypoint x="1245" y="220"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_ToEnd" bpmnElement="Flow_ToEnd">
+        <di:waypoint x="1295" y="220"/>
+        <di:waypoint x="1352" y="220"/>
+      </bpmndi:BPMNEdge>
+
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+
+</bpmn:definitions>

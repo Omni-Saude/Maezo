@@ -1,0 +1,196 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/" xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/" xmlns:dc="http://www.omg.org/spec/DMN/20180521/DC/" xmlns:di="http://www.omg.org/spec/DMN/20180521/DI/" id="DDI_QT_017" name="DDI-QT-017: Domperidona + Antiarrítmicos" namespace="http://camunda.org/schema/1.0/dmn">
+  <decision id="ddi_qt_017_decision" name="Domperidona + Antiarrítmicos QT Prolongation">
+    <decisionTable id="ddi_qt_017_table" hitPolicy="FIRST">
+      <input id="input_medicamentos_ativos" label="Medicamentos Ativos">
+        <inputExpression id="input_expr_medicamentos_ativos" typeRef="string">
+          <text>medicamentosAtivos</text>
+        </inputExpression>
+      </input>
+      <input id="input_medicamento_novo" label="Medicamento Novo">
+        <inputExpression id="input_expr_medicamento_novo" typeRef="string">
+          <text>medicamentoNovo</text>
+        </inputExpression>
+      </input>
+      <input id="input_dose_domperidona" label="Dose Domperidona (mg/dia)">
+        <inputExpression id="input_expr_dose" typeRef="number">
+          <text>doseDomperidona</text>
+        </inputExpression>
+      </input>
+      <input id="input_idade" label="Idade (anos)">
+        <inputExpression id="input_expr_idade" typeRef="number">
+          <text>idade</text>
+        </inputExpression>
+      </input>
+
+      <output id="output_nivel_alerta" name="nivelAlerta" typeRef="string">
+        <outputValues>
+          <text>"Alerta","Atencao","OK"</text>
+        </outputValues>
+      </output>
+      <output id="output_urgencia" name="urgencia" typeRef="string">
+        <outputValues>
+          <text>"IMEDIATA","URGENTE","ROTINA"</text>
+        </outputValues>
+      </output>
+      <output id="output_medicamentos_conflitantes" name="medicamentosConflitantes" typeRef="string" />
+      <output id="output_mecanismo_interacao" name="mecanismoInteracao" typeRef="string" />
+      <output id="output_acao_requerida" name="acaoRequerida" typeRef="string" />
+
+      <!-- Rule 1: CONTRAINDICATED - Domperidone + Class III antiarrhythmics -->
+      <rule id="rule_domperidona_classe_iii">
+        <inputEntry id="input_medicamentos_dompe">
+          <text>list contains(medicamentosAtivos, "DOMPERIDONA")</text>
+        </inputEntry>
+        <inputEntry id="input_novo_antiarr_classe3">
+          <text>"AMIODARONA" or "SOTALOL" or "DOFETILIDA" or "IBUTILIDA"</text>
+        </inputEntry>
+        <inputEntry id="input_dose_qualquer">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="input_idade_qualquer">
+          <text>-</text>
+        </inputEntry>
+        <outputEntry id="output_alerta_contraindicado">
+          <text>"Alerta"</text>
+        </outputEntry>
+        <outputEntry id="output_urgencia_contraindicado">
+          <text>"IMEDIATA"</text>
+        </outputEntry>
+        <outputEntry id="output_conflitantes_contraindicado">
+          <text>"Domperidona + Antiarrítmico Classe III (CONTRAINDICADO)"</text>
+        </outputEntry>
+        <outputEntry id="output_mecanismo_contraindicado">
+          <text>"CONTRAINDICAÇÃO ABSOLUTA. Domperidona QT +10-20ms + Antiarrítmicos classe III (amiodarona +40-60ms, sotalol +20-40ms). EMA RESTRINGIU domperidona (2014) por Torsades. Risco morte súbita INACEITÁVEL."</text>
+        </outputEntry>
+        <outputEntry id="output_acao_contraindicado">
+          <text>"BLOQUEAR prescrição: (1) NÃO usar domperidona com antiarrítmicos classe III, (2) Antiemético alternativo: metoclopramida 10mg 8/8h, bromoprida 10mg 8/8h, ondansetron 4-8mg (cautela QT menor), (3) Procinético alternativo: metoclopramida, cisaprida (retirada maioria países), (4) Se AMBOS essenciais: internação, ECG diário, monitorização cardíaca."</text>
+        </outputEntry>
+      </rule>
+
+      <!-- Rule 2: Domperidone + Class I antiarrhythmics (moderate risk) -->
+      <rule id="rule_domperidona_classe_i">
+        <inputEntry id="input_medicamentos_dompe2">
+          <text>list contains(medicamentosAtivos, "DOMPERIDONA")</text>
+        </inputEntry>
+        <inputEntry id="input_novo_antiarr_classe1">
+          <text>"QUINIDINA" or "PROCAINAMIDA" or "DISOPIRAMIDA" or "FLECAINIDA" or "PROPAFENONA"</text>
+        </inputEntry>
+        <inputEntry id="input_dose_qualquer2">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="input_idade_qualquer2">
+          <text>-</text>
+        </inputEntry>
+        <outputEntry id="output_alerta_classe1">
+          <text>"Alerta"</text>
+        </outputEntry>
+        <outputEntry id="output_urgencia_classe1">
+          <text>"URGENTE"</text>
+        </outputEntry>
+        <outputEntry id="output_conflitantes_classe1">
+          <text>"Domperidona + Antiarrítmico Classe I"</text>
+        </outputEntry>
+        <outputEntry id="output_mecanismo_classe1">
+          <text>"QT aditivo moderado. Quinidina +20-30ms (MAIOR classe I), Disopiramida +10-20ms. Flecainida/Propafenona QT mínimo mas risco arritmia. Domperidona +10-20ms."</text>
+        </outputEntry>
+        <outputEntry id="output_acao_classe1">
+          <text>"EVITAR associação: (1) Preferir metoclopramida, bromoprida antiemético (SEM QT), (2) Se ESSENCIAL: ECG baseline + 48h + 7 dias, K+&gt;4.5, Mg&gt;2.0, dose domperidona MAX 10mg 8/8h (30mg/dia), (3) Suspender domperidona se QTc&gt;500ms."</text>
+        </outputEntry>
+      </rule>
+
+      <!-- Rule 3: High dose domperidone (>30mg/day) + any cardiac condition -->
+      <rule id="rule_domperidona_alta_dose">
+        <inputEntry id="input_medicamentos_dompe3">
+          <text>list contains(medicamentosAtivos, "DOMPERIDONA")</text>
+        </inputEntry>
+        <inputEntry id="input_novo_qualquer">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="input_dose_alta">
+          <text>&gt; 30</text>
+        </inputEntry>
+        <inputEntry id="input_idade_qualquer3">
+          <text>-</text>
+        </inputEntry>
+        <outputEntry id="output_alerta_alta_dose">
+          <text>"Alerta"</text>
+        </outputEntry>
+        <outputEntry id="output_urgencia_alta_dose">
+          <text>"URGENTE"</text>
+        </outputEntry>
+        <outputEntry id="output_conflitantes_alta_dose">
+          <text>"Domperidona &gt;30mg/dia (EXCEDE limite EMA)"</text>
+        </outputEntry>
+        <outputEntry id="output_mecanismo_alta_dose">
+          <text>"EMA LIMITOU domperidona MAX 30mg/dia (2014) por risco Torsades dose-dependente. Doses &gt;30mg aumentam risco 3-5x."</text>
+        </outputEntry>
+        <outputEntry id="output_acao_alta_dose">
+          <text>"REDUZIR dose domperidona: MAX 10mg 8/8h (30mg/dia - LIMITE EMA). Duração MAX 7 dias (EMA). ECG se uso prolongado. Considerar trocar por metoclopramida ou bromoprida (SEM limite dose QT)."</text>
+        </outputEntry>
+      </rule>
+
+      <!-- Rule 4: Domperidone age >60 -->
+      <rule id="rule_domperidona_idoso">
+        <inputEntry id="input_medicamentos_dompe4">
+          <text>list contains(medicamentosAtivos, "DOMPERIDONA")</text>
+        </inputEntry>
+        <inputEntry id="input_novo_qualquer2">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="input_dose_qualquer3">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="input_idade_idoso">
+          <text>&gt; 60</text>
+        </inputEntry>
+        <outputEntry id="output_alerta_idoso">
+          <text>"Atencao"</text>
+        </outputEntry>
+        <outputEntry id="output_urgencia_idoso">
+          <text>"URGENTE"</text>
+        </outputEntry>
+        <outputEntry id="output_conflitantes_idoso">
+          <text>"Domperidona idade &gt;60 anos"</text>
+        </outputEntry>
+        <outputEntry id="output_mecanismo_idoso">
+          <text>"EMA recomenda EVITAR domperidona &gt;60 anos (metabolismo reduzido, QT basal mais longo, maior risco cardíaco)."</text>
+        </outputEntry>
+        <outputEntry id="output_acao_idoso">
+          <text>"CONSIDERAR alternativa: Metoclopramida 10mg 8/8h (preferida &gt;60 anos), Bromoprida 10mg 8/8h. Se domperidona ESSENCIAL: dose MAX 10mg 8/8h, duração MAX 7 dias, ECG baseline, K+/Mg normais."</text>
+        </outputEntry>
+      </rule>
+
+      <!-- Fallback Rule -->
+      <rule id="rule_fallback">
+        <inputEntry id="input_fallback_1">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="input_fallback_2">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="input_fallback_3">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="input_fallback_4">
+          <text>-</text>
+        </inputEntry>
+        <outputEntry id="output_fallback_1">
+          <text>"OK"</text>
+        </outputEntry>
+        <outputEntry id="output_fallback_2">
+          <text>"ROTINA"</text>
+        </outputEntry>
+        <outputEntry id="output_fallback_3">
+          <text>""</text>
+        </outputEntry>
+        <outputEntry id="output_fallback_4">
+          <text>""</text>
+        </outputEntry>
+        <outputEntry id="output_fallback_5">
+          <text>""</text>
+        </outputEntry>
+      </rule>
+    </decisionTable>
+  </decision>
+</definitions>

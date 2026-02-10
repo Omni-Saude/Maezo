@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import pytest
 
-from platform.revenue_cycle.collection.enums import CollectionAction, CollectionStatus
-from platform.revenue_cycle.collection.workers.escalate_to_legal_worker import (
+from healthcare_platform.revenue_cycle.collection.enums import CollectionAction, CollectionStatus
+from healthcare_platform.revenue_cycle.collection.workers.escalate_to_legal_worker import (
     EscalateToLegalWorker,
 )
 

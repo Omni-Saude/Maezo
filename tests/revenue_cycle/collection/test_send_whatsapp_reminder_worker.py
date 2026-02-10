@@ -4,7 +4,7 @@ from unittest.mock import AsyncMock, Mock
 
 import pytest
 
-from platform.revenue_cycle.collection.workers.send_whatsapp_reminder_worker import (
+from healthcare_platform.revenue_cycle.collection.workers.send_whatsapp_reminder_worker import (
     SendWhatsAppReminderWorker,
 )
 

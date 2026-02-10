@@ -9,11 +9,11 @@ from datetime import datetime, timedelta, timezone
 
 import pytest
 
-from platform.revenue_cycle.glosa.workers.check_appeal_eligibility_worker import (
+from healthcare_platform.revenue_cycle.glosa.workers.check_appeal_eligibility_worker import (
     CheckAppealEligibilityWorker,
 )
-from platform.shared.domain.enums import GlosaReasonCode, GlosaType
-from platform.shared.domain.exceptions import (
+from healthcare_platform.shared.domain.enums import GlosaReasonCode, GlosaType
+from healthcare_platform.shared.domain.exceptions import (
     GlosaAppealDeadlineExpired,
     GlosaNotAppealable,
 )

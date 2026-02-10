@@ -1,0 +1,173 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  ============================================================================
+  PRIOR-STATUS-001 - Status Autorizacao (Vigente/Expirada/Cancelada)
+  ============================================================================
+  Versao: 1.0.0 (2026-02-08)
+  Categoria: PRIOR-STATUS
+  Perspectiva: HOSPITAL (Faturamento/Auditoria)
+
+  ============================================================================
+  INDICACOES (Quando PROSSEGUIR):
+  ============================================================================
+  - Autorizacao com status VIGENTE
+  - Dentro da validade autorizada
+  - Sem restricoes de uso
+
+  ============================================================================
+  CONTRAINDICACOES (Quando BLOQUEAR):
+  ============================================================================
+  - Status EXPIRADA ou CANCELADA
+  - Autorizacao NEGADA
+  - Validade vencida
+
+  ============================================================================
+  REFERENCIAS NORMATIVAS:
+  ============================================================================
+  - RN 424/2017 (Autorizacao Previa)
+  - RN 465/2021 (Procedimentos Regulados)
+  - TISS 4.01.00 (Guia SADT)
+  - Lei 9.656/1998 Art. 12 (Cobertura Obrigatoria)
+  ============================================================================
+-->
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/"
+             xmlns:dc="http://www.omg.org/spec/DMN/20180521/DC/"
+             id="Definitions_PRIOR_STATUS_001"
+             name="Status Autorizacao (Vigente/Expirada/Cancelada)"
+             targetNamespace="http://camunda.org/schema/1.0/dmn">
+
+  <decision id="Decision_PRIOR_STATUS_001" name="Verificar Status Autorizacao">
+    <decisionTable id="DecisionTable_PRIOR_STATUS_001" hitPolicy="FIRST">
+
+      <!-- ========== INPUTS ========== -->
+      <input id="Input_1" label="Status Autorizacao">
+        <inputExpression id="InputExpression_1" typeRef="string">
+          <text>statusAutorizacao</text>
+        </inputExpression>
+        <inputValues id="InputValues_1">
+          <text>"VIGENTE", "EXPIRADA", "CANCELADA", "PENDENTE", "NEGADA"</text>
+        </inputValues>
+      </input>
+
+      <input id="Input_2" label="Dias Validade">
+        <inputExpression id="InputExpression_2" typeRef="integer">
+          <text>diasValidade</text>
+        </inputExpression>
+      </input>
+
+      <!-- ========== OUTPUTS (5 STANDARD) ========== -->
+      <output id="Output_1" label="Resultado" name="resultado" typeRef="string">
+        <outputValues><text>"Prosseguir", "Bloquear", "Alertar", "Revisar"</text></outputValues>
+      </output>
+
+      <output id="Output_2" label="Observacao" name="observacao" typeRef="string"/>
+
+      <output id="Output_3" label="Acao Recomendada" name="acaoRecomendada" typeRef="string"/>
+
+      <output id="Output_4" label="Alertas Conformidade" name="alertasConformidade" typeRef="string">
+        <outputValues><text>"NENHUM", "DUP", "FREQ", "PRAZO", "DOC", "VALOR", "CRED", "CONTRATO"</text></outputValues>
+      </output>
+
+      <output id="Output_5" label="Risco Denial" name="riscoDenial" typeRef="string">
+        <outputValues><text>"BAIXO", "MEDIO", "ALTO", "CRITICO"</text></outputValues>
+      </output>
+
+      <!-- ========== RULES ========== -->
+
+      <!-- REGRA B1: Bloqueio - Autorizacao negada -->
+      <rule id="Rule_Bloqueio_1">
+        <description>Autorizacao negada pela operadora</description>
+        <inputEntry id="InputEntry_B1_1"><text>"NEGADA"</text></inputEntry>
+        <inputEntry id="InputEntry_B1_2"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_B1_1"><text>"Bloquear"</text></outputEntry>
+        <outputEntry id="OutputEntry_B1_2"><text>"Autorizacao negada pela operadora. Faturamento bloqueado."</text></outputEntry>
+        <outputEntry id="OutputEntry_B1_3"><text>"Encaminhar para recurso administrativo ou solicitar nova autorizacao com justificativa clinica."</text></outputEntry>
+        <outputEntry id="OutputEntry_B1_4"><text>"DOC"</text></outputEntry>
+        <outputEntry id="OutputEntry_B1_5"><text>"CRITICO"</text></outputEntry>
+      </rule>
+
+      <!-- REGRA B2: Bloqueio - Autorizacao expirada -->
+      <rule id="Rule_Bloqueio_2">
+        <description>Autorizacao expirada por validade vencida</description>
+        <inputEntry id="InputEntry_B2_1"><text>"EXPIRADA"</text></inputEntry>
+        <inputEntry id="InputEntry_B2_2"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_B2_1"><text>"Bloquear"</text></outputEntry>
+        <outputEntry id="OutputEntry_B2_2"><text>"Autorizacao expirada. Validade vencida para faturamento."</text></outputEntry>
+        <outputEntry id="OutputEntry_B2_3"><text>"Solicitar renovacao da autorizacao com nova validade."</text></outputEntry>
+        <outputEntry id="OutputEntry_B2_4"><text>"PRAZO"</text></outputEntry>
+        <outputEntry id="OutputEntry_B2_5"><text>"ALTO"</text></outputEntry>
+      </rule>
+
+      <!-- REGRA B3: Bloqueio - Autorizacao cancelada -->
+      <rule id="Rule_Bloqueio_3">
+        <description>Autorizacao cancelada pela operadora</description>
+        <inputEntry id="InputEntry_B3_1"><text>"CANCELADA"</text></inputEntry>
+        <inputEntry id="InputEntry_B3_2"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_B3_1"><text>"Bloquear"</text></outputEntry>
+        <outputEntry id="OutputEntry_B3_2"><text>"Autorizacao cancelada pela operadora. Faturamento bloqueado."</text></outputEntry>
+        <outputEntry id="OutputEntry_B3_3"><text>"Verificar motivo do cancelamento e solicitar nova autorizacao se necessario."</text></outputEntry>
+        <outputEntry id="OutputEntry_B3_4"><text>"DOC"</text></outputEntry>
+        <outputEntry id="OutputEntry_B3_5"><text>"ALTO"</text></outputEntry>
+      </rule>
+
+      <!-- REGRA A1: Alerta - Autorizacao pendente -->
+      <rule id="Rule_Alerta_1">
+        <description>Autorizacao ainda pendente de resposta</description>
+        <inputEntry id="InputEntry_A1_1"><text>"PENDENTE"</text></inputEntry>
+        <inputEntry id="InputEntry_A1_2"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_A1_1"><text>"Alertar"</text></outputEntry>
+        <outputEntry id="OutputEntry_A1_2"><text>"Autorizacao ainda pendente de resposta da operadora. Aguardar aprovacao."</text></outputEntry>
+        <outputEntry id="OutputEntry_A1_3"><text>"Aguardar resposta da operadora. Contatar se SLA excedido."</text></outputEntry>
+        <outputEntry id="OutputEntry_A1_4"><text>"PRAZO"</text></outputEntry>
+        <outputEntry id="OutputEntry_A1_5"><text>"MEDIO"</text></outputEntry>
+      </rule>
+
+      <!-- REGRA A2: Alerta - Validade proxima do vencimento -->
+      <rule id="Rule_Alerta_2">
+        <description>Autorizacao vigente mas proxima do vencimento</description>
+        <inputEntry id="InputEntry_A2_1"><text>"VIGENTE"</text></inputEntry>
+        <inputEntry id="InputEntry_A2_2"><text>[1..7]</text></inputEntry>
+        <outputEntry id="OutputEntry_A2_1"><text>"Alertar"</text></outputEntry>
+        <outputEntry id="OutputEntry_A2_2"><text>"Autorizacao vigente mas proxima do vencimento (menos de 7 dias)."</text></outputEntry>
+        <outputEntry id="OutputEntry_A2_3"><text>"Solicitar prorrogacao da autorizacao se procedimento ainda necessario."</text></outputEntry>
+        <outputEntry id="OutputEntry_A2_4"><text>"PRAZO"</text></outputEntry>
+        <outputEntry id="OutputEntry_A2_5"><text>"MEDIO"</text></outputEntry>
+      </rule>
+
+      <!-- REGRA P1: Aprovado - Autorizacao vigente -->
+      <rule id="Rule_Aprovado_1">
+        <description>Autorizacao vigente com validade adequada</description>
+        <inputEntry id="InputEntry_P1_1"><text>"VIGENTE"</text></inputEntry>
+        <inputEntry id="InputEntry_P1_2"><text>&gt; 7</text></inputEntry>
+        <outputEntry id="OutputEntry_P1_1"><text>"Prosseguir"</text></outputEntry>
+        <outputEntry id="OutputEntry_P1_2"><text>"Autorizacao vigente e valida para faturamento."</text></outputEntry>
+        <outputEntry id="OutputEntry_P1_3"><text>"Prosseguir com faturamento conforme autorizacao previa."</text></outputEntry>
+        <outputEntry id="OutputEntry_P1_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_P1_5"><text>"BAIXO"</text></outputEntry>
+      </rule>
+
+      <!-- REGRA F: Fallback - Requer revisao manual -->
+      <rule id="Rule_Fallback_PRIOR_STATUS_001">
+        <description>Regra padrao - Requer avaliacao manual</description>
+        <inputEntry id="InputEntry_F_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_F_2"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_F_1"><text>"Revisar"</text></outputEntry>
+        <outputEntry id="OutputEntry_F_2"><text>"Situacao de status de autorizacao requer analise manual."</text></outputEntry>
+        <outputEntry id="OutputEntry_F_3"><text>"Encaminhar para auditoria verificar status da autorizacao previa."</text></outputEntry>
+        <outputEntry id="OutputEntry_F_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_F_5"><text>"MEDIO"</text></outputEntry>
+      </rule>
+
+    </decisionTable>
+  </decision>
+
+  <dmndi:DMNDI>
+    <dmndi:DMNDiagram id="DMNDiagram_PRIOR_STATUS_001">
+      <dmndi:DMNShape id="DMNShape_Decision_PRIOR_STATUS_001" dmnElementRef="Decision_PRIOR_STATUS_001">
+        <dc:Bounds height="80" width="180" x="160" y="100"/>
+      </dmndi:DMNShape>
+    </dmndi:DMNDiagram>
+  </dmndi:DMNDI>
+
+</definitions>

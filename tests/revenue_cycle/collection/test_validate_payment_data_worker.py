@@ -5,10 +5,10 @@ from datetime import date, timedelta
 
 import pytest
 
-from platform.revenue_cycle.collection.workers.validate_payment_data_worker import (
+from healthcare_platform.revenue_cycle.collection.workers.validate_payment_data_worker import (
     ValidatePaymentDataWorker,
 )
-from platform.revenue_cycle.collection.exceptions import PaymentValidationError
+from healthcare_platform.revenue_cycle.collection.exceptions import PaymentValidationError
 
 
 @pytest.mark.asyncio

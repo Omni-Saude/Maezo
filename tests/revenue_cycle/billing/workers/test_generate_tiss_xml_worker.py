@@ -6,8 +6,8 @@ from uuid import uuid4
 
 import pytest
 
-from platform.revenue_cycle.billing.workers.generate_tiss_xml_worker import GenerateTISSXMLWorker
-from platform.shared.integrations.tiss_client import StubTISSClient
+from healthcare_platform.revenue_cycle.billing.workers.generate_tiss_xml_worker import GenerateTISSXMLWorker
+from healthcare_platform.shared.integrations.tiss_client import StubTISSClient
 
 
 @pytest.fixture

@@ -4,8 +4,8 @@ from datetime import datetime, timezone
 
 import pytest
 
-from platform.revenue_cycle.collection.exceptions import PaymentPlanError
-from platform.revenue_cycle.collection.workers.negotiate_payment_plan_worker import (
+from healthcare_platform.revenue_cycle.collection.exceptions import PaymentPlanError
+from healthcare_platform.revenue_cycle.collection.workers.negotiate_payment_plan_worker import (
     NegotiatePaymentPlanWorker,
 )
 

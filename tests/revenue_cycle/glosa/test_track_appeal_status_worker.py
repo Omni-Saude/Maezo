@@ -8,7 +8,7 @@ import pytest
 from datetime import datetime, timezone, timedelta
 from unittest.mock import AsyncMock, Mock
 
-from platform.revenue_cycle.glosa.workers.track_appeal_status_worker import TrackAppealStatusWorker
+from healthcare_platform.revenue_cycle.glosa.workers.track_appeal_status_worker import TrackAppealStatusWorker
 
 
 @pytest.fixture

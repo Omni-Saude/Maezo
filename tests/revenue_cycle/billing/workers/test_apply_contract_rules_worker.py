@@ -7,9 +7,9 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from platform.revenue_cycle.billing.workers.apply_contract_rules_worker import ApplyContractRulesWorker
-from platform.shared.domain.exceptions import ContractRuleViolation
-from platform.shared.domain.value_objects import Money
+from healthcare_platform.revenue_cycle.billing.workers.apply_contract_rules_worker import ApplyContractRulesWorker
+from healthcare_platform.shared.domain.exceptions import ContractRuleViolation
+from healthcare_platform.shared.domain.value_objects import Money
 
 
 @pytest.fixture

@@ -1,0 +1,100 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- ============================================================================
+     DDI-HEPATO-001: Paracetamol Alta Dose + Alcool - Hepatotoxicidade
+
+     EVIDENCIA CLINICA:
+     - FDA Maximum Dose Advisory (3g/dia em etilistas)
+     - Whitcomb DC, Block GD. JAMA. 1994;272:1845-50
+     - Larson AM et al. Hepatology. 2005;42:1364-72
+
+     MECANISMO: Etilismo cronico induz CYP2E1, aumentando conversao de paracetamol
+     em NAPQI (metabolito hepatotóxico). Glutationa depletada em etilistas crônicos.
+     Dose hepatotóxica pode ser <4g/dia em etilistas.
+
+     INCIDENCIA: Hepatotoxicidade severa em 20-30% de etilistas com dose >4g/dia
+     ============================================================================ -->
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/" xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/" xmlns:dc="http://www.omg.org/spec/DMN/20180521/DC/" xmlns:di="http://www.omg.org/spec/DMN/20180521/DI/" id="DDI_HEPATO_001" name="DDI-HEPATO-001: Paracetamol + Alcool" namespace="http://camunda.org/schema/1.0/dmn">
+  <decision id="ddi_hepato_001_decision" name="Paracetamol + Alcool - Hepatotoxicidade">
+    <decisionTable id="ddi_hepato_001_table" hitPolicy="FIRST">
+      <input id="input_medicamento" label="Medicamento">
+        <inputExpression id="input_expr_med" typeRef="string">
+          <text>medicamentoNovo</text>
+        </inputExpression>
+      </input>
+      <input id="input_dose_diaria" label="Dose Diaria (mg)">
+        <inputExpression id="input_expr_dose" typeRef="number">
+          <text>doseDiariaParacetamol</text>
+        </inputExpression>
+      </input>
+      <input id="input_etilismo" label="Etilismo Cronico">
+        <inputExpression id="input_expr_etilismo" typeRef="boolean">
+          <text>etilismoCronico</text>
+        </inputExpression>
+      </input>
+
+      <output id="output_nivel_alerta" name="nivelAlerta" typeRef="string">
+        <outputValues><text>"Alerta","Atencao","Informativo","OK"</text></outputValues>
+      </output>
+      <output id="output_acao_requerida" name="acaoRequerida" typeRef="string" />
+      <output id="output_justificativa" name="justificativaCientifica" typeRef="string" />
+
+      <!-- Rule 1: Paracetamol dose alta + etilista -->
+      <rule id="rule_paracetamol_etilista_alta">
+        <inputEntry id="ie_paracetamol">
+          <text>"PARACETAMOL" or "ACETAMINOFENO"</text>
+        </inputEntry>
+        <inputEntry id="ie_dose_alta">
+          <text>&gt; 3000</text>
+        </inputEntry>
+        <inputEntry id="ie_etilismo_sim">
+          <text>true</text>
+        </inputEntry>
+        <outputEntry id="oe_alerta_alta"><text>"Alerta"</text></outputEntry>
+        <outputEntry id="oe_acao_alta"><text>"DOSE HEPATOTÓXICA em etilista. Maximo 2g/dia em etilismo cronico (FDA). CYP2E1 induzido aumenta NAPQI. Reduzir para max 2g/dia ou usar alternativa (ibuprofeno se sem gastropatia). Monitorar TGO/TGP em 48-72h."</text></outputEntry>
+        <outputEntry id="oe_just_alta"><text>"Etilistas tem limiar hepatotóxico reduzido para paracetamol. Whitcomb DC, JAMA 1994. Larson AM, Hepatology 2005."</text></outputEntry>
+      </rule>
+
+      <!-- Rule 2: Paracetamol dose moderada + etilista -->
+      <rule id="rule_paracetamol_etilista_moderada">
+        <inputEntry id="ie_paracetamol2">
+          <text>"PARACETAMOL" or "ACETAMINOFENO"</text>
+        </inputEntry>
+        <inputEntry id="ie_dose_moderada">
+          <text>[2000..3000]</text>
+        </inputEntry>
+        <inputEntry id="ie_etilismo_sim2">
+          <text>true</text>
+        </inputEntry>
+        <outputEntry id="oe_atencao_moderada"><text>"Atencao"</text></outputEntry>
+        <outputEntry id="oe_acao_moderada"><text>"Dose limite para etilistas. Preferir manter &lt;=2g/dia. Se dose atual necessaria, usar por menor tempo possivel (&lt;5 dias). Monitorar sintomas hepaticos (ictericia, dor HD, nausea). Evitar medicamentos combinados com paracetamol."</text></outputEntry>
+        <outputEntry id="oe_just_moderada"><text>"Risco intermediario. Glutationa depletada em etilistas crônicos reduz detoxificacao de NAPQI."</text></outputEntry>
+      </rule>
+
+      <!-- Rule 3: Paracetamol dose muito alta qualquer paciente -->
+      <rule id="rule_paracetamol_dose_alta_geral">
+        <inputEntry id="ie_paracetamol3">
+          <text>"PARACETAMOL" or "ACETAMINOFENO"</text>
+        </inputEntry>
+        <inputEntry id="ie_dose_muito_alta">
+          <text>&gt; 4000</text>
+        </inputEntry>
+        <inputEntry id="ie_etilismo_any">
+          <text>-</text>
+        </inputEntry>
+        <outputEntry id="oe_alerta_geral"><text>"Alerta"</text></outputEntry>
+        <outputEntry id="oe_acao_geral"><text>"DOSE EXCEDE MAXIMO DIARIO (4g/dia FDA). Risco hepatotoxicidade independente de etilismo. Reduzir para max 4g/dia (3g se idoso ou hepatopata). Verificar medicamentos combinados que contenham paracetamol."</text></outputEntry>
+        <outputEntry id="oe_just_geral"><text>"Dose &gt;4g/dia causa hepatotoxicidade mesmo em individuos saudáveis. FDA maximum dose advisory."</text></outputEntry>
+      </rule>
+
+      <!-- Fallback Rule -->
+      <rule id="Rule_Fallback">
+        <inputEntry id="ie_fallback1"><text>-</text></inputEntry>
+        <inputEntry id="ie_fallback2"><text>-</text></inputEntry>
+        <inputEntry id="ie_fallback3"><text>-</text></inputEntry>
+        <outputEntry id="oe_fallback1"><text>"OK"</text></outputEntry>
+        <outputEntry id="oe_fallback2"><text>""</text></outputEntry>
+        <outputEntry id="oe_fallback3"><text>""</text></outputEntry>
+      </rule>
+    </decisionTable>
+  </decision>
+</definitions>

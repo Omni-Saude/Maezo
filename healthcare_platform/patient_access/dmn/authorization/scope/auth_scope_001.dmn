@@ -1,0 +1,144 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  ============================================================================
+  AUTH-SCOPE-001 - Procedimento Dentro do Escopo Autorizado
+  ============================================================================
+  Versao: 1.0.0 (2026-02-08)
+  Categoria: AUTH-SCOPE
+  Perspectiva: HOSPITAL (Faturamento/Auditoria)
+
+  ============================================================================
+  INDICACOES (Quando PROSSEGUIR):
+  ============================================================================
+  - Procedimento realizado esta no escopo autorizado
+  - Codigo TUSS do procedimento compativel com autorizacao
+  - Escopo validado pela operadora
+
+  ============================================================================
+  CONTRAINDICACOES (Quando BLOQUEAR):
+  ============================================================================
+  - Procedimento realizado fora do escopo autorizado
+  - Incompatibilidade entre procedimento autorizado e realizado
+  - Escopo nao validado
+
+  ============================================================================
+  REFERENCIAS NORMATIVAS:
+  ============================================================================
+  - RN 424/2017 (Autorizacao Previa)
+  - RN 465/2021 (Procedimentos Regulados)
+  - TISS 4.01.00 (Tabela TUSS)
+  - Lei 9.656/1998 Art. 12 (Cobertura Obrigatoria)
+  ============================================================================
+-->
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/"
+             xmlns:dc="http://www.omg.org/spec/DMN/20180521/DC/"
+             id="Definitions_AUTH_SCOPE_001"
+             name="Procedimento Dentro do Escopo Autorizado"
+             targetNamespace="http://camunda.org/schema/1.0/dmn">
+
+  <decision id="Decision_AUTH_SCOPE_001" name="Verificar Procedimento Dentro do Escopo Autorizado">
+    <decisionTable id="DecisionTable_AUTH_SCOPE_001" hitPolicy="FIRST">
+
+      <!-- ========== INPUTS ========== -->
+      <input id="Input_1" label="Procedimento Autorizado">
+        <inputExpression id="InputExpression_1" typeRef="string">
+          <text>procedimentoAutorizado</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_2" label="Procedimento Realizado">
+        <inputExpression id="InputExpression_2" typeRef="string">
+          <text>procedimentoRealizado</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_3" label="Escopo Compativel">
+        <inputExpression id="InputExpression_3" typeRef="boolean">
+          <text>escopoCompativel</text>
+        </inputExpression>
+      </input>
+
+      <!-- ========== OUTPUTS (5 STANDARD) ========== -->
+      <output id="Output_1" label="Resultado" name="resultado" typeRef="string">
+        <outputValues><text>"Prosseguir", "Bloquear", "Alertar", "Revisar"</text></outputValues>
+      </output>
+
+      <output id="Output_2" label="Observacao" name="observacao" typeRef="string"/>
+
+      <output id="Output_3" label="Acao Recomendada" name="acaoRecomendada" typeRef="string"/>
+
+      <output id="Output_4" label="Alertas Conformidade" name="alertasConformidade" typeRef="string">
+        <outputValues><text>"NENHUM", "DUP", "FREQ", "PRAZO", "DOC", "VALOR", "CRED", "CONTRATO"</text></outputValues>
+      </output>
+
+      <output id="Output_5" label="Risco Denial" name="riscoDenial" typeRef="string">
+        <outputValues><text>"BAIXO", "MEDIO", "ALTO", "CRITICO"</text></outputValues>
+      </output>
+
+      <!-- ========== RULES ========== -->
+
+      <!-- REGRA B1: Bloqueio - Escopo incompativel -->
+      <rule id="Rule_Bloqueio_1">
+        <description>Procedimento realizado fora do escopo autorizado</description>
+        <inputEntry id="InputEntry_B1_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_B1_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_B1_3"><text>false</text></inputEntry>
+        <outputEntry id="OutputEntry_B1_1"><text>"Bloquear"</text></outputEntry>
+        <outputEntry id="OutputEntry_B1_2"><text>"Procedimento realizado fora do escopo autorizado pela operadora. Faturamento bloqueado."</text></outputEntry>
+        <outputEntry id="OutputEntry_B1_3"><text>"Solicitar nova autorizacao para o procedimento realizado ou realizar apenas o autorizado."</text></outputEntry>
+        <outputEntry id="OutputEntry_B1_4"><text>"DOC"</text></outputEntry>
+        <outputEntry id="OutputEntry_B1_5"><text>"ALTO"</text></outputEntry>
+      </rule>
+
+      <!-- REGRA A1: Alerta - Procedimentos diferentes mas escopo compativel -->
+      <rule id="Rule_Alerta_1">
+        <description>Procedimentos diferentes mas dentro do escopo</description>
+        <inputEntry id="InputEntry_A1_1"><text>not("" + procedimentoRealizado = "" + procedimentoAutorizado)</text></inputEntry>
+        <inputEntry id="InputEntry_A1_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_A1_3"><text>true</text></inputEntry>
+        <outputEntry id="OutputEntry_A1_1"><text>"Alertar"</text></outputEntry>
+        <outputEntry id="OutputEntry_A1_2"><text>"Procedimento realizado difere do autorizado, mas esta dentro do escopo permitido."</text></outputEntry>
+        <outputEntry id="OutputEntry_A1_3"><text>"Verificar justificativa clinica para alteracao do procedimento. Documentar no prontuario."</text></outputEntry>
+        <outputEntry id="OutputEntry_A1_4"><text>"DOC"</text></outputEntry>
+        <outputEntry id="OutputEntry_A1_5"><text>"MEDIO"</text></outputEntry>
+      </rule>
+
+      <!-- REGRA P1: Aprovado - Procedimento exato -->
+      <rule id="Rule_Aprovado_1">
+        <description>Procedimento realizado identico ao autorizado</description>
+        <inputEntry id="InputEntry_P1_1"><text>"" + procedimentoRealizado = "" + procedimentoAutorizado</text></inputEntry>
+        <inputEntry id="InputEntry_P1_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_P1_3"><text>true</text></inputEntry>
+        <outputEntry id="OutputEntry_P1_1"><text>"Prosseguir"</text></outputEntry>
+        <outputEntry id="OutputEntry_P1_2"><text>"Procedimento realizado corresponde exatamente ao autorizado."</text></outputEntry>
+        <outputEntry id="OutputEntry_P1_3"><text>"Prosseguir com faturamento conforme autorizacao previa."</text></outputEntry>
+        <outputEntry id="OutputEntry_P1_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_P1_5"><text>"BAIXO"</text></outputEntry>
+      </rule>
+
+      <!-- REGRA F: Fallback - Requer revisao manual -->
+      <rule id="Rule_Fallback_AUTH_SCOPE_001">
+        <description>Regra padrao - Requer avaliacao manual</description>
+        <inputEntry id="InputEntry_F_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_F_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_F_3"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_F_1"><text>"Revisar"</text></outputEntry>
+        <outputEntry id="OutputEntry_F_2"><text>"Situacao de escopo requer analise manual por nao corresponder a criterios automaticos."</text></outputEntry>
+        <outputEntry id="OutputEntry_F_3"><text>"Encaminhar para auditoria administrativa verificar compatibilidade de escopo."</text></outputEntry>
+        <outputEntry id="OutputEntry_F_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_F_5"><text>"MEDIO"</text></outputEntry>
+      </rule>
+
+    </decisionTable>
+  </decision>
+
+  <dmndi:DMNDI>
+    <dmndi:DMNDiagram id="DMNDiagram_AUTH_SCOPE_001">
+      <dmndi:DMNShape id="DMNShape_Decision_AUTH_SCOPE_001" dmnElementRef="Decision_AUTH_SCOPE_001">
+        <dc:Bounds height="80" width="180" x="160" y="100"/>
+      </dmndi:DMNShape>
+    </dmndi:DMNDiagram>
+  </dmndi:DMNDI>
+
+</definitions>

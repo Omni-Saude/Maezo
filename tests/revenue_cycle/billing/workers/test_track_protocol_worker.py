@@ -6,7 +6,7 @@ from datetime import datetime
 
 import pytest
 
-from platform.revenue_cycle.billing.workers.track_protocol_worker import TrackProtocolWorker
+from healthcare_platform.revenue_cycle.billing.workers.track_protocol_worker import TrackProtocolWorker
 
 
 @pytest.fixture

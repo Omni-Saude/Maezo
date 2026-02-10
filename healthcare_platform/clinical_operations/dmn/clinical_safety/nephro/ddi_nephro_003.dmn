@@ -1,0 +1,100 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- ============================================================================
+     DDI-NEPHRO-003: Contraste Iodado + Metformina - Acidose Latica
+
+     EVIDENCIA CLINICA:
+     - ACR Manual on Contrast Media v2023
+     - FDA Drug Safety Communication - Metformin
+     - Thomsen HS, Morcos SK. Radiology. 2003;227:639-46
+
+     MECANISMO: Contraste iodado pode causar nefropatia (IRA). Metformina
+     acumula em IRA, inibindo metabolismo lactico hepatico, causando acidose
+     latica potencialmente fatal.
+
+     INCIDENCIA: Acidose latica rara (0.03/1000) mas mortalidade 50%
+     ============================================================================ -->
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/" xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/" xmlns:dc="http://www.omg.org/spec/DMN/20180521/DC/" xmlns:di="http://www.omg.org/spec/DMN/20180521/DI/" id="DDI_NEPHRO_003" name="DDI-NEPHRO-003: Contraste Iodado + Metformina" namespace="http://camunda.org/schema/1.0/dmn">
+  <decision id="ddi_nephro_003_decision" name="Contraste Iodado + Metformina - Acidose Latica">
+    <decisionTable id="ddi_nephro_003_table" hitPolicy="FIRST">
+      <input id="input_medicamentos_ativos" label="Medicamentos Ativos">
+        <inputExpression id="input_expr_medicamentos" typeRef="string">
+          <text>medicamentosAtivos</text>
+        </inputExpression>
+      </input>
+      <input id="input_procedimento" label="Procedimento com Contraste">
+        <inputExpression id="input_expr_procedimento" typeRef="string">
+          <text>procedimentoContraste</text>
+        </inputExpression>
+      </input>
+      <input id="input_tfg" label="TFG (mL/min/1.73m2)">
+        <inputExpression id="input_expr_tfg" typeRef="number">
+          <text>taxaFiltracaoGlomerular</text>
+        </inputExpression>
+      </input>
+
+      <output id="output_nivel_alerta" name="nivelAlerta" typeRef="string">
+        <outputValues><text>"Alerta","Atencao","Informativo","OK"</text></outputValues>
+      </output>
+      <output id="output_acao_requerida" name="acaoRequerida" typeRef="string" />
+      <output id="output_justificativa" name="justificativaCientifica" typeRef="string" />
+
+      <!-- Rule 1: Metformina + Contraste IV + TFG < 30 -->
+      <rule id="rule_metformina_contraste_tfg_critico">
+        <inputEntry id="ie_metformina_ativa">
+          <text>list contains(medicamentosAtivos, "METFORMINA")</text>
+        </inputEntry>
+        <inputEntry id="ie_contraste_iv">
+          <text>"CONTRASTE_IODADO_IV" or "TOMOGRAFIA_CONTRASTADA" or "ANGIOTOMOGRAFIA" or "CATETERISMO"</text>
+        </inputEntry>
+        <inputEntry id="ie_tfg_critico">
+          <text>&lt; 30</text>
+        </inputEntry>
+        <outputEntry id="oe_alerta_critico"><text>"Alerta"</text></outputEntry>
+        <outputEntry id="oe_acao_critico"><text>"SUSPENDER metformina 48h ANTES do exame. Nao reiniciar ate confirmar TFG estavel (48-72h pos-contraste). Avaliar alternativa ao exame contrastado. Se indispensavel, hidratar vigorosamente e usar menor volume de contraste iso-osmolar."</text></outputEntry>
+        <outputEntry id="oe_just_critico"><text>"TFG&lt;30: alto risco nefropatia contraste + acidose latica. Suspensao previa obrigatoria. ACR Manual on Contrast Media 2023."</text></outputEntry>
+      </rule>
+
+      <!-- Rule 2: Metformina + Contraste IV + TFG 30-44 -->
+      <rule id="rule_metformina_contraste_tfg_moderado">
+        <inputEntry id="ie_metformina_ativa2">
+          <text>list contains(medicamentosAtivos, "METFORMINA")</text>
+        </inputEntry>
+        <inputEntry id="ie_contraste_iv2">
+          <text>"CONTRASTE_IODADO_IV" or "TOMOGRAFIA_CONTRASTADA" or "ANGIOTOMOGRAFIA" or "CATETERISMO"</text>
+        </inputEntry>
+        <inputEntry id="ie_tfg_moderado">
+          <text>[30..44]</text>
+        </inputEntry>
+        <outputEntry id="oe_alerta_moderado"><text>"Alerta"</text></outputEntry>
+        <outputEntry id="oe_acao_moderado"><text>"SUSPENDER metformina no dia do exame. Hidratar com SF 0.9% (1mL/kg/h 6-12h pre e pos). Reiniciar metformina somente apos 48h se creatinina estavel."</text></outputEntry>
+        <outputEntry id="oe_just_moderado"><text>"TFG 30-44: risco moderado. Suspensao no dia e hidratacao preventiva. ACR Guidelines 2023."</text></outputEntry>
+      </rule>
+
+      <!-- Rule 3: Metformina + Contraste IV + TFG >= 45 -->
+      <rule id="rule_metformina_contraste_tfg_leve">
+        <inputEntry id="ie_metformina_ativa3">
+          <text>list contains(medicamentosAtivos, "METFORMINA")</text>
+        </inputEntry>
+        <inputEntry id="ie_contraste_iv3">
+          <text>"CONTRASTE_IODADO_IV" or "TOMOGRAFIA_CONTRASTADA" or "ANGIOTOMOGRAFIA" or "CATETERISMO"</text>
+        </inputEntry>
+        <inputEntry id="ie_tfg_leve">
+          <text>&gt;= 45</text>
+        </inputEntry>
+        <outputEntry id="oe_atencao_leve"><text>"Atencao"</text></outputEntry>
+        <outputEntry id="oe_acao_leve"><text>"Pode manter metformina. Orientar hidratacao oral. Monitorar funcao renal se fatores de risco adicionais (idoso, ICC, desidratacao). Reavaliar em 48h se sintomas."</text></outputEntry>
+        <outputEntry id="oe_just_leve"><text>"TFG>=45: baixo risco, nao necessita suspensao previa rotineira. ACR 2023 update."</text></outputEntry>
+      </rule>
+
+      <!-- Fallback Rule -->
+      <rule id="Rule_Fallback">
+        <inputEntry id="ie_fallback1"><text>-</text></inputEntry>
+        <inputEntry id="ie_fallback2"><text>-</text></inputEntry>
+        <inputEntry id="ie_fallback3"><text>-</text></inputEntry>
+        <outputEntry id="oe_fallback1"><text>"OK"</text></outputEntry>
+        <outputEntry id="oe_fallback2"><text>""</text></outputEntry>
+        <outputEntry id="oe_fallback3"><text>""</text></outputEntry>
+      </rule>
+    </decisionTable>
+  </decision>
+</definitions>

@@ -1,0 +1,285 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  ============================================================================
+  EWS-MEWS-006: MEWS Temperature Component Alert
+  ============================================================================
+
+  Modified Early Warning Score - Temperature Parameter Focus.
+  This rule triggers alerts for fever and hypothermia.
+
+  Evidence Base: Subbe et al. (2001)
+  Temperature Scoring:
+  - <35°C: 2 points (hypothermia)
+  - 35-38.4°C: 0 points (normal/low-grade fever)
+  - >=38.5°C: 2 points (fever)
+
+  ============================================================================
+-->
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/"
+             xmlns:dc="http://www.omg.org/spec/DMN/20180521/DC/"
+             id="Definitions_EWS_MEWS_006"
+             name="MEWS Temperature Alert"
+             targetNamespace="http://camunda.org/schema/1.0/dmn">
+
+  <!--
+    ═══════════════════════════════════════════════════════════════════════════
+    EWS-MEWS-006: MEWS Temperature Component Alert
+    Version: 1.0.0 (2026-02-06)
+    Clinical Domain: Infectious Disease / Emergency Medicine
+    ═══════════════════════════════════════════════════════════════════════════
+
+    TRIGGER CONDITIONS:
+    - Hypothermia (<35°C)
+    - High fever (>=38.5°C)
+    - Fever with other sepsis criteria
+
+    CLINICAL ACTIONS:
+    - Investigate source of infection
+    - Blood cultures if sepsis suspected
+    - Warming measures if hypothermic
+    - Antipyretics if indicated
+
+    EVIDENCE BASE:
+    - Fever + MEWS increase = sepsis screening indicated
+    - Hypothermia in infection = poor prognosis
+    ═══════════════════════════════════════════════════════════════════════════
+  -->
+
+  <decision id="Decision_EWS_MEWS_006" name="MEWS Temperature Component Evaluation">
+    <decisionTable id="DecisionTable_EWS_MEWS_006" hitPolicy="FIRST">
+
+      <!-- INPUT 1: Temperature -->
+      <input id="Input_1" label="Temperatura">
+        <inputExpression id="InputExpression_1" typeRef="number">
+          <text>temperatura</text>
+        </inputExpression>
+      </input>
+
+      <!-- INPUT 2: Suspected Infection -->
+      <input id="Input_2" label="Suspeita Infeccao">
+        <inputExpression id="InputExpression_2" typeRef="boolean">
+          <text>suspeitaInfeccao</text>
+        </inputExpression>
+      </input>
+
+      <!-- INPUT 3: Immunocompromised -->
+      <input id="Input_3" label="Imunossuprimido">
+        <inputExpression id="InputExpression_3" typeRef="boolean">
+          <text>imunossuprimido</text>
+        </inputExpression>
+      </input>
+
+      <!-- INPUT 4: Associated MEWS Score -->
+      <input id="Input_4" label="MEWS Associado">
+        <inputExpression id="InputExpression_4" typeRef="number">
+          <text>mewsAssociado</text>
+        </inputExpression>
+      </input>
+
+      <!-- OUTPUT 1: Alert Level -->
+      <output id="Output_1" label="Nivel Alerta" name="nivelAlerta" typeRef="string">
+        <outputValues id="OutputValues_1">
+          <text>"Alerta", "Atencao", "Informativo", "OK", "Revisar"</text>
+        </outputValues>
+      </output>
+
+      <!-- OUTPUT 2: Urgency -->
+      <output id="Output_2" label="Urgencia" name="urgencia" typeRef="string">
+        <outputValues id="OutputValues_2">
+          <text>"IMEDIATA", "URGENTE", "ROTINA", "INFORMATIVA"</text>
+        </outputValues>
+      </output>
+
+      <!-- OUTPUT 3: Required Action -->
+      <output id="Output_3" label="Acao Requerida" name="acaoRequerida" typeRef="string"/>
+
+      <!-- OUTPUT 4: Clinical Justification -->
+      <output id="Output_4" label="Justificativa Cientifica" name="justificativaCientifica" typeRef="string"/>
+
+      <!-- RULE 1: CRITICAL - Hypothermia with Infection (Sepsis) -->
+      <rule id="Rule_Critical_HypothermicSepsis">
+        <description>Hypothermia with suspected infection indicates severe sepsis</description>
+        <inputEntry id="InputEntry_1_1">
+          <text>&lt; 35</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_1_2">
+          <text>true</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_1_3">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_1_4">
+          <text>-</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_1_1">
+          <text>"Alerta"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_1_2">
+          <text>"IMEDIATA"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_1_3">
+          <text>"SEPSE GRAVE SUSPEITADA. Hipotermia em contexto infeccioso e sinal de mau prognostico. Hemoculturas imediatas (2 sets). Iniciar antibiotico de amplo espectro dentro de 1 hora. Ressuscitacao volemica. Lactato seriado."</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_1_4">
+          <text>"Hipotermia (&lt;35C) em infeccao indica falha dos mecanismos de regulacao termica por sepse grave. Mortalidade 40% maior que sepse com febre. Sinal de disfuncao imunologica e choque iminente."</text>
+        </outputEntry>
+      </rule>
+
+      <!-- RULE 2: HIGH RISK - High Fever + Elevated MEWS -->
+      <rule id="Rule_HighRisk_FeverMEWS">
+        <description>Fever with elevated MEWS suggests sepsis</description>
+        <inputEntry id="InputEntry_2_1">
+          <text>&gt;= 38.5</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_2_2">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_2_3">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_2_4">
+          <text>&gt;= 4</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_2_1">
+          <text>"Alerta"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_2_2">
+          <text>"URGENTE"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_2_3">
+          <text>"Febre com MEWS elevado - aplicar criterios de SEPSE. Hemoculturas antes de antibiotico. Lactato. Avaliar foco infeccioso (urinario, pulmonar, abdominal, pele). Iniciar protocolo sepse se 2+ criterios SIRS."</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_2_4">
+          <text>"Febre &gt;=38.5C combinada com MEWS &gt;=4 tem sensibilidade de 85% para sepse. Cada hora de atraso no antibiotico aumenta mortalidade em 7.6%. Protocolo sepse hora-1 deve ser iniciado."</text>
+        </outputEntry>
+      </rule>
+
+      <!-- RULE 3: HIGH RISK - Fever in Immunocompromised -->
+      <rule id="Rule_HighRisk_ImmunocompromisedFever">
+        <description>Fever in immunocompromised patient is an emergency</description>
+        <inputEntry id="InputEntry_3_1">
+          <text>&gt;= 38</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_3_2">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_3_3">
+          <text>true</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_3_4">
+          <text>-</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_3_1">
+          <text>"Alerta"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_3_2">
+          <text>"URGENTE"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_3_3">
+          <text>"NEUTROPENIA FEBRIL ou infeccao em imunossuprimido. Hemograma urgente. Hemoculturas (cateter + periferico). Antibiotico de amplo espectro dentro de 1 hora (cefepima, piperacilina-tazobactam). Avaliar necessidade de antifungico."</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_3_4">
+          <text>"Pacientes imunossuprimidos (quimioterapia, transplante, HIV, corticoides) nao montam resposta inflamatoria adequada. Febre &gt;=38C pode indicar infeccao grave com pouca manifestacao clinica. Mortalidade sem tratamento precoce: 30-50%."</text>
+        </outputEntry>
+      </rule>
+
+      <!-- RULE 4: ATTENTION - Isolated Hypothermia -->
+      <rule id="Rule_Attention_Hypothermia">
+        <description>Hypothermia without infection - investigate cause</description>
+        <inputEntry id="InputEntry_4_1">
+          <text>&lt; 35</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_4_2">
+          <text>false</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_4_3">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_4_4">
+          <text>-</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_4_1">
+          <text>"Atencao"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_4_2">
+          <text>"URGENTE"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_4_3">
+          <text>"Hipotermia detectada. Investigar causa: exposicao ambiental, hipotireoidismo, hipoglicemia, intoxicacao, choque. Iniciar reaquecimento passivo. ECG (risco de arritmias). Glicemia capilar. TSH se indicado."</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_4_4">
+          <text>"Hipotermia (&lt;35C) indica falha de termorregulacao. Score MEWS = 2. Causas nao-infecciosas: mixedema, hipoglicemia, etilismo, idosos. Risco de arritmias (fibrilacao ventricular) se T &lt;28C."</text>
+        </outputEntry>
+      </rule>
+
+      <!-- RULE 5: ATTENTION - Isolated Fever -->
+      <rule id="Rule_Attention_IsolatedFever">
+        <description>Fever without other concerning signs - investigate source</description>
+        <inputEntry id="InputEntry_5_1">
+          <text>&gt;= 38.5</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_5_2">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_5_3">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_5_4">
+          <text>&lt; 4</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_5_1">
+          <text>"Atencao"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_5_2">
+          <text>"ROTINA"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_5_3">
+          <text>"Febre isolada. Investigar foco: exame fisico detalhado, sumario de urina, raio-X torax se indicado. Hemograma. Considerar hemoculturas se febre persistente. Medidas antipireticas se desconforto."</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_5_4">
+          <text>"Febre &gt;=38.5C com MEWS &lt;4 pode representar infeccao localizada ou viral autolimitada. Score MEWS = 2 pela temperatura. Investigar foco antes de iniciar antibiotico empirico."</text>
+        </outputEntry>
+      </rule>
+
+      <!-- RULE 6: FALLBACK -->
+      <rule id="Rule_Fallback_EWS_MEWS_006">
+        <description>Temperatura normal ou dados incompletos</description>
+        <inputEntry id="InputEntry_F_1">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_F_2">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_F_3">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_F_4">
+          <text>-</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_F_1">
+          <text>"Revisar"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_F_2">
+          <text>"ROTINA"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_F_3">
+          <text>"Verificar temperatura. Se 35-38.4C, componente termico do MEWS esta adequado (0 pontos). Monitorar de rotina."</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_F_4">
+          <text>"Temperatura 35-38.4C e considerada normal ou febre baixa no MEWS (0 pontos). Febricula (37.5-38.4C) deve ser monitorada mas nao gera alerta isolado."</text>
+        </outputEntry>
+      </rule>
+
+    </decisionTable>
+  </decision>
+
+  <dmndi:DMNDI>
+    <dmndi:DMNDiagram id="DMNDiagram_EWS_MEWS_006">
+      <dmndi:DMNShape id="DMNShape_Decision_EWS_MEWS_006" dmnElementRef="Decision_EWS_MEWS_006">
+        <dc:Bounds height="80" width="180" x="160" y="100"/>
+      </dmndi:DMNShape>
+    </dmndi:DMNDiagram>
+  </dmndi:DMNDI>
+
+</definitions>

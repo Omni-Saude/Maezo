@@ -1,0 +1,148 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/" xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/" xmlns:dc="http://www.omg.org/spec/DMN/20180521/DC/" xmlns:di="http://www.omg.org/spec/DMN/20180521/DI/" id="DDI_CONTRAIND_003" name="DDI-CONTRAIND-003: Metotrexato + Trimetoprim" namespace="http://camunda.org/schema/1.0/dmn">
+  <decision id="ddi_contraind_003_decision" name="Metotrexato + Trimetoprim Interaction">
+    <decisionTable id="ddi_contraind_003_table" hitPolicy="FIRST">
+      <input id="input_medicamentos_ativos" label="Medicamentos Ativos">
+        <inputExpression id="input_expr_medicamentos_ativos" typeRef="string">
+          <text>medicamentosAtivos</text>
+        </inputExpression>
+      </input>
+      <input id="input_medicamento_novo" label="Medicamento Novo">
+        <inputExpression id="input_expr_medicamento_novo" typeRef="string">
+          <text>medicamentoNovo</text>
+        </inputExpression>
+      </input>
+      <input id="input_funcao_renal" label="Função Renal (TFG ml/min)">
+        <inputExpression id="input_expr_funcao_renal" typeRef="number">
+          <text>funcaoRenal</text>
+        </inputExpression>
+      </input>
+
+      <output id="output_nivel_alerta" name="nivelAlerta" typeRef="string">
+        <outputValues>
+          <text>"Alerta","Atencao","Informativo"</text>
+        </outputValues>
+      </output>
+      <output id="output_urgencia" name="urgencia" typeRef="string">
+        <outputValues>
+          <text>"IMEDIATA","URGENTE","ROTINA"</text>
+        </outputValues>
+      </output>
+      <output id="output_medicamentos_conflitantes" name="medicamentosConflitantes" typeRef="string" />
+      <output id="output_mecanismo_interacao" name="mecanismoInteracao" typeRef="string" />
+      <output id="output_acao_requerida" name="acaoRequerida" typeRef="string" />
+
+      <!-- Rule 1: Metotrexato + Trimetoprim/SMX com disfunção renal -->
+      <rule id="rule_mtx_tmp_renal">
+        <inputEntry id="input_medicamentos_mtx">
+          <text>list contains(medicamentosAtivos, "METOTREXATO") or list contains(medicamentosAtivos, "METOTREXATE")</text>
+        </inputEntry>
+        <inputEntry id="input_novo_tmp">
+          <text>"TRIMETOPRIMA" or "SULFAMETOXAZOL-TRIMETOPRIMA" or "SMX-TMP" or "BACTRIM"</text>
+        </inputEntry>
+        <inputEntry id="input_tfg_baixa">
+          <text>&lt; 60</text>
+        </inputEntry>
+        <outputEntry id="output_alerta_mtx_renal">
+          <text>"Alerta"</text>
+        </outputEntry>
+        <outputEntry id="output_urgencia_mtx_renal">
+          <text>"IMEDIATA"</text>
+        </outputEntry>
+        <outputEntry id="output_conflitantes_mtx_renal">
+          <text>"Metotrexato + Trimetoprim (TFG&lt;60)"</text>
+        </outputEntry>
+        <outputEntry id="output_mecanismo_mtx_renal">
+          <text>"Duplo bloqueio folato (MTX + TMP) + clearance renal reduzido = PANCITOPENIA GRAVE (leucopenia, trombocitopenia, anemia megaloblastica). Risco mortalidade alto."</text>
+        </outputEntry>
+        <outputEntry id="output_acao_mtx_renal">
+          <text>"CONTRAINDICADO: Suspender TMP-SMX. Alternativas antibioticas: quinolonas, cefalosporinas. Se MTX dose alta, considerar acido folinico resgate. Hemograma urgente a cada 48h."</text>
+        </outputEntry>
+      </rule>
+
+      <!-- Rule 2: Metotrexato + Trimetoprim com função renal normal (alerta moderado) -->
+      <rule id="rule_mtx_tmp_normal">
+        <inputEntry id="input_medicamentos_mtx_normal">
+          <text>list contains(medicamentosAtivos, "METOTREXATO") or list contains(medicamentosAtivos, "METOTREXATE")</text>
+        </inputEntry>
+        <inputEntry id="input_novo_tmp_normal">
+          <text>"TRIMETOPRIMA" or "SULFAMETOXAZOL-TRIMETOPRIMA" or "SMX-TMP" or "BACTRIM"</text>
+        </inputEntry>
+        <inputEntry id="input_tfg_normal">
+          <text>&gt;= 60</text>
+        </inputEntry>
+        <outputEntry id="output_alerta_mtx_normal">
+          <text>"Atencao"</text>
+        </outputEntry>
+        <outputEntry id="output_urgencia_mtx_normal">
+          <text>"URGENTE"</text>
+        </outputEntry>
+        <outputEntry id="output_conflitantes_mtx_normal">
+          <text>"Metotrexato + Trimetoprim"</text>
+        </outputEntry>
+        <outputEntry id="output_mecanismo_mtx_normal">
+          <text>"Antagonismo folato sinergico. Risco pancitopenia mesmo com funcao renal normal (menor que TFG&lt;60)."</text>
+        </outputEntry>
+        <outputEntry id="output_acao_mtx_normal">
+          <text>"Evitar associacao. Se ESSENCIAL: hemograma basal + 48h, 96h, 7 dias. Suplementar acido folinico 15mg VO 24h apos MTX. Monitorar leucocitos &lt;3000/mm3."</text>
+        </outputEntry>
+      </rule>
+
+      <!-- Rule 3: Trimetoprim em uso + prescrição Metotrexato -->
+      <rule id="rule_tmp_mtx">
+        <inputEntry id="input_medicamentos_tmp">
+          <text>list contains(medicamentosAtivos, "TRIMETOPRIMA") or list contains(medicamentosAtivos, "SULFAMETOXAZOL-TRIMETOPRIMA") or list contains(medicamentosAtivos, "BACTRIM")</text>
+        </inputEntry>
+        <inputEntry id="input_novo_mtx">
+          <text>"METOTREXATO" or "METOTREXATE"</text>
+        </inputEntry>
+        <inputEntry id="input_tfg_any">
+          <text>-</text>
+        </inputEntry>
+        <outputEntry id="output_alerta_tmp">
+          <text>"Alerta"</text>
+        </outputEntry>
+        <outputEntry id="output_urgencia_tmp">
+          <text>"IMEDIATA"</text>
+        </outputEntry>
+        <outputEntry id="output_conflitantes_tmp">
+          <text>"Trimetoprim ativo + MTX prescrito"</text>
+        </outputEntry>
+        <outputEntry id="output_mecanismo_tmp">
+          <text>"Duplo bloqueio dihidrofolato redutase = pancitopenia fulminante"</text>
+        </outputEntry>
+        <outputEntry id="output_acao_tmp">
+          <text>"CONTRAINDICADO: Suspender TMP-SMX 48h antes MTX. Se infeccao ativa, tratar PRIMEIRO (quinolona/cefalosporina), depois MTX. Casos reportados mortalidade por sepse neutropenica."</text>
+        </outputEntry>
+      </rule>
+
+      <!-- Fallback Rule -->
+      <rule id="rule_fallback">
+        <inputEntry id="input_fallback_1">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="input_fallback_2">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="input_fallback_3">
+          <text>-</text>
+        </inputEntry>
+        <outputEntry id="output_fallback_1">
+          <text>"Informativo"</text>
+        </outputEntry>
+        <outputEntry id="output_fallback_2">
+          <text>"ROTINA"</text>
+        </outputEntry>
+        <outputEntry id="output_fallback_3">
+          <text>""</text>
+        </outputEntry>
+        <outputEntry id="output_fallback_4">
+          <text>""</text>
+        </outputEntry>
+        <outputEntry id="output_fallback_5">
+          <text>""</text>
+        </outputEntry>
+      </rule>
+    </decisionTable>
+  </decision>
+</definitions>

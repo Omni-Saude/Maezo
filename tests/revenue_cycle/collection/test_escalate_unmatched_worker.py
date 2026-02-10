@@ -3,8 +3,8 @@ from __future__ import annotations
 
 import pytest
 
-from platform.revenue_cycle.collection.exceptions import UnmatchedPaymentError
-from platform.revenue_cycle.collection.workers.escalate_unmatched_worker import EscalateUnmatchedWorker
+from healthcare_platform.revenue_cycle.collection.exceptions import UnmatchedPaymentError
+from healthcare_platform.revenue_cycle.collection.workers.escalate_unmatched_worker import EscalateUnmatchedWorker
 
 
 @pytest.fixture

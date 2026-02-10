@@ -3,10 +3,10 @@ from __future__ import annotations
 
 import pytest
 
-from platform.revenue_cycle.collection.workers.calculate_net_payment_worker import (
+from healthcare_platform.revenue_cycle.collection.workers.calculate_net_payment_worker import (
     CalculateNetPaymentWorker,
 )
-from platform.revenue_cycle.collection.exceptions import PaymentValidationError
+from healthcare_platform.revenue_cycle.collection.exceptions import PaymentValidationError
 
 
 @pytest.mark.asyncio

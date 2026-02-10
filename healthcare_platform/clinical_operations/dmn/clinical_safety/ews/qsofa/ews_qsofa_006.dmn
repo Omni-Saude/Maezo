@@ -1,0 +1,257 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  ============================================================================
+  EWS-qSOFA-006: qSOFA Sepsis Bundle Compliance Checker
+  ============================================================================
+
+  Evaluates compliance with Surviving Sepsis Campaign Hour-1 Bundle.
+  Tracks completion of required interventions within time windows.
+
+  Evidence Base: Surviving Sepsis Campaign 2021
+  Hour-1 Bundle:
+  - Measure lactate (remeasure if >2)
+  - Obtain blood cultures before antibiotics
+  - Administer broad spectrum antibiotics
+  - Rapid fluid administration (30ml/kg) if hypotension/lactate>=4
+  - Vasopressors if hypotensive during/after resuscitation
+
+  ============================================================================
+-->
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/"
+             xmlns:dc="http://www.omg.org/spec/DMN/20180521/DC/"
+             id="Definitions_EWS_qSOFA_006"
+             name="Sepsis Bundle Compliance"
+             targetNamespace="http://camunda.org/schema/1.0/dmn">
+
+  <!--
+    ═══════════════════════════════════════════════════════════════════════════
+    EWS-qSOFA-006: Sepsis Bundle Compliance Checker
+    Version: 1.0.0 (2026-02-06)
+    Clinical Domain: Quality Improvement / Sepsis Management
+    ═══════════════════════════════════════════════════════════════════════════
+
+    BUNDLE ELEMENTS:
+    1. Lactate measured
+    2. Blood cultures obtained
+    3. Antibiotics administered
+    4. Fluid resuscitation if indicated
+    5. Vasopressors if indicated
+
+    TIME WINDOW:
+    - All elements within 1 hour of sepsis recognition
+    - Delays associated with increased mortality
+
+    COMPLIANCE TRACKING:
+    - Each hour delay = 7.6% increased mortality
+    ═══════════════════════════════════════════════════════════════════════════
+  -->
+
+  <decision id="Decision_EWS_qSOFA_006" name="Sepsis Bundle Compliance Evaluation">
+    <decisionTable id="DecisionTable_EWS_qSOFA_006" hitPolicy="FIRST">
+
+      <!-- INPUT 1: Minutes Since Sepsis Recognition -->
+      <input id="Input_1" label="Minutos Desde Reconhecimento">
+        <inputExpression id="InputExpression_1" typeRef="number">
+          <text>minutosDesdeReconhecimento</text>
+        </inputExpression>
+      </input>
+
+      <!-- INPUT 2: Lactate Measured -->
+      <input id="Input_2" label="Lactato Colhido">
+        <inputExpression id="InputExpression_2" typeRef="boolean">
+          <text>lactatoColhido</text>
+        </inputExpression>
+      </input>
+
+      <!-- INPUT 3: Blood Cultures Obtained -->
+      <input id="Input_3" label="Hemoculturas Colhidas">
+        <inputExpression id="InputExpression_3" typeRef="boolean">
+          <text>hemoculturasColhidas</text>
+        </inputExpression>
+      </input>
+
+      <!-- INPUT 4: Antibiotics Administered -->
+      <input id="Input_4" label="Antibiotico Administrado">
+        <inputExpression id="InputExpression_4" typeRef="boolean">
+          <text>antibioticoAdministrado</text>
+        </inputExpression>
+      </input>
+
+      <!-- OUTPUT 1: Alert Level -->
+      <output id="Output_1" label="Nivel Alerta" name="nivelAlerta" typeRef="string">
+        <outputValues id="OutputValues_1">
+          <text>"Alerta", "Atencao", "Informativo", "OK", "Revisar"</text>
+        </outputValues>
+      </output>
+
+      <!-- OUTPUT 2: Urgency -->
+      <output id="Output_2" label="Urgencia" name="urgencia" typeRef="string">
+        <outputValues id="OutputValues_2">
+          <text>"IMEDIATA", "URGENTE", "ROTINA", "INFORMATIVA"</text>
+        </outputValues>
+      </output>
+
+      <!-- OUTPUT 3: Required Action -->
+      <output id="Output_3" label="Acao Requerida" name="acaoRequerida" typeRef="string"/>
+
+      <!-- OUTPUT 4: Clinical Justification -->
+      <output id="Output_4" label="Justificativa Cientifica" name="justificativaCientifica" typeRef="string"/>
+
+      <!-- RULE 1: CRITICAL - >60 min without antibiotics -->
+      <rule id="Rule_Critical_NoAntibiotics60min">
+        <description>Sepsis recognized >60 min ago without antibiotics - critical delay</description>
+        <inputEntry id="InputEntry_1_1">
+          <text>&gt; 60</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_1_2">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_1_3">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_1_4">
+          <text>false</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_1_1">
+          <text>"Alerta"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_1_2">
+          <text>"IMEDIATA"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_1_3">
+          <text>"ALERTA CRITICO: Antibiotico NAO administrado apos 60 minutos de reconhecimento de sepse. ADMINISTRAR ANTIBIOTICO IMEDIATAMENTE. Cada hora de atraso aumenta mortalidade em 7.6%. Nao esperar culturas - administrar agora."</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_1_4">
+          <text>"Surviving Sepsis Campaign 2021: antibiotico deve ser administrado em ATE 1 hora do reconhecimento de sepse. Atraso e a principal causa evitavel de morte em sepse. Estudos mostram aumento linear da mortalidade com cada hora de atraso."</text>
+        </outputEntry>
+      </rule>
+
+      <!-- RULE 2: HIGH RISK - 30-60 min without complete bundle -->
+      <rule id="Rule_HighRisk_IncompleteBundle30">
+        <description>30-60 min passed with incomplete bundle elements</description>
+        <inputEntry id="InputEntry_2_1">
+          <text>[30..60]</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_2_2">
+          <text>false</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_2_3">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_2_4">
+          <text>-</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_2_1">
+          <text>"Atencao"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_2_2">
+          <text>"URGENTE"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_2_3">
+          <text>"BUNDLE INCOMPLETO: 30-60 minutos desde reconhecimento e lactato ainda nao colhido. Colher AGORA. Completar todos os elementos do bundle hora-1. Tempo restante limitado. Comunicar equipe sobre urgencia."</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_2_4">
+          <text>"Lactato e essencial para: 1) confirmar disfuncao organica, 2) guiar ressuscitacao, 3) medir resposta ao tratamento. Clareamento de lactato e melhor preditor de sobrevida que valor absoluto."</text>
+        </outputEntry>
+      </rule>
+
+      <!-- RULE 3: ATTENTION - Blood cultures not obtained before antibiotics -->
+      <rule id="Rule_Attention_CulturesAfterAbx">
+        <description>Antibiotics given without blood cultures - reduces diagnostic yield</description>
+        <inputEntry id="InputEntry_3_1">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_3_2">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_3_3">
+          <text>false</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_3_4">
+          <text>true</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_3_1">
+          <text>"Atencao"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_3_2">
+          <text>"URGENTE"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_3_3">
+          <text>"HEMOCULTURAS pendentes - antibiotico ja foi administrado. Colher hemoculturas AGORA mesmo apos inicio do antibiotico (rendimento reduzido mas ainda util). Idealmente: culturas ANTES do antibiotico, mas antibiotico nao deve ser atrasado."</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_3_4">
+          <text>"Hemoculturas devem ser colhidas ANTES do antibiotico para maximizar rendimento (positividade cai 35% apos 1a dose). Porem, se escolher entre atrasar antibiotico e colher depois, priorizar antibiotico. Colher assim que possivel."</text>
+        </outputEntry>
+      </rule>
+
+      <!-- RULE 4: INFO - Bundle complete within target -->
+      <rule id="Rule_Info_BundleComplete">
+        <description>All bundle elements completed - compliant with SSC</description>
+        <inputEntry id="InputEntry_4_1">
+          <text>&lt;= 60</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_4_2">
+          <text>true</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_4_3">
+          <text>true</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_4_4">
+          <text>true</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_4_1">
+          <text>"OK"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_4_2">
+          <text>"INFORMATIVA"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_4_3">
+          <text>"BUNDLE HORA-1 COMPLETO. Lactato colhido, hemoculturas colhidas, antibiotico administrado dentro do tempo. Manter monitoramento. Repetir lactato em 2-4h se inicial >2. Avaliar resposta ao tratamento."</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_4_4">
+          <text>"Conformidade com bundle hora-1 da SSC associada a reducao de 25% na mortalidade. Continuar ressuscitacao guiada por metas. Reavaliar antibiotico em 48-72h com resultados de culturas."</text>
+        </outputEntry>
+      </rule>
+
+      <!-- RULE 5: FALLBACK -->
+      <rule id="Rule_Fallback_EWS_qSOFA_006">
+        <description>Dados incompletos ou tempo zero (aguardando reconhecimento)</description>
+        <inputEntry id="InputEntry_F_1">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_F_2">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_F_3">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_F_4">
+          <text>-</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_F_1">
+          <text>"Revisar"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_F_2">
+          <text>"ROTINA"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_F_3">
+          <text>"Dados de bundle incompletos ou sepse ainda nao reconhecida formalmente. Se qSOFA >=2 com infeccao, iniciar contagem do tempo e bundle hora-1 imediatamente. Documentar hora de reconhecimento."</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_F_4">
+          <text>"Hora zero do bundle e o momento do reconhecimento de sepse (qSOFA >=2 ou criterios clinicos). Documentacao precisa do tempo e essencial para metricas de qualidade e auditoria."</text>
+        </outputEntry>
+      </rule>
+
+    </decisionTable>
+  </decision>
+
+  <dmndi:DMNDI>
+    <dmndi:DMNDiagram id="DMNDiagram_EWS_qSOFA_006">
+      <dmndi:DMNShape id="DMNShape_Decision_EWS_qSOFA_006" dmnElementRef="Decision_EWS_qSOFA_006">
+        <dc:Bounds height="80" width="180" x="160" y="100"/>
+      </dmndi:DMNShape>
+    </dmndi:DMNDiagram>
+  </dmndi:DMNDI>
+
+</definitions>

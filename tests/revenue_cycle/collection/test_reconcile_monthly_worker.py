@@ -4,9 +4,9 @@ from datetime import date
 
 import pytest
 
-from platform.revenue_cycle.collection.enums import ReconciliationPeriod, ReconciliationStatus
-from platform.revenue_cycle.collection.exceptions import ReconciliationError
-from platform.revenue_cycle.collection.workers.reconcile_monthly_worker import ReconcileMonthlyWorker
+from healthcare_platform.revenue_cycle.collection.enums import ReconciliationPeriod, ReconciliationStatus
+from healthcare_platform.revenue_cycle.collection.exceptions import ReconciliationError
+from healthcare_platform.revenue_cycle.collection.workers.reconcile_monthly_worker import ReconcileMonthlyWorker
 
 
 @pytest.mark.asyncio

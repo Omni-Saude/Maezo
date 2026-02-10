@@ -1,0 +1,352 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+                  xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+                  xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+                  xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
+                  xmlns:camunda="http://camunda.org/schema/1.0/bpmn"
+                  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                  id="Definitions_NEWS2"
+                  targetNamespace="http://cib7.health/clinical/news2"
+                  exporter="Claude Code"
+                  exporterVersion="1.0">
+
+  <bpmn:process id="Process_NEWS2" name="SP-CA-002 NEWS2 Early Warning System" isExecutable="true">
+
+    <!-- Timer start event: every 4h for ward patients -->
+    <bpmn:startEvent id="Start_NEWS2Timer" name="NEWS2 Assessment Triggered (Every 4h)">
+      <bpmn:outgoing>Flow_ToMeasureVitals</bpmn:outgoing>
+      <bpmn:timerEventDefinition>
+        <bpmn:timeCycle xsi:type="bpmn:tFormalExpression">R/PT4H</bpmn:timeCycle>
+      </bpmn:timerEventDefinition>
+    </bpmn:startEvent>
+
+    <!-- Measure vital signs -->
+    <bpmn:serviceTask id="Task_MeasureVitals" name="Measure Vital Signs"
+                      camunda:type="external" camunda:topic="clinical.vital_signs">
+      <bpmn:incoming>Flow_ToMeasureVitals</bpmn:incoming>
+      <bpmn:outgoing>Flow_ToNEWS2Calculation</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Calculate NEWS2 score -->
+    <bpmn:businessRuleTask id="Task_NEWS2" name="Calculate NEWS2 Score"
+                           camunda:decisionRef="ews_news_001"
+                           camunda:mapDecisionResult="singleResult">
+      <bpmn:incoming>Flow_ToNEWS2Calculation</bpmn:incoming>
+      <bpmn:outgoing>Flow_ToScoreGateway</bpmn:outgoing>
+    </bpmn:businessRuleTask>
+
+    <!-- NEWS2 score level gateway -->
+    <bpmn:exclusiveGateway id="Gateway_ScoreLevel" name="NEWS2 Score Level?">
+      <bpmn:incoming>Flow_ToScoreGateway</bpmn:incoming>
+      <bpmn:outgoing>Flow_Low</bpmn:outgoing>
+      <bpmn:outgoing>Flow_Medium</bpmn:outgoing>
+      <bpmn:outgoing>Flow_High</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+
+    <!-- Low risk (0-4): Routine monitoring -->
+    <bpmn:serviceTask id="Task_RoutineMonitoring" name="Schedule Routine Monitoring (4-12h)"
+                      camunda:type="external" camunda:topic="clinical.care_team">
+      <bpmn:incoming>Flow_Low</bpmn:incoming>
+      <bpmn:outgoing>Flow_LowToDocument</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Medium risk (5-6): Urgent nurse review with 15 min SLA -->
+    <bpmn:serviceTask id="Task_UrgentNurseReview" name="Urgent Nurse Review"
+                      camunda:type="external" camunda:topic="clinical.care_team">
+      <bpmn:incoming>Flow_Medium</bpmn:incoming>
+      <bpmn:outgoing>Flow_MediumToDocument</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Timer boundary event: 15 min SLA for medium risk -->
+    <bpmn:boundaryEvent id="Event_NurseSLA" name="15 min SLA" attachedToRef="Task_UrgentNurseReview">
+      <bpmn:outgoing>Flow_NurseTimeout</bpmn:outgoing>
+      <bpmn:timerEventDefinition>
+        <bpmn:timeDuration xsi:type="bpmn:tFormalExpression">PT15M</bpmn:timeDuration>
+      </bpmn:timerEventDefinition>
+    </bpmn:boundaryEvent>
+
+    <!-- High risk (>= 7): Emergency team response with 5 min SLA -->
+    <bpmn:serviceTask id="Task_EmergencyResponse" name="Emergency Team Response"
+                      camunda:type="external" camunda:topic="clinical.care_team">
+      <bpmn:incoming>Flow_High</bpmn:incoming>
+      <bpmn:outgoing>Flow_ToContinuousMonitoring</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Timer boundary event: 5 min SLA for high risk -->
+    <bpmn:boundaryEvent id="Event_EmergencySLA" name="5 min SLA" attachedToRef="Task_EmergencyResponse">
+      <bpmn:outgoing>Flow_EmergencyTimeout</bpmn:outgoing>
+      <bpmn:timerEventDefinition>
+        <bpmn:timeDuration xsi:type="bpmn:tFormalExpression">PT5M</bpmn:timeDuration>
+      </bpmn:timerEventDefinition>
+    </bpmn:boundaryEvent>
+
+    <!-- Continuous monitoring for high risk -->
+    <bpmn:serviceTask id="Task_ContinuousMonitoring" name="Continuous Monitoring"
+                      camunda:type="external" camunda:topic="clinical.vital_signs">
+      <bpmn:incoming>Flow_ToContinuousMonitoring</bpmn:incoming>
+      <bpmn:outgoing>Flow_HighToDocument</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Handle nurse timeout -->
+    <bpmn:serviceTask id="Task_NurseTimeout" name="Escalate Nurse Delay"
+                      camunda:type="external" camunda:topic="clinical.care_team">
+      <bpmn:incoming>Flow_NurseTimeout</bpmn:incoming>
+      <bpmn:outgoing>Flow_NurseTimeoutToDocument</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Handle emergency timeout -->
+    <bpmn:serviceTask id="Task_EmergencyTimeout" name="Escalate Emergency Delay"
+                      camunda:type="external" camunda:topic="clinical.care_team">
+      <bpmn:incoming>Flow_EmergencyTimeout</bpmn:incoming>
+      <bpmn:outgoing>Flow_EmergencyTimeoutToDocument</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Merge gateway -->
+    <bpmn:exclusiveGateway id="Gateway_Merge" name="Merge">
+      <bpmn:incoming>Flow_LowToDocument</bpmn:incoming>
+      <bpmn:incoming>Flow_MediumToDocument</bpmn:incoming>
+      <bpmn:incoming>Flow_HighToDocument</bpmn:incoming>
+      <bpmn:incoming>Flow_NurseTimeoutToDocument</bpmn:incoming>
+      <bpmn:incoming>Flow_EmergencyTimeoutToDocument</bpmn:incoming>
+      <bpmn:outgoing>Flow_ToDocument</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+
+    <!-- Record NEWS2 assessment -->
+    <bpmn:serviceTask id="Task_Document" name="Record NEWS2 Assessment"
+                      camunda:type="external" camunda:topic="clinical.documentation">
+      <bpmn:incoming>Flow_ToDocument</bpmn:incoming>
+      <bpmn:outgoing>Flow_ToEnd</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <bpmn:endEvent id="End_AssessmentComplete" name="Assessment Complete">
+      <bpmn:incoming>Flow_ToEnd</bpmn:incoming>
+    </bpmn:endEvent>
+
+    <!-- Sequence Flows -->
+    <bpmn:sequenceFlow id="Flow_ToMeasureVitals" sourceRef="Start_NEWS2Timer" targetRef="Task_MeasureVitals"/>
+    <bpmn:sequenceFlow id="Flow_ToNEWS2Calculation" sourceRef="Task_MeasureVitals" targetRef="Task_NEWS2"/>
+    <bpmn:sequenceFlow id="Flow_ToScoreGateway" sourceRef="Task_NEWS2" targetRef="Gateway_ScoreLevel"/>
+
+    <bpmn:sequenceFlow id="Flow_Low" sourceRef="Gateway_ScoreLevel" targetRef="Task_RoutineMonitoring">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${news2_score >= 0 &amp;&amp; news2_score <= 4}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+
+    <bpmn:sequenceFlow id="Flow_Medium" sourceRef="Gateway_ScoreLevel" targetRef="Task_UrgentNurseReview">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${news2_score >= 5 &amp;&amp; news2_score <= 6}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+
+    <bpmn:sequenceFlow id="Flow_High" sourceRef="Gateway_ScoreLevel" targetRef="Task_EmergencyResponse">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${news2_score >= 7}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+
+    <bpmn:sequenceFlow id="Flow_LowToDocument" sourceRef="Task_RoutineMonitoring" targetRef="Gateway_Merge"/>
+    <bpmn:sequenceFlow id="Flow_MediumToDocument" sourceRef="Task_UrgentNurseReview" targetRef="Gateway_Merge"/>
+    <bpmn:sequenceFlow id="Flow_ToContinuousMonitoring" sourceRef="Task_EmergencyResponse" targetRef="Task_ContinuousMonitoring"/>
+    <bpmn:sequenceFlow id="Flow_HighToDocument" sourceRef="Task_ContinuousMonitoring" targetRef="Gateway_Merge"/>
+    <bpmn:sequenceFlow id="Flow_NurseTimeout" sourceRef="Event_NurseSLA" targetRef="Task_NurseTimeout"/>
+    <bpmn:sequenceFlow id="Flow_NurseTimeoutToDocument" sourceRef="Task_NurseTimeout" targetRef="Gateway_Merge"/>
+    <bpmn:sequenceFlow id="Flow_EmergencyTimeout" sourceRef="Event_EmergencySLA" targetRef="Task_EmergencyTimeout"/>
+    <bpmn:sequenceFlow id="Flow_EmergencyTimeoutToDocument" sourceRef="Task_EmergencyTimeout" targetRef="Gateway_Merge"/>
+    <bpmn:sequenceFlow id="Flow_ToDocument" sourceRef="Gateway_Merge" targetRef="Task_Document"/>
+    <bpmn:sequenceFlow id="Flow_ToEnd" sourceRef="Task_Document" targetRef="End_AssessmentComplete"/>
+
+  </bpmn:process>
+
+  <!-- Diagram Interchange -->
+  <bpmndi:BPMNDiagram id="BPMNDiagram_NEWS2">
+    <bpmndi:BPMNPlane id="BPMNPlane_NEWS2" bpmnElement="Process_NEWS2">
+
+      <!-- Start Event (Timer) -->
+      <bpmndi:BPMNShape id="Shape_Start_NEWS2Timer" bpmnElement="Start_NEWS2Timer">
+        <dc:Bounds x="152" y="152" width="36" height="36"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="127" y="195" width="86" height="40"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+
+      <!-- Measure Vitals -->
+      <bpmndi:BPMNShape id="Shape_Task_MeasureVitals" bpmnElement="Task_MeasureVitals">
+        <dc:Bounds x="240" y="130" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <!-- NEWS2 Calculation -->
+      <bpmndi:BPMNShape id="Shape_Task_NEWS2" bpmnElement="Task_NEWS2">
+        <dc:Bounds x="390" y="130" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <!-- Score Level Gateway -->
+      <bpmndi:BPMNShape id="Shape_Gateway_ScoreLevel" bpmnElement="Gateway_ScoreLevel" isMarkerVisible="true">
+        <dc:Bounds x="545" y="145" width="50" height="50"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="530" y="115" width="80" height="27"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+
+      <!-- Low Risk -->
+      <bpmndi:BPMNShape id="Shape_Task_RoutineMonitoring" bpmnElement="Task_RoutineMonitoring">
+        <dc:Bounds x="650" y="40" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <!-- Medium Risk -->
+      <bpmndi:BPMNShape id="Shape_Task_UrgentNurseReview" bpmnElement="Task_UrgentNurseReview">
+        <dc:Bounds x="650" y="170" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <!-- Nurse SLA Timer -->
+      <bpmndi:BPMNShape id="Shape_Event_NurseSLA" bpmnElement="Event_NurseSLA">
+        <dc:Bounds x="682" y="232" width="36" height="36"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="715" y="263" width="60" height="14"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+
+      <!-- Nurse Timeout -->
+      <bpmndi:BPMNShape id="Shape_Task_NurseTimeout" bpmnElement="Task_NurseTimeout">
+        <dc:Bounds x="650" y="300" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <!-- High Risk -->
+      <bpmndi:BPMNShape id="Shape_Task_EmergencyResponse" bpmnElement="Task_EmergencyResponse">
+        <dc:Bounds x="650" y="420" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <!-- Emergency SLA Timer -->
+      <bpmndi:BPMNShape id="Shape_Event_EmergencySLA" bpmnElement="Event_EmergencySLA">
+        <dc:Bounds x="682" y="482" width="36" height="36"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="715" y="513" width="50" height="14"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+
+      <!-- Emergency Timeout -->
+      <bpmndi:BPMNShape id="Shape_Task_EmergencyTimeout" bpmnElement="Task_EmergencyTimeout">
+        <dc:Bounds x="650" y="550" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <!-- Continuous Monitoring -->
+      <bpmndi:BPMNShape id="Shape_Task_ContinuousMonitoring" bpmnElement="Task_ContinuousMonitoring">
+        <dc:Bounds x="800" y="420" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <!-- Merge Gateway -->
+      <bpmndi:BPMNShape id="Shape_Gateway_Merge" bpmnElement="Gateway_Merge" isMarkerVisible="true">
+        <dc:Bounds x="965" y="315" width="50" height="50"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1025" y="333" width="33" height="14"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+
+      <!-- Document -->
+      <bpmndi:BPMNShape id="Shape_Task_Document" bpmnElement="Task_Document">
+        <dc:Bounds x="1070" y="300" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <!-- End Event -->
+      <bpmndi:BPMNShape id="Shape_End_AssessmentComplete" bpmnElement="End_AssessmentComplete">
+        <dc:Bounds x="1232" y="322" width="36" height="36"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1220" y="365" width="60" height="27"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+
+      <!-- Sequence Flow Edges -->
+      <bpmndi:BPMNEdge id="Edge_Flow_ToMeasureVitals" bpmnElement="Flow_ToMeasureVitals">
+        <di:waypoint x="188" y="170"/>
+        <di:waypoint x="240" y="170"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_Flow_ToNEWS2Calculation" bpmnElement="Flow_ToNEWS2Calculation">
+        <di:waypoint x="340" y="170"/>
+        <di:waypoint x="390" y="170"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_Flow_ToScoreGateway" bpmnElement="Flow_ToScoreGateway">
+        <di:waypoint x="490" y="170"/>
+        <di:waypoint x="545" y="170"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_Flow_Low" bpmnElement="Flow_Low">
+        <di:waypoint x="570" y="145"/>
+        <di:waypoint x="570" y="80"/>
+        <di:waypoint x="650" y="80"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="580" y="63" width="40" height="14"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_Flow_Medium" bpmnElement="Flow_Medium">
+        <di:waypoint x="570" y="195"/>
+        <di:waypoint x="570" y="210"/>
+        <di:waypoint x="650" y="210"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="580" y="193" width="43" height="14"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_Flow_High" bpmnElement="Flow_High">
+        <di:waypoint x="570" y="195"/>
+        <di:waypoint x="570" y="460"/>
+        <di:waypoint x="650" y="460"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="580" y="443" width="25" height="14"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_Flow_LowToDocument" bpmnElement="Flow_LowToDocument">
+        <di:waypoint x="750" y="80"/>
+        <di:waypoint x="990" y="80"/>
+        <di:waypoint x="990" y="315"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_Flow_MediumToDocument" bpmnElement="Flow_MediumToDocument">
+        <di:waypoint x="750" y="210"/>
+        <di:waypoint x="990" y="210"/>
+        <di:waypoint x="990" y="315"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_Flow_ToContinuousMonitoring" bpmnElement="Flow_ToContinuousMonitoring">
+        <di:waypoint x="750" y="460"/>
+        <di:waypoint x="800" y="460"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_Flow_HighToDocument" bpmnElement="Flow_HighToDocument">
+        <di:waypoint x="900" y="460"/>
+        <di:waypoint x="990" y="460"/>
+        <di:waypoint x="990" y="365"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_Flow_NurseTimeout" bpmnElement="Flow_NurseTimeout">
+        <di:waypoint x="700" y="268"/>
+        <di:waypoint x="700" y="300"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_Flow_NurseTimeoutToDocument" bpmnElement="Flow_NurseTimeoutToDocument">
+        <di:waypoint x="750" y="340"/>
+        <di:waypoint x="965" y="340"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_Flow_EmergencyTimeout" bpmnElement="Flow_EmergencyTimeout">
+        <di:waypoint x="700" y="518"/>
+        <di:waypoint x="700" y="550"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_Flow_EmergencyTimeoutToDocument" bpmnElement="Flow_EmergencyTimeoutToDocument">
+        <di:waypoint x="750" y="590"/>
+        <di:waypoint x="990" y="590"/>
+        <di:waypoint x="990" y="365"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_Flow_ToDocument" bpmnElement="Flow_ToDocument">
+        <di:waypoint x="1015" y="340"/>
+        <di:waypoint x="1070" y="340"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_Flow_ToEnd" bpmnElement="Flow_ToEnd">
+        <di:waypoint x="1170" y="340"/>
+        <di:waypoint x="1232" y="340"/>
+      </bpmndi:BPMNEdge>
+
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+
+</bpmn:definitions>

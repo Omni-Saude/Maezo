@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from platform.revenue_cycle.collection.workers.identify_slow_payers_worker import IdentifySlowPayersWorker
+from healthcare_platform.revenue_cycle.collection.workers.identify_slow_payers_worker import IdentifySlowPayersWorker
 
 
 @pytest.mark.asyncio

@@ -1,0 +1,229 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  ============================================================================
+  EWS-MEWS-003: MEWS Low Risk (Score 0-2) - ROUTINE MONITORING
+  ============================================================================
+
+  Modified Early Warning Score low risk - routine monitoring protocol.
+  This rule confirms stable patients requiring standard observation.
+
+  Evidence Base: Subbe et al. (2001)
+  Response Level: Score 0-2 indicates stable condition
+
+  ============================================================================
+-->
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/"
+             xmlns:dc="http://www.omg.org/spec/DMN/20180521/DC/"
+             id="Definitions_EWS_MEWS_003"
+             name="MEWS Low Risk Alert"
+             targetNamespace="http://camunda.org/schema/1.0/dmn">
+
+  <!--
+    ═══════════════════════════════════════════════════════════════════════════
+    EWS-MEWS-003: MEWS Low Risk Score (0-2)
+    Version: 1.0.0 (2026-02-06)
+    Clinical Domain: General Medicine / Ward Care
+    ═══════════════════════════════════════════════════════════════════════════
+
+    TRIGGER CONDITIONS:
+    - MEWS total score 0-2 points (low risk)
+    - Vital signs within acceptable ranges
+
+    CLINICAL ACTIONS:
+    - Continue routine monitoring every 4-6 hours
+    - Document in clinical record
+    - No escalation needed unless change
+
+    EVIDENCE BASE:
+    - MEWS 0-2: Baseline mortality risk (<1%)
+    - 95% remain stable over 24 hours
+    ═══════════════════════════════════════════════════════════════════════════
+  -->
+
+  <decision id="Decision_EWS_MEWS_003" name="MEWS Low Risk Evaluation">
+    <decisionTable id="DecisionTable_EWS_MEWS_003" hitPolicy="FIRST">
+
+      <!-- INPUT 1: MEWS Total Score -->
+      <input id="Input_1" label="MEWS Score Total">
+        <inputExpression id="InputExpression_1" typeRef="number">
+          <text>mewsScoreTotal</text>
+        </inputExpression>
+      </input>
+
+      <!-- INPUT 2: Recent Score Increase -->
+      <input id="Input_2" label="Aumento Recente">
+        <inputExpression id="InputExpression_2" typeRef="boolean">
+          <text>aumentoRecente</text>
+        </inputExpression>
+      </input>
+
+      <!-- INPUT 3: Patient Has Specific Concerns -->
+      <input id="Input_3" label="Queixa Especifica">
+        <inputExpression id="InputExpression_3" typeRef="boolean">
+          <text>queixaEspecifica</text>
+        </inputExpression>
+      </input>
+
+      <!-- OUTPUT 1: Alert Level -->
+      <output id="Output_1" label="Nivel Alerta" name="nivelAlerta" typeRef="string">
+        <outputValues id="OutputValues_1">
+          <text>"Alerta", "Atencao", "Informativo", "OK", "Revisar"</text>
+        </outputValues>
+      </output>
+
+      <!-- OUTPUT 2: Urgency -->
+      <output id="Output_2" label="Urgencia" name="urgencia" typeRef="string">
+        <outputValues id="OutputValues_2">
+          <text>"IMEDIATA", "URGENTE", "ROTINA", "INFORMATIVA"</text>
+        </outputValues>
+      </output>
+
+      <!-- OUTPUT 3: Required Action -->
+      <output id="Output_3" label="Acao Requerida" name="acaoRequerida" typeRef="string"/>
+
+      <!-- OUTPUT 4: Clinical Justification -->
+      <output id="Output_4" label="Justificativa Cientifica" name="justificativaCientifica" typeRef="string"/>
+
+      <!-- RULE 1: Low Risk but Recent Increase -->
+      <rule id="Rule_LowRisk_RecentIncrease">
+        <description>MEWS 0-2 but recently increased from 0 - monitor for trend</description>
+        <inputEntry id="InputEntry_1_1">
+          <text>[1..2]</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_1_2">
+          <text>true</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_1_3">
+          <text>-</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_1_1">
+          <text>"Informativo"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_1_2">
+          <text>"INFORMATIVA"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_1_3">
+          <text>"Score aumentou de 0 para 1-2. Ainda em faixa baixa mas monitorar tendencia. Repetir sinais vitais em 4 horas. Documentar mudanca. Investigar causa se persistir aumento."</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_1_4">
+          <text>"Aumento de score mesmo dentro da faixa baixa pode indicar inicio de deterioracao. Deteccao precoce de tendencias permite intervencao antes de atingir niveis criticos."</text>
+        </outputEntry>
+      </rule>
+
+      <!-- RULE 2: Low Risk with Patient Complaints -->
+      <rule id="Rule_LowRisk_Complaints">
+        <description>MEWS 0-2 but patient has specific complaints - clinical assessment needed</description>
+        <inputEntry id="InputEntry_2_1">
+          <text>[0..2]</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_2_2">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_2_3">
+          <text>true</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_2_1">
+          <text>"Informativo"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_2_2">
+          <text>"ROTINA"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_2_3">
+          <text>"Paciente com queixas apesar de MEWS baixo. Avaliar sintomas relatados (dor, dispneia, mal-estar). MEWS nao captura todos os sinais de deterioracao. Avaliacao clinica complementar recomendada."</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_2_4">
+          <text>"MEWS tem limitacoes - pode nao detectar dor toracica, alteracoes neurologicas sutis, ou sintomas subjetivos. Queixas do paciente devem sempre complementar scores objetivos."</text>
+        </outputEntry>
+      </rule>
+
+      <!-- RULE 3: Low Risk Stable (Score 0) -->
+      <rule id="Rule_LowRisk_Zero">
+        <description>MEWS 0 - patient stable, routine monitoring</description>
+        <inputEntry id="InputEntry_3_1">
+          <text>0</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_3_2">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_3_3">
+          <text>-</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_3_1">
+          <text>"OK"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_3_2">
+          <text>"INFORMATIVA"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_3_3">
+          <text>"Paciente estavel. Manter sinais vitais de rotina cada 4-6 horas conforme protocolo da unidade. Documentar em prontuario. Reavaliar se houver mudanca clinica."</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_3_4">
+          <text>"MEWS 0 indica todos os parametros dentro da normalidade. Risco de deterioracao nas proximas 24 horas menor que 1%. Monitoramento de rotina apropriado."</text>
+        </outputEntry>
+      </rule>
+
+      <!-- RULE 4: Low Risk (Score 1-2) -->
+      <rule id="Rule_LowRisk_Stable">
+        <description>MEWS 1-2 - minor deviations, routine monitoring</description>
+        <inputEntry id="InputEntry_4_1">
+          <text>[1..2]</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_4_2">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_4_3">
+          <text>-</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_4_1">
+          <text>"OK"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_4_2">
+          <text>"INFORMATIVA"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_4_3">
+          <text>"Desvios menores em sinais vitais. Manter monitoramento cada 4-6 horas. Documentar parametros alterados. Sem necessidade de escalonamento neste momento."</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_4_4">
+          <text>"MEWS 1-2 representa desvios leves (ex: FC 101-110 ou FR 15-20). Comum em hospitalizados. Mortalidade similar a MEWS 0. Monitoramento de rotina adequado."</text>
+        </outputEntry>
+      </rule>
+
+      <!-- RULE 5: FALLBACK -->
+      <rule id="Rule_Fallback_EWS_MEWS_003">
+        <description>Score fora da faixa 0-2 ou dados incompletos</description>
+        <inputEntry id="InputEntry_F_1">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_F_2">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_F_3">
+          <text>-</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_F_1">
+          <text>"Revisar"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_F_2">
+          <text>"ROTINA"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_F_3">
+          <text>"Score fora da faixa 0-2 ou dados incompletos. Verificar regras MEWS-001 (critico) ou MEWS-002 (medio risco). Confirmar calculo correto."</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_F_4">
+          <text>"Esta regra avalia especificamente MEWS 0-2. Valores maiores indicam risco aumentado e devem ser avaliados por regras apropriadas."</text>
+        </outputEntry>
+      </rule>
+
+    </decisionTable>
+  </decision>
+
+  <dmndi:DMNDI>
+    <dmndi:DMNDiagram id="DMNDiagram_EWS_MEWS_003">
+      <dmndi:DMNShape id="DMNShape_Decision_EWS_MEWS_003" dmnElementRef="Decision_EWS_MEWS_003">
+        <dc:Bounds height="80" width="180" x="160" y="100"/>
+      </dmndi:DMNShape>
+    </dmndi:DMNDiagram>
+  </dmndi:DMNDI>
+
+</definitions>
