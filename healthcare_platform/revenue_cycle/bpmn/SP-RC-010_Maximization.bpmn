@@ -3,7 +3,7 @@
                   xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
                   xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
                   xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
-                  xmlns:zeebe="http://camunda.org/schema/zeebe/1.0"
+                  xmlns:camunda="http://camunda.org/schema/zeebe/1.0"
                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
                   id="Definitions_RC010"
                   targetNamespace="http://cib7.healthcare/revenue-cycle">
@@ -17,13 +17,13 @@
     <!-- Predict Collection Date -->
     <bpmn:serviceTask id="task_predict_collection_date" name="Prever Data de Cobrança">
       <bpmn:extensionElements>
-        <zeebe:taskDefinition type="predict-collection-date"/>
-        <zeebe:ioMapping>
-          <zeebe:input source="=accountIds" target="accounts"/>
-          <zeebe:input source="=historicalData" target="history"/>
-          <zeebe:output source="=predictedDates" target="collectionDatePredictions"/>
-          <zeebe:output source="=confidenceScores" target="predictionConfidence"/>
-        </zeebe:ioMapping>
+        <camunda:topic>predict-collection-date</camunda:topic>
+        <camunda:inputOutput>
+          <camunda:inputParameter name="accounts">${accountIds}</camunda:inputParameter>
+          <camunda:inputParameter name="history">${historicalData}</camunda:inputParameter>
+          <camunda:outputParameter name="collectionDatePredictions">${predictedDates}</camunda:outputParameter>
+          <camunda:outputParameter name="predictionConfidence">${confidenceScores}</camunda:outputParameter>
+        </camunda:inputOutput>
       </bpmn:extensionElements>
       <bpmn:incoming>flow_to_predict_collection</bpmn:incoming>
       <bpmn:outgoing>flow_to_identify_slow_payers</bpmn:outgoing>
@@ -32,13 +32,13 @@
     <!-- Identify Slow Payers -->
     <bpmn:serviceTask id="task_identify_slow_payers" name="Identificar Pagadores Lentos">
       <bpmn:extensionElements>
-        <zeebe:taskDefinition type="identify-slow-payers"/>
-        <zeebe:ioMapping>
-          <zeebe:input source="=collectionDatePredictions" target="predictions"/>
-          <zeebe:input source="=payerPerformanceData" target="payerHistory"/>
-          <zeebe:output source="=slowPayers" target="identifiedSlowPayers"/>
-          <zeebe:output source="=riskScores" target="payerRiskScores"/>
-        </zeebe:ioMapping>
+        <camunda:topic>identify-slow-payers</camunda:topic>
+        <camunda:inputOutput>
+          <camunda:inputParameter name="predictions">${collectionDatePredictions}</camunda:inputParameter>
+          <camunda:inputParameter name="payerHistory">${payerPerformanceData}</camunda:inputParameter>
+          <camunda:outputParameter name="identifiedSlowPayers">${slowPayers}</camunda:outputParameter>
+          <camunda:outputParameter name="payerRiskScores">${riskScores}</camunda:outputParameter>
+        </camunda:inputOutput>
       </bpmn:extensionElements>
       <bpmn:incoming>flow_to_identify_slow_payers</bpmn:incoming>
       <bpmn:outgoing>flow_to_risk_gateway</bpmn:outgoing>
@@ -54,7 +54,7 @@
     <!-- DMN: Revenue Optimization Strategy -->
     <bpmn:businessRuleTask id="dmn_optimization_strategy" name="Estratégia de Otimização">
       <bpmn:extensionElements>
-        <zeebe:calledDecision decisionId="revenue_optimization_strategy" resultVariable="optimizationPlan"/>
+        <camunda:decisionRef>revenue_optimization_strategy</camunda:decisionRef>
       </bpmn:extensionElements>
       <bpmn:incoming>flow_low_risk</bpmn:incoming>
       <bpmn:outgoing>flow_to_update_forecasts</bpmn:outgoing>
@@ -63,13 +63,13 @@
     <!-- Update Revenue Forecasts -->
     <bpmn:serviceTask id="task_update_forecasts" name="Atualizar Projeções">
       <bpmn:extensionElements>
-        <zeebe:taskDefinition type="update-forecasts"/>
-        <zeebe:ioMapping>
-          <zeebe:input source="=collectionDatePredictions" target="predictions"/>
-          <zeebe:input source="=optimizationPlan" target="strategy"/>
-          <zeebe:output source="=updatedForecasts" target="revenueForecasts"/>
-          <zeebe:output source="=forecastAccuracy" target="accuracyMetrics"/>
-        </zeebe:ioMapping>
+        <camunda:topic>update-forecasts</camunda:topic>
+        <camunda:inputOutput>
+          <camunda:inputParameter name="predictions">${collectionDatePredictions}</camunda:inputParameter>
+          <camunda:inputParameter name="strategy">${optimizationPlan}</camunda:inputParameter>
+          <camunda:outputParameter name="revenueForecasts">${updatedForecasts}</camunda:outputParameter>
+          <camunda:outputParameter name="accuracyMetrics">${forecastAccuracy}</camunda:outputParameter>
+        </camunda:inputOutput>
       </bpmn:extensionElements>
       <bpmn:incoming>flow_to_update_forecasts</bpmn:incoming>
       <bpmn:outgoing>flow_to_analyze_opportunities</bpmn:outgoing>
@@ -78,13 +78,13 @@
     <!-- Analyze Revenue Opportunities -->
     <bpmn:serviceTask id="task_analyze_opportunities" name="Analisar Oportunidades">
       <bpmn:extensionElements>
-        <zeebe:taskDefinition type="analyze-revenue-opportunities"/>
-        <zeebe:ioMapping>
-          <zeebe:input source="=revenueForecasts" target="forecasts"/>
-          <zeebe:input source="=identifiedSlowPayers" target="slowPayers"/>
-          <zeebe:output source="=opportunities" target="revenueOpportunities"/>
-          <zeebe:output source="=potentialValue" target="opportunityValue"/>
-        </zeebe:ioMapping>
+        <camunda:topic>analyze-revenue-opportunities</camunda:topic>
+        <camunda:inputOutput>
+          <camunda:inputParameter name="forecasts">${revenueForecasts}</camunda:inputParameter>
+          <camunda:inputParameter name="slowPayers">${identifiedSlowPayers}</camunda:inputParameter>
+          <camunda:outputParameter name="revenueOpportunities">${opportunities}</camunda:outputParameter>
+          <camunda:outputParameter name="opportunityValue">${potentialValue}</camunda:outputParameter>
+        </camunda:inputOutput>
       </bpmn:extensionElements>
       <bpmn:incoming>flow_to_analyze_opportunities</bpmn:incoming>
       <bpmn:outgoing>flow_to_opportunity_gateway</bpmn:outgoing>
@@ -107,11 +107,11 @@
     <!-- Optimize Pricing Strategy -->
     <bpmn:serviceTask id="task_optimize_pricing" name="Otimizar Precificação">
       <bpmn:extensionElements>
-        <zeebe:taskDefinition type="optimize-pricing-strategy"/>
-        <zeebe:ioMapping>
-          <zeebe:input source="=revenueOpportunities" target="opportunities"/>
-          <zeebe:output source="=pricingRecommendations" target="optimizedPricing"/>
-        </zeebe:ioMapping>
+        <camunda:topic>optimize-pricing-strategy</camunda:topic>
+        <camunda:inputOutput>
+          <camunda:inputParameter name="opportunities">${revenueOpportunities}</camunda:inputParameter>
+          <camunda:outputParameter name="optimizedPricing">${pricingRecommendations}</camunda:outputParameter>
+        </camunda:inputOutput>
       </bpmn:extensionElements>
       <bpmn:incoming>flow_to_optimize_pricing</bpmn:incoming>
       <bpmn:outgoing>flow_to_parallel_join</bpmn:outgoing>
@@ -120,12 +120,12 @@
     <!-- Optimize Contract Terms -->
     <bpmn:serviceTask id="task_optimize_contracts" name="Otimizar Contratos">
       <bpmn:extensionElements>
-        <zeebe:taskDefinition type="optimize-contract-terms"/>
-        <zeebe:ioMapping>
-          <zeebe:input source="=identifiedSlowPayers" target="slowPayers"/>
-          <zeebe:input source="=revenueOpportunities" target="opportunities"/>
-          <zeebe:output source="=contractRecommendations" target="optimizedContracts"/>
-        </zeebe:ioMapping>
+        <camunda:topic>optimize-contract-terms</camunda:topic>
+        <camunda:inputOutput>
+          <camunda:inputParameter name="slowPayers">${identifiedSlowPayers}</camunda:inputParameter>
+          <camunda:inputParameter name="opportunities">${revenueOpportunities}</camunda:inputParameter>
+          <camunda:outputParameter name="optimizedContracts">${contractRecommendations}</camunda:outputParameter>
+        </camunda:inputOutput>
       </bpmn:extensionElements>
       <bpmn:incoming>flow_to_optimize_contracts</bpmn:incoming>
       <bpmn:outgoing>flow_to_parallel_join</bpmn:outgoing>
@@ -141,14 +141,14 @@
     <!-- Generate Action Plan -->
     <bpmn:serviceTask id="task_generate_action_plan" name="Gerar Plano de Ação">
       <bpmn:extensionElements>
-        <zeebe:taskDefinition type="generate-maximization-action-plan"/>
-        <zeebe:ioMapping>
-          <zeebe:input source="=optimizedPricing" target="pricingPlan"/>
-          <zeebe:input source="=optimizedContracts" target="contractPlan"/>
-          <zeebe:input source="=opportunityValue" target="expectedValue"/>
-          <zeebe:output source="=actionPlan" target="implementationPlan"/>
-          <zeebe:output source="=estimatedImpact" target="projectedImpact"/>
-        </zeebe:ioMapping>
+        <camunda:topic>generate-maximization-action-plan</camunda:topic>
+        <camunda:inputOutput>
+          <camunda:inputParameter name="pricingPlan">${optimizedPricing}</camunda:inputParameter>
+          <camunda:inputParameter name="contractPlan">${optimizedContracts}</camunda:inputParameter>
+          <camunda:inputParameter name="expectedValue">${opportunityValue}</camunda:inputParameter>
+          <camunda:outputParameter name="implementationPlan">${actionPlan}</camunda:outputParameter>
+          <camunda:outputParameter name="projectedImpact">${estimatedImpact}</camunda:outputParameter>
+        </camunda:inputOutput>
       </bpmn:extensionElements>
       <bpmn:incoming>flow_to_generate_action_plan</bpmn:incoming>
       <bpmn:outgoing>flow_to_end_success</bpmn:outgoing>
@@ -157,12 +157,12 @@
     <!-- Negotiate Payment Plan -->
     <bpmn:serviceTask id="task_negotiate_payment_plan" name="Negociar Plano de Pagamento">
       <bpmn:extensionElements>
-        <zeebe:taskDefinition type="negotiate-payment-plan"/>
-        <zeebe:ioMapping>
-          <zeebe:input source="=identifiedSlowPayers" target="slowPayers"/>
-          <zeebe:input source="=payerRiskScores" target="riskScores"/>
-          <zeebe:output source="=negotiationOutcomes" target="paymentPlans"/>
-        </zeebe:ioMapping>
+        <camunda:topic>negotiate-payment-plan</camunda:topic>
+        <camunda:inputOutput>
+          <camunda:inputParameter name="slowPayers">${identifiedSlowPayers}</camunda:inputParameter>
+          <camunda:inputParameter name="riskScores">${payerRiskScores}</camunda:inputParameter>
+          <camunda:outputParameter name="paymentPlans">${negotiationOutcomes}</camunda:outputParameter>
+        </camunda:inputOutput>
       </bpmn:extensionElements>
       <bpmn:incoming>flow_high_risk</bpmn:incoming>
       <bpmn:outgoing>flow_to_end_negotiated</bpmn:outgoing>

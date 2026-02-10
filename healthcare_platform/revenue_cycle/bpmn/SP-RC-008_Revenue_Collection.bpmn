@@ -3,7 +3,7 @@
                   xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
                   xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
                   xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
-                  xmlns:zeebe="http://camunda.org/schema/zeebe/1.0"
+                  xmlns:camunda="http://camunda.org/schema/zeebe/1.0"
                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
                   id="Definitions_RC008"
                   targetNamespace="http://cib7.healthcare/revenue-cycle">
@@ -17,12 +17,12 @@
     <!-- Identify Overdue Accounts -->
     <bpmn:serviceTask id="task_identify_overdue" name="Identificar Contas Vencidas">
       <bpmn:extensionElements>
-        <zeebe:taskDefinition type="identify-overdue"/>
-        <zeebe:ioMapping>
-          <zeebe:input source="=cutoffDate" target="dueDate"/>
-          <zeebe:output source="=overdueAccounts" target="accountsOverdue"/>
-          <zeebe:output source="=totalOverdue" target="overdueAmount"/>
-        </zeebe:ioMapping>
+        <camunda:topic>identify-overdue</camunda:topic>
+        <camunda:inputOutput>
+          <camunda:inputParameter name="dueDate">${cutoffDate}</camunda:inputParameter>
+          <camunda:outputParameter name="accountsOverdue">${overdueAccounts}</camunda:outputParameter>
+          <camunda:outputParameter name="overdueAmount">${totalOverdue}</camunda:outputParameter>
+        </camunda:inputOutput>
       </bpmn:extensionElements>
       <bpmn:incoming>flow_to_identify_overdue</bpmn:incoming>
       <bpmn:outgoing>flow_to_prioritize</bpmn:outgoing>
@@ -31,12 +31,12 @@
     <!-- Prioritize Collection -->
     <bpmn:serviceTask id="task_prioritize_collection" name="Priorizar Cobrança">
       <bpmn:extensionElements>
-        <zeebe:taskDefinition type="prioritize-collection"/>
-        <zeebe:ioMapping>
-          <zeebe:input source="=accountsOverdue" target="accounts"/>
-          <zeebe:output source="=prioritizedAccounts" target="accountsByPriority"/>
-          <zeebe:output source="=highPriorityCount" target="urgentCount"/>
-        </zeebe:ioMapping>
+        <camunda:topic>prioritize-collection</camunda:topic>
+        <camunda:inputOutput>
+          <camunda:inputParameter name="accounts">${accountsOverdue}</camunda:inputParameter>
+          <camunda:outputParameter name="accountsByPriority">${prioritizedAccounts}</camunda:outputParameter>
+          <camunda:outputParameter name="urgentCount">${highPriorityCount}</camunda:outputParameter>
+        </camunda:inputOutput>
       </bpmn:extensionElements>
       <bpmn:incoming>flow_to_prioritize</bpmn:incoming>
       <bpmn:outgoing>flow_to_dmn_payment</bpmn:outgoing>
@@ -45,7 +45,7 @@
     <!-- DMN: Payment Method Rules -->
     <bpmn:businessRuleTask id="dmn_payment_method" name="Regras de Pagamento">
       <bpmn:extensionElements>
-        <zeebe:calledDecision decisionId="cash_operations_payment_method" resultVariable="paymentRules"/>
+        <camunda:decisionRef>cash_operations_payment_method</camunda:decisionRef>
       </bpmn:extensionElements>
       <bpmn:incoming>flow_to_dmn_payment</bpmn:incoming>
       <bpmn:outgoing>flow_to_dmn_discount</bpmn:outgoing>
@@ -54,7 +54,7 @@
     <!-- DMN: Discount Rules -->
     <bpmn:businessRuleTask id="dmn_discount_rules" name="Regras de Desconto">
       <bpmn:extensionElements>
-        <zeebe:calledDecision decisionId="cash_operations_discount" resultVariable="discountRules"/>
+        <camunda:decisionRef>cash_operations_discount</camunda:decisionRef>
       </bpmn:extensionElements>
       <bpmn:incoming>flow_to_dmn_discount</bpmn:incoming>
       <bpmn:outgoing>flow_to_receive_payment</bpmn:outgoing>
@@ -63,12 +63,12 @@
     <!-- Receive Payment Notification -->
     <bpmn:serviceTask id="task_receive_payment_notification" name="Receber Notificação de Pagamento">
       <bpmn:extensionElements>
-        <zeebe:taskDefinition type="receive-payment-notification"/>
-        <zeebe:ioMapping>
-          <zeebe:input source="=accountsByPriority" target="accounts"/>
-          <zeebe:output source="=payments" target="receivedPayments"/>
-          <zeebe:output source="=paymentDate" target="receiptDate"/>
-        </zeebe:ioMapping>
+        <camunda:topic>receive-payment-notification</camunda:topic>
+        <camunda:inputOutput>
+          <camunda:inputParameter name="accounts">${accountsByPriority}</camunda:inputParameter>
+          <camunda:outputParameter name="receivedPayments">${payments}</camunda:outputParameter>
+          <camunda:outputParameter name="receiptDate">${paymentDate}</camunda:outputParameter>
+        </camunda:inputOutput>
       </bpmn:extensionElements>
       <bpmn:incoming>flow_to_receive_payment</bpmn:incoming>
       <bpmn:outgoing>flow_to_auto_matching</bpmn:outgoing>
@@ -85,13 +85,13 @@
     <!-- Auto-Matching Payment -->
     <bpmn:serviceTask id="task_auto_matching" name="Conciliação Automática">
       <bpmn:extensionElements>
-        <zeebe:taskDefinition type="auto-matching"/>
-        <zeebe:ioMapping>
-          <zeebe:input source="=receivedPayments" target="payments"/>
-          <zeebe:input source="=accountsOverdue" target="openAccounts"/>
-          <zeebe:output source="=matchedPayments" target="reconciledPayments"/>
-          <zeebe:output source="=unmatchedPayments" target="pendingReconciliation"/>
-        </zeebe:ioMapping>
+        <camunda:topic>auto-matching</camunda:topic>
+        <camunda:inputOutput>
+          <camunda:inputParameter name="payments">${receivedPayments}</camunda:inputParameter>
+          <camunda:inputParameter name="openAccounts">${accountsOverdue}</camunda:inputParameter>
+          <camunda:outputParameter name="reconciledPayments">${matchedPayments}</camunda:outputParameter>
+          <camunda:outputParameter name="pendingReconciliation">${unmatchedPayments}</camunda:outputParameter>
+        </camunda:inputOutput>
       </bpmn:extensionElements>
       <bpmn:incoming>flow_to_auto_matching</bpmn:incoming>
       <bpmn:outgoing>flow_to_matching_gateway</bpmn:outgoing>
@@ -113,7 +113,7 @@
     <!-- DMN: Payment Estimate -->
     <bpmn:businessRuleTask id="dmn_payment_estimate" name="Estimar Recebimento">
       <bpmn:extensionElements>
-        <zeebe:calledDecision decisionId="cash_operations_estimate" resultVariable="paymentEstimate"/>
+        <camunda:decisionRef>cash_operations_estimate</camunda:decisionRef>
       </bpmn:extensionElements>
       <bpmn:incoming>flow_matched</bpmn:incoming>
       <bpmn:outgoing>flow_to_reconcile_daily</bpmn:outgoing>
@@ -122,13 +122,13 @@
     <!-- Reconcile Daily -->
     <bpmn:serviceTask id="task_reconcile_daily" name="Conciliar Diariamente">
       <bpmn:extensionElements>
-        <zeebe:taskDefinition type="reconcile-daily"/>
-        <zeebe:ioMapping>
-          <zeebe:input source="=reconciledPayments" target="payments"/>
-          <zeebe:input source="=receiptDate" target="reconciliationDate"/>
-          <zeebe:output source="=reconciliationReport" target="dailyReport"/>
-          <zeebe:output source="=totalReconciled" target="reconciledAmount"/>
-        </zeebe:ioMapping>
+        <camunda:topic>reconcile-daily</camunda:topic>
+        <camunda:inputOutput>
+          <camunda:inputParameter name="payments">${reconciledPayments}</camunda:inputParameter>
+          <camunda:inputParameter name="reconciliationDate">${receiptDate}</camunda:inputParameter>
+          <camunda:outputParameter name="dailyReport">${reconciliationReport}</camunda:outputParameter>
+          <camunda:outputParameter name="reconciledAmount">${totalReconciled}</camunda:outputParameter>
+        </camunda:inputOutput>
       </bpmn:extensionElements>
       <bpmn:incoming>flow_to_reconcile_daily</bpmn:incoming>
       <bpmn:outgoing>flow_to_update_ar</bpmn:outgoing>
@@ -137,12 +137,12 @@
     <!-- Update Accounts Receivable -->
     <bpmn:serviceTask id="task_update_ar" name="Atualizar Contas a Receber">
       <bpmn:extensionElements>
-        <zeebe:taskDefinition type="update-accounts-receivable"/>
-        <zeebe:ioMapping>
-          <zeebe:input source="=reconciledPayments" target="payments"/>
-          <zeebe:input source="=accountsOverdue" target="accounts"/>
-          <zeebe:output source="=updatedAR" target="currentAR"/>
-        </zeebe:ioMapping>
+        <camunda:topic>update-accounts-receivable</camunda:topic>
+        <camunda:inputOutput>
+          <camunda:inputParameter name="payments">${reconciledPayments}</camunda:inputParameter>
+          <camunda:inputParameter name="accounts">${accountsOverdue}</camunda:inputParameter>
+          <camunda:outputParameter name="currentAR">${updatedAR}</camunda:outputParameter>
+        </camunda:inputOutput>
       </bpmn:extensionElements>
       <bpmn:incoming>flow_to_update_ar</bpmn:incoming>
       <bpmn:outgoing>flow_to_end_success</bpmn:outgoing>

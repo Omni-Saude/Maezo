@@ -1,0 +1,805 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+                  xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+                  xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+                  xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
+                  xmlns:camunda="http://camunda.org/schema/1.0/bpmn"
+                  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                  id="Definitions_patient_access_main"
+                  targetNamespace="http://cib7.healthcare/patient-access"
+                  exporter="CIB Seven 2.1.3"
+                  exporterVersion="1.0">
+
+  <!-- Error Definitions -->
+  <bpmn:error id="Error_PatientAccess" name="PATIENT_ACCESS_ERROR" errorCode="PA_ERROR"/>
+
+  <!-- Message Definitions -->
+  <bpmn:message id="msg_patient_contact" name="msg_patient_contact"/>
+  <bpmn:message id="msg_patient_ready_for_care" name="msg_patient_ready_for_care"/>
+  <bpmn:message id="msg_encounter_created" name="msg_encounter_created"/>
+  <bpmn:message id="msg_clearance_approved" name="msg_clearance_approved"/>
+  <bpmn:message id="msg_patient_admitted" name="msg_patient_admitted"/>
+  <bpmn:message id="msg_authorization_denied" name="msg_authorization_denied"/>
+
+  <!-- Main Patient Access Orchestrator Process -->
+  <bpmn:process id="patient_access_main" name="Patient Access Orchestrator" isExecutable="true">
+
+    <!-- Start Event: Patient Contact -->
+    <bpmn:startEvent id="start_patient_contact" name="Patient Contact Received">
+      <bpmn:outgoing>flow_to_demand_capture</bpmn:outgoing>
+      <bpmn:messageEventDefinition id="msgDef_start" messageRef="msg_patient_contact"/>
+    </bpmn:startEvent>
+
+    <!-- Call Activity: SP-PA-001 Demand Capture -->
+    <bpmn:callActivity id="call_SP_PA_001" name="Capturar Demanda e Qualificar Acesso" calledElement="SP_PA_001_Demand_Capture">
+      <bpmn:extensionElements>
+        <camunda:in source="tenantId" target="tenantId"/>
+        <camunda:in source="demandChannel" target="demandChannel"/>
+        <camunda:in source="patientFhirId" target="patientFhirId"/>
+        <camunda:out source="demandQualified" target="demandQualified"/>
+        <camunda:out source="appointmentNeeded" target="appointmentNeeded"/>
+        <camunda:out source="serviceType" target="serviceType"/>
+      </bpmn:extensionElements>
+      <bpmn:incoming>flow_to_demand_capture</bpmn:incoming>
+      <bpmn:outgoing>flow_to_appointment_check</bpmn:outgoing>
+    </bpmn:callActivity>
+
+    <!-- Error Boundary Event: SP-PA-001 -->
+    <bpmn:boundaryEvent id="error_SP_PA_001" name="Demand Capture Error" attachedToRef="call_SP_PA_001">
+      <bpmn:outgoing>flow_to_error_handler_001</bpmn:outgoing>
+      <bpmn:errorEventDefinition id="errDef_PA_001" errorRef="Error_PatientAccess"/>
+    </bpmn:boundaryEvent>
+
+    <!-- Exclusive Gateway: Appointment Needed? -->
+    <bpmn:exclusiveGateway id="gateway_appointment_needed" name="Appointment needed?">
+      <bpmn:incoming>flow_to_appointment_check</bpmn:incoming>
+      <bpmn:outgoing>flow_to_scheduling</bpmn:outgoing>
+      <bpmn:outgoing>flow_to_identity_direct</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+
+    <!-- Call Activity: SP-PA-002 Scheduling & Capacity -->
+    <bpmn:callActivity id="call_SP_PA_002" name="Orquestrar Agendamento e Capacidade" calledElement="SP_PA_002_Scheduling_Capacity">
+      <bpmn:extensionElements>
+        <camunda:in source="tenantId" target="tenantId"/>
+        <camunda:in source="patientFhirId" target="patientFhirId"/>
+        <camunda:in source="serviceType" target="serviceType"/>
+        <camunda:in source="demandQualified" target="demandQualified"/>
+        <camunda:out source="appointmentFhirId" target="appointmentFhirId"/>
+        <camunda:out source="scheduledDateTime" target="scheduledDateTime"/>
+      </bpmn:extensionElements>
+      <bpmn:incoming>flow_to_scheduling</bpmn:incoming>
+      <bpmn:outgoing>flow_from_scheduling</bpmn:outgoing>
+    </bpmn:callActivity>
+
+    <!-- Error Boundary Event: SP-PA-002 -->
+    <bpmn:boundaryEvent id="error_SP_PA_002" name="Scheduling Error" attachedToRef="call_SP_PA_002">
+      <bpmn:outgoing>flow_to_error_handler_002</bpmn:outgoing>
+      <bpmn:errorEventDefinition id="errDef_PA_002" errorRef="Error_PatientAccess"/>
+    </bpmn:boundaryEvent>
+
+    <!-- MSG-004: AuthorizationDenied catch (non-interrupting) - triggers rescheduling -->
+    <bpmn:boundaryEvent id="catch_authorization_denied" name="Authorization Denied" cancelActivity="false" attachedToRef="call_SP_PA_002">
+      <bpmn:outgoing>flow_auth_denied_to_reschedule</bpmn:outgoing>
+      <bpmn:messageEventDefinition id="msgDef_auth_denied" messageRef="msg_authorization_denied"/>
+    </bpmn:boundaryEvent>
+
+    <!-- Service Task: Handle Authorization Denial Rescheduling -->
+    <bpmn:serviceTask id="task_handle_auth_denial" name="Reschedule Due to Authorization Denial" camunda:class="com.cib7.healthcare.delegates.AuthDenialRescheduleDelegate">
+      <bpmn:incoming>flow_auth_denied_to_reschedule</bpmn:incoming>
+      <bpmn:outgoing>flow_auth_denial_handled</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- End Event: Authorization Denial Handled -->
+    <bpmn:endEvent id="end_auth_denial_handled" name="Rescheduled (Auth Denied)">
+      <bpmn:incoming>flow_auth_denial_handled</bpmn:incoming>
+    </bpmn:endEvent>
+
+    <!-- Exclusive Gateway: Merge after scheduling decision -->
+    <bpmn:exclusiveGateway id="gateway_scheduling_merge" name="Merge">
+      <bpmn:incoming>flow_from_scheduling</bpmn:incoming>
+      <bpmn:incoming>flow_to_identity_direct</bpmn:incoming>
+      <bpmn:outgoing>flow_to_identity</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+
+    <!-- Call Activity: SP-PA-003 Identity & Registration -->
+    <bpmn:callActivity id="call_SP_PA_003" name="Verificar Identidade e Registrar Paciente" calledElement="SP_PA_003_Identity_Registration">
+      <bpmn:extensionElements>
+        <camunda:in source="tenantId" target="tenantId"/>
+        <camunda:in source="patientFhirId" target="patientFhirId"/>
+        <camunda:in source="demandChannel" target="demandChannel"/>
+        <camunda:out source="patientVerified" target="patientVerified"/>
+        <camunda:out source="patientFhirId" target="patientFhirId"/>
+        <camunda:out source="coverageFhirId" target="coverageFhirId"/>
+      </bpmn:extensionElements>
+      <bpmn:incoming>flow_to_identity</bpmn:incoming>
+      <bpmn:outgoing>flow_to_parallel_fork</bpmn:outgoing>
+    </bpmn:callActivity>
+
+    <!-- Error Boundary Event: SP-PA-003 -->
+    <bpmn:boundaryEvent id="error_SP_PA_003" name="Identity Error" attachedToRef="call_SP_PA_003">
+      <bpmn:outgoing>flow_to_error_handler_003</bpmn:outgoing>
+      <bpmn:errorEventDefinition id="errDef_PA_003" errorRef="Error_PatientAccess"/>
+    </bpmn:boundaryEvent>
+
+    <!-- Parallel Gateway: Fork for Financial + Intake -->
+    <bpmn:parallelGateway id="gateway_parallel_fork" name="Fork: Financial + Intake">
+      <bpmn:incoming>flow_to_parallel_fork</bpmn:incoming>
+      <bpmn:outgoing>flow_to_financial</bpmn:outgoing>
+      <bpmn:outgoing>flow_to_intake</bpmn:outgoing>
+    </bpmn:parallelGateway>
+
+    <!-- Call Activity: SP-PA-004 Financial Clearance -->
+    <bpmn:callActivity id="call_SP_PA_004" name="Executar Clearance Financeiro e Estimativas" calledElement="SP_PA_004_Financial_Clearance">
+      <bpmn:extensionElements>
+        <camunda:in source="tenantId" target="tenantId"/>
+        <camunda:in source="patientFhirId" target="patientFhirId"/>
+        <camunda:in source="coverageFhirId" target="coverageFhirId"/>
+        <camunda:in source="serviceType" target="serviceType"/>
+        <camunda:out source="clearanceStatus" target="clearanceStatus"/>
+        <camunda:out source="payerId" target="payerId"/>
+        <camunda:out source="estimatedCost" target="estimatedCost"/>
+      </bpmn:extensionElements>
+      <bpmn:incoming>flow_to_financial</bpmn:incoming>
+      <bpmn:outgoing>flow_from_financial</bpmn:outgoing>
+    </bpmn:callActivity>
+
+    <!-- Error Boundary Event: SP-PA-004 -->
+    <bpmn:boundaryEvent id="error_SP_PA_004" name="Financial Error" attachedToRef="call_SP_PA_004">
+      <bpmn:outgoing>flow_to_error_handler_004</bpmn:outgoing>
+      <bpmn:errorEventDefinition id="errDef_PA_004" errorRef="Error_PatientAccess"/>
+    </bpmn:boundaryEvent>
+
+    <!-- Timer Boundary Event: SP-PA-004 (2h SLA) -->
+    <bpmn:boundaryEvent id="timer_SP_PA_004" name="2h Clearance SLA" cancelActivity="false" attachedToRef="call_SP_PA_004">
+      <bpmn:outgoing>flow_to_sla_escalation</bpmn:outgoing>
+      <bpmn:timerEventDefinition id="timerDef_PA_004">
+        <bpmn:timeDuration xsi:type="bpmn:tFormalExpression">PT2H</bpmn:timeDuration>
+      </bpmn:timerEventDefinition>
+    </bpmn:boundaryEvent>
+
+    <!-- Service Task: SLA Escalation Handler -->
+    <bpmn:serviceTask id="task_sla_escalation" name="Escalate Financial Clearance SLA" camunda:class="com.cib7.healthcare.delegates.SLAEscalationDelegate">
+      <bpmn:incoming>flow_to_sla_escalation</bpmn:incoming>
+      <bpmn:outgoing>flow_from_sla_escalation</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- End Event: SLA Escalated -->
+    <bpmn:endEvent id="end_sla_escalated" name="SLA Escalated">
+      <bpmn:incoming>flow_from_sla_escalation</bpmn:incoming>
+    </bpmn:endEvent>
+
+    <!-- Call Activity: SP-PA-005 Digital Intake -->
+    <bpmn:callActivity id="call_SP_PA_005" name="Executar Intake Digital Pré-Atendimento" calledElement="SP_PA_005_Digital_Intake">
+      <bpmn:extensionElements>
+        <camunda:in source="tenantId" target="tenantId"/>
+        <camunda:in source="patientFhirId" target="patientFhirId"/>
+        <camunda:in source="appointmentFhirId" target="appointmentFhirId"/>
+        <camunda:in source="demandChannel" target="demandChannel"/>
+        <camunda:out source="intakeCompleted" target="intakeCompleted"/>
+        <camunda:out source="consentSigned" target="consentSigned"/>
+        <camunda:out source="formsCompleted" target="formsCompleted"/>
+      </bpmn:extensionElements>
+      <bpmn:incoming>flow_to_intake</bpmn:incoming>
+      <bpmn:outgoing>flow_from_intake</bpmn:outgoing>
+    </bpmn:callActivity>
+
+    <!-- Error Boundary Event: SP-PA-005 -->
+    <bpmn:boundaryEvent id="error_SP_PA_005" name="Intake Error" attachedToRef="call_SP_PA_005">
+      <bpmn:outgoing>flow_to_error_handler_005</bpmn:outgoing>
+      <bpmn:errorEventDefinition id="errDef_PA_005" errorRef="Error_PatientAccess"/>
+    </bpmn:boundaryEvent>
+
+    <!-- Parallel Gateway: Join after Financial + Intake -->
+    <bpmn:parallelGateway id="gateway_parallel_join" name="Join: Financial + Intake">
+      <bpmn:incoming>flow_from_financial</bpmn:incoming>
+      <bpmn:incoming>flow_from_intake</bpmn:incoming>
+      <bpmn:outgoing>flow_to_clearance_check</bpmn:outgoing>
+    </bpmn:parallelGateway>
+
+    <!-- Intermediate Catch Event: Clearance Approved (optional) -->
+    <bpmn:intermediateCatchEvent id="catch_clearance_approved" name="Clearance Approved">
+      <bpmn:incoming>flow_to_clearance_check</bpmn:incoming>
+      <bpmn:outgoing>flow_to_checkin</bpmn:outgoing>
+      <bpmn:messageEventDefinition id="msgDef_clearance" messageRef="msg_clearance_approved"/>
+    </bpmn:intermediateCatchEvent>
+
+    <!-- Call Activity: SP-PA-006 Check-in & Flow -->
+    <bpmn:callActivity id="call_SP_PA_006" name="Executar Check-in e Gerenciar Fluxo" calledElement="SP_PA_006_Checkin_Flow">
+      <bpmn:extensionElements>
+        <camunda:in source="tenantId" target="tenantId"/>
+        <camunda:in source="patientFhirId" target="patientFhirId"/>
+        <camunda:in source="appointmentFhirId" target="appointmentFhirId"/>
+        <camunda:in source="clearanceStatus" target="clearanceStatus"/>
+        <camunda:in source="intakeCompleted" target="intakeCompleted"/>
+        <camunda:out source="encounterFhirId" target="encounterFhirId"/>
+        <camunda:out source="checkInCompleted" target="checkInCompleted"/>
+      </bpmn:extensionElements>
+      <bpmn:incoming>flow_to_checkin</bpmn:incoming>
+      <bpmn:outgoing>flow_to_ready_for_care</bpmn:outgoing>
+    </bpmn:callActivity>
+
+    <!-- Error Boundary Event: SP-PA-006 -->
+    <bpmn:boundaryEvent id="error_SP_PA_006" name="Check-in Error" attachedToRef="call_SP_PA_006">
+      <bpmn:outgoing>flow_to_error_handler_006</bpmn:outgoing>
+      <bpmn:errorEventDefinition id="errDef_PA_006" errorRef="Error_PatientAccess"/>
+    </bpmn:boundaryEvent>
+
+    <!-- Intermediate Throw Event: Patient Ready for Care -->
+    <bpmn:intermediateThrowEvent id="throw_ready_for_care" name="Patient Ready for Care">
+      <bpmn:incoming>flow_to_ready_for_care</bpmn:incoming>
+      <bpmn:outgoing>flow_to_patient_admitted</bpmn:outgoing>
+      <bpmn:messageEventDefinition id="msgDef_ready" messageRef="msg_patient_ready_for_care"/>
+    </bpmn:intermediateThrowEvent>
+
+    <!-- MSG-001: PatientAdmitted throw (Patient Access → Revenue Cycle) -->
+    <bpmn:intermediateThrowEvent id="throw_patient_admitted" name="Patient Admitted">
+      <bpmn:incoming>flow_to_patient_admitted</bpmn:incoming>
+      <bpmn:outgoing>flow_to_encounter_created</bpmn:outgoing>
+      <bpmn:messageEventDefinition id="msgDef_patient_admitted" messageRef="msg_patient_admitted"/>
+    </bpmn:intermediateThrowEvent>
+
+    <!-- Intermediate Throw Event: Encounter Created -->
+    <bpmn:intermediateThrowEvent id="throw_encounter_created" name="Encounter Created">
+      <bpmn:incoming>flow_to_encounter_created</bpmn:incoming>
+      <bpmn:outgoing>flow_to_end</bpmn:outgoing>
+      <bpmn:messageEventDefinition id="msgDef_encounter" messageRef="msg_encounter_created"/>
+    </bpmn:intermediateThrowEvent>
+
+    <!-- End Event: Patient Access Complete -->
+    <bpmn:endEvent id="end_patient_access_complete" name="Patient Access Complete">
+      <bpmn:incoming>flow_to_end</bpmn:incoming>
+    </bpmn:endEvent>
+
+    <!-- Error Handler Service Tasks -->
+    <bpmn:serviceTask id="task_error_handler_001" name="Handle Demand Capture Error" camunda:class="com.cib7.healthcare.delegates.ErrorHandlerDelegate">
+      <bpmn:incoming>flow_to_error_handler_001</bpmn:incoming>
+      <bpmn:outgoing>flow_to_error_end_001</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <bpmn:serviceTask id="task_error_handler_002" name="Handle Scheduling Error" camunda:class="com.cib7.healthcare.delegates.ErrorHandlerDelegate">
+      <bpmn:incoming>flow_to_error_handler_002</bpmn:incoming>
+      <bpmn:outgoing>flow_to_error_end_002</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <bpmn:serviceTask id="task_error_handler_003" name="Handle Identity Error" camunda:class="com.cib7.healthcare.delegates.ErrorHandlerDelegate">
+      <bpmn:incoming>flow_to_error_handler_003</bpmn:incoming>
+      <bpmn:outgoing>flow_to_error_end_003</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <bpmn:serviceTask id="task_error_handler_004" name="Handle Financial Error" camunda:class="com.cib7.healthcare.delegates.ErrorHandlerDelegate">
+      <bpmn:incoming>flow_to_error_handler_004</bpmn:incoming>
+      <bpmn:outgoing>flow_to_error_end_004</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <bpmn:serviceTask id="task_error_handler_005" name="Handle Intake Error" camunda:class="com.cib7.healthcare.delegates.ErrorHandlerDelegate">
+      <bpmn:incoming>flow_to_error_handler_005</bpmn:incoming>
+      <bpmn:outgoing>flow_to_error_end_005</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <bpmn:serviceTask id="task_error_handler_006" name="Handle Check-in Error" camunda:class="com.cib7.healthcare.delegates.ErrorHandlerDelegate">
+      <bpmn:incoming>flow_to_error_handler_006</bpmn:incoming>
+      <bpmn:outgoing>flow_to_error_end_006</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Error End Events -->
+    <bpmn:endEvent id="end_error_001" name="Demand Capture Failed">
+      <bpmn:incoming>flow_to_error_end_001</bpmn:incoming>
+      <bpmn:errorEventDefinition id="errEndDef_001" errorRef="Error_PatientAccess"/>
+    </bpmn:endEvent>
+
+    <bpmn:endEvent id="end_error_002" name="Scheduling Failed">
+      <bpmn:incoming>flow_to_error_end_002</bpmn:incoming>
+      <bpmn:errorEventDefinition id="errEndDef_002" errorRef="Error_PatientAccess"/>
+    </bpmn:endEvent>
+
+    <bpmn:endEvent id="end_error_003" name="Identity Failed">
+      <bpmn:incoming>flow_to_error_end_003</bpmn:incoming>
+      <bpmn:errorEventDefinition id="errEndDef_003" errorRef="Error_PatientAccess"/>
+    </bpmn:endEvent>
+
+    <bpmn:endEvent id="end_error_004" name="Financial Failed">
+      <bpmn:incoming>flow_to_error_end_004</bpmn:incoming>
+      <bpmn:errorEventDefinition id="errEndDef_004" errorRef="Error_PatientAccess"/>
+    </bpmn:endEvent>
+
+    <bpmn:endEvent id="end_error_005" name="Intake Failed">
+      <bpmn:incoming>flow_to_error_end_005</bpmn:incoming>
+      <bpmn:errorEventDefinition id="errEndDef_005" errorRef="Error_PatientAccess"/>
+    </bpmn:endEvent>
+
+    <bpmn:endEvent id="end_error_006" name="Check-in Failed">
+      <bpmn:incoming>flow_to_error_end_006</bpmn:incoming>
+      <bpmn:errorEventDefinition id="errEndDef_006" errorRef="Error_PatientAccess"/>
+    </bpmn:endEvent>
+
+    <!-- Sequence Flows -->
+    <bpmn:sequenceFlow id="flow_to_demand_capture" sourceRef="start_patient_contact" targetRef="call_SP_PA_001"/>
+    <bpmn:sequenceFlow id="flow_to_appointment_check" sourceRef="call_SP_PA_001" targetRef="gateway_appointment_needed"/>
+    <bpmn:sequenceFlow id="flow_to_scheduling" name="Yes" sourceRef="gateway_appointment_needed" targetRef="call_SP_PA_002">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${appointmentNeeded == true}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="flow_to_identity_direct" name="No (Walk-in)" sourceRef="gateway_appointment_needed" targetRef="gateway_scheduling_merge">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${appointmentNeeded == false}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="flow_from_scheduling" sourceRef="call_SP_PA_002" targetRef="gateway_scheduling_merge"/>
+    <bpmn:sequenceFlow id="flow_to_identity" sourceRef="gateway_scheduling_merge" targetRef="call_SP_PA_003"/>
+    <bpmn:sequenceFlow id="flow_to_parallel_fork" sourceRef="call_SP_PA_003" targetRef="gateway_parallel_fork"/>
+    <bpmn:sequenceFlow id="flow_to_financial" sourceRef="gateway_parallel_fork" targetRef="call_SP_PA_004"/>
+    <bpmn:sequenceFlow id="flow_to_intake" sourceRef="gateway_parallel_fork" targetRef="call_SP_PA_005"/>
+    <bpmn:sequenceFlow id="flow_from_financial" sourceRef="call_SP_PA_004" targetRef="gateway_parallel_join"/>
+    <bpmn:sequenceFlow id="flow_from_intake" sourceRef="call_SP_PA_005" targetRef="gateway_parallel_join"/>
+    <bpmn:sequenceFlow id="flow_to_clearance_check" sourceRef="gateway_parallel_join" targetRef="catch_clearance_approved"/>
+    <bpmn:sequenceFlow id="flow_to_checkin" sourceRef="catch_clearance_approved" targetRef="call_SP_PA_006"/>
+    <bpmn:sequenceFlow id="flow_to_ready_for_care" sourceRef="call_SP_PA_006" targetRef="throw_ready_for_care"/>
+    <bpmn:sequenceFlow id="flow_to_patient_admitted" sourceRef="throw_ready_for_care" targetRef="throw_patient_admitted"/>
+    <bpmn:sequenceFlow id="flow_to_encounter_created" sourceRef="throw_patient_admitted" targetRef="throw_encounter_created"/>
+
+    <!-- Authorization Denied flows -->
+    <bpmn:sequenceFlow id="flow_auth_denied_to_reschedule" sourceRef="catch_authorization_denied" targetRef="task_handle_auth_denial"/>
+    <bpmn:sequenceFlow id="flow_auth_denial_handled" sourceRef="task_handle_auth_denial" targetRef="end_auth_denial_handled"/>
+    <bpmn:sequenceFlow id="flow_to_end" sourceRef="throw_encounter_created" targetRef="end_patient_access_complete"/>
+
+    <!-- SLA Escalation Flows -->
+    <bpmn:sequenceFlow id="flow_to_sla_escalation" sourceRef="timer_SP_PA_004" targetRef="task_sla_escalation"/>
+    <bpmn:sequenceFlow id="flow_from_sla_escalation" sourceRef="task_sla_escalation" targetRef="end_sla_escalated"/>
+
+    <!-- Error Handler Flows -->
+    <bpmn:sequenceFlow id="flow_to_error_handler_001" sourceRef="error_SP_PA_001" targetRef="task_error_handler_001"/>
+    <bpmn:sequenceFlow id="flow_to_error_end_001" sourceRef="task_error_handler_001" targetRef="end_error_001"/>
+    <bpmn:sequenceFlow id="flow_to_error_handler_002" sourceRef="error_SP_PA_002" targetRef="task_error_handler_002"/>
+    <bpmn:sequenceFlow id="flow_to_error_end_002" sourceRef="task_error_handler_002" targetRef="end_error_002"/>
+    <bpmn:sequenceFlow id="flow_to_error_handler_003" sourceRef="error_SP_PA_003" targetRef="task_error_handler_003"/>
+    <bpmn:sequenceFlow id="flow_to_error_end_003" sourceRef="task_error_handler_003" targetRef="end_error_003"/>
+    <bpmn:sequenceFlow id="flow_to_error_handler_004" sourceRef="error_SP_PA_004" targetRef="task_error_handler_004"/>
+    <bpmn:sequenceFlow id="flow_to_error_end_004" sourceRef="task_error_handler_004" targetRef="end_error_004"/>
+    <bpmn:sequenceFlow id="flow_to_error_handler_005" sourceRef="error_SP_PA_005" targetRef="task_error_handler_005"/>
+    <bpmn:sequenceFlow id="flow_to_error_end_005" sourceRef="task_error_handler_005" targetRef="end_error_005"/>
+    <bpmn:sequenceFlow id="flow_to_error_handler_006" sourceRef="error_SP_PA_006" targetRef="task_error_handler_006"/>
+    <bpmn:sequenceFlow id="flow_to_error_end_006" sourceRef="task_error_handler_006" targetRef="end_error_006"/>
+
+  </bpmn:process>
+
+  <!-- BPMN Diagram -->
+  <bpmndi:BPMNDiagram id="BPMNDiagram_patient_access_main">
+    <bpmndi:BPMNPlane id="BPMNPlane_patient_access_main" bpmnElement="patient_access_main">
+
+      <!-- Start Event -->
+      <bpmndi:BPMNShape id="shape_start_patient_contact" bpmnElement="start_patient_contact">
+        <dc:Bounds x="152" y="232" width="36" height="36"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="134" y="275" width="72" height="27"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+
+      <!-- Call Activity: SP-PA-001 -->
+      <bpmndi:BPMNShape id="shape_call_SP_PA_001" bpmnElement="call_SP_PA_001">
+        <dc:Bounds x="240" y="210" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <!-- Error Boundary: SP-PA-001 -->
+      <bpmndi:BPMNShape id="shape_error_SP_PA_001" bpmnElement="error_SP_PA_001">
+        <dc:Bounds x="322" y="272" width="36" height="36"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="358" y="283" width="64" height="27"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+
+      <!-- Gateway: Appointment Needed -->
+      <bpmndi:BPMNShape id="shape_gateway_appointment_needed" bpmnElement="gateway_appointment_needed" isMarkerVisible="true">
+        <dc:Bounds x="395" y="225" width="50" height="50"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="389" y="195" width="62" height="27"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+
+      <!-- Call Activity: SP-PA-002 -->
+      <bpmndi:BPMNShape id="shape_call_SP_PA_002" bpmnElement="call_SP_PA_002">
+        <dc:Bounds x="500" y="130" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <!-- Error Boundary: SP-PA-002 -->
+      <bpmndi:BPMNShape id="shape_error_SP_PA_002" bpmnElement="error_SP_PA_002">
+        <dc:Bounds x="582" y="192" width="36" height="36"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="618" y="203" width="64" height="27"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+
+      <!-- Gateway: Scheduling Merge -->
+      <bpmndi:BPMNShape id="shape_gateway_scheduling_merge" bpmnElement="gateway_scheduling_merge" isMarkerVisible="true">
+        <dc:Bounds x="655" y="225" width="50" height="50"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="665" y="195" width="30" height="14"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+
+      <!-- Call Activity: SP-PA-003 -->
+      <bpmndi:BPMNShape id="shape_call_SP_PA_003" bpmnElement="call_SP_PA_003">
+        <dc:Bounds x="760" y="210" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <!-- Error Boundary: SP-PA-003 -->
+      <bpmndi:BPMNShape id="shape_error_SP_PA_003" bpmnElement="error_SP_PA_003">
+        <dc:Bounds x="842" y="272" width="36" height="36"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="878" y="283" width="64" height="27"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+
+      <!-- Gateway: Parallel Fork -->
+      <bpmndi:BPMNShape id="shape_gateway_parallel_fork" bpmnElement="gateway_parallel_fork">
+        <dc:Bounds x="915" y="225" width="50" height="50"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="903" y="195" width="74" height="27"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+
+      <!-- Call Activity: SP-PA-004 -->
+      <bpmndi:BPMNShape id="shape_call_SP_PA_004" bpmnElement="call_SP_PA_004">
+        <dc:Bounds x="1020" y="130" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <!-- Error Boundary: SP-PA-004 -->
+      <bpmndi:BPMNShape id="shape_error_SP_PA_004" bpmnElement="error_SP_PA_004">
+        <dc:Bounds x="1102" y="192" width="36" height="36"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1138" y="203" width="64" height="27"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+
+      <!-- Timer Boundary: SP-PA-004 -->
+      <bpmndi:BPMNShape id="shape_timer_SP_PA_004" bpmnElement="timer_SP_PA_004">
+        <dc:Bounds x="1052" y="192" width="36" height="36"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1088" y="216" width="64" height="27"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+
+      <!-- Service Task: SLA Escalation -->
+      <bpmndi:BPMNShape id="shape_task_sla_escalation" bpmnElement="task_sla_escalation">
+        <dc:Bounds x="1020" y="30" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <!-- End Event: SLA Escalated -->
+      <bpmndi:BPMNShape id="shape_end_sla_escalated" bpmnElement="end_sla_escalated">
+        <dc:Bounds x="1172" y="52" width="36" height="36"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1152" y="95" width="76" height="14"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+
+      <!-- Call Activity: SP-PA-005 -->
+      <bpmndi:BPMNShape id="shape_call_SP_PA_005" bpmnElement="call_SP_PA_005">
+        <dc:Bounds x="1020" y="290" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <!-- Error Boundary: SP-PA-005 -->
+      <bpmndi:BPMNShape id="shape_error_SP_PA_005" bpmnElement="error_SP_PA_005">
+        <dc:Bounds x="1102" y="352" width="36" height="36"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1138" y="363" width="64" height="27"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+
+      <!-- Gateway: Parallel Join -->
+      <bpmndi:BPMNShape id="shape_gateway_parallel_join" bpmnElement="gateway_parallel_join">
+        <dc:Bounds x="1175" y="225" width="50" height="50"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1163" y="195" width="74" height="27"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+
+      <!-- Intermediate Catch Event: Clearance Approved -->
+      <bpmndi:BPMNShape id="shape_catch_clearance_approved" bpmnElement="catch_clearance_approved">
+        <dc:Bounds x="1282" y="232" width="36" height="36"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1270" y="275" width="60" height="27"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+
+      <!-- Call Activity: SP-PA-006 -->
+      <bpmndi:BPMNShape id="shape_call_SP_PA_006" bpmnElement="call_SP_PA_006">
+        <dc:Bounds x="1370" y="210" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <!-- Error Boundary: SP-PA-006 -->
+      <bpmndi:BPMNShape id="shape_error_SP_PA_006" bpmnElement="error_SP_PA_006">
+        <dc:Bounds x="1452" y="272" width="36" height="36"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1488" y="283" width="64" height="27"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+
+      <!-- Intermediate Throw Event: Ready for Care -->
+      <bpmndi:BPMNShape id="shape_throw_ready_for_care" bpmnElement="throw_ready_for_care">
+        <dc:Bounds x="1522" y="232" width="36" height="36"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1503" y="275" width="74" height="27"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+
+      <!-- Intermediate Throw Event: Encounter Created -->
+      <bpmndi:BPMNShape id="shape_throw_encounter_created" bpmnElement="throw_encounter_created">
+        <dc:Bounds x="1612" y="232" width="36" height="36"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1594" y="275" width="72" height="27"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+
+      <!-- End Event: Patient Access Complete -->
+      <bpmndi:BPMNShape id="shape_end_patient_access_complete" bpmnElement="end_patient_access_complete">
+        <dc:Bounds x="1702" y="232" width="36" height="36"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1679" y="275" width="82" height="27"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+
+      <!-- Error Handler Service Tasks -->
+      <bpmndi:BPMNShape id="shape_task_error_handler_001" bpmnElement="task_error_handler_001">
+        <dc:Bounds x="290" y="390" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="shape_task_error_handler_002" bpmnElement="task_error_handler_002">
+        <dc:Bounds x="550" y="390" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="shape_task_error_handler_003" bpmnElement="task_error_handler_003">
+        <dc:Bounds x="810" y="390" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="shape_task_error_handler_004" bpmnElement="task_error_handler_004">
+        <dc:Bounds x="1070" y="390" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="shape_task_error_handler_005" bpmnElement="task_error_handler_005">
+        <dc:Bounds x="1070" y="490" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="shape_task_error_handler_006" bpmnElement="task_error_handler_006">
+        <dc:Bounds x="1420" y="390" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <!-- Error End Events -->
+      <bpmndi:BPMNShape id="shape_end_error_001" bpmnElement="end_error_001">
+        <dc:Bounds x="322" y="512" width="36" height="36"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="300" y="555" width="80" height="27"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="shape_end_error_002" bpmnElement="end_error_002">
+        <dc:Bounds x="582" y="512" width="36" height="36"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="560" y="555" width="80" height="27"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="shape_end_error_003" bpmnElement="end_error_003">
+        <dc:Bounds x="842" y="512" width="36" height="36"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="820" y="555" width="80" height="27"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="shape_end_error_004" bpmnElement="end_error_004">
+        <dc:Bounds x="1102" y="512" width="36" height="36"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1080" y="555" width="80" height="27"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="shape_end_error_005" bpmnElement="end_error_005">
+        <dc:Bounds x="1102" y="612" width="36" height="36"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1080" y="655" width="80" height="27"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="shape_end_error_006" bpmnElement="end_error_006">
+        <dc:Bounds x="1452" y="512" width="36" height="36"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1430" y="555" width="80" height="27"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+
+      <!-- Sequence Flow Edges -->
+      <bpmndi:BPMNEdge id="edge_flow_to_demand_capture" bpmnElement="flow_to_demand_capture">
+        <di:waypoint x="188" y="250"/>
+        <di:waypoint x="240" y="250"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="edge_flow_to_appointment_check" bpmnElement="flow_to_appointment_check">
+        <di:waypoint x="340" y="250"/>
+        <di:waypoint x="395" y="250"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="edge_flow_to_scheduling" bpmnElement="flow_to_scheduling">
+        <di:waypoint x="420" y="225"/>
+        <di:waypoint x="420" y="170"/>
+        <di:waypoint x="500" y="170"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="428" y="195" width="20" height="14"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="edge_flow_to_identity_direct" bpmnElement="flow_to_identity_direct">
+        <di:waypoint x="445" y="250"/>
+        <di:waypoint x="655" y="250"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="520" y="232" width="60" height="14"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="edge_flow_from_scheduling" bpmnElement="flow_from_scheduling">
+        <di:waypoint x="600" y="170"/>
+        <di:waypoint x="680" y="170"/>
+        <di:waypoint x="680" y="225"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="edge_flow_to_identity" bpmnElement="flow_to_identity">
+        <di:waypoint x="705" y="250"/>
+        <di:waypoint x="760" y="250"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="edge_flow_to_parallel_fork" bpmnElement="flow_to_parallel_fork">
+        <di:waypoint x="860" y="250"/>
+        <di:waypoint x="915" y="250"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="edge_flow_to_financial" bpmnElement="flow_to_financial">
+        <di:waypoint x="940" y="225"/>
+        <di:waypoint x="940" y="170"/>
+        <di:waypoint x="1020" y="170"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="edge_flow_to_intake" bpmnElement="flow_to_intake">
+        <di:waypoint x="940" y="275"/>
+        <di:waypoint x="940" y="330"/>
+        <di:waypoint x="1020" y="330"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="edge_flow_from_financial" bpmnElement="flow_from_financial">
+        <di:waypoint x="1120" y="170"/>
+        <di:waypoint x="1200" y="170"/>
+        <di:waypoint x="1200" y="225"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="edge_flow_from_intake" bpmnElement="flow_from_intake">
+        <di:waypoint x="1120" y="330"/>
+        <di:waypoint x="1200" y="330"/>
+        <di:waypoint x="1200" y="275"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="edge_flow_to_clearance_check" bpmnElement="flow_to_clearance_check">
+        <di:waypoint x="1225" y="250"/>
+        <di:waypoint x="1282" y="250"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="edge_flow_to_checkin" bpmnElement="flow_to_checkin">
+        <di:waypoint x="1318" y="250"/>
+        <di:waypoint x="1370" y="250"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="edge_flow_to_ready_for_care" bpmnElement="flow_to_ready_for_care">
+        <di:waypoint x="1470" y="250"/>
+        <di:waypoint x="1522" y="250"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="edge_flow_to_encounter_created" bpmnElement="flow_to_encounter_created">
+        <di:waypoint x="1558" y="250"/>
+        <di:waypoint x="1612" y="250"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="edge_flow_to_end" bpmnElement="flow_to_end">
+        <di:waypoint x="1648" y="250"/>
+        <di:waypoint x="1702" y="250"/>
+      </bpmndi:BPMNEdge>
+
+      <!-- SLA Escalation Edges -->
+      <bpmndi:BPMNEdge id="edge_flow_to_sla_escalation" bpmnElement="flow_to_sla_escalation">
+        <di:waypoint x="1070" y="192"/>
+        <di:waypoint x="1070" y="110"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="edge_flow_from_sla_escalation" bpmnElement="flow_from_sla_escalation">
+        <di:waypoint x="1120" y="70"/>
+        <di:waypoint x="1172" y="70"/>
+      </bpmndi:BPMNEdge>
+
+      <!-- Error Handler Edges -->
+      <bpmndi:BPMNEdge id="edge_flow_to_error_handler_001" bpmnElement="flow_to_error_handler_001">
+        <di:waypoint x="340" y="308"/>
+        <di:waypoint x="340" y="390"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="edge_flow_to_error_end_001" bpmnElement="flow_to_error_end_001">
+        <di:waypoint x="340" y="470"/>
+        <di:waypoint x="340" y="512"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="edge_flow_to_error_handler_002" bpmnElement="flow_to_error_handler_002">
+        <di:waypoint x="600" y="228"/>
+        <di:waypoint x="600" y="390"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="edge_flow_to_error_end_002" bpmnElement="flow_to_error_end_002">
+        <di:waypoint x="600" y="470"/>
+        <di:waypoint x="600" y="512"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="edge_flow_to_error_handler_003" bpmnElement="flow_to_error_handler_003">
+        <di:waypoint x="860" y="308"/>
+        <di:waypoint x="860" y="390"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="edge_flow_to_error_end_003" bpmnElement="flow_to_error_end_003">
+        <di:waypoint x="860" y="470"/>
+        <di:waypoint x="860" y="512"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="edge_flow_to_error_handler_004" bpmnElement="flow_to_error_handler_004">
+        <di:waypoint x="1120" y="228"/>
+        <di:waypoint x="1120" y="390"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="edge_flow_to_error_end_004" bpmnElement="flow_to_error_end_004">
+        <di:waypoint x="1120" y="470"/>
+        <di:waypoint x="1120" y="512"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="edge_flow_to_error_handler_005" bpmnElement="flow_to_error_handler_005">
+        <di:waypoint x="1120" y="388"/>
+        <di:waypoint x="1120" y="490"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="edge_flow_to_error_end_005" bpmnElement="flow_to_error_end_005">
+        <di:waypoint x="1120" y="570"/>
+        <di:waypoint x="1120" y="612"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="edge_flow_to_error_handler_006" bpmnElement="flow_to_error_handler_006">
+        <di:waypoint x="1470" y="308"/>
+        <di:waypoint x="1470" y="390"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="edge_flow_to_error_end_006" bpmnElement="flow_to_error_end_006">
+        <di:waypoint x="1470" y="470"/>
+        <di:waypoint x="1470" y="512"/>
+      </bpmndi:BPMNEdge>
+
+      <!-- Authorization Denied Boundary Event -->
+      <bpmndi:BPMNShape id="shape_catch_authorization_denied" bpmnElement="catch_authorization_denied">
+        <dc:Bounds x="532" y="192" width="36" height="36"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="568" y="203" width="80" height="27"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+
+      <!-- Service Task: Handle Authorization Denial -->
+      <bpmndi:BPMNShape id="shape_task_handle_auth_denial" bpmnElement="task_handle_auth_denial">
+        <dc:Bounds x="500" y="30" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <!-- End Event: Authorization Denial Handled -->
+      <bpmndi:BPMNShape id="shape_end_auth_denial_handled" bpmnElement="end_auth_denial_handled">
+        <dc:Bounds x="652" y="52" width="36" height="36"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="632" y="95" width="76" height="27"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+
+      <!-- Authorization Denied Flow Edges -->
+      <bpmndi:BPMNEdge id="edge_flow_auth_denied_to_reschedule" bpmnElement="flow_auth_denied_to_reschedule">
+        <di:waypoint x="550" y="192"/>
+        <di:waypoint x="550" y="110"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="edge_flow_auth_denial_handled" bpmnElement="flow_auth_denial_handled">
+        <di:waypoint x="600" y="70"/>
+        <di:waypoint x="652" y="70"/>
+      </bpmndi:BPMNEdge>
+
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+
+</bpmn:definitions>

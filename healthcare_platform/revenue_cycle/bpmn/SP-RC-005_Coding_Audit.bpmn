@@ -3,7 +3,7 @@
                   xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
                   xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
                   xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
-                  xmlns:zeebe="http://camunda.org/schema/zeebe/1.0"
+                  xmlns:camunda="http://camunda.org/schema/zeebe/1.0"
                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
                   id="Definitions_RC005"
                   targetNamespace="http://cib7.healthcare/revenue-cycle">
@@ -17,12 +17,12 @@
     <!-- Extract Clinical Data -->
     <bpmn:serviceTask id="task_extract_clinical_data" name="Extrair Dados Clínicos">
       <bpmn:extensionElements>
-        <zeebe:taskDefinition type="coding.extract_clinical_data"/>
-        <zeebe:ioMapping>
-          <zeebe:input source="=encounterId" target="encounter"/>
-          <zeebe:input source="=documentIds" target="documents"/>
-          <zeebe:output source="=extractedData" target="clinicalExtract"/>
-        </zeebe:ioMapping>
+        <camunda:topic>coding.extract_clinical_data</camunda:topic>
+        <camunda:inputOutput>
+          <camunda:inputParameter name="encounter">${encounterId}</camunda:inputParameter>
+          <camunda:inputParameter name="documents">${documentIds}</camunda:inputParameter>
+          <camunda:outputParameter name="clinicalExtract">${extractedData}</camunda:outputParameter>
+        </camunda:inputOutput>
       </bpmn:extensionElements>
       <bpmn:incoming>flow_to_extract_clinical</bpmn:incoming>
       <bpmn:outgoing>flow_to_suggest_cid10</bpmn:outgoing>
@@ -31,12 +31,12 @@
     <!-- Suggest ICD-10 Codes -->
     <bpmn:serviceTask id="task_suggest_cid10" name="Sugerir Códigos CID-10">
       <bpmn:extensionElements>
-        <zeebe:taskDefinition type="coding.suggest_cid10"/>
-        <zeebe:ioMapping>
-          <zeebe:input source="=clinicalExtract" target="clinicalData"/>
-          <zeebe:output source="=suggestedCodes" target="icd10Suggestions"/>
-          <zeebe:output source="=confidence" target="icd10Confidence"/>
-        </zeebe:ioMapping>
+        <camunda:topic>coding.suggest_cid10</camunda:topic>
+        <camunda:inputOutput>
+          <camunda:inputParameter name="clinicalData">${clinicalExtract}</camunda:inputParameter>
+          <camunda:outputParameter name="icd10Suggestions">${suggestedCodes}</camunda:outputParameter>
+          <camunda:outputParameter name="icd10Confidence">${confidence}</camunda:outputParameter>
+        </camunda:inputOutput>
       </bpmn:extensionElements>
       <bpmn:incoming>flow_to_suggest_cid10</bpmn:incoming>
       <bpmn:outgoing>flow_to_suggest_tuss</bpmn:outgoing>
@@ -45,13 +45,13 @@
     <!-- Suggest TUSS Codes -->
     <bpmn:serviceTask id="task_suggest_tuss" name="Sugerir Códigos TUSS">
       <bpmn:extensionElements>
-        <zeebe:taskDefinition type="coding.suggest_tuss"/>
-        <zeebe:ioMapping>
-          <zeebe:input source="=clinicalExtract" target="clinicalData"/>
-          <zeebe:input source="=icd10Suggestions" target="diagnoses"/>
-          <zeebe:output source="=suggestedProcedures" target="tussSuggestions"/>
-          <zeebe:output source="=confidence" target="tussConfidence"/>
-        </zeebe:ioMapping>
+        <camunda:topic>coding.suggest_tuss</camunda:topic>
+        <camunda:inputOutput>
+          <camunda:inputParameter name="clinicalData">${clinicalExtract}</camunda:inputParameter>
+          <camunda:inputParameter name="diagnoses">${icd10Suggestions}</camunda:inputParameter>
+          <camunda:outputParameter name="tussSuggestions">${suggestedProcedures}</camunda:outputParameter>
+          <camunda:outputParameter name="tussConfidence">${confidence}</camunda:outputParameter>
+        </camunda:inputOutput>
       </bpmn:extensionElements>
       <bpmn:incoming>flow_to_suggest_tuss</bpmn:incoming>
       <bpmn:outgoing>flow_to_dmn_compatibility</bpmn:outgoing>
@@ -60,7 +60,7 @@
     <!-- DMN: Compatibility Check -->
     <bpmn:businessRuleTask id="dmn_check_compatibility" name="Verificar Compatibilidade">
       <bpmn:extensionElements>
-        <zeebe:calledDecision decisionId="coding_audit_compatibility" resultVariable="compatibilityCheck"/>
+        <camunda:decisionRef>coding_audit_compatibility</camunda:decisionRef>
       </bpmn:extensionElements>
       <bpmn:incoming>flow_to_dmn_compatibility</bpmn:incoming>
       <bpmn:outgoing>flow_to_check_compatibility</bpmn:outgoing>
@@ -69,13 +69,13 @@
     <!-- Check Procedure-Diagnosis Compatibility -->
     <bpmn:serviceTask id="task_check_compatibility" name="Validar Compatibilidade">
       <bpmn:extensionElements>
-        <zeebe:taskDefinition type="coding.check_compatibility"/>
-        <zeebe:ioMapping>
-          <zeebe:input source="=icd10Suggestions" target="diagnoses"/>
-          <zeebe:input source="=tussSuggestions" target="procedures"/>
-          <zeebe:output source="=compatibilityResult" target="isCompatible"/>
-          <zeebe:output source="=incompatibilities" target="incompatiblePairs"/>
-        </zeebe:ioMapping>
+        <camunda:topic>coding.check_compatibility</camunda:topic>
+        <camunda:inputOutput>
+          <camunda:inputParameter name="diagnoses">${icd10Suggestions}</camunda:inputParameter>
+          <camunda:inputParameter name="procedures">${tussSuggestions}</camunda:inputParameter>
+          <camunda:outputParameter name="isCompatible">${compatibilityResult}</camunda:outputParameter>
+          <camunda:outputParameter name="incompatiblePairs">${incompatibilities}</camunda:outputParameter>
+        </camunda:inputOutput>
       </bpmn:extensionElements>
       <bpmn:incoming>flow_to_check_compatibility</bpmn:incoming>
       <bpmn:outgoing>flow_to_dmn_duplicate</bpmn:outgoing>
@@ -84,7 +84,7 @@
     <!-- DMN: Duplicate Detection -->
     <bpmn:businessRuleTask id="dmn_duplicate_detection" name="Detectar Duplicatas">
       <bpmn:extensionElements>
-        <zeebe:calledDecision decisionId="coding_audit_duplicate" resultVariable="duplicateCheck"/>
+        <camunda:decisionRef>coding_audit_duplicate</camunda:decisionRef>
       </bpmn:extensionElements>
       <bpmn:incoming>flow_to_dmn_duplicate</bpmn:incoming>
       <bpmn:outgoing>flow_to_dmn_frequency</bpmn:outgoing>
@@ -93,7 +93,7 @@
     <!-- DMN: Frequency Analysis -->
     <bpmn:businessRuleTask id="dmn_frequency_analysis" name="Análise de Frequência">
       <bpmn:extensionElements>
-        <zeebe:calledDecision decisionId="coding_audit_frequency" resultVariable="frequencyAnalysis"/>
+        <camunda:decisionRef>coding_audit_frequency</camunda:decisionRef>
       </bpmn:extensionElements>
       <bpmn:incoming>flow_to_dmn_frequency</bpmn:incoming>
       <bpmn:outgoing>flow_to_dmn_unbundle</bpmn:outgoing>
@@ -102,7 +102,7 @@
     <!-- DMN: Unbundling Detection -->
     <bpmn:businessRuleTask id="dmn_unbundling" name="Detectar Unbundling">
       <bpmn:extensionElements>
-        <zeebe:calledDecision decisionId="coding_audit_unbundle" resultVariable="unbundlingCheck"/>
+        <camunda:decisionRef>coding_audit_unbundle</camunda:decisionRef>
       </bpmn:extensionElements>
       <bpmn:incoming>flow_to_dmn_unbundle</bpmn:incoming>
       <bpmn:outgoing>flow_to_detect_fraud</bpmn:outgoing>
@@ -111,15 +111,15 @@
     <!-- Detect Fraud Patterns -->
     <bpmn:serviceTask id="task_detect_fraud" name="Detectar Padrões de Fraude">
       <bpmn:extensionElements>
-        <zeebe:taskDefinition type="coding.detect_fraud"/>
-        <zeebe:ioMapping>
-          <zeebe:input source="=icd10Suggestions" target="diagnoses"/>
-          <zeebe:input source="=tussSuggestions" target="procedures"/>
-          <zeebe:input source="=duplicateCheck" target="duplicates"/>
-          <zeebe:input source="=unbundlingCheck" target="unbundling"/>
-          <zeebe:output source="=fraudScore" target="fraudRiskScore"/>
-          <zeebe:output source="=fraudIndicators" target="indicators"/>
-        </zeebe:ioMapping>
+        <camunda:topic>coding.detect_fraud</camunda:topic>
+        <camunda:inputOutput>
+          <camunda:inputParameter name="diagnoses">${icd10Suggestions}</camunda:inputParameter>
+          <camunda:inputParameter name="procedures">${tussSuggestions}</camunda:inputParameter>
+          <camunda:inputParameter name="duplicates">${duplicateCheck}</camunda:inputParameter>
+          <camunda:inputParameter name="unbundling">${unbundlingCheck}</camunda:inputParameter>
+          <camunda:outputParameter name="fraudRiskScore">${fraudScore}</camunda:outputParameter>
+          <camunda:outputParameter name="indicators">${fraudIndicators}</camunda:outputParameter>
+        </camunda:inputOutput>
       </bpmn:extensionElements>
       <bpmn:incoming>flow_to_detect_fraud</bpmn:incoming>
       <bpmn:outgoing>flow_to_fraud_gateway</bpmn:outgoing>
@@ -135,13 +135,13 @@
     <!-- Validate Coding -->
     <bpmn:serviceTask id="task_validate_coding" name="Validar Codificação">
       <bpmn:extensionElements>
-        <zeebe:taskDefinition type="coding.validate_coding"/>
-        <zeebe:ioMapping>
-          <zeebe:input source="=icd10Suggestions" target="diagnoses"/>
-          <zeebe:input source="=tussSuggestions" target="procedures"/>
-          <zeebe:input source="=compatibilityCheck" target="compatibility"/>
-          <zeebe:output source="=validationResult" target="codingValidated"/>
-        </zeebe:ioMapping>
+        <camunda:topic>coding.validate_coding</camunda:topic>
+        <camunda:inputOutput>
+          <camunda:inputParameter name="diagnoses">${icd10Suggestions}</camunda:inputParameter>
+          <camunda:inputParameter name="procedures">${tussSuggestions}</camunda:inputParameter>
+          <camunda:inputParameter name="compatibility">${compatibilityCheck}</camunda:inputParameter>
+          <camunda:outputParameter name="codingValidated">${validationResult}</camunda:outputParameter>
+        </camunda:inputOutput>
       </bpmn:extensionElements>
       <bpmn:incoming>flow_low_risk</bpmn:incoming>
       <bpmn:outgoing>flow_to_audit_coding</bpmn:outgoing>
@@ -150,13 +150,13 @@
     <!-- Audit Coding -->
     <bpmn:serviceTask id="task_audit_coding" name="Auditar Codificação">
       <bpmn:extensionElements>
-        <zeebe:taskDefinition type="coding.audit_coding"/>
-        <zeebe:ioMapping>
-          <zeebe:input source="=codingValidated" target="validatedCoding"/>
-          <zeebe:input source="=clinicalExtract" target="clinicalData"/>
-          <zeebe:output source="=auditResult" target="auditStatus"/>
-          <zeebe:output source="=auditFindings" target="findings"/>
-        </zeebe:ioMapping>
+        <camunda:topic>coding.audit_coding</camunda:topic>
+        <camunda:inputOutput>
+          <camunda:inputParameter name="validatedCoding">${codingValidated}</camunda:inputParameter>
+          <camunda:inputParameter name="clinicalData">${clinicalExtract}</camunda:inputParameter>
+          <camunda:outputParameter name="auditStatus">${auditResult}</camunda:outputParameter>
+          <camunda:outputParameter name="findings">${auditFindings}</camunda:outputParameter>
+        </camunda:inputOutput>
       </bpmn:extensionElements>
       <bpmn:incoming>flow_to_audit_coding</bpmn:incoming>
       <bpmn:outgoing>flow_to_end_success</bpmn:outgoing>

@@ -3,7 +3,7 @@
                   xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
                   xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
                   xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
-                  xmlns:zeebe="http://camunda.org/schema/zeebe/1.0"
+                  xmlns:camunda="http://camunda.org/schema/zeebe/1.0"
                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
                   id="Definitions_RC007"
                   targetNamespace="http://cib7.healthcare/revenue-cycle">
@@ -17,13 +17,13 @@
     <!-- Identify Glosa -->
     <bpmn:serviceTask id="task_identify_glosa" name="Identificar Glosa">
       <bpmn:extensionElements>
-        <zeebe:taskDefinition type="identify-glosa"/>
-        <zeebe:ioMapping>
-          <zeebe:input source="=batchId" target="billingBatch"/>
-          <zeebe:input source="=payerResponse" target="response"/>
-          <zeebe:output source="=glosaItems" target="identifiedGlosas"/>
-          <zeebe:output source="=glosaCount" target="totalGlosas"/>
-        </zeebe:ioMapping>
+        <camunda:topic>identify-glosa</camunda:topic>
+        <camunda:inputOutput>
+          <camunda:inputParameter name="billingBatch">${batchId}</camunda:inputParameter>
+          <camunda:inputParameter name="response">${payerResponse}</camunda:inputParameter>
+          <camunda:outputParameter name="identifiedGlosas">${glosaItems}</camunda:outputParameter>
+          <camunda:outputParameter name="totalGlosas">${glosaCount}</camunda:outputParameter>
+        </camunda:inputOutput>
       </bpmn:extensionElements>
       <bpmn:incoming>flow_to_identify_glosa</bpmn:incoming>
       <bpmn:outgoing>flow_to_classify_type</bpmn:outgoing>
@@ -32,12 +32,12 @@
     <!-- Classify Glosa Type -->
     <bpmn:serviceTask id="task_classify_glosa_type" name="Classificar Tipo de Glosa">
       <bpmn:extensionElements>
-        <zeebe:taskDefinition type="classify-glosa-type"/>
-        <zeebe:ioMapping>
-          <zeebe:input source="=identifiedGlosas" target="glosas"/>
-          <zeebe:output source="=classifiedGlosas" target="glosasByType"/>
-          <zeebe:output source="=primaryType" target="mainGlosaType"/>
-        </zeebe:ioMapping>
+        <camunda:topic>classify-glosa-type</camunda:topic>
+        <camunda:inputOutput>
+          <camunda:inputParameter name="glosas">${identifiedGlosas}</camunda:inputParameter>
+          <camunda:outputParameter name="glosasByType">${classifiedGlosas}</camunda:outputParameter>
+          <camunda:outputParameter name="mainGlosaType">${primaryType}</camunda:outputParameter>
+        </camunda:inputOutput>
       </bpmn:extensionElements>
       <bpmn:incoming>flow_to_classify_type</bpmn:incoming>
       <bpmn:outgoing>flow_to_analyze_reason</bpmn:outgoing>
@@ -46,13 +46,13 @@
     <!-- Analyze Glosa Reason -->
     <bpmn:serviceTask id="task_analyze_glosa_reason" name="Analisar Razão da Glosa">
       <bpmn:extensionElements>
-        <zeebe:taskDefinition type="analyze-glosa-reason"/>
-        <zeebe:ioMapping>
-          <zeebe:input source="=glosasByType" target="classifiedGlosas"/>
-          <zeebe:input source="=encounterId" target="encounter"/>
-          <zeebe:output source="=rootCause" target="glosaRootCause"/>
-          <zeebe:output source="=analysisDetails" target="causeAnalysis"/>
-        </zeebe:ioMapping>
+        <camunda:topic>analyze-glosa-reason</camunda:topic>
+        <camunda:inputOutput>
+          <camunda:inputParameter name="classifiedGlosas">${glosasByType}</camunda:inputParameter>
+          <camunda:inputParameter name="encounter">${encounterId}</camunda:inputParameter>
+          <camunda:outputParameter name="glosaRootCause">${rootCause}</camunda:outputParameter>
+          <camunda:outputParameter name="causeAnalysis">${analysisDetails}</camunda:outputParameter>
+        </camunda:inputOutput>
       </bpmn:extensionElements>
       <bpmn:incoming>flow_to_analyze_reason</bpmn:incoming>
       <bpmn:outgoing>flow_to_dmn_predict</bpmn:outgoing>
@@ -61,7 +61,7 @@
     <!-- DMN: Predict Glosa Risk -->
     <bpmn:businessRuleTask id="dmn_predict_risk" name="Prever Risco de Glosa">
       <bpmn:extensionElements>
-        <zeebe:calledDecision decisionId="glosa_prevention_predict" resultVariable="riskPrediction"/>
+        <camunda:decisionRef>glosa_prevention_predict</camunda:decisionRef>
       </bpmn:extensionElements>
       <bpmn:incoming>flow_to_dmn_predict</bpmn:incoming>
       <bpmn:outgoing>flow_to_dmn_prevent</bpmn:outgoing>
@@ -70,7 +70,7 @@
     <!-- DMN: Prevention Strategy -->
     <bpmn:businessRuleTask id="dmn_prevention_strategy" name="Estratégia de Prevenção">
       <bpmn:extensionElements>
-        <zeebe:calledDecision decisionId="glosa_prevention_prevent" resultVariable="preventionStrategy"/>
+        <camunda:decisionRef>glosa_prevention_prevent</camunda:decisionRef>
       </bpmn:extensionElements>
       <bpmn:incoming>flow_to_dmn_prevent</bpmn:incoming>
       <bpmn:outgoing>flow_to_check_eligibility</bpmn:outgoing>
@@ -79,13 +79,13 @@
     <!-- Check Appeal Eligibility -->
     <bpmn:serviceTask id="task_check_appeal_eligibility" name="Verificar Elegibilidade para Recurso">
       <bpmn:extensionElements>
-        <zeebe:taskDefinition type="check-appeal-eligibility"/>
-        <zeebe:ioMapping>
-          <zeebe:input source="=glosasByType" target="glosas"/>
-          <zeebe:input source="=glosaRootCause" target="rootCause"/>
-          <zeebe:output source="=isEligible" target="appealEligible"/>
-          <zeebe:output source="=eligibilityReason" target="eligibilityDetails"/>
-        </zeebe:ioMapping>
+        <camunda:topic>check-appeal-eligibility</camunda:topic>
+        <camunda:inputOutput>
+          <camunda:inputParameter name="glosas">${glosasByType}</camunda:inputParameter>
+          <camunda:inputParameter name="rootCause">${glosaRootCause}</camunda:inputParameter>
+          <camunda:outputParameter name="appealEligible">${isEligible}</camunda:outputParameter>
+          <camunda:outputParameter name="eligibilityDetails">${eligibilityReason}</camunda:outputParameter>
+        </camunda:inputOutput>
       </bpmn:extensionElements>
       <bpmn:incoming>flow_to_check_eligibility</bpmn:incoming>
       <bpmn:outgoing>flow_to_eligibility_gateway</bpmn:outgoing>
@@ -109,7 +109,7 @@
     <!-- DMN: Recovery Strategy -->
     <bpmn:businessRuleTask id="dmn_recovery_strategy" name="Estratégia de Recuperação">
       <bpmn:extensionElements>
-        <zeebe:calledDecision decisionId="revenue_recovery_strategy" resultVariable="recoveryPlan"/>
+        <camunda:decisionRef>revenue_recovery_strategy</camunda:decisionRef>
       </bpmn:extensionElements>
       <bpmn:incoming>flow_eligible</bpmn:incoming>
       <bpmn:outgoing>flow_to_dmn_recovery_elig</bpmn:outgoing>
@@ -118,7 +118,7 @@
     <!-- DMN: Recovery Eligibility -->
     <bpmn:businessRuleTask id="dmn_recovery_eligibility" name="Elegibilidade de Recuperação">
       <bpmn:extensionElements>
-        <zeebe:calledDecision decisionId="revenue_recovery_eligibility" resultVariable="recoveryEligibility"/>
+        <camunda:decisionRef>revenue_recovery_eligibility</camunda:decisionRef>
       </bpmn:extensionElements>
       <bpmn:incoming>flow_to_dmn_recovery_elig</bpmn:incoming>
       <bpmn:outgoing>flow_to_generate_appeal</bpmn:outgoing>
@@ -127,14 +127,14 @@
     <!-- Generate Appeal Documentation -->
     <bpmn:serviceTask id="task_generate_appeal_documentation" name="Gerar Documentação de Recurso">
       <bpmn:extensionElements>
-        <zeebe:taskDefinition type="generate-appeal-documentation"/>
-        <zeebe:ioMapping>
-          <zeebe:input source="=glosasByType" target="glosas"/>
-          <zeebe:input source="=causeAnalysis" target="analysis"/>
-          <zeebe:input source="=recoveryPlan" target="strategy"/>
-          <zeebe:output source="=appealDocuments" target="generatedAppealDocs"/>
-          <zeebe:output source="=appealPackage" target="completePackage"/>
-        </zeebe:ioMapping>
+        <camunda:topic>generate-appeal-documentation</camunda:topic>
+        <camunda:inputOutput>
+          <camunda:inputParameter name="glosas">${glosasByType}</camunda:inputParameter>
+          <camunda:inputParameter name="analysis">${causeAnalysis}</camunda:inputParameter>
+          <camunda:inputParameter name="strategy">${recoveryPlan}</camunda:inputParameter>
+          <camunda:outputParameter name="generatedAppealDocs">${appealDocuments}</camunda:outputParameter>
+          <camunda:outputParameter name="completePackage">${appealPackage}</camunda:outputParameter>
+        </camunda:inputOutput>
       </bpmn:extensionElements>
       <bpmn:incoming>flow_to_generate_appeal</bpmn:incoming>
       <bpmn:outgoing>flow_to_submit_appeal</bpmn:outgoing>
@@ -143,13 +143,13 @@
     <!-- Submit Appeal -->
     <bpmn:serviceTask id="task_submit_appeal" name="Submeter Recurso">
       <bpmn:extensionElements>
-        <zeebe:taskDefinition type="submit-appeal"/>
-        <zeebe:ioMapping>
-          <zeebe:input source="=completePackage" target="appealPackage"/>
-          <zeebe:input source="=payerId" target="payer"/>
-          <zeebe:output source="=appealId" target="submittedAppealId"/>
-          <zeebe:output source="=submissionDate" target="appealSubmissionDate"/>
-        </zeebe:ioMapping>
+        <camunda:topic>submit-appeal</camunda:topic>
+        <camunda:inputOutput>
+          <camunda:inputParameter name="appealPackage">${completePackage}</camunda:inputParameter>
+          <camunda:inputParameter name="payer">${payerId}</camunda:inputParameter>
+          <camunda:outputParameter name="submittedAppealId">${appealId}</camunda:outputParameter>
+          <camunda:outputParameter name="appealSubmissionDate">${submissionDate}</camunda:outputParameter>
+        </camunda:inputOutput>
       </bpmn:extensionElements>
       <bpmn:incoming>flow_to_submit_appeal</bpmn:incoming>
       <bpmn:outgoing>flow_to_track_appeal</bpmn:outgoing>
@@ -158,12 +158,12 @@
     <!-- Track Appeal Status -->
     <bpmn:serviceTask id="task_track_appeal_status" name="Acompanhar Status do Recurso">
       <bpmn:extensionElements>
-        <zeebe:taskDefinition type="track-appeal-status"/>
-        <zeebe:ioMapping>
-          <zeebe:input source="=submittedAppealId" target="appealId"/>
-          <zeebe:output source="=currentStatus" target="appealStatus"/>
-          <zeebe:output source="=payerResponse" target="response"/>
-        </zeebe:ioMapping>
+        <camunda:topic>track-appeal-status</camunda:topic>
+        <camunda:inputOutput>
+          <camunda:inputParameter name="appealId">${submittedAppealId}</camunda:inputParameter>
+          <camunda:outputParameter name="appealStatus">${currentStatus}</camunda:outputParameter>
+          <camunda:outputParameter name="response">${payerResponse}</camunda:outputParameter>
+        </camunda:inputOutput>
       </bpmn:extensionElements>
       <bpmn:incoming>flow_to_track_appeal</bpmn:incoming>
       <bpmn:outgoing>flow_to_end_success</bpmn:outgoing>

@@ -1,0 +1,233 @@
+# Correlation Keys Configuration
+# Business key patterns for inter-domain process correlation
+# All correlation keys MUST include tenantId for multi-tenant isolation (ADR-002)
+
+correlation_keys:
+
+  # MSG-001: PatientAdmitted (Patient Access → Revenue Cycle)
+  msg_patient_admitted:
+    description: "Patient check-in complete, triggers revenue cycle"
+    source_domain: patient_access
+    target_domain: revenue_cycle
+    keys:
+      - name: tenantId
+        type: string
+        required: true
+        description: "Tenant identifier for multi-tenant isolation"
+      - name: patientFhirId
+        type: string
+        required: true
+        description: "FHIR Patient resource ID"
+      - name: encounterFhirId
+        type: string
+        required: true
+        description: "FHIR Encounter resource ID"
+    payload_schema:
+      tenantId: string
+      patientFhirId: string
+      encounterFhirId: string
+      appointmentFhirId: string
+      serviceType: string
+      payerId: string
+
+  # MSG-002: ProceduresCompleted (Clinical Ops → Revenue Cycle)
+  msg_procedures_completed:
+    description: "Surgical/clinical procedures completed, notify revenue cycle for production capture"
+    source_domain: clinical_operations
+    target_domain: revenue_cycle
+    keys:
+      - name: tenantId
+        type: string
+        required: true
+        description: "Tenant identifier for multi-tenant isolation"
+      - name: encounterFhirId
+        type: string
+        required: true
+        description: "FHIR Encounter resource ID"
+      - name: procedureFhirId
+        type: string
+        required: true
+        description: "FHIR Procedure resource ID (primary procedure)"
+    payload_schema:
+      tenantId: string
+      encounterFhirId: string
+      procedureFhirId: string
+      surgicalOutcome: string
+      carePlanFhirId: string
+
+  # MSG-003: SepsisAlert (Clinical Alerts → Clinical Operations)
+  msg_sepsis_alert:
+    description: "Sepsis detected with escalation required - CRITICAL interrupting event"
+    source_domain: clinical_alerts
+    target_domain: clinical_operations
+    severity: critical
+    interrupting: true
+    keys:
+      - name: tenantId
+        type: string
+        required: true
+        description: "Tenant identifier for multi-tenant isolation"
+      - name: patientFhirId
+        type: string
+        required: true
+        description: "FHIR Patient resource ID"
+      - name: alertId
+        type: string
+        required: true
+        description: "Unique alert identifier"
+    payload_schema:
+      tenantId: string
+      patientFhirId: string
+      encounterFhirId: string
+      alertId: string
+      qsofaScore: integer
+      alertScore: integer
+
+  # MSG-004: AuthorizationDenied (Revenue Cycle → Patient Access)
+  msg_authorization_denied:
+    description: "Pre-service authorization denied, triggers rescheduling"
+    source_domain: revenue_cycle
+    target_domain: patient_access
+    keys:
+      - name: tenantId
+        type: string
+        required: true
+        description: "Tenant identifier for multi-tenant isolation"
+      - name: authorizationId
+        type: string
+        required: true
+        description: "Authorization request identifier"
+      - name: encounterFhirId
+        type: string
+        required: true
+        description: "FHIR Encounter resource ID"
+    payload_schema:
+      tenantId: string
+      authorizationId: string
+      encounterFhirId: string
+      patientFhirId: string
+      denialReason: string
+      payerId: string
+
+  # MSG-005: GlosaDetected (Revenue Cycle → Revenue Cycle)
+  msg_glosa_detected:
+    description: "Payment variance detected during collection, triggers denial management"
+    source_domain: revenue_cycle
+    target_domain: revenue_cycle
+    keys:
+      - name: tenantId
+        type: string
+        required: true
+        description: "Tenant identifier for multi-tenant isolation"
+      - name: claimFhirId
+        type: string
+        required: true
+        description: "FHIR Claim resource ID"
+      - name: payerId
+        type: string
+        required: true
+        description: "Payer/insurance carrier identifier"
+    payload_schema:
+      tenantId: string
+      claimFhirId: string
+      payerId: string
+      encounterFhirId: string
+      varianceAmount: number
+      varianceType: string
+
+# Existing correlation keys (Phase 1.1)
+
+  msg_patient_contact:
+    source_domain: external
+    target_domain: patient_access
+    keys:
+      - name: tenantId
+        type: string
+        required: true
+      - name: demandChannel
+        type: string
+        required: true
+
+  msg_patient_ready_for_care:
+    source_domain: patient_access
+    target_domain: clinical_operations
+    keys:
+      - name: tenantId
+        type: string
+        required: true
+      - name: encounterFhirId
+        type: string
+        required: true
+
+  msg_encounter_created:
+    source_domain: patient_access
+    target_domain: revenue_cycle
+    keys:
+      - name: tenantId
+        type: string
+        required: true
+      - name: encounterFhirId
+        type: string
+        required: true
+
+  msg_clinical_documentation_ready:
+    source_domain: clinical_operations
+    target_domain: revenue_cycle
+    keys:
+      - name: tenantId
+        type: string
+        required: true
+      - name: encounterFhirId
+        type: string
+        required: true
+
+  msg_discharge_completed:
+    source_domain: clinical_operations
+    target_domain: revenue_cycle
+    keys:
+      - name: tenantId
+        type: string
+        required: true
+      - name: encounterFhirId
+        type: string
+        required: true
+
+  msg_payment_reconciled:
+    source_domain: revenue_cycle
+    target_domain: analytics
+    keys:
+      - name: tenantId
+        type: string
+        required: true
+      - name: encounterFhirId
+        type: string
+        required: true
+
+  msg_vital_signs_received:
+    source_domain: external
+    target_domain: clinical_alerts
+    keys:
+      - name: tenantId
+        type: string
+        required: true
+      - name: patientFhirId
+        type: string
+        required: true
+
+  msg_lab_results_ready:
+    source_domain: external
+    target_domain: clinical_operations
+    keys:
+      - name: tenantId
+        type: string
+        required: true
+      - name: encounterFhirId
+        type: string
+        required: true
+
+# Signal definitions (broadcast within tenant)
+signals:
+  signal_code_blue:
+    scope: tenant_broadcast
+    source_domain: clinical_alerts
+    description: "Critical emergency broadcast to all active clinical processes"

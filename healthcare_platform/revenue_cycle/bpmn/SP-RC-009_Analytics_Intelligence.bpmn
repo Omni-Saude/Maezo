@@ -3,7 +3,7 @@
                   xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
                   xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
                   xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
-                  xmlns:zeebe="http://camunda.org/schema/zeebe/1.0"
+                  xmlns:camunda="http://camunda.org/schema/zeebe/1.0"
                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
                   id="Definitions_RC009"
                   targetNamespace="http://cib7.healthcare/revenue-cycle">
@@ -17,13 +17,13 @@
     <!-- Calculate Days Sales Outstanding (DSO) -->
     <bpmn:serviceTask id="task_calculate_dso" name="Calcular DSO">
       <bpmn:extensionElements>
-        <zeebe:taskDefinition type="calculate-dso"/>
-        <zeebe:ioMapping>
-          <zeebe:input source="=startDate" target="periodStart"/>
-          <zeebe:input source="=endDate" target="periodEnd"/>
-          <zeebe:output source="=dsoValue" target="currentDSO"/>
-          <zeebe:output source="=dsoTrend" target="dsoTrendData"/>
-        </zeebe:ioMapping>
+        <camunda:topic>calculate-dso</camunda:topic>
+        <camunda:inputOutput>
+          <camunda:inputParameter name="periodStart">${startDate}</camunda:inputParameter>
+          <camunda:inputParameter name="periodEnd">${endDate}</camunda:inputParameter>
+          <camunda:outputParameter name="currentDSO">${dsoValue}</camunda:outputParameter>
+          <camunda:outputParameter name="dsoTrendData">${dsoTrend}</camunda:outputParameter>
+        </camunda:inputOutput>
       </bpmn:extensionElements>
       <bpmn:incoming>flow_to_calculate_dso</bpmn:incoming>
       <bpmn:outgoing>flow_to_calculate_collection_rate</bpmn:outgoing>
@@ -32,13 +32,13 @@
     <!-- Calculate Collection Rate -->
     <bpmn:serviceTask id="task_calculate_collection_rate" name="Calcular Taxa de Cobrança">
       <bpmn:extensionElements>
-        <zeebe:taskDefinition type="calculate-collection-rate"/>
-        <zeebe:ioMapping>
-          <zeebe:input source="=startDate" target="periodStart"/>
-          <zeebe:input source="=endDate" target="periodEnd"/>
-          <zeebe:output source="=collectionRate" target="currentCollectionRate"/>
-          <zeebe:output source="=rateByPayer" target="collectionByPayer"/>
-        </zeebe:ioMapping>
+        <camunda:topic>calculate-collection-rate</camunda:topic>
+        <camunda:inputOutput>
+          <camunda:inputParameter name="periodStart">${startDate}</camunda:inputParameter>
+          <camunda:inputParameter name="periodEnd">${endDate}</camunda:inputParameter>
+          <camunda:outputParameter name="currentCollectionRate">${collectionRate}</camunda:outputParameter>
+          <camunda:outputParameter name="collectionByPayer">${rateByPayer}</camunda:outputParameter>
+        </camunda:inputOutput>
       </bpmn:extensionElements>
       <bpmn:incoming>flow_to_calculate_collection_rate</bpmn:incoming>
       <bpmn:outgoing>flow_to_analyze_payer</bpmn:outgoing>
@@ -47,14 +47,14 @@
     <!-- Analyze Payer Performance -->
     <bpmn:serviceTask id="task_analyze_payer_performance" name="Analisar Desempenho de Operadoras">
       <bpmn:extensionElements>
-        <zeebe:taskDefinition type="analyze-payer-performance"/>
-        <zeebe:ioMapping>
-          <zeebe:input source="=collectionByPayer" target="payerData"/>
-          <zeebe:input source="=startDate" target="periodStart"/>
-          <zeebe:input source="=endDate" target="periodEnd"/>
-          <zeebe:output source="=payerRankings" target="rankedPayers"/>
-          <zeebe:output source="=problemPayers" target="underperformingPayers"/>
-        </zeebe:ioMapping>
+        <camunda:topic>analyze-payer-performance</camunda:topic>
+        <camunda:inputOutput>
+          <camunda:inputParameter name="payerData">${collectionByPayer}</camunda:inputParameter>
+          <camunda:inputParameter name="periodStart">${startDate}</camunda:inputParameter>
+          <camunda:inputParameter name="periodEnd">${endDate}</camunda:inputParameter>
+          <camunda:outputParameter name="rankedPayers">${payerRankings}</camunda:outputParameter>
+          <camunda:outputParameter name="underperformingPayers">${problemPayers}</camunda:outputParameter>
+        </camunda:inputOutput>
       </bpmn:extensionElements>
       <bpmn:incoming>flow_to_analyze_payer</bpmn:incoming>
       <bpmn:outgoing>flow_to_detect_leakage</bpmn:outgoing>
@@ -63,14 +63,14 @@
     <!-- Detect Revenue Leakage -->
     <bpmn:serviceTask id="task_detect_revenue_leakage" name="Detectar Vazamento de Receita">
       <bpmn:extensionElements>
-        <zeebe:taskDefinition type="detect-revenue-leakage"/>
-        <zeebe:ioMapping>
-          <zeebe:input source="=currentDSO" target="dso"/>
-          <zeebe:input source="=currentCollectionRate" target="collectionRate"/>
-          <zeebe:input source="=underperformingPayers" target="problemPayers"/>
-          <zeebe:output source="=leakagePoints" target="identifiedLeakage"/>
-          <zetml:output source="=leakageAmount" target="estimatedLoss"/>
-        </zeebe:ioMapping>
+        <camunda:topic>detect-revenue-leakage</camunda:topic>
+        <camunda:inputOutput>
+          <camunda:inputParameter name="dso">${currentDSO}</camunda:inputParameter>
+          <camunda:inputParameter name="collectionRate">${currentCollectionRate}</camunda:inputParameter>
+          <camunda:inputParameter name="problemPayers">${underperformingPayers}</camunda:inputParameter>
+          <camunda:outputParameter name="identifiedLeakage">${leakagePoints}</camunda:outputParameter>
+          <camunda:outputParameter name="estimatedLoss">${leakageAmount}</camunda:outputParameter>
+        </camunda:inputOutput>
       </bpmn:extensionElements>
       <bpmn:incoming>flow_to_detect_leakage</bpmn:incoming>
       <bpmn:outgoing>flow_to_leakage_gateway</bpmn:outgoing>
@@ -94,14 +94,14 @@
     <!-- Generate Executive Dashboard -->
     <bpmn:serviceTask id="task_generate_executive_dashboard" name="Gerar Dashboard Executivo">
       <bpmn:extensionElements>
-        <zeebe:taskDefinition type="generate-executive-dashboard"/>
-        <zeebe:ioMapping>
-          <zeebe:input source="=currentDSO" target="dso"/>
-          <zeebe:input source="=currentCollectionRate" target="collectionRate"/>
-          <zeebe:input source="=rankedPayers" target="payerPerformance"/>
-          <zeebe:input source="=identifiedLeakage" target="leakage"/>
-          <zeebe:output source="=executiveDashboard" target="dashboardData"/>
-        </zeebe:ioMapping>
+        <camunda:topic>generate-executive-dashboard</camunda:topic>
+        <camunda:inputOutput>
+          <camunda:inputParameter name="dso">${currentDSO}</camunda:inputParameter>
+          <camunda:inputParameter name="collectionRate">${currentCollectionRate}</camunda:inputParameter>
+          <camunda:inputParameter name="payerPerformance">${rankedPayers}</camunda:inputParameter>
+          <camunda:inputParameter name="leakage">${identifiedLeakage}</camunda:inputParameter>
+          <camunda:outputParameter name="dashboardData">${executiveDashboard}</camunda:outputParameter>
+        </camunda:inputOutput>
       </bpmn:extensionElements>
       <bpmn:incoming>flow_to_executive_dashboard</bpmn:incoming>
       <bpmn:outgoing>flow_to_parallel_join</bpmn:outgoing>
@@ -110,12 +110,12 @@
     <!-- Generate Operational Metrics -->
     <bpmn:serviceTask id="task_generate_operational_metrics" name="Gerar Métricas Operacionais">
       <bpmn:extensionElements>
-        <zeebe:taskDefinition type="generate-operational-metrics"/>
-        <zeebe:ioMapping>
-          <zeebe:input source="=dsoTrendData" target="dsoTrend"/>
-          <zeebe:input source="=collectionByPayer" target="payerMetrics"/>
-          <zeebe:output source="=operationalMetrics" target="metricsData"/>
-        </zeebe:ioMapping>
+        <camunda:topic>generate-operational-metrics</camunda:topic>
+        <camunda:inputOutput>
+          <camunda:inputParameter name="dsoTrend">${dsoTrendData}</camunda:inputParameter>
+          <camunda:inputParameter name="payerMetrics">${collectionByPayer}</camunda:inputParameter>
+          <camunda:outputParameter name="metricsData">${operationalMetrics}</camunda:outputParameter>
+        </camunda:inputOutput>
       </bpmn:extensionElements>
       <bpmn:incoming>flow_to_operational_metrics</bpmn:incoming>
       <bpmn:outgoing>flow_to_parallel_join</bpmn:outgoing>
@@ -131,13 +131,13 @@
     <!-- Generate Recommendations -->
     <bpmn:serviceTask id="task_generate_recommendations" name="Gerar Recomendações">
       <bpmn:extensionElements>
-        <zeebe:taskDefinition type="generate-recommendations"/>
-        <zeebe:ioMapping>
-          <zeebe:input source="=dashboardData" target="executiveData"/>
-          <zeebe:input source="=metricsData" target="operationalData"/>
-          <zeebe:input source="=identifiedLeakage" target="leakageData"/>
-          <zeebe:output source="=recommendations" target="actionableRecommendations"/>
-        </zeebe:ioMapping>
+        <camunda:topic>generate-recommendations</camunda:topic>
+        <camunda:inputOutput>
+          <camunda:inputParameter name="executiveData">${dashboardData}</camunda:inputParameter>
+          <camunda:inputParameter name="operationalData">${metricsData}</camunda:inputParameter>
+          <camunda:inputParameter name="leakageData">${identifiedLeakage}</camunda:inputParameter>
+          <camunda:outputParameter name="actionableRecommendations">${recommendations}</camunda:outputParameter>
+        </camunda:inputOutput>
       </bpmn:extensionElements>
       <bpmn:incoming>flow_to_generate_recommendations</bpmn:incoming>
       <bpmn:outgoing>flow_to_end_success</bpmn:outgoing>

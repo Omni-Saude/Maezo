@@ -3,7 +3,7 @@
                   xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
                   xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
                   xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
-                  xmlns:zeebe="http://camunda.org/schema/zeebe/1.0"
+                  xmlns:camunda="http://camunda.org/schema/zeebe/1.0"
                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
                   id="Definitions_RC004"
                   targetNamespace="http://cib7.healthcare/revenue-cycle">
@@ -17,13 +17,13 @@
     <!-- Assign Prices to Procedures -->
     <bpmn:serviceTask id="task_assign_prices" name="Atribuir Preços">
       <bpmn:extensionElements>
-        <zeebe:taskDefinition type="production.assign_prices"/>
-        <zeebe:ioMapping>
-          <zeebe:input source="=procedureCodes" target="procedures"/>
-          <zeebe:input source="=payerId" target="payer"/>
-          <zeebe:input source="=contractId" target="contract"/>
-          <zeebe:output source="=pricedProcedures" target="proceduresWithPrices"/>
-        </zeebe:ioMapping>
+        <camunda:topic>production.assign_prices</camunda:topic>
+        <camunda:inputOutput>
+          <camunda:inputParameter name="procedures">${procedureCodes}</camunda:inputParameter>
+          <camunda:inputParameter name="payer">${payerId}</camunda:inputParameter>
+          <camunda:inputParameter name="contract">${contractId}</camunda:inputParameter>
+          <camunda:outputParameter name="proceduresWithPrices">${pricedProcedures}</camunda:outputParameter>
+        </camunda:inputOutput>
       </bpmn:extensionElements>
       <bpmn:incoming>flow_to_assign_prices</bpmn:incoming>
       <bpmn:outgoing>flow_to_dmn_contract</bpmn:outgoing>
@@ -32,7 +32,7 @@
     <!-- DMN: Contract Pricing Rules -->
     <bpmn:businessRuleTask id="dmn_contract_pricing" name="Regras de Contrato">
       <bpmn:extensionElements>
-        <zeebe:calledDecision decisionId="pricing_contract_rules" resultVariable="contractPricing"/>
+        <camunda:decisionRef>pricing_contract_rules</camunda:decisionRef>
       </bpmn:extensionElements>
       <bpmn:incoming>flow_to_dmn_contract</bpmn:incoming>
       <bpmn:outgoing>flow_to_dmn_package</bpmn:outgoing>
@@ -41,7 +41,7 @@
     <!-- DMN: Package Pricing -->
     <bpmn:businessRuleTask id="dmn_package_pricing" name="Precificação de Pacotes">
       <bpmn:extensionElements>
-        <zeebe:calledDecision decisionId="pricing_package_rules" resultVariable="packagePricing"/>
+        <camunda:decisionRef>pricing_package_rules</camunda:decisionRef>
       </bpmn:extensionElements>
       <bpmn:incoming>flow_to_dmn_package</bpmn:incoming>
       <bpmn:outgoing>flow_to_validate_compatibility</bpmn:outgoing>
@@ -50,13 +50,13 @@
     <!-- Validate Procedure Compatibility -->
     <bpmn:serviceTask id="task_validate_compatibility" name="Validar Compatibilidade">
       <bpmn:extensionElements>
-        <zeebe:taskDefinition type="production.validate_compatibility"/>
-        <zeebe:ioMapping>
-          <zeebe:input source="=proceduresWithPrices" target="procedures"/>
-          <zeebe:input source="=icdCodes" target="diagnoses"/>
-          <zeebe:output source="=compatibilityResult" target="compatibilityStatus"/>
-          <zeebe:output source="=incompatibleItems" target="incompatibilities"/>
-        </zeebe:ioMapping>
+        <camunda:topic>production.validate_compatibility</camunda:topic>
+        <camunda:inputOutput>
+          <camunda:inputParameter name="procedures">${proceduresWithPrices}</camunda:inputParameter>
+          <camunda:inputParameter name="diagnoses">${icdCodes}</camunda:inputParameter>
+          <camunda:outputParameter name="compatibilityStatus">${compatibilityResult}</camunda:outputParameter>
+          <camunda:outputParameter name="incompatibilities">${incompatibleItems}</camunda:outputParameter>
+        </camunda:inputOutput>
       </bpmn:extensionElements>
       <bpmn:incoming>flow_to_validate_compatibility</bpmn:incoming>
       <bpmn:outgoing>flow_to_compatibility_gateway</bpmn:outgoing>
@@ -78,14 +78,14 @@
     <!-- Calculate Production Value -->
     <bpmn:serviceTask id="task_calculate_production" name="Calcular Valor de Produção">
       <bpmn:extensionElements>
-        <zeebe:taskDefinition type="production.calculate_value"/>
-        <zeebe:ioMapping>
-          <zeebe:input source="=proceduresWithPrices" target="procedures"/>
-          <zeebe:input source="=contractPricing" target="contractRules"/>
-          <zeebe:input source="=packagePricing" target="packageRules"/>
-          <zeebe:output source="=totalValue" target="productionValue"/>
-          <zeebe:output source="=breakdown" target="valueBreakdown"/>
-        </zeebe:ioMapping>
+        <camunda:topic>production.calculate_value</camunda:topic>
+        <camunda:inputOutput>
+          <camunda:inputParameter name="procedures">${proceduresWithPrices}</camunda:inputParameter>
+          <camunda:inputParameter name="contractRules">${contractPricing}</camunda:inputParameter>
+          <camunda:inputParameter name="packageRules">${packagePricing}</camunda:inputParameter>
+          <camunda:outputParameter name="productionValue">${totalValue}</camunda:outputParameter>
+          <camunda:outputParameter name="valueBreakdown">${breakdown}</camunda:outputParameter>
+        </camunda:inputOutput>
       </bpmn:extensionElements>
       <bpmn:incoming>flow_compatible</bpmn:incoming>
       <bpmn:outgoing>flow_to_dmn_outlier</bpmn:outgoing>
@@ -94,7 +94,7 @@
     <!-- DMN: Outlier Detection -->
     <bpmn:businessRuleTask id="dmn_outlier_detection" name="Detecção de Outliers">
       <bpmn:extensionElements>
-        <zeebe:calledDecision decisionId="pricing_outlier_detection" resultVariable="outlierAnalysis"/>
+        <camunda:decisionRef>pricing_outlier_detection</camunda:decisionRef>
       </bpmn:extensionElements>
       <bpmn:incoming>flow_to_dmn_outlier</bpmn:incoming>
       <bpmn:outgoing>flow_to_outlier_gateway</bpmn:outgoing>
@@ -110,13 +110,13 @@
     <!-- Record Production -->
     <bpmn:serviceTask id="task_record_production" name="Registrar Produção">
       <bpmn:extensionElements>
-        <zeebe:taskDefinition type="production.record_production"/>
-        <zeebe:ioMapping>
-          <zeebe:input source="=productionValue" target="value"/>
-          <zeebe:input source="=valueBreakdown" target="breakdown"/>
-          <zeebe:input source="=encounterId" target="encounter"/>
-          <zeebe:output source="=productionId" target="recordedProductionId"/>
-        </zeebe:ioMapping>
+        <camunda:topic>production.record_production</camunda:topic>
+        <camunda:inputOutput>
+          <camunda:inputParameter name="value">${productionValue}</camunda:inputParameter>
+          <camunda:inputParameter name="breakdown">${valueBreakdown}</camunda:inputParameter>
+          <camunda:inputParameter name="encounter">${encounterId}</camunda:inputParameter>
+          <camunda:outputParameter name="recordedProductionId">${productionId}</camunda:outputParameter>
+        </camunda:inputOutput>
       </bpmn:extensionElements>
       <bpmn:incoming>flow_not_outlier</bpmn:incoming>
       <bpmn:outgoing>flow_to_end_success</bpmn:outgoing>

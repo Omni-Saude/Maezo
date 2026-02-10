@@ -3,7 +3,7 @@
                   xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
                   xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
                   xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
-                  xmlns:zeebe="http://camunda.org/schema/zeebe/1.0"
+                  xmlns:camunda="http://camunda.org/schema/zeebe/1.0"
                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
                   id="Definitions_RC006"
                   targetNamespace="http://cib7.healthcare/revenue-cycle">
@@ -17,14 +17,14 @@
     <!-- Validate Claim Data -->
     <bpmn:serviceTask id="task_validate_claim" name="Validar Dados da Conta">
       <bpmn:extensionElements>
-        <zeebe:taskDefinition type="billing-validate-claim"/>
-        <zeebe:ioMapping>
-          <zeebe:input source="=encounterId" target="encounter"/>
-          <zeebe:input source="=patientId" target="patient"/>
-          <zeebe:input source="=procedures" target="procedureList"/>
-          <zeebe:output source="=validationResult" target="claimValidated"/>
-          <zeebe:output source="=validationErrors" target="errors"/>
-        </zeebe:ioMapping>
+        <camunda:topic>billing-validate-claim</camunda:topic>
+        <camunda:inputOutput>
+          <camunda:inputParameter name="encounter">${encounterId}</camunda:inputParameter>
+          <camunda:inputParameter name="patient">${patientId}</camunda:inputParameter>
+          <camunda:inputParameter name="procedureList">${procedures}</camunda:inputParameter>
+          <camunda:outputParameter name="claimValidated">${validationResult}</camunda:outputParameter>
+          <camunda:outputParameter name="errors">${validationErrors}</camunda:outputParameter>
+        </camunda:inputOutput>
       </bpmn:extensionElements>
       <bpmn:incoming>flow_to_validate_claim</bpmn:incoming>
       <bpmn:outgoing>flow_to_validation_gateway</bpmn:outgoing>
@@ -40,7 +40,7 @@
     <!-- DMN: Quantity Validation -->
     <bpmn:businessRuleTask id="dmn_quantity_validation" name="Validar Quantidades">
       <bpmn:extensionElements>
-        <zeebe:calledDecision decisionId="billing_quantity_validation" resultVariable="quantityCheck"/>
+        <camunda:decisionRef>billing_quantity_validation</camunda:decisionRef>
       </bpmn:extensionElements>
       <bpmn:incoming>flow_valid</bpmn:incoming>
       <bpmn:outgoing>flow_to_calculate_charges</bpmn:outgoing>
@@ -49,13 +49,13 @@
     <!-- Calculate Charges -->
     <bpmn:serviceTask id="task_calculate_charges" name="Calcular Valores">
       <bpmn:extensionElements>
-        <zeebe:taskDefinition type="billing-calculate-charges"/>
-        <zeebe:ioMapping>
-          <zeebe:input source="=procedureList" target="procedures"/>
-          <zeebe:input source="=quantityCheck" target="validatedQuantities"/>
-          <zeebe:output source="=totalCharges" target="billingTotal"/>
-          <zeebe:output source="=chargeBreakdown" target="breakdown"/>
-        </zeebe:ioMapping>
+        <camunda:topic>billing-calculate-charges</camunda:topic>
+        <camunda:inputOutput>
+          <camunda:inputParameter name="procedures">${procedureList}</camunda:inputParameter>
+          <camunda:inputParameter name="validatedQuantities">${quantityCheck}</camunda:inputParameter>
+          <camunda:outputParameter name="billingTotal">${totalCharges}</camunda:outputParameter>
+          <camunda:outputParameter name="breakdown">${chargeBreakdown}</camunda:outputParameter>
+        </camunda:inputOutput>
       </bpmn:extensionElements>
       <bpmn:incoming>flow_to_calculate_charges</bpmn:incoming>
       <bpmn:outgoing>flow_to_dmn_modifier</bpmn:outgoing>
@@ -64,7 +64,7 @@
     <!-- DMN: Modifier Rules -->
     <bpmn:businessRuleTask id="dmn_modifier_rules" name="Aplicar Modificadores">
       <bpmn:extensionElements>
-        <zeebe:calledDecision decisionId="billing_modifier_rules" resultVariable="modifiers"/>
+        <camunda:decisionRef>billing_modifier_rules</camunda:decisionRef>
       </bpmn:extensionElements>
       <bpmn:incoming>flow_to_dmn_modifier</bpmn:incoming>
       <bpmn:outgoing>flow_to_dmn_bundle</bpmn:outgoing>
@@ -73,7 +73,7 @@
     <!-- DMN: Bundle Rules -->
     <bpmn:businessRuleTask id="dmn_bundle_rules" name="Regras de Pacotes">
       <bpmn:extensionElements>
-        <zeebe:calledDecision decisionId="billing_bundle_rules" resultVariable="bundleRules"/>
+        <camunda:decisionRef>billing_bundle_rules</camunda:decisionRef>
       </bpmn:extensionElements>
       <bpmn:incoming>flow_to_dmn_bundle</bpmn:incoming>
       <bpmn:outgoing>flow_to_apply_contract</bpmn:outgoing>
@@ -82,15 +82,15 @@
     <!-- Apply Contract Rules -->
     <bpmn:serviceTask id="task_apply_contract_rules" name="Aplicar Regras de Contrato">
       <bpmn:extensionElements>
-        <zeebe:taskDefinition type="billing-apply-contract-rules"/>
-        <zeebe:ioMapping>
-          <zeebe:input source="=billingTotal" target="charges"/>
-          <zeebe:input source="=payerId" target="payer"/>
-          <zeebe:input source="=contractId" target="contract"/>
-          <zeebe:input source="=modifiers" target="modifierRules"/>
-          <zeebe:input source="=bundleRules" target="bundlingRules"/>
-          <zeebe:output source="=adjustedCharges" target="finalCharges"/>
-        </zeebe:ioMapping>
+        <camunda:topic>billing-apply-contract-rules</camunda:topic>
+        <camunda:inputOutput>
+          <camunda:inputParameter name="charges">${billingTotal}</camunda:inputParameter>
+          <camunda:inputParameter name="payer">${payerId}</camunda:inputParameter>
+          <camunda:inputParameter name="contract">${contractId}</camunda:inputParameter>
+          <camunda:inputParameter name="modifierRules">${modifiers}</camunda:inputParameter>
+          <camunda:inputParameter name="bundlingRules">${bundleRules}</camunda:inputParameter>
+          <camunda:outputParameter name="finalCharges">${adjustedCharges}</camunda:outputParameter>
+        </camunda:inputOutput>
       </bpmn:extensionElements>
       <bpmn:incoming>flow_to_apply_contract</bpmn:incoming>
       <bpmn:outgoing>flow_to_dmn_taxa</bpmn:outgoing>
@@ -99,7 +99,7 @@
     <!-- DMN: Tax Calculation -->
     <bpmn:businessRuleTask id="dmn_tax_calculation" name="Calcular Taxas">
       <bpmn:extensionElements>
-        <zeebe:calledDecision decisionId="billing_tax_calculation" resultVariable="taxes"/>
+        <camunda:decisionRef>billing_tax_calculation</camunda:decisionRef>
       </bpmn:extensionElements>
       <bpmn:incoming>flow_to_dmn_taxa</bpmn:incoming>
       <bpmn:outgoing>flow_to_dmn_opme</bpmn:outgoing>
@@ -108,7 +108,7 @@
     <!-- DMN: OPME Rules -->
     <bpmn:businessRuleTask id="dmn_opme_rules" name="Regras OPME">
       <bpmn:extensionElements>
-        <zeebe:calledDecision decisionId="billing_opme_rules" resultVariable="opmeRules"/>
+        <camunda:decisionRef>billing_opme_rules</camunda:decisionRef>
       </bpmn:extensionElements>
       <bpmn:incoming>flow_to_dmn_opme</bpmn:incoming>
       <bpmn:outgoing>flow_to_generate_tiss</bpmn:outgoing>
@@ -117,14 +117,14 @@
     <!-- Generate TISS XML -->
     <bpmn:serviceTask id="task_generate_tiss_xml" name="Gerar XML TISS">
       <bpmn:extensionElements>
-        <zeebe:taskDefinition type="billing-generate-tiss-xml"/>
-        <zeebe:ioMapping>
-          <zeebe:input source="=finalCharges" target="charges"/>
-          <zeebe:input source="=taxes" target="taxDetails"/>
-          <zeebe:input source="=opmeRules" target="opme"/>
-          <zeebe:input source="=encounterId" target="encounter"/>
-          <zeebe:output source="=tissXml" target="generatedXml"/>
-        </zeebe:ioMapping>
+        <camunda:topic>billing-generate-tiss-xml</camunda:topic>
+        <camunda:inputOutput>
+          <camunda:inputParameter name="charges">${finalCharges}</camunda:inputParameter>
+          <camunda:inputParameter name="taxDetails">${taxes}</camunda:inputParameter>
+          <camunda:inputParameter name="opme">${opmeRules}</camunda:inputParameter>
+          <camunda:inputParameter name="encounter">${encounterId}</camunda:inputParameter>
+          <camunda:outputParameter name="generatedXml">${tissXml}</camunda:outputParameter>
+        </camunda:inputOutput>
       </bpmn:extensionElements>
       <bpmn:incoming>flow_to_generate_tiss</bpmn:incoming>
       <bpmn:outgoing>flow_to_validate_schema</bpmn:outgoing>
@@ -133,12 +133,12 @@
     <!-- Validate TISS Schema -->
     <bpmn:serviceTask id="task_validate_tiss_schema" name="Validar Schema TISS">
       <bpmn:extensionElements>
-        <zeebe:taskDefinition type="billing-validate-tiss-schema"/>
-        <zeebe:ioMapping>
-          <zeebe:input source="=generatedXml" target="tissXml"/>
-          <zeebe:output source="=schemaValid" target="isSchemaValid"/>
-          <zeebe:output source="=schemaErrors" target="schemaValidationErrors"/>
-        </zeebe:ioMapping>
+        <camunda:topic>billing-validate-tiss-schema</camunda:topic>
+        <camunda:inputOutput>
+          <camunda:inputParameter name="tissXml">${generatedXml}</camunda:inputParameter>
+          <camunda:outputParameter name="isSchemaValid">${schemaValid}</camunda:outputParameter>
+          <camunda:outputParameter name="schemaValidationErrors">${schemaErrors}</camunda:outputParameter>
+        </camunda:inputOutput>
       </bpmn:extensionElements>
       <bpmn:incoming>flow_to_validate_schema</bpmn:incoming>
       <bpmn:outgoing>flow_to_schema_gateway</bpmn:outgoing>
@@ -160,13 +160,13 @@
     <!-- Submit to Payer -->
     <bpmn:serviceTask id="task_submit_to_payer" name="Enviar para Operadora">
       <bpmn:extensionElements>
-        <zeebe:taskDefinition type="billing-submit-to-payer"/>
-        <zeebe:ioMapping>
-          <zeebe:input source="=generatedXml" target="tissXml"/>
-          <zeebe:input source="=payerId" target="payer"/>
-          <zeebe:output source="=submissionId" target="batchId"/>
-          <zeebe:output source="=submissionStatus" target="status"/>
-        </zeebe:ioMapping>
+        <camunda:topic>billing-submit-to-payer</camunda:topic>
+        <camunda:inputOutput>
+          <camunda:inputParameter name="tissXml">${generatedXml}</camunda:inputParameter>
+          <camunda:inputParameter name="payer">${payerId}</camunda:inputParameter>
+          <camunda:outputParameter name="batchId">${submissionId}</camunda:outputParameter>
+          <camunda:outputParameter name="status">${submissionStatus}</camunda:outputParameter>
+        </camunda:inputOutput>
       </bpmn:extensionElements>
       <bpmn:incoming>flow_schema_valid</bpmn:incoming>
       <bpmn:outgoing>flow_to_end_success</bpmn:outgoing>

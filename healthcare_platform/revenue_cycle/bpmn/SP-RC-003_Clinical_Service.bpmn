@@ -3,7 +3,7 @@
                   xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
                   xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
                   xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
-                  xmlns:zeebe="http://camunda.org/schema/zeebe/1.0"
+                  xmlns:camunda="http://camunda.org/schema/zeebe/1.0"
                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
                   id="Definitions_RC003"
                   targetNamespace="http://cib7.healthcare/revenue-cycle">
@@ -17,14 +17,14 @@
     <!-- Capture Procedure Data -->
     <bpmn:serviceTask id="task_capture_procedure" name="Capturar Dados do Procedimento">
       <bpmn:extensionElements>
-        <zeebe:taskDefinition type="capture-procedure"/>
-        <zeebe:ioMapping>
-          <zeebe:input source="=encounterId" target="encounterId"/>
-          <zeebe:input source="=patientId" target="patientId"/>
-          <zeebe:input source="=procedureCodes" target="procedures"/>
-          <zeebe:output source="=capturedData" target="clinicalData"/>
-          <zeebe:output source="=captureTimestamp" target="timestamp"/>
-        </zeebe:ioMapping>
+        <camunda:topic>capture-procedure</camunda:topic>
+        <camunda:inputOutput>
+          <camunda:inputParameter name="encounterId">${encounterId}</camunda:inputParameter>
+          <camunda:inputParameter name="patientId">${patientId}</camunda:inputParameter>
+          <camunda:inputParameter name="procedures">${procedureCodes}</camunda:inputParameter>
+          <camunda:outputParameter name="clinicalData">${capturedData}</camunda:outputParameter>
+          <camunda:outputParameter name="timestamp">${captureTimestamp}</camunda:outputParameter>
+        </camunda:inputOutput>
       </bpmn:extensionElements>
       <bpmn:incoming>flow_to_capture_procedure</bpmn:incoming>
       <bpmn:outgoing>flow_to_enrich_procedure</bpmn:outgoing>
@@ -47,14 +47,14 @@
     <!-- Enrich Procedure Data -->
     <bpmn:serviceTask id="task_enrich_procedure" name="Enriquecer Dados Clínicos">
       <bpmn:extensionElements>
-        <zeebe:taskDefinition type="enrich-procedure"/>
-        <zeebe:ioMapping>
-          <zeebe:input source="=clinicalData" target="rawData"/>
-          <zeebe:input source="=encounterId" target="encounterId"/>
-          <zeebe:output source="=enrichedData" target="completeData"/>
-          <zeebe:output source="=diagnosisCodes" target="icdCodes"/>
-          <zeebe:output source="=procedureCodes" target="tussCodes"/>
-        </zeebe:ioMapping>
+        <camunda:topic>enrich-procedure</camunda:topic>
+        <camunda:inputOutput>
+          <camunda:inputParameter name="rawData">${clinicalData}</camunda:inputParameter>
+          <camunda:inputParameter name="encounterId">${encounterId}</camunda:inputParameter>
+          <camunda:outputParameter name="completeData">${enrichedData}</camunda:outputParameter>
+          <camunda:outputParameter name="icdCodes">${diagnosisCodes}</camunda:outputParameter>
+          <camunda:outputParameter name="tussCodes">${procedureCodes}</camunda:outputParameter>
+        </camunda:inputOutput>
       </bpmn:extensionElements>
       <bpmn:incoming>flow_to_enrich_procedure</bpmn:incoming>
       <bpmn:outgoing>flow_to_calculate_quantity</bpmn:outgoing>
@@ -63,7 +63,7 @@
     <!-- DMN Business Rule Task for Clinical Documentation Completeness -->
     <bpmn:businessRuleTask id="dmn_documentation_completeness" name="Validar Completude da Documentação">
       <bpmn:extensionElements>
-        <zeebe:calledDecision decisionId="clinical_documentation_completeness" resultVariable="docCompleteness"/>
+        <camunda:decisionRef>clinical_documentation_completeness</camunda:decisionRef>
       </bpmn:extensionElements>
       <bpmn:incoming>flow_to_calculate_quantity</bpmn:incoming>
       <bpmn:outgoing>flow_to_completeness_gateway</bpmn:outgoing>
@@ -72,13 +72,13 @@
     <!-- Calculate Quantity and Units -->
     <bpmn:serviceTask id="task_calculate_quantity" name="Calcular Quantidade e Unidades">
       <bpmn:extensionElements>
-        <zeebe:taskDefinition type="calculate-quantity"/>
-        <zeebe:ioMapping>
-          <zeebe:input source="=completeData" target="clinicalData"/>
-          <zeebe:input source="=tussCodes" target="procedures"/>
-          <zeebe:output source="=quantities" target="procedureQuantities"/>
-          <zeebe:output source="=units" target="measurementUnits"/>
-        </zeebe:ioMapping>
+        <camunda:topic>calculate-quantity</camunda:topic>
+        <camunda:inputOutput>
+          <camunda:inputParameter name="clinicalData">${completeData}</camunda:inputParameter>
+          <camunda:inputParameter name="procedures">${tussCodes}</camunda:inputParameter>
+          <camunda:outputParameter name="procedureQuantities">${quantities}</camunda:outputParameter>
+          <camunda:outputParameter name="measurementUnits">${units}</camunda:outputParameter>
+        </camunda:inputOutput>
       </bpmn:extensionElements>
       <bpmn:incoming>flow_doc_complete</bpmn:incoming>
       <bpmn:outgoing>flow_to_validate_data</bpmn:outgoing>
@@ -94,14 +94,14 @@
     <!-- Validate Clinical Data -->
     <bpmn:serviceTask id="task_validate_data" name="Validar Dados Clínicos">
       <bpmn:extensionElements>
-        <zeebe:taskDefinition type="validate-clinical-data"/>
-        <zeebe:ioMapping>
-          <zeebe:input source="=completeData" target="clinicalData"/>
-          <zeebe:input source="=icdCodes" target="diagnoses"/>
-          <zeebe:input source="=tussCodes" target="procedures"/>
-          <zeebe:output source="=validationResult" target="dataValidated"/>
-          <zeebe:output source="=validationErrors" target="errors"/>
-        </zeebe:ioMapping>
+        <camunda:topic>validate-clinical-data</camunda:topic>
+        <camunda:inputOutput>
+          <camunda:inputParameter name="clinicalData">${completeData}</camunda:inputParameter>
+          <camunda:inputParameter name="diagnoses">${icdCodes}</camunda:inputParameter>
+          <camunda:inputParameter name="procedures">${tussCodes}</camunda:inputParameter>
+          <camunda:outputParameter name="dataValidated">${validationResult}</camunda:outputParameter>
+          <camunda:outputParameter name="errors">${validationErrors}</camunda:outputParameter>
+        </camunda:inputOutput>
       </bpmn:extensionElements>
       <bpmn:incoming>flow_to_validate_data</bpmn:incoming>
       <bpmn:outgoing>flow_to_validation_gateway</bpmn:outgoing>

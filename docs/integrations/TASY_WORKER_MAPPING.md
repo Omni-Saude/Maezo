@@ -1,0 +1,203 @@
+# TASY API ↔ Worker Mapping Matrix
+
+> Generated: 2026-02-10 | TASY TIE Engine v1.0 | 770 endpoints, 16 domains, 469 data models
+
+## Executive Summary
+
+| Metric | Value |
+|--------|-------|
+| **Total TASY Endpoints** | 770 |
+| **Endpoints Currently Used** | ~9 (via `tasy_api_client.py`) |
+| **Coverage** | **1.2%** |
+| **Workers with TASY Integration** | 7 / ~100+ |
+| **Scoring APIs Used** | 0 / 9 |
+| **Scheduling Endpoints Used** | 0 / 122 |
+| **Supply Chain Endpoints Used** | 0 / 212 |
+| **Regulatory Endpoints Used** | 0 / 16 |
+
+---
+
+## 1. Current `tasy_api_client.py` Endpoints (9 methods)
+
+| Method | TASY Endpoint | Used By |
+|--------|---------------|---------|
+| `get_patient` | `GET /api/v1/patients/{id}` | `update_patient_registry_worker` |
+| `search_patients` | `GET /api/v1/patients` | `check_existing_patient_worker` |
+| `get_encounter` | `GET /api/v1/encounters/{id}` | `sync_erp_data_worker` |
+| `search_encounters` | `GET /api/v1/encounters` | `sync_erp_data_worker` |
+| `get_billing_account` | `GET /api/v1/billing/accounts/{id}` | `capture_procedure_worker` |
+| `get_billing_items` | `GET /api/v1/billing/accounts/{id}/items` | `capture_procedure_worker` |
+| `get_prescription` | `GET /api/v1/prescriptions/{id}` | (via CDC, not direct) |
+| `get_vital_signs` | `GET /api/v1/encounters/{id}/vitals` | (via CDC, not direct) |
+| `get_coverage` | `GET /api/v1/patients/{id}/coverages` | `verify_insurance_coverage_worker` |
+
+## 2. TASY Adapters (7 adapters, Tasy→FHIR)
+
+| Adapter | TASY Table | FHIR Resource | Status |
+|---------|-----------|---------------|--------|
+| `patient_adapter.py` | PACIENTE | Patient R4 | Active |
+| `encounter_adapter.py` | ATENDIMENTO | Encounter R4 | Active |
+| `billing_adapter.py` | CONTA_MEDICA / ITEM_CONTA | Claim R4 | Active |
+| `coverage_adapter.py` | CONVENIO_PACIENTE | Coverage R4 | Active |
+| `prescription_adapter.py` | PRESCRICAO | MedicationRequest R4 | Active |
+| `vital_signs_adapter.py` | SINAL_VITAL | Observation R4 | Active |
+| `base_adapter.py` | — | Base class | — |
+
+## 3. CDC Fallback Poller (`cdc_fallback_poller.py`)
+
+Polls 5 TASY tables when Debezium is unavailable:
+
+| Table | Priority | Poll Interval | Workers Fed |
+|-------|----------|---------------|-------------|
+| ATENDIMENTO | HIGH | 60-120s | `sync_erp_data_worker` |
+| CONTA_MEDICA | HIGH | 60-120s | Revenue cycle workers |
+| ITEM_CONTA | MEDIUM | 300s | Revenue cycle workers |
+| PRESCRICAO | MEDIUM | 300s | Clinical workers |
+| SINAL_VITAL | HIGH | 60-120s | `vital_signs_monitoring_worker` |
+
+**Missing from CDC**: Regulatory tables, Supply chain tables, Scheduling tables.
+
+---
+
+## 4. Scheduling Domain (122 endpoints → 0 used)
+
+### patient_access Workers
+
+| Worker | TASY Integration | TASY Endpoints NEEDED |
+|--------|-----------------|----------------------|
+| `update_scheduling_system_worker` | **STUB** (StubSchedulingSystemUpdater) | `POST/PUT/DELETE /api/schedules`, confirm, cancel |
+| `check_availability_worker` | **STUB** (StubAvailabilityChecker) | `GET /api/schedules/availability`, `GET /api/time-suggestions` |
+| `create_appointment_worker` | **STUB** (StubAppointmentCreator) | `POST /api/schedules`, status transitions, participant linking |
+| `handle_cancellation_worker` | **STUB** (StubCancellationHandler) | `PUT /api/schedules/{id}/cancel`, `POST /api/waiting-list` |
+| `validate_appointment_rules_worker` | **STUB** (StubAppointmentRulesValidator) | `GET /api/schedules/rules`, conflict checking, working hours |
+| `send_appointment_confirmation_worker` | **STUB** (StubConfirmationSender) | `POST /api/schedules/{id}/notifications` |
+| `send_reminder_notification_worker` | **STUB** (StubReminderSender) | `POST /api/schedules/{id}/reminders` |
+| `assign_resources_worker` | **STUB** (StubResourceAssigner) | `GET /api/schedules/resources/availability`, conflict detection |
+| `calculate_estimated_duration_worker` | **STUB** (StubDurationCalculator) | `GET /api/schedules/duration-estimate` |
+| `verify_insurance_coverage_worker` | Has TasyApiClient (coverage only) | `GET /api/insurance-authorization/eligibility` |
+| `check_pre_authorization_worker` | **STUB** (StubPreAuthChecker) | `POST /api/insurance-authorization`, status check |
+| `check_authorization_requirements_worker` | **STUB** (StubAuthRequirementChecker) | `GET /api/insurance-authorization/ans-rules` |
+| `validate_patient_data_worker` | No TASY | `GET /api/v1/patients` (validation) |
+| `check_existing_patient_worker` | No TASY | `GET /api/v1/patients?cpf=` |
+| `update_patient_registry_worker` | Has TasyApiClient ref | `PUT /api/v1/patients/{id}` |
+
+### Scheduling State Machine Coverage
+
+**We handle**: 2 states (`booked`=SCHEDULED, `cancelled`=CANCELLED) — **4% coverage**
+
+**53 TASY states NOT handled** (critical ones):
+- PRESCHEDULE, PRESCHEDULE_CONFIRMED, CONFIRMED, WAITING
+- IN_ANAMNESIS, AWAITING_CONSULTATION, IN_CONSULTATION, SERVICED, FINISHED
+- RESCHEDULED, JUSTIFIED_ABSENCE, NOT_JUSTIFIED_ABSENCE, ADMIT_AS_PRIORITY
+- PENDING_AUTHORIZATION, AUTHORIZATION_APPROVED/DENIED
+- CHECK_IN_COMPLETE, NO_SHOW, LATE_ARRIVAL, EARLY_ARRIVAL
+
+---
+
+## 5. Revenue Cycle Domain (181 endpoints → 2 used)
+
+### revenue_cycle Workers
+
+| Worker | TASY Integration | TASY Endpoints NEEDED |
+|--------|-----------------|----------------------|
+| `capture_procedure_worker` | CDC-based (`tasy_client.get_procedures`) | REST billing/procedure endpoints |
+| `export_to_erp_worker` | **MOCK** (returns fake `TASY-{uuid}`) | `POST /api/v1/billing/sync`, payment posting |
+| `calculate_charges_worker` | **None** (in-memory only) | Contract pricing, Brasindice/SIMPRO |
+| `submit_to_payer_worker` | TISS client only | TASY submission tracking |
+| `generate_tiss_xml_worker` | TISS client only | TASY authorization validation |
+| `validate_claim_worker` | **None** | TASY business rule validation |
+| `apply_contract_rules_worker` | **None** | Contract terms, procedure authorization |
+| `identify_glosa_worker` | ClaimResponse only | `POST /api/v1/billing/denials` |
+| `submit_appeal_worker` | TISS client only | `POST /api/v1/billing/appeals` |
+| `suggest_tuss_worker` | ANS client only | TASY procedure master data |
+| `reconcile_daily_worker` | **MOCK** (hardcoded amounts) | Payment data, PIX, receivables |
+| `assign_prices_worker` | FHIR only | Brasindice, SIMPRO, material pricing (36 combinations) |
+
+---
+
+## 6. Clinical/Telehealth Domain (66 endpoints → 2 used)
+
+### clinical_operations Workers
+
+| Worker | TASY Integration | TASY Endpoints NEEDED |
+|--------|-----------------|----------------------|
+| `vital_signs_monitoring_worker` | Indirect (via CDC) | `early-warning-score`, `sentry-score`, ICCA |
+| `clinical_alerts_worker` | **None** | `sepsis-alert`, `sentry-smart-alert` |
+| `clinical_decision_support_worker` | **None** (stub data) | `risk-of-death-score`, Micromedex interaction checking |
+| `adverse_event_detection_worker` | **None** (internal DMN) | `sepsis-score` |
+| `clinical_assessment_worker` | **None** (local DMN) | `automated-acuity`, `early-warning-score` |
+| `medication_management_worker` | **None** (8 hardcoded interactions) | Micromedex via TASY (comprehensive DB) |
+| `discharge_planning_worker` | **None** | `risk-of-readmission-score` |
+| `clinical_protocols_worker` | **None** | `vent-management` |
+| `care_planning_worker` | **None** | Clinical scoring APIs |
+| `clinical_quality_indicators_worker` | **None** | Scoring APIs for quality metrics |
+
+### Scoring API Coverage: 0/9
+
+| Scoring Endpoint | Status | Worker That Should Use It |
+|-----------------|--------|--------------------------|
+| `sepsis-score` | **NOT USED** | `adverse_event_detection_worker` |
+| `sepsis-alert` | **NOT USED** | `clinical_alerts_worker` |
+| `early-warning-score` (NEWS/MEWS) | **NOT USED** | `vital_signs_monitoring_worker` |
+| `risk-of-death-score` (APACHE/SAPS) | **NOT USED** | `clinical_decision_support_worker` |
+| `risk-of-readmission-score` | **NOT USED** | `discharge_planning_worker` |
+| `sentry-score` | **NOT USED** | `vital_signs_monitoring_worker` |
+| `sentry-smart-alert` | **NOT USED** | `clinical_alerts_worker` |
+| `automated-acuity` | **NOT USED** | `clinical_assessment_worker` |
+| `vent-management` | **NOT USED** | `clinical_protocols_worker` |
+
+---
+
+## 7. Regulatory Domain (16 endpoints → 0 used)
+
+| Worker | TASY Integration | TASY Endpoints NEEDED |
+|--------|-----------------|----------------------|
+| `generate_regulatory_reports_worker` | **STUB** (ANS client stub) | APAC, CNES, CNS, SUS/GERPAC |
+
+### Async Callback Pattern (not implemented)
+
+| Operation | Success Callback | Error Callback |
+|-----------|-----------------|----------------|
+| APAC Report | `POST /api/apacReport/success` | `POST /api/apacReport/error` |
+| APAC Parameters | `POST /api/performAPACParam/success` | `POST /api/performAPACParam/error` |
+| SUS GERPAC | `POST /api/sus/gerpac/.../success` | `POST /api/sus/gerpac/.../error` |
+| Patient Reports | `POST /api/reportspatient/success` | `POST /api/reportspatient/error` |
+| PIX Transmission | — | `POST /api/pix/transmission/{id}/error` |
+
+---
+
+## 8. Supply Chain Domain (212 endpoints → 0 used)
+
+| Sub-domain | Endpoints | Used | Workers That Should Use Them |
+|-----------|-----------|------|------------------------------|
+| Materials & Stock | 93 | 0 | `optimize_resource_utilization_worker`, `sync_erp_data_worker` |
+| Purchases | 56 | 0 | (no purchase workers exist) |
+| CME (Sterilization) | 63 | 0 | (no CME workers exist) |
+| Material Pricing | 18 | 0 | `assign_prices_worker`, `calculate_charges_worker` |
+
+---
+
+## 9. platform_services Workers
+
+| Worker | TASY Integration | TASY Endpoints NEEDED |
+|--------|-----------------|----------------------|
+| `sync_erp_data_worker` | CDC-based (`TasyClientProtocol`) | Extended REST endpoints for all domains |
+| `detect_data_quality_issues_worker` | References "tasy" as data source | Validation endpoints across domains |
+| `reconcile_data_sources_worker` | References "tasy" as source | Cross-domain reconciliation |
+| `optimize_resource_utilization_worker` | **STUB** | Materials, CME, equipment endpoints |
+| `generate_regulatory_reports_worker` | **STUB** | APAC, CNES, CNS, SUS |
+| `integrate_laboratory_worker` | No TASY | ICCA lab integration (29 endpoints) |
+| `integrate_imaging_worker` | No TASY | ICCA imaging endpoints |
+| `monitor_system_health_worker` | No TASY | TASY health/status endpoints |
+
+---
+
+## 10. Cross-Cutting Gaps
+
+| Gap | Affected Workers | Impact |
+|-----|-----------------|--------|
+| **Multi-establishment (`establishment_id`)** | ALL workers | Cannot support hospital groups (AUSTA+AMH) |
+| **Scheduling channels (11 types)** | All patient_access workers | No channel analytics |
+| **Async callbacks for regulatory** | `generate_regulatory_reports_worker` | No submission status tracking |
+| **Soft delete (ACTIVE/INACTIVE flags)** | All workers reading TASY data | May return inactive records |
+| **Idempotent PUT transitions (21 endpoints)** | All workers writing to TASY | Not using retry-safe operations |
