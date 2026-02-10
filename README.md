@@ -5,7 +5,7 @@
 <h1 align="center">Maestro</h1>
 
 <p align="center">
-  <strong>Plataforma de Orquestração de Operações e Ciclo de Receita Hospitalar</strong><br/>
+  <strong>A Plataforma de Orquestração dos Hospitais</strong><br/>
   <em>Saúde em harmonia.</em>
 </p>
 
@@ -26,7 +26,7 @@ Hospitais brasileiros perdem **R$ 2-4 bilhões por ano** com vazamentos de recei
 | Dor | Impacto |
 |-----|---------|
 | 🔴 **Glosas** | 8-15% do faturamento negado pelas operadoras |
-| �� **Autorização Manual** | 48+ horas aguardando resposta de autorização prévia |
+| 🔴 **Autorização Manual** | 48+ horas aguardando resposta de autorização prévia |
 | 🔴 **Sistemas Fragmentados** | Tasy, MV, FHIR, operadoras — nenhum conversa com o outro |
 | 🔴 **Falhas de Conformidade** | Violações ANS, TISS, LGPD por processos manuais |
 | 🔴 **Ciclo de Receita Lento** | 45-90 dias em média até o recebimento |
