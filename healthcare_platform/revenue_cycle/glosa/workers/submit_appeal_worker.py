@@ -15,6 +15,7 @@ from healthcare_platform.shared.domain.enums import GlosaType, GlosaReasonCode
 from healthcare_platform.shared.domain.exceptions import GlosaException
 from healthcare_platform.shared.domain.value_objects import Money
 from healthcare_platform.shared.i18n import _
+from healthcare_platform.shared.integrations.tasy_api_client import TasyApiClientProtocol
 from healthcare_platform.shared.integrations.tiss_client import (
     TISSClientProtocol,
     TISSGuideDTO,
@@ -34,14 +35,20 @@ class SubmitAppealWorker(BaseWorker, GlosaWorkerMixin):
     and handles errors with retry logic.
     """
 
-    def __init__(self, tiss_client: TISSClientProtocol) -> None:
+    def __init__(
+        self,
+        tiss_client: TISSClientProtocol,
+        tasy_api_client: TasyApiClientProtocol | None = None,
+    ) -> None:
         """
         Initialize worker with TISS client dependency.
 
         Args:
             tiss_client: TISS protocol client for payer communication
+            tasy_api_client: Optional TASY API client for recording appeals
         """
         self.tiss_client = tiss_client
+        self.tasy_api_client = tasy_api_client
         self.dmn_service = FederatedDMNService()
 
     def _evaluate_glosa_dmn(self, subcategory: str, table_name: str, inputs: dict) -> dict:
@@ -134,6 +141,16 @@ class SubmitAppealWorker(BaseWorker, GlosaWorkerMixin):
 
             # Submit to payer via TISS
             submission_result = await self._submit_with_retry(guide_dto, max_retries=3)
+
+            # Record appeal in TASY if client available
+            if self.tasy_api_client and submission_result.success:
+                try:
+                    await self._record_appeal_in_tasy(appeal_doc_id, submission_result)
+                except Exception as exc:
+                    logger.warning(
+                        "Failed to record appeal in TASY",
+                        extra={"appeal_doc_id": appeal_doc_id, "error": str(exc)},
+                    )
 
             # Prepare output variables
             output_vars = {
@@ -273,4 +290,30 @@ class SubmitAppealWorker(BaseWorker, GlosaWorkerMixin):
             _("Falha ao enviar recurso após {} tentativas: {}").format(
                 max_retries, last_error
             )
+        )
+
+    async def _record_appeal_in_tasy(
+        self, glosa_id: str, submission_result: TISSSubmissionResult
+    ) -> None:
+        """Record appeal submission in TASY via API.
+
+        Args:
+            glosa_id: TASY glosa ID
+            submission_result: TISS submission result
+        """
+        appeal_data = {
+            "protocol": submission_result.protocol_number,
+            "submission_timestamp": datetime.now(timezone.utc).isoformat(),
+            "response_code": submission_result.response_code,
+        }
+
+        result = await self.tasy_api_client.submit_glosa_appeal(glosa_id, appeal_data)
+
+        logger.info(
+            "Appeal recorded in TASY",
+            extra={
+                "glosa_id": glosa_id,
+                "appeal_id": result.get("appeal_id"),
+                "protocol": submission_result.protocol_number,
+            },
         )

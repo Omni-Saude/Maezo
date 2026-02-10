@@ -7,6 +7,7 @@ from uuid import uuid4
 from healthcare_platform.revenue_cycle.collection.exceptions import ERPSyncError
 from healthcare_platform.shared.dmn.federation_service import FederatedDMNService
 from healthcare_platform.shared.i18n import _
+from healthcare_platform.shared.integrations.tasy_api_client import TasyApiClient, TasyApiSettings
 from healthcare_platform.shared.integrations.tasy_client import TasyClient
 from healthcare_platform.shared.observability.logging import get_logger
 from healthcare_platform.shared.observability.metrics import track_task_execution
@@ -19,8 +20,9 @@ class ExportToERPWorker:
 
     WORKER_TYPE = "export_to_erp"
 
-    def __init__(self):
+    def __init__(self, tasy_api_client: TasyApiClient | None = None):
         self.tasy_client = TasyClient()
+        self.tasy_api_client = tasy_api_client
         self.dmn_service = FederatedDMNService()
         self._logger = get_logger(__name__)
 
@@ -129,31 +131,51 @@ class ExportToERPWorker:
     async def _sync_to_tasy(
         self, entity_type: str, entity_data: dict, operation: str
     ) -> dict[str, Any]:
-        """Sync to Tasy ERP."""
-        # In real implementation, use TasyClient to POST to CDC endpoint
-        # For now, mock the response
-        logger.debug(_("Sincronizando com Tasy"), extra={"entity_type": entity_type})
+        """Sync to Tasy ERP via REST API."""
+        if self.tasy_api_client is None:
+            raise ERPSyncError(_("TasyApiClient não configurado para exportação ERP"))
 
-        # Simulate API call
-        response = {
-            "transaction_id": f"TASY-{uuid4()}",
-            "status": "success",
-            "timestamp": datetime.now(timezone.utc).isoformat(),
+        logger.debug(
+            _("Sincronizando com Tasy via API"),
+            extra={"entity_type": entity_type, "operation": operation},
+        )
+
+        # Map entity_type to billing account ID
+        account_id = entity_data.get("account_id", entity_data.get("NR_CONTA", ""))
+        if not account_id:
+            raise ERPSyncError(_("account_id obrigatório para sincronização com Tasy"))
+
+        billing_data = {
+            "entity_type": entity_type,
+            "operation": operation,
+            "data": entity_data,
         }
+
+        response = await self.tasy_api_client.post_billing_sync(
+            account_id=account_id,
+            billing_data=billing_data,
+        )
 
         return response
 
     async def _sync_to_mv_soul(
         self, entity_type: str, entity_data: dict, operation: str
     ) -> dict[str, Any]:
-        """Sync to MV Soul ERP."""
-        # In real implementation, use MVSoulClient
-        logger.debug(_("Sincronizando com MV Soul"), extra={"entity_type": entity_type})
+        """Sync to MV Soul ERP via REST API."""
+        if self.tasy_api_client is None:
+            raise ERPSyncError(_("TasyApiClient não configurado para exportação MV Soul"))
 
-        response = {
-            "transaction_id": f"MVSOUL-{uuid4()}",
-            "status": "success",
-            "timestamp": datetime.now(timezone.utc).isoformat(),
+        logger.debug(
+            _("Sincronizando com MV Soul via API"),
+            extra={"entity_type": entity_type, "operation": operation},
+        )
+
+        export_data = {
+            "entity_type": entity_type,
+            "operation": operation,
+            "data": entity_data,
         }
+
+        response = await self.tasy_api_client.export_to_mvsoul(export_data)
 
         return response

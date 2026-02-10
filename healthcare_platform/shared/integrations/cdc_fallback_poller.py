@@ -116,6 +116,41 @@ DEFAULT_TABLE_CONFIGS: list[PollingTableConfig] = [
         api_endpoint="/api/v1/vitals/changes",
         kafka_topic="tasy.AUSTA.SINAL_VITAL",
     ),
+    PollingTableConfig(
+        table_name="PAGAMENTO",
+        priority="HIGH",
+        interval_seconds=120,
+        api_endpoint="/api/v1/billing/payments/changes",
+        kafka_topic="tasy.AUSTA.PAGAMENTO",
+    ),
+    PollingTableConfig(
+        table_name="AUTORIZACAO",
+        priority="HIGH",
+        interval_seconds=180,
+        api_endpoint="/api/v1/billing/authorizations/changes",
+        kafka_topic="tasy.AUSTA.AUTORIZACAO",
+    ),
+    PollingTableConfig(
+        table_name="GLOSA",
+        priority="HIGH",
+        interval_seconds=180,
+        api_endpoint="/api/v1/billing/glosa/changes",
+        kafka_topic="tasy.AUSTA.GLOSA",
+    ),
+    PollingTableConfig(
+        table_name="CONTRATO",
+        priority="MEDIUM",
+        interval_seconds=600,
+        api_endpoint="/api/v1/contracts/changes",
+        kafka_topic="tasy.AUSTA.CONTRATO",
+    ),
+    PollingTableConfig(
+        table_name="PROCEDIMENTO",
+        priority="MEDIUM",
+        interval_seconds=600,
+        api_endpoint="/api/v1/procedures/changes",
+        kafka_topic="tasy.AUSTA.PROCEDIMENTO",
+    ),
 ]
 
 

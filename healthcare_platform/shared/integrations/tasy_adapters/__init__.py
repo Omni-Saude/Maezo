@@ -10,6 +10,10 @@ Available adapters:
     TasyBillingAdapter: CONTA_MEDICA + ITEM_CONTA -> FHIR Claim
     TasyPrescriptionAdapter: PRESCRICAO -> FHIR MedicationRequest
     TasyVitalSignsAdapter: SINAL_VITAL -> FHIR Observation
+    TasyPricingAdapter: Brasindice/SIMPRO -> FHIR pricing data
+    TasyPaymentAdapter: PAGAMENTO -> FHIR Payment
+    TasyInsuranceAuthAdapter: AUTORIZACAO -> FHIR CoverageEligibilityRequest
+    TasyGlosaAdapter: GLOSA -> FHIR ClaimResponse (RC-GAP-3)
 
 Usage:
     from healthcare_platform.shared.integrations.tasy_adapters import TasyPatientAdapter
@@ -44,6 +48,18 @@ from healthcare_platform.shared.integrations.tasy_adapters.prescription_adapter 
 from healthcare_platform.shared.integrations.tasy_adapters.vital_signs_adapter import (
     TasyVitalSignsAdapter,
 )
+from healthcare_platform.shared.integrations.tasy_adapters.pricing_adapter import (
+    TasyPricingAdapter,
+)
+from healthcare_platform.shared.integrations.tasy_adapters.payment_adapter import (
+    TasyPaymentAdapter,
+)
+from healthcare_platform.shared.integrations.tasy_adapters.insurance_auth_adapter import (
+    TasyInsuranceAuthAdapter,
+)
+from healthcare_platform.shared.integrations.tasy_adapters.glosa_adapter import (
+    TasyGlosaAdapter,
+)
 
 __all__ = [
     "TasyToFhirAdapter",
@@ -54,4 +70,8 @@ __all__ = [
     "TasyBillingAdapter",
     "TasyPrescriptionAdapter",
     "TasyVitalSignsAdapter",
+    "TasyPricingAdapter",
+    "TasyPaymentAdapter",
+    "TasyInsuranceAuthAdapter",
+    "TasyGlosaAdapter",
 ]

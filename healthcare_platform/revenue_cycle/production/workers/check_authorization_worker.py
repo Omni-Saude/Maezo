@@ -20,6 +20,7 @@ from healthcare_platform.shared.integrations.insurance_api_client import (
     AuthorizationRequest,
     InsuranceAPIClientProtocol,
 )
+from healthcare_platform.shared.integrations.tasy_api_client import TasyApiClientProtocol
 from healthcare_platform.shared.multi_tenant.context import get_required_tenant
 from healthcare_platform.shared.multi_tenant.decorators import require_tenant
 from healthcare_platform.shared.observability.logging import get_logger
@@ -38,8 +39,13 @@ class CheckAuthorizationWorker:
 
     TOPIC = "production.check_authorization"
 
-    def __init__(self, insurance_client: InsuranceAPIClientProtocol) -> None:
+    def __init__(
+        self,
+        insurance_client: InsuranceAPIClientProtocol,
+        tasy_api_client: TasyApiClientProtocol | None = None,
+    ) -> None:
         self._insurance = insurance_client
+        self._tasy_api_client = tasy_api_client
         self._logger = get_logger(__name__, worker=self.TOPIC)
         self.dmn_service = FederatedDMNService()
 
@@ -93,24 +99,56 @@ class CheckAuthorizationWorker:
         # If existing auth, verify it's still valid
         if existing_auth:
             try:
-                auth_resp = await self._insurance.check_authorization_status(
-                    existing_auth, payer_id
-                )
-                if auth_resp.status == "denied":
-                    raise AuthorizationDenied(
-                        _("Authorization {auth_id} was denied: {reason}").format(
+                # Try TASY API first for real-time check
+                if self._tasy_api_client:
+                    try:
+                        tasy_auth_status = await self._tasy_api_client.get_authorization_status(
+                            existing_auth
+                        )
+                        if tasy_auth_status.get("status") == "cancelled":
+                            raise AuthorizationExpired(
+                                _("Authorization {auth_id} was cancelled in TASY").format(
+                                    auth_id=existing_auth
+                                ),
+                                details={"auth_id": existing_auth, "status": "cancelled"},
+                            )
+                        if tasy_auth_status.get("status") not in ("approved", "pending"):
+                            raise AuthorizationExpired(
+                                _("Authorization {auth_id} has expired").format(
+                                    auth_id=existing_auth
+                                ),
+                                details={"auth_id": existing_auth, "status": tasy_auth_status.get("status")},
+                            )
+                    except ExternalServiceException as tasy_exc:
+                        self._logger.warning(
+                            "tasy_auth_check_failed_fallback_to_insurance_api",
                             auth_id=existing_auth,
-                            reason=auth_resp.denial_reason or "unknown",
-                        ),
-                        details={"auth_id": existing_auth, "payer_id": payer_id},
+                            error=str(tasy_exc),
+                            tenant_id=ctx.tenant_id,
+                        )
+                        # Fall back to insurance API
+                        pass
+
+                # Use insurance API as fallback or primary
+                if not self._tasy_api_client or "tasy_auth_status" not in locals():
+                    auth_resp = await self._insurance.check_authorization_status(
+                        existing_auth, payer_id
                     )
-                if auth_resp.status not in ("approved", "pending"):
-                    raise AuthorizationExpired(
-                        _("Authorization {auth_id} has expired").format(
-                            auth_id=existing_auth
-                        ),
-                        details={"auth_id": existing_auth, "status": auth_resp.status},
-                    )
+                    if auth_resp.status == "denied":
+                        raise AuthorizationDenied(
+                            _("Authorization {auth_id} was denied: {reason}").format(
+                                auth_id=existing_auth,
+                                reason=auth_resp.denial_reason or "unknown",
+                            ),
+                            details={"auth_id": existing_auth, "payer_id": payer_id},
+                        )
+                    if auth_resp.status not in ("approved", "pending"):
+                        raise AuthorizationExpired(
+                            _("Authorization {auth_id} has expired").format(
+                                auth_id=existing_auth
+                            ),
+                            details={"auth_id": existing_auth, "status": auth_resp.status},
+                        )
             except (AuthorizationDenied, AuthorizationExpired):
                 raise
             except Exception as exc:
@@ -121,8 +159,8 @@ class CheckAuthorizationWorker:
                     tenant_id=ctx.tenant_id,
                 )
                 raise ExternalServiceException(
-                    _("Insurance API unavailable for authorization check"),
-                    service_name="insurance_api",
+                    _("Authorization check unavailable"),
+                    service_name="authorization_api",
                     operation="check_authorization_status",
                 ) from exc
 
@@ -144,9 +182,56 @@ class CheckAuthorizationWorker:
                 auth_result["status"] = "approved"
                 auth_result["message"] = "Pre-authorized"
             else:
-                # Request real-time authorization
+                # Request real-time authorization - try TASY first
                 try:
                     patient_id = patient_ref.rsplit("/", 1)[-1] if patient_ref else ""
+
+                    # Try TASY API for authorization submission
+                    if self._tasy_api_client:
+                        try:
+                            auth_data = {
+                                "patient_id": patient_id,
+                                "payer_id": payer_id,
+                                "provider_id": ctx.tenant_id,
+                                "procedure_codes": [code],
+                                "diagnosis_codes": diagnosis_codes,
+                                "requested_start_date": datetime.utcnow().isoformat(),
+                                "quantity": proc.get("quantity", 1),
+                            }
+                            tasy_auth_resp = await self._tasy_api_client.submit_authorization(auth_data)
+
+                            auth_result["auth_number"] = tasy_auth_resp.get("auth_number")
+                            auth_result["status"] = tasy_auth_resp.get("status", "pending")
+
+                            if tasy_auth_resp.get("status") == "approved":
+                                auth_result["authorized"] = True
+                                auth_result["message"] = "Approved by TASY"
+                                if not final_auth_number:
+                                    final_auth_number = tasy_auth_resp.get("auth_number")
+                            elif tasy_auth_resp.get("status") == "denied":
+                                auth_result["authorized"] = False
+                                auth_result["message"] = tasy_auth_resp.get("denial_reason", "Denied by TASY")
+                                all_authorized = False
+                            else:
+                                auth_result["authorized"] = False
+                                auth_result["message"] = f"Status: {tasy_auth_resp.get('status')}"
+                                all_authorized = False
+
+                            # Continue to next procedure - TASY succeeded
+                            results.append(auth_result)
+                            continue
+
+                        except ExternalServiceException as tasy_exc:
+                            self._logger.warning(
+                                "tasy_auth_submit_failed_fallback_to_insurance_api",
+                                code=code,
+                                payer_id=payer_id,
+                                error=str(tasy_exc),
+                                tenant_id=ctx.tenant_id,
+                            )
+                            # Fall back to insurance API below
+
+                    # Use insurance API as fallback or primary
                     auth_request = AuthorizationRequest(
                         patient_id=patient_id,
                         member_id=patient_id,

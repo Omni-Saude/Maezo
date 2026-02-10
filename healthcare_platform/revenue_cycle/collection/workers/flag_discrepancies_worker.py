@@ -17,9 +17,10 @@ class FlagDiscrepanciesWorker:
 
     WORKER_TYPE = "flag_discrepancies"
 
-    def __init__(self) -> None:
+    def __init__(self, tasy_api_client=None) -> None:
         self.dmn_service = FederatedDMNService()
         self._logger = get_logger(__name__)
+        self._tasy_api_client = tasy_api_client
 
     def _evaluate_cash_dmn(self, subcategory: str, table_name: str, inputs: dict) -> dict:
         """Evaluate cash_operations DMN decision table via federation service."""
@@ -73,6 +74,32 @@ class FlagDiscrepanciesWorker:
             extra={"payment_id": payment_id, "variance": float(variance)},
         )
 
+        # Try to get discrepancies from TASY API if available
+        if self._tasy_api_client:
+            try:
+                from datetime import datetime, timezone
+                today = datetime.now(timezone.utc).date()
+                tasy_discrepancies = await self._tasy_api_client.get_reconciliation_discrepancies(
+                    date_from=today.isoformat(),
+                    date_to=today.isoformat(),
+                )
+
+                # Check if this payment has a discrepancy in TASY
+                for disc in tasy_discrepancies:
+                    if disc.get("payment_id") == payment_id:
+                        self._logger.info("Found TASY discrepancy", type=disc.get("type"))
+                        return {
+                            "has_discrepancy": True,
+                            "discrepancy_type": disc.get("type"),
+                            "severity": disc.get("severity", "medium"),
+                            "requires_review": disc.get("requires_review", True),
+                            "flagged_at": datetime.now(timezone.utc).isoformat(),
+                            "source": "tasy",
+                        }
+            except Exception as e:
+                self._logger.warning("Failed to get TASY discrepancies, using fallback logic", error=str(e))
+
+        # Fallback to local discrepancy detection
         discrepancy_type = None
         severity = "low"
         has_discrepancy = False

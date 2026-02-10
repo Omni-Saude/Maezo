@@ -31,9 +31,10 @@ class DetectRevenueLeakageWorker:
 
     WORKER_TYPE = "detect_revenue_leakage"
 
-    def __init__(self) -> None:
+    def __init__(self, tasy_api_client=None) -> None:
         self.dmn_service = FederatedDMNService()
         self._logger = get_logger(__name__)
+        self._tasy_api_client = tasy_api_client
 
     def _evaluate_cash_dmn(self, subcategory: str, table_name: str, inputs: dict) -> dict:
         """Evaluate cash_operations DMN decision table via federation service."""
@@ -69,6 +70,95 @@ class DetectRevenueLeakageWorker:
                 "by_category": dict[str, float]
             }
         """
+        # Try to get revenue leakage from TASY API if available
+        if self._tasy_api_client:
+            try:
+                from datetime import datetime, timedelta
+                today = date.today()
+                date_from = (today - timedelta(days=30)).isoformat()
+                date_to = today.isoformat()
+
+                tasy_leakage = await self._tasy_api_client.get_revenue_leakage(
+                    date_from=date_from,
+                    date_to=date_to,
+                )
+
+                # Convert TASY leakage to internal format
+                leakages = []
+                by_category = {}
+
+                if "unbilled_encounters" in tasy_leakage:
+                    ub = tasy_leakage["unbilled_encounters"]
+                    amount = Decimal(str(ub.get("amount", 0)))
+                    leakages.append(
+                        RevenueLeakage(
+                            category="unbilled_encounters",
+                            description=_("Atendimentos realizados mas não faturados"),
+                            amount=float(amount),
+                            count=ub.get("count", 0),
+                            priority="high" if amount > 10000 else "medium",
+                        )
+                    )
+                    by_category["unbilled_encounters"] = amount
+
+                if "undercoded_procedures" in tasy_leakage:
+                    uc = tasy_leakage["undercoded_procedures"]
+                    amount = Decimal(str(uc.get("amount", 0)))
+                    leakages.append(
+                        RevenueLeakage(
+                            category="undercoded_procedures",
+                            description=_("Procedimentos com codificação abaixo do adequado"),
+                            amount=float(amount),
+                            count=uc.get("count", 0),
+                            priority="medium",
+                        )
+                    )
+                    by_category["undercoded_procedures"] = amount
+
+                if "uncollected_approvals" in tasy_leakage:
+                    ua = tasy_leakage["uncollected_approvals"]
+                    amount = Decimal(str(ua.get("amount", 0)))
+                    leakages.append(
+                        RevenueLeakage(
+                            category="uncollected_approvals",
+                            description=_("Autorizações aprovadas mas não cobradas"),
+                            amount=float(amount),
+                            count=ua.get("count", 0),
+                            priority="high",
+                        )
+                    )
+                    by_category["uncollected_approvals"] = amount
+
+                if "expired_authorizations" in tasy_leakage:
+                    ea = tasy_leakage["expired_authorizations"]
+                    amount = Decimal(str(ea.get("amount", 0)))
+                    leakages.append(
+                        RevenueLeakage(
+                            category="expired_authorizations",
+                            description=_("Autorizações expiradas antes da cobrança"),
+                            amount=float(amount),
+                            count=ea.get("count", 0),
+                            priority="critical",
+                        )
+                    )
+                    by_category["expired_authorizations"] = amount
+
+                total_potential_recovery = sum(by_category.values())
+                total_opportunities = sum(leak.count for leak in leakages)
+
+                self._logger.info("Using TASY revenue leakage data", total=float(total_potential_recovery))
+
+                return {
+                    "leakages": [leak.model_dump() for leak in leakages],
+                    "total_potential_recovery": float(total_potential_recovery),
+                    "total_opportunities": total_opportunities,
+                    "by_category": {k: float(v) for k, v in by_category.items()},
+                    "source": "tasy",
+                }
+            except Exception as e:
+                self._logger.warning("Failed to get TASY revenue leakage, using fallback", error=str(e))
+
+        # Fallback to task variables
         unbilled = task_variables.get("unbilled_encounters", [])
         undercoded = task_variables.get("undercoded_procedures", [])
         uncollected = task_variables.get("uncollected_approvals", [])

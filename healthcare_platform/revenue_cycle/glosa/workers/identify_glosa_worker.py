@@ -19,6 +19,7 @@ from healthcare_platform.shared.domain.entities import ClaimResponse, GlosaItem
 from healthcare_platform.shared.domain.enums import GlosaReasonCode
 from healthcare_platform.shared.domain.exceptions import GlosaException
 from healthcare_platform.shared.i18n import _
+from healthcare_platform.shared.integrations.tasy_api_client import TasyApiClientProtocol
 from healthcare_platform.shared.observability.logging import get_logger
 
 logger = get_logger(__name__)
@@ -43,9 +44,10 @@ class IdentifyGlosaWorker(BaseWorker, GlosaWorkerMixin):
         - hasGlosas: Boolean indicating if any glosas were found
     """
 
-    def __init__(self) -> None:
+    def __init__(self, tasy_api_client: TasyApiClientProtocol | None = None) -> None:
         super().__init__()
         self.dmn_service = FederatedDMNService()
+        self.tasy_api_client = tasy_api_client
 
     def _evaluate_glosa_dmn(self, subcategory: str, table_name: str, inputs: dict) -> dict:
         """Evaluate glosa_prevention DMN decision table."""
@@ -116,6 +118,16 @@ class IdentifyGlosaWorker(BaseWorker, GlosaWorkerMixin):
             total_denied = sum(
                 (item["denied_amount"] for item in glosa_items), Decimal("0")
             )
+
+            # Record glosas in TASY if client available
+            if self.tasy_api_client and glosa_items:
+                try:
+                    await self._record_glosas_in_tasy(claim_id, glosa_items, total_denied)
+                except Exception as exc:
+                    logger.warning(
+                        _("Falha ao registrar glosas no TASY: {error}").format(error=str(exc)),
+                        extra={"claim_id": claim_id},
+                    )
 
             output_variables = {
                 "glosaItems": glosa_items,
@@ -238,3 +250,31 @@ class IdentifyGlosaWorker(BaseWorker, GlosaWorkerMixin):
             return GlosaReasonCode.PRICE_DIVERGENCE
         else:
             return GlosaReasonCode.TISS_VALIDATION
+
+    async def _record_glosas_in_tasy(
+        self, claim_id: str, glosa_items: list[dict], total_denied: Decimal
+    ) -> None:
+        """Record identified glosas in TASY via API.
+
+        Args:
+            claim_id: Claim/account ID
+            glosa_items: List of glosa items
+            total_denied: Total denied amount
+        """
+        glosa_data = {
+            "claim_id": claim_id,
+            "denied_amount": float(total_denied),
+            "reason_code": glosa_items[0]["reason_code"] if glosa_items else "UNKNOWN",
+            "items": glosa_items,
+        }
+
+        result = await self.tasy_api_client.post_glosa(glosa_data)
+
+        logger.info(
+            _("Glosa registrada no TASY"),
+            extra={
+                "claim_id": claim_id,
+                "glosa_id": result.get("glosa_id"),
+                "denied_amount": float(total_denied),
+            },
+        )

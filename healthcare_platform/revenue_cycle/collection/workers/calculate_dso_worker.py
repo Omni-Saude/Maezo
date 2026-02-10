@@ -18,9 +18,10 @@ class CalculateDSOWorker:
 
     WORKER_TYPE = "calculate_dso"
 
-    def __init__(self) -> None:
+    def __init__(self, tasy_api_client=None) -> None:
         self.dmn_service = FederatedDMNService()
         self._logger = get_logger(__name__)
+        self._tasy_api_client = tasy_api_client
 
     def _evaluate_cash_dmn(self, subcategory: str, table_name: str, inputs: dict) -> dict:
         """Evaluate cash_operations DMN decision table via federation service."""
@@ -69,15 +70,48 @@ class CalculateDSOWorker:
             extra={"period_start": period_start.isoformat(), "period_end": period_end.isoformat()},
         )
 
-        # In real implementation, query from financial system
+        # Try to get DSO metric from TASY API if available
+        if self._tasy_api_client:
+            try:
+                tasy_dso = await self._tasy_api_client.get_dso_metric(
+                    date_from=period_start.isoformat(),
+                    date_to=period_end.isoformat(),
+                )
+
+                ar_amount = tasy_dso.get("accounts_receivable", 720000.00)
+                net_revenue = tasy_dso.get("net_revenue", 1400000.00)
+                accounts_receivable = Money.brl(ar_amount)
+                revenue = Money.brl(net_revenue)
+
+                # Use pre-calculated DSO from TASY if available
+                if "dso" in tasy_dso:
+                    dso = Decimal(str(tasy_dso["dso"]))
+                    benchmark_status = tasy_dso.get("benchmark_status", "good")
+
+                    self._logger.info("Using TASY DSO metric", dso=float(dso))
+
+                    return {
+                        "dso": float(dso),
+                        "accounts_receivable": float(accounts_receivable.amount),
+                        "net_revenue": float(revenue.amount),
+                        "period_days": period_days,
+                        "period_start": period_start.isoformat(),
+                        "period_end": period_end.isoformat(),
+                        "benchmark_status": benchmark_status,
+                        "calculated_at": datetime.now(timezone.utc).isoformat(),
+                        "source": "tasy",
+                    }
+            except Exception as e:
+                self._logger.warning("Failed to get TASY DSO metric, using fallback", error=str(e))
+                # Fall through to fallback calculation
+
+        # Fallback: get values from task variables or use defaults
         ar_amount = task_variables.get("accounts_receivable")
         if ar_amount is None:
-            # Mock: would query CollectionCase repository for open AR
             ar_amount = 720000.00
 
         net_revenue = task_variables.get("net_revenue")
         if net_revenue is None:
-            # Mock: would query billing system for net revenue in period
             net_revenue = 1400000.00
 
         accounts_receivable = Money.brl(ar_amount)

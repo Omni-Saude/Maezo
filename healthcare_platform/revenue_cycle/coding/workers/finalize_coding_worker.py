@@ -16,6 +16,7 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from healthcare_platform.shared.domain.exceptions import BpmnErrorException, CodingException
 from healthcare_platform.shared.i18n import _
+from healthcare_platform.shared.integrations.tasy_api_client import TasyApiClientProtocol
 from healthcare_platform.shared.multi_tenant.context import get_required_tenant
 from healthcare_platform.shared.multi_tenant.decorators import require_tenant
 from healthcare_platform.shared.observability.logging import get_logger
@@ -224,10 +225,12 @@ class FinalizeCodingWorker:
     def __init__(
         self,
         encounter_repo: EncounterRepositoryProtocol | None = None,
+        tasy_api_client: TasyApiClientProtocol | None = None,
     ) -> None:
         self._repo: EncounterRepositoryProtocol = (
             encounter_repo or EncounterRepositoryStub()
         )
+        self._tasy_api: TasyApiClientProtocol | None = tasy_api_client
         self._logger = get_logger(__name__, worker=self.TOPIC)
         self.dmn_service = FederatedDMNService()
 
@@ -292,6 +295,10 @@ class FinalizeCodingWorker:
                     "recomendacao '{recommendation}'"
                 ).format(recommendation=inp.audit_recommendation),
             )
+
+        # -- Pre-validation: Validate TUSS codes exist in TASY (if available) --
+        if self._tasy_api:
+            await self._validate_tuss_codes(inp.validated_tuss, ctx.tenant_id)
 
         # -- Pre-condition: fraud must not be flagged -------------------------
         if inp.fraud_recommendation.lower() not in _ALLOWED_FRAUD_RECOMMENDATIONS:
@@ -392,6 +399,47 @@ class FinalizeCodingWorker:
 
 
 
+    async def _validate_tuss_codes(self, tuss_codes: list[str], tenant_id: str) -> None:
+        """Validate TUSS codes exist in TASY master data.
+
+        Falls back silently if TASY API is unavailable - existing logic will handle.
+
+        Args:
+            tuss_codes: List of TUSS codes to validate
+            tenant_id: Current tenant ID for logging
+
+        Raises:
+            CodingException: If codes are invalid and TASY is available
+        """
+        if not tuss_codes:
+            return
+
+        try:
+            for code in tuss_codes:
+                # Try to search for the code in TASY
+                results = await self._tasy_api.search_tuss_procedures(code=code)
+                if not results:
+                    self._logger.warning(
+                        "tuss_code_not_found_in_tasy",
+                        code=code,
+                        tenant_id=tenant_id,
+                    )
+                    raise CodingException(
+                        _("Código TUSS não encontrado no TASY: {}").format(code),
+                        bpmn_error_code="CODING_ERROR",
+                    )
+        except CodingException:
+            # Re-raise coding exceptions
+            raise
+        except Exception as exc:
+            # Fall back silently on TASY errors - let existing logic handle
+            self._logger.info(
+                "tasy_validation_unavailable",
+                error=str(exc),
+                tenant_id=tenant_id,
+                message="Falling back to existing validation logic",
+            )
+
     def _evaluate_coding_dmn(self, subcategory: str, table_name: str, inputs: dict) -> dict:
         """Evaluate coding_audit DMN decision table via federation service."""
         try:
@@ -413,6 +461,10 @@ class FinalizeCodingWorker:
 def register_worker(
     *,
     encounter_repo: EncounterRepositoryProtocol | None = None,
+    tasy_api_client: TasyApiClientProtocol | None = None,
 ) -> FinalizeCodingWorker:
     """Create and return a configured FinalizeCodingWorker instance."""
-    return FinalizeCodingWorker(encounter_repo=encounter_repo)
+    return FinalizeCodingWorker(
+        encounter_repo=encounter_repo,
+        tasy_api_client=tasy_api_client,
+    )

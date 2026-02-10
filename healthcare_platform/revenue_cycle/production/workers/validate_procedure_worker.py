@@ -11,6 +11,7 @@ from healthcare_platform.shared.dmn.federation_service import FederatedDMNServic
 from healthcare_platform.shared.domain.exceptions import CodingException, InvalidProcedureCode
 from healthcare_platform.shared.i18n import _
 from healthcare_platform.shared.integrations.ans_client import ANSClientProtocol, RolValidationResult
+from healthcare_platform.shared.integrations.tasy_api_client import TasyApiClientProtocol
 from healthcare_platform.shared.multi_tenant.context import get_required_tenant
 from healthcare_platform.shared.multi_tenant.decorators import require_tenant
 from healthcare_platform.shared.observability.logging import get_logger
@@ -28,10 +29,70 @@ class ValidateProcedureWorker:
 
     TOPIC = "production.validate_procedure"
 
-    def __init__(self, ans_client: ANSClientProtocol) -> None:
+    def __init__(
+        self,
+        ans_client: ANSClientProtocol,
+        tasy_api_client: TasyApiClientProtocol | None = None,
+    ) -> None:
         self._ans = ans_client
+        self._tasy_api: TasyApiClientProtocol | None = tasy_api_client
         self._logger = get_logger(__name__, worker=self.TOPIC)
         self.dmn_service = FederatedDMNService()
+
+    async def _validate_via_tasy(
+        self, code: str, coverage_type: str, tenant_id: str
+    ) -> dict[str, Any] | None:
+        """Validate procedure via TASY procedure master.
+
+        Falls back to None if TASY is unavailable - caller will use ANS.
+
+        Args:
+            code: Procedure code to validate
+            coverage_type: Expected coverage type
+            tenant_id: Current tenant ID for logging
+
+        Returns:
+            Validation result dict or None if TASY unavailable
+        """
+        try:
+            # Get procedure details from TASY
+            details = await self._tasy_api.get_tuss_procedure_details(code)
+
+            # Get compatible procedures for enhanced validation
+            compatible = await self._tasy_api.get_compatible_procedures(code)
+
+            is_valid = bool(details)
+            is_covered = details.get("is_active", True) and not details.get("is_terminated", False)
+            tasy_coverage_type = details.get("coverage_type", "")
+
+            self._logger.info(
+                "tasy_procedure_validated",
+                code=code,
+                is_valid=is_valid,
+                is_covered=is_covered,
+                compatible_count=len(compatible),
+                tenant_id=tenant_id,
+            )
+
+            return {
+                "code": code,
+                "is_valid": is_valid,
+                "is_covered": is_covered,
+                "coverage_type": tasy_coverage_type,
+                "name": details.get("name", ""),
+                "message": _("Validado via TASY") if is_valid else _("Código não encontrado no TASY"),
+            }
+
+        except Exception as exc:
+            # Fall back to ANS validation
+            self._logger.info(
+                "tasy_validation_unavailable",
+                code=code,
+                error=str(exc),
+                tenant_id=tenant_id,
+                message="Falling back to ANS validation",
+            )
+            return None
 
     def _evaluate_pricing_dmn(self, subcategory: str, table_name: str, inputs: dict) -> dict:
         """Evaluate pricing DMN decision table."""
@@ -83,6 +144,16 @@ class ValidateProcedureWorker:
         invalid_codes: list[str] = []
 
         for code in procedure_codes:
+            # Try TASY validation first if available
+            if self._tasy_api:
+                tasy_result = await self._validate_via_tasy(code, coverage_type, ctx.tenant_id)
+                if tasy_result:
+                    validated.append(tasy_result)
+                    if not tasy_result["is_valid"]:
+                        invalid_codes.append(code)
+                    continue
+
+            # Fall back to ANS validation
             result: RolValidationResult = await self._ans.validate_procedure(code)
 
             entry = {

@@ -11,6 +11,7 @@ from healthcare_platform.revenue_cycle.collection.exceptions import Reconciliati
 from healthcare_platform.shared.dmn.federation_service import FederatedDMNService
 from healthcare_platform.shared.domain.value_objects import Money
 from healthcare_platform.shared.i18n import _
+from healthcare_platform.shared.integrations.tasy_api_client import TasyApiClient
 from healthcare_platform.shared.observability.logging import get_logger
 from healthcare_platform.shared.observability.metrics import track_task_execution
 
@@ -22,7 +23,8 @@ class ReconcileDailyWorker:
 
     WORKER_TYPE = "reconcile_daily"
 
-    def __init__(self) -> None:
+    def __init__(self, tasy_api_client: TasyApiClient | None = None) -> None:
+        self.tasy_api_client = tasy_api_client
         self.dmn_service = FederatedDMNService()
         self._logger = get_logger(__name__)
 
@@ -79,13 +81,37 @@ class ReconcileDailyWorker:
             extra={"reconciliation_date": recon_date.isoformat()},
         )
 
-        # In real implementation, query Payment repository for the date range
-        # Mock data for demonstration
-        total_expected = Money.brl(task_variables.get("expected_amount", 50000.00))
-        total_received = Money.brl(47500.50)  # Mock: would sum payments from DB
-        payment_count = 45
-        matched_count = 42
-        unmatched_count = 3
+        # Fetch real payment data from TASY
+        if self.tasy_api_client is not None:
+            payments = await self.tasy_api_client.get_payments(
+                date_from=recon_date.isoformat(),
+                date_to=recon_date.isoformat(),
+            )
+            total_received_amount = sum(
+                Decimal(str(p.get("VL_PAGAMENTO", 0))) for p in payments
+            )
+            total_received = Money.brl(total_received_amount)
+            payment_count = len(payments)
+            matched_count = sum(1 for p in payments if p.get("IE_CONCILIADO") == "S")
+            unmatched_count = payment_count - matched_count
+        else:
+            # Fallback for testing without API client
+            total_received = Money.brl(task_variables.get("received_amount", 0))
+            payment_count = task_variables.get("payment_count", 0)
+            matched_count = task_variables.get("matched_count", 0)
+            unmatched_count = payment_count - matched_count
+
+        # Fetch expected amount from receivables or use task variable
+        total_expected_amount = Decimal(str(task_variables.get("expected_amount", 0)))
+        if self.tasy_api_client is not None and total_expected_amount == 0:
+            receivables = await self.tasy_api_client.get_receivables(
+                date_from=recon_date.isoformat(),
+                date_to=recon_date.isoformat(),
+            )
+            total_expected_amount = sum(
+                Decimal(str(r.get("VL_TITULO", 0))) for r in receivables
+            )
+        total_expected = Money.brl(total_expected_amount)
 
         total_variance = total_expected - total_received
         variance_percentage = (

@@ -9,10 +9,15 @@ from decimal import Decimal
 from typing import Any
 
 from healthcare_platform.shared.dmn.federation_service import FederatedDMNService
-from healthcare_platform.shared.domain.exceptions import BillingException, ContractRuleViolation
+from healthcare_platform.shared.domain.exceptions import (
+    BillingException,
+    ContractRuleViolation,
+    ExternalServiceException,
+)
 from healthcare_platform.shared.domain.value_objects import Money
 from healthcare_platform.shared.i18n import _
 from healthcare_platform.shared.integrations.fhir_client import FHIRClientProtocol
+from healthcare_platform.shared.integrations.tasy_api_client import TasyApiClientProtocol
 from healthcare_platform.shared.multi_tenant.context import get_required_tenant
 from healthcare_platform.shared.multi_tenant.decorators import require_tenant
 from healthcare_platform.shared.observability.logging import get_logger
@@ -48,8 +53,13 @@ class AssignPricesWorker:
 
     TOPIC = "production.assign_prices"
 
-    def __init__(self, fhir_client: FHIRClientProtocol) -> None:
+    def __init__(
+        self,
+        fhir_client: FHIRClientProtocol,
+        tasy_api_client: TasyApiClientProtocol | None = None,
+    ) -> None:
         self._fhir = fhir_client
+        self._tasy = tasy_api_client
         self._logger = get_logger(__name__, worker=self.TOPIC)
         self.dmn_service = FederatedDMNService()
 
@@ -94,38 +104,88 @@ class AssignPricesWorker:
             tenant_id=ctx.tenant_id,
         )
 
-        # Load price table from FHIR ChargeItemDefinition or local config
-        price_table = await self._load_price_table(price_table_id, contract_id)
-
         priced: list[dict[str, Any]] = []
         total = Decimal("0.00")
         missing_prices: list[str] = []
+
+        # Try TASY pricing first if available
+        tasy_pricing_available = self._tasy is not None
+        tasy_price_source = "tasy_api"
 
         for proc in procedures:
             code = proc.get("code", "")
             quantity = proc.get("quantity", 1)
             result_proc = {**proc}
 
-            price_entry = price_table.get(code)
-            if not price_entry:
+            unit_price: Decimal | None = None
+            currency = "BRL"
+            price_source = "unknown"
+
+            # Strategy 1: Try TASY pricing (Brasindice/SIMPRO/Contract)
+            if tasy_pricing_available:
+                try:
+                    # Try get_procedure_price first for TUSS/procedure codes
+                    tasy_result = await self._tasy.get_procedure_price(
+                        procedure_code=code, table=price_table_id
+                    )
+                    unit_price = Decimal(str(tasy_result.get("unit_price", 0)))
+                    currency = tasy_result.get("currency", "BRL")
+                    price_source = f"tasy:{tasy_result.get('table', price_table_id)}"
+
+                    self._logger.debug(
+                        "price_from_tasy",
+                        code=code,
+                        unit_price=str(unit_price),
+                        source=price_source,
+                        tenant_id=ctx.tenant_id,
+                    )
+                except ExternalServiceException as exc:
+                    # TASY price not found, will try fallback
+                    self._logger.debug(
+                        "tasy_price_not_found",
+                        code=code,
+                        error=str(exc),
+                        tenant_id=ctx.tenant_id,
+                    )
+
+            # Strategy 2: Fallback to FHIR ChargeItemDefinition
+            if unit_price is None:
+                price_table = await self._load_price_table(price_table_id, contract_id)
+                price_entry = price_table.get(code)
+
+                if price_entry:
+                    unit_price = price_entry.unit_price
+                    currency = price_entry.currency
+                    price_source = f"fhir:{price_entry.contract_id or price_table_id}"
+
+                    self._logger.debug(
+                        "price_from_fhir_fallback",
+                        code=code,
+                        unit_price=str(unit_price),
+                        source=price_source,
+                        tenant_id=ctx.tenant_id,
+                    )
+
+            # Assign price or mark as missing
+            if unit_price is None or unit_price == Decimal("0.00"):
                 missing_prices.append(code)
                 self._logger.warning(
                     "price_not_found",
                     code=code,
                     contract_id=contract_id,
+                    tasy_tried=tasy_pricing_available,
                     tenant_id=ctx.tenant_id,
                 )
                 result_proc["unit_price"] = "0.00"
                 result_proc["total_price"] = "0.00"
-                result_proc["currency"] = "BRL"
+                result_proc["currency"] = currency
                 result_proc["price_source"] = "missing"
             else:
-                unit = price_entry.unit_price
-                proc_total = unit * Decimal(str(quantity))
-                result_proc["unit_price"] = str(unit)
+                proc_total = unit_price * Decimal(str(quantity))
+                result_proc["unit_price"] = str(unit_price)
                 result_proc["total_price"] = str(proc_total)
-                result_proc["currency"] = price_entry.currency
-                result_proc["price_source"] = price_entry.contract_id or price_table_id
+                result_proc["currency"] = currency
+                result_proc["price_source"] = price_source
                 total += proc_total
 
             priced.append(result_proc)

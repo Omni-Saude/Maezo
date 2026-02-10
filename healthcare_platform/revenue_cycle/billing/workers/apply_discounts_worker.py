@@ -9,6 +9,7 @@ from healthcare_platform.shared.domain.exceptions import BillingException
 from healthcare_platform.shared.domain.value_objects import Money
 from healthcare_platform.shared.dmn.federation_service import FederatedDMNService
 from healthcare_platform.shared.i18n import _
+from healthcare_platform.shared.integrations.tasy_api_client import TasyApiClientProtocol
 from healthcare_platform.shared.observability.logging import get_logger
 
 logger = get_logger(__name__)
@@ -48,9 +49,10 @@ class ApplyDiscountsWorker(BaseWorker):
         "emergency": "Emergency service discount"
     }
 
-    def __init__(self) -> None:
+    def __init__(self, tasy_api_client: TasyApiClientProtocol | None = None) -> None:
         super().__init__()
         self.dmn_service = FederatedDMNService()
+        self._tasy_api_client = tasy_api_client
 
     @property
     def operation_name(self) -> str:
@@ -101,6 +103,32 @@ class ApplyDiscountsWorker(BaseWorker):
                 retryable=False,
                 details={"type": type(discount_rules).__name__}
             )
+
+        # Optionally fetch contract rules from TASY API
+        if self._tasy_api_client:
+            contract_id = variables.get("contract_id")
+            if contract_id:
+                try:
+                    self._logger.debug("Fetching contract rules from TASY", contract_id="[REDACTED]")
+                    # Fetch contract data from TASY
+                    contract_pricing = await self._tasy_api_client.get_contract_pricing(contract_id)
+                    tasy_discount_rules = contract_pricing.get("discount_rules", [])
+
+                    if tasy_discount_rules:
+                        self._logger.info(
+                            "Loaded discount rules from TASY contract",
+                            contract_id="[REDACTED]",
+                            tasy_rule_count=len(tasy_discount_rules),
+                            original_rule_count=len(discount_rules),
+                        )
+                        # Merge TASY rules with provided rules (TASY rules take precedence)
+                        discount_rules = tasy_discount_rules + discount_rules
+                except Exception as e:
+                    # Log but don't fail - fall back to provided discount_rules
+                    self._logger.warning(
+                        "Failed to fetch contract rules from TASY, using provided rules",
+                        error=str(e)
+                    )
 
         self._logger.info(
             "Applying discounts",
