@@ -1,0 +1,156 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  ============================================================================
+  BILL-DIARIA-002 - Diaria UTI Justificativa Clinica
+  ============================================================================
+  Versao: 1.0.0 (2026-02-08)
+  Categoria: BILL-DIARIA
+  Perspectiva: HOSPITAL (Faturamento/Auditoria)
+
+  ============================================================================
+  INDICACOES (Quando PROSSEGUIR):
+  ============================================================================
+  - Admissao em UTI com criterios clinicos documentados
+  - Permanencia justificada por escores de gravidade (APACHE, SOFA, Glasgow)
+  - Evolucao clinica diaria registrada no prontuario
+
+  ============================================================================
+  CONTRAINDICACOES (Quando BLOQUEAR):
+  ============================================================================
+  - Permanencia em UTI sem justificativa clinica documentada
+  - Ausencia de criterios objetivos de admissao em UTI
+  - Diarias cobradas apos criterios de alta da UTI cumpridos
+
+  ============================================================================
+  REFERENCIAS NORMATIVAS:
+  ============================================================================
+  - ANS RN 465/2021 (justificativa de permanencia em UTI)
+  - CFM Resolucao 2.156/2016 (criterios de admissao em UTI)
+  - AMIB (Associacao de Medicina Intensiva Brasileira) - protocolos
+  ============================================================================
+-->
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/"
+             xmlns:dc="http://www.omg.org/spec/DMN/20180521/DC/"
+             id="Definitions_BILL_DIARIA_002"
+             name="Diaria UTI Justificativa Clinica"
+             targetNamespace="http://camunda.org/schema/1.0/dmn">
+
+  <decision id="Decision_BILL_DIARIA_002" name="Diaria UTI Justificativa Clinica">
+    <decisionTable id="DecisionTable_BILL_DIARIA_002" hitPolicy="FIRST">
+
+      <!-- ========== INPUTS ========== -->
+      <input id="Input_1" label="Criterios Admissao Documentados">
+        <inputExpression id="InputExpression_1" typeRef="boolean">
+          <text>criteriosAdmissaoDocumentados</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_2" label="Evolucao Diaria Registrada">
+        <inputExpression id="InputExpression_2" typeRef="boolean">
+          <text>evolucaoDiariaRegistrada</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_3" label="Dias UTI">
+        <inputExpression id="InputExpression_3" typeRef="number">
+          <text>diasUTI</text>
+        </inputExpression>
+      </input>
+
+      <!-- ========== OUTPUTS (5 STANDARD) ========== -->
+      <output id="Output_1" label="Resultado" name="resultado" typeRef="string">
+        <outputValues><text>"Prosseguir", "Bloquear", "Alertar", "Revisar"</text></outputValues>
+      </output>
+
+      <output id="Output_2" label="Observacao" name="observacao" typeRef="string"/>
+
+      <output id="Output_3" label="Acao Recomendada" name="acaoRecomendada" typeRef="string"/>
+
+      <output id="Output_4" label="Alertas Conformidade" name="alertasConformidade" typeRef="string">
+        <outputValues><text>"NENHUM", "DUP", "FREQ", "PRAZO", "DOC", "VALOR", "CRED", "CONTRATO"</text></outputValues>
+      </output>
+
+      <output id="Output_5" label="Risco Denial" name="riscoDenial" typeRef="string">
+        <outputValues><text>"BAIXO", "MEDIO", "ALTO", "CRITICO"</text></outputValues>
+      </output>
+
+      <!-- ========== RULES ========== -->
+
+      <!-- REGRA B1: Bloqueio - Ausencia de criterios de admissao -->
+      <rule id="Rule_Bloqueio_1">
+        <description>Admissao em UTI sem criterios clinicos documentados</description>
+        <inputEntry id="InputEntry_B1_1"><text>false</text></inputEntry>
+        <inputEntry id="InputEntry_B1_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_B1_3"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_B1_1"><text>"Bloquear"</text></outputEntry>
+        <outputEntry id="OutputEntry_B1_2"><text>"Admissao em UTI sem criterios clinicos documentados. Glosas esperadas da operadora."</text></outputEntry>
+        <outputEntry id="OutputEntry_B1_3"><text>"Bloquear faturamento. Solicitar documentacao de criterios de admissao (APACHE, SOFA, Glasgow)."</text></outputEntry>
+        <outputEntry id="OutputEntry_B1_4"><text>"DOC"</text></outputEntry>
+        <outputEntry id="OutputEntry_B1_5"><text>"CRITICO"</text></outputEntry>
+      </rule>
+
+      <!-- REGRA B2: Bloqueio - Ausencia de evolucao diaria -->
+      <rule id="Rule_Bloqueio_2">
+        <description>Permanencia em UTI sem evolucao diaria registrada</description>
+        <inputEntry id="InputEntry_B2_1"><text>true</text></inputEntry>
+        <inputEntry id="InputEntry_B2_2"><text>false</text></inputEntry>
+        <inputEntry id="InputEntry_B2_3"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_B2_1"><text>"Bloquear"</text></outputEntry>
+        <outputEntry id="OutputEntry_B2_2"><text>"Ausencia de evolucao clinica diaria. Impossivel justificar permanencia em UTI."</text></outputEntry>
+        <outputEntry id="OutputEntry_B2_3"><text>"Bloquear faturamento. Solicitar evolucoes diarias do intensivista antes de prosseguir."</text></outputEntry>
+        <outputEntry id="OutputEntry_B2_4"><text>"DOC"</text></outputEntry>
+        <outputEntry id="OutputEntry_B2_5"><text>"ALTO"</text></outputEntry>
+      </rule>
+
+      <!-- REGRA A1: Alerta - Permanencia prolongada em UTI -->
+      <rule id="Rule_Alerta_1">
+        <description>Permanencia em UTI superior a 10 dias - Revisar justificativa</description>
+        <inputEntry id="InputEntry_A1_1"><text>true</text></inputEntry>
+        <inputEntry id="InputEntry_A1_2"><text>true</text></inputEntry>
+        <inputEntry id="InputEntry_A1_3"><text>&gt; 10</text></inputEntry>
+        <outputEntry id="OutputEntry_A1_1"><text>"Alertar"</text></outputEntry>
+        <outputEntry id="OutputEntry_A1_2"><text>"Permanencia prolongada em UTI (&gt;10 dias). Operadora pode questionar necessidade."</text></outputEntry>
+        <outputEntry id="OutputEntry_A1_3"><text>"Revisar evolucoes clinicas. Anexar pareceres e escores de gravidade para justificar permanencia."</text></outputEntry>
+        <outputEntry id="OutputEntry_A1_4"><text>"DOC"</text></outputEntry>
+        <outputEntry id="OutputEntry_A1_5"><text>"MEDIO"</text></outputEntry>
+      </rule>
+
+      <!-- REGRA P1: Aprovado - Diarias UTI justificadas -->
+      <rule id="Rule_Aprovado_1">
+        <description>Diarias de UTI com criterios de admissao e evolucao diaria documentados</description>
+        <inputEntry id="InputEntry_P1_1"><text>true</text></inputEntry>
+        <inputEntry id="InputEntry_P1_2"><text>true</text></inputEntry>
+        <inputEntry id="InputEntry_P1_3"><text>[1..10]</text></inputEntry>
+        <outputEntry id="OutputEntry_P1_1"><text>"Prosseguir"</text></outputEntry>
+        <outputEntry id="OutputEntry_P1_2"><text>"Diarias de UTI justificadas clinicamente. Documentacao adequada para auditoria."</text></outputEntry>
+        <outputEntry id="OutputEntry_P1_3"><text>"Prosseguir com faturamento de diarias de UTI. Anexar criterios de admissao e evolucoes."</text></outputEntry>
+        <outputEntry id="OutputEntry_P1_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_P1_5"><text>"BAIXO"</text></outputEntry>
+      </rule>
+
+      <!-- REGRA F: Fallback - Requer revisao manual -->
+      <rule id="Rule_Fallback_BILL_DIARIA_002">
+        <description>Regra padrao - Requer avaliacao manual</description>
+        <inputEntry id="InputEntry_F_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_F_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_F_3"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_F_1"><text>"Revisar"</text></outputEntry>
+        <outputEntry id="OutputEntry_F_2"><text>"Situacao requer analise manual por nao corresponder a nenhum criterio automatico."</text></outputEntry>
+        <outputEntry id="OutputEntry_F_3"><text>"Encaminhar para auditoria administrativa para avaliacao caso a caso."</text></outputEntry>
+        <outputEntry id="OutputEntry_F_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_F_5"><text>"MEDIO"</text></outputEntry>
+      </rule>
+
+    </decisionTable>
+  </decision>
+
+  <dmndi:DMNDI>
+    <dmndi:DMNDiagram id="DMNDiagram_BILL_DIARIA_002">
+      <dmndi:DMNShape id="DMNShape_Decision_BILL_DIARIA_002" dmnElementRef="Decision_BILL_DIARIA_002">
+        <dc:Bounds height="80" width="180" x="160" y="100"/>
+      </dmndi:DMNShape>
+    </dmndi:DMNDiagram>
+  </dmndi:DMNDI>
+
+</definitions>

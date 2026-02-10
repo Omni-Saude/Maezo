@@ -1,0 +1,230 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+                  xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+                  xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+                  xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
+                  xmlns:zeebe="http://camunda.org/schema/zeebe/1.0"
+                  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                  id="Definitions_RC010"
+                  targetNamespace="http://cib7.healthcare/revenue-cycle">
+
+  <bpmn:process id="SP_RC_010_Maximization" name="Maximização de Receita" isExecutable="true">
+
+    <bpmn:startEvent id="start_maximization" name="Início Maximização">
+      <bpmn:outgoing>flow_to_predict_collection</bpmn:outgoing>
+    </bpmn:startEvent>
+
+    <!-- Predict Collection Date -->
+    <bpmn:serviceTask id="task_predict_collection_date" name="Prever Data de Cobrança">
+      <bpmn:extensionElements>
+        <zeebe:taskDefinition type="predict-collection-date"/>
+        <zeebe:ioMapping>
+          <zeebe:input source="=accountIds" target="accounts"/>
+          <zeebe:input source="=historicalData" target="history"/>
+          <zeebe:output source="=predictedDates" target="collectionDatePredictions"/>
+          <zeebe:output source="=confidenceScores" target="predictionConfidence"/>
+        </zeebe:ioMapping>
+      </bpmn:extensionElements>
+      <bpmn:incoming>flow_to_predict_collection</bpmn:incoming>
+      <bpmn:outgoing>flow_to_identify_slow_payers</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Identify Slow Payers -->
+    <bpmn:serviceTask id="task_identify_slow_payers" name="Identificar Pagadores Lentos">
+      <bpmn:extensionElements>
+        <zeebe:taskDefinition type="identify-slow-payers"/>
+        <zeebe:ioMapping>
+          <zeebe:input source="=collectionDatePredictions" target="predictions"/>
+          <zeebe:input source="=payerPerformanceData" target="payerHistory"/>
+          <zeebe:output source="=slowPayers" target="identifiedSlowPayers"/>
+          <zeebe:output source="=riskScores" target="payerRiskScores"/>
+        </zeebe:ioMapping>
+      </bpmn:extensionElements>
+      <bpmn:incoming>flow_to_identify_slow_payers</bpmn:incoming>
+      <bpmn:outgoing>flow_to_risk_gateway</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Risk Assessment Gateway -->
+    <bpmn:exclusiveGateway id="gateway_risk_assessment" name="Alto Risco?">
+      <bpmn:incoming>flow_to_risk_gateway</bpmn:incoming>
+      <bpmn:outgoing>flow_low_risk</bpmn:outgoing>
+      <bpmn:outgoing>flow_high_risk</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+
+    <!-- DMN: Revenue Optimization Strategy -->
+    <bpmn:businessRuleTask id="dmn_optimization_strategy" name="Estratégia de Otimização">
+      <bpmn:extensionElements>
+        <zeebe:calledDecision decisionId="revenue_optimization_strategy" resultVariable="optimizationPlan"/>
+      </bpmn:extensionElements>
+      <bpmn:incoming>flow_low_risk</bpmn:incoming>
+      <bpmn:outgoing>flow_to_update_forecasts</bpmn:outgoing>
+    </bpmn:businessRuleTask>
+
+    <!-- Update Revenue Forecasts -->
+    <bpmn:serviceTask id="task_update_forecasts" name="Atualizar Projeções">
+      <bpmn:extensionElements>
+        <zeebe:taskDefinition type="update-forecasts"/>
+        <zeebe:ioMapping>
+          <zeebe:input source="=collectionDatePredictions" target="predictions"/>
+          <zeebe:input source="=optimizationPlan" target="strategy"/>
+          <zeebe:output source="=updatedForecasts" target="revenueForecasts"/>
+          <zeebe:output source="=forecastAccuracy" target="accuracyMetrics"/>
+        </zeebe:ioMapping>
+      </bpmn:extensionElements>
+      <bpmn:incoming>flow_to_update_forecasts</bpmn:incoming>
+      <bpmn:outgoing>flow_to_analyze_opportunities</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Analyze Revenue Opportunities -->
+    <bpmn:serviceTask id="task_analyze_opportunities" name="Analisar Oportunidades">
+      <bpmn:extensionElements>
+        <zeebe:taskDefinition type="analyze-revenue-opportunities"/>
+        <zeebe:ioMapping>
+          <zeebe:input source="=revenueForecasts" target="forecasts"/>
+          <zeebe:input source="=identifiedSlowPayers" target="slowPayers"/>
+          <zeebe:output source="=opportunities" target="revenueOpportunities"/>
+          <zeebe:output source="=potentialValue" target="opportunityValue"/>
+        </zeebe:ioMapping>
+      </bpmn:extensionElements>
+      <bpmn:incoming>flow_to_analyze_opportunities</bpmn:incoming>
+      <bpmn:outgoing>flow_to_opportunity_gateway</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Opportunity Gateway -->
+    <bpmn:exclusiveGateway id="gateway_opportunities" name="Oportunidades Identificadas?">
+      <bpmn:incoming>flow_to_opportunity_gateway</bpmn:incoming>
+      <bpmn:outgoing>flow_has_opportunities</bpmn:outgoing>
+      <bpmn:outgoing>flow_no_opportunities</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+
+    <!-- Parallel Gateway for Optimization Actions -->
+    <bpmn:parallelGateway id="parallel_optimization_start" name="Executar Otimizações">
+      <bpmn:incoming>flow_has_opportunities</bpmn:incoming>
+      <bpmn:outgoing>flow_to_optimize_pricing</bpmn:outgoing>
+      <bpmn:outgoing>flow_to_optimize_contracts</bpmn:outgoing>
+    </bpmn:parallelGateway>
+
+    <!-- Optimize Pricing Strategy -->
+    <bpmn:serviceTask id="task_optimize_pricing" name="Otimizar Precificação">
+      <bpmn:extensionElements>
+        <zeebe:taskDefinition type="optimize-pricing-strategy"/>
+        <zeebe:ioMapping>
+          <zeebe:input source="=revenueOpportunities" target="opportunities"/>
+          <zeebe:output source="=pricingRecommendations" target="optimizedPricing"/>
+        </zeebe:ioMapping>
+      </bpmn:extensionElements>
+      <bpmn:incoming>flow_to_optimize_pricing</bpmn:incoming>
+      <bpmn:outgoing>flow_to_parallel_join</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Optimize Contract Terms -->
+    <bpmn:serviceTask id="task_optimize_contracts" name="Otimizar Contratos">
+      <bpmn:extensionElements>
+        <zeebe:taskDefinition type="optimize-contract-terms"/>
+        <zeebe:ioMapping>
+          <zeebe:input source="=identifiedSlowPayers" target="slowPayers"/>
+          <zeebe:input source="=revenueOpportunities" target="opportunities"/>
+          <zeebe:output source="=contractRecommendations" target="optimizedContracts"/>
+        </zeebe:ioMapping>
+      </bpmn:extensionElements>
+      <bpmn:incoming>flow_to_optimize_contracts</bpmn:incoming>
+      <bpmn:outgoing>flow_to_parallel_join</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Parallel Gateway Join -->
+    <bpmn:parallelGateway id="parallel_optimization_join" name="Combinar Otimizações">
+      <bpmn:incoming>flow_to_parallel_join</bpmn:incoming>
+      <bpmn:incoming>flow_to_parallel_join</bpmn:incoming>
+      <bpmn:outgoing>flow_to_generate_action_plan</bpmn:outgoing>
+    </bpmn:parallelGateway>
+
+    <!-- Generate Action Plan -->
+    <bpmn:serviceTask id="task_generate_action_plan" name="Gerar Plano de Ação">
+      <bpmn:extensionElements>
+        <zeebe:taskDefinition type="generate-maximization-action-plan"/>
+        <zeebe:ioMapping>
+          <zeebe:input source="=optimizedPricing" target="pricingPlan"/>
+          <zeebe:input source="=optimizedContracts" target="contractPlan"/>
+          <zeebe:input source="=opportunityValue" target="expectedValue"/>
+          <zeebe:output source="=actionPlan" target="implementationPlan"/>
+          <zeebe:output source="=estimatedImpact" target="projectedImpact"/>
+        </zeebe:ioMapping>
+      </bpmn:extensionElements>
+      <bpmn:incoming>flow_to_generate_action_plan</bpmn:incoming>
+      <bpmn:outgoing>flow_to_end_success</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Negotiate Payment Plan -->
+    <bpmn:serviceTask id="task_negotiate_payment_plan" name="Negociar Plano de Pagamento">
+      <bpmn:extensionElements>
+        <zeebe:taskDefinition type="negotiate-payment-plan"/>
+        <zeebe:ioMapping>
+          <zeebe:input source="=identifiedSlowPayers" target="slowPayers"/>
+          <zeebe:input source="=payerRiskScores" target="riskScores"/>
+          <zeebe:output source="=negotiationOutcomes" target="paymentPlans"/>
+        </zeebe:ioMapping>
+      </bpmn:extensionElements>
+      <bpmn:incoming>flow_high_risk</bpmn:incoming>
+      <bpmn:outgoing>flow_to_end_negotiated</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Timer boundary for forecast update cycle (weekly) -->
+    <bpmn:boundaryEvent id="timer_forecast_cycle" name="Atualização Semanal" attachedToRef="task_update_forecasts">
+      <bpmn:timerEventDefinition>
+        <bpmn:timeCycle xsi:type="bpmn:tFormalExpression">R/P7D</bpmn:timeCycle>
+      </bpmn:timerEventDefinition>
+    </bpmn:boundaryEvent>
+
+    <!-- Review Opportunities -->
+    <bpmn:userTask id="task_review_opportunities" name="Revisar Oportunidades">
+      <bpmn:incoming>flow_no_opportunities</bpmn:incoming>
+      <bpmn:outgoing>flow_to_end_review</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <!-- End Events -->
+    <bpmn:endEvent id="end_success" name="Plano de Maximização Gerado">
+      <bpmn:incoming>flow_to_end_success</bpmn:incoming>
+      <bpmn:messageEventDefinition messageRef="Message_MaximizationComplete"/>
+    </bpmn:endEvent>
+
+    <bpmn:endEvent id="end_negotiated" name="Planos Negociados">
+      <bpmn:incoming>flow_to_end_negotiated</bpmn:incoming>
+    </bpmn:endEvent>
+
+    <bpmn:endEvent id="end_review" name="Revisão Manual">
+      <bpmn:incoming>flow_to_end_review</bpmn:incoming>
+    </bpmn:endEvent>
+
+    <!-- Sequence Flows -->
+    <bpmn:sequenceFlow id="flow_to_predict_collection" sourceRef="start_maximization" targetRef="task_predict_collection_date"/>
+    <bpmn:sequenceFlow id="flow_to_identify_slow_payers" sourceRef="task_predict_collection_date" targetRef="task_identify_slow_payers"/>
+    <bpmn:sequenceFlow id="flow_to_risk_gateway" sourceRef="task_identify_slow_payers" targetRef="gateway_risk_assessment"/>
+    <bpmn:sequenceFlow id="flow_low_risk" name="Não" sourceRef="gateway_risk_assessment" targetRef="dmn_optimization_strategy">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">=avg(payerRiskScores) &lt; 0.7</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="flow_high_risk" name="Sim" sourceRef="gateway_risk_assessment" targetRef="task_negotiate_payment_plan">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">=avg(payerRiskScores) &gt;= 0.7</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="flow_to_update_forecasts" sourceRef="dmn_optimization_strategy" targetRef="task_update_forecasts"/>
+    <bpmn:sequenceFlow id="flow_to_analyze_opportunities" sourceRef="task_update_forecasts" targetRef="task_analyze_opportunities"/>
+    <bpmn:sequenceFlow id="flow_to_opportunity_gateway" sourceRef="task_analyze_opportunities" targetRef="gateway_opportunities"/>
+    <bpmn:sequenceFlow id="flow_has_opportunities" name="Sim" sourceRef="gateway_opportunities" targetRef="parallel_optimization_start">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">=size(revenueOpportunities) > 0</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="flow_no_opportunities" name="Não" sourceRef="gateway_opportunities" targetRef="task_review_opportunities">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">=size(revenueOpportunities) = 0</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="flow_to_optimize_pricing" sourceRef="parallel_optimization_start" targetRef="task_optimize_pricing"/>
+    <bpmn:sequenceFlow id="flow_to_optimize_contracts" sourceRef="parallel_optimization_start" targetRef="task_optimize_contracts"/>
+    <bpmn:sequenceFlow id="flow_to_parallel_join" sourceRef="task_optimize_pricing" targetRef="parallel_optimization_join"/>
+    <bpmn:sequenceFlow id="flow_to_parallel_join" sourceRef="task_optimize_contracts" targetRef="parallel_optimization_join"/>
+    <bpmn:sequenceFlow id="flow_to_generate_action_plan" sourceRef="parallel_optimization_join" targetRef="task_generate_action_plan"/>
+    <bpmn:sequenceFlow id="flow_to_end_success" sourceRef="task_generate_action_plan" targetRef="end_success"/>
+    <bpmn:sequenceFlow id="flow_to_end_negotiated" sourceRef="task_negotiate_payment_plan" targetRef="end_negotiated"/>
+    <bpmn:sequenceFlow id="flow_to_end_review" sourceRef="task_review_opportunities" targetRef="end_review"/>
+
+  </bpmn:process>
+
+  <bpmn:message id="Message_MaximizationComplete" name="MaximizationCompleteMessage"/>
+
+</bpmn:definitions>

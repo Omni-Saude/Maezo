@@ -1,0 +1,193 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  ============================================================================
+  DENY-PAYER-001 - Padrao Glosa Unimed
+  ============================================================================
+  Versao: 1.0.0 (2026-02-06)
+  Categoria: DENY-PAYER (Padrao Especifico de Operadora)
+
+  OBJETIVO:
+  Identificar padroes de glosa recorrentes da Unimed para prevencao proativa
+  de negativas. Analisa historico de glosas por tipo de servico.
+
+  REFERENCIAS:
+  - RN 412/2016 ANS - Rol de Procedimentos
+  - TISS 4.01.00 - Padrao de Comunicacao
+  - Contratos Unimed (variantes regionais)
+  - Manual de Intercambio Unimed
+  ============================================================================
+-->
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/"
+             xmlns:dc="http://www.omg.org/spec/DMN/20180521/DC/" id="Definitions_DENY_PAYER_001" name="Padrao Glosa Unimed" targetNamespace="http://camunda.org/schema/1.0/dmn">
+
+  <decision id="Decision_DENY_PAYER_001" name="Detectar Padrao Glosa Unimed">
+    <decisionTable id="DecisionTable_DENY_PAYER_001" hitPolicy="FIRST">
+
+      <input id="Input_1" label="Codigo Operadora">
+        <inputExpression id="InputExpression_1" typeRef="string">
+          <text>operadoraCodigo</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_2" label="Historico Glosa Recorrente">
+        <inputExpression id="InputExpression_2" typeRef="boolean">
+          <text>historicoGlosaRecorrente</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_3" label="Tipo Servico">
+        <inputExpression id="InputExpression_3" typeRef="string">
+          <text>tipoServico</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_4" label="Quantidade Glosas Anteriores">
+        <inputExpression id="InputExpression_4" typeRef="integer">
+          <text>quantidadeGlosasAnteriores</text>
+        </inputExpression>
+      </input>
+
+      <!-- OUTPUTS - Hospital Perspective -->
+      <!-- ========== OUTPUTS (5 STANDARD) ========== -->
+      <output id="Output_1" label="Resultado" name="resultado" typeRef="string">
+        <outputValues><text>"Prosseguir", "Bloquear", "Alertar", "Revisar"</text></outputValues>
+      </output>
+
+      <output id="Output_2" label="Observacao" name="observacao" typeRef="string"/>
+
+      <output id="Output_3" label="Acao Recomendada" name="acaoRecomendada" typeRef="string"/>
+
+      <output id="Output_4" label="Alertas Conformidade" name="alertasConformidade" typeRef="string">
+        <outputValues><text>"NENHUM", "DUP", "FREQ", "PRAZO", "DOC", "VALOR", "CRED", "CONTRATO"</text></outputValues>
+      </output>
+
+      <output id="Output_5" label="Risco Denial" name="riscoDenial" typeRef="string">
+        <outputValues><text>"BAIXO", "MEDIO", "ALTO", "CRITICO"</text></outputValues>
+      </output>
+
+      <!-- ========== RULES ========== -->
+
+      <rule id="Rule_Block_1">
+        <description>Unimed com historico de glosa em exames de alto custo - alta probabilidade de negativa</description>
+        <inputEntry id="InputEntry_B1_1"><text>"UNIMED", "352", "326"</text></inputEntry>
+        <inputEntry id="InputEntry_B1_2"><text>true</text></inputEntry>
+        <inputEntry id="InputEntry_B1_3"><text>"Exame Alto Custo", "Ressonancia", "Tomografia", "PET-CT"</text></inputEntry>
+        <inputEntry id="InputEntry_B1_4"><text>&gt;= 3</text></inputEntry>
+<outputEntry id="OutputEntry_B1_1"><text>"Bloquear"</text></outputEntry>
+<outputEntry id="OutputEntry_B1_2"><text>"GLOSA CERTA: Unimed glosa recorrente em exames alto custo. Historico de 3+ glosas no tipo. Obter justificativa clinica detalhada antes de faturar."</text></outputEntry>
+        <outputEntry id=""><text></text></outputEntry>
+        <outputEntry id=""><text>"NENHUM"</text></outputEntry>
+<outputEntry id="OutputEntry_B1_3"><text>"CRITICO"</text></outputEntry>
+      </rule>
+
+      <!-- REGRA 2: BLOQUEIO - Cirurgias eletivas com historico negativo -->
+      <rule id="Rule_Block_2">
+        <description>Unimed glosa cirurgias eletivas sem protocolo especifico</description>
+        <inputEntry id="InputEntry_B2_1"><text>"UNIMED", "352", "326"</text></inputEntry>
+        <inputEntry id="InputEntry_B2_2"><text>true</text></inputEntry>
+        <inputEntry id="InputEntry_B2_3"><text>"Cirurgia Eletiva", "Procedimento Cirurgico"</text></inputEntry>
+        <inputEntry id="InputEntry_B2_4"><text>&gt;= 2</text></inputEntry>
+<outputEntry id="OutputEntry_B2_1"><text>"Bloquear"</text></outputEntry>
+<outputEntry id="OutputEntry_B2_2"><text>"GLOSA CERTA: Unimed exige autorizacao previa para cirurgias eletivas. Verificar se autorizacao esta vigente e procedimento autorizado corresponde ao realizado."</text></outputEntry>
+        <outputEntry id=""><text></text></outputEntry>
+        <outputEntry id=""><text>"NENHUM"</text></outputEntry>
+<outputEntry id="OutputEntry_B2_3"><text>"CRITICO"</text></outputEntry>
+      </rule>
+
+      <!-- REGRA 3: ALERTA - Primeira ocorrencia de glosa -->
+      <rule id="Rule_Alert_1">
+        <description>Primeira ocorrencia de servico com potencial de glosa Unimed</description>
+        <inputEntry id="InputEntry_A1_1"><text>"UNIMED", "352", "326"</text></inputEntry>
+        <inputEntry id="InputEntry_A1_2"><text>false</text></inputEntry>
+        <inputEntry id="InputEntry_A1_3"><text>"Exame Alto Custo", "Ressonancia", "Tomografia", "PET-CT", "Cirurgia Eletiva"</text></inputEntry>
+        <inputEntry id="InputEntry_A1_4"><text>-</text></inputEntry>
+<outputEntry id="OutputEntry_A1_1"><text>"Alertar"</text></outputEntry>
+<outputEntry id="OutputEntry_A1_2"><text>"ATENCAO: Primeiro faturamento deste tipo para Unimed. Categoria historicamente sensivel a glosas. Documentar adequadamente."</text></outputEntry>
+        <outputEntry id=""><text></text></outputEntry>
+        <outputEntry id=""><text>"NENHUM"</text></outputEntry>
+<outputEntry id="OutputEntry_A1_3"><text>"ALTO"</text></outputEntry>
+      </rule>
+
+      <!-- REGRA 4: ALERTA - Terapias com historico de restricao -->
+      <rule id="Rule_Alert_2">
+        <description>Unimed com restricoes conhecidas em terapias</description>
+        <inputEntry id="InputEntry_A2_1"><text>"UNIMED", "352", "326"</text></inputEntry>
+        <inputEntry id="InputEntry_A2_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_A2_3"><text>"Fisioterapia", "Terapia Ocupacional", "Fonoaudiologia"</text></inputEntry>
+        <inputEntry id="InputEntry_A2_4"><text>&gt;= 1</text></inputEntry>
+<outputEntry id="OutputEntry_A2_1"><text>"Alertar"</text></outputEntry>
+<outputEntry id="OutputEntry_A2_2"><text>"RISCO: Unimed limita sessoes de terapia por condicao. Verificar limite contratual e quantidade ja utilizada pelo beneficiario."</text></outputEntry>
+        <outputEntry id=""><text></text></outputEntry>
+        <outputEntry id=""><text>"NENHUM"</text></outputEntry>
+<outputEntry id="OutputEntry_A2_3"><text>"MEDIO"</text></outputEntry>
+      </rule>
+
+      <!-- REGRA 5: PROSSEGUIR - Consultas padrao -->
+      <rule id="Rule_Proceed_1">
+        <description>Consultas padrao Unimed sem historico de problemas</description>
+        <inputEntry id="InputEntry_P1_1"><text>"UNIMED", "352", "326"</text></inputEntry>
+        <inputEntry id="InputEntry_P1_2"><text>false</text></inputEntry>
+        <inputEntry id="InputEntry_P1_3"><text>"Consulta", "Retorno"</text></inputEntry>
+        <inputEntry id="InputEntry_P1_4"><text>0</text></inputEntry>
+<outputEntry id="OutputEntry_P1_1"><text>"Prosseguir"</text></outputEntry>
+<outputEntry id="OutputEntry_P1_2"><text>"Consulta padrao Unimed. Sem historico de glosa neste tipo. Faturar normalmente."</text></outputEntry>
+        <outputEntry id=""><text></text></outputEntry>
+        <outputEntry id=""><text>"NENHUM"</text></outputEntry>
+<outputEntry id="OutputEntry_P1_3"><text>"BAIXO"</text></outputEntry>
+      </rule>
+
+      <!-- REGRA 6: PROSSEGUIR - Exames simples -->
+      <rule id="Rule_Proceed_2">
+        <description>Exames laboratoriais simples sem restricao</description>
+        <inputEntry id="InputEntry_P2_1"><text>"UNIMED", "352", "326"</text></inputEntry>
+        <inputEntry id="InputEntry_P2_2"><text>false</text></inputEntry>
+        <inputEntry id="InputEntry_P2_3"><text>"Exame Laboratorial", "Hemograma", "Bioquimica"</text></inputEntry>
+        <inputEntry id="InputEntry_P2_4"><text>0</text></inputEntry>
+<outputEntry id="OutputEntry_P2_1"><text>"Prosseguir"</text></outputEntry>
+<outputEntry id="OutputEntry_P2_2"><text>"Exames laboratoriais simples Unimed. Baixo risco de glosa."</text></outputEntry>
+        <outputEntry id=""><text></text></outputEntry>
+        <outputEntry id=""><text>"NENHUM"</text></outputEntry>
+<outputEntry id="OutputEntry_P2_3"><text>"BAIXO"</text></outputEntry>
+      </rule>
+
+      <!-- REGRA 7: REVISAR - Outras operadoras (nao Unimed) -->
+      <rule id="Rule_Review_1">
+        <description>Regra nao aplicavel - operadora nao e Unimed</description>
+        <inputEntry id="InputEntry_R1_1"><text>not("UNIMED", "352", "326")</text></inputEntry>
+        <inputEntry id="InputEntry_R1_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_R1_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_R1_4"><text>-</text></inputEntry>
+<outputEntry id="OutputEntry_R1_1"><text>"Prosseguir"</text></outputEntry>
+<outputEntry id="OutputEntry_R1_2"><text>"Operadora nao e Unimed. Esta regra nao se aplica."</text></outputEntry>
+        <outputEntry id=""><text></text></outputEntry>
+        <outputEntry id=""><text>"NENHUM"</text></outputEntry>
+<outputEntry id="OutputEntry_R1_3"><text>"BAIXO"</text></outputEntry>
+      </rule>
+
+      <!-- REGRA FALLBACK -->
+      <rule id="Rule_Fallback_DENY_PAYER_001">
+        <description>Caso padrao Unimed - verificar historico especifico</description>
+        <inputEntry id="InputEntry_F_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_F_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_F_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_F_4"><text>-</text></inputEntry>
+<outputEntry id="OutputEntry_F_1"><text>"Revisar"</text></outputEntry>
+<outputEntry id="OutputEntry_F_2"><text>"Verificar historico de glosas Unimed para este tipo de servico."</text></outputEntry>
+        <outputEntry id=""><text></text></outputEntry>
+        <outputEntry id=""><text>"NENHUM"</text></outputEntry>
+<outputEntry id="OutputEntry_F_3"><text>"MEDIO"</text></outputEntry>
+      </rule>
+
+    </decisionTable>
+  </decision>
+
+  <dmndi:DMNDI>
+    <dmndi:DMNDiagram id="DMNDiagram_DENY_PAYER_001">
+      <dmndi:DMNShape id="DMNShape_Decision_DENY_PAYER_001" dmnElementRef="Decision_DENY_PAYER_001">
+        <dc:Bounds height="80" width="180" x="160" y="100"/>
+      </dmndi:DMNShape>
+    </dmndi:DMNDiagram>
+  </dmndi:DMNDI>
+
+</definitions>

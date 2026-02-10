@@ -1,0 +1,264 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+                  xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+                  xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+                  xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
+                  xmlns:zeebe="http://camunda.org/schema/zeebe/1.0"
+                  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                  id="Definitions_RC006"
+                  targetNamespace="http://cib7.healthcare/revenue-cycle">
+
+  <bpmn:process id="SP_RC_006_Billing_Submission" name="Faturamento e Envio TISS" isExecutable="true">
+
+    <bpmn:startEvent id="start_billing" name="Início Faturamento">
+      <bpmn:outgoing>flow_to_validate_claim</bpmn:outgoing>
+    </bpmn:startEvent>
+
+    <!-- Validate Claim Data -->
+    <bpmn:serviceTask id="task_validate_claim" name="Validar Dados da Conta">
+      <bpmn:extensionElements>
+        <zeebe:taskDefinition type="billing-validate-claim"/>
+        <zeebe:ioMapping>
+          <zeebe:input source="=encounterId" target="encounter"/>
+          <zeebe:input source="=patientId" target="patient"/>
+          <zeebe:input source="=procedures" target="procedureList"/>
+          <zeebe:output source="=validationResult" target="claimValidated"/>
+          <zeebe:output source="=validationErrors" target="errors"/>
+        </zeebe:ioMapping>
+      </bpmn:extensionElements>
+      <bpmn:incoming>flow_to_validate_claim</bpmn:incoming>
+      <bpmn:outgoing>flow_to_validation_gateway</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Validation Gateway -->
+    <bpmn:exclusiveGateway id="gateway_validation" name="Validação OK?">
+      <bpmn:incoming>flow_to_validation_gateway</bpmn:incoming>
+      <bpmn:outgoing>flow_valid</bpmn:outgoing>
+      <bpmn:outgoing>flow_invalid</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+
+    <!-- DMN: Quantity Validation -->
+    <bpmn:businessRuleTask id="dmn_quantity_validation" name="Validar Quantidades">
+      <bpmn:extensionElements>
+        <zeebe:calledDecision decisionId="billing_quantity_validation" resultVariable="quantityCheck"/>
+      </bpmn:extensionElements>
+      <bpmn:incoming>flow_valid</bpmn:incoming>
+      <bpmn:outgoing>flow_to_calculate_charges</bpmn:outgoing>
+    </bpmn:businessRuleTask>
+
+    <!-- Calculate Charges -->
+    <bpmn:serviceTask id="task_calculate_charges" name="Calcular Valores">
+      <bpmn:extensionElements>
+        <zeebe:taskDefinition type="billing-calculate-charges"/>
+        <zeebe:ioMapping>
+          <zeebe:input source="=procedureList" target="procedures"/>
+          <zeebe:input source="=quantityCheck" target="validatedQuantities"/>
+          <zeebe:output source="=totalCharges" target="billingTotal"/>
+          <zeebe:output source="=chargeBreakdown" target="breakdown"/>
+        </zeebe:ioMapping>
+      </bpmn:extensionElements>
+      <bpmn:incoming>flow_to_calculate_charges</bpmn:incoming>
+      <bpmn:outgoing>flow_to_dmn_modifier</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- DMN: Modifier Rules -->
+    <bpmn:businessRuleTask id="dmn_modifier_rules" name="Aplicar Modificadores">
+      <bpmn:extensionElements>
+        <zeebe:calledDecision decisionId="billing_modifier_rules" resultVariable="modifiers"/>
+      </bpmn:extensionElements>
+      <bpmn:incoming>flow_to_dmn_modifier</bpmn:incoming>
+      <bpmn:outgoing>flow_to_dmn_bundle</bpmn:outgoing>
+    </bpmn:businessRuleTask>
+
+    <!-- DMN: Bundle Rules -->
+    <bpmn:businessRuleTask id="dmn_bundle_rules" name="Regras de Pacotes">
+      <bpmn:extensionElements>
+        <zeebe:calledDecision decisionId="billing_bundle_rules" resultVariable="bundleRules"/>
+      </bpmn:extensionElements>
+      <bpmn:incoming>flow_to_dmn_bundle</bpmn:incoming>
+      <bpmn:outgoing>flow_to_apply_contract</bpmn:outgoing>
+    </bpmn:businessRuleTask>
+
+    <!-- Apply Contract Rules -->
+    <bpmn:serviceTask id="task_apply_contract_rules" name="Aplicar Regras de Contrato">
+      <bpmn:extensionElements>
+        <zeebe:taskDefinition type="billing-apply-contract-rules"/>
+        <zeebe:ioMapping>
+          <zeebe:input source="=billingTotal" target="charges"/>
+          <zeebe:input source="=payerId" target="payer"/>
+          <zeebe:input source="=contractId" target="contract"/>
+          <zeebe:input source="=modifiers" target="modifierRules"/>
+          <zeebe:input source="=bundleRules" target="bundlingRules"/>
+          <zeebe:output source="=adjustedCharges" target="finalCharges"/>
+        </zeebe:ioMapping>
+      </bpmn:extensionElements>
+      <bpmn:incoming>flow_to_apply_contract</bpmn:incoming>
+      <bpmn:outgoing>flow_to_dmn_taxa</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- DMN: Tax Calculation -->
+    <bpmn:businessRuleTask id="dmn_tax_calculation" name="Calcular Taxas">
+      <bpmn:extensionElements>
+        <zeebe:calledDecision decisionId="billing_tax_calculation" resultVariable="taxes"/>
+      </bpmn:extensionElements>
+      <bpmn:incoming>flow_to_dmn_taxa</bpmn:incoming>
+      <bpmn:outgoing>flow_to_dmn_opme</bpmn:outgoing>
+    </bpmn:businessRuleTask>
+
+    <!-- DMN: OPME Rules -->
+    <bpmn:businessRuleTask id="dmn_opme_rules" name="Regras OPME">
+      <bpmn:extensionElements>
+        <zeebe:calledDecision decisionId="billing_opme_rules" resultVariable="opmeRules"/>
+      </bpmn:extensionElements>
+      <bpmn:incoming>flow_to_dmn_opme</bpmn:incoming>
+      <bpmn:outgoing>flow_to_generate_tiss</bpmn:outgoing>
+    </bpmn:businessRuleTask>
+
+    <!-- Generate TISS XML -->
+    <bpmn:serviceTask id="task_generate_tiss_xml" name="Gerar XML TISS">
+      <bpmn:extensionElements>
+        <zeebe:taskDefinition type="billing-generate-tiss-xml"/>
+        <zeebe:ioMapping>
+          <zeebe:input source="=finalCharges" target="charges"/>
+          <zeebe:input source="=taxes" target="taxDetails"/>
+          <zeebe:input source="=opmeRules" target="opme"/>
+          <zeebe:input source="=encounterId" target="encounter"/>
+          <zeebe:output source="=tissXml" target="generatedXml"/>
+        </zeebe:ioMapping>
+      </bpmn:extensionElements>
+      <bpmn:incoming>flow_to_generate_tiss</bpmn:incoming>
+      <bpmn:outgoing>flow_to_validate_schema</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Validate TISS Schema -->
+    <bpmn:serviceTask id="task_validate_tiss_schema" name="Validar Schema TISS">
+      <bpmn:extensionElements>
+        <zeebe:taskDefinition type="billing-validate-tiss-schema"/>
+        <zeebe:ioMapping>
+          <zeebe:input source="=generatedXml" target="tissXml"/>
+          <zeebe:output source="=schemaValid" target="isSchemaValid"/>
+          <zeebe:output source="=schemaErrors" target="schemaValidationErrors"/>
+        </zeebe:ioMapping>
+      </bpmn:extensionElements>
+      <bpmn:incoming>flow_to_validate_schema</bpmn:incoming>
+      <bpmn:outgoing>flow_to_schema_gateway</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Error boundary for TISS generation failure -->
+    <bpmn:boundaryEvent id="error_tiss_generation" name="Erro TISS" attachedToRef="task_generate_tiss_xml">
+      <bpmn:errorEventDefinition errorRef="Error_TissGenerationFailed"/>
+      <bpmn:outgoing>flow_to_manual_tiss</bpmn:outgoing>
+    </bpmn:boundaryEvent>
+
+    <!-- Schema Validation Gateway -->
+    <bpmn:exclusiveGateway id="gateway_schema" name="Schema Válido?">
+      <bpmn:incoming>flow_to_schema_gateway</bpmn:incoming>
+      <bpmn:outgoing>flow_schema_valid</bpmn:outgoing>
+      <bpmn:outgoing>flow_schema_invalid</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+
+    <!-- Submit to Payer -->
+    <bpmn:serviceTask id="task_submit_to_payer" name="Enviar para Operadora">
+      <bpmn:extensionElements>
+        <zeebe:taskDefinition type="billing-submit-to-payer"/>
+        <zeebe:ioMapping>
+          <zeebe:input source="=generatedXml" target="tissXml"/>
+          <zeebe:input source="=payerId" target="payer"/>
+          <zeebe:output source="=submissionId" target="batchId"/>
+          <zeebe:output source="=submissionStatus" target="status"/>
+        </zeebe:ioMapping>
+      </bpmn:extensionElements>
+      <bpmn:incoming>flow_schema_valid</bpmn:incoming>
+      <bpmn:outgoing>flow_to_end_success</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Timer boundary for submission SLA (24h) -->
+    <bpmn:boundaryEvent id="timer_submission_sla" name="SLA 24h" attachedToRef="task_submit_to_payer">
+      <bpmn:timerEventDefinition>
+        <bpmn:timeDuration xsi:type="bpmn:tFormalExpression">PT24H</bpmn:timeDuration>
+      </bpmn:timerEventDefinition>
+      <bpmn:outgoing>flow_to_escalate_submission</bpmn:outgoing>
+    </bpmn:boundaryEvent>
+
+    <!-- Correct Validation Errors -->
+    <bpmn:userTask id="task_correct_errors" name="Corrigir Erros de Validação">
+      <bpmn:incoming>flow_invalid</bpmn:incoming>
+      <bpmn:outgoing>flow_to_end_corrections</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <!-- Fix Schema Errors -->
+    <bpmn:userTask id="task_fix_schema" name="Corrigir Erros de Schema">
+      <bpmn:incoming>flow_schema_invalid</bpmn:incoming>
+      <bpmn:outgoing>flow_to_end_schema_fix</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <!-- Manual TISS Generation -->
+    <bpmn:userTask id="task_manual_tiss" name="Geração Manual TISS">
+      <bpmn:incoming>flow_to_manual_tiss</bpmn:incoming>
+      <bpmn:outgoing>flow_to_end_manual</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <!-- Escalate Submission -->
+    <bpmn:userTask id="task_escalate_submission" name="Escalar Envio">
+      <bpmn:incoming>flow_to_escalate_submission</bpmn:incoming>
+      <bpmn:outgoing>flow_to_end_escalated</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <!-- End Events -->
+    <bpmn:endEvent id="end_success" name="Enviado com Sucesso">
+      <bpmn:incoming>flow_to_end_success</bpmn:incoming>
+    </bpmn:endEvent>
+
+    <bpmn:endEvent id="end_corrections" name="Correções Necessárias">
+      <bpmn:incoming>flow_to_end_corrections</bpmn:incoming>
+    </bpmn:endEvent>
+
+    <bpmn:endEvent id="end_schema_fix" name="Correção de Schema">
+      <bpmn:incoming>flow_to_end_schema_fix</bpmn:incoming>
+    </bpmn:endEvent>
+
+    <bpmn:endEvent id="end_manual" name="Geração Manual">
+      <bpmn:incoming>flow_to_end_manual</bpmn:incoming>
+    </bpmn:endEvent>
+
+    <bpmn:endEvent id="end_escalated" name="Escalado">
+      <bpmn:incoming>flow_to_end_escalated</bpmn:incoming>
+    </bpmn:endEvent>
+
+    <!-- Sequence Flows -->
+    <bpmn:sequenceFlow id="flow_to_validate_claim" sourceRef="start_billing" targetRef="task_validate_claim"/>
+    <bpmn:sequenceFlow id="flow_to_validation_gateway" sourceRef="task_validate_claim" targetRef="gateway_validation"/>
+    <bpmn:sequenceFlow id="flow_valid" name="Sim" sourceRef="gateway_validation" targetRef="dmn_quantity_validation">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">=claimValidated = true</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="flow_invalid" name="Não" sourceRef="gateway_validation" targetRef="task_correct_errors">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">=claimValidated = false</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="flow_to_calculate_charges" sourceRef="dmn_quantity_validation" targetRef="task_calculate_charges"/>
+    <bpmn:sequenceFlow id="flow_to_dmn_modifier" sourceRef="task_calculate_charges" targetRef="dmn_modifier_rules"/>
+    <bpmn:sequenceFlow id="flow_to_dmn_bundle" sourceRef="dmn_modifier_rules" targetRef="dmn_bundle_rules"/>
+    <bpmn:sequenceFlow id="flow_to_apply_contract" sourceRef="dmn_bundle_rules" targetRef="task_apply_contract_rules"/>
+    <bpmn:sequenceFlow id="flow_to_dmn_taxa" sourceRef="task_apply_contract_rules" targetRef="dmn_tax_calculation"/>
+    <bpmn:sequenceFlow id="flow_to_dmn_opme" sourceRef="dmn_tax_calculation" targetRef="dmn_opme_rules"/>
+    <bpmn:sequenceFlow id="flow_to_generate_tiss" sourceRef="dmn_opme_rules" targetRef="task_generate_tiss_xml"/>
+    <bpmn:sequenceFlow id="flow_to_validate_schema" sourceRef="task_generate_tiss_xml" targetRef="task_validate_tiss_schema"/>
+    <bpmn:sequenceFlow id="flow_to_schema_gateway" sourceRef="task_validate_tiss_schema" targetRef="gateway_schema"/>
+    <bpmn:sequenceFlow id="flow_schema_valid" name="Sim" sourceRef="gateway_schema" targetRef="task_submit_to_payer">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">=isSchemaValid = true</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="flow_schema_invalid" name="Não" sourceRef="gateway_schema" targetRef="task_fix_schema">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">=isSchemaValid = false</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="flow_to_manual_tiss" sourceRef="error_tiss_generation" targetRef="task_manual_tiss"/>
+    <bpmn:sequenceFlow id="flow_to_escalate_submission" sourceRef="timer_submission_sla" targetRef="task_escalate_submission"/>
+    <bpmn:sequenceFlow id="flow_to_end_success" sourceRef="task_submit_to_payer" targetRef="end_success"/>
+    <bpmn:sequenceFlow id="flow_to_end_corrections" sourceRef="task_correct_errors" targetRef="end_corrections"/>
+    <bpmn:sequenceFlow id="flow_to_end_schema_fix" sourceRef="task_fix_schema" targetRef="end_schema_fix"/>
+    <bpmn:sequenceFlow id="flow_to_end_manual" sourceRef="task_manual_tiss" targetRef="end_manual"/>
+    <bpmn:sequenceFlow id="flow_to_end_escalated" sourceRef="task_escalate_submission" targetRef="end_escalated"/>
+
+  </bpmn:process>
+
+  <bpmn:error id="Error_TissGenerationFailed" name="TissGenerationFailed" errorCode="ERR_TISS_001"/>
+
+</bpmn:definitions>

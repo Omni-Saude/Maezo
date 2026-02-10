@@ -1,0 +1,189 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+                  xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+                  xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+                  xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
+                  xmlns:zeebe="http://camunda.org/schema/zeebe/1.0"
+                  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                  id="Definitions_RC009"
+                  targetNamespace="http://cib7.healthcare/revenue-cycle">
+
+  <bpmn:process id="SP_RC_009_Analytics_Intelligence" name="Análise e Inteligência de Receita" isExecutable="true">
+
+    <bpmn:startEvent id="start_analytics" name="Início Análise">
+      <bpmn:outgoing>flow_to_calculate_dso</bpmn:outgoing>
+    </bpmn:startEvent>
+
+    <!-- Calculate Days Sales Outstanding (DSO) -->
+    <bpmn:serviceTask id="task_calculate_dso" name="Calcular DSO">
+      <bpmn:extensionElements>
+        <zeebe:taskDefinition type="calculate-dso"/>
+        <zeebe:ioMapping>
+          <zeebe:input source="=startDate" target="periodStart"/>
+          <zeebe:input source="=endDate" target="periodEnd"/>
+          <zeebe:output source="=dsoValue" target="currentDSO"/>
+          <zeebe:output source="=dsoTrend" target="dsoTrendData"/>
+        </zeebe:ioMapping>
+      </bpmn:extensionElements>
+      <bpmn:incoming>flow_to_calculate_dso</bpmn:incoming>
+      <bpmn:outgoing>flow_to_calculate_collection_rate</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Calculate Collection Rate -->
+    <bpmn:serviceTask id="task_calculate_collection_rate" name="Calcular Taxa de Cobrança">
+      <bpmn:extensionElements>
+        <zeebe:taskDefinition type="calculate-collection-rate"/>
+        <zeebe:ioMapping>
+          <zeebe:input source="=startDate" target="periodStart"/>
+          <zeebe:input source="=endDate" target="periodEnd"/>
+          <zeebe:output source="=collectionRate" target="currentCollectionRate"/>
+          <zeebe:output source="=rateByPayer" target="collectionByPayer"/>
+        </zeebe:ioMapping>
+      </bpmn:extensionElements>
+      <bpmn:incoming>flow_to_calculate_collection_rate</bpmn:incoming>
+      <bpmn:outgoing>flow_to_analyze_payer</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Analyze Payer Performance -->
+    <bpmn:serviceTask id="task_analyze_payer_performance" name="Analisar Desempenho de Operadoras">
+      <bpmn:extensionElements>
+        <zeebe:taskDefinition type="analyze-payer-performance"/>
+        <zeebe:ioMapping>
+          <zeebe:input source="=collectionByPayer" target="payerData"/>
+          <zeebe:input source="=startDate" target="periodStart"/>
+          <zeebe:input source="=endDate" target="periodEnd"/>
+          <zeebe:output source="=payerRankings" target="rankedPayers"/>
+          <zeebe:output source="=problemPayers" target="underperformingPayers"/>
+        </zeebe:ioMapping>
+      </bpmn:extensionElements>
+      <bpmn:incoming>flow_to_analyze_payer</bpmn:incoming>
+      <bpmn:outgoing>flow_to_detect_leakage</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Detect Revenue Leakage -->
+    <bpmn:serviceTask id="task_detect_revenue_leakage" name="Detectar Vazamento de Receita">
+      <bpmn:extensionElements>
+        <zeebe:taskDefinition type="detect-revenue-leakage"/>
+        <zeebe:ioMapping>
+          <zeebe:input source="=currentDSO" target="dso"/>
+          <zeebe:input source="=currentCollectionRate" target="collectionRate"/>
+          <zeebe:input source="=underperformingPayers" target="problemPayers"/>
+          <zeebe:output source="=leakagePoints" target="identifiedLeakage"/>
+          <zetml:output source="=leakageAmount" target="estimatedLoss"/>
+        </zeebe:ioMapping>
+      </bpmn:extensionElements>
+      <bpmn:incoming>flow_to_detect_leakage</bpmn:incoming>
+      <bpmn:outgoing>flow_to_leakage_gateway</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Leakage Gateway -->
+    <bpmn:exclusiveGateway id="gateway_leakage" name="Vazamento Detectado?">
+      <bpmn:incoming>flow_to_leakage_gateway</bpmn:incoming>
+      <bpmn:outgoing>flow_no_leakage</bpmn:outgoing>
+      <bpmn:outgoing>flow_has_leakage</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+
+    <!-- Parallel Gateway for Dashboard Generation -->
+    <bpmn:parallelGateway id="parallel_dashboard_start" name="Gerar Dashboards">
+      <bpmn:incoming>flow_no_leakage</bpmn:incoming>
+      <bpmn:incoming>flow_from_leakage_review</bpmn:incoming>
+      <bpmn:outgoing>flow_to_executive_dashboard</bpmn:outgoing>
+      <bpmn:outgoing>flow_to_operational_metrics</bpmn:outgoing>
+    </bpmn:parallelGateway>
+
+    <!-- Generate Executive Dashboard -->
+    <bpmn:serviceTask id="task_generate_executive_dashboard" name="Gerar Dashboard Executivo">
+      <bpmn:extensionElements>
+        <zeebe:taskDefinition type="generate-executive-dashboard"/>
+        <zeebe:ioMapping>
+          <zeebe:input source="=currentDSO" target="dso"/>
+          <zeebe:input source="=currentCollectionRate" target="collectionRate"/>
+          <zeebe:input source="=rankedPayers" target="payerPerformance"/>
+          <zeebe:input source="=identifiedLeakage" target="leakage"/>
+          <zeebe:output source="=executiveDashboard" target="dashboardData"/>
+        </zeebe:ioMapping>
+      </bpmn:extensionElements>
+      <bpmn:incoming>flow_to_executive_dashboard</bpmn:incoming>
+      <bpmn:outgoing>flow_to_parallel_join</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Generate Operational Metrics -->
+    <bpmn:serviceTask id="task_generate_operational_metrics" name="Gerar Métricas Operacionais">
+      <bpmn:extensionElements>
+        <zeebe:taskDefinition type="generate-operational-metrics"/>
+        <zeebe:ioMapping>
+          <zeebe:input source="=dsoTrendData" target="dsoTrend"/>
+          <zeebe:input source="=collectionByPayer" target="payerMetrics"/>
+          <zeebe:output source="=operationalMetrics" target="metricsData"/>
+        </zeebe:ioMapping>
+      </bpmn:extensionElements>
+      <bpmn:incoming>flow_to_operational_metrics</bpmn:incoming>
+      <bpmn:outgoing>flow_to_parallel_join</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Parallel Gateway Join -->
+    <bpmn:parallelGateway id="parallel_dashboard_join" name="Combinar Dashboards">
+      <bpmn:incoming>flow_to_parallel_join</bpmn:incoming>
+      <bpmn:incoming>flow_to_parallel_join</bpmn:incoming>
+      <bpmn:outgoing>flow_to_generate_recommendations</bpmn:outgoing>
+    </bpmn:parallelGateway>
+
+    <!-- Generate Recommendations -->
+    <bpmn:serviceTask id="task_generate_recommendations" name="Gerar Recomendações">
+      <bpmn:extensionElements>
+        <zeebe:taskDefinition type="generate-recommendations"/>
+        <zeebe:ioMapping>
+          <zeebe:input source="=dashboardData" target="executiveData"/>
+          <zeebe:input source="=metricsData" target="operationalData"/>
+          <zeebe:input source="=identifiedLeakage" target="leakageData"/>
+          <zeebe:output source="=recommendations" target="actionableRecommendations"/>
+        </zeebe:ioMapping>
+      </bpmn:extensionElements>
+      <bpmn:incoming>flow_to_generate_recommendations</bpmn:incoming>
+      <bpmn:outgoing>flow_to_end_success</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Review Leakage -->
+    <bpmn:userTask id="task_review_leakage" name="Revisar Vazamento">
+      <bpmn:incoming>flow_has_leakage</bpmn:incoming>
+      <bpmn:outgoing>flow_from_leakage_review</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <!-- Timer boundary for periodic analytics (daily) -->
+    <bpmn:boundaryEvent id="timer_daily_analytics" name="Análise Diária" attachedToRef="task_calculate_dso">
+      <bpmn:timerEventDefinition>
+        <bpmn:timeCycle xsi:type="bpmn:tFormalExpression">R/P1D</bpmn:timeCycle>
+      </bpmn:timerEventDefinition>
+    </bpmn:boundaryEvent>
+
+    <!-- End Event -->
+    <bpmn:endEvent id="end_success" name="Análise Concluída">
+      <bpmn:incoming>flow_to_end_success</bpmn:incoming>
+      <bpmn:messageEventDefinition messageRef="Message_AnalyticsComplete"/>
+    </bpmn:endEvent>
+
+    <!-- Sequence Flows -->
+    <bpmn:sequenceFlow id="flow_to_calculate_dso" sourceRef="start_analytics" targetRef="task_calculate_dso"/>
+    <bpmn:sequenceFlow id="flow_to_calculate_collection_rate" sourceRef="task_calculate_dso" targetRef="task_calculate_collection_rate"/>
+    <bpmn:sequenceFlow id="flow_to_analyze_payer" sourceRef="task_calculate_collection_rate" targetRef="task_analyze_payer_performance"/>
+    <bpmn:sequenceFlow id="flow_to_detect_leakage" sourceRef="task_analyze_payer_performance" targetRef="task_detect_revenue_leakage"/>
+    <bpmn:sequenceFlow id="flow_to_leakage_gateway" sourceRef="task_detect_revenue_leakage" targetRef="gateway_leakage"/>
+    <bpmn:sequenceFlow id="flow_no_leakage" name="Não" sourceRef="gateway_leakage" targetRef="parallel_dashboard_start">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">=size(identifiedLeakage) = 0</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="flow_has_leakage" name="Sim" sourceRef="gateway_leakage" targetRef="task_review_leakage">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">=size(identifiedLeakage) > 0</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="flow_from_leakage_review" sourceRef="task_review_leakage" targetRef="parallel_dashboard_start"/>
+    <bpmn:sequenceFlow id="flow_to_executive_dashboard" sourceRef="parallel_dashboard_start" targetRef="task_generate_executive_dashboard"/>
+    <bpmn:sequenceFlow id="flow_to_operational_metrics" sourceRef="parallel_dashboard_start" targetRef="task_generate_operational_metrics"/>
+    <bpmn:sequenceFlow id="flow_to_parallel_join" sourceRef="task_generate_executive_dashboard" targetRef="parallel_dashboard_join"/>
+    <bpmn:sequenceFlow id="flow_to_parallel_join" sourceRef="task_generate_operational_metrics" targetRef="parallel_dashboard_join"/>
+    <bpmn:sequenceFlow id="flow_to_generate_recommendations" sourceRef="parallel_dashboard_join" targetRef="task_generate_recommendations"/>
+    <bpmn:sequenceFlow id="flow_to_end_success" sourceRef="task_generate_recommendations" targetRef="end_success"/>
+
+  </bpmn:process>
+
+  <bpmn:message id="Message_AnalyticsComplete" name="AnalyticsCompleteMessage"/>
+
+</bpmn:definitions>

@@ -1,0 +1,170 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  ============================================================================
+  CASH-ESTIMATE-001 - Orcamento Cirurgia Eletiva
+  ============================================================================
+  Versao: 1.0.0 (2026-02-08)
+  Categoria: CASH-ESTIMATE
+  Perspectiva: HOSPITAL (Financeiro)
+
+  ============================================================================
+  INDICACOES (Quando PROSSEGUIR):
+  ============================================================================
+  - Orcamento emitido com detalhamento de custos cirurgicos
+  - Valor estimado dentro da faixa de +/-15% do valor real
+  - Paciente ciente dos valores e possibilidade de variacao
+
+  ============================================================================
+  CONTRAINDICACOES (Quando BLOQUEAR):
+  ============================================================================
+  - Desvio superior a 20% entre valor estimado e real sem justificativa
+  - Ausencia de detalhamento de custos no orcamento
+  - Cobranca de valores nao previstos no orcamento original
+
+  ============================================================================
+  REFERENCIAS NORMATIVAS:
+  ============================================================================
+  - Lei 13.003/2014 Art. 1 (obrigatoriedade de orcamento previo)
+  - Lei 8.078/1990 CDC Art. 6 (direito a informacao clara)
+  - CFM Resolucao 1.974/2011 (orcamento medico)
+  ============================================================================
+-->
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/"
+             xmlns:dc="http://www.omg.org/spec/DMN/20180521/DC/"
+             id="Definitions_CASH_ESTIMATE_001"
+             name="Orcamento Cirurgia Eletiva"
+             targetNamespace="http://camunda.org/schema/1.0/dmn">
+
+  <decision id="Decision_CASH_ESTIMATE_001" name="Orcamento Cirurgia Eletiva">
+    <decisionTable id="DecisionTable_CASH_ESTIMATE_001" hitPolicy="FIRST">
+
+      <!-- ========== INPUTS ========== -->
+      <input id="Input_1" label="Tipo Procedimento">
+        <inputExpression id="InputExpression_1" typeRef="string">
+          <text>tipoProcedimento</text>
+        </inputExpression>
+        <inputValues id="InputValues_1">
+          <text>"CIRURGIA_ELETIVA", "CIRURGIA_URGENCIA", "PROCEDIMENTO_AMBULATORIAL"</text>
+        </inputValues>
+      </input>
+
+      <input id="Input_2" label="Valor Estimado (R$)">
+        <inputExpression id="InputExpression_2" typeRef="number">
+          <text>valorEstimado</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_3" label="Valor Real (R$)">
+        <inputExpression id="InputExpression_3" typeRef="number">
+          <text>valorReal</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_4" label="Desvio Percentual (%)">
+        <inputExpression id="InputExpression_4" typeRef="number">
+          <text>desvioPercentual</text>
+        </inputExpression>
+      </input>
+
+      <!-- ========== OUTPUTS (5 STANDARD) ========== -->
+      <output id="Output_1" label="Resultado" name="resultado" typeRef="string">
+        <outputValues><text>"Prosseguir", "Bloquear", "Alertar", "Revisar"</text></outputValues>
+      </output>
+
+      <output id="Output_2" label="Observacao" name="observacao" typeRef="string"/>
+
+      <output id="Output_3" label="Acao Recomendada" name="acaoRecomendada" typeRef="string"/>
+
+      <output id="Output_4" label="Alertas Conformidade" name="alertasConformidade" typeRef="string">
+        <outputValues><text>"NENHUM", "DUP", "FREQ", "PRAZO", "DOC", "VALOR", "CRED", "CONTRATO"</text></outputValues>
+      </output>
+
+      <output id="Output_5" label="Risco Denial" name="riscoDenial" typeRef="string">
+        <outputValues><text>"BAIXO", "MEDIO", "ALTO", "CRITICO"</text></outputValues>
+      </output>
+
+      <!-- ========== RULES ========== -->
+
+      <!-- REGRA B1: Bloqueio - Desvio superior a 20% sem justificativa -->
+      <rule id="Rule_Bloqueio_1">
+        <description>Desvio superior a 20% entre valor estimado e real</description>
+        <inputEntry id="InputEntry_B1_1"><text>"CIRURGIA_ELETIVA"</text></inputEntry>
+        <inputEntry id="InputEntry_B1_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_B1_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_B1_4"><text>&gt; 20</text></inputEntry>
+        <outputEntry id="OutputEntry_B1_1"><text>"Bloquear"</text></outputEntry>
+        <outputEntry id="OutputEntry_B1_2"><text>"Desvio superior a 20% entre valor orcado e real. Possivel falha no orcamento ou cobranca indevida."</text></outputEntry>
+        <outputEntry id="OutputEntry_B1_3"><text>"Bloquear faturamento. Revisar orcamento com equipe medica e justificar divergencia antes de cobrar."</text></outputEntry>
+        <outputEntry id="OutputEntry_B1_4"><text>"VALOR"</text></outputEntry>
+        <outputEntry id="OutputEntry_B1_5"><text>"CRITICO"</text></outputEntry>
+      </rule>
+
+      <!-- REGRA A1: Alerta - Desvio entre 15-20% -->
+      <rule id="Rule_Alerta_1">
+        <description>Desvio entre 15% e 20% - Documentar justificativa</description>
+        <inputEntry id="InputEntry_A1_1"><text>"CIRURGIA_ELETIVA"</text></inputEntry>
+        <inputEntry id="InputEntry_A1_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_A1_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_A1_4"><text>[15..20]</text></inputEntry>
+        <outputEntry id="OutputEntry_A1_1"><text>"Alertar"</text></outputEntry>
+        <outputEntry id="OutputEntry_A1_2"><text>"Desvio significativo (15-20%). Documentar justificativa tecnica para variacao."</text></outputEntry>
+        <outputEntry id="OutputEntry_A1_3"><text>"Anexar justificativa medica para variacao de custos. Informar paciente sobre diferenca."</text></outputEntry>
+        <outputEntry id="OutputEntry_A1_4"><text>"DOC"</text></outputEntry>
+        <outputEntry id="OutputEntry_A1_5"><text>"MEDIO"</text></outputEntry>
+      </rule>
+
+      <!-- REGRA P1: Aprovado - Desvio ate 15% -->
+      <rule id="Rule_Aprovado_1">
+        <description>Desvio ate 15% considerado aceitavel para cirurgias eletivas</description>
+        <inputEntry id="InputEntry_P1_1"><text>"CIRURGIA_ELETIVA"</text></inputEntry>
+        <inputEntry id="InputEntry_P1_2"><text>&gt; 0</text></inputEntry>
+        <inputEntry id="InputEntry_P1_3"><text>&gt; 0</text></inputEntry>
+        <inputEntry id="InputEntry_P1_4"><text>[0..15]</text></inputEntry>
+        <outputEntry id="OutputEntry_P1_1"><text>"Prosseguir"</text></outputEntry>
+        <outputEntry id="OutputEntry_P1_2"><text>"Orcamento dentro da faixa de variacao aceitavel (+/-15%). Prosseguir com faturamento."</text></outputEntry>
+        <outputEntry id="OutputEntry_P1_3"><text>"Prosseguir com faturamento. Registrar valores no sistema e emitir nota fiscal."</text></outputEntry>
+        <outputEntry id="OutputEntry_P1_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_P1_5"><text>"BAIXO"</text></outputEntry>
+      </rule>
+
+      <!-- REGRA P2: Aprovado - Cirurgia de urgencia -->
+      <rule id="Rule_Aprovado_2">
+        <description>Cirurgia de urgencia nao requer validacao de orcamento previo</description>
+        <inputEntry id="InputEntry_P2_1"><text>"CIRURGIA_URGENCIA"</text></inputEntry>
+        <inputEntry id="InputEntry_P2_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_P2_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_P2_4"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_P2_1"><text>"Prosseguir"</text></outputEntry>
+        <outputEntry id="OutputEntry_P2_2"><text>"Cirurgia de urgencia. Validacao de orcamento previo dispensada por necessidade imediata."</text></outputEntry>
+        <outputEntry id="OutputEntry_P2_3"><text>"Prosseguir com faturamento. Emitir relatorio detalhado de custos para ciencia do paciente."</text></outputEntry>
+        <outputEntry id="OutputEntry_P2_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_P2_5"><text>"BAIXO"</text></outputEntry>
+      </rule>
+
+      <!-- REGRA F: Fallback - Requer revisao manual -->
+      <rule id="Rule_Fallback_CASH_ESTIMATE_001">
+        <description>Regra padrao - Requer avaliacao manual</description>
+        <inputEntry id="InputEntry_F_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_F_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_F_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_F_4"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_F_1"><text>"Revisar"</text></outputEntry>
+        <outputEntry id="OutputEntry_F_2"><text>"Situacao requer analise manual por nao corresponder a nenhum criterio automatico."</text></outputEntry>
+        <outputEntry id="OutputEntry_F_3"><text>"Encaminhar para auditoria administrativa para avaliacao caso a caso."</text></outputEntry>
+        <outputEntry id="OutputEntry_F_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_F_5"><text>"MEDIO"</text></outputEntry>
+      </rule>
+
+    </decisionTable>
+  </decision>
+
+  <dmndi:DMNDI>
+    <dmndi:DMNDiagram id="DMNDiagram_CASH_ESTIMATE_001">
+      <dmndi:DMNShape id="DMNShape_Decision_CASH_ESTIMATE_001" dmnElementRef="Decision_CASH_ESTIMATE_001">
+        <dc:Bounds height="80" width="180" x="160" y="100"/>
+      </dmndi:DMNShape>
+    </dmndi:DMNDiagram>
+  </dmndi:DMNDI>
+
+</definitions>

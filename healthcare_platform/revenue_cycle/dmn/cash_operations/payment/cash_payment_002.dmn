@@ -1,0 +1,159 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  ============================================================================
+  CASH-PAYMENT-002 - Orcamento Previo Obrigatorio
+  ============================================================================
+  Versao: 1.0.0 (2026-02-08)
+  Categoria: CASH-PAYMENT
+  Perspectiva: HOSPITAL (Financeiro)
+
+  ============================================================================
+  INDICACOES (Quando PROSSEGUIR):
+  ============================================================================
+  - Orcamento previo emitido e aprovado pelo paciente
+  - Procedimento eletivo com valor superior a R$ 1.000,00
+  - Assinatura do termo de consentimento e ciencia de valores
+
+  ============================================================================
+  CONTRAINDICACOES (Quando BLOQUEAR):
+  ============================================================================
+  - Procedimento eletivo sem orcamento previo
+  - Ausencia de assinatura do termo de ciencia de valores
+  - Valor estimado divergente do orcamento apresentado
+
+  ============================================================================
+  REFERENCIAS NORMATIVAS:
+  ============================================================================
+  - Lei 8.078/1990 CDC Art. 6 (direito a informacao)
+  - Lei 13.003/2014 (obrigatoriedade de orcamento previo hospitalar)
+  - ANS RN 465/2021 (transparencia de valores)
+  ============================================================================
+-->
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/"
+             xmlns:dc="http://www.omg.org/spec/DMN/20180521/DC/"
+             id="Definitions_CASH_PAYMENT_002"
+             name="Orcamento Previo Obrigatorio"
+             targetNamespace="http://camunda.org/schema/1.0/dmn">
+
+  <decision id="Decision_CASH_PAYMENT_002" name="Orcamento Previo Obrigatorio">
+    <decisionTable id="DecisionTable_CASH_PAYMENT_002" hitPolicy="FIRST">
+
+      <!-- ========== INPUTS ========== -->
+      <input id="Input_1" label="Tipo Procedimento">
+        <inputExpression id="InputExpression_1" typeRef="string">
+          <text>tipoProcedimento</text>
+        </inputExpression>
+        <inputValues id="InputValues_1">
+          <text>"ELETIVO", "URGENCIA", "EMERGENCIA"</text>
+        </inputValues>
+      </input>
+
+      <input id="Input_2" label="Orcamento Emitido">
+        <inputExpression id="InputExpression_2" typeRef="boolean">
+          <text>orcamentoEmitido</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_3" label="Valor Estimado (R$)">
+        <inputExpression id="InputExpression_3" typeRef="number">
+          <text>valorEstimado</text>
+        </inputExpression>
+      </input>
+
+      <!-- ========== OUTPUTS (5 STANDARD) ========== -->
+      <output id="Output_1" label="Resultado" name="resultado" typeRef="string">
+        <outputValues><text>"Prosseguir", "Bloquear", "Alertar", "Revisar"</text></outputValues>
+      </output>
+
+      <output id="Output_2" label="Observacao" name="observacao" typeRef="string"/>
+
+      <output id="Output_3" label="Acao Recomendada" name="acaoRecomendada" typeRef="string"/>
+
+      <output id="Output_4" label="Alertas Conformidade" name="alertasConformidade" typeRef="string">
+        <outputValues><text>"NENHUM", "DUP", "FREQ", "PRAZO", "DOC", "VALOR", "CRED", "CONTRATO"</text></outputValues>
+      </output>
+
+      <output id="Output_5" label="Risco Denial" name="riscoDenial" typeRef="string">
+        <outputValues><text>"BAIXO", "MEDIO", "ALTO", "CRITICO"</text></outputValues>
+      </output>
+
+      <!-- ========== RULES ========== -->
+
+      <!-- REGRA B1: Bloqueio - Procedimento eletivo sem orcamento -->
+      <rule id="Rule_Bloqueio_1">
+        <description>Procedimento eletivo com valor superior a R$ 1.000,00 sem orcamento previo</description>
+        <inputEntry id="InputEntry_B1_1"><text>"ELETIVO"</text></inputEntry>
+        <inputEntry id="InputEntry_B1_2"><text>false</text></inputEntry>
+        <inputEntry id="InputEntry_B1_3"><text>&gt;= 1000</text></inputEntry>
+        <outputEntry id="OutputEntry_B1_1"><text>"Bloquear"</text></outputEntry>
+        <outputEntry id="OutputEntry_B1_2"><text>"Procedimento eletivo com valor superior a R$ 1.000,00 requer orcamento previo conforme Lei 13.003/2014."</text></outputEntry>
+        <outputEntry id="OutputEntry_B1_3"><text>"Emitir orcamento detalhado e obter assinatura do paciente antes de prosseguir."</text></outputEntry>
+        <outputEntry id="OutputEntry_B1_4"><text>"DOC"</text></outputEntry>
+        <outputEntry id="OutputEntry_B1_5"><text>"CRITICO"</text></outputEntry>
+      </rule>
+
+      <!-- REGRA A1: Alerta - Procedimento eletivo com orcamento mas valor elevado -->
+      <rule id="Rule_Alerta_1">
+        <description>Procedimento eletivo com valor superior a R$ 5.000,00 - Confirmar ciencia do paciente</description>
+        <inputEntry id="InputEntry_A1_1"><text>"ELETIVO"</text></inputEntry>
+        <inputEntry id="InputEntry_A1_2"><text>true</text></inputEntry>
+        <inputEntry id="InputEntry_A1_3"><text>&gt;= 5000</text></inputEntry>
+        <outputEntry id="OutputEntry_A1_1"><text>"Alertar"</text></outputEntry>
+        <outputEntry id="OutputEntry_A1_2"><text>"Valor elevado (R$ 5.000,00+). Confirmar ciencia explicita do paciente sobre custos."</text></outputEntry>
+        <outputEntry id="OutputEntry_A1_3"><text>"Obter confirmacao escrita do paciente e anexar termo de ciencia de valores ao prontuario."</text></outputEntry>
+        <outputEntry id="OutputEntry_A1_4"><text>"DOC"</text></outputEntry>
+        <outputEntry id="OutputEntry_A1_5"><text>"MEDIO"</text></outputEntry>
+      </rule>
+
+      <!-- REGRA P1: Aprovado - Procedimento eletivo com orcamento -->
+      <rule id="Rule_Aprovado_1">
+        <description>Procedimento eletivo com orcamento previo emitido e valor dentro do esperado</description>
+        <inputEntry id="InputEntry_P1_1"><text>"ELETIVO"</text></inputEntry>
+        <inputEntry id="InputEntry_P1_2"><text>true</text></inputEntry>
+        <inputEntry id="InputEntry_P1_3"><text>&gt; 0</text></inputEntry>
+        <outputEntry id="OutputEntry_P1_1"><text>"Prosseguir"</text></outputEntry>
+        <outputEntry id="OutputEntry_P1_2"><text>"Orcamento previo emitido conforme Lei 13.003/2014. Paciente ciente dos valores."</text></outputEntry>
+        <outputEntry id="OutputEntry_P1_3"><text>"Prosseguir com faturamento. Registrar orcamento aprovado no sistema financeiro."</text></outputEntry>
+        <outputEntry id="OutputEntry_P1_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_P1_5"><text>"BAIXO"</text></outputEntry>
+      </rule>
+
+      <!-- REGRA P2: Aprovado - Procedimento urgencia/emergencia -->
+      <rule id="Rule_Aprovado_2">
+        <description>Procedimento de urgencia ou emergencia nao requer orcamento previo</description>
+        <inputEntry id="InputEntry_P2_1"><text>"URGENCIA", "EMERGENCIA"</text></inputEntry>
+        <inputEntry id="InputEntry_P2_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_P2_3"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_P2_1"><text>"Prosseguir"</text></outputEntry>
+        <outputEntry id="OutputEntry_P2_2"><text>"Procedimento de urgencia/emergencia. Orcamento previo dispensado por necessidade imediata."</text></outputEntry>
+        <outputEntry id="OutputEntry_P2_3"><text>"Prosseguir com atendimento. Emitir orcamento posterior se necessario para transparencia."</text></outputEntry>
+        <outputEntry id="OutputEntry_P2_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_P2_5"><text>"BAIXO"</text></outputEntry>
+      </rule>
+
+      <!-- REGRA F: Fallback - Requer revisao manual -->
+      <rule id="Rule_Fallback_CASH_PAYMENT_002">
+        <description>Regra padrao - Requer avaliacao manual</description>
+        <inputEntry id="InputEntry_F_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_F_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_F_3"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_F_1"><text>"Revisar"</text></outputEntry>
+        <outputEntry id="OutputEntry_F_2"><text>"Situacao requer analise manual por nao corresponder a nenhum criterio automatico."</text></outputEntry>
+        <outputEntry id="OutputEntry_F_3"><text>"Encaminhar para auditoria administrativa para avaliacao caso a caso."</text></outputEntry>
+        <outputEntry id="OutputEntry_F_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_F_5"><text>"MEDIO"</text></outputEntry>
+      </rule>
+
+    </decisionTable>
+  </decision>
+
+  <dmndi:DMNDI>
+    <dmndi:DMNDiagram id="DMNDiagram_CASH_PAYMENT_002">
+      <dmndi:DMNShape id="DMNShape_Decision_CASH_PAYMENT_002" dmnElementRef="Decision_CASH_PAYMENT_002">
+        <dc:Bounds height="80" width="180" x="160" y="100"/>
+      </dmndi:DMNShape>
+    </dmndi:DMNDiagram>
+  </dmndi:DMNDI>
+
+</definitions>

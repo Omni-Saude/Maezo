@@ -1,0 +1,146 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  ============================================================================
+  APPEAL-ELIG-002 - Prazo Recurso Ainda Vigente
+  ============================================================================
+  Versao: 1.0.0 (2026-02-08)
+  Categoria: APPEAL-ELIG
+  Perspectiva: HOSPITAL (Receivables - Appeals Management)
+
+  ============================================================================
+  INDICACOES (Quando PROSSEGUIR):
+  ============================================================================
+  - Glosa dentro do prazo legal para recurso
+  - Margem de seguranca adequada para preparacao do recurso
+  - Prazo da ANS ou operadora ainda vigente
+
+  ============================================================================
+  CONTRAINDICACOES (Quando BLOQUEAR):
+  ============================================================================
+  - Prazo de recurso expirado
+  - Perda do direito de contestacao
+  - Necessidade de provisao contabil imediata
+
+  ============================================================================
+  REFERENCIAS NORMATIVAS:
+  ============================================================================
+  - RN ANS 395/2016 Art. 4 (prazo 30 dias recurso operadora)
+  - RN ANS 388/2015 (prazo 10 dias ANS segunda instancia)
+  - Lei 9.656/1998 Art. 12
+  - CPC 25 (provisoes apos prazo)
+  ============================================================================
+-->
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/"
+             xmlns:dc="http://www.omg.org/spec/DMN/20180521/DC/"
+             id="Definitions_APPEAL_ELIG_002"
+             name="Prazo Recurso Ainda Vigente"
+             targetNamespace="http://camunda.org/schema/1.0/dmn">
+
+  <decision id="Decision_APPEAL_ELIG_002" name="Prazo Recurso Ainda Vigente">
+    <decisionTable id="DecisionTable_APPEAL_ELIG_002" hitPolicy="FIRST">
+
+      <!-- ========== INPUTS ========== -->
+      <input id="Input_1" label="Dias Desde Glosa">
+        <inputExpression id="InputExpression_1" typeRef="number">
+          <text>diasGlosa</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_2" label="Prazo Recurso (Dias)">
+        <inputExpression id="InputExpression_2" typeRef="number">
+          <text>prazoRecurso</text>
+        </inputExpression>
+      </input>
+
+      <!-- ========== OUTPUTS (5 STANDARD) ========== -->
+      <output id="Output_1" label="Resultado" name="resultado" typeRef="string">
+        <outputValues><text>"Prosseguir", "Bloquear", "Alertar", "Revisar"</text></outputValues>
+      </output>
+
+      <output id="Output_2" label="Observacao" name="observacao" typeRef="string"/>
+
+      <output id="Output_3" label="Acao Recomendada" name="acaoRecomendada" typeRef="string"/>
+
+      <output id="Output_4" label="Alertas Conformidade" name="alertasConformidade" typeRef="string">
+        <outputValues><text>"NENHUM", "DUP", "FREQ", "PRAZO", "DOC", "VALOR", "CRED", "CONTRATO"</text></outputValues>
+      </output>
+
+      <output id="Output_5" label="Risco Denial" name="riscoDenial" typeRef="string">
+        <outputValues><text>"BAIXO", "MEDIO", "ALTO", "CRITICO"</text></outputValues>
+      </output>
+
+      <!-- ========== RULES ========== -->
+
+      <!-- REGRA B1: Bloqueio - Prazo expirado -->
+      <rule id="Rule_Bloqueio_1">
+        <description>Prazo de recurso expirado</description>
+        <inputEntry id="InputEntry_B1_1"><text>&gt; [prazoRecurso]</text></inputEntry>
+        <inputEntry id="InputEntry_B1_2"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_B1_1"><text>"Bloquear"</text></outputEntry>
+        <outputEntry id="OutputEntry_B1_2"><text>"Prazo legal de recurso expirado. Glosa nao elegivel para contestacao administrativa. Perda do direito de recurso."</text></outputEntry>
+        <outputEntry id="OutputEntry_B1_3"><text>"Constituir provisao conforme CPC 25. Avaliar via judicial se aplicavel. Registrar perda definitiva."</text></outputEntry>
+        <outputEntry id="OutputEntry_B1_4"><text>"PRAZO"</text></outputEntry>
+        <outputEntry id="OutputEntry_B1_5"><text>"CRITICO"</text></outputEntry>
+      </rule>
+
+      <!-- REGRA A1: Alerta - Prazo critico (ultimos 5 dias) -->
+      <rule id="Rule_Alerta_1">
+        <description>Prazo de recurso em fase critica (ultimos 5 dias)</description>
+        <inputEntry id="InputEntry_A1_1"><text>&gt; (prazoRecurso - 5)</text></inputEntry>
+        <inputEntry id="InputEntry_A1_2"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_A1_1"><text>"Alertar"</text></outputEntry>
+        <outputEntry id="OutputEntry_A1_2"><text>"URGENTE: Prazo de recurso expira em menos de 5 dias. Prioridade maxima para evitar perda do direito."</text></outputEntry>
+        <outputEntry id="OutputEntry_A1_3"><text>"Priorizar recurso imediatamente. Mobilizar equipe de auditoria para preparacao emergencial da documentacao."</text></outputEntry>
+        <outputEntry id="OutputEntry_A1_4"><text>"PRAZO"</text></outputEntry>
+        <outputEntry id="OutputEntry_A1_5"><text>"ALTO"</text></outputEntry>
+      </rule>
+
+      <!-- REGRA A2: Alerta - Prazo intermediario (50-80% do prazo) -->
+      <rule id="Rule_Alerta_2">
+        <description>Prazo de recurso em fase intermediaria</description>
+        <inputEntry id="InputEntry_A2_1"><text>[(prazoRecurso * 0.5)..(prazoRecurso * 0.8)]</text></inputEntry>
+        <inputEntry id="InputEntry_A2_2"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_A2_1"><text>"Alertar"</text></outputEntry>
+        <outputEntry id="OutputEntry_A2_2"><text>"Prazo de recurso na metade do periodo. Recomendado iniciar preparacao da documentacao para evitar atrasos."</text></outputEntry>
+        <outputEntry id="OutputEntry_A2_3"><text>"Iniciar coleta de documentacao suporte. Agendar revisao com auditoria medica. Preparar argumentacao."</text></outputEntry>
+        <outputEntry id="OutputEntry_A2_4"><text>"PRAZO"</text></outputEntry>
+        <outputEntry id="OutputEntry_A2_5"><text>"MEDIO"</text></outputEntry>
+      </rule>
+
+      <!-- REGRA P1: Aprovado - Prazo confortavel (primeiros 50%) -->
+      <rule id="Rule_Aprovado_1">
+        <description>Prazo de recurso com margem adequada</description>
+        <inputEntry id="InputEntry_P1_1"><text>&lt; (prazoRecurso * 0.5)</text></inputEntry>
+        <inputEntry id="InputEntry_P1_2"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_P1_1"><text>"Prosseguir"</text></outputEntry>
+        <outputEntry id="OutputEntry_P1_2"><text>"Prazo de recurso dentro da margem confortavel. Tempo adequado para preparacao completa da documentacao."</text></outputEntry>
+        <outputEntry id="OutputEntry_P1_3"><text>"Prosseguir com planejamento normal do recurso. Priorizar conforme valor e probabilidade de recuperacao."</text></outputEntry>
+        <outputEntry id="OutputEntry_P1_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_P1_5"><text>"BAIXO"</text></outputEntry>
+      </rule>
+
+      <!-- REGRA F: Fallback - Requer revisao manual -->
+      <rule id="Rule_Fallback_APPEAL_ELIG_002">
+        <description>Regra padrao - Requer avaliacao manual</description>
+        <inputEntry id="InputEntry_F_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_F_2"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_F_1"><text>"Revisar"</text></outputEntry>
+        <outputEntry id="OutputEntry_F_2"><text>"Situacao requer analise manual por nao corresponder a nenhum criterio automatico de elegibilidade por prazo."</text></outputEntry>
+        <outputEntry id="OutputEntry_F_3"><text>"Encaminhar para gestor de recebiveis para confirmar prazo aplicavel e margem de seguranca."</text></outputEntry>
+        <outputEntry id="OutputEntry_F_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_F_5"><text>"MEDIO"</text></outputEntry>
+      </rule>
+
+    </decisionTable>
+  </decision>
+
+  <dmndi:DMNDI>
+    <dmndi:DMNDiagram id="DMNDiagram_APPEAL_ELIG_002">
+      <dmndi:DMNShape id="DMNShape_Decision_APPEAL_ELIG_002" dmnElementRef="Decision_APPEAL_ELIG_002">
+        <dc:Bounds height="80" width="180" x="160" y="100"/>
+      </dmndi:DMNShape>
+    </dmndi:DMNDiagram>
+  </dmndi:DMNDI>
+
+</definitions>

@@ -1,0 +1,143 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  ============================================================================
+  BILL-DIARIA-003 - Dias Permanencia x Media DRG
+  ============================================================================
+  Versao: 1.0.0 (2026-02-08)
+  Categoria: BILL-DIARIA
+  Perspectiva: HOSPITAL (Faturamento/Qualidade)
+
+  ============================================================================
+  INDICACOES (Quando PROSSEGUIR):
+  ============================================================================
+  - Dias de permanencia dentro da media esperada para o DRG (Diagnosis Related Group)
+  - Internacao ate 20% acima da media DRG com justificativa clinica
+  - Comorbidades documentadas que justificam permanencia estendida
+
+  ============================================================================
+  CONTRAINDICACOES (Quando BLOQUEAR):
+  ============================================================================
+  - Permanencia superior a 50% da media DRG sem justificativa
+  - Internacao prolongada por questoes administrativas (nao clinicas)
+  - Ausencia de documentacao de complicacoes ou comorbidades
+
+  ============================================================================
+  REFERENCIAS NORMATIVAS:
+  ============================================================================
+  - ANS RN 465/2021 (auditoria de permanencia)
+  - MS Portaria 221/2013 (sistema DRG brasileiro)
+  - TISS 4.01.00 (classificacao de procedimentos)
+  ============================================================================
+-->
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/"
+             xmlns:dc="http://www.omg.org/spec/DMN/20180521/DC/"
+             id="Definitions_BILL_DIARIA_003"
+             name="Dias Permanencia x Media DRG"
+             targetNamespace="http://camunda.org/schema/1.0/dmn">
+
+  <decision id="Decision_BILL_DIARIA_003" name="Dias Permanencia x Media DRG">
+    <decisionTable id="DecisionTable_BILL_DIARIA_003" hitPolicy="FIRST">
+
+      <!-- ========== INPUTS ========== -->
+      <input id="Input_1" label="Dias Internacao">
+        <inputExpression id="InputExpression_1" typeRef="number">
+          <text>diasInternacao</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_2" label="Media DRG (dias)">
+        <inputExpression id="InputExpression_2" typeRef="number">
+          <text>mediaDRG</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_3" label="Comorbidades Documentadas">
+        <inputExpression id="InputExpression_3" typeRef="boolean">
+          <text>comorbidadesDocumentadas</text>
+        </inputExpression>
+      </input>
+
+      <!-- ========== OUTPUTS (5 STANDARD) ========== -->
+      <output id="Output_1" label="Resultado" name="resultado" typeRef="string">
+        <outputValues><text>"Prosseguir", "Bloquear", "Alertar", "Revisar"</text></outputValues>
+      </output>
+
+      <output id="Output_2" label="Observacao" name="observacao" typeRef="string"/>
+
+      <output id="Output_3" label="Acao Recomendada" name="acaoRecomendada" typeRef="string"/>
+
+      <output id="Output_4" label="Alertas Conformidade" name="alertasConformidade" typeRef="string">
+        <outputValues><text>"NENHUM", "DUP", "FREQ", "PRAZO", "DOC", "VALOR", "CRED", "CONTRATO"</text></outputValues>
+      </output>
+
+      <output id="Output_5" label="Risco Denial" name="riscoDenial" typeRef="string">
+        <outputValues><text>"BAIXO", "MEDIO", "ALTO", "CRITICO"</text></outputValues>
+      </output>
+
+      <!-- ========== RULES ========== -->
+
+      <!-- REGRA B1: Bloqueio - Permanencia >50% acima da media DRG sem comorbidades -->
+      <rule id="Rule_Bloqueio_1">
+        <description>Permanencia muito acima da media DRG sem comorbidades documentadas</description>
+        <inputEntry id="InputEntry_B1_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_B1_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_B1_3"><text>false</text></inputEntry>
+        <outputEntry id="OutputEntry_B1_1"><text>"Bloquear"</text></outputEntry>
+        <outputEntry id="OutputEntry_B1_2"><text>"Permanencia muito superior a media DRG sem comorbidades documentadas. Alta probabilidade de glosa."</text></outputEntry>
+        <outputEntry id="OutputEntry_B1_3"><text>"Bloquear faturamento. Solicitar documentacao de complicacoes ou comorbidades antes de cobrar operadora."</text></outputEntry>
+        <outputEntry id="OutputEntry_B1_4"><text>"DOC"</text></outputEntry>
+        <outputEntry id="OutputEntry_B1_5"><text>"CRITICO"</text></outputEntry>
+      </rule>
+
+      <!-- REGRA A1: Alerta - Permanencia 20-50% acima da media DRG -->
+      <rule id="Rule_Alerta_1">
+        <description>Permanencia significativamente acima da media DRG - Documentar justificativa</description>
+        <inputEntry id="InputEntry_A1_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_A1_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_A1_3"><text>true</text></inputEntry>
+        <outputEntry id="OutputEntry_A1_1"><text>"Alertar"</text></outputEntry>
+        <outputEntry id="OutputEntry_A1_2"><text>"Permanencia acima da media DRG. Revisar documentacao de comorbidades e complicacoes."</text></outputEntry>
+        <outputEntry id="OutputEntry_A1_3"><text>"Anexar laudos de comorbidades e evolucoes clinicas detalhadas. Preparar justificativa para auditoria."</text></outputEntry>
+        <outputEntry id="OutputEntry_A1_4"><text>"DOC"</text></outputEntry>
+        <outputEntry id="OutputEntry_A1_5"><text>"MEDIO"</text></outputEntry>
+      </rule>
+
+      <!-- REGRA P1: Aprovado - Permanencia dentro da media DRG -->
+      <rule id="Rule_Aprovado_1">
+        <description>Permanencia dentro ou ate 20% acima da media DRG</description>
+        <inputEntry id="InputEntry_P1_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_P1_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_P1_3"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_P1_1"><text>"Prosseguir"</text></outputEntry>
+        <outputEntry id="OutputEntry_P1_2"><text>"Permanencia dentro da media esperada para o DRG. Prosseguir com faturamento."</text></outputEntry>
+        <outputEntry id="OutputEntry_P1_3"><text>"Prosseguir com faturamento de diarias. Registrar DRG no sistema para controle de qualidade."</text></outputEntry>
+        <outputEntry id="OutputEntry_P1_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_P1_5"><text>"BAIXO"</text></outputEntry>
+      </rule>
+
+      <!-- REGRA F: Fallback - Requer revisao manual -->
+      <rule id="Rule_Fallback_BILL_DIARIA_003">
+        <description>Regra padrao - Requer avaliacao manual</description>
+        <inputEntry id="InputEntry_F_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_F_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_F_3"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_F_1"><text>"Revisar"</text></outputEntry>
+        <outputEntry id="OutputEntry_F_2"><text>"Situacao requer analise manual por nao corresponder a nenhum criterio automatico."</text></outputEntry>
+        <outputEntry id="OutputEntry_F_3"><text>"Encaminhar para auditoria administrativa para avaliacao caso a caso."</text></outputEntry>
+        <outputEntry id="OutputEntry_F_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_F_5"><text>"MEDIO"</text></outputEntry>
+      </rule>
+
+    </decisionTable>
+  </decision>
+
+  <dmndi:DMNDI>
+    <dmndi:DMNDiagram id="DMNDiagram_BILL_DIARIA_003">
+      <dmndi:DMNShape id="DMNShape_Decision_BILL_DIARIA_003" dmnElementRef="Decision_BILL_DIARIA_003">
+        <dc:Bounds height="80" width="180" x="160" y="100"/>
+      </dmndi:DMNShape>
+    </dmndi:DMNDiagram>
+  </dmndi:DMNDI>
+
+</definitions>

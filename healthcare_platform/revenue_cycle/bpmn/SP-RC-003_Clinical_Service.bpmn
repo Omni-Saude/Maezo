@@ -1,0 +1,182 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+                  xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+                  xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+                  xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
+                  xmlns:zeebe="http://camunda.org/schema/zeebe/1.0"
+                  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                  id="Definitions_RC003"
+                  targetNamespace="http://cib7.healthcare/revenue-cycle">
+
+  <bpmn:process id="SP_RC_003_Clinical_Service" name="Atendimento Clínico e Documentação" isExecutable="true">
+
+    <bpmn:startEvent id="start_clinical_service" name="Início Atendimento">
+      <bpmn:outgoing>flow_to_capture_procedure</bpmn:outgoing>
+    </bpmn:startEvent>
+
+    <!-- Capture Procedure Data -->
+    <bpmn:serviceTask id="task_capture_procedure" name="Capturar Dados do Procedimento">
+      <bpmn:extensionElements>
+        <zeebe:taskDefinition type="capture-procedure"/>
+        <zeebe:ioMapping>
+          <zeebe:input source="=encounterId" target="encounterId"/>
+          <zeebe:input source="=patientId" target="patientId"/>
+          <zeebe:input source="=procedureCodes" target="procedures"/>
+          <zeebe:output source="=capturedData" target="clinicalData"/>
+          <zeebe:output source="=captureTimestamp" target="timestamp"/>
+        </zeebe:ioMapping>
+      </bpmn:extensionElements>
+      <bpmn:incoming>flow_to_capture_procedure</bpmn:incoming>
+      <bpmn:outgoing>flow_to_enrich_procedure</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Timer boundary for capture timeout (4h) -->
+    <bpmn:boundaryEvent id="timer_capture_timeout" name="Timeout 4h" attachedToRef="task_capture_procedure">
+      <bpmn:timerEventDefinition>
+        <bpmn:timeDuration xsi:type="bpmn:tFormalExpression">PT4H</bpmn:timeDuration>
+      </bpmn:timerEventDefinition>
+      <bpmn:outgoing>flow_to_escalate_capture</bpmn:outgoing>
+    </bpmn:boundaryEvent>
+
+    <!-- Error boundary for capture failure -->
+    <bpmn:boundaryEvent id="error_capture_failed" name="Erro Captura" attachedToRef="task_capture_procedure">
+      <bpmn:errorEventDefinition errorRef="Error_CaptureFailed"/>
+      <bpmn:outgoing>flow_to_manual_capture</bpmn:outgoing>
+    </bpmn:boundaryEvent>
+
+    <!-- Enrich Procedure Data -->
+    <bpmn:serviceTask id="task_enrich_procedure" name="Enriquecer Dados Clínicos">
+      <bpmn:extensionElements>
+        <zeebe:taskDefinition type="enrich-procedure"/>
+        <zeebe:ioMapping>
+          <zeebe:input source="=clinicalData" target="rawData"/>
+          <zeebe:input source="=encounterId" target="encounterId"/>
+          <zeebe:output source="=enrichedData" target="completeData"/>
+          <zeebe:output source="=diagnosisCodes" target="icdCodes"/>
+          <zeebe:output source="=procedureCodes" target="tussCodes"/>
+        </zeebe:ioMapping>
+      </bpmn:extensionElements>
+      <bpmn:incoming>flow_to_enrich_procedure</bpmn:incoming>
+      <bpmn:outgoing>flow_to_calculate_quantity</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- DMN Business Rule Task for Clinical Documentation Completeness -->
+    <bpmn:businessRuleTask id="dmn_documentation_completeness" name="Validar Completude da Documentação">
+      <bpmn:extensionElements>
+        <zeebe:calledDecision decisionId="clinical_documentation_completeness" resultVariable="docCompleteness"/>
+      </bpmn:extensionElements>
+      <bpmn:incoming>flow_to_calculate_quantity</bpmn:incoming>
+      <bpmn:outgoing>flow_to_completeness_gateway</bpmn:outgoing>
+    </bpmn:businessRuleTask>
+
+    <!-- Calculate Quantity and Units -->
+    <bpmn:serviceTask id="task_calculate_quantity" name="Calcular Quantidade e Unidades">
+      <bpmn:extensionElements>
+        <zeebe:taskDefinition type="calculate-quantity"/>
+        <zeebe:ioMapping>
+          <zeebe:input source="=completeData" target="clinicalData"/>
+          <zeebe:input source="=tussCodes" target="procedures"/>
+          <zeebe:output source="=quantities" target="procedureQuantities"/>
+          <zeebe:output source="=units" target="measurementUnits"/>
+        </zeebe:ioMapping>
+      </bpmn:extensionElements>
+      <bpmn:incoming>flow_doc_complete</bpmn:incoming>
+      <bpmn:outgoing>flow_to_validate_data</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Completeness Decision Gateway -->
+    <bpmn:exclusiveGateway id="gateway_completeness" name="Documentação Completa?">
+      <bpmn:incoming>flow_to_completeness_gateway</bpmn:incoming>
+      <bpmn:outgoing>flow_doc_complete</bpmn:outgoing>
+      <bpmn:outgoing>flow_doc_incomplete</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+
+    <!-- Validate Clinical Data -->
+    <bpmn:serviceTask id="task_validate_data" name="Validar Dados Clínicos">
+      <bpmn:extensionElements>
+        <zeebe:taskDefinition type="validate-clinical-data"/>
+        <zeebe:ioMapping>
+          <zeebe:input source="=completeData" target="clinicalData"/>
+          <zeebe:input source="=icdCodes" target="diagnoses"/>
+          <zeebe:input source="=tussCodes" target="procedures"/>
+          <zeebe:output source="=validationResult" target="dataValidated"/>
+          <zeebe:output source="=validationErrors" target="errors"/>
+        </zeebe:ioMapping>
+      </bpmn:extensionElements>
+      <bpmn:incoming>flow_to_validate_data</bpmn:incoming>
+      <bpmn:outgoing>flow_to_validation_gateway</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Validation Decision Gateway -->
+    <bpmn:exclusiveGateway id="gateway_validation" name="Dados Válidos?">
+      <bpmn:incoming>flow_to_validation_gateway</bpmn:incoming>
+      <bpmn:outgoing>flow_valid</bpmn:outgoing>
+      <bpmn:outgoing>flow_invalid</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+
+    <!-- Manual Documentation Completion -->
+    <bpmn:userTask id="task_complete_documentation" name="Completar Documentação">
+      <bpmn:incoming>flow_doc_incomplete</bpmn:incoming>
+      <bpmn:incoming>flow_invalid</bpmn:incoming>
+      <bpmn:outgoing>flow_to_end_manual</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <!-- Manual Capture -->
+    <bpmn:userTask id="task_manual_capture" name="Captura Manual">
+      <bpmn:incoming>flow_to_manual_capture</bpmn:incoming>
+      <bpmn:outgoing>flow_to_end_manual_capture</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <!-- Escalate Capture -->
+    <bpmn:userTask id="task_escalate_capture" name="Escalar Captura">
+      <bpmn:incoming>flow_to_escalate_capture</bpmn:incoming>
+      <bpmn:outgoing>flow_to_end_escalated</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <!-- End Events -->
+    <bpmn:endEvent id="end_success" name="Documentação Completa">
+      <bpmn:incoming>flow_valid</bpmn:incoming>
+    </bpmn:endEvent>
+
+    <bpmn:endEvent id="end_manual" name="Documentação Manual">
+      <bpmn:incoming>flow_to_end_manual</bpmn:incoming>
+    </bpmn:endEvent>
+
+    <bpmn:endEvent id="end_manual_capture" name="Captura Manual">
+      <bpmn:incoming>flow_to_end_manual_capture</bpmn:incoming>
+    </bpmn:endEvent>
+
+    <bpmn:endEvent id="end_escalated" name="Escalado">
+      <bpmn:incoming>flow_to_end_escalated</bpmn:incoming>
+    </bpmn:endEvent>
+
+    <!-- Sequence Flows -->
+    <bpmn:sequenceFlow id="flow_to_capture_procedure" sourceRef="start_clinical_service" targetRef="task_capture_procedure"/>
+    <bpmn:sequenceFlow id="flow_to_enrich_procedure" sourceRef="task_capture_procedure" targetRef="task_enrich_procedure"/>
+    <bpmn:sequenceFlow id="flow_to_calculate_quantity" sourceRef="task_enrich_procedure" targetRef="dmn_documentation_completeness"/>
+    <bpmn:sequenceFlow id="flow_to_completeness_gateway" sourceRef="dmn_documentation_completeness" targetRef="gateway_completeness"/>
+    <bpmn:sequenceFlow id="flow_doc_complete" name="Sim" sourceRef="gateway_completeness" targetRef="task_calculate_quantity">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">=docCompleteness.isComplete = true</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="flow_doc_incomplete" name="Não" sourceRef="gateway_completeness" targetRef="task_complete_documentation">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">=docCompleteness.isComplete = false</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="flow_to_validate_data" sourceRef="task_calculate_quantity" targetRef="task_validate_data"/>
+    <bpmn:sequenceFlow id="flow_to_validation_gateway" sourceRef="task_validate_data" targetRef="gateway_validation"/>
+    <bpmn:sequenceFlow id="flow_valid" name="Sim" sourceRef="gateway_validation" targetRef="end_success">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">=dataValidated = true</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="flow_invalid" name="Não" sourceRef="gateway_validation" targetRef="task_complete_documentation">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">=dataValidated = false</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="flow_to_manual_capture" sourceRef="error_capture_failed" targetRef="task_manual_capture"/>
+    <bpmn:sequenceFlow id="flow_to_escalate_capture" sourceRef="timer_capture_timeout" targetRef="task_escalate_capture"/>
+    <bpmn:sequenceFlow id="flow_to_end_manual" sourceRef="task_complete_documentation" targetRef="end_manual"/>
+    <bpmn:sequenceFlow id="flow_to_end_manual_capture" sourceRef="task_manual_capture" targetRef="end_manual_capture"/>
+    <bpmn:sequenceFlow id="flow_to_end_escalated" sourceRef="task_escalate_capture" targetRef="end_escalated"/>
+
+  </bpmn:process>
+
+  <bpmn:error id="Error_CaptureFailed" name="CaptureFailed" errorCode="ERR_CAPTURE_001"/>
+
+</bpmn:definitions>

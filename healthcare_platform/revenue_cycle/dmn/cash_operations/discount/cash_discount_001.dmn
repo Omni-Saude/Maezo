@@ -1,0 +1,172 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  ============================================================================
+  CASH-DISCOUNT-001 - Desconto Particular Tabela Vigente
+  ============================================================================
+  Versao: 1.0.0 (2026-02-08)
+  Categoria: CASH-DISCOUNT
+  Perspectiva: HOSPITAL (Financeiro)
+
+  ============================================================================
+  INDICACOES (Quando PROSSEGUIR):
+  ============================================================================
+  - Paciente PARTICULAR com desconto dentro do percentual permitido pela tabela vigente
+  - Desconto previamente aprovado pela diretoria financeira
+  - Tabela de precos vigente e atualizada
+
+  ============================================================================
+  CONTRAINDICACOES (Quando BLOQUEAR):
+  ============================================================================
+  - Desconto aplicado a paciente CONVENIO (vedado por contrato)
+  - Percentual de desconto superior ao limite da tabela vigente
+  - Tabela de precos desatualizada ou inexistente
+
+  ============================================================================
+  REFERENCIAS NORMATIVAS:
+  ============================================================================
+  - Lei 8.078/1990 CDC Art. 39 (transparencia de precos)
+  - CPC Art. 47 (politica comercial hospitalar)
+  - ANS RN 465/2021 (vedacao desconto para convenios)
+  ============================================================================
+-->
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/"
+             xmlns:dc="http://www.omg.org/spec/DMN/20180521/DC/"
+             id="Definitions_CASH_DISCOUNT_001"
+             name="Desconto Particular Tabela Vigente"
+             targetNamespace="http://camunda.org/schema/1.0/dmn">
+
+  <decision id="Decision_CASH_DISCOUNT_001" name="Desconto Particular Tabela Vigente">
+    <decisionTable id="DecisionTable_CASH_DISCOUNT_001" hitPolicy="FIRST">
+
+      <!-- ========== INPUTS ========== -->
+      <input id="Input_1" label="Tipo Atendimento">
+        <inputExpression id="InputExpression_1" typeRef="string">
+          <text>tipoAtendimento</text>
+        </inputExpression>
+        <inputValues id="InputValues_1">
+          <text>"PARTICULAR", "CONVENIO"</text>
+        </inputValues>
+      </input>
+
+      <input id="Input_2" label="Percentual Desconto (%)">
+        <inputExpression id="InputExpression_2" typeRef="number">
+          <text>percentualDesconto</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_3" label="Tabela Vigente">
+        <inputExpression id="InputExpression_3" typeRef="boolean">
+          <text>tabelaVigente</text>
+        </inputExpression>
+      </input>
+
+      <!-- ========== OUTPUTS (5 STANDARD) ========== -->
+      <output id="Output_1" label="Resultado" name="resultado" typeRef="string">
+        <outputValues><text>"Prosseguir", "Bloquear", "Alertar", "Revisar"</text></outputValues>
+      </output>
+
+      <output id="Output_2" label="Observacao" name="observacao" typeRef="string"/>
+
+      <output id="Output_3" label="Acao Recomendada" name="acaoRecomendada" typeRef="string"/>
+
+      <output id="Output_4" label="Alertas Conformidade" name="alertasConformidade" typeRef="string">
+        <outputValues><text>"NENHUM", "DUP", "FREQ", "PRAZO", "DOC", "VALOR", "CRED", "CONTRATO"</text></outputValues>
+      </output>
+
+      <output id="Output_5" label="Risco Denial" name="riscoDenial" typeRef="string">
+        <outputValues><text>"BAIXO", "MEDIO", "ALTO", "CRITICO"</text></outputValues>
+      </output>
+
+      <!-- ========== RULES ========== -->
+
+      <!-- REGRA B1: Bloqueio - Desconto aplicado a convenio -->
+      <rule id="Rule_Bloqueio_1">
+        <description>Desconto aplicado a paciente CONVENIO e vedado por normativa ANS</description>
+        <inputEntry id="InputEntry_B1_1"><text>"CONVENIO"</text></inputEntry>
+        <inputEntry id="InputEntry_B1_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_B1_3"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_B1_1"><text>"Bloquear"</text></outputEntry>
+        <outputEntry id="OutputEntry_B1_2"><text>"Desconto nao aplicavel a pacientes CONVENIO. ANS RN 465/2021 veda praticas de desconto fora do contrato."</text></outputEntry>
+        <outputEntry id="OutputEntry_B1_3"><text>"Bloquear aplicacao de desconto. Revisar tabela contratual vigente com operadora."</text></outputEntry>
+        <outputEntry id="OutputEntry_B1_4"><text>"CONTRATO"</text></outputEntry>
+        <outputEntry id="OutputEntry_B1_5"><text>"ALTO"</text></outputEntry>
+      </rule>
+
+      <!-- REGRA B2: Bloqueio - Tabela desatualizada -->
+      <rule id="Rule_Bloqueio_2">
+        <description>Tabela de precos nao esta vigente ou nao foi validada</description>
+        <inputEntry id="InputEntry_B2_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_B2_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_B2_3"><text>false</text></inputEntry>
+        <outputEntry id="OutputEntry_B2_1"><text>"Bloquear"</text></outputEntry>
+        <outputEntry id="OutputEntry_B2_2"><text>"Tabela de precos nao esta vigente. Impossivel validar percentual de desconto."</text></outputEntry>
+        <outputEntry id="OutputEntry_B2_3"><text>"Atualizar tabela de precos e reavaliar pedido de desconto."</text></outputEntry>
+        <outputEntry id="OutputEntry_B2_4"><text>"DOC"</text></outputEntry>
+        <outputEntry id="OutputEntry_B2_5"><text>"CRITICO"</text></outputEntry>
+      </rule>
+
+      <!-- REGRA B3: Bloqueio - Desconto acima do limite -->
+      <rule id="Rule_Bloqueio_3">
+        <description>Percentual de desconto superior a 20% requer aprovacao diretoria</description>
+        <inputEntry id="InputEntry_B3_1"><text>"PARTICULAR"</text></inputEntry>
+        <inputEntry id="InputEntry_B3_2"><text>&gt; 20</text></inputEntry>
+        <inputEntry id="InputEntry_B3_3"><text>true</text></inputEntry>
+        <outputEntry id="OutputEntry_B3_1"><text>"Bloquear"</text></outputEntry>
+        <outputEntry id="OutputEntry_B3_2"><text>"Desconto superior a 20% requer aprovacao da diretoria financeira conforme politica comercial."</text></outputEntry>
+        <outputEntry id="OutputEntry_B3_3"><text>"Solicitar aprovacao formal da diretoria antes de prosseguir com cobranca."</text></outputEntry>
+        <outputEntry id="OutputEntry_B3_4"><text>"VALOR"</text></outputEntry>
+        <outputEntry id="OutputEntry_B3_5"><text>"ALTO"</text></outputEntry>
+      </rule>
+
+      <!-- REGRA A1: Alerta - Desconto entre 10-20% -->
+      <rule id="Rule_Alerta_1">
+        <description>Desconto entre 10% e 20% - Requer documentacao</description>
+        <inputEntry id="InputEntry_A1_1"><text>"PARTICULAR"</text></inputEntry>
+        <inputEntry id="InputEntry_A1_2"><text>[10..20]</text></inputEntry>
+        <inputEntry id="InputEntry_A1_3"><text>true</text></inputEntry>
+        <outputEntry id="OutputEntry_A1_1"><text>"Alertar"</text></outputEntry>
+        <outputEntry id="OutputEntry_A1_2"><text>"Desconto significativo (10-20%). Documentar justificativa comercial."</text></outputEntry>
+        <outputEntry id="OutputEntry_A1_3"><text>"Anexar justificativa comercial ao prontuario financeiro. Revisar criterios de concessao."</text></outputEntry>
+        <outputEntry id="OutputEntry_A1_4"><text>"DOC"</text></outputEntry>
+        <outputEntry id="OutputEntry_A1_5"><text>"MEDIO"</text></outputEntry>
+      </rule>
+
+      <!-- REGRA P1: Aprovado - Desconto ate 10% -->
+      <rule id="Rule_Aprovado_1">
+        <description>Desconto ate 10% para pacientes PARTICULAR com tabela vigente</description>
+        <inputEntry id="InputEntry_P1_1"><text>"PARTICULAR"</text></inputEntry>
+        <inputEntry id="InputEntry_P1_2"><text>[0..10]</text></inputEntry>
+        <inputEntry id="InputEntry_P1_3"><text>true</text></inputEntry>
+        <outputEntry id="OutputEntry_P1_1"><text>"Prosseguir"</text></outputEntry>
+        <outputEntry id="OutputEntry_P1_2"><text>"Desconto comercial dentro da politica vigente (ate 10%)."</text></outputEntry>
+        <outputEntry id="OutputEntry_P1_3"><text>"Prosseguir com faturamento aplicando desconto conforme tabela vigente."</text></outputEntry>
+        <outputEntry id="OutputEntry_P1_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_P1_5"><text>"BAIXO"</text></outputEntry>
+      </rule>
+
+      <!-- REGRA F: Fallback - Requer revisao manual -->
+      <rule id="Rule_Fallback_CASH_DISCOUNT_001">
+        <description>Regra padrao - Requer avaliacao manual</description>
+        <inputEntry id="InputEntry_F_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_F_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_F_3"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_F_1"><text>"Revisar"</text></outputEntry>
+        <outputEntry id="OutputEntry_F_2"><text>"Situacao requer analise manual por nao corresponder a nenhum criterio automatico."</text></outputEntry>
+        <outputEntry id="OutputEntry_F_3"><text>"Encaminhar para auditoria administrativa para avaliacao caso a caso."</text></outputEntry>
+        <outputEntry id="OutputEntry_F_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_F_5"><text>"MEDIO"</text></outputEntry>
+      </rule>
+
+    </decisionTable>
+  </decision>
+
+  <dmndi:DMNDI>
+    <dmndi:DMNDiagram id="DMNDiagram_CASH_DISCOUNT_001">
+      <dmndi:DMNShape id="DMNShape_Decision_CASH_DISCOUNT_001" dmnElementRef="Decision_CASH_DISCOUNT_001">
+        <dc:Bounds height="80" width="180" x="160" y="100"/>
+      </dmndi:DMNShape>
+    </dmndi:DMNDiagram>
+  </dmndi:DMNDI>
+
+</definitions>

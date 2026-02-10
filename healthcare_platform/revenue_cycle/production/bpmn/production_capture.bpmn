@@ -1,0 +1,412 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+                  xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+                  xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+                  xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
+                  xmlns:cib7="http://cib7.com/schema/1.0/bpmn"
+                  id="Definitions_ProductionCapture"
+                  targetNamespace="http://cib7.com/bpmn/revenue_cycle/production"
+                  exporter="CIB7 Healthcare Orchestrator"
+                  exporterVersion="2.1.0">
+
+  <!-- ================================================================== -->
+  <!-- SUB_04: Clinical Production Capture Process                         -->
+  <!-- ================================================================== -->
+  <bpmn:process id="SUB_04_Clinical_Production"
+                name="Captura de Produção Clínica"
+                isExecutable="true">
+
+    <!-- Process Variables (multi-tenant) -->
+    <bpmn:extensionElements>
+      <cib7:processVariables>
+        <cib7:variable name="tenant_id" type="string" required="true" />
+        <cib7:variable name="encounter_reference" type="string" required="true" />
+        <cib7:variable name="patient_reference" type="string" required="true" />
+        <cib7:variable name="coverage_reference" type="string" />
+        <cib7:variable name="payer_id" type="string" />
+        <cib7:variable name="procedure_codes" type="json" />
+        <cib7:variable name="coverage_type" type="string" />
+        <cib7:variable name="existing_auth_number" type="string" />
+        <cib7:variable name="patient_gender" type="string" />
+        <cib7:variable name="patient_age_years" type="integer" />
+        <cib7:variable name="encounter_start" type="string" />
+        <cib7:variable name="encounter_end" type="string" />
+        <cib7:variable name="contract_id" type="string" />
+        <cib7:variable name="price_table_id" type="string" />
+      </cib7:processVariables>
+    </bpmn:extensionElements>
+
+    <!-- ── Start Event ─────────────────────────────────────────────── -->
+    <bpmn:startEvent id="StartEvent_Production" name="Início Produção">
+      <bpmn:outgoing>Flow_ToValidate</bpmn:outgoing>
+    </bpmn:startEvent>
+
+    <!-- ── Task 1: Validate Procedures ─────────────────────────────── -->
+    <bpmn:serviceTask id="Task_ValidateProcedure"
+                      name="Validar Procedimentos (TUSS/CBHPM)"
+                      cib7:topic="production.validate_procedure"
+                      cib7:retries="3"
+                      cib7:retryTimeout="PT30S">
+      <bpmn:extensionElements>
+        <cib7:inputOutput>
+          <cib7:input source="procedure_codes" target="procedure_codes" />
+          <cib7:input source="coverage_type" target="coverage_type" />
+          <cib7:output source="validated_procedures" target="validated_procedures" />
+          <cib7:output source="all_valid" target="all_valid" />
+          <cib7:output source="invalid_codes" target="invalid_codes" />
+        </cib7:inputOutput>
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_ToValidate</bpmn:incoming>
+      <bpmn:outgoing>Flow_ToCapture</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <bpmn:boundaryEvent id="BoundaryError_ValidateProcedure"
+                        attachedToRef="Task_ValidateProcedure">
+      <bpmn:errorEventDefinition errorRef="Error_InvalidProcedureCode" />
+      <bpmn:outgoing>Flow_ToValidationError</bpmn:outgoing>
+    </bpmn:boundaryEvent>
+
+    <!-- ── Task 2: Capture Procedures ──────────────────────────────── -->
+    <bpmn:serviceTask id="Task_CaptureProcedure"
+                      name="Capturar Procedimentos (ERP)"
+                      cib7:topic="production.capture_procedure"
+                      cib7:retries="3"
+                      cib7:retryTimeout="PT1M">
+      <bpmn:extensionElements>
+        <cib7:inputOutput>
+          <cib7:input source="encounter_reference" target="encounter_reference" />
+          <cib7:output source="captured_procedures" target="captured_procedures" />
+          <cib7:output source="erp_system" target="erp_system" />
+          <cib7:output source="procedure_count" target="procedure_count" />
+        </cib7:inputOutput>
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_ToCapture</bpmn:incoming>
+      <bpmn:outgoing>Flow_ToEnrich</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <bpmn:boundaryEvent id="BoundaryError_CaptureProcedure"
+                        attachedToRef="Task_CaptureProcedure">
+      <bpmn:errorEventDefinition errorRef="Error_ExternalService" />
+      <bpmn:outgoing>Flow_ToCaptureError</bpmn:outgoing>
+    </bpmn:boundaryEvent>
+
+    <!-- ── Task 3: Enrich Procedures ───────────────────────────────── -->
+    <bpmn:serviceTask id="Task_EnrichProcedure"
+                      name="Enriquecer Procedimentos (CID-10/Executante)"
+                      cib7:topic="production.enrich_procedure"
+                      cib7:retries="2"
+                      cib7:retryTimeout="PT30S">
+      <bpmn:extensionElements>
+        <cib7:inputOutput>
+          <cib7:input source="captured_procedures" target="captured_procedures" />
+          <cib7:input source="encounter_reference" target="encounter_reference" />
+          <cib7:output source="enriched_procedures" target="enriched_procedures" />
+          <cib7:output source="diagnosis_codes" target="diagnosis_codes" />
+          <cib7:output source="enrichment_warnings" target="enrichment_warnings" />
+        </cib7:inputOutput>
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_ToEnrich</bpmn:incoming>
+      <bpmn:outgoing>Flow_ToAuth</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <bpmn:boundaryEvent id="BoundaryError_EnrichProcedure"
+                        attachedToRef="Task_EnrichProcedure">
+      <bpmn:errorEventDefinition errorRef="Error_MissingDiagnosis" />
+      <bpmn:outgoing>Flow_ToEnrichError</bpmn:outgoing>
+    </bpmn:boundaryEvent>
+
+    <!-- ── Task 4: Check Authorization ─────────────────────────────── -->
+    <bpmn:serviceTask id="Task_CheckAuthorization"
+                      name="Verificar Autorização"
+                      cib7:topic="production.check_authorization"
+                      cib7:retries="3"
+                      cib7:retryTimeout="PT2M">
+      <bpmn:extensionElements>
+        <cib7:inputOutput>
+          <cib7:input source="enriched_procedures" target="enriched_procedures" />
+          <cib7:input source="patient_reference" target="patient_reference" />
+          <cib7:input source="payer_id" target="payer_id" />
+          <cib7:input source="existing_auth_number" target="existing_auth_number" />
+          <cib7:output source="authorization_results" target="authorization_results" />
+          <cib7:output source="all_authorized" target="all_authorized" />
+          <cib7:output source="auth_number" target="auth_number" />
+        </cib7:inputOutput>
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_ToAuth</bpmn:incoming>
+      <bpmn:outgoing>Flow_ToQuantity</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <bpmn:boundaryEvent id="BoundaryError_CheckAuthorization"
+                        attachedToRef="Task_CheckAuthorization">
+      <bpmn:errorEventDefinition errorRef="Error_AuthDenied" />
+      <bpmn:outgoing>Flow_ToAuthError</bpmn:outgoing>
+    </bpmn:boundaryEvent>
+
+    <!-- ── Task 5: Calculate Quantity ──────────────────────────────── -->
+    <bpmn:serviceTask id="Task_CalculateQuantity"
+                      name="Calcular Quantidade Faturável"
+                      cib7:topic="production.calculate_quantity"
+                      cib7:retries="2"
+                      cib7:retryTimeout="PT15S">
+      <bpmn:extensionElements>
+        <cib7:inputOutput>
+          <cib7:input source="enriched_procedures" target="enriched_procedures" />
+          <cib7:input source="encounter_start" target="encounter_start" />
+          <cib7:input source="encounter_end" target="encounter_end" />
+          <cib7:output source="quantified_procedures" target="quantified_procedures" />
+          <cib7:output source="total_items" target="total_items" />
+        </cib7:inputOutput>
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_ToQuantity</bpmn:incoming>
+      <bpmn:outgoing>Flow_ToPrices</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- ── Task 6: Assign Prices ───────────────────────────────────── -->
+    <bpmn:serviceTask id="Task_AssignPrices"
+                      name="Atribuir Preços (Tabela TUSS)"
+                      cib7:topic="production.assign_prices"
+                      cib7:retries="2"
+                      cib7:retryTimeout="PT30S">
+      <bpmn:extensionElements>
+        <cib7:inputOutput>
+          <cib7:input source="quantified_procedures" target="quantified_procedures" />
+          <cib7:input source="contract_id" target="contract_id" />
+          <cib7:input source="price_table_id" target="price_table_id" />
+          <cib7:output source="priced_procedures" target="priced_procedures" />
+          <cib7:output source="total_amount" target="total_amount" />
+          <cib7:output source="currency" target="currency" />
+        </cib7:inputOutput>
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_ToPrices</bpmn:incoming>
+      <bpmn:outgoing>Flow_ToCompatibility</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <bpmn:boundaryEvent id="BoundaryError_AssignPrices"
+                        attachedToRef="Task_AssignPrices">
+      <bpmn:errorEventDefinition errorRef="Error_ContractViolation" />
+      <bpmn:outgoing>Flow_ToPriceError</bpmn:outgoing>
+    </bpmn:boundaryEvent>
+
+    <!-- ── Task 7: Validate Compatibility ──────────────────────────── -->
+    <bpmn:serviceTask id="Task_ValidateCompatibility"
+                      name="Validar Compatibilidade"
+                      cib7:topic="production.validate_compatibility"
+                      cib7:retries="1"
+                      cib7:retryTimeout="PT15S">
+      <bpmn:extensionElements>
+        <cib7:inputOutput>
+          <cib7:input source="priced_procedures" target="priced_procedures" />
+          <cib7:input source="patient_gender" target="patient_gender" />
+          <cib7:input source="patient_age_years" target="patient_age_years" />
+          <cib7:output source="compatible_procedures" target="compatible_procedures" />
+          <cib7:output source="compatibility_warnings" target="compatibility_warnings" />
+          <cib7:output source="all_compatible" target="all_compatible" />
+        </cib7:inputOutput>
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_ToCompatibility</bpmn:incoming>
+      <bpmn:outgoing>Flow_ToPersist</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <bpmn:boundaryEvent id="BoundaryError_ValidateCompatibility"
+                        attachedToRef="Task_ValidateCompatibility">
+      <bpmn:errorEventDefinition errorRef="Error_IncompatibleCodes" />
+      <bpmn:outgoing>Flow_ToCompatibilityError</bpmn:outgoing>
+    </bpmn:boundaryEvent>
+
+    <!-- ── Task 8: Persist Production ──────────────────────────────── -->
+    <bpmn:serviceTask id="Task_PersistProduction"
+                      name="Persistir Produção (FHIR)"
+                      cib7:topic="production.persist_production"
+                      cib7:retries="3"
+                      cib7:retryTimeout="PT1M">
+      <bpmn:extensionElements>
+        <cib7:inputOutput>
+          <cib7:input source="compatible_procedures" target="compatible_procedures" />
+          <cib7:input source="encounter_reference" target="encounter_reference" />
+          <cib7:input source="patient_reference" target="patient_reference" />
+          <cib7:input source="coverage_reference" target="coverage_reference" />
+          <cib7:input source="auth_number" target="auth_number" />
+          <cib7:input source="total_amount" target="total_amount" />
+          <cib7:input source="diagnosis_codes" target="diagnosis_codes" />
+          <cib7:output source="claim_reference" target="claim_reference" />
+          <cib7:output source="charge_item_references" target="charge_item_references" />
+          <cib7:output source="production_id" target="production_id" />
+          <cib7:output source="persisted_at" target="persisted_at" />
+        </cib7:inputOutput>
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_ToPersist</bpmn:incoming>
+      <bpmn:outgoing>Flow_ToEnd</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <bpmn:boundaryEvent id="BoundaryError_PersistProduction"
+                        attachedToRef="Task_PersistProduction">
+      <bpmn:errorEventDefinition errorRef="Error_ExternalService" />
+      <bpmn:outgoing>Flow_ToPersistError</bpmn:outgoing>
+    </bpmn:boundaryEvent>
+
+    <!-- ── End Events ──────────────────────────────────────────────── -->
+    <bpmn:endEvent id="EndEvent_ProductionComplete" name="Produção Concluída">
+      <bpmn:incoming>Flow_ToEnd</bpmn:incoming>
+    </bpmn:endEvent>
+
+    <!-- Error end events -->
+    <bpmn:endEvent id="EndEvent_ValidationError" name="Erro de Validação">
+      <bpmn:incoming>Flow_ToValidationError</bpmn:incoming>
+      <bpmn:errorEventDefinition errorRef="Error_InvalidProcedureCode" />
+    </bpmn:endEvent>
+
+    <bpmn:endEvent id="EndEvent_CaptureError" name="Erro de Captura">
+      <bpmn:incoming>Flow_ToCaptureError</bpmn:incoming>
+      <bpmn:errorEventDefinition errorRef="Error_ExternalService" />
+    </bpmn:endEvent>
+
+    <bpmn:endEvent id="EndEvent_EnrichError" name="Erro de Enriquecimento">
+      <bpmn:incoming>Flow_ToEnrichError</bpmn:incoming>
+      <bpmn:errorEventDefinition errorRef="Error_MissingDiagnosis" />
+    </bpmn:endEvent>
+
+    <bpmn:endEvent id="EndEvent_AuthError" name="Erro de Autorização">
+      <bpmn:incoming>Flow_ToAuthError</bpmn:incoming>
+      <bpmn:errorEventDefinition errorRef="Error_AuthDenied" />
+    </bpmn:endEvent>
+
+    <bpmn:endEvent id="EndEvent_PriceError" name="Erro de Preço">
+      <bpmn:incoming>Flow_ToPriceError</bpmn:incoming>
+      <bpmn:errorEventDefinition errorRef="Error_ContractViolation" />
+    </bpmn:endEvent>
+
+    <bpmn:endEvent id="EndEvent_CompatibilityError" name="Erro de Compatibilidade">
+      <bpmn:incoming>Flow_ToCompatibilityError</bpmn:incoming>
+      <bpmn:errorEventDefinition errorRef="Error_IncompatibleCodes" />
+    </bpmn:endEvent>
+
+    <bpmn:endEvent id="EndEvent_PersistError" name="Erro de Persistência">
+      <bpmn:incoming>Flow_ToPersistError</bpmn:incoming>
+      <bpmn:errorEventDefinition errorRef="Error_ExternalService" />
+    </bpmn:endEvent>
+
+    <!-- ── Sequence Flows ──────────────────────────────────────────── -->
+    <bpmn:sequenceFlow id="Flow_ToValidate" sourceRef="StartEvent_Production" targetRef="Task_ValidateProcedure" />
+    <bpmn:sequenceFlow id="Flow_ToCapture" sourceRef="Task_ValidateProcedure" targetRef="Task_CaptureProcedure" />
+    <bpmn:sequenceFlow id="Flow_ToEnrich" sourceRef="Task_CaptureProcedure" targetRef="Task_EnrichProcedure" />
+    <bpmn:sequenceFlow id="Flow_ToAuth" sourceRef="Task_EnrichProcedure" targetRef="Task_CheckAuthorization" />
+    <bpmn:sequenceFlow id="Flow_ToQuantity" sourceRef="Task_CheckAuthorization" targetRef="Task_CalculateQuantity" />
+    <bpmn:sequenceFlow id="Flow_ToPrices" sourceRef="Task_CalculateQuantity" targetRef="Task_AssignPrices" />
+    <bpmn:sequenceFlow id="Flow_ToCompatibility" sourceRef="Task_AssignPrices" targetRef="Task_ValidateCompatibility" />
+    <bpmn:sequenceFlow id="Flow_ToPersist" sourceRef="Task_ValidateCompatibility" targetRef="Task_PersistProduction" />
+    <bpmn:sequenceFlow id="Flow_ToEnd" sourceRef="Task_PersistProduction" targetRef="EndEvent_ProductionComplete" />
+
+    <!-- Error flows -->
+    <bpmn:sequenceFlow id="Flow_ToValidationError" sourceRef="BoundaryError_ValidateProcedure" targetRef="EndEvent_ValidationError" />
+    <bpmn:sequenceFlow id="Flow_ToCaptureError" sourceRef="BoundaryError_CaptureProcedure" targetRef="EndEvent_CaptureError" />
+    <bpmn:sequenceFlow id="Flow_ToEnrichError" sourceRef="BoundaryError_EnrichProcedure" targetRef="EndEvent_EnrichError" />
+    <bpmn:sequenceFlow id="Flow_ToAuthError" sourceRef="BoundaryError_CheckAuthorization" targetRef="EndEvent_AuthError" />
+    <bpmn:sequenceFlow id="Flow_ToPriceError" sourceRef="BoundaryError_AssignPrices" targetRef="EndEvent_PriceError" />
+    <bpmn:sequenceFlow id="Flow_ToCompatibilityError" sourceRef="BoundaryError_ValidateCompatibility" targetRef="EndEvent_CompatibilityError" />
+    <bpmn:sequenceFlow id="Flow_ToPersistError" sourceRef="BoundaryError_PersistProduction" targetRef="EndEvent_PersistError" />
+
+  </bpmn:process>
+
+  <!-- ── Error Definitions ─────────────────────────────────────────── -->
+  <bpmn:error id="Error_InvalidProcedureCode" name="Código Procedimento Inválido" errorCode="INVALID_PROCEDURE_CODE" />
+  <bpmn:error id="Error_ExternalService" name="Serviço Externo Indisponível" errorCode="EXTERNAL_SERVICE_ERROR" />
+  <bpmn:error id="Error_MissingDiagnosis" name="Diagnóstico Ausente" errorCode="MISSING_DIAGNOSIS" />
+  <bpmn:error id="Error_AuthDenied" name="Autorização Negada" errorCode="AUTH_DENIED" />
+  <bpmn:error id="Error_ContractViolation" name="Violação Contratual" errorCode="CONTRACT_RULE_VIOLATION" />
+  <bpmn:error id="Error_IncompatibleCodes" name="Códigos Incompatíveis" errorCode="INCOMPATIBLE_CODES" />
+  <bpmn:error id="Error_BillingError" name="Erro de Faturamento" errorCode="BILLING_ERROR" />
+
+  <!-- ── Diagram (layout) ─────────────────────────────────────────── -->
+  <bpmndi:BPMNDiagram id="BPMNDiagram_Production">
+    <bpmndi:BPMNPlane id="BPMNPlane_Production" bpmnElement="SUB_04_Clinical_Production">
+
+      <bpmndi:BPMNShape id="Shape_Start" bpmnElement="StartEvent_Production">
+        <dc:Bounds x="152" y="232" width="36" height="36" />
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Shape_Validate" bpmnElement="Task_ValidateProcedure">
+        <dc:Bounds x="240" y="210" width="100" height="80" />
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Shape_Capture" bpmnElement="Task_CaptureProcedure">
+        <dc:Bounds x="390" y="210" width="100" height="80" />
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Shape_Enrich" bpmnElement="Task_EnrichProcedure">
+        <dc:Bounds x="540" y="210" width="100" height="80" />
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Shape_Auth" bpmnElement="Task_CheckAuthorization">
+        <dc:Bounds x="690" y="210" width="100" height="80" />
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Shape_Quantity" bpmnElement="Task_CalculateQuantity">
+        <dc:Bounds x="840" y="210" width="100" height="80" />
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Shape_Prices" bpmnElement="Task_AssignPrices">
+        <dc:Bounds x="990" y="210" width="100" height="80" />
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Shape_Compat" bpmnElement="Task_ValidateCompatibility">
+        <dc:Bounds x="1140" y="210" width="100" height="80" />
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Shape_Persist" bpmnElement="Task_PersistProduction">
+        <dc:Bounds x="1290" y="210" width="100" height="80" />
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Shape_End" bpmnElement="EndEvent_ProductionComplete">
+        <dc:Bounds x="1442" y="232" width="36" height="36" />
+      </bpmndi:BPMNShape>
+
+      <!-- Sequence flows -->
+      <bpmndi:BPMNEdge id="Edge_ToValidate" bpmnElement="Flow_ToValidate">
+        <di:waypoint x="188" y="250" />
+        <di:waypoint x="240" y="250" />
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_ToCapture" bpmnElement="Flow_ToCapture">
+        <di:waypoint x="340" y="250" />
+        <di:waypoint x="390" y="250" />
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_ToEnrich" bpmnElement="Flow_ToEnrich">
+        <di:waypoint x="490" y="250" />
+        <di:waypoint x="540" y="250" />
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_ToAuth" bpmnElement="Flow_ToAuth">
+        <di:waypoint x="640" y="250" />
+        <di:waypoint x="690" y="250" />
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_ToQuantity" bpmnElement="Flow_ToQuantity">
+        <di:waypoint x="790" y="250" />
+        <di:waypoint x="840" y="250" />
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_ToPrices" bpmnElement="Flow_ToPrices">
+        <di:waypoint x="940" y="250" />
+        <di:waypoint x="990" y="250" />
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_ToCompat" bpmnElement="Flow_ToCompatibility">
+        <di:waypoint x="1090" y="250" />
+        <di:waypoint x="1140" y="250" />
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_ToPersist" bpmnElement="Flow_ToPersist">
+        <di:waypoint x="1240" y="250" />
+        <di:waypoint x="1290" y="250" />
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_ToEnd" bpmnElement="Flow_ToEnd">
+        <di:waypoint x="1390" y="250" />
+        <di:waypoint x="1442" y="250" />
+      </bpmndi:BPMNEdge>
+
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+
+</bpmn:definitions>

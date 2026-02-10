@@ -1,0 +1,163 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+                  xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+                  xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+                  xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
+                  xmlns:zeebe="http://camunda.org/schema/zeebe/1.0"
+                  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                  id="Definitions_RC002"
+                  targetNamespace="http://cib7.healthcare/revenue-cycle">
+
+  <bpmn:process id="SP_RC_002_Pre_Service" name="Pré-Atendimento e Autorização" isExecutable="true">
+
+    <bpmn:startEvent id="start_pre_service" name="Início Pré-Atendimento">
+      <bpmn:outgoing>flow_to_check_authorization</bpmn:outgoing>
+    </bpmn:startEvent>
+
+    <!-- Check Authorization Requirement -->
+    <bpmn:serviceTask id="task_check_authorization" name="Verificar Necessidade de Autorização">
+      <bpmn:extensionElements>
+        <zeebe:taskDefinition type="check-authorization"/>
+        <zeebe:ioMapping>
+          <zeebe:input source="=procedureCode" target="procedureCode"/>
+          <zeebe:input source="=payerId" target="payerId"/>
+          <zeebe:output source="=requiresAuth" target="authorizationRequired"/>
+          <zeebe:output source="=authType" target="authorizationType"/>
+        </zeebe:ioMapping>
+      </bpmn:extensionElements>
+      <bpmn:incoming>flow_to_check_authorization</bpmn:incoming>
+      <bpmn:outgoing>flow_to_auth_gateway</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Authorization Decision Gateway -->
+    <bpmn:exclusiveGateway id="gateway_authorization_required" name="Requer Autorização?">
+      <bpmn:incoming>flow_to_auth_gateway</bpmn:incoming>
+      <bpmn:outgoing>flow_auth_required</bpmn:outgoing>
+      <bpmn:outgoing>flow_auth_not_required</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+
+    <!-- Request Authorization from Payer -->
+    <bpmn:serviceTask id="task_request_authorization" name="Solicitar Autorização">
+      <bpmn:extensionElements>
+        <zeebe:taskDefinition type="request-authorization"/>
+        <zeebe:ioMapping>
+          <zeebe:input source="=patientId" target="patientId"/>
+          <zeebe:input source="=procedureCode" target="procedureCode"/>
+          <zeebe:input source="=payerId" target="payerId"/>
+          <zeebe:input source="=clinicalJustification" target="justification"/>
+          <zeebe:output source="=authorizationNumber" target="authNumber"/>
+          <zeebe:output source="=authStatus" target="authorizationStatus"/>
+        </zeebe:ioMapping>
+      </bpmn:extensionElements>
+      <bpmn:incoming>flow_auth_required</bpmn:incoming>
+      <bpmn:outgoing>flow_to_auth_status_gateway</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Timer boundary for authorization SLA (48h) -->
+    <bpmn:boundaryEvent id="timer_authorization_sla" name="SLA 48h" attachedToRef="task_request_authorization">
+      <bpmn:timerEventDefinition>
+        <bpmn:timeDuration xsi:type="bpmn:tFormalExpression">PT48H</bpmn:timeDuration>
+      </bpmn:timerEventDefinition>
+      <bpmn:outgoing>flow_to_escalate_auth</bpmn:outgoing>
+    </bpmn:boundaryEvent>
+
+    <!-- Error boundary for authorization request failure -->
+    <bpmn:boundaryEvent id="error_authorization_request" name="Erro Autorização" attachedToRef="task_request_authorization">
+      <bpmn:errorEventDefinition errorRef="Error_AuthorizationFailed"/>
+      <bpmn:outgoing>flow_to_retry_auth</bpmn:outgoing>
+    </bpmn:boundaryEvent>
+
+    <!-- Authorization Status Gateway -->
+    <bpmn:exclusiveGateway id="gateway_auth_status" name="Status Autorização?">
+      <bpmn:incoming>flow_to_auth_status_gateway</bpmn:incoming>
+      <bpmn:outgoing>flow_auth_approved</bpmn:outgoing>
+      <bpmn:outgoing>flow_auth_denied</bpmn:outgoing>
+      <bpmn:outgoing>flow_auth_pending</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+
+    <!-- Validate Procedure Details -->
+    <bpmn:serviceTask id="task_validate_procedure" name="Validar Procedimento">
+      <bpmn:extensionElements>
+        <zeebe:taskDefinition type="validate-procedure"/>
+        <zeebe:ioMapping>
+          <zeebe:input source="=procedureCode" target="procedureCode"/>
+          <zeebe:input source="=clinicalData" target="clinicalData"/>
+          <zeebe:input source="=authNumber" target="authorizationNumber"/>
+          <zeebe:output source="=validationStatus" target="procedureValidated"/>
+        </zeebe:ioMapping>
+      </bpmn:extensionElements>
+      <bpmn:incoming>flow_auth_approved</bpmn:incoming>
+      <bpmn:incoming>flow_auth_not_required</bpmn:incoming>
+      <bpmn:outgoing>flow_to_end_approved</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- DMN Business Rule Task for Authorization Criteria -->
+    <bpmn:businessRuleTask id="dmn_auth_criteria" name="Critérios de Autorização">
+      <bpmn:extensionElements>
+        <zeebe:calledDecision decisionId="authorization_criteria" resultVariable="authCriteria"/>
+      </bpmn:extensionElements>
+      <bpmn:incoming>flow_to_retry_auth</bpmn:incoming>
+      <bpmn:outgoing>flow_to_manual_auth</bpmn:outgoing>
+    </bpmn:businessRuleTask>
+
+    <!-- Manual Authorization Review -->
+    <bpmn:userTask id="task_manual_auth_review" name="Revisão Manual de Autorização">
+      <bpmn:incoming>flow_to_manual_auth</bpmn:incoming>
+      <bpmn:incoming>flow_auth_pending</bpmn:incoming>
+      <bpmn:outgoing>flow_to_end_manual</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <!-- Escalate Authorization -->
+    <bpmn:userTask id="task_escalate_auth" name="Escalar Autorização">
+      <bpmn:incoming>flow_to_escalate_auth</bpmn:incoming>
+      <bpmn:outgoing>flow_to_end_escalated</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <!-- End Events -->
+    <bpmn:endEvent id="end_approved" name="Autorizado para Atendimento">
+      <bpmn:incoming>flow_to_end_approved</bpmn:incoming>
+    </bpmn:endEvent>
+
+    <bpmn:endEvent id="end_denied" name="Autorização Negada">
+      <bpmn:incoming>flow_auth_denied</bpmn:incoming>
+    </bpmn:endEvent>
+
+    <bpmn:endEvent id="end_manual" name="Revisão Manual">
+      <bpmn:incoming>flow_to_end_manual</bpmn:incoming>
+    </bpmn:endEvent>
+
+    <bpmn:endEvent id="end_escalated" name="Escalado">
+      <bpmn:incoming>flow_to_end_escalated</bpmn:incoming>
+    </bpmn:endEvent>
+
+    <!-- Sequence Flows -->
+    <bpmn:sequenceFlow id="flow_to_check_authorization" sourceRef="start_pre_service" targetRef="task_check_authorization"/>
+    <bpmn:sequenceFlow id="flow_to_auth_gateway" sourceRef="task_check_authorization" targetRef="gateway_authorization_required"/>
+    <bpmn:sequenceFlow id="flow_auth_required" name="Sim" sourceRef="gateway_authorization_required" targetRef="task_request_authorization">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">=authorizationRequired = true</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="flow_auth_not_required" name="Não" sourceRef="gateway_authorization_required" targetRef="task_validate_procedure">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">=authorizationRequired = false</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="flow_to_auth_status_gateway" sourceRef="task_request_authorization" targetRef="gateway_auth_status"/>
+    <bpmn:sequenceFlow id="flow_auth_approved" name="Aprovada" sourceRef="gateway_auth_status" targetRef="task_validate_procedure">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">=authorizationStatus = "APPROVED"</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="flow_auth_denied" name="Negada" sourceRef="gateway_auth_status" targetRef="end_denied">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">=authorizationStatus = "DENIED"</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="flow_auth_pending" name="Pendente" sourceRef="gateway_auth_status" targetRef="task_manual_auth_review">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">=authorizationStatus = "PENDING"</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="flow_to_retry_auth" sourceRef="error_authorization_request" targetRef="dmn_auth_criteria"/>
+    <bpmn:sequenceFlow id="flow_to_manual_auth" sourceRef="dmn_auth_criteria" targetRef="task_manual_auth_review"/>
+    <bpmn:sequenceFlow id="flow_to_escalate_auth" sourceRef="timer_authorization_sla" targetRef="task_escalate_auth"/>
+    <bpmn:sequenceFlow id="flow_to_end_approved" sourceRef="task_validate_procedure" targetRef="end_approved"/>
+    <bpmn:sequenceFlow id="flow_to_end_manual" sourceRef="task_manual_auth_review" targetRef="end_manual"/>
+    <bpmn:sequenceFlow id="flow_to_end_escalated" sourceRef="task_escalate_auth" targetRef="end_escalated"/>
+
+  </bpmn:process>
+
+  <bpmn:error id="Error_AuthorizationFailed" name="AuthorizationFailed" errorCode="ERR_AUTH_001"/>
+
+</bpmn:definitions>

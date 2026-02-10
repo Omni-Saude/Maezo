@@ -1,0 +1,203 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+                  xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+                  xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+                  xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
+                  xmlns:zeebe="http://camunda.org/schema/zeebe/1.0"
+                  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                  id="Definitions_RC005"
+                  targetNamespace="http://cib7.healthcare/revenue-cycle">
+
+  <bpmn:process id="SP_RC_005_Coding_Audit" name="Codificação e Auditoria" isExecutable="true">
+
+    <bpmn:startEvent id="start_coding_audit" name="Início Codificação">
+      <bpmn:outgoing>flow_to_extract_clinical</bpmn:outgoing>
+    </bpmn:startEvent>
+
+    <!-- Extract Clinical Data -->
+    <bpmn:serviceTask id="task_extract_clinical_data" name="Extrair Dados Clínicos">
+      <bpmn:extensionElements>
+        <zeebe:taskDefinition type="coding.extract_clinical_data"/>
+        <zeebe:ioMapping>
+          <zeebe:input source="=encounterId" target="encounter"/>
+          <zeebe:input source="=documentIds" target="documents"/>
+          <zeebe:output source="=extractedData" target="clinicalExtract"/>
+        </zeebe:ioMapping>
+      </bpmn:extensionElements>
+      <bpmn:incoming>flow_to_extract_clinical</bpmn:incoming>
+      <bpmn:outgoing>flow_to_suggest_cid10</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Suggest ICD-10 Codes -->
+    <bpmn:serviceTask id="task_suggest_cid10" name="Sugerir Códigos CID-10">
+      <bpmn:extensionElements>
+        <zeebe:taskDefinition type="coding.suggest_cid10"/>
+        <zeebe:ioMapping>
+          <zeebe:input source="=clinicalExtract" target="clinicalData"/>
+          <zeebe:output source="=suggestedCodes" target="icd10Suggestions"/>
+          <zeebe:output source="=confidence" target="icd10Confidence"/>
+        </zeebe:ioMapping>
+      </bpmn:extensionElements>
+      <bpmn:incoming>flow_to_suggest_cid10</bpmn:incoming>
+      <bpmn:outgoing>flow_to_suggest_tuss</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Suggest TUSS Codes -->
+    <bpmn:serviceTask id="task_suggest_tuss" name="Sugerir Códigos TUSS">
+      <bpmn:extensionElements>
+        <zeebe:taskDefinition type="coding.suggest_tuss"/>
+        <zeebe:ioMapping>
+          <zeebe:input source="=clinicalExtract" target="clinicalData"/>
+          <zeebe:input source="=icd10Suggestions" target="diagnoses"/>
+          <zeebe:output source="=suggestedProcedures" target="tussSuggestions"/>
+          <zeebe:output source="=confidence" target="tussConfidence"/>
+        </zeebe:ioMapping>
+      </bpmn:extensionElements>
+      <bpmn:incoming>flow_to_suggest_tuss</bpmn:incoming>
+      <bpmn:outgoing>flow_to_dmn_compatibility</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- DMN: Compatibility Check -->
+    <bpmn:businessRuleTask id="dmn_check_compatibility" name="Verificar Compatibilidade">
+      <bpmn:extensionElements>
+        <zeebe:calledDecision decisionId="coding_audit_compatibility" resultVariable="compatibilityCheck"/>
+      </bpmn:extensionElements>
+      <bpmn:incoming>flow_to_dmn_compatibility</bpmn:incoming>
+      <bpmn:outgoing>flow_to_check_compatibility</bpmn:outgoing>
+    </bpmn:businessRuleTask>
+
+    <!-- Check Procedure-Diagnosis Compatibility -->
+    <bpmn:serviceTask id="task_check_compatibility" name="Validar Compatibilidade">
+      <bpmn:extensionElements>
+        <zeebe:taskDefinition type="coding.check_compatibility"/>
+        <zeebe:ioMapping>
+          <zeebe:input source="=icd10Suggestions" target="diagnoses"/>
+          <zeebe:input source="=tussSuggestions" target="procedures"/>
+          <zeebe:output source="=compatibilityResult" target="isCompatible"/>
+          <zeebe:output source="=incompatibilities" target="incompatiblePairs"/>
+        </zeebe:ioMapping>
+      </bpmn:extensionElements>
+      <bpmn:incoming>flow_to_check_compatibility</bpmn:incoming>
+      <bpmn:outgoing>flow_to_dmn_duplicate</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- DMN: Duplicate Detection -->
+    <bpmn:businessRuleTask id="dmn_duplicate_detection" name="Detectar Duplicatas">
+      <bpmn:extensionElements>
+        <zeebe:calledDecision decisionId="coding_audit_duplicate" resultVariable="duplicateCheck"/>
+      </bpmn:extensionElements>
+      <bpmn:incoming>flow_to_dmn_duplicate</bpmn:incoming>
+      <bpmn:outgoing>flow_to_dmn_frequency</bpmn:outgoing>
+    </bpmn:businessRuleTask>
+
+    <!-- DMN: Frequency Analysis -->
+    <bpmn:businessRuleTask id="dmn_frequency_analysis" name="Análise de Frequência">
+      <bpmn:extensionElements>
+        <zeebe:calledDecision decisionId="coding_audit_frequency" resultVariable="frequencyAnalysis"/>
+      </bpmn:extensionElements>
+      <bpmn:incoming>flow_to_dmn_frequency</bpmn:incoming>
+      <bpmn:outgoing>flow_to_dmn_unbundle</bpmn:outgoing>
+    </bpmn:businessRuleTask>
+
+    <!-- DMN: Unbundling Detection -->
+    <bpmn:businessRuleTask id="dmn_unbundling" name="Detectar Unbundling">
+      <bpmn:extensionElements>
+        <zeebe:calledDecision decisionId="coding_audit_unbundle" resultVariable="unbundlingCheck"/>
+      </bpmn:extensionElements>
+      <bpmn:incoming>flow_to_dmn_unbundle</bpmn:incoming>
+      <bpmn:outgoing>flow_to_detect_fraud</bpmn:outgoing>
+    </bpmn:businessRuleTask>
+
+    <!-- Detect Fraud Patterns -->
+    <bpmn:serviceTask id="task_detect_fraud" name="Detectar Padrões de Fraude">
+      <bpmn:extensionElements>
+        <zeebe:taskDefinition type="coding.detect_fraud"/>
+        <zeebe:ioMapping>
+          <zeebe:input source="=icd10Suggestions" target="diagnoses"/>
+          <zeebe:input source="=tussSuggestions" target="procedures"/>
+          <zeebe:input source="=duplicateCheck" target="duplicates"/>
+          <zeebe:input source="=unbundlingCheck" target="unbundling"/>
+          <zeebe:output source="=fraudScore" target="fraudRiskScore"/>
+          <zeebe:output source="=fraudIndicators" target="indicators"/>
+        </zeebe:ioMapping>
+      </bpmn:extensionElements>
+      <bpmn:incoming>flow_to_detect_fraud</bpmn:incoming>
+      <bpmn:outgoing>flow_to_fraud_gateway</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Fraud Risk Gateway -->
+    <bpmn:exclusiveGateway id="gateway_fraud_risk" name="Alto Risco?">
+      <bpmn:incoming>flow_to_fraud_gateway</bpmn:incoming>
+      <bpmn:outgoing>flow_low_risk</bpmn:outgoing>
+      <bpmn:outgoing>flow_high_risk</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+
+    <!-- Validate Coding -->
+    <bpmn:serviceTask id="task_validate_coding" name="Validar Codificação">
+      <bpmn:extensionElements>
+        <zeebe:taskDefinition type="coding.validate_coding"/>
+        <zeebe:ioMapping>
+          <zeebe:input source="=icd10Suggestions" target="diagnoses"/>
+          <zeebe:input source="=tussSuggestions" target="procedures"/>
+          <zeebe:input source="=compatibilityCheck" target="compatibility"/>
+          <zeebe:output source="=validationResult" target="codingValidated"/>
+        </zeebe:ioMapping>
+      </bpmn:extensionElements>
+      <bpmn:incoming>flow_low_risk</bpmn:incoming>
+      <bpmn:outgoing>flow_to_audit_coding</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Audit Coding -->
+    <bpmn:serviceTask id="task_audit_coding" name="Auditar Codificação">
+      <bpmn:extensionElements>
+        <zeebe:taskDefinition type="coding.audit_coding"/>
+        <zeebe:ioMapping>
+          <zeebe:input source="=codingValidated" target="validatedCoding"/>
+          <zeebe:input source="=clinicalExtract" target="clinicalData"/>
+          <zeebe:output source="=auditResult" target="auditStatus"/>
+          <zeebe:output source="=auditFindings" target="findings"/>
+        </zeebe:ioMapping>
+      </bpmn:extensionElements>
+      <bpmn:incoming>flow_to_audit_coding</bpmn:incoming>
+      <bpmn:outgoing>flow_to_end_success</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Manual Fraud Review -->
+    <bpmn:userTask id="task_fraud_review" name="Revisão de Fraude">
+      <bpmn:incoming>flow_high_risk</bpmn:incoming>
+      <bpmn:outgoing>flow_to_end_fraud_review</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <!-- End Events -->
+    <bpmn:endEvent id="end_success" name="Codificação Auditada">
+      <bpmn:incoming>flow_to_end_success</bpmn:incoming>
+    </bpmn:endEvent>
+
+    <bpmn:endEvent id="end_fraud_review" name="Revisão de Fraude">
+      <bpmn:incoming>flow_to_end_fraud_review</bpmn:incoming>
+    </bpmn:endEvent>
+
+    <!-- Sequence Flows -->
+    <bpmn:sequenceFlow id="flow_to_extract_clinical" sourceRef="start_coding_audit" targetRef="task_extract_clinical_data"/>
+    <bpmn:sequenceFlow id="flow_to_suggest_cid10" sourceRef="task_extract_clinical_data" targetRef="task_suggest_cid10"/>
+    <bpmn:sequenceFlow id="flow_to_suggest_tuss" sourceRef="task_suggest_cid10" targetRef="task_suggest_tuss"/>
+    <bpmn:sequenceFlow id="flow_to_dmn_compatibility" sourceRef="task_suggest_tuss" targetRef="dmn_check_compatibility"/>
+    <bpmn:sequenceFlow id="flow_to_check_compatibility" sourceRef="dmn_check_compatibility" targetRef="task_check_compatibility"/>
+    <bpmn:sequenceFlow id="flow_to_dmn_duplicate" sourceRef="task_check_compatibility" targetRef="dmn_duplicate_detection"/>
+    <bpmn:sequenceFlow id="flow_to_dmn_frequency" sourceRef="dmn_duplicate_detection" targetRef="dmn_frequency_analysis"/>
+    <bpmn:sequenceFlow id="flow_to_dmn_unbundle" sourceRef="dmn_frequency_analysis" targetRef="dmn_unbundling"/>
+    <bpmn:sequenceFlow id="flow_to_detect_fraud" sourceRef="dmn_unbundling" targetRef="task_detect_fraud"/>
+    <bpmn:sequenceFlow id="flow_to_fraud_gateway" sourceRef="task_detect_fraud" targetRef="gateway_fraud_risk"/>
+    <bpmn:sequenceFlow id="flow_low_risk" name="Não" sourceRef="gateway_fraud_risk" targetRef="task_validate_coding">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">=fraudRiskScore &lt; 0.7</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="flow_high_risk" name="Sim" sourceRef="gateway_fraud_risk" targetRef="task_fraud_review">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">=fraudRiskScore &gt;= 0.7</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="flow_to_audit_coding" sourceRef="task_validate_coding" targetRef="task_audit_coding"/>
+    <bpmn:sequenceFlow id="flow_to_end_success" sourceRef="task_audit_coding" targetRef="end_success"/>
+    <bpmn:sequenceFlow id="flow_to_end_fraud_review" sourceRef="task_fraud_review" targetRef="end_fraud_review"/>
+
+  </bpmn:process>
+
+</bpmn:definitions>

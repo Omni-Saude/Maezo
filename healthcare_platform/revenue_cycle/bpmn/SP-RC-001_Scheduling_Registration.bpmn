@@ -1,0 +1,127 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+                  xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+                  xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+                  xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
+                  xmlns:zeebe="http://camunda.org/schema/zeebe/1.0"
+                  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                  id="Definitions_RC001"
+                  targetNamespace="http://cib7.healthcare/revenue-cycle">
+
+  <bpmn:process id="SP_RC_001_Scheduling_Registration" name="Agendamento e Registro" isExecutable="true">
+
+    <bpmn:startEvent id="start_scheduling" name="Início Agendamento">
+      <bpmn:outgoing>flow_to_verify_insurance</bpmn:outgoing>
+    </bpmn:startEvent>
+
+    <!-- Verify Insurance Coverage -->
+    <bpmn:serviceTask id="task_verify_insurance" name="Verificar Cobertura">
+      <bpmn:extensionElements>
+        <zeebe:taskDefinition type="verify-insurance"/>
+        <zeebe:ioMapping>
+          <zeebe:input source="=patientId" target="patientId"/>
+          <zeebe:input source="=insuranceCardNumber" target="cardNumber"/>
+          <zeebe:output source="=coverageStatus" target="insuranceVerified"/>
+        </zeebe:ioMapping>
+      </bpmn:extensionElements>
+      <bpmn:incoming>flow_to_verify_insurance</bpmn:incoming>
+      <bpmn:outgoing>flow_to_check_eligibility</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Timer boundary for insurance verification SLA -->
+    <bpmn:boundaryEvent id="timer_insurance_sla" name="SLA 4h" attachedToRef="task_verify_insurance">
+      <bpmn:timerEventDefinition>
+        <bpmn:timeDuration xsi:type="bpmn:tFormalExpression">PT4H</bpmn:timeDuration>
+      </bpmn:timerEventDefinition>
+      <bpmn:outgoing>flow_to_escalate_insurance</bpmn:outgoing>
+    </bpmn:boundaryEvent>
+
+    <!-- Error boundary for insurance verification failure -->
+    <bpmn:boundaryEvent id="error_insurance_verification" name="Erro Verificação" attachedToRef="task_verify_insurance">
+      <bpmn:errorEventDefinition errorRef="Error_InsuranceVerificationFailed"/>
+      <bpmn:outgoing>flow_to_manual_review</bpmn:outgoing>
+    </bpmn:boundaryEvent>
+
+    <!-- Check Eligibility -->
+    <bpmn:serviceTask id="task_check_eligibility" name="Verificar Elegibilidade">
+      <bpmn:extensionElements>
+        <zeebe:taskDefinition type="check-eligibility"/>
+        <zeebe:ioMapping>
+          <zeebe:input source="=procedureCode" target="procedureCode"/>
+          <zeebe:input source="=insuranceVerified" target="insuranceData"/>
+          <zeebe:output source="=isEligible" target="eligibilityStatus"/>
+        </zeebe:ioMapping>
+      </bpmn:extensionElements>
+      <bpmn:incoming>flow_to_check_eligibility</bpmn:incoming>
+      <bpmn:outgoing>flow_to_eligibility_gateway</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Eligibility Decision Gateway -->
+    <bpmn:exclusiveGateway id="gateway_eligibility" name="Elegível?">
+      <bpmn:incoming>flow_to_eligibility_gateway</bpmn:incoming>
+      <bpmn:outgoing>flow_eligible_yes</bpmn:outgoing>
+      <bpmn:outgoing>flow_eligible_no</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+
+    <!-- Schedule Appointment -->
+    <bpmn:serviceTask id="task_schedule_appointment" name="Agendar Consulta">
+      <bpmn:extensionElements>
+        <zeebe:taskDefinition type="schedule-appointment"/>
+        <zeebe:ioMapping>
+          <zeebe:input source="=patientId" target="patientId"/>
+          <zeebe:input source="=procedureCode" target="procedureCode"/>
+          <zeebe:input source="=preferredDate" target="requestedDate"/>
+          <zeebe:output source="=appointmentId" target="scheduledAppointmentId"/>
+        </zeebe:ioMapping>
+      </bpmn:extensionElements>
+      <bpmn:incoming>flow_eligible_yes</bpmn:incoming>
+      <bpmn:outgoing>flow_to_end_success</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Manual Review Task -->
+    <bpmn:userTask id="task_manual_review" name="Revisão Manual">
+      <bpmn:incoming>flow_to_manual_review</bpmn:incoming>
+      <bpmn:incoming>flow_eligible_no</bpmn:incoming>
+      <bpmn:outgoing>flow_to_end_manual</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <!-- Escalate Insurance Task -->
+    <bpmn:userTask id="task_escalate_insurance" name="Escalar para Supervisor">
+      <bpmn:incoming>flow_to_escalate_insurance</bpmn:incoming>
+      <bpmn:outgoing>flow_to_end_escalated</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <!-- End Events -->
+    <bpmn:endEvent id="end_success" name="Agendamento Concluído">
+      <bpmn:incoming>flow_to_end_success</bpmn:incoming>
+    </bpmn:endEvent>
+
+    <bpmn:endEvent id="end_manual_review" name="Revisão Manual Necessária">
+      <bpmn:incoming>flow_to_end_manual</bpmn:incoming>
+    </bpmn:endEvent>
+
+    <bpmn:endEvent id="end_escalated" name="Escalado">
+      <bpmn:incoming>flow_to_end_escalated</bpmn:incoming>
+    </bpmn:endEvent>
+
+    <!-- Sequence Flows -->
+    <bpmn:sequenceFlow id="flow_to_verify_insurance" sourceRef="start_scheduling" targetRef="task_verify_insurance"/>
+    <bpmn:sequenceFlow id="flow_to_check_eligibility" sourceRef="task_verify_insurance" targetRef="task_check_eligibility"/>
+    <bpmn:sequenceFlow id="flow_to_eligibility_gateway" sourceRef="task_check_eligibility" targetRef="gateway_eligibility"/>
+    <bpmn:sequenceFlow id="flow_eligible_yes" name="Sim" sourceRef="gateway_eligibility" targetRef="task_schedule_appointment">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">=eligibilityStatus = true</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="flow_eligible_no" name="Não" sourceRef="gateway_eligibility" targetRef="task_manual_review">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">=eligibilityStatus = false</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="flow_to_manual_review" sourceRef="error_insurance_verification" targetRef="task_manual_review"/>
+    <bpmn:sequenceFlow id="flow_to_escalate_insurance" sourceRef="timer_insurance_sla" targetRef="task_escalate_insurance"/>
+    <bpmn:sequenceFlow id="flow_to_end_success" sourceRef="task_schedule_appointment" targetRef="end_success"/>
+    <bpmn:sequenceFlow id="flow_to_end_manual" sourceRef="task_manual_review" targetRef="end_manual_review"/>
+    <bpmn:sequenceFlow id="flow_to_end_escalated" sourceRef="task_escalate_insurance" targetRef="end_escalated"/>
+
+  </bpmn:process>
+
+  <bpmn:error id="Error_InsuranceVerificationFailed" name="InsuranceVerificationFailed" errorCode="ERR_INSURANCE_001"/>
+
+</bpmn:definitions>

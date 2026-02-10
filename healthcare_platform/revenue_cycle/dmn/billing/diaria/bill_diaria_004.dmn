@@ -1,0 +1,172 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  ============================================================================
+  BILL-DIARIA-004 - Alta Hospitalar Cobranca Parcial
+  ============================================================================
+  Versao: 1.0.0 (2026-02-08)
+  Categoria: BILL-DIARIA
+  Perspectiva: HOSPITAL (Faturamento)
+
+  ============================================================================
+  INDICACOES (Quando PROSSEGUIR):
+  ============================================================================
+  - Alta hospitalar ate as 12h00 - Cobrar diaria completa
+  - Alta apos 12h00 - Cobrar diaria parcial (50%)
+  - Alta apos 18h00 - Cobrar diaria completa do dia seguinte
+
+  ============================================================================
+  CONTRAINDICACOES (Quando BLOQUEAR):
+  ============================================================================
+  - Cobranca de diaria completa para alta antes das 12h00 sem justificativa
+  - Cobranca de 2 diarias para alta entre 00h00-12h00
+  - Ausencia de registro do horario de alta no sistema
+
+  ============================================================================
+  REFERENCIAS NORMATIVAS:
+  ============================================================================
+  - ANS RN 465/2021 (cobranca de diarias)
+  - Lei 8.078/1990 CDC (transparencia na cobranca)
+  - Resolucao CFM 1.995/2012 (documentacao de alta)
+  ============================================================================
+-->
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/"
+             xmlns:dc="http://www.omg.org/spec/DMN/20180521/DC/"
+             id="Definitions_BILL_DIARIA_004"
+             name="Alta Hospitalar Cobranca Parcial"
+             targetNamespace="http://camunda.org/schema/1.0/dmn">
+
+  <decision id="Decision_BILL_DIARIA_004" name="Alta Hospitalar Cobranca Parcial">
+    <decisionTable id="DecisionTable_BILL_DIARIA_004" hitPolicy="FIRST">
+
+      <!-- ========== INPUTS ========== -->
+      <input id="Input_1" label="Horario Alta (hora)">
+        <inputExpression id="InputExpression_1" typeRef="number">
+          <text>horarioAlta</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_2" label="Horario Registrado">
+        <inputExpression id="InputExpression_2" typeRef="boolean">
+          <text>horarioRegistrado</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_3" label="Tipo Cobranca Solicitada">
+        <inputExpression id="InputExpression_3" typeRef="string">
+          <text>tipoCobrancaSolicitada</text>
+        </inputExpression>
+        <inputValues id="InputValues_3">
+          <text>"DIARIA_COMPLETA", "DIARIA_PARCIAL", "SEM_COBRANCA"</text>
+        </inputValues>
+      </input>
+
+      <!-- ========== OUTPUTS (5 STANDARD) ========== -->
+      <output id="Output_1" label="Resultado" name="resultado" typeRef="string">
+        <outputValues><text>"Prosseguir", "Bloquear", "Alertar", "Revisar"</text></outputValues>
+      </output>
+
+      <output id="Output_2" label="Observacao" name="observacao" typeRef="string"/>
+
+      <output id="Output_3" label="Acao Recomendada" name="acaoRecomendada" typeRef="string"/>
+
+      <output id="Output_4" label="Alertas Conformidade" name="alertasConformidade" typeRef="string">
+        <outputValues><text>"NENHUM", "DUP", "FREQ", "PRAZO", "DOC", "VALOR", "CRED", "CONTRATO"</text></outputValues>
+      </output>
+
+      <output id="Output_5" label="Risco Denial" name="riscoDenial" typeRef="string">
+        <outputValues><text>"BAIXO", "MEDIO", "ALTO", "CRITICO"</text></outputValues>
+      </output>
+
+      <!-- ========== RULES ========== -->
+
+      <!-- REGRA B1: Bloqueio - Horario de alta nao registrado -->
+      <rule id="Rule_Bloqueio_1">
+        <description>Ausencia de registro do horario de alta no sistema</description>
+        <inputEntry id="InputEntry_B1_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_B1_2"><text>false</text></inputEntry>
+        <inputEntry id="InputEntry_B1_3"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_B1_1"><text>"Bloquear"</text></outputEntry>
+        <outputEntry id="OutputEntry_B1_2"><text>"Horario de alta nao registrado. Impossivel definir tipo de cobranca de diaria."</text></outputEntry>
+        <outputEntry id="OutputEntry_B1_3"><text>"Bloquear faturamento. Solicitar registro retroativo do horario de alta no prontuario."</text></outputEntry>
+        <outputEntry id="OutputEntry_B1_4"><text>"DOC"</text></outputEntry>
+        <outputEntry id="OutputEntry_B1_5"><text>"ALTO"</text></outputEntry>
+      </rule>
+
+      <!-- REGRA B2: Bloqueio - Cobranca indevida diaria completa para alta antes de 12h -->
+      <rule id="Rule_Bloqueio_2">
+        <description>Cobranca de diaria completa para alta antes das 12h00 sem justificativa</description>
+        <inputEntry id="InputEntry_B2_1"><text>&lt; 12</text></inputEntry>
+        <inputEntry id="InputEntry_B2_2"><text>true</text></inputEntry>
+        <inputEntry id="InputEntry_B2_3"><text>"DIARIA_COMPLETA"</text></inputEntry>
+        <outputEntry id="OutputEntry_B2_1"><text>"Bloquear"</text></outputEntry>
+        <outputEntry id="OutputEntry_B2_2"><text>"Alta antes das 12h00. Nao deve cobrar diaria completa do dia da alta."</text></outputEntry>
+        <outputEntry id="OutputEntry_B2_3"><text>"Corrigir para SEM_COBRANCA. Alta antes das 12h00 nao gera cobranca de diaria adicional."</text></outputEntry>
+        <outputEntry id="OutputEntry_B2_4"><text>"VALOR"</text></outputEntry>
+        <outputEntry id="OutputEntry_B2_5"><text>"ALTO"</text></outputEntry>
+      </rule>
+
+      <!-- REGRA A1: Alerta - Alta entre 12h-18h -->
+      <rule id="Rule_Alerta_1">
+        <description>Alta entre 12h00 e 18h00 - Cobrar diaria parcial (50%)</description>
+        <inputEntry id="InputEntry_A1_1"><text>[12..18]</text></inputEntry>
+        <inputEntry id="InputEntry_A1_2"><text>true</text></inputEntry>
+        <inputEntry id="InputEntry_A1_3"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_A1_1"><text>"Alertar"</text></outputEntry>
+        <outputEntry id="OutputEntry_A1_2"><text>"Alta entre 12h00-18h00. Cobrar diaria parcial (50%) conforme politica hospitalar."</text></outputEntry>
+        <outputEntry id="OutputEntry_A1_3"><text>"Faturar diaria parcial (50% do valor). Registrar horario de alta para auditoria."</text></outputEntry>
+        <outputEntry id="OutputEntry_A1_4"><text>"VALOR"</text></outputEntry>
+        <outputEntry id="OutputEntry_A1_5"><text>"BAIXO"</text></outputEntry>
+      </rule>
+
+      <!-- REGRA P1: Aprovado - Alta apos 18h -->
+      <rule id="Rule_Aprovado_1">
+        <description>Alta apos 18h00 - Cobrar diaria completa</description>
+        <inputEntry id="InputEntry_P1_1"><text>&gt; 18</text></inputEntry>
+        <inputEntry id="InputEntry_P1_2"><text>true</text></inputEntry>
+        <inputEntry id="InputEntry_P1_3"><text>"DIARIA_COMPLETA"</text></inputEntry>
+        <outputEntry id="OutputEntry_P1_1"><text>"Prosseguir"</text></outputEntry>
+        <outputEntry id="OutputEntry_P1_2"><text>"Alta apos 18h00. Cobrar diaria completa do dia da alta conforme politica hospitalar."</text></outputEntry>
+        <outputEntry id="OutputEntry_P1_3"><text>"Prosseguir com cobranca de diaria completa. Registrar justificativa de alta tardia."</text></outputEntry>
+        <outputEntry id="OutputEntry_P1_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_P1_5"><text>"BAIXO"</text></outputEntry>
+      </rule>
+
+      <!-- REGRA P2: Aprovado - Alta antes de 12h sem cobranca -->
+      <rule id="Rule_Aprovado_2">
+        <description>Alta antes das 12h00 - Sem cobranca de diaria adicional</description>
+        <inputEntry id="InputEntry_P2_1"><text>&lt; 12</text></inputEntry>
+        <inputEntry id="InputEntry_P2_2"><text>true</text></inputEntry>
+        <inputEntry id="InputEntry_P2_3"><text>"SEM_COBRANCA"</text></inputEntry>
+        <outputEntry id="OutputEntry_P2_1"><text>"Prosseguir"</text></outputEntry>
+        <outputEntry id="OutputEntry_P2_2"><text>"Alta antes das 12h00. Sem cobranca de diaria adicional conforme ANS RN 465/2021."</text></outputEntry>
+        <outputEntry id="OutputEntry_P2_3"><text>"Prosseguir sem cobranca de diaria adicional. Faturar apenas ate o dia anterior."</text></outputEntry>
+        <outputEntry id="OutputEntry_P2_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_P2_5"><text>"BAIXO"</text></outputEntry>
+      </rule>
+
+      <!-- REGRA F: Fallback - Requer revisao manual -->
+      <rule id="Rule_Fallback_BILL_DIARIA_004">
+        <description>Regra padrao - Requer avaliacao manual</description>
+        <inputEntry id="InputEntry_F_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_F_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_F_3"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_F_1"><text>"Revisar"</text></outputEntry>
+        <outputEntry id="OutputEntry_F_2"><text>"Situacao requer analise manual por nao corresponder a nenhum criterio automatico."</text></outputEntry>
+        <outputEntry id="OutputEntry_F_3"><text>"Encaminhar para auditoria administrativa para avaliacao caso a caso."</text></outputEntry>
+        <outputEntry id="OutputEntry_F_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_F_5"><text>"MEDIO"</text></outputEntry>
+      </rule>
+
+    </decisionTable>
+  </decision>
+
+  <dmndi:DMNDI>
+    <dmndi:DMNDiagram id="DMNDiagram_BILL_DIARIA_004">
+      <dmndi:DMNShape id="DMNShape_Decision_BILL_DIARIA_004" dmnElementRef="Decision_BILL_DIARIA_004">
+        <dc:Bounds height="80" width="180" x="160" y="100"/>
+      </dmndi:DMNShape>
+    </dmndi:DMNDiagram>
+  </dmndi:DMNDI>
+
+</definitions>

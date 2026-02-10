@@ -1,0 +1,203 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+                  xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+                  xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+                  xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
+                  xmlns:zeebe="http://camunda.org/schema/zeebe/1.0"
+                  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                  id="Definitions_RC008"
+                  targetNamespace="http://cib7.healthcare/revenue-cycle">
+
+  <bpmn:process id="SP_RC_008_Revenue_Collection" name="Cobrança e Recebimento" isExecutable="true">
+
+    <bpmn:startEvent id="start_collection" name="Início Cobrança">
+      <bpmn:outgoing>flow_to_identify_overdue</bpmn:outgoing>
+    </bpmn:startEvent>
+
+    <!-- Identify Overdue Accounts -->
+    <bpmn:serviceTask id="task_identify_overdue" name="Identificar Contas Vencidas">
+      <bpmn:extensionElements>
+        <zeebe:taskDefinition type="identify-overdue"/>
+        <zeebe:ioMapping>
+          <zeebe:input source="=cutoffDate" target="dueDate"/>
+          <zeebe:output source="=overdueAccounts" target="accountsOverdue"/>
+          <zeebe:output source="=totalOverdue" target="overdueAmount"/>
+        </zeebe:ioMapping>
+      </bpmn:extensionElements>
+      <bpmn:incoming>flow_to_identify_overdue</bpmn:incoming>
+      <bpmn:outgoing>flow_to_prioritize</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Prioritize Collection -->
+    <bpmn:serviceTask id="task_prioritize_collection" name="Priorizar Cobrança">
+      <bpmn:extensionElements>
+        <zeebe:taskDefinition type="prioritize-collection"/>
+        <zeebe:ioMapping>
+          <zeebe:input source="=accountsOverdue" target="accounts"/>
+          <zeebe:output source="=prioritizedAccounts" target="accountsByPriority"/>
+          <zeebe:output source="=highPriorityCount" target="urgentCount"/>
+        </zeebe:ioMapping>
+      </bpmn:extensionElements>
+      <bpmn:incoming>flow_to_prioritize</bpmn:incoming>
+      <bpmn:outgoing>flow_to_dmn_payment</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- DMN: Payment Method Rules -->
+    <bpmn:businessRuleTask id="dmn_payment_method" name="Regras de Pagamento">
+      <bpmn:extensionElements>
+        <zeebe:calledDecision decisionId="cash_operations_payment_method" resultVariable="paymentRules"/>
+      </bpmn:extensionElements>
+      <bpmn:incoming>flow_to_dmn_payment</bpmn:incoming>
+      <bpmn:outgoing>flow_to_dmn_discount</bpmn:outgoing>
+    </bpmn:businessRuleTask>
+
+    <!-- DMN: Discount Rules -->
+    <bpmn:businessRuleTask id="dmn_discount_rules" name="Regras de Desconto">
+      <bpmn:extensionElements>
+        <zeebe:calledDecision decisionId="cash_operations_discount" resultVariable="discountRules"/>
+      </bpmn:extensionElements>
+      <bpmn:incoming>flow_to_dmn_discount</bpmn:incoming>
+      <bpmn:outgoing>flow_to_receive_payment</bpmn:outgoing>
+    </bpmn:businessRuleTask>
+
+    <!-- Receive Payment Notification -->
+    <bpmn:serviceTask id="task_receive_payment_notification" name="Receber Notificação de Pagamento">
+      <bpmn:extensionElements>
+        <zeebe:taskDefinition type="receive-payment-notification"/>
+        <zeebe:ioMapping>
+          <zeebe:input source="=accountsByPriority" target="accounts"/>
+          <zeebe:output source="=payments" target="receivedPayments"/>
+          <zeebe:output source="=paymentDate" target="receiptDate"/>
+        </zeebe:ioMapping>
+      </bpmn:extensionElements>
+      <bpmn:incoming>flow_to_receive_payment</bpmn:incoming>
+      <bpmn:outgoing>flow_to_auto_matching</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Timer boundary for payment follow-up (7 days) -->
+    <bpmn:boundaryEvent id="timer_payment_followup" name="Seguir em 7d" attachedToRef="task_receive_payment_notification">
+      <bpmn:timerEventDefinition>
+        <bpmn:timeDuration xsi:type="bpmn:tFormalExpression">P7D</bpmn:timeDuration>
+      </bpmn:timerEventDefinition>
+      <bpmn:outgoing>flow_to_followup</bpmn:outgoing>
+    </bpmn:boundaryEvent>
+
+    <!-- Auto-Matching Payment -->
+    <bpmn:serviceTask id="task_auto_matching" name="Conciliação Automática">
+      <bpmn:extensionElements>
+        <zeebe:taskDefinition type="auto-matching"/>
+        <zeebe:ioMapping>
+          <zeebe:input source="=receivedPayments" target="payments"/>
+          <zeebe:input source="=accountsOverdue" target="openAccounts"/>
+          <zeebe:output source="=matchedPayments" target="reconciledPayments"/>
+          <zeebe:output source="=unmatchedPayments" target="pendingReconciliation"/>
+        </zeebe:ioMapping>
+      </bpmn:extensionElements>
+      <bpmn:incoming>flow_to_auto_matching</bpmn:incoming>
+      <bpmn:outgoing>flow_to_matching_gateway</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Error boundary for matching failure -->
+    <bpmn:boundaryEvent id="error_matching_failed" name="Erro Conciliação" attachedToRef="task_auto_matching">
+      <bpmn:errorEventDefinition errorRef="Error_MatchingFailed"/>
+      <bpmn:outgoing>flow_to_manual_matching</bpmn:outgoing>
+    </bpmn:boundaryEvent>
+
+    <!-- Matching Gateway -->
+    <bpmn:exclusiveGateway id="gateway_matching" name="Conciliação OK?">
+      <bpmn:incoming>flow_to_matching_gateway</bpmn:incoming>
+      <bpmn:outgoing>flow_matched</bpmn:outgoing>
+      <bpmn:outgoing>flow_unmatched</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+
+    <!-- DMN: Payment Estimate -->
+    <bpmn:businessRuleTask id="dmn_payment_estimate" name="Estimar Recebimento">
+      <bpmn:extensionElements>
+        <zeebe:calledDecision decisionId="cash_operations_estimate" resultVariable="paymentEstimate"/>
+      </bpmn:extensionElements>
+      <bpmn:incoming>flow_matched</bpmn:incoming>
+      <bpmn:outgoing>flow_to_reconcile_daily</bpmn:outgoing>
+    </bpmn:businessRuleTask>
+
+    <!-- Reconcile Daily -->
+    <bpmn:serviceTask id="task_reconcile_daily" name="Conciliar Diariamente">
+      <bpmn:extensionElements>
+        <zeebe:taskDefinition type="reconcile-daily"/>
+        <zeebe:ioMapping>
+          <zeebe:input source="=reconciledPayments" target="payments"/>
+          <zeebe:input source="=receiptDate" target="reconciliationDate"/>
+          <zeebe:output source="=reconciliationReport" target="dailyReport"/>
+          <zeebe:output source="=totalReconciled" target="reconciledAmount"/>
+        </zeebe:ioMapping>
+      </bpmn:extensionElements>
+      <bpmn:incoming>flow_to_reconcile_daily</bpmn:incoming>
+      <bpmn:outgoing>flow_to_update_ar</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Update Accounts Receivable -->
+    <bpmn:serviceTask id="task_update_ar" name="Atualizar Contas a Receber">
+      <bpmn:extensionElements>
+        <zeebe:taskDefinition type="update-accounts-receivable"/>
+        <zeebe:ioMapping>
+          <zeebe:input source="=reconciledPayments" target="payments"/>
+          <zeebe:input source="=accountsOverdue" target="accounts"/>
+          <zeebe:output source="=updatedAR" target="currentAR"/>
+        </zeebe:ioMapping>
+      </bpmn:extensionElements>
+      <bpmn:incoming>flow_to_update_ar</bpmn:incoming>
+      <bpmn:outgoing>flow_to_end_success</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Manual Matching -->
+    <bpmn:userTask id="task_manual_matching" name="Conciliação Manual">
+      <bpmn:incoming>flow_unmatched</bpmn:incoming>
+      <bpmn:incoming>flow_to_manual_matching</bpmn:incoming>
+      <bpmn:outgoing>flow_to_end_manual</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <!-- Payment Follow-up -->
+    <bpmn:userTask id="task_payment_followup" name="Seguimento de Pagamento">
+      <bpmn:incoming>flow_to_followup</bpmn:incoming>
+      <bpmn:outgoing>flow_to_end_followup</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <!-- End Events -->
+    <bpmn:endEvent id="end_success" name="Recebimento Concluído">
+      <bpmn:incoming>flow_to_end_success</bpmn:incoming>
+    </bpmn:endEvent>
+
+    <bpmn:endEvent id="end_manual" name="Conciliação Manual">
+      <bpmn:incoming>flow_to_end_manual</bpmn:incoming>
+    </bpmn:endEvent>
+
+    <bpmn:endEvent id="end_followup" name="Seguimento Necessário">
+      <bpmn:incoming>flow_to_end_followup</bpmn:incoming>
+    </bpmn:endEvent>
+
+    <!-- Sequence Flows -->
+    <bpmn:sequenceFlow id="flow_to_identify_overdue" sourceRef="start_collection" targetRef="task_identify_overdue"/>
+    <bpmn:sequenceFlow id="flow_to_prioritize" sourceRef="task_identify_overdue" targetRef="task_prioritize_collection"/>
+    <bpmn:sequenceFlow id="flow_to_dmn_payment" sourceRef="task_prioritize_collection" targetRef="dmn_payment_method"/>
+    <bpmn:sequenceFlow id="flow_to_dmn_discount" sourceRef="dmn_payment_method" targetRef="dmn_discount_rules"/>
+    <bpmn:sequenceFlow id="flow_to_receive_payment" sourceRef="dmn_discount_rules" targetRef="task_receive_payment_notification"/>
+    <bpmn:sequenceFlow id="flow_to_auto_matching" sourceRef="task_receive_payment_notification" targetRef="task_auto_matching"/>
+    <bpmn:sequenceFlow id="flow_to_matching_gateway" sourceRef="task_auto_matching" targetRef="gateway_matching"/>
+    <bpmn:sequenceFlow id="flow_matched" name="Sim" sourceRef="gateway_matching" targetRef="dmn_payment_estimate">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">=size(pendingReconciliation) = 0</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="flow_unmatched" name="Não" sourceRef="gateway_matching" targetRef="task_manual_matching">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">=size(pendingReconciliation) > 0</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="flow_to_reconcile_daily" sourceRef="dmn_payment_estimate" targetRef="task_reconcile_daily"/>
+    <bpmn:sequenceFlow id="flow_to_update_ar" sourceRef="task_reconcile_daily" targetRef="task_update_ar"/>
+    <bpmn:sequenceFlow id="flow_to_manual_matching" sourceRef="error_matching_failed" targetRef="task_manual_matching"/>
+    <bpmn:sequenceFlow id="flow_to_followup" sourceRef="timer_payment_followup" targetRef="task_payment_followup"/>
+    <bpmn:sequenceFlow id="flow_to_end_success" sourceRef="task_update_ar" targetRef="end_success"/>
+    <bpmn:sequenceFlow id="flow_to_end_manual" sourceRef="task_manual_matching" targetRef="end_manual"/>
+    <bpmn:sequenceFlow id="flow_to_end_followup" sourceRef="task_payment_followup" targetRef="end_followup"/>
+
+  </bpmn:process>
+
+  <bpmn:error id="Error_MatchingFailed" name="MatchingFailed" errorCode="ERR_MATCHING_001"/>
+
+</bpmn:definitions>

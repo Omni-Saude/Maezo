@@ -1,0 +1,190 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+                  xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+                  xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+                  xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
+                  xmlns:zeebe="http://camunda.org/schema/zeebe/1.0"
+                  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                  id="Definitions_RC004"
+                  targetNamespace="http://cib7.healthcare/revenue-cycle">
+
+  <bpmn:process id="SP_RC_004_Clinical_Production" name="Produção Clínica" isExecutable="true">
+
+    <bpmn:startEvent id="start_production" name="Início Produção">
+      <bpmn:outgoing>flow_to_assign_prices</bpmn:outgoing>
+    </bpmn:startEvent>
+
+    <!-- Assign Prices to Procedures -->
+    <bpmn:serviceTask id="task_assign_prices" name="Atribuir Preços">
+      <bpmn:extensionElements>
+        <zeebe:taskDefinition type="production.assign_prices"/>
+        <zeebe:ioMapping>
+          <zeebe:input source="=procedureCodes" target="procedures"/>
+          <zeebe:input source="=payerId" target="payer"/>
+          <zeebe:input source="=contractId" target="contract"/>
+          <zeebe:output source="=pricedProcedures" target="proceduresWithPrices"/>
+        </zeebe:ioMapping>
+      </bpmn:extensionElements>
+      <bpmn:incoming>flow_to_assign_prices</bpmn:incoming>
+      <bpmn:outgoing>flow_to_dmn_contract</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- DMN: Contract Pricing Rules -->
+    <bpmn:businessRuleTask id="dmn_contract_pricing" name="Regras de Contrato">
+      <bpmn:extensionElements>
+        <zeebe:calledDecision decisionId="pricing_contract_rules" resultVariable="contractPricing"/>
+      </bpmn:extensionElements>
+      <bpmn:incoming>flow_to_dmn_contract</bpmn:incoming>
+      <bpmn:outgoing>flow_to_dmn_package</bpmn:outgoing>
+    </bpmn:businessRuleTask>
+
+    <!-- DMN: Package Pricing -->
+    <bpmn:businessRuleTask id="dmn_package_pricing" name="Precificação de Pacotes">
+      <bpmn:extensionElements>
+        <zeebe:calledDecision decisionId="pricing_package_rules" resultVariable="packagePricing"/>
+      </bpmn:extensionElements>
+      <bpmn:incoming>flow_to_dmn_package</bpmn:incoming>
+      <bpmn:outgoing>flow_to_validate_compatibility</bpmn:outgoing>
+    </bpmn:businessRuleTask>
+
+    <!-- Validate Procedure Compatibility -->
+    <bpmn:serviceTask id="task_validate_compatibility" name="Validar Compatibilidade">
+      <bpmn:extensionElements>
+        <zeebe:taskDefinition type="production.validate_compatibility"/>
+        <zeebe:ioMapping>
+          <zeebe:input source="=proceduresWithPrices" target="procedures"/>
+          <zeebe:input source="=icdCodes" target="diagnoses"/>
+          <zeebe:output source="=compatibilityResult" target="compatibilityStatus"/>
+          <zeebe:output source="=incompatibleItems" target="incompatibilities"/>
+        </zeebe:ioMapping>
+      </bpmn:extensionElements>
+      <bpmn:incoming>flow_to_validate_compatibility</bpmn:incoming>
+      <bpmn:outgoing>flow_to_compatibility_gateway</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Error boundary for pricing failure -->
+    <bpmn:boundaryEvent id="error_pricing_failed" name="Erro Precificação" attachedToRef="task_assign_prices">
+      <bpmn:errorEventDefinition errorRef="Error_PricingFailed"/>
+      <bpmn:outgoing>flow_to_manual_pricing</bpmn:outgoing>
+    </bpmn:boundaryEvent>
+
+    <!-- Compatibility Decision Gateway -->
+    <bpmn:exclusiveGateway id="gateway_compatibility" name="Compatível?">
+      <bpmn:incoming>flow_to_compatibility_gateway</bpmn:incoming>
+      <bpmn:outgoing>flow_compatible</bpmn:outgoing>
+      <bpmn:outgoing>flow_incompatible</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+
+    <!-- Calculate Production Value -->
+    <bpmn:serviceTask id="task_calculate_production" name="Calcular Valor de Produção">
+      <bpmn:extensionElements>
+        <zeebe:taskDefinition type="production.calculate_value"/>
+        <zeebe:ioMapping>
+          <zeebe:input source="=proceduresWithPrices" target="procedures"/>
+          <zeebe:input source="=contractPricing" target="contractRules"/>
+          <zeebe:input source="=packagePricing" target="packageRules"/>
+          <zeebe:output source="=totalValue" target="productionValue"/>
+          <zeebe:output source="=breakdown" target="valueBreakdown"/>
+        </zeebe:ioMapping>
+      </bpmn:extensionElements>
+      <bpmn:incoming>flow_compatible</bpmn:incoming>
+      <bpmn:outgoing>flow_to_dmn_outlier</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- DMN: Outlier Detection -->
+    <bpmn:businessRuleTask id="dmn_outlier_detection" name="Detecção de Outliers">
+      <bpmn:extensionElements>
+        <zeebe:calledDecision decisionId="pricing_outlier_detection" resultVariable="outlierAnalysis"/>
+      </bpmn:extensionElements>
+      <bpmn:incoming>flow_to_dmn_outlier</bpmn:incoming>
+      <bpmn:outgoing>flow_to_outlier_gateway</bpmn:outgoing>
+    </bpmn:businessRuleTask>
+
+    <!-- Outlier Decision Gateway -->
+    <bpmn:exclusiveGateway id="gateway_outlier" name="É Outlier?">
+      <bpmn:incoming>flow_to_outlier_gateway</bpmn:incoming>
+      <bpmn:outgoing>flow_not_outlier</bpmn:outgoing>
+      <bpmn:outgoing>flow_is_outlier</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+
+    <!-- Record Production -->
+    <bpmn:serviceTask id="task_record_production" name="Registrar Produção">
+      <bpmn:extensionElements>
+        <zeebe:taskDefinition type="production.record_production"/>
+        <zeebe:ioMapping>
+          <zeebe:input source="=productionValue" target="value"/>
+          <zeebe:input source="=valueBreakdown" target="breakdown"/>
+          <zeebe:input source="=encounterId" target="encounter"/>
+          <zeebe:output source="=productionId" target="recordedProductionId"/>
+        </zeebe:ioMapping>
+      </bpmn:extensionElements>
+      <bpmn:incoming>flow_not_outlier</bpmn:incoming>
+      <bpmn:outgoing>flow_to_end_success</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Review Outlier -->
+    <bpmn:userTask id="task_review_outlier" name="Revisar Outlier">
+      <bpmn:incoming>flow_is_outlier</bpmn:incoming>
+      <bpmn:outgoing>flow_to_end_outlier_review</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <!-- Review Incompatibility -->
+    <bpmn:userTask id="task_review_incompatibility" name="Revisar Incompatibilidade">
+      <bpmn:incoming>flow_incompatible</bpmn:incoming>
+      <bpmn:outgoing>flow_to_end_incompatible</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <!-- Manual Pricing -->
+    <bpmn:userTask id="task_manual_pricing" name="Precificação Manual">
+      <bpmn:incoming>flow_to_manual_pricing</bpmn:incoming>
+      <bpmn:outgoing>flow_to_end_manual</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <!-- End Events -->
+    <bpmn:endEvent id="end_success" name="Produção Registrada">
+      <bpmn:incoming>flow_to_end_success</bpmn:incoming>
+    </bpmn:endEvent>
+
+    <bpmn:endEvent id="end_outlier_review" name="Outlier em Revisão">
+      <bpmn:incoming>flow_to_end_outlier_review</bpmn:incoming>
+    </bpmn:endEvent>
+
+    <bpmn:endEvent id="end_incompatible" name="Incompatibilidade">
+      <bpmn:incoming>flow_to_end_incompatible</bpmn:incoming>
+    </bpmn:endEvent>
+
+    <bpmn:endEvent id="end_manual" name="Precificação Manual">
+      <bpmn:incoming>flow_to_end_manual</bpmn:incoming>
+    </bpmn:endEvent>
+
+    <!-- Sequence Flows -->
+    <bpmn:sequenceFlow id="flow_to_assign_prices" sourceRef="start_production" targetRef="task_assign_prices"/>
+    <bpmn:sequenceFlow id="flow_to_dmn_contract" sourceRef="task_assign_prices" targetRef="dmn_contract_pricing"/>
+    <bpmn:sequenceFlow id="flow_to_dmn_package" sourceRef="dmn_contract_pricing" targetRef="dmn_package_pricing"/>
+    <bpmn:sequenceFlow id="flow_to_validate_compatibility" sourceRef="dmn_package_pricing" targetRef="task_validate_compatibility"/>
+    <bpmn:sequenceFlow id="flow_to_compatibility_gateway" sourceRef="task_validate_compatibility" targetRef="gateway_compatibility"/>
+    <bpmn:sequenceFlow id="flow_compatible" name="Sim" sourceRef="gateway_compatibility" targetRef="task_calculate_production">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">=compatibilityStatus = true</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="flow_incompatible" name="Não" sourceRef="gateway_compatibility" targetRef="task_review_incompatibility">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">=compatibilityStatus = false</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="flow_to_dmn_outlier" sourceRef="task_calculate_production" targetRef="dmn_outlier_detection"/>
+    <bpmn:sequenceFlow id="flow_to_outlier_gateway" sourceRef="dmn_outlier_detection" targetRef="gateway_outlier"/>
+    <bpmn:sequenceFlow id="flow_not_outlier" name="Não" sourceRef="gateway_outlier" targetRef="task_record_production">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">=outlierAnalysis.isOutlier = false</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="flow_is_outlier" name="Sim" sourceRef="gateway_outlier" targetRef="task_review_outlier">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">=outlierAnalysis.isOutlier = true</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="flow_to_manual_pricing" sourceRef="error_pricing_failed" targetRef="task_manual_pricing"/>
+    <bpmn:sequenceFlow id="flow_to_end_success" sourceRef="task_record_production" targetRef="end_success"/>
+    <bpmn:sequenceFlow id="flow_to_end_outlier_review" sourceRef="task_review_outlier" targetRef="end_outlier_review"/>
+    <bpmn:sequenceFlow id="flow_to_end_incompatible" sourceRef="task_review_incompatibility" targetRef="end_incompatible"/>
+    <bpmn:sequenceFlow id="flow_to_end_manual" sourceRef="task_manual_pricing" targetRef="end_manual"/>
+
+  </bpmn:process>
+
+  <bpmn:error id="Error_PricingFailed" name="PricingFailed" errorCode="ERR_PRICING_001"/>
+
+</bpmn:definitions>

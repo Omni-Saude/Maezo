@@ -1,0 +1,405 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/"
+             xmlns:dc="http://www.omg.org/spec/DD/20100524/DC/"
+             xmlns:camunda="http://camunda.org/schema/1.0/dmn"
+             id="glosa-classification-definitions"
+             name="Glosa Classification Decision"
+             namespace="http://hospital.com/dmn/glosa"
+             exporter="Camunda Modeler"
+             exporterVersion="5.20.0">
+
+  <decision id="glosa-classification" name="Classificação de Glosas">
+
+    <decisionTable id="glosa-table" hitPolicy="FIRST">
+
+      <!-- ===== INPUT DEFINITIONS ===== -->
+      <input id="input-glosa-type" label="Tipo de Glosa" camunda:inputVariable="glosaType">
+        <inputExpression id="input-expr-1" typeRef="string">
+          <text>glosaType</text>
+        </inputExpression>
+        <inputValues id="input-values-1">
+          <text>"ADMINISTRATIVE","CLINICAL","TECHNICAL","COVERAGE","DOCUMENTATION"</text>
+        </inputValues>
+      </input>
+
+      <input id="input-glosa-source" label="Origem da Glosa" camunda:inputVariable="glosaSource">
+        <inputExpression id="input-expr-2" typeRef="string">
+          <text>glosaSource</text>
+        </inputExpression>
+        <inputValues id="input-values-2">
+          <text>"AUDIT","INSURANCE","INTERNAL","REGULATORY","ANS"</text>
+        </inputValues>
+      </input>
+
+      <input id="input-glosa-amount" label="Valor da Glosa" camunda:inputVariable="glosaAmount">
+        <inputExpression id="input-expr-3" typeRef="double">
+          <text>glosaAmount</text>
+        </inputExpression>
+      </input>
+
+      <input id="input-has-documentation" label="Tem Documentação" camunda:inputVariable="hasDocumentation">
+        <inputExpression id="input-expr-4" typeRef="boolean">
+          <text>hasDocumentation</text>
+        </inputExpression>
+      </input>
+
+      <input id="input-days-since-occurrence" label="Dias desde Ocorrência" camunda:inputVariable="daysSinceOccurrence">
+        <inputExpression id="input-expr-5" typeRef="integer">
+          <text>daysSinceOccurrence</text>
+        </inputExpression>
+      </input>
+
+      <!-- ===== OUTPUT DEFINITIONS ===== -->
+      <output id="output-appeal-priority" label="Prioridade de Recurso" name="appealPriority" typeRef="string">
+        <outputValues id="output-values-1">
+          <text>"CRITICAL","HIGH","MEDIUM","LOW","DO_NOT_APPEAL"</text>
+        </outputValues>
+      </output>
+
+      <output id="output-appeal-strategy" label="Estratégia de Recurso" name="appealStrategy" typeRef="string">
+        <outputValues id="output-values-2">
+          <text>"IMMEDIATE_DOCUMENTATION","CLINICAL_REVIEW","LEGAL_APPEAL","NEGOTIATION","ACCEPT_GLOSA"</text>
+        </outputValues>
+      </output>
+
+      <output id="output-recovery-probability" label="Probabilidade de Recuperação (%)" name="recoveryProbability" typeRef="integer">
+        <outputValues id="output-values-3">
+          <text>0,10,20,30,40,50,60,70,80,90,100</text>
+        </outputValues>
+      </output>
+
+      <output id="output-deadline-days" label="Prazo para Recurso (dias)" name="deadlineDays" typeRef="integer" />
+
+      <output id="output-requires-legal" label="Requer Jurídico" name="requiresLegal" typeRef="boolean" />
+
+      <!-- ===== DECISION RULES ===== -->
+
+      <!-- RULE 1: Glosa administrativa com documentação - alta chance de recuperação -->
+      <rule id="rule-admin-with-docs">
+        <description>Glosa administrativa com documentação completa</description>
+        <inputEntry id="rule1-input1">
+          <text>"ADMINISTRATIVE"</text>
+        </inputEntry>
+        <inputEntry id="rule1-input2">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="rule1-input3">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="rule1-input4">
+          <text>true</text>
+        </inputEntry>
+        <inputEntry id="rule1-input5">
+          <text>&lt;= 30</text>
+        </inputEntry>
+        <outputEntry id="rule1-output1">
+          <text>"HIGH"</text>
+        </outputEntry>
+        <outputEntry id="rule1-output2">
+          <text>"IMMEDIATE_DOCUMENTATION"</text>
+        </outputEntry>
+        <outputEntry id="rule1-output3">
+          <text>80</text>
+        </outputEntry>
+        <outputEntry id="rule1-output4">
+          <text>15</text>
+        </outputEntry>
+        <outputEntry id="rule1-output5">
+          <text>false</text>
+        </outputEntry>
+      </rule>
+
+      <!-- RULE 2: Glosa clínica com valor elevado -->
+      <rule id="rule-clinical-high-value">
+        <description>Glosa clínica de alto valor requer revisão médica</description>
+        <inputEntry id="rule2-input1">
+          <text>"CLINICAL"</text>
+        </inputEntry>
+        <inputEntry id="rule2-input2">
+          <text>"AUDIT","INSURANCE"</text>
+        </inputEntry>
+        <inputEntry id="rule2-input3">
+          <text>&gt; 10000</text>
+        </inputEntry>
+        <inputEntry id="rule2-input4">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="rule2-input5">
+          <text>&lt;= 60</text>
+        </inputEntry>
+        <outputEntry id="rule2-output1">
+          <text>"CRITICAL"</text>
+        </outputEntry>
+        <outputEntry id="rule2-output2">
+          <text>"CLINICAL_REVIEW"</text>
+        </outputEntry>
+        <outputEntry id="rule2-output3">
+          <text>60</text>
+        </outputEntry>
+        <outputEntry id="rule2-output4">
+          <text>30</text>
+        </outputEntry>
+        <outputEntry id="rule2-output5">
+          <text>false</text>
+        </outputEntry>
+      </rule>
+
+      <!-- RULE 3: Glosa técnica com documentação incompleta -->
+      <rule id="rule-technical-no-docs">
+        <description>Glosa técnica sem documentação - baixa chance de recuperação</description>
+        <inputEntry id="rule3-input1">
+          <text>"TECHNICAL"</text>
+        </inputEntry>
+        <inputEntry id="rule3-input2">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="rule3-input3">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="rule3-input4">
+          <text>false</text>
+        </inputEntry>
+        <inputEntry id="rule3-input5">
+          <text>-</text>
+        </inputEntry>
+        <outputEntry id="rule3-output1">
+          <text>"LOW"</text>
+        </outputEntry>
+        <outputEntry id="rule3-output2">
+          <text>"ACCEPT_GLOSA"</text>
+        </outputEntry>
+        <outputEntry id="rule3-output3">
+          <text>20</text>
+        </outputEntry>
+        <outputEntry id="rule3-output4">
+          <text>0</text>
+        </outputEntry>
+        <outputEntry id="rule3-output5">
+          <text>false</text>
+        </outputEntry>
+      </rule>
+
+      <!-- RULE 4: Glosa da ANS - requer recurso legal -->
+      <rule id="rule-ans-regulatory">
+        <description>Glosa regulatória da ANS requer ação jurídica</description>
+        <inputEntry id="rule4-input1">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="rule4-input2">
+          <text>"ANS","REGULATORY"</text>
+        </inputEntry>
+        <inputEntry id="rule4-input3">
+          <text>&gt; 5000</text>
+        </inputEntry>
+        <inputEntry id="rule4-input4">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="rule4-input5">
+          <text>&lt;= 90</text>
+        </inputEntry>
+        <outputEntry id="rule4-output1">
+          <text>"CRITICAL"</text>
+        </outputEntry>
+        <outputEntry id="rule4-output2">
+          <text>"LEGAL_APPEAL"</text>
+        </outputEntry>
+        <outputEntry id="rule4-output3">
+          <text>40</text>
+        </outputEntry>
+        <outputEntry id="rule4-output4">
+          <text>60</text>
+        </outputEntry>
+        <outputEntry id="rule4-output5">
+          <text>true</text>
+        </outputEntry>
+      </rule>
+
+      <!-- RULE 5: Glosa de cobertura - negociação com operadora -->
+      <rule id="rule-coverage-negotiation">
+        <description>Glosa por cobertura requer negociação</description>
+        <inputEntry id="rule5-input1">
+          <text>"COVERAGE"</text>
+        </inputEntry>
+        <inputEntry id="rule5-input2">
+          <text>"INSURANCE"</text>
+        </inputEntry>
+        <inputEntry id="rule5-input3">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="rule5-input4">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="rule5-input5">
+          <text>&lt;= 45</text>
+        </inputEntry>
+        <outputEntry id="rule5-output1">
+          <text>"MEDIUM"</text>
+        </outputEntry>
+        <outputEntry id="rule5-output2">
+          <text>"NEGOTIATION"</text>
+        </outputEntry>
+        <outputEntry id="rule5-output3">
+          <text>50</text>
+        </outputEntry>
+        <outputEntry id="rule5-output4">
+          <text>30</text>
+        </outputEntry>
+        <outputEntry id="rule5-output5">
+          <text>false</text>
+        </outputEntry>
+      </rule>
+
+      <!-- RULE 6: Glosa antiga (mais de 90 dias) -->
+      <rule id="rule-old-glosa">
+        <description>Glosa com mais de 90 dias - prazo crítico</description>
+        <inputEntry id="rule6-input1">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="rule6-input2">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="rule6-input3">
+          <text>&gt; 5000</text>
+        </inputEntry>
+        <inputEntry id="rule6-input4">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="rule6-input5">
+          <text>&gt; 90</text>
+        </inputEntry>
+        <outputEntry id="rule6-output1">
+          <text>"CRITICAL"</text>
+        </outputEntry>
+        <outputEntry id="rule6-output2">
+          <text>"LEGAL_APPEAL"</text>
+        </outputEntry>
+        <outputEntry id="rule6-output3">
+          <text>30</text>
+        </outputEntry>
+        <outputEntry id="rule6-output4">
+          <text>5</text>
+        </outputEntry>
+        <outputEntry id="rule6-output5">
+          <text>true</text>
+        </outputEntry>
+      </rule>
+
+      <!-- RULE 7: Glosa de baixo valor - avaliar custo-benefício -->
+      <rule id="rule-low-value">
+        <description>Glosa de baixo valor - avaliar custo do recurso</description>
+        <inputEntry id="rule7-input1">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="rule7-input2">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="rule7-input3">
+          <text>&lt; 500</text>
+        </inputEntry>
+        <inputEntry id="rule7-input4">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="rule7-input5">
+          <text>-</text>
+        </inputEntry>
+        <outputEntry id="rule7-output1">
+          <text>"LOW"</text>
+        </outputEntry>
+        <outputEntry id="rule7-output2">
+          <text>"DO_NOT_APPEAL"</text>
+        </outputEntry>
+        <outputEntry id="rule7-output3">
+          <text>10</text>
+        </outputEntry>
+        <outputEntry id="rule7-output4">
+          <text>0</text>
+        </outputEntry>
+        <outputEntry id="rule7-output5">
+          <text>false</text>
+        </outputEntry>
+      </rule>
+
+      <!-- RULE 8: Glosa por documentação - enviar documentos faltantes -->
+      <rule id="rule-documentation-missing">
+        <description>Glosa por documentação - completar e reenviar</description>
+        <inputEntry id="rule8-input1">
+          <text>"DOCUMENTATION"</text>
+        </inputEntry>
+        <inputEntry id="rule8-input2">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="rule8-input3">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="rule8-input4">
+          <text>false</text>
+        </inputEntry>
+        <inputEntry id="rule8-input5">
+          <text>&lt;= 60</text>
+        </inputEntry>
+        <outputEntry id="rule8-output1">
+          <text>"HIGH"</text>
+        </outputEntry>
+        <outputEntry id="rule8-output2">
+          <text>"IMMEDIATE_DOCUMENTATION"</text>
+        </outputEntry>
+        <outputEntry id="rule8-output3">
+          <text>90</text>
+        </outputEntry>
+        <outputEntry id="rule8-output4">
+          <text>10</text>
+        </outputEntry>
+        <outputEntry id="rule8-output5">
+          <text>false</text>
+        </outputEntry>
+      </rule>
+
+      <!-- RULE 9: Fallback - análise caso a caso -->
+      <rule id="rule-default-review">
+        <description>Casos não mapeados requerem análise individualizada</description>
+        <inputEntry id="rule9-input1">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="rule9-input2">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="rule9-input3">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="rule9-input4">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="rule9-input5">
+          <text>-</text>
+        </inputEntry>
+        <outputEntry id="rule9-output1">
+          <text>"MEDIUM"</text>
+        </outputEntry>
+        <outputEntry id="rule9-output2">
+          <text>"CLINICAL_REVIEW"</text>
+        </outputEntry>
+        <outputEntry id="rule9-output3">
+          <text>50</text>
+        </outputEntry>
+        <outputEntry id="rule9-output4">
+          <text>30</text>
+        </outputEntry>
+        <outputEntry id="rule9-output5">
+          <text>false</text>
+        </outputEntry>
+      </rule>
+
+    </decisionTable>
+  </decision>
+
+  <!-- ===== DIAGRAM LAYOUT ===== -->
+  <dmndi:DMNDI>
+    <dmndi:DMNDiagram id="DMNDiagram_glosa">
+      <dmndi:DMNShape id="DMNShape_glosa" dmnElementRef="glosa-classification">
+        <dc:Bounds height="80" width="180" x="160" y="100" />
+      </dmndi:DMNShape>
+    </dmndi:DMNDiagram>
+  </dmndi:DMNDI>
+
+</definitions>

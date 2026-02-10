@@ -1,0 +1,159 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  ============================================================================
+  BILL-TAXA-004 - Taxa Instrumentador (quando aplicavel)
+  ============================================================================
+  Versao: 1.0.0 (2026-02-08)
+  Categoria: BILL-TAXA
+  Perspectiva: HOSPITAL (Faturamento/Centro Cirurgico)
+
+  ============================================================================
+  INDICACOES (Quando PROSSEGUIR):
+  ============================================================================
+  - Cirurgias de porte 4-8 com instrumentador obrigatorio
+  - Presenca do instrumentador documentada em ficha cirurgica
+  - Taxa prevista em contrato com operadora
+
+  ============================================================================
+  CONTRAINDICACOES (Quando BLOQUEAR):
+  ============================================================================
+  - Cobranca de instrumentador em cirurgias de porte 1-3 (nao obrigatorio)
+  - Ausencia de registro de presenca do instrumentador
+  - Taxa de instrumentador nao prevista no contrato com operadora
+
+  ============================================================================
+  REFERENCIAS NORMATIVAS:
+  ============================================================================
+  - SOBECC (Sociedade Brasileira de Enfermeiros de Centro Cirurgico)
+  - AMB CBHPM 7a Ed. (honorarios equipe cirurgica)
+  - ANS RN 465/2021 (cobertura de equipe cirurgica)
+  ============================================================================
+-->
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/"
+             xmlns:dc="http://www.omg.org/spec/DMN/20180521/DC/"
+             id="Definitions_BILL_TAXA_004"
+             name="Taxa Instrumentador (quando aplicavel)"
+             targetNamespace="http://camunda.org/schema/1.0/dmn">
+
+  <decision id="Decision_BILL_TAXA_004" name="Taxa Instrumentador (quando aplicavel)">
+    <decisionTable id="DecisionTable_BILL_TAXA_004" hitPolicy="FIRST">
+
+      <!-- ========== INPUTS ========== -->
+      <input id="Input_1" label="Porte Cirurgico">
+        <inputExpression id="InputExpression_1" typeRef="string">
+          <text>porteCirurgico</text>
+        </inputExpression>
+        <inputValues id="InputValues_1">
+          <text>"1", "2", "3", "4", "5", "6", "7", "8"</text>
+        </inputValues>
+      </input>
+
+      <input id="Input_2" label="Instrumentador Presente">
+        <inputExpression id="InputExpression_2" typeRef="boolean">
+          <text>instrumentadorPresente</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_3" label="Taxa Contratual">
+        <inputExpression id="InputExpression_3" typeRef="boolean">
+          <text>taxaContratual</text>
+        </inputExpression>
+      </input>
+
+      <!-- ========== OUTPUTS (5 STANDARD) ========== -->
+      <output id="Output_1" label="Resultado" name="resultado" typeRef="string">
+        <outputValues><text>"Prosseguir", "Bloquear", "Alertar", "Revisar"</text></outputValues>
+      </output>
+
+      <output id="Output_2" label="Observacao" name="observacao" typeRef="string"/>
+
+      <output id="Output_3" label="Acao Recomendada" name="acaoRecomendada" typeRef="string"/>
+
+      <output id="Output_4" label="Alertas Conformidade" name="alertasConformidade" typeRef="string">
+        <outputValues><text>"NENHUM", "DUP", "FREQ", "PRAZO", "DOC", "VALOR", "CRED", "CONTRATO"</text></outputValues>
+      </output>
+
+      <output id="Output_5" label="Risco Denial" name="riscoDenial" typeRef="string">
+        <outputValues><text>"BAIXO", "MEDIO", "ALTO", "CRITICO"</text></outputValues>
+      </output>
+
+      <!-- ========== RULES ========== -->
+
+      <!-- REGRA B1: Bloqueio - Taxa nao contratual -->
+      <rule id="Rule_Bloqueio_1">
+        <description>Taxa de instrumentador nao prevista em contrato com operadora</description>
+        <inputEntry id="InputEntry_B1_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_B1_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_B1_3"><text>false</text></inputEntry>
+        <outputEntry id="OutputEntry_B1_1"><text>"Bloquear"</text></outputEntry>
+        <outputEntry id="OutputEntry_B1_2"><text>"Taxa de instrumentador nao prevista no contrato com operadora. Glosa esperada."</text></outputEntry>
+        <outputEntry id="OutputEntry_B1_3"><text>"Bloquear faturamento para operadora. Cobrar diretamente do paciente se houver concordancia."</text></outputEntry>
+        <outputEntry id="OutputEntry_B1_4"><text>"CONTRATO"</text></outputEntry>
+        <outputEntry id="OutputEntry_B1_5"><text>"ALTO"</text></outputEntry>
+      </rule>
+
+      <!-- REGRA B2: Bloqueio - Cobranca sem presenca documentada -->
+      <rule id="Rule_Bloqueio_2">
+        <description>Cobranca de instrumentador sem registro de presenca</description>
+        <inputEntry id="InputEntry_B2_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_B2_2"><text>false</text></inputEntry>
+        <inputEntry id="InputEntry_B2_3"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_B2_1"><text>"Bloquear"</text></outputEntry>
+        <outputEntry id="OutputEntry_B2_2"><text>"Ausencia de registro de presenca do instrumentador na ficha cirurgica."</text></outputEntry>
+        <outputEntry id="OutputEntry_B2_3"><text>"Bloquear faturamento. Solicitar assinatura do instrumentador na ficha cirurgica."</text></outputEntry>
+        <outputEntry id="OutputEntry_B2_4"><text>"DOC"</text></outputEntry>
+        <outputEntry id="OutputEntry_B2_5"><text>"ALTO"</text></outputEntry>
+      </rule>
+
+      <!-- REGRA B3: Bloqueio - Porte cirurgico baixo (1-3) -->
+      <rule id="Rule_Bloqueio_3">
+        <description>Cobranca de instrumentador em cirurgias de porte baixo (1-3) onde nao e obrigatorio</description>
+        <inputEntry id="InputEntry_B3_1"><text>"1", "2", "3"</text></inputEntry>
+        <inputEntry id="InputEntry_B3_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_B3_3"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_B3_1"><text>"Bloquear"</text></outputEntry>
+        <outputEntry id="OutputEntry_B3_2"><text>"Instrumentador nao e obrigatorio para cirurgias de porte 1-3. Cobranca indevida."</text></outputEntry>
+        <outputEntry id="OutputEntry_B3_3"><text>"Bloquear cobranca. Revisar necessidade real de instrumentador para porte cirurgico baixo."</text></outputEntry>
+        <outputEntry id="OutputEntry_B3_4"><text>"VALOR"</text></outputEntry>
+        <outputEntry id="OutputEntry_B3_5"><text>"MEDIO"</text></outputEntry>
+      </rule>
+
+      <!-- REGRA P1: Aprovado - Instrumentador em cirurgia de porte 4-8 -->
+      <rule id="Rule_Aprovado_1">
+        <description>Taxa de instrumentador para cirurgias de porte 4-8 com presenca documentada</description>
+        <inputEntry id="InputEntry_P1_1"><text>"4", "5", "6", "7", "8"</text></inputEntry>
+        <inputEntry id="InputEntry_P1_2"><text>true</text></inputEntry>
+        <inputEntry id="InputEntry_P1_3"><text>true</text></inputEntry>
+        <outputEntry id="OutputEntry_P1_1"><text>"Prosseguir"</text></outputEntry>
+        <outputEntry id="OutputEntry_P1_2"><text>"Taxa de instrumentador devidamente justificada para cirurgia de porte 4-8."</text></outputEntry>
+        <outputEntry id="OutputEntry_P1_3"><text>"Prosseguir com faturamento. Anexar ficha cirurgica com assinatura do instrumentador."</text></outputEntry>
+        <outputEntry id="OutputEntry_P1_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_P1_5"><text>"BAIXO"</text></outputEntry>
+      </rule>
+
+      <!-- REGRA F: Fallback - Requer revisao manual -->
+      <rule id="Rule_Fallback_BILL_TAXA_004">
+        <description>Regra padrao - Requer avaliacao manual</description>
+        <inputEntry id="InputEntry_F_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_F_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_F_3"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_F_1"><text>"Revisar"</text></outputEntry>
+        <outputEntry id="OutputEntry_F_2"><text>"Situacao requer analise manual por nao corresponder a nenhum criterio automatico."</text></outputEntry>
+        <outputEntry id="OutputEntry_F_3"><text>"Encaminhar para auditoria administrativa para avaliacao caso a caso."</text></outputEntry>
+        <outputEntry id="OutputEntry_F_4"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_F_5"><text>"MEDIO"</text></outputEntry>
+      </rule>
+
+    </decisionTable>
+  </decision>
+
+  <dmndi:DMNDI>
+    <dmndi:DMNDiagram id="DMNDiagram_BILL_TAXA_004">
+      <dmndi:DMNShape id="DMNShape_Decision_BILL_TAXA_004" dmnElementRef="Decision_BILL_TAXA_004">
+        <dc:Bounds height="80" width="180" x="160" y="100"/>
+      </dmndi:DMNShape>
+    </dmndi:DMNDiagram>
+  </dmndi:DMNDI>
+
+</definitions>

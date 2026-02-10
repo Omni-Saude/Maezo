@@ -1,0 +1,159 @@
+<?xml version='1.0' encoding='utf-8'?>
+<!--
+  ============================================================================
+  DENY-APPEAL-005 - Ouvidoria Operadora
+  ============================================================================
+  Versao: 1.0.0 (2026-02-08)
+  Categoria: DENY-APPEAL
+  Perspectiva: HOSPITAL (Administrativo)
+  ============================================================================
+-->
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/"
+             xmlns:dc="http://www.omg.org/spec/DMN/20180521/DC/" id="Definitions_DENY_APPEAL_005" name="Ouvidoria Operadora" targetNamespace="http://camunda.org/schema/1.0/dmn">
+
+  <decision id="Decision_DENY_APPEAL_005" name="Avaliacao Ouvidoria Operadora">
+    <decisionTable id="DecisionTable_DENY_APPEAL_005" hitPolicy="FIRST">
+
+      
+      <input id="Input_1" label="Canal Ouvidoria">
+        <inputExpression id="InputExpression_1" typeRef="string">
+          <text>canalOuvidoria</text>
+        </inputExpression>
+        <inputValues id="InputValues_1">
+          <text>"DISPONIVEL", "INDISPONIVEL", "RESTRITO"</text>
+        </inputValues>
+      </input>
+
+      <input id="Input_2" label="Numero Protocolo">
+        <inputExpression id="InputExpression_2" typeRef="string">
+          <text>numeroProtocolo</text>
+        </inputExpression>
+        <inputValues id="InputValues_2">
+          <text>"GERADO", "PENDENTE", "INEXISTENTE"</text>
+        </inputValues>
+      </input>
+
+      <input id="Input_3" label="Prazo Resposta (dias)">
+        <inputExpression id="InputExpression_3" typeRef="number">
+          <text>prazoResposta</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_4" label="SAC Esgotado">
+        <inputExpression id="InputExpression_4" typeRef="boolean">
+          <text>sacEsgotado</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_5" label="Tentativas Anteriores">
+        <inputExpression id="InputExpression_5" typeRef="number">
+          <text>tentativasAnteriores</text>
+        </inputExpression>
+      </input>
+
+      
+      <!-- ========== OUTPUTS (5 STANDARD) ========== -->
+      <output id="Output_1" label="Resultado" name="resultado" typeRef="string">
+        <outputValues><text>"Prosseguir", "Bloquear", "Alertar", "Revisar"</text></outputValues>
+      </output>
+
+      <output id="Output_2" label="Observacao" name="observacao" typeRef="string"/>
+
+      <output id="Output_3" label="Acao Recomendada" name="acaoRecomendada" typeRef="string"/>
+
+      <output id="Output_4" label="Alertas Conformidade" name="alertasConformidade" typeRef="string">
+        <outputValues><text>"NENHUM", "DUP", "FREQ", "PRAZO", "DOC", "VALOR", "CRED", "CONTRATO"</text></outputValues>
+      </output>
+
+      <output id="Output_5" label="Risco Denial" name="riscoDenial" typeRef="string">
+        <outputValues><text>"BAIXO", "MEDIO", "ALTO", "CRITICO"</text></outputValues>
+      </output>
+
+      <!-- ========== RULES ========== -->
+<rule id="Rule_Contraindicacao_1">
+        <description>Prazo de resposta esgotado sem manifestacao</description>
+        <inputEntry id="InputEntry_C1_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_C1_2"><text>"GERADO"</text></inputEntry>
+        <inputEntry id="InputEntry_C1_3"><text>&gt; 15</text></inputEntry>
+        <inputEntry id="InputEntry_C1_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_C1_5"><text>-</text></inputEntry>
+<outputEntry id="OutputEntry_C1_1"><text>"Bloquear"</text></outputEntry>
+<outputEntry id="OutputEntry_C1_2"><text>"Prazo de resposta da ouvidoria esgotado (mais de 15 dias). ANS RN 388/2015 exige resposta em 15 dias uteis."</text></outputEntry>
+<outputEntry id="OutputEntry_C1_3"><text>"ESCALAR_ANS"</text></outputEntry>
+<outputEntry id="Rule_Contraindicacao_1_outputEntry_alertasConformidade"><text>"DOC"</text></outputEntry>
+<outputEntry id="Rule_Contraindicacao_1_outputEntry_riscoDenial"><text>"ALTO"</text></outputEntry>
+      </rule>
+
+      
+      <rule id="Rule_Contraindicacao_2">
+        <description>Canal SAC ainda nao esgotado</description>
+        <inputEntry id="InputEntry_C2_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_C2_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_C2_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_C2_4"><text>false</text></inputEntry>
+        <inputEntry id="InputEntry_C2_5"><text>0</text></inputEntry>
+<outputEntry id="OutputEntry_C2_1"><text>"Bloquear"</text></outputEntry>
+<outputEntry id="OutputEntry_C2_2"><text>"Canal SAC ainda nao esgotado. Ouvidoria e instancia recursal - primeiro esgotar SAC."</text></outputEntry>
+<outputEntry id="OutputEntry_C2_3"><text>"ESGOTAR_SAC"</text></outputEntry>
+<outputEntry id="Rule_Contraindicacao_2_outputEntry_alertasConformidade"><text>"DOC"</text></outputEntry>
+<outputEntry id="Rule_Contraindicacao_2_outputEntry_riscoDenial"><text>"ALTO"</text></outputEntry>
+      </rule>
+
+      
+      <rule id="Rule_Alerta_1">
+        <description>Protocolo gerado aguardando resposta</description>
+        <inputEntry id="InputEntry_A1_1"><text>"DISPONIVEL"</text></inputEntry>
+        <inputEntry id="InputEntry_A1_2"><text>"GERADO"</text></inputEntry>
+        <inputEntry id="InputEntry_A1_3"><text>[1..15]</text></inputEntry>
+        <inputEntry id="InputEntry_A1_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_A1_5"><text>-</text></inputEntry>
+<outputEntry id="OutputEntry_A1_1"><text>"Alertar"</text></outputEntry>
+<outputEntry id="OutputEntry_A1_2"><text>"Protocolo de ouvidoria em andamento. Aguardar prazo regulamentar de 15 dias uteis."</text></outputEntry>
+<outputEntry id="OutputEntry_A1_3"><text>"AGUARDAR_RESPOSTA"</text></outputEntry>
+<outputEntry id="Rule_Alerta_1_outputEntry_alertasConformidade"><text>"DOC"</text></outputEntry>
+<outputEntry id="Rule_Alerta_1_outputEntry_riscoDenial"><text>"MEDIO"</text></outputEntry>
+      </rule>
+
+      
+      <rule id="Rule_Aprovado_1">
+        <description>SAC esgotado - elegivel para ouvidoria</description>
+        <inputEntry id="InputEntry_P1_1"><text>"DISPONIVEL"</text></inputEntry>
+        <inputEntry id="InputEntry_P1_2"><text>"INEXISTENTE", "PENDENTE"</text></inputEntry>
+        <inputEntry id="InputEntry_P1_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_P1_4"><text>true</text></inputEntry>
+        <inputEntry id="InputEntry_P1_5"><text>&lt;= 2</text></inputEntry>
+<outputEntry id="OutputEntry_P1_1"><text>"Prosseguir"</text></outputEntry>
+<outputEntry id="OutputEntry_P1_2"><text>"Acionamento de ouvidoria elegivel. SAC esgotado e canal disponivel. Registrar protocolo."</text></outputEntry>
+<outputEntry id="OutputEntry_P1_3"><text>"ACIONAR_OUVIDORIA"</text></outputEntry>
+<outputEntry id="Rule_Aprovado_1_outputEntry_alertasConformidade"><text>"NENHUM"</text></outputEntry>
+<outputEntry id="Rule_Aprovado_1_outputEntry_riscoDenial"><text>"BAIXO"</text></outputEntry>
+      </rule>
+
+      
+      <rule id="Rule_Fallback_DENY_APPEAL_005">
+        <description>Caso nao atenda criterios automaticos - Revisar</description>
+        <inputEntry id="InputEntry_F_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_F_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_F_3"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_F_4"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_F_5"><text>-</text></inputEntry>
+<outputEntry id="OutputEntry_F_1"><text>"Revisar"</text></outputEntry>
+<outputEntry id="OutputEntry_F_2"><text>"Acionamento de ouvidoria requer analise manual. Verificar canal, protocolo e historico."</text></outputEntry>
+<outputEntry id="OutputEntry_F_3"><text>"ESGOTAR_SAC"</text></outputEntry>
+<outputEntry id="Rule_Fallback_DENY_APPEAL_005_outputEntry_alertasConformidade"><text>"NENHUM"</text></outputEntry>
+<outputEntry id="Rule_Fallback_DENY_APPEAL_005_outputEntry_riscoDenial"><text>"MEDIO"</text></outputEntry>
+      </rule>
+
+    </decisionTable>
+  </decision>
+
+  <dmndi:DMNDI>
+    <dmndi:DMNDiagram id="DMNDiagram_DENY_APPEAL_005">
+      <dmndi:DMNShape id="DMNShape_Decision_DENY_APPEAL_005" dmnElementRef="Decision_DENY_APPEAL_005">
+        <dc:Bounds height="80" width="180" x="160" y="100" />
+      </dmndi:DMNShape>
+    </dmndi:DMNDiagram>
+  </dmndi:DMNDI>
+
+</definitions>

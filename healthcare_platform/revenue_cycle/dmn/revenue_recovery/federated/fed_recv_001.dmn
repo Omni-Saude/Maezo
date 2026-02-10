@@ -1,0 +1,440 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/"
+             xmlns:dc="http://www.omg.org/spec/DD/20100524/DC/"
+             xmlns:camunda="http://camunda.org/schema/1.0/dmn"
+             id="collection-workflow-definitions"
+             name="Collection Workflow Decision"
+             namespace="http://hospital.com/dmn/collection"
+             exporter="Camunda Modeler"
+             exporterVersion="5.20.0">
+
+  <decision id="collection-workflow" name="Estratégia de Cobrança">
+
+    <decisionTable id="collection-table" hitPolicy="FIRST">
+
+      <!-- ===== INPUT DEFINITIONS ===== -->
+      <input id="input-debtor-type" label="Tipo de Devedor" camunda:inputVariable="debtorType">
+        <inputExpression id="input-expr-1" typeRef="string">
+          <text>debtorType</text>
+        </inputExpression>
+        <inputValues id="input-values-1">
+          <text>"INSURANCE","PATIENT","GOVERNMENT","CORPORATE","INTERNATIONAL"</text>
+        </inputValues>
+      </input>
+
+      <input id="input-days-overdue" label="Dias em Atraso" camunda:inputVariable="daysOverdue">
+        <inputExpression id="input-expr-2" typeRef="integer">
+          <text>daysOverdue</text>
+        </inputExpression>
+      </input>
+
+      <input id="input-outstanding-amount" label="Valor em Aberto" camunda:inputVariable="outstandingAmount">
+        <inputExpression id="input-expr-3" typeRef="double">
+          <text>outstandingAmount</text>
+        </inputExpression>
+      </input>
+
+      <input id="input-previous-attempts" label="Tentativas Anteriores" camunda:inputVariable="previousAttempts">
+        <inputExpression id="input-expr-4" typeRef="integer">
+          <text>previousAttempts</text>
+        </inputExpression>
+      </input>
+
+      <input id="input-payment-history" label="Histórico de Pagamento" camunda:inputVariable="paymentHistory">
+        <inputExpression id="input-expr-5" typeRef="string">
+          <text>paymentHistory</text>
+        </inputExpression>
+        <inputValues id="input-values-2">
+          <text>"EXCELLENT","GOOD","REGULAR","POOR","NO_HISTORY"</text>
+        </inputValues>
+      </input>
+
+      <!-- ===== OUTPUT DEFINITIONS ===== -->
+      <output id="output-collection-strategy" label="Estratégia de Cobrança" name="collectionStrategy" typeRef="string">
+        <outputValues id="output-values-1">
+          <text>"FRIENDLY_REMINDER","PHONE_CONTACT","EMAIL_CAMPAIGN","FORMAL_NOTICE","LEGAL_ACTION","NEGOTIATION","WRITE_OFF"</text>
+        </outputValues>
+      </output>
+
+      <output id="output-communication-channel" label="Canal de Comunicação" name="communicationChannel" typeRef="string">
+        <outputValues id="output-values-2">
+          <text>"EMAIL","PHONE","SMS","WHATSAPP","REGISTERED_MAIL","IN_PERSON","LEGAL_LETTER"</text>
+        </outputValues>
+      </output>
+
+      <output id="output-escalate-to-legal" label="Escalar para Jurídico" name="escalateToLegal" typeRef="boolean" />
+
+      <output id="output-discount-offer" label="Oferecer Desconto (%)" name="discountOffer" typeRef="integer">
+        <outputValues id="output-values-3">
+          <text>0,5,10,15,20,30</text>
+        </outputValues>
+      </output>
+
+      <output id="output-next-action-days" label="Próxima Ação (dias)" name="nextActionDays" typeRef="integer" />
+
+      <!-- ===== DECISION RULES ===== -->
+
+      <!-- RULE 1: Primeiro lembrete - atraso recente -->
+      <rule id="rule-first-reminder">
+        <description>Primeiro contato amigável para atraso de 1-15 dias</description>
+        <inputEntry id="rule1-input1">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="rule1-input2">
+          <text>&gt; 0, &lt;= 15</text>
+        </inputEntry>
+        <inputEntry id="rule1-input3">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="rule1-input4">
+          <text>0</text>
+        </inputEntry>
+        <inputEntry id="rule1-input5">
+          <text>"EXCELLENT","GOOD"</text>
+        </inputEntry>
+        <outputEntry id="rule1-output1">
+          <text>"FRIENDLY_REMINDER"</text>
+        </outputEntry>
+        <outputEntry id="rule1-output2">
+          <text>"EMAIL"</text>
+        </outputEntry>
+        <outputEntry id="rule1-output3">
+          <text>false</text>
+        </outputEntry>
+        <outputEntry id="rule1-output4">
+          <text>0</text>
+        </outputEntry>
+        <outputEntry id="rule1-output5">
+          <text>7</text>
+        </outputEntry>
+      </rule>
+
+      <!-- RULE 2: Contato telefônico - atraso moderado -->
+      <rule id="rule-phone-contact">
+        <description>Contato telefônico para atraso de 16-30 dias</description>
+        <inputEntry id="rule2-input1">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="rule2-input2">
+          <text>&gt; 15, &lt;= 30</text>
+        </inputEntry>
+        <inputEntry id="rule2-input3">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="rule2-input4">
+          <text>&lt;= 2</text>
+        </inputEntry>
+        <inputEntry id="rule2-input5">
+          <text>"GOOD","REGULAR"</text>
+        </inputEntry>
+        <outputEntry id="rule2-output1">
+          <text>"PHONE_CONTACT"</text>
+        </outputEntry>
+        <outputEntry id="rule2-output2">
+          <text>"PHONE"</text>
+        </outputEntry>
+        <outputEntry id="rule2-output3">
+          <text>false</text>
+        </outputEntry>
+        <outputEntry id="rule2-output4">
+          <text>5</text>
+        </outputEntry>
+        <outputEntry id="rule2-output5">
+          <text>10</text>
+        </outputEntry>
+      </rule>
+
+      <!-- RULE 3: Campanha intensiva - atraso significativo -->
+      <rule id="rule-email-campaign">
+        <description>Campanha multicanal para atraso de 31-60 dias</description>
+        <inputEntry id="rule3-input1">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="rule3-input2">
+          <text>&gt; 30, &lt;= 60</text>
+        </inputEntry>
+        <inputEntry id="rule3-input3">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="rule3-input4">
+          <text>&lt;= 4</text>
+        </inputEntry>
+        <inputEntry id="rule3-input5">
+          <text>-</text>
+        </inputEntry>
+        <outputEntry id="rule3-output1">
+          <text>"EMAIL_CAMPAIGN"</text>
+        </outputEntry>
+        <outputEntry id="rule3-output2">
+          <text>"EMAIL"</text>
+        </outputEntry>
+        <outputEntry id="rule3-output3">
+          <text>false</text>
+        </outputEntry>
+        <outputEntry id="rule3-output4">
+          <text>10</text>
+        </outputEntry>
+        <outputEntry id="rule3-output5">
+          <text>15</text>
+        </outputEntry>
+      </rule>
+
+      <!-- RULE 4: Notificação formal - atraso grave -->
+      <rule id="rule-formal-notice">
+        <description>Notificação formal para atraso de 61-90 dias</description>
+        <inputEntry id="rule4-input1">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="rule4-input2">
+          <text>&gt; 60, &lt;= 90</text>
+        </inputEntry>
+        <inputEntry id="rule4-input3">
+          <text>&gt; 1000</text>
+        </inputEntry>
+        <inputEntry id="rule4-input4">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="rule4-input5">
+          <text>-</text>
+        </inputEntry>
+        <outputEntry id="rule4-output1">
+          <text>"FORMAL_NOTICE"</text>
+        </outputEntry>
+        <outputEntry id="rule4-output2">
+          <text>"REGISTERED_MAIL"</text>
+        </outputEntry>
+        <outputEntry id="rule4-output3">
+          <text>false</text>
+        </outputEntry>
+        <outputEntry id="rule4-output4">
+          <text>15</text>
+        </outputEntry>
+        <outputEntry id="rule4-output5">
+          <text>30</text>
+        </outputEntry>
+      </rule>
+
+      <!-- RULE 5: Cobrança governamental - tratamento especial -->
+      <rule id="rule-government-debtor">
+        <description>Governo tem processo específico de cobrança</description>
+        <inputEntry id="rule5-input1">
+          <text>"GOVERNMENT"</text>
+        </inputEntry>
+        <inputEntry id="rule5-input2">
+          <text>&gt; 90</text>
+        </inputEntry>
+        <inputEntry id="rule5-input3">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="rule5-input4">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="rule5-input5">
+          <text>-</text>
+        </inputEntry>
+        <outputEntry id="rule5-output1">
+          <text>"FORMAL_NOTICE"</text>
+        </outputEntry>
+        <outputEntry id="rule5-output2">
+          <text>"REGISTERED_MAIL"</text>
+        </outputEntry>
+        <outputEntry id="rule5-output3">
+          <text>false</text>
+        </outputEntry>
+        <outputEntry id="rule5-output4">
+          <text>0</text>
+        </outputEntry>
+        <outputEntry id="rule5-output5">
+          <text>60</text>
+        </outputEntry>
+      </rule>
+
+      <!-- RULE 6: Paciente particular - negociação com desconto -->
+      <rule id="rule-patient-negotiation">
+        <description>Paciente particular com dificuldades - oferecer negociação</description>
+        <inputEntry id="rule6-input1">
+          <text>"PATIENT"</text>
+        </inputEntry>
+        <inputEntry id="rule6-input2">
+          <text>&gt; 45, &lt;= 90</text>
+        </inputEntry>
+        <inputEntry id="rule6-input3">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="rule6-input4">
+          <text>&gt;= 3</text>
+        </inputEntry>
+        <inputEntry id="rule6-input5">
+          <text>"POOR","NO_HISTORY"</text>
+        </inputEntry>
+        <outputEntry id="rule6-output1">
+          <text>"NEGOTIATION"</text>
+        </outputEntry>
+        <outputEntry id="rule6-output2">
+          <text>"PHONE"</text>
+        </outputEntry>
+        <outputEntry id="rule6-output3">
+          <text>false</text>
+        </outputEntry>
+        <outputEntry id="rule6-output4">
+          <text>20</text>
+        </outputEntry>
+        <outputEntry id="rule6-output5">
+          <text>15</text>
+        </outputEntry>
+      </rule>
+
+      <!-- RULE 7: Alto valor com atraso crítico - ação legal -->
+      <rule id="rule-legal-action">
+        <description>Valor elevado com atraso superior a 90 dias - ação judicial</description>
+        <inputEntry id="rule7-input1">
+          <text>"INSURANCE","CORPORATE"</text>
+        </inputEntry>
+        <inputEntry id="rule7-input2">
+          <text>&gt; 90</text>
+        </inputEntry>
+        <inputEntry id="rule7-input3">
+          <text>&gt; 10000</text>
+        </inputEntry>
+        <inputEntry id="rule7-input4">
+          <text>&gt;= 5</text>
+        </inputEntry>
+        <inputEntry id="rule7-input5">
+          <text>-</text>
+        </inputEntry>
+        <outputEntry id="rule7-output1">
+          <text>"LEGAL_ACTION"</text>
+        </outputEntry>
+        <outputEntry id="rule7-output2">
+          <text>"LEGAL_LETTER"</text>
+        </outputEntry>
+        <outputEntry id="rule7-output3">
+          <text>true</text>
+        </outputEntry>
+        <outputEntry id="rule7-output4">
+          <text>0</text>
+        </outputEntry>
+        <outputEntry id="rule7-output5">
+          <text>0</text>
+        </outputEntry>
+      </rule>
+
+      <!-- RULE 8: Baixo valor irrecuperável - write-off -->
+      <rule id="rule-write-off">
+        <description>Valor baixo com múltiplas tentativas - considerar baixa</description>
+        <inputEntry id="rule8-input1">
+          <text>"PATIENT"</text>
+        </inputEntry>
+        <inputEntry id="rule8-input2">
+          <text>&gt; 180</text>
+        </inputEntry>
+        <inputEntry id="rule8-input3">
+          <text>&lt; 500</text>
+        </inputEntry>
+        <inputEntry id="rule8-input4">
+          <text>&gt;= 6</text>
+        </inputEntry>
+        <inputEntry id="rule8-input5">
+          <text>"POOR","NO_HISTORY"</text>
+        </inputEntry>
+        <outputEntry id="rule8-output1">
+          <text>"WRITE_OFF"</text>
+        </outputEntry>
+        <outputEntry id="rule8-output2">
+          <text>"EMAIL"</text>
+        </outputEntry>
+        <outputEntry id="rule8-output3">
+          <text>false</text>
+        </outputEntry>
+        <outputEntry id="rule8-output4">
+          <text>0</text>
+        </outputEntry>
+        <outputEntry id="rule8-output5">
+          <text>0</text>
+        </outputEntry>
+      </rule>
+
+      <!-- RULE 9: Convênio internacional - contato especial -->
+      <rule id="rule-international">
+        <description>Devedor internacional requer abordagem diferenciada</description>
+        <inputEntry id="rule9-input1">
+          <text>"INTERNATIONAL"</text>
+        </inputEntry>
+        <inputEntry id="rule9-input2">
+          <text>&gt; 30</text>
+        </inputEntry>
+        <inputEntry id="rule9-input3">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="rule9-input4">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="rule9-input5">
+          <text>-</text>
+        </inputEntry>
+        <outputEntry id="rule9-output1">
+          <text>"NEGOTIATION"</text>
+        </outputEntry>
+        <outputEntry id="rule9-output2">
+          <text>"EMAIL"</text>
+        </outputEntry>
+        <outputEntry id="rule9-output3">
+          <text>false</text>
+        </outputEntry>
+        <outputEntry id="rule9-output4">
+          <text>10</text>
+        </outputEntry>
+        <outputEntry id="rule9-output5">
+          <text>20</text>
+        </outputEntry>
+      </rule>
+
+      <!-- RULE 10: Fallback - estratégia padrão -->
+      <rule id="rule-default-strategy">
+        <description>Estratégia padrão para casos não mapeados</description>
+        <inputEntry id="rule10-input1">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="rule10-input2">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="rule10-input3">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="rule10-input4">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="rule10-input5">
+          <text>-</text>
+        </inputEntry>
+        <outputEntry id="rule10-output1">
+          <text>"PHONE_CONTACT"</text>
+        </outputEntry>
+        <outputEntry id="rule10-output2">
+          <text>"PHONE"</text>
+        </outputEntry>
+        <outputEntry id="rule10-output3">
+          <text>false</text>
+        </outputEntry>
+        <outputEntry id="rule10-output4">
+          <text>5</text>
+        </outputEntry>
+        <outputEntry id="rule10-output5">
+          <text>14</text>
+        </outputEntry>
+      </rule>
+
+    </decisionTable>
+  </decision>
+
+  <!-- ===== DIAGRAM LAYOUT ===== -->
+  <dmndi:DMNDI>
+    <dmndi:DMNDiagram id="DMNDiagram_collection">
+      <dmndi:DMNShape id="DMNShape_collection" dmnElementRef="collection-workflow">
+        <dc:Bounds height="80" width="180" x="160" y="100" />
+      </dmndi:DMNShape>
+    </dmndi:DMNDiagram>
+  </dmndi:DMNDI>
+
+</definitions>
