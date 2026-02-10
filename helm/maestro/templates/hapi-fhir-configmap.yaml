@@ -1,0 +1,298 @@
+{{- if .Values.hapiFhir.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "maestro.fullname" . }}-hapi-fhir-config
+  labels:
+    {{- include "maestro.hapiFhir.labels" . | nindent 4 }}
+data:
+  # HAPI FHIR R4 Server Configuration (ADR-005)
+  application.yaml: |
+    spring:
+      application:
+        name: maestro-hapi-fhir
+      
+      datasource:
+        url: ${SPRING_DATASOURCE_URL}
+        username: ${SPRING_DATASOURCE_USERNAME}
+        password: ${SPRING_DATASOURCE_PASSWORD}
+        driverClassName: ${SPRING_DATASOURCE_DRIVERCLASSNAME}
+        hikari:
+          maximum-pool-size: 50
+          minimum-idle: 10
+      
+      jpa:
+        properties:
+          hibernate:
+            dialect: ca.uhn.fhir.jpa.model.dialect.HapiFhirPostgres94Dialect
+            jdbc:
+              batch_size: 20
+            order_inserts: true
+            order_updates: true
+            generate_statistics: false
+      
+      batch:
+        job:
+          enabled: false
+    
+    hapi:
+      fhir:
+        # FHIR R4 version
+        fhir_version: R4
+        
+        # Server settings
+        server_address: https://fhir.austa.com.br/fhir
+        defer_indexing_for_codesystems_of_size: 101
+        
+        # Validation (ADR-005)
+        validation:
+          requests_enabled: true
+          responses_enabled: false
+        
+        # Search parameters
+        default_page_size: 20
+        max_page_size: 200
+        allow_contains_searches: true
+        allow_multiple_delete: true
+        allow_external_references: true
+        
+        # Narrative generation
+        narrative_enabled: true
+        
+        # Terminology (TUSS, SUS codes)
+        terminology_support_enabled: true
+        
+        # Subscription (for real-time notifications)
+        subscription:
+          resthook_enabled: true
+          websocket_enabled: true
+          email_enabled: false
+        
+        # Bulk operations (for analytics export)
+        bulk_export_enabled: true
+        
+        # Partitioning by tenant (multi-tenancy support)
+        partitioning:
+          enabled: true
+          multitenancy_enabled: true
+          partitioning_include_in_search_hashes: true
+        
+        # IPS (International Patient Summary) support
+        ips_enabled: true
+        
+        # Brazilian-specific extensions
+        # - CPF identifier
+        # - CNS (Cartão Nacional de Saúde)
+        # - CNES (Cadastro Nacional de Estabelecimentos de Saúde)
+        # - ANS (Agência Nacional de Saúde Suplementar) codes
+        
+    # Custom indexes for Brazilian healthcare (ADR-005)
+    # These indexes optimize queries for common Brazilian identifiers
+    
+    management:
+      endpoints:
+        web:
+          exposure:
+            include: health,prometheus,info
+      endpoint:
+        health:
+          show-details: always
+          probes:
+            enabled: true
+      metrics:
+        tags:
+          application: maestro-hapi-fhir
+    
+    logging:
+      level:
+        root: INFO
+        ca.uhn.fhir: INFO
+        org.hibernate.SQL: WARN
+
+  # Custom search parameters for Brazilian healthcare
+  search-parameters.json: |
+    {
+      "resourceType": "Bundle",
+      "type": "collection",
+      "entry": [
+        {
+          "resource": {
+            "resourceType": "SearchParameter",
+            "id": "patient-cpf",
+            "url": "https://austa.com.br/fhir/SearchParameter/patient-cpf",
+            "name": "cpf",
+            "status": "active",
+            "description": "Search by CPF (Brazilian tax ID)",
+            "code": "cpf",
+            "base": ["Patient"],
+            "type": "token",
+            "expression": "Patient.identifier.where(system='http://rnds.saude.gov.br/fhir/r4/NamingSystem/cpf')"
+          }
+        },
+        {
+          "resource": {
+            "resourceType": "SearchParameter",
+            "id": "patient-cns",
+            "url": "https://austa.com.br/fhir/SearchParameter/patient-cns",
+            "name": "cns",
+            "status": "active",
+            "description": "Search by CNS (Cartão Nacional de Saúde)",
+            "code": "cns",
+            "base": ["Patient"],
+            "type": "token",
+            "expression": "Patient.identifier.where(system='http://rnds.saude.gov.br/fhir/r4/NamingSystem/cns')"
+          }
+        },
+        {
+          "resource": {
+            "resourceType": "SearchParameter",
+            "id": "practitioner-crm",
+            "url": "https://austa.com.br/fhir/SearchParameter/practitioner-crm",
+            "name": "crm",
+            "status": "active",
+            "description": "Search by CRM (Conselho Regional de Medicina)",
+            "code": "crm",
+            "base": ["Practitioner"],
+            "type": "token",
+            "expression": "Practitioner.identifier.where(system contains 'crm')"
+          }
+        },
+        {
+          "resource": {
+            "resourceType": "SearchParameter",
+            "id": "claim-tuss",
+            "url": "https://austa.com.br/fhir/SearchParameter/claim-tuss",
+            "name": "tuss",
+            "status": "active",
+            "description": "Search by TUSS procedure code",
+            "code": "tuss",
+            "base": ["Claim", "ClaimResponse"],
+            "type": "token",
+            "expression": "Claim.procedure.procedureCodeableConcept.coding.where(system='http://www.ans.gov.br/tuss')"
+          }
+        },
+        {
+          "resource": {
+            "resourceType": "SearchParameter",
+            "id": "organization-cnes",
+            "url": "https://austa.com.br/fhir/SearchParameter/organization-cnes",
+            "name": "cnes",
+            "status": "active",
+            "description": "Search by CNES (Cadastro Nacional de Estabelecimentos de Saúde)",
+            "code": "cnes",
+            "base": ["Organization", "Location"],
+            "type": "token",
+            "expression": "Organization.identifier.where(system='http://cnes.saude.gov.br/fhir/r4/NamingSystem/cnes')"
+          }
+        },
+        {
+          "resource": {
+            "resourceType": "SearchParameter",
+            "id": "coverage-ans",
+            "url": "https://austa.com.br/fhir/SearchParameter/coverage-ans",
+            "name": "ans-code",
+            "status": "active",
+            "description": "Search by ANS registry code",
+            "code": "ans-code",
+            "base": ["Coverage", "InsurancePlan"],
+            "type": "token",
+            "expression": "Coverage.payor.identifier.where(system='http://www.ans.gov.br/registro')"
+          }
+        },
+        {
+          "resource": {
+            "resourceType": "SearchParameter",
+            "id": "encounter-tenant",
+            "url": "https://austa.com.br/fhir/SearchParameter/encounter-tenant",
+            "name": "tenant",
+            "status": "active",
+            "description": "Search by tenant (hospital unit)",
+            "code": "tenant",
+            "base": ["Encounter", "Claim", "Observation", "Procedure"],
+            "type": "token",
+            "expression": "Encounter.meta.tag.where(system='https://austa.com.br/fhir/tenant')"
+          }
+        }
+      ]
+    }
+
+  # Brazilian code systems
+  code-systems.json: |
+    {
+      "resourceType": "Bundle",
+      "type": "collection",
+      "entry": [
+        {
+          "resource": {
+            "resourceType": "CodeSystem",
+            "id": "tuss",
+            "url": "http://www.ans.gov.br/tuss",
+            "name": "TUSS",
+            "title": "Terminologia Unificada da Saúde Suplementar",
+            "status": "active",
+            "content": "not-present",
+            "description": "Brazilian private healthcare procedure codes"
+          }
+        },
+        {
+          "resource": {
+            "resourceType": "CodeSystem",
+            "id": "sigtap",
+            "url": "http://sigtap.datasus.gov.br",
+            "name": "SIGTAP",
+            "title": "Sistema de Gerenciamento da Tabela de Procedimentos do SUS",
+            "status": "active",
+            "content": "not-present",
+            "description": "Brazilian public healthcare (SUS) procedure codes"
+          }
+        },
+        {
+          "resource": {
+            "resourceType": "CodeSystem",
+            "id": "cbhpm",
+            "url": "http://www.amb.org.br/cbhpm",
+            "name": "CBHPM",
+            "title": "Classificação Brasileira Hierarquizada de Procedimentos Médicos",
+            "status": "active",
+            "content": "not-present",
+            "description": "Brazilian medical procedure classification"
+          }
+        },
+        {
+          "resource": {
+            "resourceType": "CodeSystem",
+            "id": "cid10",
+            "url": "http://hl7.org/fhir/sid/icd-10",
+            "name": "ICD10",
+            "title": "CID-10 - Classificação Internacional de Doenças",
+            "status": "active",
+            "content": "not-present"
+          }
+        },
+        {
+          "resource": {
+            "resourceType": "CodeSystem",
+            "id": "brasindice",
+            "url": "http://www.brasindice.com.br",
+            "name": "Brasindice",
+            "title": "Brasindice - Preços de Medicamentos",
+            "status": "active",
+            "content": "not-present",
+            "description": "Brazilian pharmaceutical price reference"
+          }
+        },
+        {
+          "resource": {
+            "resourceType": "CodeSystem",
+            "id": "simpro",
+            "url": "http://www.simpro.com.br",
+            "name": "SIMPRO",
+            "title": "SIMPRO - Preços de Materiais Médicos",
+            "status": "active",
+            "content": "not-present",
+            "description": "Brazilian medical materials price reference"
+          }
+        }
+      ]
+    }
+{{- end }}

@@ -1,0 +1,141 @@
+{{- if .Values.cibSeven.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "maestro.fullname" . }}-cib-seven-config
+  labels:
+    {{- include "maestro.cibSeven.labels" . | nindent 4 }}
+data:
+  # CIB Seven engine configuration
+  application.yaml: |
+    server:
+      port: 8080
+      servlet:
+        context-path: /
+    
+    spring:
+      application:
+        name: maestro-cib-seven
+      
+      datasource:
+        url: ${SPRING_DATASOURCE_URL}
+        username: ${SPRING_DATASOURCE_USERNAME}
+        password: ${SPRING_DATASOURCE_PASSWORD}
+        driver-class-name: org.postgresql.Driver
+        hikari:
+          maximum-pool-size: {{ .Values.cibSeven.config.database.jdbcPoolSize }}
+          minimum-idle: {{ .Values.cibSeven.config.database.jdbcPoolMinIdle }}
+          connection-timeout: 30000
+          idle-timeout: 600000
+          max-lifetime: 1800000
+      
+      jpa:
+        open-in-view: false
+        hibernate:
+          ddl-auto: none
+    
+    camunda:
+      bpm:
+        # Multi-tenancy configuration (ADR-002)
+        multi-tenancy:
+          enabled: true
+        default-tenant-id: {{ .Values.cibSeven.multiTenancy.defaultTenant }}
+        
+        # History configuration (ADR-011: LGPD)
+        history-level: full
+        history-cleanup:
+          enabled: {{ .Values.cibSeven.config.historyCleanup.enabled }}
+          batch-size: {{ .Values.cibSeven.config.historyCleanup.batchSize }}
+        
+        generic-properties:
+          properties:
+            history-time-to-live: {{ .Values.cibSeven.config.historyCleanup.historyTimeToLive }}
+            # Revenue cycle processes: 6 years retention
+            # Clinical processes: 1 year retention
+            # Default: 180 days
+        
+        # Job executor for timers and async
+        job-execution:
+          enabled: {{ .Values.cibSeven.config.jobExecutor.enabled }}
+          max-jobs-per-acquisition: {{ .Values.cibSeven.config.jobExecutor.maxJobsPerAcquisition }}
+          wait-time-in-millis: {{ .Values.cibSeven.config.jobExecutor.waitTimeInMillis }}
+          lock-time-in-millis: {{ .Values.cibSeven.config.jobExecutor.lockTimeInMillis }}
+        
+        # External task configuration (ADR-003)
+        external-task:
+          lock-duration: {{ .Values.cibSeven.config.externalTask.lockDuration }}
+        
+        # REST API
+        rest:
+          enabled: true
+        
+        # Web apps (Cockpit, Tasklist, Admin)
+        webapp:
+          index-redirect-enabled: true
+        
+        # Authorization
+        authorization:
+          enabled: true
+          tenant-check-enabled: true
+    
+    # Management endpoints
+    management:
+      server:
+        port: 9404
+      endpoints:
+        web:
+          exposure:
+            include: health,prometheus,info
+      endpoint:
+        health:
+          show-details: always
+          probes:
+            enabled: true
+      metrics:
+        tags:
+          application: maestro-cib-seven
+    
+    # Logging
+    logging:
+      level:
+        root: INFO
+        org.camunda: INFO
+        org.springframework: WARN
+      pattern:
+        console: "%d{ISO8601} [%thread] %-5level %logger{36} - %msg%n"
+  
+  # Tenant-specific history TTL configuration (ADR-011)
+  tenant-history-ttl.yaml: |
+    # Process-specific history TTL overrides
+    # Revenue Cycle: 6 years (regulatory requirement)
+    revenue-cycle:
+      history-time-to-live: P2190D
+      processes:
+        - revenue-cycle-main
+        - billing-main
+        - claim-submission
+        - glosa-appeal
+    
+    # Clinical: 1 year (ONA/JCI audit)
+    clinical:
+      history-time-to-live: P365D
+      processes:
+        - clinical-operations-main
+        - adverse-event-management
+        - clinical-decision-support
+    
+    # Patient Access: 180 days (default)
+    patient-access:
+      history-time-to-live: P180D
+      processes:
+        - patient-access-main
+        - scheduling-main
+        - discharge-coordination
+    
+    # Platform: 90 days (operational)
+    platform:
+      history-time-to-live: P90D
+      processes:
+        - platform-services-main
+        - resource-management
+{{- end }}

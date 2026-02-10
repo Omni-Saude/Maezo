@@ -1,0 +1,323 @@
+# Maestro Healthcare Platform - Network Policies
+# Implements zero-trust networking between components
+
+---
+# Default deny all ingress in namespace
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny-ingress
+  namespace: maestro
+spec:
+  podSelector: {}
+  policyTypes:
+    - Ingress
+
+---
+# CIB Seven - Allow from workers and ingress
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-cib-seven
+  namespace: maestro
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/component: bpm-engine
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    # Allow from workers
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/component: worker
+      ports:
+        - protocol: TCP
+          port: 8080
+    # Allow from CDC bridge
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/component: cdc-bridge
+      ports:
+        - protocol: TCP
+          port: 8080
+    # Allow from ingress controller
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: ingress-nginx
+      ports:
+        - protocol: TCP
+          port: 8080
+    # Allow Prometheus scraping
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: monitoring
+      ports:
+        - protocol: TCP
+          port: 9404
+  egress:
+    # Allow to PostgreSQL
+    - to:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: postgresql
+      ports:
+        - protocol: TCP
+          port: 5432
+    # Allow DNS
+    - to:
+        - namespaceSelector: {}
+          podSelector:
+            matchLabels:
+              k8s-app: kube-dns
+      ports:
+        - protocol: UDP
+          port: 53
+
+---
+# Workers - Allow to CIB Seven, FHIR, Kafka, Redis
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-workers
+  namespace: maestro
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/component: worker
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    # Allow health checks from kubelet
+    - ports:
+        - protocol: TCP
+          port: 8000
+    # Allow Prometheus scraping
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: monitoring
+      ports:
+        - protocol: TCP
+          port: 8000
+  egress:
+    # Allow to CIB Seven
+    - to:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/component: bpm-engine
+      ports:
+        - protocol: TCP
+          port: 8080
+    # Allow to HAPI FHIR
+    - to:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/component: fhir-server
+      ports:
+        - protocol: TCP
+          port: 8080
+    # Allow to Kafka
+    - to:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: kafka
+      ports:
+        - protocol: TCP
+          port: 9092
+    # Allow to Redis
+    - to:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: redis
+      ports:
+        - protocol: TCP
+          port: 6379
+    # Allow to Keycloak (for token validation)
+    - to:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: keycloak
+      ports:
+        - protocol: TCP
+          port: 8080
+    # Allow to TASY API (external)
+    - to:
+        - ipBlock:
+            cidr: 0.0.0.0/0
+            except:
+              - 10.0.0.0/8
+              - 172.16.0.0/12
+              - 192.168.0.0/16
+      ports:
+        - protocol: TCP
+          port: 443
+    # Allow DNS
+    - to:
+        - namespaceSelector: {}
+          podSelector:
+            matchLabels:
+              k8s-app: kube-dns
+      ports:
+        - protocol: UDP
+          port: 53
+
+---
+# HAPI FHIR - Allow from workers and ingress
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-hapi-fhir
+  namespace: maestro
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/component: fhir-server
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    # Allow from workers
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/component: worker
+      ports:
+        - protocol: TCP
+          port: 8080
+    # Allow from ingress controller
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: ingress-nginx
+      ports:
+        - protocol: TCP
+          port: 8080
+  egress:
+    # Allow to PostgreSQL
+    - to:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: postgresql
+      ports:
+        - protocol: TCP
+          port: 5432
+    # Allow to Redis (cache)
+    - to:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: redis
+      ports:
+        - protocol: TCP
+          port: 6379
+    # Allow DNS
+    - to:
+        - namespaceSelector: {}
+          podSelector:
+            matchLabels:
+              k8s-app: kube-dns
+      ports:
+        - protocol: UDP
+          port: 53
+
+---
+# Webhook Receiver - Allow from internet (via ingress)
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-webhook-receiver
+  namespace: maestro
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/component: webhook-receiver
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    # Allow from ingress controller (TASY callbacks)
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: ingress-nginx
+      ports:
+        - protocol: TCP
+          port: 8080
+  egress:
+    # Allow to Kafka (publish callbacks)
+    - to:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: kafka
+      ports:
+        - protocol: TCP
+          port: 9092
+    # Allow to CIB Seven (correlate messages)
+    - to:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/component: bpm-engine
+      ports:
+        - protocol: TCP
+          port: 8080
+    # Allow DNS
+    - to:
+        - namespaceSelector: {}
+          podSelector:
+            matchLabels:
+              k8s-app: kube-dns
+      ports:
+        - protocol: UDP
+          port: 53
+
+---
+# CDC Bridge - Allow to CIB Seven and from Kafka
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-cdc-bridge
+  namespace: maestro
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/component: cdc-bridge
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    # Health checks only
+    - ports:
+        - protocol: TCP
+          port: 8080
+  egress:
+    # Allow to CIB Seven
+    - to:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/component: bpm-engine
+      ports:
+        - protocol: TCP
+          port: 8080
+    # Allow to Kafka
+    - to:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: kafka
+      ports:
+        - protocol: TCP
+          port: 9092
+    # Allow DNS
+    - to:
+        - namespaceSelector: {}
+          podSelector:
+            matchLabels:
+              k8s-app: kube-dns
+      ports:
+        - protocol: UDP
+          port: 53

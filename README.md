@@ -289,6 +289,35 @@ maestro/
 
 ## Próximos Passos para Deploy
 
+### 🚀 DevOps Quick Start — Wave 0.5 Infra (NOVO)
+
+Infraestrutura como código pronta para acelerar seu deploy:
+
+| Artefato | Localização | O que contém |
+|----------|-------------|--------------|
+| **Helm Chart completo** | [`helm/maestro/`](helm/README.md) | Chart.yaml, values.yaml, templates para todos os serviços |
+| **Values por ambiente** | `helm/maestro/values-{dev,staging}.yaml` | Configurações específicas por ambiente |
+| **K8s Base Manifests** | `k8s/base/` | Namespace, RBAC, Secrets, Network Policies |
+| **CI/CD Pipeline** | `.github/workflows/ci-cd.yaml` | Build, test, security scan, deploy multi-stage |
+| **Dockerfiles adicionais** | `Dockerfile.cdc-bridge`, `Dockerfile.webhook-receiver` | Containers para CDC e webhooks TASY |
+| **Keycloak Realm** | `config/keycloak/austa-bpm-realm.json` | 5 clients (admin + 4 domain workers) |
+
+**Para começar:**
+```bash
+# 1. Revisar README do Helm
+cat helm/README.md
+
+# 2. Dry-run local para validar templates
+helm template maestro helm/maestro -f helm/maestro/values-dev.yaml
+
+# 3. Install em cluster dev
+helm install maestro helm/maestro -n maestro --create-namespace -f helm/maestro/values-dev.yaml
+```
+
+> 📖 **Guia detalhado:** [`helm/README.md`](helm/README.md) — Inclui checklist DevOps, troubleshooting e roadmap de deploy.
+
+---
+
 ### O Que Falta (Infraestrutura e Integração)
 
 O código da plataforma (workers, BPMN, DMN) está implementado. As pendências são de **infraestrutura, integração e operação** — itens que requerem acesso a ambientes reais e configuração manual.
@@ -296,9 +325,9 @@ O código da plataforma (workers, BPMN, DMN) está implementado. As pendências 
 | Pendência | Criticidade | Responsável |
 |-----------|-------------|-------------|
 | **Cluster EKS + RDS + Kafka + Redis** | 🔴 Bloqueante | DevOps/SRE |
-| **CI/CD Pipeline** (não existe) | 🔴 Bloqueante | DevOps |
+| **CI/CD Pipeline** | ✅ **Implementado** (.github/workflows/ci-cd.yaml) | — |
 | **Docker Compose + Dockerfiles** | ✅ Implementado | — |
-| **Helm Charts / K8s Manifests** (não existe) | 🔴 Bloqueante | DevOps |
+| **Helm Charts / K8s Manifests** | ✅ **Implementado** (helm/, k8s/) | — |
 | **pyproject.toml / requirements.txt** | ✅ Implementado | — |
 | **Keycloak realm + clients** | 🔴 Bloqueante | Java Dev |
 | **Deploy CIB Seven 2.1.3** | 🔴 Bloqueante | Java Dev / BPM Architect |

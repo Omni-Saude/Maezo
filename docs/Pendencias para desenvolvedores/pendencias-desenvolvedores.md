@@ -1,10 +1,33 @@
 # Pendências para Desenvolvedores
 
-**Versão:** 1.0
-**Data:** Fevereiro 2026
+**Versão:** 1.1
+**Data:** 10 de Fevereiro de 2026
+**Última Atualização:** Wave 0.5 - Infrastructure Acceleration
 **Baseado em:** [Especificação Técnica Consolidada v1.1](../Technical%20specification/technical-specification.md)
 
 > Tarefas que **não podem ser automatizadas por agentes de IA** e requerem trabalho manual de desenvolvedores humanos, DevOps, analistas de negócio ou stakeholders hospitalares.
+
+---
+
+## ✅ NOVO: Artefatos Gerados pelo AI (Wave 0.5)
+
+Os seguintes artefatos foram gerados e estão prontos para uso:
+
+| Artefato | Localização | Descrição |
+|----------|-------------|-----------|
+| **Helm Chart** | `helm/maestro/` | Chart completo com CIB7, Workers, FHIR, Kafka, Redis, Keycloak |
+| **Values Dev** | `helm/maestro/values-dev.yaml` | Configuração para ambiente de desenvolvimento |
+| **Values Staging** | `helm/maestro/values-staging.yaml` | Configuração para staging |
+| **K8s Namespace** | `k8s/base/namespace.yaml` | Namespace, RBAC, quotas, limits |
+| **K8s Secrets** | `k8s/base/secrets.yaml` | Templates de secrets (SUBSTITUIR VALORES!) |
+| **K8s NetworkPolicies** | `k8s/base/network-policies.yaml` | Zero-trust networking |
+| **CI/CD Pipeline** | `.github/workflows/ci-cd.yaml` | GitHub Actions completo |
+| **Dockerfile CDC Bridge** | `Dockerfile.cdc-bridge` | Imagem para CDC-to-BPM bridge |
+| **Dockerfile Webhook** | `Dockerfile.webhook-receiver` | Imagem para callback receiver |
+| **Keycloak Realm** | `config/keycloak/austa-bpm-realm.json` | 14 clients OAuth2 configurados |
+| **FHIR Config** | Via Helm ConfigMap | Search params brasileiros (CPF, CNS, TUSS) |
+
+**Guia de uso:** `helm/README.md`
 
 ---
 
@@ -21,32 +44,33 @@
 - [ ] Habilitar PostgreSQL TDE (encryption at rest)
 - [ ] Instalar e configurar pgaudit para auditoria LGPD
 
-### 1.2 CI/CD Pipeline (Não existe — precisa ser criado do zero)
-- [ ] Criar pipeline CI/CD (GitHub Actions ou Jenkins)
-- [ ] Configurar build automático dos workers Python (Docker images)
-- [ ] Configurar deploy automático para `dev`, `staging`, `prod`
-- [ ] Configurar análise estática para detecção de PII em variáveis de processo
-- [ ] Configurar geração automática de inventário DMN no CI
+### 1.2 CI/CD Pipeline ✅ PARCIALMENTE PRONTO
+- [x] Criar pipeline CI/CD (GitHub Actions) — **`.github/workflows/ci-cd.yaml`**
+- [x] Configurar build automático dos workers Python (Docker images) — **Multi-stage build**
+- [x] Configurar deploy automático para `dev`, `staging`, `prod` — **Helm upgrade via Actions**
+- [x] Configurar análise estática para detecção de PII em variáveis de processo — **Bandit + grep check**
+- [x] Configurar geração automática de inventário DMN no CI — **Artifact upload**
+- [ ] **HUMANO**: Configurar secrets no GitHub (`AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, etc.)
+- [ ] **HUMANO**: Criar environments no GitHub (dev, staging, production)
 
-### 1.3 Docker e Kubernetes
-- [x] Criar `docker-compose.yml` para ambiente local (CIB Seven + PostgreSQL + Kafka + Redis + FHIR + Keycloak + 4 workers + Prometheus + Grafana)
-- [x] Criar `Dockerfile` para workers Python (imagem única, seleção por `--domain`)
-- [ ] Criar Helm charts ou manifests K8s para todos os componentes
-- [ ] Configurar HPA (Horizontal Pod Autoscaler) para cada worker conforme spec:
-  - `worker-eligibility`: 1–4 réplicas
-  - `worker-tiss`: 1–3 réplicas
-  - `worker-denial`: 1–2 réplicas
-  - `worker-whatsapp`: 1–2 réplicas
-  - `worker-clinical`: 1–3 réplicas
-  - `worker-payment`: 1–2 réplicas
-  - `worker-production`: 1–3 réplicas
-- [ ] Configurar `cdc-to-bpm-bridge` com 2 réplicas
+### 1.3 Docker e Kubernetes ✅ PARCIALMENTE PRONTO
+- [x] Criar `docker-compose.yml` para ambiente local
+- [x] Criar `Dockerfile` para workers Python
+- [x] Criar `Dockerfile.cdc-bridge` para CDC bridge — **NOVO**
+- [x] Criar `Dockerfile.webhook-receiver` para webhook receiver — **NOVO**
+- [x] Criar Helm charts para todos os componentes — **`helm/maestro/`**
+- [x] Configurar HPA para cada worker — **Via values.yaml autoscaling**
+- [x] Configurar `cdc-to-bpm-bridge` com 2 réplicas — **Via Helm**
+- [ ] **HUMANO**: Aplicar secrets reais (substituir CHANGE_ME em `k8s/base/secrets.yaml`)
+- [ ] **HUMANO**: Configurar External Secrets Operator para AWS Secrets Manager (prod)
 
-### 1.4 Ambientes
-- [ ] Configurar ambiente `local` (Docker Compose, dados efêmeros)
-- [ ] Configurar ambiente `dev` (EKS compartilhado, dados sintéticos)
-- [ ] Configurar ambiente `staging` (EKS isolado, cópia anonimizada de prod)
-- [ ] Configurar ambiente `prod` (EKS HA, 2 réplicas do engine)
+### 1.4 Ambientes ✅ CONFIGURAÇÃO PRONTA
+- [x] Configurar ambiente `local` (Docker Compose) — **`docker-compose.yml`**
+- [x] Configurar ambiente `dev` — **`helm/maestro/values-dev.yaml`**
+- [x] Configurar ambiente `staging` — **`helm/maestro/values-staging.yaml`**
+- [x] Configurar ambiente `prod` — **`helm/maestro/values.yaml` (padrão)**
+- [ ] **HUMANO**: Provisionar clusters EKS para cada ambiente
+
 
 ---
 

@@ -1,0 +1,152 @@
+# Maestro Healthcare Platform - Staging Environment Values
+# Use with: helm upgrade --install maestro ./helm/maestro -f values.yaml -f values-staging.yaml
+
+global:
+  environment: staging
+  domain: staging.austa.com.br
+
+# Production-like but smaller scale
+cibSeven:
+  replicaCount: 2
+  resources:
+    requests:
+      memory: "2Gi"
+      cpu: "1000m"
+    limits:
+      memory: "3Gi"
+      cpu: "1500m"
+  ingress:
+    hosts:
+      - host: bpm.staging.austa.com.br
+        paths:
+          - path: /
+            pathType: Prefix
+    tls:
+      - secretName: bpm-staging-tls
+        hosts:
+          - bpm.staging.austa.com.br
+
+workers:
+  domains:
+    revenueCycle:
+      replicaCount: 2
+      autoscaling:
+        enabled: true
+        minReplicas: 1
+        maxReplicas: 3
+    patientAccess:
+      replicaCount: 1
+      autoscaling:
+        enabled: true
+        minReplicas: 1
+        maxReplicas: 2
+    clinicalOperations:
+      replicaCount: 2
+      autoscaling:
+        enabled: true
+        minReplicas: 1
+        maxReplicas: 3
+    platformServices:
+      replicaCount: 1
+      autoscaling:
+        enabled: true
+        minReplicas: 1
+        maxReplicas: 2
+
+hapiFhir:
+  replicaCount: 2
+  resources:
+    requests:
+      memory: "2Gi"
+      cpu: "1000m"
+    limits:
+      memory: "3Gi"
+      cpu: "1500m"
+  ingress:
+    hosts:
+      - host: fhir.staging.austa.com.br
+        paths:
+          - path: /fhir
+            pathType: Prefix
+    tls:
+      - secretName: fhir-staging-tls
+        hosts:
+          - fhir.staging.austa.com.br
+
+cdcBridge:
+  replicaCount: 2
+
+webhookReceiver:
+  replicaCount: 2
+  ingress:
+    hosts:
+      - host: webhooks.staging.austa.com.br
+        paths:
+          - path: /api/callbacks
+            pathType: Prefix
+    tls:
+      - secretName: webhooks-staging-tls
+        hosts:
+          - webhooks.staging.austa.com.br
+
+postgresql:
+  primary:
+    resources:
+      requests:
+        memory: "1Gi"
+        cpu: "500m"
+    persistence:
+      size: 50Gi
+  readReplicas:
+    replicaCount: 1
+
+kafka:
+  controller:
+    replicaCount: 3
+  broker:
+    replicaCount: 3
+    persistence:
+      size: 30Gi
+
+redis:
+  architecture: replication
+  sentinel:
+    enabled: true
+  master:
+    persistence:
+      size: 5Gi
+  replica:
+    replicaCount: 2
+
+keycloak:
+  replicaCount: 2
+  ingress:
+    hostname: auth.staging.austa.com.br
+    tls: true
+
+observability:
+  prometheus:
+    retention: 15d
+    resources:
+      requests:
+        memory: "1Gi"
+        cpu: "500m"
+  grafana:
+    ingress:
+      hosts:
+        - grafana.staging.austa.com.br
+      tls:
+        - secretName: grafana-staging-tls
+          hosts:
+            - grafana.staging.austa.com.br
+
+networkPolicies:
+  enabled: true
+
+podDisruptionBudgets:
+  cibSeven:
+    minAvailable: 1
+  hapiFhir:
+    minAvailable: 1
+  workers:
+    minAvailable: 1

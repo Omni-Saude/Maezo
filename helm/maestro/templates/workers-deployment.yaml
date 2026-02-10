@@ -1,0 +1,173 @@
+{{- range $domain, $config := .Values.workers.domains }}
+{{- if $config.enabled }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "maestro.fullname" $ }}-worker-{{ $domain | kebabcase }}
+  labels:
+    {{- include "maestro.worker.labels" $ | nindent 4 }}
+    app.kubernetes.io/domain: {{ $domain }}
+spec:
+  replicas: {{ $config.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "maestro.selectorLabels" $ | nindent 6 }}
+      app.kubernetes.io/component: worker
+      app.kubernetes.io/domain: {{ $domain }}
+  template:
+    metadata:
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8000"
+        prometheus.io/path: "/metrics"
+      labels:
+        {{- include "maestro.selectorLabels" $ | nindent 8 }}
+        app.kubernetes.io/component: worker
+        app.kubernetes.io/domain: {{ $domain }}
+    spec:
+      serviceAccountName: {{ include "maestro.serviceAccountName" $ }}
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        fsGroup: 1000
+      containers:
+        - name: worker
+          image: "{{ $.Values.workers.image.repository }}:{{ $.Values.workers.image.tag }}"
+          imagePullPolicy: {{ $.Values.workers.image.pullPolicy }}
+          args:
+            - "--domain"
+            - {{ $config.env.WORKER_DOMAIN | quote }}
+          ports:
+            - name: http
+              containerPort: 8000
+              protocol: TCP
+          env:
+            # Common environment variables
+            - name: CAMUNDA_BASE_URL
+              value: {{ include "maestro.cibSevenUrl" $ }}
+            - name: FHIR_BASE_URL
+              value: {{ include "maestro.fhirUrl" $ }}
+            - name: KAFKA_BOOTSTRAP_SERVERS
+              value: {{ include "maestro.kafkaBootstrapServers" $ }}
+            - name: REDIS_URL
+              value: {{ include "maestro.redisUrl" $ }}
+            - name: KEYCLOAK_URL
+              value: {{ include "maestro.keycloakUrl" $ }}
+            - name: LOG_LEVEL
+              value: {{ $.Values.workers.commonEnv.LOG_LEVEL }}
+            - name: OTEL_EXPORTER_OTLP_ENDPOINT
+              value: {{ $.Values.workers.commonEnv.OTEL_EXPORTER_OTLP_ENDPOINT }}
+            
+            # Worker-specific
+            - name: WORKER_DOMAIN
+              value: {{ $config.env.WORKER_DOMAIN }}
+            
+            # Tenant configuration
+            - name: TENANTS_CONFIG
+              value: {{ include "maestro.tenantsJson" $ | quote }}
+            
+            # TASY API credentials (from secret)
+            - name: TASY_API_BASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: maestro-tasy-credentials
+                  key: base-url
+                  optional: true
+            - name: TASY_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: maestro-tasy-credentials
+                  key: api-key
+                  optional: true
+            
+            # Keycloak client credentials (ADR-008)
+            - name: KEYCLOAK_CLIENT_ID
+              value: worker-{{ $domain | kebabcase }}
+            - name: KEYCLOAK_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: maestro-worker-credentials
+                  key: {{ $domain }}-client-secret
+                  optional: true
+          
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 3
+          
+          resources:
+            {{- toYaml $config.resources | nindent 12 }}
+      
+      {{- with $.Values.workers.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      
+      {{- with $.Values.workers.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      
+      {{- with $.Values.workers.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "maestro.fullname" $ }}-worker-{{ $domain | kebabcase }}
+  labels:
+    {{- include "maestro.worker.labels" $ | nindent 4 }}
+    app.kubernetes.io/domain: {{ $domain }}
+spec:
+  type: ClusterIP
+  ports:
+    - port: 8000
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    {{- include "maestro.selectorLabels" $ | nindent 4 }}
+    app.kubernetes.io/component: worker
+    app.kubernetes.io/domain: {{ $domain }}
+{{- if $config.autoscaling.enabled }}
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: {{ include "maestro.fullname" $ }}-worker-{{ $domain | kebabcase }}
+  labels:
+    {{- include "maestro.worker.labels" $ | nindent 4 }}
+    app.kubernetes.io/domain: {{ $domain }}
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: {{ include "maestro.fullname" $ }}-worker-{{ $domain | kebabcase }}
+  minReplicas: {{ $config.autoscaling.minReplicas }}
+  maxReplicas: {{ $config.autoscaling.maxReplicas }}
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: {{ $config.autoscaling.targetCPUUtilization }}
+{{- end }}
+{{- end }}
+{{- end }}

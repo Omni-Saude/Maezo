@@ -1,0 +1,135 @@
+{{- if .Values.hapiFhir.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "maestro.fullname" . }}-hapi-fhir
+  labels:
+    {{- include "maestro.hapiFhir.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.hapiFhir.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "maestro.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: fhir-server
+  template:
+    metadata:
+      annotations:
+        checksum/config: {{ include (print $.Template.BasePath "/hapi-fhir-configmap.yaml") . | sha256sum }}
+      labels:
+        {{- include "maestro.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: fhir-server
+    spec:
+      serviceAccountName: {{ include "maestro.serviceAccountName" . }}
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        fsGroup: 1000
+      containers:
+        - name: hapi-fhir
+          image: "{{ .Values.hapiFhir.image.repository }}:{{ .Values.hapiFhir.image.tag }}"
+          imagePullPolicy: {{ .Values.hapiFhir.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+          env:
+            # Database configuration
+            - name: SPRING_DATASOURCE_URL
+              value: {{ include "maestro.hapiFhir.databaseUrl" . }}
+            - name: SPRING_DATASOURCE_USERNAME
+              value: {{ .Values.hapiFhir.database.username }}
+            - name: SPRING_DATASOURCE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.hapiFhir.database.existingSecret }}
+                  key: {{ .Values.hapiFhir.database.existingSecretKey }}
+            - name: SPRING_DATASOURCE_DRIVERCLASSNAME
+              value: org.postgresql.Driver
+            
+            # FHIR configuration
+            - name: HAPI_FHIR_FHIR_VERSION
+              value: {{ .Values.hapiFhir.config.fhirVersion }}
+            
+            # Validation
+            - name: HAPI_FHIR_VALIDATION_REQUESTS_ENABLED
+              value: "{{ .Values.hapiFhir.config.validation.requestsEnabled }}"
+            - name: HAPI_FHIR_VALIDATION_RESPONSES_ENABLED
+              value: "{{ .Values.hapiFhir.config.validation.responsesEnabled }}"
+            
+            # Search
+            - name: HAPI_FHIR_DEFAULT_PAGE_SIZE
+              value: "{{ .Values.hapiFhir.config.search.defaultPageSize }}"
+            - name: HAPI_FHIR_MAX_PAGE_SIZE
+              value: "{{ .Values.hapiFhir.config.search.maxPageSize }}"
+            
+            # Subscription
+            - name: HAPI_FHIR_SUBSCRIPTION_ENABLED
+              value: "{{ .Values.hapiFhir.config.subscription.enabled }}"
+            - name: HAPI_FHIR_SUBSCRIPTION_WEBSOCKET_ENABLED
+              value: "{{ .Values.hapiFhir.config.subscription.websocketEnabled }}"
+            
+            # Bulk export
+            - name: HAPI_FHIR_BULK_EXPORT_ENABLED
+              value: "{{ .Values.hapiFhir.config.bulk.enabled }}"
+            
+            {{- if .Values.hapiFhir.cache.enabled }}
+            # Redis cache
+            - name: SPRING_CACHE_TYPE
+              value: redis
+            - name: SPRING_REDIS_HOST
+              value: {{ .Values.hapiFhir.cache.host }}
+            - name: SPRING_REDIS_PORT
+              value: "{{ .Values.hapiFhir.cache.port }}"
+            {{- end }}
+            
+            # JVM options
+            - name: JAVA_OPTS
+              value: "-Xms1g -Xmx3g -XX:+UseG1GC"
+          
+          livenessProbe:
+            httpGet:
+              path: /fhir/metadata
+              port: http
+            initialDelaySeconds: 120
+            periodSeconds: 30
+            timeoutSeconds: 10
+            failureThreshold: 3
+          
+          readinessProbe:
+            httpGet:
+              path: /fhir/metadata
+              port: http
+            initialDelaySeconds: 60
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          
+          resources:
+            {{- toYaml .Values.hapiFhir.resources | nindent 12 }}
+          
+          volumeMounts:
+            - name: config
+              mountPath: /app/config
+      
+      volumes:
+        - name: config
+          configMap:
+            name: {{ include "maestro.fullname" . }}-hapi-fhir-config
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "maestro.fullname" . }}-hapi-fhir
+  labels:
+    {{- include "maestro.hapiFhir.labels" . | nindent 4 }}
+spec:
+  type: ClusterIP
+  ports:
+    - port: 8080
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    {{- include "maestro.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: fhir-server
+{{- end }}

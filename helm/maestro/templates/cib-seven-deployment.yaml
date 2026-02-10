@@ -1,0 +1,151 @@
+{{- if .Values.cibSeven.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "maestro.fullname" . }}-cib-seven
+  labels:
+    {{- include "maestro.cibSeven.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.cibSeven.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "maestro.cibSeven.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      annotations:
+        checksum/config: {{ include (print $.Template.BasePath "/cib-seven-configmap.yaml") . | sha256sum }}
+      labels:
+        {{- include "maestro.cibSeven.selectorLabels" . | nindent 8 }}
+    spec:
+      serviceAccountName: {{ include "maestro.serviceAccountName" . }}
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        fsGroup: 1000
+      containers:
+        - name: cib-seven
+          image: "{{ .Values.cibSeven.image.repository }}:{{ .Values.cibSeven.image.tag }}"
+          imagePullPolicy: {{ .Values.cibSeven.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+            - name: management
+              containerPort: 9404
+              protocol: TCP
+          env:
+            # Database configuration
+            - name: SPRING_DATASOURCE_URL
+              value: {{ include "maestro.cibSeven.databaseUrl" . }}
+            - name: SPRING_DATASOURCE_USERNAME
+              value: {{ .Values.postgresql.auth.username }}
+            - name: SPRING_DATASOURCE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.postgresql.auth.existingSecret }}
+                  key: password
+            
+            # Multi-tenancy (ADR-002)
+            - name: CAMUNDA_BPM_MULTI_TENANCY_ENABLED
+              value: "true"
+            - name: CAMUNDA_BPM_DEFAULT_TENANT_ID
+              value: {{ .Values.cibSeven.multiTenancy.defaultTenant }}
+            
+            # External Task configuration (ADR-003)
+            - name: CAMUNDA_BPM_JOB_EXECUTION_ENABLED
+              value: "true"
+            - name: CAMUNDA_BPM_EXTERNAL_TASK_LOCK_DURATION
+              value: "{{ .Values.cibSeven.config.externalTask.lockDuration }}"
+            
+            # History cleanup (ADR-011: LGPD)
+            - name: CAMUNDA_BPM_HISTORY_CLEANUP_ENABLED
+              value: "{{ .Values.cibSeven.config.historyCleanup.enabled }}"
+            - name: CAMUNDA_BPM_HISTORY_CLEANUP_BATCH_SIZE
+              value: "{{ .Values.cibSeven.config.historyCleanup.batchSize }}"
+            - name: CAMUNDA_BPM_GENERIC_PROPERTIES_PROPERTIES_HISTORY_TIME_TO_LIVE
+              value: {{ .Values.cibSeven.config.historyCleanup.historyTimeToLive }}
+            
+            # Keycloak integration (ADR-008)
+            - name: KEYCLOAK_URL
+              value: {{ include "maestro.keycloakUrl" . }}
+            - name: KEYCLOAK_REALM
+              value: austa-bpm
+            
+            # JVM options
+            - name: JAVA_OPTS
+              value: "-Xms1g -Xmx3g -XX:+UseG1GC -XX:MaxGCPauseMillis=200"
+          
+          livenessProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: management
+            initialDelaySeconds: 120
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          
+          readinessProbe:
+            httpGet:
+              path: /actuator/health/readiness
+              port: management
+            initialDelaySeconds: 30
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 3
+          
+          resources:
+            {{- toYaml .Values.cibSeven.resources | nindent 12 }}
+          
+          volumeMounts:
+            - name: deployments
+              mountPath: /camunda/deployments
+            - name: config
+              mountPath: /camunda/configuration
+      
+      volumes:
+        - name: deployments
+          {{- if .Values.cibSeven.persistence.enabled }}
+          persistentVolumeClaim:
+            claimName: {{ include "maestro.fullname" . }}-cib-seven-deployments
+          {{- else }}
+          emptyDir: {}
+          {{- end }}
+        - name: config
+          configMap:
+            name: {{ include "maestro.fullname" . }}-cib-seven-config
+      
+      {{- with .Values.cibSeven.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      
+      {{- with .Values.cibSeven.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      
+      {{- with .Values.cibSeven.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "maestro.fullname" . }}-cib-seven
+  labels:
+    {{- include "maestro.cibSeven.labels" . | nindent 4 }}
+spec:
+  type: ClusterIP
+  ports:
+    - port: 8080
+      targetPort: http
+      protocol: TCP
+      name: http
+    - port: 9404
+      targetPort: management
+      protocol: TCP
+      name: management
+  selector:
+    {{- include "maestro.cibSeven.selectorLabels" . | nindent 4 }}
+{{- end }}

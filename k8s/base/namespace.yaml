@@ -1,0 +1,102 @@
+# Maestro Healthcare Platform - Kubernetes Namespace and RBAC
+# Apply this first before Helm chart installation
+
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: maestro
+  labels:
+    app.kubernetes.io/name: maestro
+    app.kubernetes.io/part-of: healthcare-platform
+    environment: production
+    lgpd-compliant: "true"
+  annotations:
+    description: "Healthcare Orchestration Platform - BPMN/DMN Engine and Workers"
+
+---
+# Service Account for Maestro components
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: maestro
+  namespace: maestro
+  # AWS IRSA - uncomment annotations block and set ARN for EKS
+  # annotations:
+  #   eks.amazonaws.com/role-arn: arn:aws:iam::ACCOUNT_ID:role/MaestroServiceRole
+
+---
+# ClusterRole for Maestro (minimal permissions)
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: maestro-role
+  namespace: maestro
+rules:
+  # Read configmaps and secrets
+  - apiGroups: [""]
+    resources: ["configmaps", "secrets"]
+    verbs: ["get", "list", "watch"]
+  # Read pods for health checks
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["get", "list", "watch"]
+  # Events for debugging
+  - apiGroups: [""]
+    resources: ["events"]
+    verbs: ["get", "list", "watch"]
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: maestro-role-binding
+  namespace: maestro
+subjects:
+  - kind: ServiceAccount
+    name: maestro
+    namespace: maestro
+roleRef:
+  kind: Role
+  name: maestro-role
+  apiGroup: rbac.authorization.k8s.io
+
+---
+# Resource Quotas for the namespace
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: maestro-quota
+  namespace: maestro
+spec:
+  hard:
+    requests.cpu: "20"
+    requests.memory: "40Gi"
+    limits.cpu: "40"
+    limits.memory: "80Gi"
+    persistentvolumeclaims: "20"
+    pods: "100"
+    services: "30"
+
+---
+# Limit Range for default container limits
+apiVersion: v1
+kind: LimitRange
+metadata:
+  name: maestro-limits
+  namespace: maestro
+spec:
+  limits:
+    - type: Container
+      default:
+        cpu: "500m"
+        memory: "512Mi"
+      defaultRequest:
+        cpu: "100m"
+        memory: "256Mi"
+      max:
+        cpu: "4"
+        memory: "8Gi"
+      min:
+        cpu: "50m"
+        memory: "64Mi"

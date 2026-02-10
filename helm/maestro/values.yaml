@@ -1,0 +1,666 @@
+# Maestro Healthcare Platform - Helm Values
+# Production-ready configuration based on technical specification
+
+# =============================================================================
+# GLOBAL SETTINGS
+# =============================================================================
+global:
+  environment: production  # local, dev, staging, production
+  domain: maestro.austa.com.br
+  
+  # Multi-tenancy configuration (ADR-002)
+  tenants:
+    - id: austa-hospital
+      name: Hospital AUSTA
+      erp: tasy
+      location: São José do Rio Preto, SP
+      default: true
+    - id: amh-sp-morumbi
+      name: AMH São Paulo Morumbi
+      erp: mv-soul
+      location: São Paulo, SP
+    - id: amh-rj-barra
+      name: AMH Rio de Janeiro Barra
+      erp: mv-soul
+      location: Rio de Janeiro, RJ
+    - id: amh-mg-bh
+      name: AMH Belo Horizonte
+      erp: mv-soul
+      location: Belo Horizonte, MG
+
+  # Image registry
+  imageRegistry: ""  # Set to ECR/GCR/ACR for cloud deployments
+  imagePullSecrets: []
+
+  # Storage class
+  storageClass: gp3  # AWS EBS gp3
+
+# =============================================================================
+# CIB SEVEN ENGINE (Camunda 7 Fork)
+# =============================================================================
+cibSeven:
+  enabled: true
+  
+  image:
+    repository: cibseven/cib7-run
+    tag: "2.1.3"
+    pullPolicy: IfNotPresent
+  
+  replicaCount: 2  # ADR-012: 2 replicas for HA in Phase 2+
+  
+  # Resource limits (ADR-012)
+  resources:
+    requests:
+      memory: "2Gi"
+      cpu: "1000m"
+    limits:
+      memory: "4Gi"
+      cpu: "2000m"
+  
+  # Engine configuration
+  config:
+    # History cleanup (ADR-011: LGPD TTL)
+    historyCleanup:
+      enabled: true
+      batchSize: 500
+      historyTimeToLive: P180D  # 180 days default
+      
+    # External task configuration (ADR-003)
+    externalTask:
+      lockDuration: 300000  # 5 minutes (ms)
+      retryTimeout: 30000   # 30 seconds (ms)
+      maxFetchSize: 10
+    
+    # Database connection pool
+    database:
+      jdbcPoolSize: 50
+      jdbcPoolMinIdle: 10
+    
+    # Job executor (for timers, async)
+    jobExecutor:
+      enabled: true
+      maxJobsPerAcquisition: 5
+      waitTimeInMillis: 5000
+      lockTimeInMillis: 300000
+  
+  # Multi-tenancy
+  multiTenancy:
+    enabled: true
+    defaultTenant: austa-hospital
+  
+  # Ingress for Cockpit/Tasklist
+  ingress:
+    enabled: true
+    className: nginx
+    annotations:
+      cert-manager.io/cluster-issuer: letsencrypt-prod
+      nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    hosts:
+      - host: bpm.austa.com.br
+        paths:
+          - path: /
+            pathType: Prefix
+    tls:
+      - secretName: bpm-tls
+        hosts:
+          - bpm.austa.com.br
+
+  # Persistence for process deployments
+  persistence:
+    enabled: true
+    size: 10Gi
+    storageClass: gp3
+
+# =============================================================================
+# PYTHON WORKERS (ADR-003)
+# =============================================================================
+workers:
+  # Shared configuration
+  image:
+    repository: ghcr.io/rodaquino-omni/maestro-workers
+    tag: "1.0.0"
+    pullPolicy: IfNotPresent
+  
+  # Common environment variables
+  commonEnv:
+    CAMUNDA_BASE_URL: http://cib-seven:8080/engine-rest
+    FHIR_BASE_URL: http://hapi-fhir:8080/fhir
+    KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+    REDIS_URL: redis://redis-master:6379
+    KEYCLOAK_URL: http://keycloak:8080
+    LOG_LEVEL: INFO
+    OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4317
+  
+  # Worker deployments per domain (ADR-003)
+  domains:
+    # Revenue Cycle Workers
+    revenueCycle:
+      enabled: true
+      replicaCount: 3
+      resources:
+        requests:
+          memory: "512Mi"
+          cpu: "250m"
+        limits:
+          memory: "1Gi"
+          cpu: "500m"
+      autoscaling:
+        enabled: true
+        minReplicas: 1
+        maxReplicas: 4
+        targetCPUUtilization: 70
+      env:
+        WORKER_DOMAIN: revenue_cycle
+    
+    # Patient Access Workers
+    patientAccess:
+      enabled: true
+      replicaCount: 2
+      resources:
+        requests:
+          memory: "512Mi"
+          cpu: "250m"
+        limits:
+          memory: "1Gi"
+          cpu: "500m"
+      autoscaling:
+        enabled: true
+        minReplicas: 1
+        maxReplicas: 3
+        targetCPUUtilization: 70
+      env:
+        WORKER_DOMAIN: patient_access
+    
+    # Clinical Operations Workers
+    clinicalOperations:
+      enabled: true
+      replicaCount: 2
+      resources:
+        requests:
+          memory: "768Mi"
+          cpu: "500m"
+        limits:
+          memory: "1.5Gi"
+          cpu: "1000m"
+      autoscaling:
+        enabled: true
+        minReplicas: 1
+        maxReplicas: 4
+        targetCPUUtilization: 60  # Lower threshold for clinical safety
+      env:
+        WORKER_DOMAIN: clinical_operations
+    
+    # Platform Services Workers
+    platformServices:
+      enabled: true
+      replicaCount: 2
+      resources:
+        requests:
+          memory: "512Mi"
+          cpu: "250m"
+        limits:
+          memory: "1Gi"
+          cpu: "500m"
+      autoscaling:
+        enabled: true
+        minReplicas: 1
+        maxReplicas: 3
+        targetCPUUtilization: 70
+      env:
+        WORKER_DOMAIN: platform_services
+
+# =============================================================================
+# HAPI FHIR SERVER (ADR-005)
+# =============================================================================
+hapiFhir:
+  enabled: true
+  
+  image:
+    repository: hapiproject/hapi
+    tag: "v7.4.0"
+    pullPolicy: IfNotPresent
+  
+  replicaCount: 2
+  
+  resources:
+    requests:
+      memory: "2Gi"
+      cpu: "1000m"
+    limits:
+      memory: "4Gi"
+      cpu: "2000m"
+  
+  # FHIR server configuration
+  config:
+    fhirVersion: R4
+    
+    # Validation
+    validation:
+      requestsEnabled: true
+      responsesEnabled: false
+    
+    # Search parameters
+    search:
+      defaultPageSize: 20
+      maxPageSize: 200
+    
+    # Subscription support
+    subscription:
+      enabled: true
+      websocketEnabled: true
+    
+    # Bulk operations
+    bulk:
+      enabled: true
+      maxThreadCount: 4
+  
+  # Database (uses shared PostgreSQL)
+  database:
+    type: postgres
+    host: postgresql
+    port: 5432
+    database: fhir
+    username: fhir
+    existingSecret: maestro-db-credentials
+    existingSecretKey: fhir-password
+  
+  # Redis cache for performance
+  cache:
+    enabled: true
+    host: redis-master
+    port: 6379
+    ttl: 3600
+  
+  # Ingress
+  ingress:
+    enabled: true
+    className: nginx
+    annotations:
+      cert-manager.io/cluster-issuer: letsencrypt-prod
+      nginx.ingress.kubernetes.io/proxy-body-size: "50m"
+    hosts:
+      - host: fhir.austa.com.br
+        paths:
+          - path: /fhir
+            pathType: Prefix
+    tls:
+      - secretName: fhir-tls
+        hosts:
+          - fhir.austa.com.br
+
+# =============================================================================
+# CDC BRIDGE (ADR-004)
+# =============================================================================
+cdcBridge:
+  enabled: true
+  
+  image:
+    repository: ghcr.io/rodaquino-omni/maestro-cdc-bridge
+    tag: "1.0.0"
+    pullPolicy: IfNotPresent
+  
+  replicaCount: 2
+  
+  resources:
+    requests:
+      memory: "256Mi"
+      cpu: "100m"
+    limits:
+      memory: "512Mi"
+      cpu: "250m"
+  
+  config:
+    # Kafka consumer groups
+    consumerGroup: cdc-to-bpm-bridge
+    
+    # Topics to consume (from Debezium)
+    topics:
+      - tasy.AUSTA.ATENDIMENTO
+      - tasy.AUSTA.CONTA_MEDICA
+      - tasy.AUSTA.ITEM_CONTA
+      - tasy.AUSTA.PRESCRICAO
+      - tasy.AUSTA.SINAL_VITAL
+      - tasy.AUSTA.GLOSA
+      - tasy.AUSTA.PAGAMENTO
+      - tasy.AUSTA.AUTORIZACAO
+    
+    # Dead letter queue
+    deadLetterTopic: bridge.dead-letter
+    
+    # Retry configuration
+    maxRetries: 3
+    retryBackoffMs: 1000
+
+# =============================================================================
+# WEBHOOK RECEIVER (ADR-014)
+# =============================================================================
+webhookReceiver:
+  enabled: true
+  
+  image:
+    repository: ghcr.io/rodaquino-omni/maestro-webhook-receiver
+    tag: "1.0.0"
+    pullPolicy: IfNotPresent
+  
+  replicaCount: 2
+  
+  resources:
+    requests:
+      memory: "256Mi"
+      cpu: "100m"
+    limits:
+      memory: "512Mi"
+      cpu: "250m"
+  
+  # Endpoints for TASY async callbacks
+  endpoints:
+    - path: /api/callbacks/apac/success
+      topic: callbacks.apac.success
+    - path: /api/callbacks/apac/error
+      topic: callbacks.apac.error
+    - path: /api/callbacks/pix/success
+      topic: callbacks.pix.success
+    - path: /api/callbacks/pix/error
+      topic: callbacks.pix.error
+    - path: /api/callbacks/cnes/success
+      topic: callbacks.cnes.success
+    - path: /api/callbacks/cnes/error
+      topic: callbacks.cnes.error
+  
+  ingress:
+    enabled: true
+    className: nginx
+    annotations:
+      nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    hosts:
+      - host: webhooks.austa.com.br
+        paths:
+          - path: /api/callbacks
+            pathType: Prefix
+    tls:
+      - secretName: webhooks-tls
+        hosts:
+          - webhooks.austa.com.br
+
+# =============================================================================
+# POSTGRESQL (Bitnami Chart)
+# =============================================================================
+postgresql:
+  enabled: true
+  
+  auth:
+    postgresPassword: ""  # Set via --set or external secret
+    database: camunda
+    username: camunda
+    existingSecret: maestro-db-credentials
+  
+  primary:
+    resources:
+      requests:
+        memory: "1Gi"
+        cpu: "500m"
+      limits:
+        memory: "2Gi"
+        cpu: "1000m"
+    
+    persistence:
+      enabled: true
+      size: 100Gi
+      storageClass: gp3
+    
+    # PostgreSQL configuration
+    configuration: |
+      max_connections = 200
+      shared_buffers = 512MB
+      effective_cache_size = 1536MB
+      maintenance_work_mem = 128MB
+      checkpoint_completion_target = 0.9
+      wal_buffers = 16MB
+      default_statistics_target = 100
+      random_page_cost = 1.1
+      effective_io_concurrency = 200
+      work_mem = 2621kB
+      min_wal_size = 1GB
+      max_wal_size = 4GB
+      max_worker_processes = 4
+      max_parallel_workers_per_gather = 2
+      max_parallel_workers = 4
+      max_parallel_maintenance_workers = 2
+      
+      # LGPD Audit (ADR-011)
+      shared_preload_libraries = 'pgaudit'
+      pgaudit.log = 'write, ddl'
+      log_statement = 'mod'
+  
+  # Read replicas for analytics
+  readReplicas:
+    replicaCount: 1
+    resources:
+      requests:
+        memory: "512Mi"
+        cpu: "250m"
+      limits:
+        memory: "1Gi"
+        cpu: "500m"
+
+# =============================================================================
+# KAFKA (Bitnami Chart - KRaft mode)
+# =============================================================================
+kafka:
+  enabled: true
+  
+  # KRaft mode (no ZooKeeper)
+  kraft:
+    enabled: true
+  
+  controller:
+    replicaCount: 3
+  
+  broker:
+    replicaCount: 3
+    resources:
+      requests:
+        memory: "1Gi"
+        cpu: "500m"
+      limits:
+        memory: "2Gi"
+        cpu: "1000m"
+    
+    persistence:
+      enabled: true
+      size: 50Gi
+      storageClass: gp3
+  
+  # Topic defaults
+  defaultReplicationFactor: 3
+  numPartitions: 6
+  
+  # Auto-create topics for CDC
+  autoCreateTopicsEnable: true
+  
+  # Log retention
+  logRetentionHours: 168  # 7 days
+
+# =============================================================================
+# REDIS (Bitnami Chart - Sentinel mode)
+# =============================================================================
+redis:
+  enabled: true
+  
+  architecture: replication
+  
+  sentinel:
+    enabled: true
+    masterSet: maestro-master
+    quorum: 2
+  
+  master:
+    resources:
+      requests:
+        memory: "256Mi"
+        cpu: "100m"
+      limits:
+        memory: "512Mi"
+        cpu: "250m"
+    
+    persistence:
+      enabled: true
+      size: 10Gi
+      storageClass: gp3
+  
+  replica:
+    replicaCount: 2
+    resources:
+      requests:
+        memory: "256Mi"
+        cpu: "100m"
+      limits:
+        memory: "512Mi"
+        cpu: "250m"
+
+# =============================================================================
+# KEYCLOAK (Bitnami Chart)
+# =============================================================================
+keycloak:
+  enabled: true
+  
+  auth:
+    adminUser: admin
+    existingSecret: maestro-keycloak-credentials
+  
+  replicaCount: 2
+  
+  resources:
+    requests:
+      memory: "512Mi"
+      cpu: "250m"
+    limits:
+      memory: "1Gi"
+      cpu: "500m"
+  
+  # Import realm on startup
+  keycloakConfigCli:
+    enabled: true
+    configuration:
+      austa-bpm-realm.json: |
+        # See config/keycloak/austa-bpm-realm.json for full realm export
+  
+  ingress:
+    enabled: true
+    ingressClassName: nginx
+    hostname: auth.austa.com.br
+    tls: true
+    annotations:
+      cert-manager.io/cluster-issuer: letsencrypt-prod
+
+# =============================================================================
+# OBSERVABILITY (ADR-010)
+# =============================================================================
+observability:
+  # Prometheus
+  prometheus:
+    enabled: true
+    retention: 30d
+    resources:
+      requests:
+        memory: "1Gi"
+        cpu: "500m"
+      limits:
+        memory: "2Gi"
+        cpu: "1000m"
+  
+  # Grafana
+  grafana:
+    enabled: true
+    adminPassword: ""  # Set via external secret
+    dashboards:
+      - name: maestro-overview
+        configMap: maestro-dashboards
+    
+    ingress:
+      enabled: true
+      hosts:
+        - grafana.austa.com.br
+      tls:
+        - secretName: grafana-tls
+          hosts:
+            - grafana.austa.com.br
+  
+  # AlertManager
+  alertmanager:
+    enabled: true
+    config:
+      global:
+        smtp_smarthost: 'smtp.austa.com.br:587'
+        smtp_from: 'alertmanager@austa.com.br'
+      route:
+        group_by: ['alertname', 'severity']
+        group_wait: 30s
+        group_interval: 5m
+        repeat_interval: 4h
+        receiver: 'devops-team'
+      receivers:
+        - name: 'devops-team'
+          email_configs:
+            - to: 'devops@austa.com.br'
+          slack_configs:
+            - api_url: ''  # Set via secret
+              channel: '#alerts-maestro'
+
+# =============================================================================
+# NETWORK POLICIES
+# =============================================================================
+networkPolicies:
+  enabled: true
+  
+  # Workers can only talk to CIB Seven, FHIR, Kafka, Redis
+  workers:
+    ingress: []
+    egress:
+      - to:
+          - podSelector:
+              matchLabels:
+                app: cib-seven
+          - podSelector:
+              matchLabels:
+                app: hapi-fhir
+          - podSelector:
+              matchLabels:
+                app: kafka
+          - podSelector:
+              matchLabels:
+                app: redis
+  
+  # CIB Seven can talk to PostgreSQL and external APIs
+  cibSeven:
+    ingress:
+      - from:
+          - podSelector:
+              matchLabels:
+                app.kubernetes.io/component: worker
+    egress:
+      - to:
+          - podSelector:
+              matchLabels:
+                app: postgresql
+
+# =============================================================================
+# POD DISRUPTION BUDGETS
+# =============================================================================
+podDisruptionBudgets:
+  cibSeven:
+    minAvailable: 1
+  hapiFhir:
+    minAvailable: 1
+  workers:
+    minAvailable: 1
+
+# =============================================================================
+# SERVICE ACCOUNTS
+# =============================================================================
+serviceAccount:
+  create: true
+  name: maestro
+  annotations:
+    # For AWS IRSA (IAM Roles for Service Accounts)
+    eks.amazonaws.com/role-arn: ""
