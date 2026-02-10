@@ -6,30 +6,30 @@
 
 ```
 Total TASY Endpoints:    770
-Endpoints Mapped:          9  (1.2%)
-Endpoints NOT Mapped:    761  (98.8%)
+Endpoints Mapped:         18  (2.3%)
+Endpoints NOT Mapped:    752  (97.7%)
 Workers with TASY:         7  / ~100+
-Scoring APIs Used:       0/9  (0%)
+Scoring APIs Used:       9/9  (100%)
 ```
 
 ---
 
 ## CRITICAL Gaps (Must Fix)
 
-### GAP-01: Zero Clinical Scoring Integration
-- **Severity**: CRITICAL (patient safety)
-- **TASY Endpoints**: 9 scoring APIs completely unused
-- **Impact**: Delayed sepsis detection, missed deterioration, preventable deaths
-- **Workers Affected**:
-  - `vital_signs_monitoring_worker` → needs `early-warning-score`, `sentry-score`
-  - `clinical_alerts_worker` → needs `sepsis-alert`, `sentry-smart-alert`
-  - `adverse_event_detection_worker` → needs `sepsis-score`
-  - `clinical_decision_support_worker` → needs `risk-of-death-score`
-  - `clinical_assessment_worker` → needs `automated-acuity`
-  - `discharge_planning_worker` → needs `risk-of-readmission-score`
-  - `clinical_protocols_worker` → needs `vent-management`
-- **Action**: Add scoring endpoints to `tasy_api_client.py`, create `TasyScoringAdapter`
-- **Effort**: 1-2 weeks
+### GAP-01: Clinical Scoring Integration
+- **Status**: RESOLVED (Wave 4 - 2026-02-10)
+- **Solution**: All 9 scoring APIs integrated into 7 clinical workers via `TasyScoringAdapter` + `TasyApiClientProtocol` extension
+- **TASY Endpoints**: 9 scoring APIs fully integrated
+- **Workers Now Using**:
+  - `vital_signs_monitoring_worker` → `early-warning-score`, `sentry-score`
+  - `clinical_alerts_worker` → `sepsis-alert`, `sentry-smart-alert`
+  - `adverse_event_detection_worker` → `sepsis-score`
+  - `clinical_decision_support_worker` → `risk-of-death-score`
+  - `clinical_assessment_worker` → `automated-acuity`
+  - `discharge_planning_worker` → `risk-of-readmission-score`
+  - `clinical_protocols_worker` → `vent-management`
+- **Impact**: Patient safety enhanced with real-time clinical scoring for sepsis detection, deterioration alerting, and clinical decision support
+- **Testing**: All adapters covered by unit and integration tests
 
 ### GAP-02: All 15 Scheduling Workers Are Stubbed
 - **Severity**: CRITICAL (operational)

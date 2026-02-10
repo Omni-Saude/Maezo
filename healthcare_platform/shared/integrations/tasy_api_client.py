@@ -514,6 +514,52 @@ class TasyApiClientProtocol(Protocol):
         """Get CBHPM procedure details."""
         ...
 
+    # Clinical Scoring Methods (Wave 4 - GAP-01)
+    @abstractmethod
+    async def get_early_warning_score(self, encounter_id: str) -> dict[str, Any]:
+        """Get Early Warning Score (EWS/NEWS) for encounter."""
+        ...
+
+    @abstractmethod
+    async def get_sepsis_score(self, encounter_id: str) -> dict[str, Any]:
+        """Get sepsis risk score (qSOFA/SOFA) for encounter."""
+        ...
+
+    @abstractmethod
+    async def get_sentry_score(self, encounter_id: str) -> dict[str, Any]:
+        """Get Sentry deterioration score for encounter."""
+        ...
+
+    @abstractmethod
+    async def get_sentry_smart_alert(self, encounter_id: str) -> dict[str, Any]:
+        """Get Sentry smart alert for clinical deterioration."""
+        ...
+
+    @abstractmethod
+    async def get_risk_of_death_score(self, encounter_id: str) -> dict[str, Any]:
+        """Get risk of death score (APACHE/SAPS) for encounter."""
+        ...
+
+    @abstractmethod
+    async def get_risk_of_readmission_score(self, encounter_id: str) -> dict[str, Any]:
+        """Get risk of readmission score for encounter."""
+        ...
+
+    @abstractmethod
+    async def get_automated_acuity(self, encounter_id: str) -> dict[str, Any]:
+        """Get automated acuity classification for encounter."""
+        ...
+
+    @abstractmethod
+    async def get_vent_management_score(self, encounter_id: str) -> dict[str, Any]:
+        """Get ventilator management score for encounter."""
+        ...
+
+    @abstractmethod
+    async def get_sepsis_alert(self, encounter_id: str) -> dict[str, Any]:
+        """Get sepsis alert status for encounter."""
+        ...
+
 
 # ---------------------------------------------------------------------------
 # Production Client
@@ -1998,6 +2044,160 @@ class TasyApiClient(BaseIntegrationClient, TasyApiClientProtocol):
         self._logger.debug("Validating contract claim", contract_id="[REDACTED]")
         return await self._request_with_metrics("POST", endpoint, json=claim_data)
 
+    # Clinical Scoring Methods (Wave 4 - GAP-01)
+    @track_api_call(service_name=SERVICE_NAME, operation="get_early_warning_score")
+    async def get_early_warning_score(self, encounter_id: str) -> dict[str, Any]:
+        """Get Early Warning Score (EWS/NEWS) for encounter.
+
+        Args:
+            encounter_id: TASY encounter ID
+
+        Returns:
+            Early warning score data with score, risk_level, parameters
+
+        Raises:
+            ExternalServiceException: On TASY API errors
+        """
+        endpoint = f"/api/v1/clinical/encounters/{encounter_id}/ews"
+        self._logger.debug("Getting early warning score", encounter_id="[REDACTED]")
+        return await self._request_with_metrics("GET", endpoint)
+
+    @track_api_call(service_name=SERVICE_NAME, operation="get_sepsis_score")
+    async def get_sepsis_score(self, encounter_id: str) -> dict[str, Any]:
+        """Get sepsis risk score (qSOFA/SOFA) for encounter.
+
+        Args:
+            encounter_id: TASY encounter ID
+
+        Returns:
+            Sepsis score data with score, qsofa, sofa, risk_level
+
+        Raises:
+            ExternalServiceException: On TASY API errors
+        """
+        endpoint = f"/api/v1/clinical/encounters/{encounter_id}/sepsis-score"
+        self._logger.debug("Getting sepsis score", encounter_id="[REDACTED]")
+        return await self._request_with_metrics("GET", endpoint)
+
+    @track_api_call(service_name=SERVICE_NAME, operation="get_sentry_score")
+    async def get_sentry_score(self, encounter_id: str) -> dict[str, Any]:
+        """Get Sentry deterioration score for encounter.
+
+        Args:
+            encounter_id: TASY encounter ID
+
+        Returns:
+            Sentry score data with score, trend, risk_level
+
+        Raises:
+            ExternalServiceException: On TASY API errors
+        """
+        endpoint = f"/api/v1/clinical/encounters/{encounter_id}/sentry-score"
+        self._logger.debug("Getting Sentry score", encounter_id="[REDACTED]")
+        return await self._request_with_metrics("GET", endpoint)
+
+    @track_api_call(service_name=SERVICE_NAME, operation="get_sentry_smart_alert")
+    async def get_sentry_smart_alert(self, encounter_id: str) -> dict[str, Any]:
+        """Get Sentry smart alert for clinical deterioration.
+
+        Args:
+            encounter_id: TASY encounter ID
+
+        Returns:
+            Sentry smart alert data with alert_active, last_check, criteria_met
+
+        Raises:
+            ExternalServiceException: On TASY API errors
+        """
+        endpoint = f"/api/v1/clinical/encounters/{encounter_id}/sentry-smart-alert"
+        self._logger.debug("Getting Sentry smart alert", encounter_id="[REDACTED]")
+        return await self._request_with_metrics("GET", endpoint)
+
+    @track_api_call(service_name=SERVICE_NAME, operation="get_risk_of_death_score")
+    async def get_risk_of_death_score(self, encounter_id: str) -> dict[str, Any]:
+        """Get risk of death score (APACHE/SAPS) for encounter.
+
+        Args:
+            encounter_id: TASY encounter ID
+
+        Returns:
+            Risk of death score with apache_ii, saps_ii, predicted_mortality
+
+        Raises:
+            ExternalServiceException: On TASY API errors
+        """
+        endpoint = f"/api/v1/clinical/encounters/{encounter_id}/risk-of-death"
+        self._logger.debug("Getting risk of death score", encounter_id="[REDACTED]")
+        return await self._request_with_metrics("GET", endpoint)
+
+    @track_api_call(service_name=SERVICE_NAME, operation="get_risk_of_readmission_score")
+    async def get_risk_of_readmission_score(self, encounter_id: str) -> dict[str, Any]:
+        """Get risk of readmission score for encounter.
+
+        Args:
+            encounter_id: TASY encounter ID
+
+        Returns:
+            Risk of readmission score with score, risk_level, factors
+
+        Raises:
+            ExternalServiceException: On TASY API errors
+        """
+        endpoint = f"/api/v1/clinical/encounters/{encounter_id}/risk-of-readmission"
+        self._logger.debug("Getting risk of readmission score", encounter_id="[REDACTED]")
+        return await self._request_with_metrics("GET", endpoint)
+
+    @track_api_call(service_name=SERVICE_NAME, operation="get_automated_acuity")
+    async def get_automated_acuity(self, encounter_id: str) -> dict[str, Any]:
+        """Get automated acuity classification for encounter.
+
+        Args:
+            encounter_id: TASY encounter ID
+
+        Returns:
+            Automated acuity data with level, manchester_category, color
+
+        Raises:
+            ExternalServiceException: On TASY API errors
+        """
+        endpoint = f"/api/v1/clinical/encounters/{encounter_id}/automated-acuity"
+        self._logger.debug("Getting automated acuity", encounter_id="[REDACTED]")
+        return await self._request_with_metrics("GET", endpoint)
+
+    @track_api_call(service_name=SERVICE_NAME, operation="get_vent_management_score")
+    async def get_vent_management_score(self, encounter_id: str) -> dict[str, Any]:
+        """Get ventilator management score for encounter.
+
+        Args:
+            encounter_id: TASY encounter ID
+
+        Returns:
+            Ventilator management score with compliance, fio2, peep, recommendations
+
+        Raises:
+            ExternalServiceException: On TASY API errors
+        """
+        endpoint = f"/api/v1/clinical/encounters/{encounter_id}/vent-management"
+        self._logger.debug("Getting ventilator management score", encounter_id="[REDACTED]")
+        return await self._request_with_metrics("GET", endpoint)
+
+    @track_api_call(service_name=SERVICE_NAME, operation="get_sepsis_alert")
+    async def get_sepsis_alert(self, encounter_id: str) -> dict[str, Any]:
+        """Get sepsis alert status for encounter.
+
+        Args:
+            encounter_id: TASY encounter ID
+
+        Returns:
+            Sepsis alert data with alert_active, last_check, criteria_met
+
+        Raises:
+            ExternalServiceException: On TASY API errors
+        """
+        endpoint = f"/api/v1/clinical/encounters/{encounter_id}/sepsis-alert"
+        self._logger.debug("Getting sepsis alert", encounter_id="[REDACTED]")
+        return await self._request_with_metrics("GET", endpoint)
+
 
 # ---------------------------------------------------------------------------
 # Stub Client for Testing
@@ -2035,6 +2235,7 @@ class StubTasyApiClient(TasyApiClientProtocol):
         self._dso_metrics: dict[str, dict[str, Any]] = {}
         self._tiss_data: dict[str, dict[str, Any]] = {}
         self._contracts: dict[str, dict[str, Any]] = {}
+        self._scoring_data: dict[str, dict[str, Any]] = {}
         self._logger = get_logger(__name__)
 
     def add_patient(self, patient_id: str, data: dict[str, Any]) -> None:
@@ -3254,4 +3455,183 @@ class StubTasyApiClient(TasyApiClientProtocol):
             "errors": errors,
             "warnings": warnings,
             "suggested_changes": suggested_changes,
+        }
+
+    def add_scoring_data(self, encounter_id: str, data: dict[str, Any]) -> None:
+        """Add scoring data to the stub store."""
+        self._scoring_data[encounter_id] = data
+
+    # Clinical Scoring Methods (Wave 4 - GAP-01)
+    async def get_early_warning_score(self, encounter_id: str) -> dict[str, Any]:
+        """Get early warning score from stub store."""
+        await asyncio.sleep(0.01)
+        if encounter_id in self._scoring_data and "ews" in self._scoring_data[encounter_id]:
+            return self._scoring_data[encounter_id]["ews"]
+        from datetime import datetime
+        return {
+            "score": 3,
+            "risk_level": "medium",
+            "parameters": {
+                "respiratory_rate": 22,
+                "oxygen_saturation": 94,
+                "temperature": 38.2,
+                "systolic_bp": 105,
+                "heart_rate": 95,
+                "consciousness": "alert",
+            },
+            "calculated_at": datetime.utcnow().isoformat(),
+        }
+
+    async def get_sepsis_score(self, encounter_id: str) -> dict[str, Any]:
+        """Get sepsis score from stub store."""
+        await asyncio.sleep(0.01)
+        if encounter_id in self._scoring_data and "sepsis" in self._scoring_data[encounter_id]:
+            return self._scoring_data[encounter_id]["sepsis"]
+        from datetime import datetime
+        return {
+            "score": 2,
+            "qsofa": 1,
+            "sofa": 4,
+            "risk_level": "moderate",
+            "criteria": {
+                "altered_mentation": False,
+                "respiratory_rate_high": True,
+                "systolic_bp_low": False,
+            },
+            "calculated_at": datetime.utcnow().isoformat(),
+        }
+
+    async def get_sentry_score(self, encounter_id: str) -> dict[str, Any]:
+        """Get Sentry score from stub store."""
+        await asyncio.sleep(0.01)
+        if encounter_id in self._scoring_data and "sentry" in self._scoring_data[encounter_id]:
+            return self._scoring_data[encounter_id]["sentry"]
+        from datetime import datetime
+        return {
+            "score": 45,
+            "trend": "stable",
+            "risk_level": "low",
+            "components": {
+                "vital_signs": 15,
+                "laboratory": 10,
+                "clinical_context": 20,
+            },
+            "calculated_at": datetime.utcnow().isoformat(),
+        }
+
+    async def get_sentry_smart_alert(self, encounter_id: str) -> dict[str, Any]:
+        """Get Sentry smart alert from stub store."""
+        await asyncio.sleep(0.01)
+        if encounter_id in self._scoring_data and "sentry_alert" in self._scoring_data[encounter_id]:
+            return self._scoring_data[encounter_id]["sentry_alert"]
+        from datetime import datetime
+        return {
+            "alert_active": False,
+            "last_check": datetime.utcnow().isoformat(),
+            "criteria_met": 0,
+            "total_criteria": 5,
+            "triggered_criteria": [],
+            "next_check": datetime.utcnow().isoformat(),
+        }
+
+    async def get_risk_of_death_score(self, encounter_id: str) -> dict[str, Any]:
+        """Get risk of death score from stub store."""
+        await asyncio.sleep(0.01)
+        if encounter_id in self._scoring_data and "risk_of_death" in self._scoring_data[encounter_id]:
+            return self._scoring_data[encounter_id]["risk_of_death"]
+        from datetime import datetime
+        return {
+            "apache_ii": 12,
+            "saps_ii": 28,
+            "predicted_mortality": 0.15,
+            "risk_category": "moderate",
+            "factors": [
+                "age",
+                "chronic_conditions",
+                "acute_physiology",
+            ],
+            "calculated_at": datetime.utcnow().isoformat(),
+        }
+
+    async def get_risk_of_readmission_score(self, encounter_id: str) -> dict[str, Any]:
+        """Get risk of readmission score from stub store."""
+        await asyncio.sleep(0.01)
+        if encounter_id in self._scoring_data and "risk_of_readmission" in self._scoring_data[encounter_id]:
+            return self._scoring_data[encounter_id]["risk_of_readmission"]
+        from datetime import datetime
+        return {
+            "score": 0.23,
+            "risk_level": "low",
+            "factors": [
+                "previous_admissions",
+                "comorbidities",
+                "social_determinants",
+                "medication_adherence",
+            ],
+            "interventions_recommended": [
+                "discharge_planning",
+                "follow_up_scheduling",
+            ],
+            "calculated_at": datetime.utcnow().isoformat(),
+        }
+
+    async def get_automated_acuity(self, encounter_id: str) -> dict[str, Any]:
+        """Get automated acuity from stub store."""
+        await asyncio.sleep(0.01)
+        if encounter_id in self._scoring_data and "acuity" in self._scoring_data[encounter_id]:
+            return self._scoring_data[encounter_id]["acuity"]
+        from datetime import datetime
+        return {
+            "level": 3,
+            "manchester_category": "urgent",
+            "color": "yellow",
+            "max_wait_time_minutes": 60,
+            "discriminators": [
+                "pain_level",
+                "vital_signs",
+                "presenting_complaint",
+            ],
+            "calculated_at": datetime.utcnow().isoformat(),
+        }
+
+    async def get_vent_management_score(self, encounter_id: str) -> dict[str, Any]:
+        """Get ventilator management score from stub store."""
+        await asyncio.sleep(0.01)
+        if encounter_id in self._scoring_data and "vent_management" in self._scoring_data[encounter_id]:
+            return self._scoring_data[encounter_id]["vent_management"]
+        from datetime import datetime
+        return {
+            "compliance": 85,
+            "fio2": 0.4,
+            "peep": 8,
+            "tidal_volume": 450,
+            "respiratory_rate": 16,
+            "recommendations": [
+                "Consider PEEP reduction trial",
+                "Monitor plateau pressure",
+                "Assess readiness for weaning",
+            ],
+            "alert_conditions": [],
+            "calculated_at": datetime.utcnow().isoformat(),
+        }
+
+    async def get_sepsis_alert(self, encounter_id: str) -> dict[str, Any]:
+        """Get sepsis alert from stub store."""
+        await asyncio.sleep(0.01)
+        if encounter_id in self._scoring_data and "sepsis_alert" in self._scoring_data[encounter_id]:
+            return self._scoring_data[encounter_id]["sepsis_alert"]
+        from datetime import datetime
+        return {
+            "alert_active": False,
+            "last_check": datetime.utcnow().isoformat(),
+            "criteria_met": 0,
+            "total_criteria": 6,
+            "triggered_criteria": [],
+            "bundle_compliance": {
+                "lactate_measured": True,
+                "blood_cultures_obtained": True,
+                "antibiotics_administered": False,
+                "fluid_resuscitation": False,
+            },
+            "next_check": datetime.utcnow().isoformat(),
         }

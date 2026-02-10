@@ -28,6 +28,7 @@ import hashlib
 from healthcare_platform.shared.domain.exceptions import DomainException
 from healthcare_platform.shared.i18n import _
 from healthcare_platform.shared.integrations.fhir_client import FHIRClientProtocol
+from healthcare_platform.shared.integrations.tasy_api_client import TasyApiClientProtocol
 from healthcare_platform.shared.multi_tenant.context import get_required_tenant
 from healthcare_platform.shared.multi_tenant.decorators import require_tenant
 from healthcare_platform.shared.observability.logging import get_logger
@@ -406,6 +407,7 @@ class AdverseEventDetectionWorker:
         self,
         fhir_client: FHIRClientProtocol,
         classifier: Optional[AdverseEventClassifierProtocol] = None,
+        tasy_api_client: TasyApiClientProtocol | None = None,
     ):
         """
         Initialize adverse event detection worker.
@@ -413,9 +415,11 @@ class AdverseEventDetectionWorker:
         Args:
             fhir_client: FHIR client for resource operations
             classifier: Event classifier (uses stub if not provided)
+            tasy_api_client: TASY API client for scoring integration
         """
         self.fhir_client = fhir_client
         self.classifier = classifier or DMNAdverseEventClassifier()
+        self._tasy_api_client = tasy_api_client
 
     @require_tenant
     @track_task_execution
@@ -451,6 +455,27 @@ class AdverseEventDetectionWorker:
                 event_input.severity,
                 event_input.contributing_factors or [],
             )
+
+            # Add TASY sepsis score if event involves sepsis/infection
+            if self._tasy_api_client and event_input.event_type == "infection":
+                try:
+                    sepsis_data = await self._tasy_api_client.get_sepsis_score(
+                        event_input.encounter_reference
+                    )
+                    if sepsis_data:
+                        # Add sepsis score to classification context
+                        classification["sepsis_score"] = sepsis_data.get("score")
+                        classification["sepsis_risk_level"] = sepsis_data.get("risk_level")
+                        logger.info(
+                            _("Score de sepse TASY recuperado: {score} (risco: {risk})").format(
+                                score=sepsis_data.get("score"),
+                                risk=sepsis_data.get("risk_level"),
+                            )
+                        )
+                except Exception as e:
+                    logger.warning(
+                        _("Erro ao obter score de sepse TASY: {error}").format(error=str(e))
+                    )
 
             # Assess patient outcome
             patient_outcome = await self.classifier.assess_patient_outcome(

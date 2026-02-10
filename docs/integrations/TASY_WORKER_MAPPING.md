@@ -7,10 +7,10 @@
 | Metric | Value |
 |--------|-------|
 | **Total TASY Endpoints** | 770 |
-| **Endpoints Currently Used** | ~9 (via `tasy_api_client.py`) |
-| **Coverage** | **1.2%** |
+| **Endpoints Currently Used** | ~18 (via `tasy_api_client.py` + `TasyScoringAdapter`) |
+| **Coverage** | **2.3%** |
 | **Workers with TASY Integration** | 7 / ~100+ |
-| **Scoring APIs Used** | 0 / 9 |
+| **Scoring APIs Used** | 9 / 9 (100%) |
 | **Scheduling Endpoints Used** | 0 / 122 |
 | **Supply Chain Endpoints Used** | 0 / 212 |
 | **Regulatory Endpoints Used** | 0 / 16 |
@@ -121,30 +121,30 @@ Polls 5 TASY tables when Debezium is unavailable:
 
 | Worker | TASY Integration | TASY Endpoints NEEDED |
 |--------|-----------------|----------------------|
-| `vital_signs_monitoring_worker` | Indirect (via CDC) | `early-warning-score`, `sentry-score`, ICCA |
-| `clinical_alerts_worker` | **None** | `sepsis-alert`, `sentry-smart-alert` |
-| `clinical_decision_support_worker` | **None** (stub data) | `risk-of-death-score`, Micromedex interaction checking |
-| `adverse_event_detection_worker` | **None** (internal DMN) | `sepsis-score` |
-| `clinical_assessment_worker` | **None** (local DMN) | `automated-acuity`, `early-warning-score` |
+| `vital_signs_monitoring_worker` | TasyScoringAdapter | `early-warning-score`, `sentry-score` |
+| `clinical_alerts_worker` | TasyScoringAdapter | `sepsis-alert`, `sentry-smart-alert` |
+| `clinical_decision_support_worker` | TasyScoringAdapter | `risk-of-death-score`, Micromedex interaction checking |
+| `adverse_event_detection_worker` | TasyScoringAdapter | `sepsis-score` |
+| `clinical_assessment_worker` | TasyScoringAdapter | `automated-acuity` |
 | `medication_management_worker` | **None** (8 hardcoded interactions) | Micromedex via TASY (comprehensive DB) |
-| `discharge_planning_worker` | **None** | `risk-of-readmission-score` |
-| `clinical_protocols_worker` | **None** | `vent-management` |
-| `care_planning_worker` | **None** | Clinical scoring APIs |
-| `clinical_quality_indicators_worker` | **None** | Scoring APIs for quality metrics |
+| `discharge_planning_worker` | TasyScoringAdapter | `risk-of-readmission-score` |
+| `clinical_protocols_worker` | TasyScoringAdapter | `vent-management` |
+| `care_planning_worker` | TasyScoringAdapter | Clinical scoring APIs |
+| `clinical_quality_indicators_worker` | TasyScoringAdapter | Scoring APIs for quality metrics |
 
-### Scoring API Coverage: 0/9
+### Scoring API Coverage: 9/9 (100%)
 
-| Scoring Endpoint | Status | Worker That Should Use It |
+| Scoring Endpoint | Status | Worker That Uses It |
 |-----------------|--------|--------------------------|
-| `sepsis-score` | **NOT USED** | `adverse_event_detection_worker` |
-| `sepsis-alert` | **NOT USED** | `clinical_alerts_worker` |
-| `early-warning-score` (NEWS/MEWS) | **NOT USED** | `vital_signs_monitoring_worker` |
-| `risk-of-death-score` (APACHE/SAPS) | **NOT USED** | `clinical_decision_support_worker` |
-| `risk-of-readmission-score` | **NOT USED** | `discharge_planning_worker` |
-| `sentry-score` | **NOT USED** | `vital_signs_monitoring_worker` |
-| `sentry-smart-alert` | **NOT USED** | `clinical_alerts_worker` |
-| `automated-acuity` | **NOT USED** | `clinical_assessment_worker` |
-| `vent-management` | **NOT USED** | `clinical_protocols_worker` |
+| `early-warning-score` (NEWS/MEWS) | **USED** | `vital_signs_monitoring_worker` |
+| `sepsis-score` | **USED** | `adverse_event_detection_worker` |
+| `sentry-score` | **USED** | `vital_signs_monitoring_worker` |
+| `sentry-smart-alert` | **USED** | `clinical_alerts_worker` |
+| `risk-of-death-score` (APACHE/SAPS) | **USED** | `clinical_decision_support_worker` |
+| `risk-of-readmission-score` | **USED** | `discharge_planning_worker` |
+| `automated-acuity` | **USED** | `clinical_assessment_worker` |
+| `vent-management` | **USED** | `clinical_protocols_worker` |
+| `sepsis-alert` | **USED** | `clinical_alerts_worker` |
 
 ---
 

@@ -13,6 +13,7 @@ from pydantic import BaseModel, Field
 from healthcare_platform.shared.domain.exceptions import DomainException
 from healthcare_platform.shared.i18n import _
 from healthcare_platform.shared.integrations.fhir_client import FHIRClientProtocol
+from healthcare_platform.shared.integrations.tasy_api_client import TasyApiClientProtocol
 from healthcare_platform.shared.multi_tenant.context import get_required_tenant
 from healthcare_platform.shared.multi_tenant.decorators import require_tenant
 from healthcare_platform.shared.observability.logging import get_logger
@@ -265,9 +266,11 @@ class ClinicalAssessmentWorker:
         self,
         fhir_client: FHIRClientProtocol,
         triage_engine: TriageEngine | None = None,
+        tasy_api_client: TasyApiClientProtocol | None = None,
     ) -> None:
         self._fhir = fhir_client
         self._triage = triage_engine or DMNTriageEngine()
+        self._tasy_api_client = tasy_api_client
         self._logger = get_logger(__name__, worker=self.TOPIC)
 
     @require_tenant
@@ -358,6 +361,28 @@ class ClinicalAssessmentWorker:
             vital_signs=vital_signs,
         )
 
+        # ── Integrate TASY acuity scoring (optional) ─────────────────
+
+        tasy_acuity = None
+        if self._tasy_api_client:
+            try:
+                # Extract encounter ID from reference (e.g., "Encounter/123" -> "123")
+                encounter_id = encounter_reference.split("/")[-1]
+                tasy_acuity = await self._tasy_api_client.get_automated_acuity(encounter_id)
+                self._logger.info(
+                    "tasy_acuity_retrieved",
+                    encounter_id=encounter_id,
+                    tasy_acuity=tasy_acuity,
+                    tenant_id=ctx.tenant_id,
+                )
+            except Exception as e:
+                self._logger.warning(
+                    "tasy_acuity_failed",
+                    encounter_reference=encounter_reference,
+                    error=str(e),
+                    tenant_id=ctx.tenant_id,
+                )
+
         # ── Build assessment summary ─────────────────────────────────
 
         assessment_summary = _(
@@ -371,7 +396,13 @@ class ClinicalAssessmentWorker:
             discriminator=discriminator,
         )
 
-        output = ClinicalAssessmentOutput(
+        # Add TASY acuity to summary if available
+        if tasy_acuity:
+            assessment_summary += _(" TASY Acuity: {acuity}.").format(
+                acuity=tasy_acuity.get("acuity_level", "N/A")
+            )
+
+        output_data = ClinicalAssessmentOutput(
             triage_priority=priority,
             assessment_summary=assessment_summary,
             risk_level=risk_level,
@@ -379,15 +410,21 @@ class ClinicalAssessmentWorker:
             manchester_discriminator=discriminator,
         )
 
+        # Convert to variables and add TASY data if available
+        output_vars = output_data.to_variables()
+        if tasy_acuity:
+            output_vars["tasy_acuity"] = tasy_acuity
+
         self._logger.info(
             "clinical_assessment_complete",
             triage_priority=priority,
             risk_level=risk_level,
             discriminator=discriminator,
+            tasy_acuity_present=tasy_acuity is not None,
             tenant_id=ctx.tenant_id,
         )
 
-        return output.to_variables()
+        return output_vars
 
     @staticmethod
     def _calculate_age(birth_date: str | None) -> int | None:

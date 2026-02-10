@@ -12,6 +12,7 @@ from pydantic import BaseModel, Field
 
 from healthcare_platform.shared.domain.exceptions import DomainException
 from healthcare_platform.shared.i18n import _
+from healthcare_platform.shared.integrations.tasy_api_client import TasyApiClientProtocol
 from healthcare_platform.shared.multi_tenant.context import get_required_tenant
 from healthcare_platform.shared.multi_tenant.decorators import require_tenant
 from healthcare_platform.shared.observability.logging import get_logger
@@ -398,8 +399,10 @@ class ClinicalProtocolsWorker:
     def __init__(
         self,
         protocol_engine: ProtocolEngine | None = None,
+        tasy_api_client: TasyApiClientProtocol | None = None,
     ) -> None:
         self._engine = protocol_engine or DMNProtocolEngine()
+        self._tasy_api_client = tasy_api_client
         self._logger = get_logger(__name__, worker=self.TOPIC)
 
     @require_tenant
@@ -444,6 +447,28 @@ class ClinicalProtocolsWorker:
             encounter_class=encounter_class,
             tenant_id=ctx.tenant_id,
         )
+
+        # ── Integrate TASY ventilator management scoring (optional) ──
+
+        vent_data = None
+        if self._tasy_api_client:
+            try:
+                # Extract encounter ID from reference (e.g., "Encounter/123" -> "123")
+                encounter_id = encounter_reference.split("/")[-1]
+                vent_data = await self._tasy_api_client.get_vent_management_score(encounter_id)
+                self._logger.info(
+                    "tasy_vent_data_retrieved",
+                    encounter_id=encounter_id,
+                    vent_data=vent_data,
+                    tenant_id=ctx.tenant_id,
+                )
+            except Exception as e:
+                self._logger.warning(
+                    "tasy_vent_data_failed",
+                    encounter_reference=encounter_reference,
+                    error=str(e),
+                    tenant_id=ctx.tenant_id,
+                )
 
         # ── Find applicable protocols ────────────────────────────────
 
@@ -495,18 +520,44 @@ class ClinicalProtocolsWorker:
         # Sort steps by protocol and sequence
         all_steps.sort(key=lambda s: (s["protocol_id"], s["sequence"]))
 
+        # Add ventilator management steps if patient is on ventilator
+        if vent_data and vent_data.get("on_ventilator"):
+            all_steps.append(
+                {
+                    "protocol_id": "TASY_VENT_MANAGEMENT",
+                    "protocol_name": "TASY Ventilator Management",
+                    "sequence": 1,
+                    "action": _(
+                        "Seguir protocolo de ventilação mecânica. "
+                        "TASY score: {score}, Status: {status}"
+                    ).format(
+                        score=vent_data.get("score", "N/A"),
+                        status=vent_data.get("status", "N/A"),
+                    ),
+                    "timing": "continuous",
+                    "mandatory": True,
+                }
+            )
+            all_compliance.add(_("Monitorar protocolo de ventilação mecânica via TASY"))
+
         output = ClinicalProtocolsOutput(
             applicable_protocols=applicable_protocols_list,
             protocol_steps=all_steps,
             compliance_requirements=list(all_compliance),
         )
 
+        # Convert to variables and add TASY vent data if available
+        output_vars = output.to_variables()
+        if vent_data:
+            output_vars["tasy_vent_data"] = vent_data
+
         self._logger.info(
             "clinical_protocols_applied",
             protocols_count=len(protocols),
             total_steps=len(all_steps),
             compliance_requirements_count=len(all_compliance),
+            tasy_vent_data_present=vent_data is not None,
             tenant_id=ctx.tenant_id,
         )
 
-        return output.to_variables()
+        return output_vars

@@ -29,6 +29,7 @@ import hashlib
 from healthcare_platform.shared.domain.exceptions import DomainException
 from healthcare_platform.shared.i18n import _
 from healthcare_platform.shared.integrations.fhir_client import FHIRClientProtocol
+from healthcare_platform.shared.integrations.tasy_api_client import TasyApiClientProtocol
 from healthcare_platform.shared.multi_tenant.context import get_required_tenant
 from healthcare_platform.shared.multi_tenant.decorators import require_tenant
 from healthcare_platform.shared.observability.logging import get_logger
@@ -587,6 +588,7 @@ class ClinicalDecisionSupportWorker:
         self,
         fhir_client: FHIRClientProtocol,
         decision_engine: Optional[DecisionSupportEngineProtocol] = None,
+        tasy_api_client: TasyApiClientProtocol | None = None,
     ):
         """
         Initialize clinical decision support worker.
@@ -594,9 +596,11 @@ class ClinicalDecisionSupportWorker:
         Args:
             fhir_client: FHIR client for resource access
             decision_engine: Decision support engine (uses stub if not provided)
+            tasy_api_client: TASY API client for mortality risk scoring
         """
         self.fhir_client = fhir_client
         self.decision_engine = decision_engine or DMNDecisionSupportEngine()
+        self._tasy_api_client = tasy_api_client
 
     @require_tenant
     @track_task_execution
@@ -657,6 +661,42 @@ class ClinicalDecisionSupportWorker:
                     cds_input.clinical_context
                 )
                 all_alerts.extend(risk_alerts)
+
+            # Add TASY mortality risk assessment
+            if self._tasy_api_client:
+                try:
+                    mortality_data = await self._tasy_api_client.get_risk_of_death_score(
+                        cds_input.encounter_reference
+                    )
+                    if mortality_data:
+                        risk_score = mortality_data.get("score")
+                        risk_level = mortality_data.get("risk_level")
+
+                        # Add mortality risk to recommendations
+                        all_recommendations.append({
+                            "category": "risk_assessment",
+                            "title": _("Avaliação de Risco de Mortalidade TASY"),
+                            "description": _(
+                                "Score de risco de morte: {score} (Nível de risco: {level})"
+                            ).format(score=risk_score, level=risk_level),
+                            "confidence_score": 0.95,
+                            "evidence_references": ["TASY Clinical Score"],
+                            "guideline_source": "TASY Risk Stratification",
+                            "applicability_criteria": [
+                                _("Paciente em internação hospitalar"),
+                            ],
+                        })
+
+                        logger.info(
+                            _("Risco de morte TASY recuperado: {score} (risco: {level})").format(
+                                score=risk_score,
+                                level=risk_level,
+                            )
+                        )
+                except Exception as e:
+                    logger.warning(
+                        _("Erro ao obter risco de morte TASY: {error}").format(error=str(e))
+                    )
 
             # Count critical alerts
             critical_count = sum(

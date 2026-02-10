@@ -21,6 +21,7 @@ from pydantic import BaseModel, Field
 from healthcare_platform.shared.domain.exceptions import DomainException
 from healthcare_platform.shared.i18n import _
 from healthcare_platform.shared.integrations.fhir_client import FHIRClientProtocol
+from healthcare_platform.shared.integrations.tasy_api_client import TasyApiClientProtocol
 from healthcare_platform.shared.multi_tenant.context import get_required_tenant
 from healthcare_platform.shared.multi_tenant.decorators import require_tenant
 from healthcare_platform.shared.observability.logging import get_logger
@@ -168,9 +169,11 @@ class DischargePlanningWorker(DischargePlanningWorkerProtocol):
         self,
         fhir_client: FHIRClientProtocol,
         dmn_service: FederatedDMNService | None = None,
+        tasy_api_client: TasyApiClientProtocol | None = None,
     ):
         self.fhir_client = fhir_client
         self._dmn = dmn_service or get_dmn_service()
+        self._tasy_api_client = tasy_api_client
 
     @require_tenant
     @track_task_execution
@@ -209,10 +212,50 @@ class DischargePlanningWorker(DischargePlanningWorkerProtocol):
             encounter = await self._fetch_encounter(input_dto.encounter_reference)
             patient = await self._fetch_patient(input_dto.patient_reference)
 
+            # Integrate TASY readmission risk scoring (optional)
+            readmission_risk = None
+            if self._tasy_api_client:
+                try:
+                    # Extract encounter ID from reference (e.g., "Encounter/123" -> "123")
+                    encounter_id = input_dto.encounter_reference.split("/")[-1]
+                    readmission_risk = await self._tasy_api_client.get_risk_of_readmission_score(
+                        encounter_id
+                    )
+                    logger.info(
+                        _("TASY readmission risk retrieved"),
+                        extra={
+                            "tenant_id": tenant_id,
+                            "encounter_id": encounter_id,
+                            "readmission_risk": readmission_risk,
+                        },
+                    )
+                except Exception as e:
+                    logger.warning(
+                        _("Falha ao obter risco de readmissão TASY"),
+                        extra={
+                            "tenant_id": tenant_id,
+                            "encounter_reference": input_dto.encounter_reference,
+                            "error": str(e),
+                        },
+                    )
+
             # Build discharge checklist
             checklist = await self._build_discharge_checklist(
                 encounter, patient, input_dto.discharge_criteria
             )
+
+            # Add high readmission risk to checklist if needed
+            if readmission_risk and readmission_risk.get("score", 0) > 0.5:
+                checklist.append(
+                    DischargeChecklistItem(
+                        item_name="high_readmission_risk_intervention",
+                        status="pending",
+                        notes=_(
+                            "Paciente com alto risco de readmissão (TASY score: {score}). "
+                            "Requer intervenções adicionais."
+                        ).format(score=readmission_risk.get("score")),
+                    )
+                )
 
             # Assess discharge readiness
             readiness, readiness_score = self._assess_discharge_readiness(checklist)
@@ -265,16 +308,22 @@ class DischargePlanningWorker(DischargePlanningWorkerProtocol):
                 patient_id_hash=patient_id_hash,
             )
 
+            # Convert to variables and add TASY readmission risk if available
+            output_vars = output.to_variables()
+            if readmission_risk:
+                output_vars["readmission_risk"] = readmission_risk
+
             logger.info(
                 _("Planejamento de alta concluído com sucesso"),
                 extra={
                     "tenant_id": tenant_id,
                     "discharge_readiness": readiness,
                     "readiness_score": readiness_score,
+                    "readmission_risk_present": readmission_risk is not None,
                 },
             )
 
-            return output.to_variables()
+            return output_vars
 
         except Exception as e:
             logger.error(

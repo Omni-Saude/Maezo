@@ -60,6 +60,9 @@ from healthcare_platform.shared.integrations.tasy_adapters.insurance_auth_adapte
 from healthcare_platform.shared.integrations.tasy_adapters.glosa_adapter import (
     TasyGlosaAdapter,
 )
+from healthcare_platform.shared.integrations.tasy_adapters.scoring_adapter import (
+    TasyScoringAdapter,
+)
 
 __all__ = [
     "TasyToFhirAdapter",
@@ -74,4 +77,5 @@ __all__ = [
     "TasyPaymentAdapter",
     "TasyInsuranceAuthAdapter",
     "TasyGlosaAdapter",
+    "TasyScoringAdapter",
 ]

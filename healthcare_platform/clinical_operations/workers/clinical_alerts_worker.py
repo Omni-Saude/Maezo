@@ -18,6 +18,7 @@ from pydantic import BaseModel, Field
 from healthcare_platform.shared.domain.exceptions import DomainException
 from healthcare_platform.shared.i18n import _
 from healthcare_platform.shared.integrations.fhir_client import FHIRClientProtocol
+from healthcare_platform.shared.integrations.tasy_api_client import TasyApiClientProtocol
 from healthcare_platform.shared.multi_tenant.context import get_required_tenant
 from healthcare_platform.shared.multi_tenant.decorators import require_tenant
 from healthcare_platform.shared.observability.logging import get_logger
@@ -164,10 +165,12 @@ class DMNClinicalAlerts(ClinicalAlertsProtocol):
         self,
         fhir_client: FHIRClientProtocol,
         dmn_service: FederatedDMNService | None = None,
+        tasy_api_client: TasyApiClientProtocol | None = None,
     ) -> None:
         self._fhir = fhir_client
         self._dmn = dmn_service or get_dmn_service()
         self._fallback = ClinicalAlertsStub(fhir_client=fhir_client)
+        self._tasy_api_client = tasy_api_client
 
     async def create_alert(
         self,
@@ -193,6 +196,40 @@ class DMNClinicalAlerts(ClinicalAlertsProtocol):
             pass
         except Exception:
             pass
+
+        # Check TASY alerts to escalate severity if needed
+        if self._tasy_api_client:
+            try:
+                # Check for sepsis alert
+                sepsis_alert = await self._tasy_api_client.get_sepsis_alert(
+                    encounter_reference
+                )
+                if sepsis_alert and sepsis_alert.get("alert_active"):
+                    severity = "critical"
+                    logger.info(
+                        _("Severidade escalada para crítica devido a alerta de sepse TASY")
+                    )
+            except Exception as e:
+                logger.warning(
+                    _("Erro ao obter alerta de sepse TASY: %s"), str(e)
+                )
+
+            try:
+                # Check for Sentry SMART alert
+                smart_alert = await self._tasy_api_client.get_sentry_smart_alert(
+                    encounter_reference
+                )
+                if smart_alert and smart_alert.get("alert_active"):
+                    if severity not in ["critical"]:
+                        severity = "high"
+                    logger.info(
+                        _("Severidade escalada devido a alerta SMART TASY")
+                    )
+            except Exception as e:
+                logger.warning(
+                    _("Erro ao obter alerta SMART TASY: %s"), str(e)
+                )
+
         return await self._fallback.create_alert(
             encounter_reference, alert_type, alert_data,
             severity, patient_reference, description,

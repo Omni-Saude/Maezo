@@ -13,6 +13,7 @@ from pydantic import BaseModel, Field
 from healthcare_platform.shared.domain.exceptions import DomainException
 from healthcare_platform.shared.i18n import _
 from healthcare_platform.shared.integrations.fhir_client import FHIRClientProtocol
+from healthcare_platform.shared.integrations.tasy_api_client import TasyApiClientProtocol
 from healthcare_platform.shared.multi_tenant.context import get_required_tenant
 from healthcare_platform.shared.multi_tenant.decorators import require_tenant
 from healthcare_platform.shared.observability.logging import get_logger
@@ -376,9 +377,11 @@ class VitalSignsMonitoringWorker:
         self,
         fhir_client: FHIRClientProtocol,
         analyzer: VitalSignsAnalyzer | None = None,
+        tasy_api_client: TasyApiClientProtocol | None = None,
     ) -> None:
         self._fhir = fhir_client
         self._analyzer = analyzer or DMNVitalSignsAnalyzer()
+        self._tasy_api_client = tasy_api_client
         self._logger = get_logger(__name__, worker=self.TOPIC)
 
     @require_tenant
@@ -481,6 +484,62 @@ class VitalSignsMonitoringWorker:
             for a in alerts
         ]
 
+        # ── Fetch TASY clinical scores if available ──────────────────
+
+        output_dict = {
+            "vital_signs_status": vital_signs_status,
+            "alerts": alerts_list,
+            "severity_level": severity_level,
+            "requires_immediate_attention": requires_immediate_attention,
+        }
+
+        if self._tasy_api_client:
+            try:
+                # Get Early Warning Score (EWS)
+                ews_data = await self._tasy_api_client.get_early_warning_score(
+                    encounter_reference
+                )
+                if ews_data:
+                    output_dict["ews_score"] = ews_data.get("score")
+                    output_dict["ews_risk_level"] = ews_data.get("risk_level")
+                    self._logger.info(
+                        "tasy_ews_score_retrieved",
+                        ews_score=ews_data.get("score"),
+                        risk_level=ews_data.get("risk_level"),
+                        encounter_reference=encounter_reference,
+                        tenant_id=ctx.tenant_id,
+                    )
+            except Exception as e:
+                self._logger.warning(
+                    "tasy_ews_score_failed",
+                    encounter_reference=encounter_reference,
+                    error=str(e),
+                    tenant_id=ctx.tenant_id,
+                )
+
+            try:
+                # Get Sentry Score
+                sentry_data = await self._tasy_api_client.get_sentry_score(
+                    encounter_reference
+                )
+                if sentry_data:
+                    output_dict["sentry_score"] = sentry_data.get("score")
+                    output_dict["sentry_risk_level"] = sentry_data.get("risk_level")
+                    self._logger.info(
+                        "tasy_sentry_score_retrieved",
+                        sentry_score=sentry_data.get("score"),
+                        risk_level=sentry_data.get("risk_level"),
+                        encounter_reference=encounter_reference,
+                        tenant_id=ctx.tenant_id,
+                    )
+            except Exception as e:
+                self._logger.warning(
+                    "tasy_sentry_score_failed",
+                    encounter_reference=encounter_reference,
+                    error=str(e),
+                    tenant_id=ctx.tenant_id,
+                )
+
         output = VitalSignsMonitoringOutput(
             vital_signs_status=vital_signs_status,
             alerts=alerts_list,
@@ -497,7 +556,16 @@ class VitalSignsMonitoringWorker:
             tenant_id=ctx.tenant_id,
         )
 
-        return output.to_variables()
+        result = output.to_variables()
+        # Merge TASY scores into output
+        if "ews_score" in output_dict:
+            result["ews_score"] = output_dict["ews_score"]
+            result["ews_risk_level"] = output_dict["ews_risk_level"]
+        if "sentry_score" in output_dict:
+            result["sentry_score"] = output_dict["sentry_score"]
+            result["sentry_risk_level"] = output_dict["sentry_risk_level"]
+
+        return result
 
     @staticmethod
     def _calculate_age(birth_date: str | None) -> int | None:
