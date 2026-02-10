@@ -68,6 +68,13 @@ class GlosaReasonCode(StrEnum):
     INCOMPATIBLE_PROCEDURE = "GLOSA_008"# Procedimento incompatível
     PRICE_DIVERGENCE = "GLOSA_009"      # Divergência de preço
     TISS_VALIDATION = "GLOSA_010"       # Falha validação TISS
+    # Additional codes for appeal eligibility
+    MISSING_SIGNATURE = "GLOSA_011"     # Assinatura ausente
+    MISSING_CLINICAL_JUSTIFICATION = "GLOSA_012"  # Justificativa clínica ausente
+    INVALID_CODE = "GLOSA_013"          # Código inválido
+    DUPLICATE_BILLING = "GLOSA_014"     # Faturamento duplicado
+    NOT_COVERED_PROCEDURE = "GLOSA_015" # Procedimento não coberto
+    LACK_OF_PRIOR_AUTHORIZATION = "GLOSA_016"  # Falta de autorização prévia
 
 # -- Authorization --
 @unique

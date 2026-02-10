@@ -25,7 +25,7 @@ from prometheus_client import Counter, Histogram, Gauge
 from healthcare_platform.shared.domain.exceptions import DomainException
 from healthcare_platform.shared.i18n import _
 from healthcare_platform.shared.integrations.tasy_client import TasyClientProtocol
-from healthcare_platform.shared.integrations.mv_soul_client import MVSoulClientProtocol
+from healthcare_platform.shared.integrations.mv_soul_client import MvSoulClientProtocol as MVSoulClientProtocol
 from healthcare_platform.shared.multi_tenant.context import get_required_tenant
 from healthcare_platform.shared.multi_tenant.decorators import require_tenant
 from healthcare_platform.shared.observability.logging import get_logger
@@ -399,10 +399,10 @@ async def execute(input_data: dict[str, Any]) -> dict[str, Any]:
     try:
         # Inicializar clientes ERP (mock)
         from healthcare_platform.shared.integrations.tasy_client import TasyClientStub
-        from healthcare_platform.shared.integrations.mv_soul_client import MVSoulClientStub
+        from healthcare_platform.shared.integrations.mv_soul_client import StubMvSoulClient
 
         tasy_client = TasyClientStub()
-        mv_soul_client = MVSoulClientStub()
+        mv_soul_client = StubMvSoulClient()
 
         service = SyncERPDataStub(
             tasy_client=tasy_client,

@@ -30,6 +30,26 @@ class Money(BaseModel, frozen=True):
     def __mul__(self, factor: Decimal | int | float) -> Money:
         return Money(amount=self.amount * Decimal(str(factor)), currency=self.currency)
 
+    def __lt__(self, other: Money) -> bool:
+        if self.currency != other.currency:
+            raise ValueError(_("Não é possível comparar {} e {}").format(self.currency, other.currency))
+        return self.amount < other.amount
+
+    def __le__(self, other: Money) -> bool:
+        if self.currency != other.currency:
+            raise ValueError(_("Não é possível comparar {} e {}").format(self.currency, other.currency))
+        return self.amount <= other.amount
+
+    def __gt__(self, other: Money) -> bool:
+        if self.currency != other.currency:
+            raise ValueError(_("Não é possível comparar {} e {}").format(self.currency, other.currency))
+        return self.amount > other.amount
+
+    def __ge__(self, other: Money) -> bool:
+        if self.currency != other.currency:
+            raise ValueError(_("Não é possível comparar {} e {}").format(self.currency, other.currency))
+        return self.amount >= other.amount
+
     @classmethod
     def zero(cls, currency: str = "BRL") -> Money:
         return cls(amount=Decimal("0.00"), currency=currency)

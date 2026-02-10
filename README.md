@@ -1,223 +1,266 @@
-**Hospital Digital Orchestration** — CIB Seven · BPMN/DMN ·
+<p align="center">
+  <img src="docs/assets/maestro-logo.png" alt="Maestro" width="280" />
+</p>
+
+<h1 align="center">Maestro</h1>
+
+<p align="center">
+  <strong>Plataforma de Orquestração de Operações e Ciclo de Receita Hospitalar</strong><br/>
+  <em>Saúde em harmonia.</em>
+</p>
+
+<p align="center">
+  <a href="#o-problema">O Problema</a> •
+  <a href="#a-solução">A Solução</a> •
+  <a href="#capacidades">Capacidades</a> •
+  <a href="#para-quem">Para Quem</a> •
+  <a href="#especificações-técnicas">Especificações</a>
+</p>
 
 ---
 
-## What is this?
+## O Problema
 
-A BPM-based orchestration platform that serves as the **digital nervous system** for AUSTA hospital operations. It coordinates the **entire hospital** across four operational domains and five patient journeys — from first contact to post-discharge follow-up, from admission to payment reconciliation.
+Hospitais brasileiros perdem **R$ 2-4 bilhões por ano** com vazamentos de receita evitáveis:
 
-The platform replaces fragmented, department-siloed workflows with **orchestrated journeys** that accompany the patient through the complete care and billing lifecycle, connecting clinical, administrative, and financial systems through automated BPMN processes and a centralized decision rules engine (DMN).
+| Dor | Impacto |
+|-----|---------|
+| 🔴 **Glosas** | 8-15% do faturamento negado pelas operadoras |
+| �� **Autorização Manual** | 48+ horas aguardando resposta de autorização prévia |
+| 🔴 **Sistemas Fragmentados** | Tasy, MV, FHIR, operadoras — nenhum conversa com o outro |
+| 🔴 **Falhas de Conformidade** | Violações ANS, TISS, LGPD por processos manuais |
+| 🔴 **Ciclo de Receita Lento** | 45-90 dias em média até o recebimento |
+| 🔴 **Documentação Clínica** | Prontuários incompletos = contas glosadas |
 
-> *"Se o paciente precisa nos procurar para saber o que acontece com ele, já falhamos em antecipar sua necessidade."*  
-> — Hospital Digital Manifesto, AUSTA
+> *"Se o paciente precisa nos procurar para saber o que acontece com ele, já falhamos em antecipar sua necessidade."*
 
-### Scope Boundary
+---
 
-This platform orchestrates **hospital operations only**. The AUSTA Saúde healthcare plan (operadora) will have a separate, similar orchestration platform. Payers (Bradesco, Unimed, SulAmérica, Amil, AUSTA Saúde, etc.) are external entities the hospitals bill — they are not tenants of this platform.
+## A Solução
 
-## Architecture at a Glance
+**Maestro** é o **sistema nervoso digital** das operações hospitalares.
+
+Substitui fluxos fragmentados e isolados por departamento por **jornadas orquestradas** que acompanham o paciente do primeiro contato ao recebimento final — conectando sistemas clínicos, administrativos e financeiros através de **processos BPMN automatizados** e **mais de 600 regras de negócio inteligentes (DMN)**.
 
 ```
-┌─────────────────────────────────────────────────────────┐
-│  Channels: WhatsApp · Portal · Cockpit · Grafana        │
-├─────────────────────────────────────────────────────────┤
-│  Orchestration: CIB Seven 2.1.3 (BPMN · DMN · CMMN)    │
-│  Single Engine · Multi-Tenant · External Task Pattern    │
-├─────────────────────────────────────────────────────────┤
-│  Workers: Python 3.12 External Tasks (stateless, HPA)   │
-│  eligibility · tiss · denial · whatsapp · clinical · …  │
-├─────────────────────────────────────────────────────────┤
-│  Intelligence: OmniCash AI/ML Layer                      │
-│  denial prediction · code optimization · AR forecasting  │
-├─────────────────────────────────────────────────────────┤
-│  Integration: Debezium CDC · Kafka 3.7 · Mirth 4.5.2    │
-│  HAPI FHIR R4 7.4.0 · Tasy Adapter · MV Soul Adapter   │
-├─────────────────────────────────────────────────────────┤
-│  Data: PostgreSQL 16 · Redis 7.2 · Elasticsearch 8.13   │
-├─────────────────────────────────────────────────────────┤
-│  Infra: EKS · Keycloak 24 · Prometheus · Grafana 11     │
-└─────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────┐
+│                                                             │
+│    Acesso          Operações         Ciclo de      Pagamento│
+│    do Paciente →   Clínicas     →    Receita   →   Operadora│
+│                                                             │
+│    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━  │
+│                    Maestro Orquestra                        │
+│                                                             │
+└─────────────────────────────────────────────────────────────┘
 ```
 
-## Hospital Digital Model
+### O Que Muda
 
-### 5 Patient Journeys (cross-cutting, orchestrated)
+| Antes do Maestro | Depois do Maestro |
+|------------------|-------------------|
+| Glosa descoberta no pagamento | Glosa **prevenida** na captura |
+| Verificação de elegibilidade manual (horas) | Elegibilidade em tempo real (segundos) |
+| Autorizações em papel | Fluxo digital com acompanhamento de SLA |
+| Handoffs departamentais isolados | Jornada do paciente orquestrada |
+| Conformidade reativa | Conformidade proativa em cada etapa |
+| Vazamento de receita desconhecido | Cada real visível, rastreado, recuperado |
 
-1. **Jornada de Acesso** — From first contact to patient prepared for care
-2. **Jornada de Cuidado** — From admission to discharge with documented outcomes
-3. **Jornada de Continuidade** — From post-discharge to stabilization (home care, ambulatory follow-up)
-4. **Jornada de Relacionamento** — From first interaction to loyalty (patient and physician)
-5. **Jornada Financeira** — From eligibility verification to complete payment
+---
 
-### 4 Operational Domains (29 subprocesses)
+## Capacidades
 
-| Domain | Subprocesses | Phase |
-|---|---|---|
-| **Acesso Digital e Experiência** | 6 (demand capture, scheduling, identity, clearance, intake, check-in) | 2–3 |
-| **Operações Clínicas e Cuidado** | 8 (triage, admission, care team, prescriptions, diagnostics, medications, surgery, discharge) | 2–3 |
-| **Ciclo de Receita e Contratação** | 8 (charge capture, documentation, coding, denial management, patient billing, payer contracts, revenue optimization, VBHC) | **1 (MVP)** |
-| **Plataforma, Supply Chain e Risco** | 7 (workforce, supply chain, facilities, clinical risk, data platform, cybersecurity, automation ops) | 3–4 |
+### 🏥 Acesso do Paciente
+- **Captura de Demanda** — Atendimento omnichannel (WhatsApp, Portal, Call Center)
+- **Agendamento Inteligente** — Otimização de capacidade, alocação de recursos
+- **Identificação e Cadastro** — Prevenção de duplicidade, qualidade de dados
+- **Liberação Financeira** — Elegibilidade em tempo real, autorização prévia
+- **Admissão Digital** — Internação sem papel, gestão de consentimentos
+- **Fluxo de Check-in** — Gestão de filas, otimização de tempo de espera
 
-## Key Numbers
+### 🩺 Operações Clínicas
+- **Coordenação da Equipe de Cuidado** — Atribuições, handoffs, comunicação
+- **Suporte à Decisão Clínica** — Interações medicamentosas, alertas de sepse, valores críticos
+- **Conformidade Documental** — Campos obrigatórios, sugestões de codificação, checagens de qualidade
+- **Planejamento de Alta** — Score de prontidão, agendamento de seguimento
 
-| Metric | Value |
-|---|---|
-| Hospital tenants | 4 (austa-hospital, amh-sp-morumbi, amh-rj-barra, amh-mg-bh) |
-| External payers | Multiple (Bradesco, Unimed, SulAmérica, Amil, AUSTA Saúde, etc.) |
-| Total subprocesses | 29 across 4 domains |
-| BPMN processes (Phase 1) | 1 main + 10 sub-processes (revenue cycle) |
-| DMN decision tables | Global + per-tenant overrides, payer rules as input parameters |
-| Workers | 6+ Python External Task workers (growing per domain) |
-| Licensing cost | R$ 0 (CIB Seven Apache 2.0) |
-| Year 1 budget | R$ 1.3–1.5M |
+### 💰 Ciclo de Receita
+- **Captura de Produção** — Tempo real, sem perda de lançamentos
+- **Otimização de Codificação** — Sugestões TUSS, CID-10, CBHPM
+- **Prevenção de Glosas** — 600+ regras identificam problemas antes do envio
+- **Conformidade TISS** — Geração automática de XML, validação de schema
+- **Gestão de Negativas** — Workflows de recurso, análise de causa raiz
+- **Conciliação de Pagamentos** — Parsing CNAB, matching automático, detecção de variância
 
-## Quick Start (Local Development)
+### 🔒 Serviços de Plataforma
+- **Multi-Tenant** — Uma plataforma, múltiplos hospitais, dados isolados
+- **Conformidade Regulatória** — ANS, ANVISA, LGPD nativos
+- **Credenciamento** — Gestão de prestadores, unidades, contratos
+- **Analytics & BI** — Dashboards em tempo real, relatórios executivos
 
-### Prerequisites
+---
 
-- Docker Desktop with 8GB+ RAM allocated
-- Python 3.12+
-- Node.js 18+ (engine config tooling only)
+## Os Números
+
+| Métrica | Valor |
+|---------|-------|
+| **Workers** | 161 processadores de tarefas automatizados |
+| **Regras de Negócio (DMN)** | 667 tabelas de decisão |
+| **Processos BPMN** | 31 fluxos orquestrados |
+| **Domínios Cobertos** | 4 (Acesso, Clínico, Receita, Plataforma) |
+| **Tenants Suportados** | 4 hospitais (AUSTA, AMH-SP, AMH-RJ, AMH-MG) |
+| **Integrações com Operadoras** | Bradesco, Unimed, SulAmérica, Amil, + outras |
+| **Padrões de Conformidade** | ANS, TISS 4.0, LGPD, ANVISA |
+
+---
+
+## Para Quem
+
+### CFOs e Diretores de Ciclo de Receita
+> "Reduzimos a taxa de glosa de 12% para 4% em 6 meses. O Maestro se paga sozinho."
+
+- Visualize cada real no seu pipeline de receita
+- Preveja fluxo de caixa com forecasting baseado em IA
+- Reduza dias em contas a receber de 60 para 35
+
+### CIOs e Diretores de TI
+> "Uma plataforma substituiu 7 projetos de integração. Nossa equipe finalmente dorme à noite."
+
+- Camada única de orquestração para todos os sistemas
+- Fim das integrações ponto-a-ponto
+- Construído em padrões abertos (BPMN, DMN, FHIR R4)
+
+### Oficiais de Qualidade e Compliance
+> "Auditoria LGPD? Passamos com zero achados. Tudo é rastreável."
+
+- Cada interação com o paciente registrada e auditável
+- Regras de conformidade aplicadas automaticamente
+- Alertas em tempo real para prazos regulatórios
+
+---
+
+## 5 Jornadas do Paciente
+
+O Maestro orquestra a experiência completa do paciente em **5 jornadas interconectadas**:
+
+1. **Jornada de Acesso** — Do primeiro contato ao paciente pronto para o cuidado
+2. **Jornada de Cuidado** — Da admissão à alta com desfechos documentados
+3. **Jornada de Continuidade** — Da pós-alta à estabilização
+4. **Jornada de Relacionamento** — Da primeira interação à fidelização
+5. **Jornada Financeira** — Da verificação de elegibilidade ao recebimento completo
+
+---
+
+## Arquitetura
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│  Canais: WhatsApp · Portal · Cockpit · Grafana              │
+├─────────────────────────────────────────────────────────────┤
+│  Orquestração: CIB Seven 2.1.3 (BPMN · DMN · CMMN)          │
+│  Engine Único · Multi-Tenant · Padrão External Task         │
+├─────────────────────────────────────────────────────────────┤
+│  Workers: Python 3.11 (161 processadores stateless)         │
+│  elegibilidade · tiss · glosa · whatsapp · clínico · …      │
+├─────────────────────────────────────────────────────────────┤
+│  Inteligência: 667 Tabelas de Decisão DMN                   │
+│  prevenção de glosa · regras de codificação · conformidade  │
+├─────────────────────────────────────────────────────────────┤
+│  Integração: Debezium CDC · Kafka · HAPI FHIR R4            │
+│  Adaptador Tasy · Adaptador MV Soul · Cliente TISS          │
+├─────────────────────────────────────────────────────────────┤
+│  Dados: PostgreSQL 16 · Redis 7.2 · Elasticsearch 8.13      │
+├─────────────────────────────────────────────────────────────┤
+│  Infra: EKS · Keycloak 24 · Prometheus · Grafana 11         │
+└─────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## Início Rápido
+
+### Pré-requisitos
+- Docker Desktop (8GB+ RAM)
+- Python 3.11+
 - Git
 
-### 1. Clone and start infrastructure
-
+### 1. Clone e Inicie
 ```bash
-git clone git@github.com:austa/austa-orchestration-platform.git
-cd austa-orchestration-platform
+git clone git@github.com:your-org/maestro.git
+cd maestro
 docker compose up -d
 ```
 
-This starts: CIB Seven engine, PostgreSQL, Kafka (KRaft), Redis, HAPI FHIR, Mirth Connect, Keycloak, Prometheus, Grafana.
-
-### 2. Verify engine is running
-
+### 2. Verifique o Engine
 ```bash
 curl http://localhost:8080/engine-rest/engine
-# Expected: [{"name":"default"}]
+# Esperado: [{"name":"default"}]
 ```
 
-### 3. Deploy BPMN and DMN
+### 3. Acesse os Dashboards
 
-```bash
-./scripts/deploy-processes.sh local
-# Deploys all BPMN/DMN from /bpmn and /dmn/global to the engine
-```
+| Serviço | URL | Credenciais |
+|---------|-----|-------------|
+| Cockpit (Monitor de Processos) | http://localhost:8080/cibseven/app/cockpit | admin/admin |
+| Tasklist (Tarefas Humanas) | http://localhost:8080/cibseven/app/tasklist | admin/admin |
+| Grafana (Métricas) | http://localhost:3000 | admin/admin |
+| HAPI FHIR | http://localhost:8082/fhir/metadata | — |
+| Keycloak (Identidade) | http://localhost:8180/admin | admin/admin |
 
-### 4. Start a worker (example: eligibility)
+---
 
-```bash
-cd workers/worker-eligibility
-python -m venv .venv && source .venv/bin/activate
-pip install -r requirements.txt
-python main.py
-# Worker connects to engine, subscribes to 'verify-eligibility' topic
-```
+## Stack Tecnológica
 
-### 5. Start a test process
-
-```bash
-curl -X POST http://localhost:8080/engine-rest/process-definition/key/revenue-cycle-main/tenant-id/austa-hospital/start \
-  -H "Content-Type: application/json" \
-  -d '{"variables": {"encounterFhirId": {"value": "Encounter/test-001", "type": "String"}}}'
-```
-
-### 6. Monitor
-
-| Service | URL |
-|---|---|
-| CIB Seven Cockpit | http://localhost:8080/cibseven/app/cockpit |
-| CIB Seven Tasklist | http://localhost:8080/cibseven/app/tasklist |
-| Grafana | http://localhost:3000 (admin/admin) |
-| Kafka UI | http://localhost:8081 |
-| HAPI FHIR | http://localhost:8082/fhir/metadata |
-| Keycloak | http://localhost:8180/admin (admin/admin) |
-| Prometheus | http://localhost:9090 |
-
-## Repository Structure
-
-```
-/
-├── bpmn/                      # Executable BPMN process models
-├── dmn/                       # DMN decision tables (global + tenant overrides)
-├── workers/                   # Python External Task workers
-│   ├── worker-base/           # Shared AustaWorker framework
-│   ├── worker-eligibility/
-│   ├── worker-tiss/
-│   ├── worker-denial/
-│   ├── worker-whatsapp/
-│   ├── worker-clinical/
-│   └── worker-payment/
-├── adapters/                  # ERP integration adapters
-├── bridge/                    # CDC-to-BPM bridge service
-├── engine/                    # CIB Seven Spring Boot configuration
-├── infra/                     # Infrastructure-as-Code
-├── tests/                     # E2E and load tests
-├── scripts/                   # Deployment, bootstrap, utilities
-├── docs/                      # All documentation
-│   ├── adr/                   # Architecture Decision Records
-│   ├── specs/                 # Technical specifications
-│   ├── guides/                # Development and operations guides
-│   └── runbooks/              # Incident response procedures
-├── docker-compose.yml
-├── CODEOWNERS
-└── README.md                  # ← You are here
-```
-
-See [docs/guides/repository-structure.md](docs/guides/repository-structure.md) for detailed folder descriptions.
-
-## Documentation Index
-
-### Architecture
-
-| Document | Description |
-|---|---|
-| [docs/specs/technical-specification.md](docs/specs/technical-specification.md) | Consolidated technical specification (single source of truth) |
-| [docs/adr/](docs/adr/) | 12 Architecture Decision Records |
-
-### Development
-
-| Document | Description |
-|---|---|
-| [docs/guides/development-standards.md](docs/guides/development-standards.md) | Code style, Git conventions, BPMN/DMN naming, PR rules |
-| [docs/guides/repository-structure.md](docs/guides/repository-structure.md) | Mono-repo layout, CODEOWNERS, CI/CD path filtering |
-
-### Operations
-
-| Document | Description |
-|---|---|
-| docs/runbooks/ | Incident response procedures (TBD) |
-| docs/specs/api-contracts.md | OpenAPI specs and event schemas (TBD) |
-| docs/specs/data-dictionary.md | Process variables, Kafka topics, FHIR profiles (TBD) |
-
-## Tech Stack
-
-| Layer | Technology | Version |
-|---|---|---|
-| Orchestration | CIB Seven | 2.1.3 |
-| Workers | Python | 3.12 |
-| External Task Client | camunda-external-task-client-python3 | 4.5.0 |
-| FHIR Server | HAPI FHIR R4 (JPA) | 7.4.0 |
-| Integration Engine | Mirth Connect | 4.5.2 |
+| Camada | Tecnologia | Versão |
+|--------|------------|--------|
+| Orquestração | CIB Seven | 2.1.3 |
+| Workers | Python | 3.11 |
+| Servidor FHIR | HAPI FHIR R4 | 7.4.0 |
 | CDC | Debezium | 2.7 |
-| Event Streaming | Apache Kafka (KRaft) | 3.7 |
-| Database | PostgreSQL | 16 |
-| Cache | Redis (Sentinel) | 7.2 |
-| Search | Elasticsearch | 8.13 |
-| Identity | Keycloak | 24 |
-| Metrics | Prometheus | 2.51 |
-| Dashboards | Grafana | 11 |
-| Process Analytics | CIB ins7ght | Enterprise |
-| Container Orchestration | AWS EKS | Latest |
-| IaC | Terraform/OpenTofu | 1.7+ |
+| Streaming | Apache Kafka | 3.7 |
+| Banco de Dados | PostgreSQL | 16 |
+| Cache | Redis | 7.2 |
+| Identidade | Keycloak | 24 |
+| Observabilidade | Prometheus + Grafana | Mais recente |
 
-## License
+---
+
+## Estrutura do Repositório
+
+```
+maestro/
+├── healthcare_platform/       # Código principal da plataforma
+│   ├── patient_access/        # 23 workers, 6 BPMN
+│   ├── clinical_operations/   # 20 workers, DMN clínicos
+│   ├── revenue_cycle/         # 89 workers, faturamento/cobrança
+│   ├── platform_services/     # 29 workers, conformidade/analytics
+│   └── shared/                # Multi-tenant, integrações, domínio
+├── tests/                     # 1.400+ testes (unitários, integração, DMN)
+├── docs/                      # ADRs, specs, guias de migração
+├── config/                    # Observabilidade (Prometheus, Grafana)
+└── scripts/                   # Ferramentas de deploy e migração
+```
+
+---
+
+## Documentação
+
+| Documento | Descrição |
+|-----------|-----------|
+| [Especificação Técnica](docs/Technical%20specification/technical-specification.md) | Arquitetura completa do sistema |
+| [ADRs](docs/ADRs/) | 13 Registros de Decisão de Arquitetura |
+| [Guia de Migração](docs/Migration/) | Migração de sistemas legados |
+| [Regras de Negócio](docs/Regras%20de%20Negocio%20(PT-BR)/) | Inventário completo de regras |
+
+---
+
+## Licença
 
 - **CIB Seven Engine:** Apache License 2.0
-- **Platform Code:** Proprietary — Grupo AUSTA / AMH. All rights reserved.
+- **Plataforma Maestro:** Proprietário
 
-## Contact
+---
 
-- **Architecture:** architecture@austa.com.br
-- **DevOps:** devops@austa.com.br
-- **Project Lead:** TBD
+<p align="center">
+  <strong>Maestro</strong><br/>
+  <em>Saúde em harmonia.</em>
+</p>

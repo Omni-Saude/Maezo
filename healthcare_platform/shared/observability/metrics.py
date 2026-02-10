@@ -10,7 +10,7 @@ Provides decorators:
 Usage:
     from healthcare_platform.shared.observability.metrics import track_task_execution
 
-    @track_task_execution(metric_name="billing_validate")
+    @track_task_execution(_metric_name="billing_validate")
     async def execute(self, task): ...
 """
 
@@ -92,19 +92,27 @@ BUILD_INFO = Info(
 # ---------------------------------------------------------------------------
 
 
-def track_task_execution(metric_name: str) -> Callable:
+def track_task_execution(
+    metric_name: str | None = None, task_type: str | None = None
+) -> Callable:
     """Decorator to track CIB7 external task execution metrics.
 
     Records duration histogram, total counter, and error counter.
     Extracts tenant_id from correlation context.
+
+    Supports both parameter styles:
+    - New style: task_type
+    - Old style: metric_name
     """
+    # Support both parameter naming conventions
+    _metric_name = task_type or metric_name or "unknown"
 
     def decorator(func: Callable) -> Callable:
         @functools.wraps(func)
         async def wrapper(*args: Any, **kwargs: Any) -> Any:
             ctx = get_current_context()
             tenant = ctx.tenant_id or "unknown"
-            TASKS_IN_PROGRESS.labels(worker=metric_name).inc()
+            TASKS_IN_PROGRESS.labels(worker=_metric_name).inc()
             start = time.monotonic()
             status = "success"
             try:
@@ -114,29 +122,42 @@ def track_task_execution(metric_name: str) -> Callable:
                 status = "error"
                 error_type = type(exc).__name__
                 TASK_ERRORS.labels(
-                    worker=metric_name, tenant_id=tenant, error_type=error_type
+                    worker=_metric_name, tenant_id=tenant, error_type=error_type
                 ).inc()
                 raise
             finally:
                 elapsed = time.monotonic() - start
                 TASK_DURATION.labels(
-                    worker=metric_name, tenant_id=tenant, status=status
+                    worker=_metric_name, tenant_id=tenant, status=status
                 ).observe(elapsed)
                 TASK_TOTAL.labels(
-                    worker=metric_name, tenant_id=tenant, status=status
+                    worker=_metric_name, tenant_id=tenant, status=status
                 ).inc()
-                TASKS_IN_PROGRESS.labels(worker=metric_name).dec()
+                TASKS_IN_PROGRESS.labels(worker=_metric_name).dec()
 
         return wrapper
 
     return decorator
 
 
-def track_api_call(service: str, endpoint: str, method: str = "GET") -> Callable:
+def track_api_call(
+    service: str | None = None,
+    endpoint: str | None = None,
+    method: str = "GET",
+    service_name: str | None = None,
+    operation: str | None = None,
+) -> Callable:
     """Decorator to track outbound API call metrics.
 
     Records duration histogram and total counter with status code.
+
+    Supports both parameter styles:
+    - New style: service_name, operation
+    - Old style: service, endpoint, method
     """
+    # Support both parameter naming conventions
+    _service = service_name or service or "unknown"
+    _endpoint = operation or endpoint or "unknown"
 
     def decorator(func: Callable) -> Callable:
         @functools.wraps(func)
@@ -153,14 +174,14 @@ def track_api_call(service: str, endpoint: str, method: str = "GET") -> Callable
             finally:
                 elapsed = time.monotonic() - start
                 API_CALL_DURATION.labels(
-                    service=service,
-                    endpoint=endpoint,
+                    service=_service,
+                    endpoint=_endpoint,
                     method=method,
                     status_code=status_code,
                 ).observe(elapsed)
                 API_CALL_TOTAL.labels(
-                    service=service,
-                    endpoint=endpoint,
+                    service=_service,
+                    endpoint=_endpoint,
                     method=method,
                     status_code=status_code,
                 ).inc()
