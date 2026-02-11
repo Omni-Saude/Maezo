@@ -341,7 +341,7 @@ async def execute(input_data: dict[str, Any]) -> dict[str, Any]:
     logger.info(
         _("Iniciando cálculo de métricas operacionais"),
         extra={
-            "tenant_id": tenant.id,
+            "tenant_id": tenant.tenant_code,
             "calculation_id": calculation_id,
             "metric_types": parsed_input.metric_types,
         },
@@ -352,7 +352,7 @@ async def execute(input_data: dict[str, Any]) -> dict[str, Any]:
     _dmn = get_dmn_service()
     try:
         _dmn_config = _dmn.evaluate(
-            tenant_id=tenant.id,
+            tenant_id=tenant.tenant_code,
             category='compliance',
             table_name='accred/comp_accred_003',
             inputs={'metric_types': parsed_input.metric_types},
@@ -382,7 +382,7 @@ async def execute(input_data: dict[str, Any]) -> dict[str, Any]:
                 )
                 # Atualizar gauge Prometheus
                 bed_occupancy_gauge.labels(
-                    tenant_id=tenant.id,
+                    tenant_id=tenant.tenant_code,
                     department=parsed_input.department or "all",
                 ).set(metric.value)
             elif metric_type == "or_utilization":
@@ -401,7 +401,7 @@ async def execute(input_data: dict[str, Any]) -> dict[str, Any]:
             metrics.append(metric)
 
             operational_calculations_total.labels(
-                tenant_id=tenant.id,
+                tenant_id=tenant.tenant_code,
                 metric_type=metric_type,
                 status="success",
             ).inc()
@@ -420,7 +420,7 @@ async def execute(input_data: dict[str, Any]) -> dict[str, Any]:
         logger.info(
             _("Cálculo de métricas operacionais concluído"),
             extra={
-                "tenant_id": tenant.id,
+                "tenant_id": tenant.tenant_code,
                 "calculation_id": calculation_id,
                 "metrics_calculated": len(metrics),
                 "duration_ms": duration_ms,
@@ -433,7 +433,7 @@ async def execute(input_data: dict[str, Any]) -> dict[str, Any]:
         logger.error(
             _("Erro no cálculo de métricas operacionais"),
             extra={
-                "tenant_id": tenant.id,
+                "tenant_id": tenant.tenant_code,
                 "calculation_id": calculation_id,
                 "error": str(e),
             },

@@ -168,7 +168,7 @@ class RecommendProcedureBundlesStub(RecommendProcedureBundlesProtocol):
         _dmn = get_dmn_service()
         try:
             _dmn_result = _dmn.evaluate(
-                tenant_id=tenant.id,
+                tenant_id=tenant.tenant_code,
                 category='compliance',
                 table_name='tiss/comp_tiss_003',
                 inputs={'procedure_code': input_data.procedure_code},

@@ -11,9 +11,9 @@ from healthcare_platform.shared.multi_tenant.context import TenantContext, set_c
 
 
 @pytest.fixture
-def tenant_austa():
+def tenant_hospital_a():
     """Set up AUSTA tenant context."""
-    ctx = TenantContext.from_tenant_code(TenantCode.AUSTA)
+    ctx = TenantContext.from_tenant_code(TenantCode.HOSPITAL_A)
     set_current_tenant(ctx)
     yield ctx
     clear_tenant()
@@ -36,7 +36,7 @@ class TestClinicalComplianceWorker:
     """Test cases for ClinicalComplianceWorker."""
 
     @pytest.mark.asyncio
-    async def test_happy_path_check_compliance(self, worker, fhir_client, tenant_austa):
+    async def test_happy_path_check_compliance(self, worker, fhir_client, tenant_hospital_a):
         """Test successful compliance check."""
         fhir_client.search.return_value = [
             {"resourceType": "Observation", "id": "obs-1", "status": "final"},
@@ -56,7 +56,7 @@ class TestClinicalComplianceWorker:
         fhir_client.search.assert_called()
 
     @pytest.mark.asyncio
-    async def test_missing_compliance_type_raises(self, worker, tenant_austa):
+    async def test_missing_compliance_type_raises(self, worker, tenant_hospital_a):
         """Test that missing compliance_type raises DomainException."""
         with pytest.raises(DomainException, match="compliance_type is required"):
             await worker.execute({
@@ -65,7 +65,7 @@ class TestClinicalComplianceWorker:
             })
 
     @pytest.mark.asyncio
-    async def test_non_compliant_triggers_alert(self, worker, fhir_client, tenant_austa):
+    async def test_non_compliant_triggers_alert(self, worker, fhir_client, tenant_hospital_a):
         """Test that non-compliance triggers alerts."""
         fhir_client.search.return_value = []
 

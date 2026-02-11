@@ -296,7 +296,7 @@ async def execute(input_data: dict[str, Any]) -> dict[str, Any]:
     logger.info(
         _("Iniciando integração de imagem médica"),
         extra={
-            "tenant_id": tenant.id,
+            "tenant_id": tenant.tenant_code,
             "integration_id": integration_id,
             "patient_id_hash": patient_id_hash,
             "modality": parsed_input.modality,
@@ -309,7 +309,7 @@ async def execute(input_data: dict[str, Any]) -> dict[str, Any]:
     _dmn = get_dmn_service()
     try:
         _dmn_config = _dmn.evaluate(
-            tenant_id=tenant.id,
+            tenant_id=tenant.tenant_code,
             category='infrastructure',
             table_name='config/infra_002',
             inputs={'study_type': parsed_input.study_type},
@@ -376,25 +376,25 @@ async def execute(input_data: dict[str, Any]) -> dict[str, Any]:
 
         # Métricas
         imaging_integrations_total.labels(
-            tenant_id=tenant.id,
+            tenant_id=tenant.tenant_code,
             modality=parsed_input.modality,
             status="success",
         ).inc()
 
         imaging_duration_seconds.labels(
-            tenant_id=tenant.id,
+            tenant_id=tenant.tenant_code,
             modality=parsed_input.modality,
         ).observe(duration_ms / 1000.0)
 
         imaging_studies_gauge.labels(
-            tenant_id=tenant.id,
+            tenant_id=tenant.tenant_code,
             modality=parsed_input.modality,
         ).inc()
 
         logger.info(
             _("Integração de imagem concluída com sucesso"),
             extra={
-                "tenant_id": tenant.id,
+                "tenant_id": tenant.tenant_code,
                 "integration_id": integration_id,
                 "patient_id_hash": patient_id_hash,
                 "series_count": len(series_info),
@@ -409,7 +409,7 @@ async def execute(input_data: dict[str, Any]) -> dict[str, Any]:
         logger.error(
             _("Erro na integração de imagem"),
             extra={
-                "tenant_id": tenant.id,
+                "tenant_id": tenant.tenant_code,
                 "integration_id": integration_id,
                 "patient_id_hash": patient_id_hash,
                 "error": str(e),

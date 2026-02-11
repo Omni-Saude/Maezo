@@ -329,7 +329,7 @@ async def execute(input_data: dict[str, Any]) -> dict[str, Any]:
     logger.info(
         _("Iniciando análise de performance financeira"),
         extra={
-            "tenant_id": tenant.id,
+            "tenant_id": tenant.tenant_code,
             "analysis_id": analysis_id,
             "analysis_types": parsed_input.analysis_types,
         },
@@ -340,7 +340,7 @@ async def execute(input_data: dict[str, Any]) -> dict[str, Any]:
     _dmn = get_dmn_service()
     try:
         _dmn_config = _dmn.evaluate(
-            tenant_id=tenant.id,
+            tenant_id=tenant.tenant_code,
             category='compliance',
             table_name='ans/comp_ans_003',
             inputs={'analysis_type': parsed_input.analysis_type},
@@ -389,7 +389,7 @@ async def execute(input_data: dict[str, Any]) -> dict[str, Any]:
             metrics.append(metric)
 
             financial_analyses_total.labels(
-                tenant_id=tenant.id,
+                tenant_id=tenant.tenant_code,
                 analysis_type=analysis_type,
                 status="success",
             ).inc()
@@ -417,7 +417,7 @@ async def execute(input_data: dict[str, Any]) -> dict[str, Any]:
         logger.info(
             _("Análise de performance financeira concluída"),
             extra={
-                "tenant_id": tenant.id,
+                "tenant_id": tenant.tenant_code,
                 "analysis_id": analysis_id,
                 "metrics_calculated": len(metrics),
                 "net_margin": net_margin,
@@ -431,7 +431,7 @@ async def execute(input_data: dict[str, Any]) -> dict[str, Any]:
         logger.error(
             _("Erro na análise de performance financeira"),
             extra={
-                "tenant_id": tenant.id,
+                "tenant_id": tenant.tenant_code,
                 "analysis_id": analysis_id,
                 "error": str(e),
             },

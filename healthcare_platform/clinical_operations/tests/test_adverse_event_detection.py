@@ -11,9 +11,9 @@ from healthcare_platform.shared.multi_tenant.context import TenantContext, set_c
 
 
 @pytest.fixture
-def tenant_austa():
+def tenant_hospital_a():
     """Set up AUSTA tenant context."""
-    ctx = TenantContext.from_tenant_code(TenantCode.AUSTA)
+    ctx = TenantContext.from_tenant_code(TenantCode.HOSPITAL_A)
     set_current_tenant(ctx)
     yield ctx
     clear_tenant()
@@ -36,7 +36,7 @@ class TestAdverseEventDetectionWorker:
     """Test cases for AdverseEventDetectionWorker."""
 
     @pytest.mark.asyncio
-    async def test_happy_path_report_adverse_event(self, worker, fhir_client, tenant_austa):
+    async def test_happy_path_report_adverse_event(self, worker, fhir_client, tenant_hospital_a):
         """Test successful adverse event reporting."""
         fhir_client.create.return_value = {
             "resourceType": "AdverseEvent",
@@ -59,7 +59,7 @@ class TestAdverseEventDetectionWorker:
         fhir_client.create.assert_called_once()
 
     @pytest.mark.asyncio
-    async def test_missing_event_type_raises(self, worker, tenant_austa):
+    async def test_missing_event_type_raises(self, worker, tenant_hospital_a):
         """Test that missing event_type raises DomainException."""
         with pytest.raises(DomainException, match="event_type is required"):
             await worker.execute({
@@ -68,7 +68,7 @@ class TestAdverseEventDetectionWorker:
             })
 
     @pytest.mark.asyncio
-    async def test_automatic_detection_from_vitals(self, worker, fhir_client, tenant_austa):
+    async def test_automatic_detection_from_vitals(self, worker, fhir_client, tenant_hospital_a):
         """Test automatic adverse event detection from vital signs."""
         fhir_client.search.return_value = [
             {"resourceType": "Observation", "id": "obs-1", "valueQuantity": {"value": 40, "unit": "bpm"}}

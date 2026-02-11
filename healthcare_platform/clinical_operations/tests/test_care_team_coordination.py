@@ -11,9 +11,9 @@ from healthcare_platform.shared.multi_tenant.context import TenantContext, set_c
 
 
 @pytest.fixture
-def tenant_austa():
+def tenant_hospital_a():
     """Set up AUSTA tenant context."""
-    ctx = TenantContext.from_tenant_code(TenantCode.AUSTA)
+    ctx = TenantContext.from_tenant_code(TenantCode.HOSPITAL_A)
     set_current_tenant(ctx)
     yield ctx
     clear_tenant()
@@ -36,7 +36,7 @@ class TestCareTeamCoordinationWorker:
     """Test cases for CareTeamCoordinationWorker."""
 
     @pytest.mark.asyncio
-    async def test_happy_path_create_care_team(self, worker, fhir_client, tenant_austa):
+    async def test_happy_path_create_care_team(self, worker, fhir_client, tenant_hospital_a):
         """Test successful care team creation."""
         fhir_client.create.return_value = {
             "resourceType": "CareTeam",
@@ -59,7 +59,7 @@ class TestCareTeamCoordinationWorker:
         fhir_client.create.assert_called_once()
 
     @pytest.mark.asyncio
-    async def test_missing_team_members_raises(self, worker, tenant_austa):
+    async def test_missing_team_members_raises(self, worker, tenant_hospital_a):
         """Test that missing team_members raises DomainException."""
         with pytest.raises(DomainException, match="team_members are required"):
             await worker.execute({
@@ -68,7 +68,7 @@ class TestCareTeamCoordinationWorker:
             })
 
     @pytest.mark.asyncio
-    async def test_update_existing_care_team(self, worker, fhir_client, tenant_austa):
+    async def test_update_existing_care_team(self, worker, fhir_client, tenant_hospital_a):
         """Test updating an existing care team."""
         fhir_client.search.return_value = [{"resourceType": "CareTeam", "id": "careteam-123"}]
         fhir_client.update.return_value = {"resourceType": "CareTeam", "id": "careteam-123", "status": "active"}

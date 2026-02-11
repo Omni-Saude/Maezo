@@ -162,7 +162,7 @@ class CalculateRevenuePotentialStub(CalculateRevenuePotentialProtocol):
         _dmn = get_dmn_service()
         try:
             _dmn_result = _dmn.evaluate(
-                tenant_id=tenant.id,
+                tenant_id=tenant.tenant_code,
                 category='compliance',
                 table_name='ans/comp_ans_005',
                 inputs={'calculation_type': input_data.calculation_type},

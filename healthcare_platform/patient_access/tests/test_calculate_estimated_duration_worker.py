@@ -21,7 +21,7 @@ def worker(fhir_client, duration_calculator):
 
 class TestCalculateEstimatedDurationWorker:
     @pytest.mark.asyncio
-    async def test_happy_path_calculates_duration(self, worker, fhir_client, duration_calculator, tenant_austa):
+    async def test_happy_path_calculates_duration(self, worker, fhir_client, duration_calculator, tenant_hospital_a):
         """Test successful duration calculation."""
         duration_calculator.calculate.return_value = {
             "estimated_minutes": 30,
@@ -38,7 +38,7 @@ class TestCalculateEstimatedDurationWorker:
         duration_calculator.calculate.assert_called_once()
 
     @pytest.mark.asyncio
-    async def test_missing_required_field_raises(self, worker, tenant_austa):
+    async def test_missing_required_field_raises(self, worker, tenant_hospital_a):
         """Test that missing service_type raises DomainException."""
         with pytest.raises(DomainException):
             await worker.execute({})
@@ -51,7 +51,7 @@ class TestCalculateEstimatedDurationWorker:
             await worker.execute({"service_type": "consultation"})
 
     @pytest.mark.asyncio
-    async def test_complex_procedure_longer_duration(self, worker, fhir_client, duration_calculator, tenant_austa):
+    async def test_complex_procedure_longer_duration(self, worker, fhir_client, duration_calculator, tenant_hospital_a):
         """Test that complex procedures have longer duration."""
         duration_calculator.calculate.return_value = {
             "estimated_minutes": 90,

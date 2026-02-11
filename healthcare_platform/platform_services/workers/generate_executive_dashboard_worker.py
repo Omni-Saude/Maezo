@@ -373,7 +373,7 @@ async def execute(input_data: dict[str, Any]) -> dict[str, Any]:
     logger.info(
         _("Iniciando geração de dashboard executivo"),
         extra={
-            "tenant_id": tenant.id,
+            "tenant_id": tenant.tenant_code,
             "dashboard_id": dashboard_id,
             "dashboard_type": parsed_input.dashboard_type,
         },
@@ -384,7 +384,7 @@ async def execute(input_data: dict[str, Any]) -> dict[str, Any]:
     _dmn = get_dmn_service()
     try:
         _dmn_config = _dmn.evaluate(
-            tenant_id=tenant.id,
+            tenant_id=tenant.tenant_code,
             category='compliance',
             table_name='audit/comp_audit_004',
             inputs={'dashboard_type': parsed_input.dashboard_type},
@@ -435,20 +435,20 @@ async def execute(input_data: dict[str, Any]) -> dict[str, Any]:
 
         # Métricas
         dashboard_generations_total.labels(
-            tenant_id=tenant.id,
+            tenant_id=tenant.tenant_code,
             dashboard_type=parsed_input.dashboard_type,
             status="success",
         ).inc()
 
         dashboard_duration_seconds.labels(
-            tenant_id=tenant.id,
+            tenant_id=tenant.tenant_code,
             dashboard_type=parsed_input.dashboard_type,
         ).observe(duration_ms / 1000.0)
 
         logger.info(
             _("Dashboard executivo gerado com sucesso"),
             extra={
-                "tenant_id": tenant.id,
+                "tenant_id": tenant.tenant_code,
                 "dashboard_id": dashboard_id,
                 "kpis_count": len(all_kpis),
                 "alerts_count": len(alerts),
@@ -462,7 +462,7 @@ async def execute(input_data: dict[str, Any]) -> dict[str, Any]:
         logger.error(
             _("Erro na geração de dashboard executivo"),
             extra={
-                "tenant_id": tenant.id,
+                "tenant_id": tenant.tenant_code,
                 "dashboard_id": dashboard_id,
                 "error": str(e),
             },

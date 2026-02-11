@@ -11,9 +11,9 @@ from healthcare_platform.shared.multi_tenant.context import TenantContext, set_c
 
 
 @pytest.fixture
-def tenant_austa():
+def tenant_hospital_a():
     """Set up AUSTA tenant context."""
-    ctx = TenantContext.from_tenant_code(TenantCode.AUSTA)
+    ctx = TenantContext.from_tenant_code(TenantCode.HOSPITAL_A)
     set_current_tenant(ctx)
     yield ctx
     clear_tenant()
@@ -36,7 +36,7 @@ class TestClinicalQualityIndicatorsWorker:
     """Test cases for ClinicalQualityIndicatorsWorker."""
 
     @pytest.mark.asyncio
-    async def test_happy_path_calculate_quality_metrics(self, worker, fhir_client, tenant_austa):
+    async def test_happy_path_calculate_quality_metrics(self, worker, fhir_client, tenant_hospital_a):
         """Test successful quality indicator calculation."""
         fhir_client.search.return_value = [
             {"resourceType": "Observation", "id": "obs-1", "status": "final"},
@@ -57,7 +57,7 @@ class TestClinicalQualityIndicatorsWorker:
         fhir_client.search.assert_called()
 
     @pytest.mark.asyncio
-    async def test_missing_indicator_type_raises(self, worker, tenant_austa):
+    async def test_missing_indicator_type_raises(self, worker, tenant_hospital_a):
         """Test that missing indicator_type raises DomainException."""
         with pytest.raises(DomainException, match="indicator_type is required"):
             await worker.execute({
@@ -66,7 +66,7 @@ class TestClinicalQualityIndicatorsWorker:
             })
 
     @pytest.mark.asyncio
-    async def test_multiple_indicators_calculated(self, worker, fhir_client, tenant_austa):
+    async def test_multiple_indicators_calculated(self, worker, fhir_client, tenant_hospital_a):
         """Test calculation of multiple quality indicators."""
         fhir_client.search.return_value = [{"resourceType": "Observation", "id": "obs-1"}]
 

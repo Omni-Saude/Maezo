@@ -7,8 +7,8 @@ from healthcare_platform.shared.domain.exceptions import DomainException
 from healthcare_platform.shared.multi_tenant.context import TenantContext, set_current_tenant, clear_tenant
 
 @pytest.fixture
-def tenant_austa():
-    ctx = TenantContext.from_tenant_code(TenantCode.AUSTA)
+def tenant_hospital_a():
+    ctx = TenantContext.from_tenant_code(TenantCode.HOSPITAL_A)
     set_current_tenant(ctx)
     yield ctx
     clear_tenant()
@@ -23,7 +23,7 @@ def worker(fhir_client):
     return GenerateOptimizationReportStub(fhir_client=fhir_client)
 
 @pytest.mark.asyncio
-async def test_happy_path_generates_optimization_report(worker, tenant_austa):
+async def test_happy_path_generates_optimization_report(worker, tenant_hospital_a):
     """Should successfully generate optimization report."""
     job = {
         "report_period": "2024-Q1",
@@ -34,7 +34,7 @@ async def test_happy_path_generates_optimization_report(worker, tenant_austa):
     assert "report_url" in result
 
 @pytest.mark.asyncio
-async def test_missing_required_field_raises(worker, tenant_austa):
+async def test_missing_required_field_raises(worker, tenant_hospital_a):
     """Should raise DomainException when report_period is missing."""
     job = {"include_sections": ["opportunities"]}
     with pytest.raises(DomainException, match="report_period"):

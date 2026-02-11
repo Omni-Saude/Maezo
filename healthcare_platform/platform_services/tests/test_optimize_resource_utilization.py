@@ -7,8 +7,8 @@ from healthcare_platform.shared.domain.exceptions import DomainException
 from healthcare_platform.shared.multi_tenant.context import TenantContext, set_current_tenant, clear_tenant
 
 @pytest.fixture
-def tenant_austa():
-    ctx = TenantContext.from_tenant_code(TenantCode.AUSTA)
+def tenant_hospital_a():
+    ctx = TenantContext.from_tenant_code(TenantCode.HOSPITAL_A)
     set_current_tenant(ctx)
     yield ctx
     clear_tenant()
@@ -23,7 +23,7 @@ def worker(fhir_client):
     return OptimizeResourceUtilizationStub(fhir_client=fhir_client)
 
 @pytest.mark.asyncio
-async def test_happy_path_optimizes_resource_utilization(worker, tenant_austa):
+async def test_happy_path_optimizes_resource_utilization(worker, tenant_hospital_a):
     """Should successfully optimize resource utilization."""
     job = {
         "resource_types": ["operating_rooms", "staff"],
@@ -34,7 +34,7 @@ async def test_happy_path_optimizes_resource_utilization(worker, tenant_austa):
     assert "recommendations" in result
 
 @pytest.mark.asyncio
-async def test_missing_required_field_raises(worker, tenant_austa):
+async def test_missing_required_field_raises(worker, tenant_hospital_a):
     """Should raise DomainException when resource_types is missing."""
     job = {"optimization_goal": "maximize_throughput"}
     with pytest.raises(DomainException, match="resource_types"):

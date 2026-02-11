@@ -270,7 +270,7 @@ class PrioritizeHighValueCasesWorkerStub(PrioritizeHighValueCasesProtocol):
         tenant_id = get_required_tenant()
         try:
             _dmn_result = self._dmn.evaluate(
-                tenant_id=tenant.id,
+                tenant_id=tenant.tenant_code,
                 category='compliance',
                 table_name='accred/comp_accred_004',
                 inputs={'case_type': input_data.case_type},

@@ -445,7 +445,7 @@ async def execute(input_data: dict[str, Any]) -> dict[str, Any]:
     logger.info(
         _("Iniciando verificação de qualidade de dados"),
         extra={
-            "tenant_id": tenant.id,
+            "tenant_id": tenant.tenant_code,
             "check_id": check_id,
             "dimensions": parsed_input.quality_dimensions,
             "sources": parsed_input.data_sources,
@@ -457,7 +457,7 @@ async def execute(input_data: dict[str, Any]) -> dict[str, Any]:
     _dmn = get_dmn_service()
     try:
         _dmn_config = _dmn.evaluate(
-            tenant_id=tenant.id,
+            tenant_id=tenant.tenant_code,
             category='compliance',
             table_name='audit/comp_audit_001',
             inputs={'dimensions': parsed_input.quality_dimensions, 'sources': parsed_input.data_sources},
@@ -554,13 +554,13 @@ async def execute(input_data: dict[str, Any]) -> dict[str, Any]:
         # Métricas
         for dimension in parsed_input.quality_dimensions:
             quality_checks_total.labels(
-                tenant_id=tenant.id,
+                tenant_id=tenant.tenant_code,
                 check_type=dimension,
                 status="success",
             ).inc()
 
             quality_duration_seconds.labels(
-                tenant_id=tenant.id,
+                tenant_id=tenant.tenant_code,
                 check_type=dimension,
             ).observe(duration_ms / 1000.0)
 
@@ -568,7 +568,7 @@ async def execute(input_data: dict[str, Any]) -> dict[str, Any]:
         for severity, count in issues_by_severity.items():
             for dimension in parsed_input.quality_dimensions:
                 quality_issues_gauge.labels(
-                    tenant_id=tenant.id,
+                    tenant_id=tenant.tenant_code,
                     severity=severity,
                     dimension=dimension,
                 ).set(count)
@@ -576,7 +576,7 @@ async def execute(input_data: dict[str, Any]) -> dict[str, Any]:
         logger.info(
             _("Verificação de qualidade concluída"),
             extra={
-                "tenant_id": tenant.id,
+                "tenant_id": tenant.tenant_code,
                 "check_id": check_id,
                 "issues_found": len(filtered_issues),
                 "quality_score": quality_score,
@@ -590,7 +590,7 @@ async def execute(input_data: dict[str, Any]) -> dict[str, Any]:
         logger.error(
             _("Erro na verificação de qualidade de dados"),
             extra={
-                "tenant_id": tenant.id,
+                "tenant_id": tenant.tenant_code,
                 "check_id": check_id,
                 "error": str(e),
             },

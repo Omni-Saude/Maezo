@@ -25,7 +25,7 @@ def worker(fhir_client, tasy_client, mv_soul_client):
 
 class TestUpdatePatientRegistryWorker:
     @pytest.mark.asyncio
-    async def test_happy_path_updates_registry(self, worker, fhir_client, tenant_austa, mock_patient):
+    async def test_happy_path_updates_registry(self, worker, fhir_client, tenant_hospital_a, mock_patient):
         """Test successful patient registry update."""
         fhir_client.read.return_value = mock_patient
         worker.registry_updater.update_tasy.return_value = {"status": "success"}
@@ -40,7 +40,7 @@ class TestUpdatePatientRegistryWorker:
         assert result["mv_soul_updated"] is True
 
     @pytest.mark.asyncio
-    async def test_missing_required_field_raises(self, worker, tenant_austa):
+    async def test_missing_required_field_raises(self, worker, tenant_hospital_a):
         """Test that missing patient_id raises DomainException."""
         with pytest.raises(DomainException):
             await worker.execute({})
@@ -53,7 +53,7 @@ class TestUpdatePatientRegistryWorker:
             await worker.execute({"patient_id": "patient-123"})
 
     @pytest.mark.asyncio
-    async def test_partial_update_failure(self, worker, fhir_client, tenant_austa, mock_patient):
+    async def test_partial_update_failure(self, worker, fhir_client, tenant_hospital_a, mock_patient):
         """Test handling of partial registry update failure."""
         fhir_client.read.return_value = mock_patient
         worker.registry_updater.update_tasy.return_value = {"status": "success"}

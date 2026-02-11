@@ -15,7 +15,7 @@ def worker(fhir_client):
 
 class TestGeneratePreAdmissionChecklistWorker:
     @pytest.mark.asyncio
-    async def test_happy_path_generates_checklist(self, worker, fhir_client, tenant_austa, mock_appointment):
+    async def test_happy_path_generates_checklist(self, worker, fhir_client, tenant_hospital_a, mock_appointment):
         """Test successful pre-admission checklist generation."""
         fhir_client.read.return_value = mock_appointment
         fhir_client.create.return_value = {
@@ -34,7 +34,7 @@ class TestGeneratePreAdmissionChecklistWorker:
         fhir_client.create.assert_called_once()
 
     @pytest.mark.asyncio
-    async def test_missing_required_field_raises(self, worker, tenant_austa):
+    async def test_missing_required_field_raises(self, worker, tenant_hospital_a):
         """Test that missing appointment_id raises DomainException."""
         with pytest.raises(DomainException):
             await worker.execute({})
@@ -47,7 +47,7 @@ class TestGeneratePreAdmissionChecklistWorker:
             await worker.execute({"appointment_id": "appointment-789"})
 
     @pytest.mark.asyncio
-    async def test_surgery_checklist_more_items(self, worker, fhir_client, tenant_austa, mock_appointment):
+    async def test_surgery_checklist_more_items(self, worker, fhir_client, tenant_hospital_a, mock_appointment):
         """Test that surgery checklist has more items than consultation."""
         fhir_client.read.return_value = mock_appointment
         fhir_client.create.return_value = {

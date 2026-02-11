@@ -15,7 +15,7 @@ def worker(fhir_client):
 
 class TestAssignResourcesWorker:
     @pytest.mark.asyncio
-    async def test_happy_path_assigns_resources(self, worker, fhir_client, tenant_austa, mock_appointment):
+    async def test_happy_path_assigns_resources(self, worker, fhir_client, tenant_hospital_a, mock_appointment):
         """Test successful resource assignment."""
         fhir_client.read.return_value = mock_appointment
         fhir_client.search.return_value = {
@@ -36,7 +36,7 @@ class TestAssignResourcesWorker:
         fhir_client.update.assert_called_once()
 
     @pytest.mark.asyncio
-    async def test_missing_required_field_raises(self, worker, tenant_austa):
+    async def test_missing_required_field_raises(self, worker, tenant_hospital_a):
         """Test that missing appointment_id raises DomainException."""
         with pytest.raises(DomainException):
             await worker.execute({})
@@ -49,7 +49,7 @@ class TestAssignResourcesWorker:
             await worker.execute({"appointment_id": "appointment-789"})
 
     @pytest.mark.asyncio
-    async def test_insufficient_resources_raises(self, worker, fhir_client, tenant_austa, mock_appointment):
+    async def test_insufficient_resources_raises(self, worker, fhir_client, tenant_hospital_a, mock_appointment):
         """Test that insufficient resources raises DomainException."""
         fhir_client.read.return_value = mock_appointment
         fhir_client.search.return_value = {"entry": []}

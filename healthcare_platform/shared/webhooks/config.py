@@ -54,7 +54,7 @@ class WebhookSettings(BaseSettings):
     cib7_engine_url: str = Field(
         default="http://localhost:8080", alias="CIB7_ENGINE_URL"
     )
-    default_tenant_id: str = Field(default="austa-hospital", alias="DEFAULT_TENANT_ID")
+    default_tenant_id: str = Field(default="hospital-a", alias="DEFAULT_TENANT_ID")
     idempotency_ttl_days: int = Field(default=7, alias="WEBHOOK_IDEMPOTENCY_TTL_DAYS")
     log_level: str = Field(default="INFO", alias="WEBHOOK_LOG_LEVEL")
 

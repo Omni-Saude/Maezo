@@ -11,9 +11,9 @@ from healthcare_platform.shared.multi_tenant.context import TenantContext, set_c
 
 
 @pytest.fixture
-def tenant_austa():
+def tenant_hospital_a():
     """Set up AUSTA tenant context."""
-    ctx = TenantContext.from_tenant_code(TenantCode.AUSTA)
+    ctx = TenantContext.from_tenant_code(TenantCode.HOSPITAL_A)
     set_current_tenant(ctx)
     yield ctx
     clear_tenant()
@@ -36,7 +36,7 @@ class TestDischargePlanningWorker:
     """Test cases for DischargePlanningWorker."""
 
     @pytest.mark.asyncio
-    async def test_happy_path_create_discharge_plan(self, worker, fhir_client, tenant_austa):
+    async def test_happy_path_create_discharge_plan(self, worker, fhir_client, tenant_hospital_a):
         """Test successful discharge plan creation."""
         fhir_client.create.return_value = {
             "resourceType": "EpisodeOfCare",
@@ -59,7 +59,7 @@ class TestDischargePlanningWorker:
         fhir_client.create.assert_called_once()
 
     @pytest.mark.asyncio
-    async def test_missing_discharge_disposition_raises(self, worker, tenant_austa):
+    async def test_missing_discharge_disposition_raises(self, worker, tenant_hospital_a):
         """Test that missing discharge_disposition raises DomainException."""
         with pytest.raises(DomainException, match="discharge_disposition is required"):
             await worker.execute({
@@ -68,7 +68,7 @@ class TestDischargePlanningWorker:
             })
 
     @pytest.mark.asyncio
-    async def test_discharge_readiness_assessment(self, worker, fhir_client, tenant_austa):
+    async def test_discharge_readiness_assessment(self, worker, fhir_client, tenant_hospital_a):
         """Test discharge readiness assessment."""
         fhir_client.search.return_value = [
             {"resourceType": "Observation", "id": "obs-1", "status": "final"}

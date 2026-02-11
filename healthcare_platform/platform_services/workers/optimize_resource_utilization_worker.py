@@ -453,7 +453,7 @@ class OptimizeResourceUtilizationWorkerStub(OptimizeResourceUtilizationProtocol)
         tenant_id = get_required_tenant()
         try:
             _dmn_result = self._dmn.evaluate(
-                tenant_id=tenant.id,
+                tenant_id=tenant.tenant_code,
                 category='compliance',
                 table_name='accred/comp_accred_002',
                 inputs={'resource_type': input_data.resource_type},

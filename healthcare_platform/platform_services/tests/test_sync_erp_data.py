@@ -7,8 +7,8 @@ from healthcare_platform.shared.domain.exceptions import DomainException
 from healthcare_platform.shared.multi_tenant.context import TenantContext, set_current_tenant, clear_tenant
 
 @pytest.fixture
-def tenant_austa():
-    ctx = TenantContext.from_tenant_code(TenantCode.AUSTA)
+def tenant_hospital_a():
+    ctx = TenantContext.from_tenant_code(TenantCode.HOSPITAL_A)
     set_current_tenant(ctx)
     yield ctx
     clear_tenant()
@@ -23,7 +23,7 @@ def worker(fhir_client):
     return SyncErpDataStub(fhir_client=fhir_client)
 
 @pytest.mark.asyncio
-async def test_happy_path_syncs_erp_data(worker, tenant_austa):
+async def test_happy_path_syncs_erp_data(worker, tenant_hospital_a):
     """Should successfully sync ERP data."""
     job = {
         "system_id": "erp-001",
@@ -34,7 +34,7 @@ async def test_happy_path_syncs_erp_data(worker, tenant_austa):
     assert "records_synced" in result
 
 @pytest.mark.asyncio
-async def test_missing_required_field_raises(worker, tenant_austa):
+async def test_missing_required_field_raises(worker, tenant_hospital_a):
     """Should raise DomainException when system_id is missing."""
     job = {"data_types": ["financial"]}
     with pytest.raises(DomainException, match="system_id"):

@@ -25,7 +25,7 @@ def worker(fhir_client, tasy_client, mv_soul_client):
 
 class TestUpdateSchedulingSystemWorker:
     @pytest.mark.asyncio
-    async def test_happy_path_updates_systems(self, worker, fhir_client, tenant_austa, mock_appointment):
+    async def test_happy_path_updates_systems(self, worker, fhir_client, tenant_hospital_a, mock_appointment):
         """Test successful scheduling system updates."""
         fhir_client.read.return_value = mock_appointment
         worker.system_updater.update_tasy.return_value = {"status": "success"}
@@ -40,7 +40,7 @@ class TestUpdateSchedulingSystemWorker:
         assert result["mv_soul_updated"] is True
 
     @pytest.mark.asyncio
-    async def test_missing_required_field_raises(self, worker, tenant_austa):
+    async def test_missing_required_field_raises(self, worker, tenant_hospital_a):
         """Test that missing appointment_id raises DomainException."""
         with pytest.raises(DomainException):
             await worker.execute({})
@@ -53,7 +53,7 @@ class TestUpdateSchedulingSystemWorker:
             await worker.execute({"appointment_id": "appointment-789"})
 
     @pytest.mark.asyncio
-    async def test_partial_update_failure(self, worker, fhir_client, tenant_austa, mock_appointment):
+    async def test_partial_update_failure(self, worker, fhir_client, tenant_hospital_a, mock_appointment):
         """Test handling of partial system update failure."""
         fhir_client.read.return_value = mock_appointment
         worker.system_updater.update_tasy.return_value = {"status": "success"}

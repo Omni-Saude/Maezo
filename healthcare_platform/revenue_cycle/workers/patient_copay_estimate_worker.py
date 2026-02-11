@@ -36,9 +36,8 @@ class RevenueCycleException(DomainException):
     ) -> None:
         super().__init__(
             message=message,
-            code="REVENUE_CYCLE_ERROR",
-            details=details,
             bpmn_error_code="REVENUE_CYCLE_ERROR",
+            details=details,
         )
 
 
@@ -125,7 +124,7 @@ class PatientCopayEstimateWorker:
         return formatted
 
     @require_tenant
-    @track_task_execution
+    @track_task_execution(metric_name="patient_copay_estimate")
     async def execute(self, task_variables: dict[str, Any]) -> dict[str, Any]:
         """Execute patient copay estimate notification.
 
@@ -146,7 +145,7 @@ class PatientCopayEstimateWorker:
         except Exception as e:
             logger.error(
                 "Validation error for copay estimate",
-                extra={"error": str(e), "tenant_id": tenant.id},
+                extra={"error": str(e), "tenant_id": tenant.tenant_code},
             )
             raise RevenueCycleException(
                 message=_("Invalid input for copay estimate notification"),
@@ -158,7 +157,7 @@ class PatientCopayEstimateWorker:
             extra={
                 "patient_id": input_data.patient_id,
                 "appointment_id": input_data.appointment_id,
-                "tenant_id": tenant.id,
+                "tenant_id": tenant.tenant_code,
                 # LGPD: Never log phone_number, payment details, or copay amount
             },
         )
@@ -166,38 +165,52 @@ class PatientCopayEstimateWorker:
         # Format copay amount in Brazilian Real
         formatted_copay = self._format_currency(input_data.estimated_copay)
 
-        # Create WhatsApp template
+        # Create WhatsApp template with body component
+        payment_url = (
+            f"https://portal.maezo.com.br/pay/{input_data.appointment_id}"
+        )
+        
+        body_component = {
+            "type": "body",
+            "parameters": [
+                {"type": "text", "text": input_data.appointment_date},
+                {"type": "text", "text": formatted_copay},
+                {"type": "text", "text": f"{input_data.insurance_coverage:.0f}%"},
+            ],
+        }
+        
+        # Add interactive buttons (WhatsApp supports up to 3 buttons)
+        button_components = [
+            {
+                "type": "button",
+                "sub_type": "url",
+                "index": "0",
+                "parameters": [{"type": "text", "text": payment_url}],
+            },
+            {
+                "type": "button",
+                "sub_type": "quick_reply",
+                "index": "1",
+                "parameters": [{"type": "text", "text": "Pagar na Consulta"}],
+            },
+            {
+                "type": "button",
+                "sub_type": "quick_reply",
+                "index": "2",
+                "parameters": [{"type": "text", "text": "Dúvidas"}],
+            },
+        ]
+        
         template = WhatsAppTemplate(
             name="copay_estimate_v1",
             language="pt_BR",
-            body_params=[
-                input_data.appointment_date,
-                formatted_copay,
-                f"{input_data.insurance_coverage:.0f}%",
-            ],
+            components=[body_component] + button_components,
         )
 
-        # Add interactive buttons if supported
-        # WhatsApp supports up to 3 buttons
+        # Send WhatsApp message
         try:
-            payment_url = (
-                f"https://portal.austa.com.br/pay/{input_data.appointment_id}"
-            )
-            template.buttons = [
-                {"type": "url", "text": "Pagar Agora", "url": payment_url},
-                {"type": "quick_reply", "text": "Pagar na Consulta"},
-                {"type": "quick_reply", "text": "Dúvidas"},
-            ]
-        except Exception as e:
-            logger.warning(
-                "Could not add interactive buttons to template",
-                extra={"error": str(e), "tenant_id": tenant.id},
-            )
-
-        # Send WhatsApp notification
-        try:
-            message_id = await self.whatsapp_client.send_template(
-                to=input_data.phone_number, template=template
+            message_id = await self.whatsapp_client.send_template_message(
+                phone=input_data.phone_number, template=template
             )
             notification_sent = True
         except Exception as e:
@@ -207,7 +220,7 @@ class PatientCopayEstimateWorker:
                     "patient_id": input_data.patient_id,
                     "appointment_id": input_data.appointment_id,
                     "error": str(e),
-                    "tenant_id": tenant.id,
+                    "tenant_id": tenant.tenant_code,
                 },
             )
             raise RevenueCycleException(
@@ -231,7 +244,7 @@ class PatientCopayEstimateWorker:
                 "patient_id": input_data.patient_id,
                 "appointment_id": input_data.appointment_id,
                 "message_id": message_id,
-                "tenant_id": tenant.id,
+                "tenant_id": tenant.tenant_code,
             },
         )
 

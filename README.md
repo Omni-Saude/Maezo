@@ -1,8 +1,8 @@
-<h1 align="center">🏥 Maestro</h1>
+<h1 align="center">🏥 MAEZO</h1>
 
 <p align="center">
-  <strong>Plataforma de Orquestração Hospitalar</strong><br/>
-  <em>Saúde em harmonia.</em>
+  <strong>Master of Automation for Ecosystems & Orchestration</strong><br/>
+  <em>Motor de Automação de Ecossistemas e Orquestração</em>
 </p>
 
 <p align="center">
@@ -42,7 +42,7 @@ Hospitais brasileiros perdem **R$ 2-4 bilhões por ano** com vazamentos de recei
 
 ## A Solução
 
-**Maestro** é o **sistema nervoso digital** das operações hospitalares.
+**MAEZO** é o motor único que automatiza e orquestra o ecossistema de saúde, conectando hospitais, operadoras, sistemas legados e agentes de IA em jornadas contínuas, clínicas e financeiras, com zero fricção.
 
 Substitui fluxos fragmentados e isolados por departamento por **jornadas orquestradas** que acompanham o paciente do primeiro contato ao recebimento final — conectando sistemas clínicos, administrativos e financeiros através de **processos BPMN automatizados** e **mais de 600 regras de negócio inteligentes (DMN)**.
 
@@ -53,15 +53,15 @@ Substitui fluxos fragmentados e isolados por departamento por **jornadas orquest
 │    do Paciente →   Clínicas     →    Receita   →   Operadora│
 │                                                             │
 │    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━  │
-│                    Maestro Orquestra                        │
+│                    MAEZO Orquestra                          │
 │                                                             │
 └─────────────────────────────────────────────────────────────┘
 ```
 
 ### O Que Muda
 
-| Antes do Maestro | Depois do Maestro |
-|------------------|-------------------|
+| Antes do MAEZO | Depois do MAEZO |
+|----------------|-----------------|
 | Glosa descoberta no pagamento | Glosa **prevenida** na captura |
 | Verificação de elegibilidade manual (horas) | Elegibilidade em tempo real (segundos) |
 | Autorizações em papel | Fluxo digital com acompanhamento de SLA |
@@ -198,7 +198,7 @@ Substitui fluxos fragmentados e isolados por departamento por **jornadas orquest
 | **Testes Automatizados** | 301 arquivos de teste | ✅ Feb 2026 |
 | **Adaptadores de Integração** | 29 (Tasy, FHIR, TISS, CDC) | ✅ Feb 2026 |
 | **Domínios Cobertos** | 4 (Acesso, Clínico, Receita, Plataforma) | ✅ |
-| **Tenants Suportados** | 4 hospitais (AUSTA, AMH-SP, AMH-RJ, AMH-MG) | ✅ |
+| **Tenants Suportados** | 4 hospitais (Hospital A, AMH-SP, AMH-RJ, AMH-MG) | ✅ |
 | **Padrões de Conformidade** | ANS, TISS 4.0, LGPD, ANVISA, FHIR R4 | ✅ |
 
 ---
@@ -206,7 +206,7 @@ Substitui fluxos fragmentados e isolados por departamento por **jornadas orquest
 ## Para Quem
 
 ### CFOs e Diretores de Ciclo de Receita
-> "Reduzimos a taxa de glosa de 12% para 4% em 6 meses. O Maestro se paga sozinho."
+> "Reduzimos a taxa de glosa de 12% para 4% em 6 meses. O MAEZO se paga sozinho."
 
 - Visualize cada real no seu pipeline de receita
 - Preveja fluxo de caixa com forecasting baseado em IA
@@ -230,7 +230,7 @@ Substitui fluxos fragmentados e isolados por departamento por **jornadas orquest
 
 ## 5 Jornadas do Paciente
 
-O Maestro orquestra a experiência completa do paciente em **5 jornadas interconectadas**:
+O MAEZO orquestra a experiência completa do paciente em **5 jornadas interconectadas**:
 
 1. **Jornada de Acesso** — Do primeiro contato ao paciente pronto para o cuidado
 2. **Jornada de Cuidado** — Da admissão à alta com desfechos documentados
@@ -275,8 +275,8 @@ O Maestro orquestra a experiência completa do paciente em **5 jornadas intercon
 
 ### 1. Clone e Inicie
 ```bash
-git clone git@github.com:your-org/maestro.git
-cd maestro
+git clone git@github.com:your-org/maezo.git
+cd maezo
 docker compose up -d
 ```
 
@@ -393,12 +393,12 @@ Infraestrutura como código pronta para acelerar seu deploy:
 
 | Artefato | Localização | O que contém |
 |----------|-------------|--------------|
-| **Helm Chart completo** | [`helm/maestro/`](helm/README.md) | Chart.yaml, values.yaml, templates para todos os serviços |
-| **Values por ambiente** | `helm/maestro/values-{dev,staging}.yaml` | Configurações específicas por ambiente |
+| **Helm Chart completo** | [`helm/maezo/`](helm/README.md) | Chart.yaml, values.yaml, templates para todos os serviços |
+| **Values por ambiente** | `helm/maezo/values-{dev,staging}.yaml` | Configurações específicas por ambiente |
 | **K8s Base Manifests** | `k8s/base/` | Namespace, RBAC, Secrets, Network Policies |
 | **CI/CD Pipeline** | `.github/workflows/ci-cd.yaml` | Build, test, security scan, deploy multi-stage |
 | **Dockerfiles adicionais** | `Dockerfile.cdc-bridge`, `Dockerfile.webhook-receiver` | Containers para CDC e webhooks TASY |
-| **Keycloak Realm** | `config/keycloak/austa-bpm-realm.json` | 5 clients (admin + 4 domain workers) |
+| **Keycloak Realm** | `config/keycloak/maezo-bpm-realm.json` | 5 clients (admin + 4 domain workers) |
 
 **Para começar:**
 ```bash
@@ -465,7 +465,7 @@ Semana 1-4:   Infraestrutura (EKS, RDS, Kafka, Redis, CI/CD, Docker)
 Semana 5-8:   Engine + Keycloak + FHIR + CDC Tasy
 Semana 9-12:  Deploy workers + BPMN/DMN + testes integração
 Semana 13-14: Shadow mode (Bradesco Saúde, paralelo com manual)
-Semana 15-16: Go-live revenue cycle (tenant austa-hospital)
+Semana 15-16: Go-live revenue cycle (tenant hospital-a)
 ```
 
 > Detalhes completos em [Pendências para Desenvolvedores](docs/Pendencias%20para%20desenvolvedores/pendencias-desenvolvedores.md)
@@ -475,11 +475,11 @@ Semana 15-16: Go-live revenue cycle (tenant austa-hospital)
 ## Licença
 
 - **CIB Seven Engine:** Apache License 2.0
-- **Plataforma Maestro:** Proprietário
+- **Plataforma MAEZO:** Proprietário
 
 ---
 
 <p align="center">
-  <strong>Maestro</strong><br/>
+  <strong>MAEZO</strong><br/>
   <em>Saúde em harmonia.</em>
 </p>

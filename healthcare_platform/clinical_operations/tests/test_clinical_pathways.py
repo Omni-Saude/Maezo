@@ -11,9 +11,9 @@ from healthcare_platform.shared.multi_tenant.context import TenantContext, set_c
 
 
 @pytest.fixture
-def tenant_austa():
+def tenant_hospital_a():
     """Set up AUSTA tenant context."""
-    ctx = TenantContext.from_tenant_code(TenantCode.AUSTA)
+    ctx = TenantContext.from_tenant_code(TenantCode.HOSPITAL_A)
     set_current_tenant(ctx)
     yield ctx
     clear_tenant()
@@ -36,7 +36,7 @@ class TestClinicalPathwaysWorker:
     """Test cases for ClinicalPathwaysWorker."""
 
     @pytest.mark.asyncio
-    async def test_happy_path_activate_pathway(self, worker, fhir_client, tenant_austa):
+    async def test_happy_path_activate_pathway(self, worker, fhir_client, tenant_hospital_a):
         """Test successful clinical pathway activation."""
         fhir_client.search.return_value = [
             {"resourceType": "PlanDefinition", "id": "pathway-stroke", "title": "Stroke Care Pathway"}
@@ -56,7 +56,7 @@ class TestClinicalPathwaysWorker:
         fhir_client.create.assert_called()
 
     @pytest.mark.asyncio
-    async def test_missing_pathway_code_raises(self, worker, tenant_austa):
+    async def test_missing_pathway_code_raises(self, worker, tenant_hospital_a):
         """Test that missing pathway_code raises DomainException."""
         with pytest.raises(DomainException, match="pathway_code is required"):
             await worker.execute({
@@ -65,7 +65,7 @@ class TestClinicalPathwaysWorker:
             })
 
     @pytest.mark.asyncio
-    async def test_pathway_milestone_tracking(self, worker, fhir_client, tenant_austa):
+    async def test_pathway_milestone_tracking(self, worker, fhir_client, tenant_hospital_a):
         """Test tracking of pathway milestones."""
         fhir_client.search.return_value = [{"resourceType": "PlanDefinition", "id": "pathway-1"}]
         fhir_client.create.return_value = {"resourceType": "CarePlan", "id": "cp-123"}

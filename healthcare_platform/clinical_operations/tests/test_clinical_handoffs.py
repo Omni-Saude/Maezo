@@ -11,9 +11,9 @@ from healthcare_platform.shared.multi_tenant.context import TenantContext, set_c
 
 
 @pytest.fixture
-def tenant_austa():
+def tenant_hospital_a():
     """Set up AUSTA tenant context."""
-    ctx = TenantContext.from_tenant_code(TenantCode.AUSTA)
+    ctx = TenantContext.from_tenant_code(TenantCode.HOSPITAL_A)
     set_current_tenant(ctx)
     yield ctx
     clear_tenant()
@@ -36,7 +36,7 @@ class TestClinicalHandoffsWorker:
     """Test cases for ClinicalHandoffsWorker."""
 
     @pytest.mark.asyncio
-    async def test_happy_path_create_handoff(self, worker, fhir_client, tenant_austa):
+    async def test_happy_path_create_handoff(self, worker, fhir_client, tenant_hospital_a):
         """Test successful clinical handoff creation."""
         fhir_client.create.return_value = {
             "resourceType": "Communication",
@@ -59,7 +59,7 @@ class TestClinicalHandoffsWorker:
         fhir_client.create.assert_called_once()
 
     @pytest.mark.asyncio
-    async def test_missing_practitioners_raises(self, worker, tenant_austa):
+    async def test_missing_practitioners_raises(self, worker, tenant_hospital_a):
         """Test that missing practitioners raises DomainException."""
         with pytest.raises(DomainException, match="from_practitioner and to_practitioner are required"):
             await worker.execute({
@@ -68,7 +68,7 @@ class TestClinicalHandoffsWorker:
             })
 
     @pytest.mark.asyncio
-    async def test_sbar_format_validation(self, worker, fhir_client, tenant_austa):
+    async def test_sbar_format_validation(self, worker, fhir_client, tenant_hospital_a):
         """Test SBAR format validation for handoffs."""
         fhir_client.create.return_value = {"resourceType": "Communication", "id": "comm-123", "status": "completed"}
 

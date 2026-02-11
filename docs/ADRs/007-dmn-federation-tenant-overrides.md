@@ -8,7 +8,7 @@
 
 Business rules vary across hospital units and across the external payers they bill. For example: eligibility rules differ by payer contract (Bradesco vs. Unimed vs. SulAmérica vs. AUSTA Saúde), TISS validation rules differ by ANS version adopted, clinical alert thresholds may differ by hospital protocol, and revenue capture rules differ by unit-specific fee schedules.
 
-> **Clarification on payers vs. tenants:** Payers (Bradesco, Unimed, SulAmérica, Amil, AUSTA Saúde, etc.) are **external entities** the hospital bills. They are not tenants. Payer-specific rules (eligibility carência, contract terms, fee schedules) are modeled as **input parameters** to DMN tables, not as separate tenant deployments. Tenant overrides are reserved for differences between **hospital units** (e.g., austa-hospital uses different coding rules than amh-sp-morumbi because they run different ERPs or follow different local protocols).
+> **Clarification on payers vs. tenants:** Payers (Bradesco, Unimed, SulAmérica, Amil, AUSTA Saúde, etc.) are **external entities** the hospital bills. They are not tenants. Payer-specific rules (eligibility carência, contract terms, fee schedules) are modeled as **input parameters** to DMN tables, not as separate tenant deployments. Tenant overrides are reserved for differences between **hospital units** (e.g., hospital-a uses different coding rules than amh-sp-morumbi because they run different ERPs or follow different local protocols).
 
 The platform uses DMN 1.3 decision tables for all rule-based logic. Three strategies were considered:
 

@@ -163,7 +163,7 @@ class ArchiveHistoricalDataStub(ArchiveHistoricalDataProtocol):
         _dmn = get_dmn_service()
         try:
             _dmn_result = _dmn.evaluate(
-                tenant_id=tenant.id,
+                tenant_id=tenant.tenant_code,
                 category='compliance',
                 table_name='lgpd/comp_lgpd_001',
                 inputs={'entity_type': input_data.entity_type, 'retention_policy': input_data.retention_policy},
@@ -179,7 +179,7 @@ class ArchiveHistoricalDataStub(ArchiveHistoricalDataProtocol):
                 days=input_data.retention_days,
             ),
             extra={
-                "tenant_id": tenant.id,
+                "tenant_id": tenant.tenant_code,
                 "archive_mode": input_data.archive_mode,
             },
         )
@@ -232,22 +232,22 @@ class ArchiveHistoricalDataStub(ArchiveHistoricalDataProtocol):
 
             # Atualiza métricas Prometheus
             archive_operations_total.labels(
-                tenant_id=tenant.id,
+                tenant_id=tenant.tenant_code,
                 entity_type=input_data.entity_type,
                 status="success",
             ).inc()
 
             archive_duration_seconds.labels(
-                tenant_id=tenant.id,
+                tenant_id=tenant.tenant_code,
                 entity_type=input_data.entity_type,
             ).observe(duration)
 
             archived_records_gauge.labels(
-                tenant_id=tenant.id,
+                tenant_id=tenant.tenant_code,
                 entity_type=input_data.entity_type,
             ).set(len(records_to_archive))
 
-            archive_id = f"ARCH-{tenant.id}-{int(start_time.timestamp())}"
+            archive_id = f"ARCH-{tenant.tenant_code}-{int(start_time.timestamp())}"
 
             output = ArchiveHistoricalDataOutput(
                 archive_id=archive_id,
@@ -268,7 +268,7 @@ class ArchiveHistoricalDataStub(ArchiveHistoricalDataProtocol):
                     size_mb=round(archive_size / 1024 / 1024, 2),
                 ),
                 extra={
-                    "tenant_id": tenant.id,
+                    "tenant_id": tenant.tenant_code,
                     "archive_id": archive_id,
                 },
             )
@@ -277,7 +277,7 @@ class ArchiveHistoricalDataStub(ArchiveHistoricalDataProtocol):
 
         except Exception as e:
             archive_operations_total.labels(
-                tenant_id=tenant.id,
+                tenant_id=tenant.tenant_code,
                 entity_type=input_data.entity_type,
                 status="error",
             ).inc()

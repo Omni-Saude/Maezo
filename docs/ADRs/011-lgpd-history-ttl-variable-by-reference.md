@@ -53,5 +53,5 @@ When a LGPD deletion request arrives, the FHIR Patient resource is anonymized/de
 
 **Negative:**
 
-- Workers must never store PII in process variables. Developer mistakes create compliance violations. *Mitigation:* `AustaWorker` base framework includes variable validator rejecting known PII patterns (CPF regex, email regex) before completing a task. CI includes static analysis check.
+- Workers must never store PII in process variables. Developer mistakes create compliance violations. *Mitigation:* `MaezoWorker` base framework includes variable validator rejecting known PII patterns (CPF regex, email regex) before completing a task. CI includes static analysis check.
 - Resolving variables to actual data requires FHIR lookup, adding latency to Cockpit/Tasklist views. *Mitigation:* Redis caches frequent FHIR resources; Cockpit views show process status rather than patient details.

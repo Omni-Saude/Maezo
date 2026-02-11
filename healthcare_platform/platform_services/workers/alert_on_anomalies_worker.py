@@ -168,7 +168,7 @@ class AlertOnAnomaliesStub(AlertOnAnomaliesProtocol):
         _dmn = get_dmn_service()
         try:
             _dmn_result = _dmn.evaluate(
-                tenant_id=tenant.id,
+                tenant_id=tenant.tenant_code,
                 category='compliance',
                 table_name='vigil/comp_vigil_001',
                 inputs={'metric_type': input_data.metric_type, 'sensitivity': input_data.sensitivity},
@@ -184,7 +184,7 @@ class AlertOnAnomaliesStub(AlertOnAnomaliesProtocol):
                 method=input_data.detection_method,
             ),
             extra={
-                "tenant_id": tenant.id,
+                "tenant_id": tenant.tenant_code,
                 "lookback_days": input_data.lookback_days,
             },
         )
@@ -232,13 +232,13 @@ class AlertOnAnomaliesStub(AlertOnAnomaliesProtocol):
 
             # Atualiza métricas Prometheus
             anomaly_scans_total.labels(
-                tenant_id=tenant.id,
+                tenant_id=tenant.tenant_code,
                 metric_type=input_data.metric_type,
                 status="success",
             ).inc()
 
             anomaly_duration_seconds.labels(
-                tenant_id=tenant.id,
+                tenant_id=tenant.tenant_code,
                 metric_type=input_data.metric_type,
             ).observe(duration)
 
@@ -246,12 +246,12 @@ class AlertOnAnomaliesStub(AlertOnAnomaliesProtocol):
             for severity in ["low", "medium", "high", "critical"]:
                 count = len([a for a in anomalies if a.severity == severity])
                 anomalies_detected_gauge.labels(
-                    tenant_id=tenant.id,
+                    tenant_id=tenant.tenant_code,
                     metric_type=input_data.metric_type,
                     severity=severity,
                 ).set(count)
 
-            scan_id = f"ANOM-{tenant.id}-{int(start_time.timestamp())}"
+            scan_id = f"ANOM-{tenant.tenant_code}-{int(start_time.timestamp())}"
 
             output = AlertOnAnomaliesOutput(
                 scan_id=scan_id,
@@ -272,7 +272,7 @@ class AlertOnAnomaliesStub(AlertOnAnomaliesProtocol):
                     alerts=alerts_sent,
                 ),
                 extra={
-                    "tenant_id": tenant.id,
+                    "tenant_id": tenant.tenant_code,
                     "scan_id": scan_id,
                 },
             )
@@ -281,7 +281,7 @@ class AlertOnAnomaliesStub(AlertOnAnomaliesProtocol):
 
         except Exception as e:
             anomaly_scans_total.labels(
-                tenant_id=tenant.id,
+                tenant_id=tenant.tenant_code,
                 metric_type=input_data.metric_type,
                 status="error",
             ).inc()

@@ -11,9 +11,9 @@ from healthcare_platform.shared.multi_tenant.context import TenantContext, set_c
 
 
 @pytest.fixture
-def tenant_austa():
+def tenant_hospital_a():
     """Set up AUSTA tenant context."""
-    ctx = TenantContext.from_tenant_code(TenantCode.AUSTA)
+    ctx = TenantContext.from_tenant_code(TenantCode.HOSPITAL_A)
     set_current_tenant(ctx)
     yield ctx
     clear_tenant()
@@ -36,7 +36,7 @@ class TestClinicalProtocolsWorker:
     """Test cases for ClinicalProtocolsWorker."""
 
     @pytest.mark.asyncio
-    async def test_happy_path_apply_protocol(self, worker, fhir_client, tenant_austa):
+    async def test_happy_path_apply_protocol(self, worker, fhir_client, tenant_hospital_a):
         """Test successful protocol application."""
         fhir_client.search.return_value = [
             {"resourceType": "PlanDefinition", "id": "protocol-sepsis", "title": "Sepsis Protocol"}
@@ -60,7 +60,7 @@ class TestClinicalProtocolsWorker:
         fhir_client.create.assert_called()
 
     @pytest.mark.asyncio
-    async def test_missing_protocol_code_raises(self, worker, tenant_austa):
+    async def test_missing_protocol_code_raises(self, worker, tenant_hospital_a):
         """Test that missing protocol_code raises DomainException."""
         with pytest.raises(DomainException, match="protocol_code is required"):
             await worker.execute({
@@ -69,7 +69,7 @@ class TestClinicalProtocolsWorker:
             })
 
     @pytest.mark.asyncio
-    async def test_protocol_not_found_raises(self, worker, fhir_client, tenant_austa):
+    async def test_protocol_not_found_raises(self, worker, fhir_client, tenant_hospital_a):
         """Test that non-existent protocol raises DomainException."""
         fhir_client.search.return_value = []
 

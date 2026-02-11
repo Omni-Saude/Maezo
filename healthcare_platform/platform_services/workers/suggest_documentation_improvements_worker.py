@@ -139,7 +139,7 @@ class SuggestDocumentationImprovementsStub(SuggestDocumentationImprovementsProto
         tenant = get_required_tenant()
         try:
             _dmn_result = self._dmn.evaluate(
-                tenant_id=tenant.id,
+                tenant_id=tenant.tenant_code,
                 category='compliance',
                 table_name='documentation/cross_comp_001',
                 inputs={'document_type': input_data.document_type},

@@ -11,9 +11,9 @@ from healthcare_platform.shared.multi_tenant.context import TenantContext, set_c
 
 
 @pytest.fixture
-def tenant_austa():
+def tenant_hospital_a():
     """Set up AUSTA tenant context."""
-    ctx = TenantContext.from_tenant_code(TenantCode.AUSTA)
+    ctx = TenantContext.from_tenant_code(TenantCode.HOSPITAL_A)
     set_current_tenant(ctx)
     yield ctx
     clear_tenant()
@@ -36,7 +36,7 @@ class TestClinicalDocumentationWorker:
     """Test cases for ClinicalDocumentationWorker."""
 
     @pytest.mark.asyncio
-    async def test_happy_path_create_progress_note(self, worker, fhir_client, tenant_austa):
+    async def test_happy_path_create_progress_note(self, worker, fhir_client, tenant_hospital_a):
         """Test successful progress note creation."""
         fhir_client.create.return_value = {
             "resourceType": "DocumentReference",
@@ -58,7 +58,7 @@ class TestClinicalDocumentationWorker:
         fhir_client.create.assert_called_once()
 
     @pytest.mark.asyncio
-    async def test_missing_content_raises(self, worker, tenant_austa):
+    async def test_missing_content_raises(self, worker, tenant_hospital_a):
         """Test that missing content raises DomainException."""
         with pytest.raises(DomainException, match="content is required"):
             await worker.execute({
@@ -67,7 +67,7 @@ class TestClinicalDocumentationWorker:
             })
 
     @pytest.mark.asyncio
-    async def test_missing_document_type_raises(self, worker, tenant_austa):
+    async def test_missing_document_type_raises(self, worker, tenant_hospital_a):
         """Test that missing document_type raises DomainException."""
         with pytest.raises(DomainException, match="document_type is required"):
             await worker.execute({

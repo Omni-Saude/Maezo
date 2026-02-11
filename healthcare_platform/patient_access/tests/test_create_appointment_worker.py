@@ -15,7 +15,7 @@ def worker(fhir_client):
 
 class TestCreateAppointmentWorker:
     @pytest.mark.asyncio
-    async def test_happy_path_creates_appointment(self, worker, fhir_client, tenant_austa, mock_appointment):
+    async def test_happy_path_creates_appointment(self, worker, fhir_client, tenant_hospital_a, mock_appointment):
         """Test successful appointment creation."""
         fhir_client.create.return_value = mock_appointment
 
@@ -32,7 +32,7 @@ class TestCreateAppointmentWorker:
         fhir_client.create.assert_called_once()
 
     @pytest.mark.asyncio
-    async def test_missing_required_field_raises(self, worker, tenant_austa):
+    async def test_missing_required_field_raises(self, worker, tenant_hospital_a):
         """Test that missing patient_id raises DomainException."""
         with pytest.raises(DomainException):
             await worker.execute({})
@@ -45,7 +45,7 @@ class TestCreateAppointmentWorker:
             await worker.execute({"patient_id": "patient-123"})
 
     @pytest.mark.asyncio
-    async def test_overlapping_appointment_raises(self, worker, fhir_client, tenant_austa):
+    async def test_overlapping_appointment_raises(self, worker, fhir_client, tenant_hospital_a):
         """Test that overlapping appointment raises DomainException."""
         fhir_client.create.side_effect = DomainException("Appointment slot already booked")
 

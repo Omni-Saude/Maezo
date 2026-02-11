@@ -11,9 +11,9 @@ from healthcare_platform.shared.multi_tenant.context import TenantContext, set_c
 
 
 @pytest.fixture
-def tenant_austa():
+def tenant_hospital_a():
     """Set up AUSTA tenant context."""
-    ctx = TenantContext.from_tenant_code(TenantCode.AUSTA)
+    ctx = TenantContext.from_tenant_code(TenantCode.HOSPITAL_A)
     set_current_tenant(ctx)
     yield ctx
     clear_tenant()
@@ -36,7 +36,7 @@ class TestClinicalAuditingWorker:
     """Test cases for ClinicalAuditingWorker."""
 
     @pytest.mark.asyncio
-    async def test_happy_path_create_audit_trail(self, worker, fhir_client, tenant_austa):
+    async def test_happy_path_create_audit_trail(self, worker, fhir_client, tenant_hospital_a):
         """Test successful audit trail creation."""
         fhir_client.create.return_value = {
             "resourceType": "AuditEvent",
@@ -59,7 +59,7 @@ class TestClinicalAuditingWorker:
         fhir_client.create.assert_called_once()
 
     @pytest.mark.asyncio
-    async def test_missing_action_raises(self, worker, tenant_austa):
+    async def test_missing_action_raises(self, worker, tenant_hospital_a):
         """Test that missing action raises DomainException."""
         with pytest.raises(DomainException, match="action is required"):
             await worker.execute({
@@ -68,7 +68,7 @@ class TestClinicalAuditingWorker:
             })
 
     @pytest.mark.asyncio
-    async def test_audit_query_for_compliance(self, worker, fhir_client, tenant_austa):
+    async def test_audit_query_for_compliance(self, worker, fhir_client, tenant_hospital_a):
         """Test querying audit events for compliance reporting."""
         fhir_client.search.return_value = [
             {"resourceType": "AuditEvent", "id": "audit-1", "action": "access"},

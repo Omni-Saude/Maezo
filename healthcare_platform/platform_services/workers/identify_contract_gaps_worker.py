@@ -152,7 +152,7 @@ class IdentifyContractGapsStub(IdentifyContractGapsProtocol):
         tenant = get_required_tenant()
         try:
             _dmn_result = self._dmn.evaluate(
-                tenant_id=tenant.id,
+                tenant_id=tenant.tenant_code,
                 category='compliance',
                 table_name='tiss/comp_tiss_002',
                 inputs={'payer_code': input_data.payer_code},

@@ -11,9 +11,9 @@ from healthcare_platform.shared.multi_tenant.context import TenantContext, set_c
 
 
 @pytest.fixture
-def tenant_austa():
+def tenant_hospital_a():
     """Set up AUSTA tenant context."""
-    ctx = TenantContext.from_tenant_code(TenantCode.AUSTA)
+    ctx = TenantContext.from_tenant_code(TenantCode.HOSPITAL_A)
     set_current_tenant(ctx)
     yield ctx
     clear_tenant()
@@ -36,7 +36,7 @@ class TestClinicalAlertsWorker:
     """Test cases for ClinicalAlertsWorker."""
 
     @pytest.mark.asyncio
-    async def test_happy_path_create_critical_alert(self, worker, fhir_client, tenant_austa):
+    async def test_happy_path_create_critical_alert(self, worker, fhir_client, tenant_hospital_a):
         """Test successful critical alert creation."""
         fhir_client.create.return_value = {
             "resourceType": "Flag",
@@ -58,7 +58,7 @@ class TestClinicalAlertsWorker:
         fhir_client.create.assert_called_once()
 
     @pytest.mark.asyncio
-    async def test_missing_alert_type_raises(self, worker, tenant_austa):
+    async def test_missing_alert_type_raises(self, worker, tenant_hospital_a):
         """Test that missing alert_type raises DomainException."""
         with pytest.raises(DomainException, match="alert_type is required"):
             await worker.execute({
@@ -67,7 +67,7 @@ class TestClinicalAlertsWorker:
             })
 
     @pytest.mark.asyncio
-    async def test_notification_sent_for_critical_alerts(self, worker, fhir_client, tenant_austa):
+    async def test_notification_sent_for_critical_alerts(self, worker, fhir_client, tenant_hospital_a):
         """Test that critical alerts trigger notifications."""
         fhir_client.create.return_value = {"resourceType": "Flag", "id": "alert-123", "status": "active"}
 

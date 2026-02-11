@@ -20,7 +20,7 @@ from healthcare_platform.shared.observability.logging import get_logger
 from healthcare_platform.shared.observability.metrics import track_task_execution
 
 # Tenant-to-ERP mapping (ADR-004)
-_TASY_TENANTS = {TenantCode.AUSTA}
+_TASY_TENANTS = {TenantCode.HOSPITAL_A}
 _MV_SOUL_TENANTS = {TenantCode.AMH_SP, TenantCode.AMH_RJ, TenantCode.AMH_MG}
 
 

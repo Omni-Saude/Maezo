@@ -434,7 +434,7 @@ class GenerateOptimizationReportWorkerStub(GenerateOptimizationReportProtocol):
         tenant_id = get_required_tenant()
         try:
             _dmn_result = self._dmn.evaluate(
-                tenant_id=tenant.id,
+                tenant_id=tenant.tenant_code,
                 category='compliance',
                 table_name='audit/comp_audit_003',
                 inputs={'report_type': input_data.report_type},

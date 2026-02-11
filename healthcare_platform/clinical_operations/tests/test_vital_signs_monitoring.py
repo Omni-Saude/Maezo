@@ -11,9 +11,9 @@ from healthcare_platform.shared.multi_tenant.context import TenantContext, set_c
 
 
 @pytest.fixture
-def tenant_austa():
+def tenant_hospital_a():
     """Set up AUSTA tenant context."""
-    ctx = TenantContext.from_tenant_code(TenantCode.AUSTA)
+    ctx = TenantContext.from_tenant_code(TenantCode.HOSPITAL_A)
     set_current_tenant(ctx)
     yield ctx
     clear_tenant()
@@ -36,7 +36,7 @@ class TestVitalSignsMonitoringWorker:
     """Test cases for VitalSignsMonitoringWorker."""
 
     @pytest.mark.asyncio
-    async def test_happy_path_record_vital_signs(self, worker, fhir_client, tenant_austa):
+    async def test_happy_path_record_vital_signs(self, worker, fhir_client, tenant_hospital_a):
         """Test successful vital signs recording."""
         fhir_client.create.return_value = {
             "resourceType": "Observation",
@@ -62,7 +62,7 @@ class TestVitalSignsMonitoringWorker:
         assert fhir_client.create.call_count == 5
 
     @pytest.mark.asyncio
-    async def test_missing_vital_signs_raises(self, worker, tenant_austa):
+    async def test_missing_vital_signs_raises(self, worker, tenant_hospital_a):
         """Test that missing vital_signs raises DomainException."""
         with pytest.raises(DomainException, match="vital_signs are required"):
             await worker.execute({
@@ -71,7 +71,7 @@ class TestVitalSignsMonitoringWorker:
             })
 
     @pytest.mark.asyncio
-    async def test_abnormal_vital_signs_triggers_alert(self, worker, fhir_client, tenant_austa):
+    async def test_abnormal_vital_signs_triggers_alert(self, worker, fhir_client, tenant_hospital_a):
         """Test that abnormal vital signs trigger alerts."""
         fhir_client.create.return_value = {"resourceType": "Observation", "id": "obs-123", "status": "final"}
 

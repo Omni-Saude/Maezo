@@ -11,9 +11,9 @@ from healthcare_platform.shared.multi_tenant.context import TenantContext, set_c
 
 
 @pytest.fixture
-def tenant_austa():
+def tenant_hospital_a():
     """Set up AUSTA tenant context."""
-    ctx = TenantContext.from_tenant_code(TenantCode.AUSTA)
+    ctx = TenantContext.from_tenant_code(TenantCode.HOSPITAL_A)
     set_current_tenant(ctx)
     yield ctx
     clear_tenant()
@@ -36,7 +36,7 @@ class TestClinicalAnalyticsWorker:
     """Test cases for ClinicalAnalyticsWorker."""
 
     @pytest.mark.asyncio
-    async def test_happy_path_perform_analytics(self, worker, fhir_client, tenant_austa):
+    async def test_happy_path_perform_analytics(self, worker, fhir_client, tenant_hospital_a):
         """Test successful clinical analytics execution."""
         fhir_client.search.return_value = [
             {"resourceType": "Observation", "id": "obs-1", "valueQuantity": {"value": 120}},
@@ -58,7 +58,7 @@ class TestClinicalAnalyticsWorker:
         fhir_client.search.assert_called()
 
     @pytest.mark.asyncio
-    async def test_missing_analytics_type_raises(self, worker, tenant_austa):
+    async def test_missing_analytics_type_raises(self, worker, tenant_hospital_a):
         """Test that missing analytics_type raises DomainException."""
         with pytest.raises(DomainException, match="analytics_type is required"):
             await worker.execute({
@@ -67,7 +67,7 @@ class TestClinicalAnalyticsWorker:
             })
 
     @pytest.mark.asyncio
-    async def test_predictive_analytics(self, worker, fhir_client, tenant_austa):
+    async def test_predictive_analytics(self, worker, fhir_client, tenant_hospital_a):
         """Test predictive analytics for clinical outcomes."""
         fhir_client.search.return_value = [
             {"resourceType": "Observation", "id": f"obs-{i}", "valueQuantity": {"value": 100 + i}}

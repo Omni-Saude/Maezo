@@ -21,7 +21,7 @@ def worker(fhir_client, auth_checker):
 
 class TestCheckAuthorizationRequirementsWorker:
     @pytest.mark.asyncio
-    async def test_happy_path_checks_authorization(self, worker, fhir_client, auth_checker, tenant_austa):
+    async def test_happy_path_checks_authorization(self, worker, fhir_client, auth_checker, tenant_hospital_a):
         """Test successful authorization requirements check."""
         auth_checker.check_requirements.return_value = {
             "required": True,
@@ -39,7 +39,7 @@ class TestCheckAuthorizationRequirementsWorker:
         auth_checker.check_requirements.assert_called_once()
 
     @pytest.mark.asyncio
-    async def test_missing_required_field_raises(self, worker, tenant_austa):
+    async def test_missing_required_field_raises(self, worker, tenant_hospital_a):
         """Test that missing patient_id raises DomainException."""
         with pytest.raises(DomainException):
             await worker.execute({})
@@ -52,7 +52,7 @@ class TestCheckAuthorizationRequirementsWorker:
             await worker.execute({"patient_id": "patient-123"})
 
     @pytest.mark.asyncio
-    async def test_no_authorization_required(self, worker, fhir_client, auth_checker, tenant_austa):
+    async def test_no_authorization_required(self, worker, fhir_client, auth_checker, tenant_hospital_a):
         """Test that no authorization required returns required=False."""
         auth_checker.check_requirements.return_value = {
             "required": False,

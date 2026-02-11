@@ -150,7 +150,7 @@ class ExportToDataWarehouseStub(ExportToDataWarehouseProtocol):
         _dmn = get_dmn_service()
         try:
             _dmn_result = _dmn.evaluate(
-                tenant_id=tenant.id,
+                tenant_id=tenant.tenant_code,
                 category='infrastructure',
                 table_name='config/infra_001',
                 inputs={'entity_type': input_data.entity_type, 'export_format': input_data.output_format},
@@ -166,7 +166,7 @@ class ExportToDataWarehouseStub(ExportToDataWarehouseProtocol):
                 mode=input_data.export_mode,
             ),
             extra={
-                "tenant_id": tenant.id,
+                "tenant_id": tenant.tenant_code,
                 "output_format": input_data.output_format,
             },
         )
@@ -221,25 +221,25 @@ class ExportToDataWarehouseStub(ExportToDataWarehouseProtocol):
 
             # Atualiza métricas Prometheus
             exports_total.labels(
-                tenant_id=tenant.id,
+                tenant_id=tenant.tenant_code,
                 entity_type=input_data.entity_type,
                 format=input_data.output_format,
                 status="success",
             ).inc()
 
             export_duration_seconds.labels(
-                tenant_id=tenant.id,
+                tenant_id=tenant.tenant_code,
                 entity_type=input_data.entity_type,
                 format=input_data.output_format,
             ).observe(duration)
 
             export_records_gauge.labels(
-                tenant_id=tenant.id,
+                tenant_id=tenant.tenant_code,
                 entity_type=input_data.entity_type,
                 format=input_data.output_format,
             ).set(len(records))
 
-            export_id = f"EXP-{tenant.id}-{int(start_time.timestamp())}"
+            export_id = f"EXP-{tenant.tenant_code}-{int(start_time.timestamp())}"
 
             output = ExportToDataWarehouseOutput(
                 export_id=export_id,
@@ -260,7 +260,7 @@ class ExportToDataWarehouseStub(ExportToDataWarehouseProtocol):
                     size_mb=round(total_size / 1024 / 1024, 2),
                 ),
                 extra={
-                    "tenant_id": tenant.id,
+                    "tenant_id": tenant.tenant_code,
                     "export_id": export_id,
                 },
             )
@@ -269,7 +269,7 @@ class ExportToDataWarehouseStub(ExportToDataWarehouseProtocol):
 
         except Exception as e:
             exports_total.labels(
-                tenant_id=tenant.id,
+                tenant_id=tenant.tenant_code,
                 entity_type=input_data.entity_type,
                 format=input_data.output_format,
                 status="error",

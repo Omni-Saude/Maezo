@@ -15,7 +15,7 @@ def worker(fhir_client):
 
 class TestValidatePatientDataWorker:
     @pytest.mark.asyncio
-    async def test_happy_path_validates_patient_data(self, worker, fhir_client, tenant_austa, mock_patient):
+    async def test_happy_path_validates_patient_data(self, worker, fhir_client, tenant_hospital_a, mock_patient):
         """Test successful patient data validation."""
         fhir_client.validate_resource.return_value = {"valid": True}
 
@@ -27,7 +27,7 @@ class TestValidatePatientDataWorker:
         fhir_client.validate_resource.assert_called_once()
 
     @pytest.mark.asyncio
-    async def test_missing_required_field_raises(self, worker, tenant_austa):
+    async def test_missing_required_field_raises(self, worker, tenant_hospital_a):
         """Test that missing patient_data raises DomainException."""
         with pytest.raises(DomainException):
             await worker.execute({})
@@ -40,7 +40,7 @@ class TestValidatePatientDataWorker:
             await worker.execute({"patient_data": {"name": "Test"}})
 
     @pytest.mark.asyncio
-    async def test_invalid_cpf_format_raises(self, worker, tenant_austa):
+    async def test_invalid_cpf_format_raises(self, worker, tenant_hospital_a):
         """Test that invalid CPF format raises DomainException."""
         with pytest.raises(DomainException):
             await worker.execute({

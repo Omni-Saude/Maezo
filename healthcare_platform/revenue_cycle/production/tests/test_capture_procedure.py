@@ -16,8 +16,8 @@ from revenue_cycle.production.workers.capture_procedure_worker import CapturePro
 
 
 @pytest.fixture
-def tenant_austa():
-    ctx = TenantContext.from_tenant_code(TenantCode.AUSTA)
+def tenant_hospital_a():
+    ctx = TenantContext.from_tenant_code(TenantCode.HOSPITAL_A)
     set_current_tenant(ctx)
     yield ctx
     clear_tenant()
@@ -51,7 +51,7 @@ def worker(tasy_client, mv_soul_client):
 
 class TestCaptureProcedureWorker:
     @pytest.mark.asyncio
-    async def test_tasy_capture(self, worker, tasy_client, tenant_austa):
+    async def test_tasy_capture(self, worker, tasy_client, tenant_hospital_a):
         tasy_client.get_procedures.return_value = [
             TasyProcedureDTO(
                 procedure_id="proc-1",
@@ -94,12 +94,12 @@ class TestCaptureProcedureWorker:
         assert result["procedure_count"] == 1
 
     @pytest.mark.asyncio
-    async def test_missing_encounter_raises(self, worker, tenant_austa):
+    async def test_missing_encounter_raises(self, worker, tenant_hospital_a):
         with pytest.raises(CodingException):
             await worker.execute({"encounter_reference": ""})
 
     @pytest.mark.asyncio
-    async def test_no_procedures_raises(self, worker, tasy_client, tenant_austa):
+    async def test_no_procedures_raises(self, worker, tasy_client, tenant_hospital_a):
         tasy_client.get_procedures.return_value = []
 
         with pytest.raises(CodingException):

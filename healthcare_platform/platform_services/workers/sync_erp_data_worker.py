@@ -373,7 +373,7 @@ async def execute(input_data: dict[str, Any]) -> dict[str, Any]:
     logger.info(
         _("Iniciando sincronização ERP"),
         extra={
-            "tenant_id": tenant.id,
+            "tenant_id": tenant.tenant_code,
             "sync_id": sync_id,
             "source_system": parsed_input.source_system,
             "entity_type": parsed_input.entity_type,
@@ -386,7 +386,7 @@ async def execute(input_data: dict[str, Any]) -> dict[str, Any]:
     _dmn = get_dmn_service()
     try:
         _dmn_config = _dmn.evaluate(
-            tenant_id=tenant.id,
+            tenant_id=tenant.tenant_code,
             category='infrastructure',
             table_name='config/infra_002',
             inputs={'source_system': parsed_input.source_system, 'entity_type': parsed_input.entity_type, 'operation': parsed_input.operation},
@@ -450,20 +450,20 @@ async def execute(input_data: dict[str, Any]) -> dict[str, Any]:
 
         # Métricas
         sync_operations_total.labels(
-            tenant_id=tenant.id,
+            tenant_id=tenant.tenant_code,
             source_system=parsed_input.source_system,
             operation_type=parsed_input.operation,
             status="success",
         ).inc()
 
         sync_duration_seconds.labels(
-            tenant_id=tenant.id,
+            tenant_id=tenant.tenant_code,
             source_system=parsed_input.source_system,
             operation_type=parsed_input.operation,
         ).observe(duration_ms / 1000.0)
 
         sync_records_gauge.labels(
-            tenant_id=tenant.id,
+            tenant_id=tenant.tenant_code,
             source_system=parsed_input.source_system,
             entity_type=parsed_input.entity_type,
         ).set(0)
@@ -471,7 +471,7 @@ async def execute(input_data: dict[str, Any]) -> dict[str, Any]:
         logger.info(
             _("Sincronização ERP concluída com sucesso"),
             extra={
-                "tenant_id": tenant.id,
+                "tenant_id": tenant.tenant_code,
                 "sync_id": sync_id,
                 "records_synced": output.records_synced,
                 "conflicts_detected": output.conflicts_detected,
@@ -483,7 +483,7 @@ async def execute(input_data: dict[str, Any]) -> dict[str, Any]:
 
     except Exception as e:
         sync_errors_total.labels(
-            tenant_id=tenant.id,
+            tenant_id=tenant.tenant_code,
             source_system=parsed_input.source_system,
             error_type=type(e).__name__,
         ).inc()
@@ -491,7 +491,7 @@ async def execute(input_data: dict[str, Any]) -> dict[str, Any]:
         logger.error(
             _("Erro na sincronização ERP"),
             extra={
-                "tenant_id": tenant.id,
+                "tenant_id": tenant.tenant_code,
                 "sync_id": sync_id,
                 "error": str(e),
             },

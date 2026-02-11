@@ -31,7 +31,7 @@ The observability stack has four layers:
 | Kafka consumer lag > 10,000 | P2 |
 | PostgreSQL connection pool > 80% | P2 |
 
-All workers expose `/health` and `/metrics` endpoints via the `AustaWorker` base framework (Prometheus Python client).
+All workers expose `/health` and `/metrics` endpoints via the `MaezoWorker` base framework (Prometheus Python client).
 
 ## Consequences
 

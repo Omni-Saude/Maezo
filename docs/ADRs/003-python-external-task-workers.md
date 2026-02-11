@@ -13,7 +13,7 @@ Two patterns exist in CIB Seven:
 1. **Embedded Java Delegates** — business logic runs inside the engine JVM as Java classes
 2. **External Task pattern** — engine creates tasks that external workers fetch via REST long-polling, execute independently, and report back
 
-The AUSTA team has 4 Python developers and 1 Java developer. Python is the primary language for data science, ML, and existing integrations. The Java developer is allocated to engine configuration, not business logic.
+The MAEZO team has 4 Python developers and 1 Java developer. Python is the primary language for data science, ML, and existing integrations. The Java developer is allocated to engine configuration, not business logic.
 
 ## Decision
 

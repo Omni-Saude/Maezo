@@ -17,7 +17,7 @@
 |------|----------|-------------|--------|--------|
 | **3.7a** | Webhook Infrastructure | `healthcare_platform/shared/webhooks/` | 1,111 | ✅ VERIFIED |
 | **3.7b** | FHIR Adapters (Claim, ClaimResponse, Observation, MedicationRequest) | `healthcare_platform/shared/integrations/tasy_adapters/` | 2,243 | ✅ VERIFIED |
-| **3.7-INFRA** | Helm/K8s for Webhook & CDC Bridge | `helm/maestro/templates/` | 279+ | ✅ VERIFIED |
+| **3.7-INFRA** | Helm/K8s for Webhook & CDC Bridge | `helm/maezo/templates/` | 279+ | ✅ VERIFIED |
 | **3.7c** | Webhook Handlers (5 handlers) | `healthcare_platform/shared/webhooks/handlers/` | 904 | ✅ VERIFIED |
 | **3.8** | CDC-to-BPM Bridge Service | `healthcare_platform/shared/cdc_bridge/` | 719 | ✅ VERIFIED |
 | **3.8.1** | CDC Bridge Unit Tests | `tests/unit/cdc_bridge/` | 738 | ✅ 35/35 PASSED |
@@ -34,8 +34,8 @@
 | **4 New FHIR Adapters** | `healthcare_platform/shared/integrations/tasy_adapters/` | claim, claim_response, observation, medication_request |
 | **3 Pharmacy Adapters** | `healthcare_platform/shared/integrations/tasy_adapters/` | medication_dispense, pharmacy_inventory, drug_interaction |
 | **DMN Validation Scripts** | `scripts/` | validate_dmn.py, dmn_inventory.py, dmn_tenant_resolver.py |
-| **Webhook K8s Deployment** | `helm/maestro/templates/webhook-receiver-*.yaml` | Deployment, Service, HPA |
-| **CDC Bridge K8s Deployment** | `helm/maestro/templates/cdc-bridge-*.yaml` | Deployment, Service |
+| **Webhook K8s Deployment** | `helm/maezo/templates/webhook-receiver-*.yaml` | Deployment, Service, HPA |
+| **CDC Bridge K8s Deployment** | `helm/maezo/templates/cdc-bridge-*.yaml` | Deployment, Service |
 
 ---
 
@@ -45,16 +45,16 @@ Os seguintes artefatos foram gerados e estão prontos para uso:
 
 | Artefato | Localização | Descrição |
 |----------|-------------|-----------|
-| **Helm Chart** | `helm/maestro/` | Chart completo com CIB7, Workers, FHIR, Kafka, Redis, Keycloak |
-| **Values Dev** | `helm/maestro/values-dev.yaml` | Configuração para ambiente de desenvolvimento |
-| **Values Staging** | `helm/maestro/values-staging.yaml` | Configuração para staging |
+| **Helm Chart** | `helm/maezo/` | Chart completo com CIB7, Workers, FHIR, Kafka, Redis, Keycloak |
+| **Values Dev** | `helm/maezo/values-dev.yaml` | Configuração para ambiente de desenvolvimento |
+| **Values Staging** | `helm/maezo/values-staging.yaml` | Configuração para staging |
 | **K8s Namespace** | `k8s/base/namespace.yaml` | Namespace, RBAC, quotas, limits |
 | **K8s Secrets** | `k8s/base/secrets.yaml` | Templates de secrets (SUBSTITUIR VALORES!) |
 | **K8s NetworkPolicies** | `k8s/base/network-policies.yaml` | Zero-trust networking |
 | **CI/CD Pipeline** | `.github/workflows/ci-cd.yaml` | GitHub Actions completo |
 | **Dockerfile CDC Bridge** | `Dockerfile.cdc-bridge` | Imagem para CDC-to-BPM bridge |
 | **Dockerfile Webhook** | `Dockerfile.webhook-receiver` | Imagem para callback receiver |
-| **Keycloak Realm** | `config/keycloak/austa-bpm-realm.json` | 14 clients OAuth2 configurados |
+| **Keycloak Realm** | `config/keycloak/maezo-bpm-realm.json` | 14 clients OAuth2 configurados |
 | **FHIR Config** | Via Helm ConfigMap | Search params brasileiros (CPF, CNS, TUSS) |
 
 **Guia de uso:** `helm/README.md`
@@ -88,7 +88,7 @@ Os seguintes artefatos foram gerados e estão prontos para uso:
 - [x] Criar `Dockerfile` para workers Python
 - [x] Criar `Dockerfile.cdc-bridge` para CDC bridge — **NOVO**
 - [x] Criar `Dockerfile.webhook-receiver` para webhook receiver — **NOVO**
-- [x] Criar Helm charts para todos os componentes — **`helm/maestro/`**
+- [x] Criar Helm charts para todos os componentes — **`helm/maezo/`**
 - [x] Configurar HPA para cada worker — **Via values.yaml autoscaling**
 - [x] Configurar `cdc-to-bpm-bridge` com 2 réplicas — **Via Helm**
 - [ ] **HUMANO**: Aplicar secrets reais (substituir CHANGE_ME em `k8s/base/secrets.yaml`)
@@ -96,9 +96,9 @@ Os seguintes artefatos foram gerados e estão prontos para uso:
 
 ### 1.4 Ambientes ✅ CONFIGURAÇÃO PRONTA
 - [x] Configurar ambiente `local` (Docker Compose) — **`docker-compose.yml`**
-- [x] Configurar ambiente `dev` — **`helm/maestro/values-dev.yaml`**
-- [x] Configurar ambiente `staging` — **`helm/maestro/values-staging.yaml`**
-- [x] Configurar ambiente `prod` — **`helm/maestro/values.yaml` (padrão)**
+- [x] Configurar ambiente `dev` — **`helm/maezo/values-dev.yaml`**
+- [x] Configurar ambiente `staging` — **`helm/maezo/values-staging.yaml`**
+- [x] Configurar ambiente `prod` — **`helm/maezo/values.yaml` (padrão)**
 - [ ] **HUMANO**: Provisionar clusters EKS para cada ambiente
 
 
@@ -108,13 +108,13 @@ Os seguintes artefatos foram gerados e estão prontos para uso:
 
 ### 2.1 Configuração do Engine
 - [ ] Deploy CIB Seven 2.1.3 no K8s com configuração conforme spec (pool sizes, history cleanup, multi-tenancy)
-- [ ] Configurar multi-tenancy com 4 tenants: `austa-hospital`, `amh-sp-morumbi`, `amh-rj-barra`, `amh-mg-bh`
-- [ ] Configurar `default-tenant: austa-hospital`
+- [ ] Configurar multi-tenancy com 4 tenants: `hospital-a`, `amh-sp-morumbi`, `amh-rj-barra`, `amh-mg-bh`
+- [ ] Configurar `default-tenant: hospital-a`
 - [ ] Configurar External Task lock duration (300000ms) e retry timeout (30000ms)
 - [ ] Deploy Cockpit e Tasklist
 
 ### 2.2 Keycloak / Segurança
-- [ ] Criar realm `austa-bpm` no Keycloak 24
+- [ ] Criar realm `maezo-bpm` no Keycloak 24
 - [ ] Criar 8 clients com `client_credentials` grant (worker-eligibility, worker-tiss, worker-denial, worker-whatsapp, worker-clinical, worker-payment, cdc-bridge, omnicash-intelligence)
 - [ ] Configurar scopes: `external-task`, `fhir-read`, `fhir-write`, `process-start`, `message-correlate`, `history-read`
 - [ ] Criar 4 grupos (hospital units) e 4 roles (admin, operator, analyst, viewer)
@@ -127,7 +127,7 @@ Os seguintes artefatos foram gerados e estão prontos para uso:
 ### 3.1 Debezium CDC — Tasy (Oracle)
 - [ ] **Negociar acesso ao Oracle LogMiner com DBA do Tasy** (risco médio-alto)
 - [ ] Configurar Debezium connector para Oracle (tabelas: `ATENDIMENTO`, `CONTA_MEDICA`, `ITEM_CONTA`, `PRESCRICAO`, `SINAL_VITAL`)
-- [ ] Criar tópicos Kafka conforme spec (`tasy.AUSTA.ATENDIMENTO`, etc.)
+- [ ] Criar tópicos Kafka conforme spec (`tasy.HOSPITAL_A.ATENDIMENTO`, etc.)
 - [ ] Testar CDC end-to-end com dados reais
 - [ ] Implementar fallback para polling caso LogMiner seja bloqueado
 
@@ -243,7 +243,7 @@ Os seguintes artefatos foram gerados e estão prontos para uso:
 
 ## 10. Go-Live e Operação
 
-- [ ] Planejar cutover para `austa-hospital` (Fase 1)
+- [ ] Planejar cutover para `hospital-a` (Fase 1)
 - [ ] Configurar rollback plan
 - [ ] Estabelecer Centro de Excelência (CoE) BPM — Fase 4
 - [ ] Planejar onboarding de operadoras adicionais no DMN (Unimed, SulAmérica, Amil — Fase 2)

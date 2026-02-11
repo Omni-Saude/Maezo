@@ -7,8 +7,8 @@ from healthcare_platform.shared.domain.exceptions import DomainException
 from healthcare_platform.shared.multi_tenant.context import TenantContext, set_current_tenant, clear_tenant
 
 @pytest.fixture
-def tenant_austa():
-    ctx = TenantContext.from_tenant_code(TenantCode.AUSTA)
+def tenant_hospital_a():
+    ctx = TenantContext.from_tenant_code(TenantCode.HOSPITAL_A)
     set_current_tenant(ctx)
     yield ctx
     clear_tenant()
@@ -23,7 +23,7 @@ def worker(fhir_client):
     return CalculateOperationalMetricsStub(fhir_client=fhir_client)
 
 @pytest.mark.asyncio
-async def test_happy_path_calculates_operational_metrics(worker, tenant_austa):
+async def test_happy_path_calculates_operational_metrics(worker, tenant_hospital_a):
     """Should successfully calculate operational metrics."""
     job = {
         "metric_types": ["bed_occupancy", "staff_utilization"],
@@ -34,7 +34,7 @@ async def test_happy_path_calculates_operational_metrics(worker, tenant_austa):
     assert "metrics" in result
 
 @pytest.mark.asyncio
-async def test_missing_required_field_raises(worker, tenant_austa):
+async def test_missing_required_field_raises(worker, tenant_hospital_a):
     """Should raise DomainException when metric_types is missing."""
     job = {"period": "2024-01"}
     with pytest.raises(DomainException, match="metric_types"):

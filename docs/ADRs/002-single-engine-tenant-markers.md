@@ -6,7 +6,7 @@
 
 ## Context
 
-The platform must serve multiple hospital units (`austa-hospital`, `amh-sp-morumbi`, `amh-rj-barra`, `amh-mg-bh`), each with locally adapted processes and rules, but sharing the same infrastructure. The platform scope is the **entire hospital digital operation** — from patient access through clinical delivery, revenue cycle, and platform services — as defined in the Hospital Digital Manifesto (4 domains, 29 subprocesses, 5 patient journeys).
+The platform must serve multiple hospital units (`hospital-a`, `amh-sp-morumbi`, `amh-rj-barra`, `amh-mg-bh`), each with locally adapted processes and rules, but sharing the same infrastructure. The platform scope is the **entire hospital digital operation** — from patient access through clinical delivery, revenue cycle, and platform services — as defined in the Hospital Digital Manifesto (4 domains, 29 subprocesses, 5 patient journeys).
 
 > **Scope boundary:** The AUSTA Saúde healthcare plan (operadora) will operate a **separate** orchestration platform. Payers (Bradesco, Unimed, SulAmérica, Amil, AUSTA Saúde, etc.) are external entities referenced in DMN decision tables and operator portal integrations — they are not tenants of this platform.
 
@@ -23,7 +23,7 @@ The hospital units run structurally identical processes (revenue cycle, clinical
 We will use the **Tenant Markers** strategy: a single CIB Seven engine instance with a shared PostgreSQL database, where every process instance, deployment, and task carries a `tenantId` marker.
 
 - **Federation model:** global defaults (deployed without tenant) plus tenant-specific overrides (deployed with `tenantId`). Resolution: engine checks tenant-specific first, falls back to global.
-- **Tenant identifiers:** `austa-hospital`, `amh-sp-morumbi`, `amh-rj-barra`, `amh-mg-bh`. Each identifier represents a **hospital unit**, not a payer or business line.
+- **Tenant identifiers:** `hospital-a`, `amh-sp-morumbi`, `amh-rj-barra`, `amh-mg-bh`. Each identifier represents a **hospital unit**, not a payer or business line.
 - **Provisioning:** bootstrap script creates tenant marker, seeds default user groups, deploys global process package.
 
 ## Consequences

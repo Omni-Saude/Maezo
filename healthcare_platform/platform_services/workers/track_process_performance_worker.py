@@ -154,7 +154,7 @@ class TrackProcessPerformanceStub(TrackProcessPerformanceProtocol):
         _dmn = get_dmn_service()
         try:
             _dmn_result = _dmn.evaluate(
-                tenant_id=tenant.id,
+                tenant_id=tenant.tenant_code,
                 category='compliance',
                 table_name='audit/comp_audit_002',
                 inputs={'process_definition_key': input_data.process_definition_key},
@@ -169,7 +169,7 @@ class TrackProcessPerformanceStub(TrackProcessPerformanceProtocol):
                 process_key=input_data.process_definition_key,
             ),
             extra={
-                "tenant_id": tenant.id,
+                "tenant_id": tenant.tenant_code,
                 "date_start": input_data.date_start.isoformat(),
                 "date_end": input_data.date_end.isoformat(),
             },
@@ -218,17 +218,17 @@ class TrackProcessPerformanceStub(TrackProcessPerformanceProtocol):
 
             # Atualiza métricas Prometheus
             process_analyses_total.labels(
-                tenant_id=tenant.id,
+                tenant_id=tenant.tenant_code,
                 process_definition_key=input_data.process_definition_key,
                 status="success",
             ).inc()
 
             process_duration_seconds.labels(
-                tenant_id=tenant.id,
+                tenant_id=tenant.tenant_code,
                 process_definition_key=input_data.process_definition_key,
             ).observe(duration)
 
-            analysis_id = f"PERF-{tenant.id}-{int(start_time.timestamp())}"
+            analysis_id = f"PERF-{tenant.tenant_code}-{int(start_time.timestamp())}"
 
             output = TrackProcessPerformanceOutput(
                 analysis_id=analysis_id,
@@ -252,7 +252,7 @@ class TrackProcessPerformanceStub(TrackProcessPerformanceProtocol):
                     tp=round(throughput, 2),
                 ),
                 extra={
-                    "tenant_id": tenant.id,
+                    "tenant_id": tenant.tenant_code,
                     "analysis_id": analysis_id,
                 },
             )
@@ -261,7 +261,7 @@ class TrackProcessPerformanceStub(TrackProcessPerformanceProtocol):
 
         except Exception as e:
             process_analyses_total.labels(
-                tenant_id=tenant.id,
+                tenant_id=tenant.tenant_code,
                 process_definition_key=input_data.process_definition_key,
                 status="error",
             ).inc()

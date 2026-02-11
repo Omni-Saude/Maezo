@@ -13,7 +13,7 @@ from revenue_cycle.production.workers.persist_production_worker import PersistPr
 
 @pytest.fixture
 def tenant_ctx():
-    ctx = TenantContext.from_tenant_code(TenantCode.AUSTA)
+    ctx = TenantContext.from_tenant_code(TenantCode.HOSPITAL_A)
     set_current_tenant(ctx)
     yield ctx
     clear_tenant()

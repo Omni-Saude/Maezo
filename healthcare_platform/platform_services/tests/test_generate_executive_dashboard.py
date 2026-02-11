@@ -7,8 +7,8 @@ from healthcare_platform.shared.domain.exceptions import DomainException
 from healthcare_platform.shared.multi_tenant.context import TenantContext, set_current_tenant, clear_tenant
 
 @pytest.fixture
-def tenant_austa():
-    ctx = TenantContext.from_tenant_code(TenantCode.AUSTA)
+def tenant_hospital_a():
+    ctx = TenantContext.from_tenant_code(TenantCode.HOSPITAL_A)
     set_current_tenant(ctx)
     yield ctx
     clear_tenant()
@@ -23,7 +23,7 @@ def worker(fhir_client):
     return GenerateExecutiveDashboardStub(fhir_client=fhir_client)
 
 @pytest.mark.asyncio
-async def test_happy_path_generates_executive_dashboard(worker, tenant_austa):
+async def test_happy_path_generates_executive_dashboard(worker, tenant_hospital_a):
     """Should successfully generate executive dashboard."""
     job = {
         "dashboard_type": "executive",
@@ -34,7 +34,7 @@ async def test_happy_path_generates_executive_dashboard(worker, tenant_austa):
     assert "dashboard_url" in result
 
 @pytest.mark.asyncio
-async def test_missing_required_field_raises(worker, tenant_austa):
+async def test_missing_required_field_raises(worker, tenant_hospital_a):
     """Should raise DomainException when dashboard_type is missing."""
     job = {"period": "2024-Q1"}
     with pytest.raises(DomainException, match="dashboard_type"):

@@ -12,7 +12,7 @@ from revenue_cycle.production.workers.validate_compatibility_worker import Valid
 
 @pytest.fixture
 def tenant_ctx():
-    ctx = TenantContext.from_tenant_code(TenantCode.AUSTA)
+    ctx = TenantContext.from_tenant_code(TenantCode.HOSPITAL_A)
     set_current_tenant(ctx)
     yield ctx
     clear_tenant()

@@ -7,8 +7,8 @@ from healthcare_platform.shared.domain.exceptions import DomainException
 from healthcare_platform.shared.multi_tenant.context import TenantContext, set_current_tenant, clear_tenant
 
 @pytest.fixture
-def tenant_austa():
-    ctx = TenantContext.from_tenant_code(TenantCode.AUSTA)
+def tenant_hospital_a():
+    ctx = TenantContext.from_tenant_code(TenantCode.HOSPITAL_A)
     set_current_tenant(ctx)
     yield ctx
     clear_tenant()
@@ -23,7 +23,7 @@ def worker(fhir_client):
     return RecommendProcedureBundlesStub(fhir_client=fhir_client)
 
 @pytest.mark.asyncio
-async def test_happy_path_recommends_procedure_bundles(worker, tenant_austa):
+async def test_happy_path_recommends_procedure_bundles(worker, tenant_hospital_a):
     """Should successfully recommend procedure bundles."""
     job = {
         "specialty": "cardiology",
@@ -34,7 +34,7 @@ async def test_happy_path_recommends_procedure_bundles(worker, tenant_austa):
     assert "bundles" in result
 
 @pytest.mark.asyncio
-async def test_missing_required_field_raises(worker, tenant_austa):
+async def test_missing_required_field_raises(worker, tenant_hospital_a):
     """Should raise DomainException when specialty is missing."""
     job = {"target_patient_segment": "elective"}
     with pytest.raises(DomainException, match="specialty"):

@@ -11,9 +11,9 @@ from healthcare_platform.shared.multi_tenant.context import TenantContext, set_c
 
 
 @pytest.fixture
-def tenant_austa():
+def tenant_hospital_a():
     """Set up AUSTA tenant context."""
-    ctx = TenantContext.from_tenant_code(TenantCode.AUSTA)
+    ctx = TenantContext.from_tenant_code(TenantCode.HOSPITAL_A)
     set_current_tenant(ctx)
     yield ctx
     clear_tenant()
@@ -36,7 +36,7 @@ class TestMedicationManagementWorker:
     """Test cases for MedicationManagementWorker."""
 
     @pytest.mark.asyncio
-    async def test_happy_path_prescribe_medication(self, worker, fhir_client, tenant_austa):
+    async def test_happy_path_prescribe_medication(self, worker, fhir_client, tenant_hospital_a):
         """Test successful medication prescription."""
         fhir_client.create.return_value = {
             "resourceType": "MedicationRequest",
@@ -59,7 +59,7 @@ class TestMedicationManagementWorker:
         fhir_client.create.assert_called_once()
 
     @pytest.mark.asyncio
-    async def test_missing_medication_code_raises(self, worker, tenant_austa):
+    async def test_missing_medication_code_raises(self, worker, tenant_hospital_a):
         """Test that missing medication_code raises DomainException."""
         with pytest.raises(DomainException, match="medication_code is required"):
             await worker.execute({
@@ -68,7 +68,7 @@ class TestMedicationManagementWorker:
             })
 
     @pytest.mark.asyncio
-    async def test_drug_interaction_warning(self, worker, fhir_client, tenant_austa):
+    async def test_drug_interaction_warning(self, worker, fhir_client, tenant_hospital_a):
         """Test that drug interactions trigger warnings."""
         fhir_client.search.return_value = [
             {"resourceType": "MedicationRequest", "id": "existing-med", "medicationCodeableConcept": {"coding": [{"code": "123456"}]}}

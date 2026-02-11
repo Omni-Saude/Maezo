@@ -15,7 +15,7 @@ def worker(fhir_client):
 
 class TestCaptureDemographicsWorker:
     @pytest.mark.asyncio
-    async def test_happy_path_captures_demographics(self, worker, fhir_client, tenant_austa, mock_patient):
+    async def test_happy_path_captures_demographics(self, worker, fhir_client, tenant_hospital_a, mock_patient):
         """Test successful demographics capture."""
         fhir_client.update.return_value = mock_patient
 
@@ -33,7 +33,7 @@ class TestCaptureDemographicsWorker:
         fhir_client.update.assert_called_once()
 
     @pytest.mark.asyncio
-    async def test_missing_required_field_raises(self, worker, tenant_austa):
+    async def test_missing_required_field_raises(self, worker, tenant_hospital_a):
         """Test that missing patient_id raises DomainException."""
         with pytest.raises(DomainException):
             await worker.execute({})
@@ -46,7 +46,7 @@ class TestCaptureDemographicsWorker:
             await worker.execute({"patient_id": "patient-123"})
 
     @pytest.mark.asyncio
-    async def test_invalid_race_code_raises(self, worker, tenant_austa):
+    async def test_invalid_race_code_raises(self, worker, tenant_hospital_a):
         """Test that invalid race code raises DomainException."""
         with pytest.raises(DomainException):
             await worker.execute({

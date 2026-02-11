@@ -11,9 +11,9 @@ from healthcare_platform.shared.multi_tenant.context import TenantContext, set_c
 
 
 @pytest.fixture
-def tenant_austa():
+def tenant_hospital_a():
     """Set up AUSTA tenant context."""
-    ctx = TenantContext.from_tenant_code(TenantCode.AUSTA)
+    ctx = TenantContext.from_tenant_code(TenantCode.HOSPITAL_A)
     set_current_tenant(ctx)
     yield ctx
     clear_tenant()
@@ -36,7 +36,7 @@ class TestCarePlanningWorker:
     """Test cases for CarePlanningWorker."""
 
     @pytest.mark.asyncio
-    async def test_happy_path_create_care_plan(self, worker, fhir_client, tenant_austa):
+    async def test_happy_path_create_care_plan(self, worker, fhir_client, tenant_hospital_a):
         """Test successful care plan creation."""
         fhir_client.create.return_value = {
             "resourceType": "CarePlan",
@@ -58,13 +58,13 @@ class TestCarePlanningWorker:
         fhir_client.create.assert_called_once()
 
     @pytest.mark.asyncio
-    async def test_missing_patient_id_raises(self, worker, tenant_austa):
+    async def test_missing_patient_id_raises(self, worker, tenant_hospital_a):
         """Test that missing patient_id raises DomainException."""
         with pytest.raises(DomainException, match="patient_id is required"):
             await worker.execute({"goals": ["Goal 1"]})
 
     @pytest.mark.asyncio
-    async def test_missing_goals_raises(self, worker, tenant_austa):
+    async def test_missing_goals_raises(self, worker, tenant_hospital_a):
         """Test that missing goals raises DomainException."""
         with pytest.raises(DomainException, match="goals are required"):
             await worker.execute({"patient_id": "patient-456"})

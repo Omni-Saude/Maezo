@@ -21,7 +21,7 @@ def worker(fhir_client, pre_auth_checker):
 
 class TestCheckPreAuthorizationWorker:
     @pytest.mark.asyncio
-    async def test_happy_path_checks_authorization(self, worker, fhir_client, pre_auth_checker, tenant_austa):
+    async def test_happy_path_checks_authorization(self, worker, fhir_client, pre_auth_checker, tenant_hospital_a):
         """Test successful pre-authorization check."""
         pre_auth_checker.check.return_value = {
             "authorized": True,
@@ -40,7 +40,7 @@ class TestCheckPreAuthorizationWorker:
         pre_auth_checker.check.assert_called_once()
 
     @pytest.mark.asyncio
-    async def test_missing_required_field_raises(self, worker, tenant_austa):
+    async def test_missing_required_field_raises(self, worker, tenant_hospital_a):
         """Test that missing patient_id raises DomainException."""
         with pytest.raises(DomainException):
             await worker.execute({})
@@ -53,7 +53,7 @@ class TestCheckPreAuthorizationWorker:
             await worker.execute({"patient_id": "patient-123"})
 
     @pytest.mark.asyncio
-    async def test_authorization_denied_returns_false(self, worker, fhir_client, pre_auth_checker, tenant_austa):
+    async def test_authorization_denied_returns_false(self, worker, fhir_client, pre_auth_checker, tenant_hospital_a):
         """Test that denied authorization returns authorized=False."""
         pre_auth_checker.check.return_value = {
             "authorized": False,

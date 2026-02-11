@@ -15,7 +15,7 @@ def worker(fhir_client):
 
 class TestValidateDocumentationWorker:
     @pytest.mark.asyncio
-    async def test_happy_path_validates_documentation(self, worker, fhir_client, tenant_austa):
+    async def test_happy_path_validates_documentation(self, worker, fhir_client, tenant_hospital_a):
         """Test successful documentation validation."""
         fhir_client.search.return_value = {
             "entry": [
@@ -33,7 +33,7 @@ class TestValidateDocumentationWorker:
         fhir_client.search.assert_called_once()
 
     @pytest.mark.asyncio
-    async def test_missing_required_field_raises(self, worker, tenant_austa):
+    async def test_missing_required_field_raises(self, worker, tenant_hospital_a):
         """Test that missing patient_id raises DomainException."""
         with pytest.raises(DomainException):
             await worker.execute({})
@@ -46,7 +46,7 @@ class TestValidateDocumentationWorker:
             await worker.execute({"patient_id": "patient-123"})
 
     @pytest.mark.asyncio
-    async def test_missing_documents_returns_list(self, worker, fhir_client, tenant_austa):
+    async def test_missing_documents_returns_list(self, worker, fhir_client, tenant_hospital_a):
         """Test that missing documents are returned in list."""
         fhir_client.search.return_value = {"entry": []}
 

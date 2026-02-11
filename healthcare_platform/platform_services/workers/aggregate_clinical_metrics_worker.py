@@ -348,7 +348,7 @@ async def execute(input_data: dict[str, Any]) -> dict[str, Any]:
     logger.info(
         _("Iniciando agregação de métricas clínicas"),
         extra={
-            "tenant_id": tenant.id,
+            "tenant_id": tenant.tenant_code,
             "aggregation_id": aggregation_id,
             "metric_types": parsed_input.metric_types,
             "period_days": (
@@ -362,7 +362,7 @@ async def execute(input_data: dict[str, Any]) -> dict[str, Any]:
     _dmn = get_dmn_service()
     try:
         _dmn_config = _dmn.evaluate(
-            tenant_id=tenant.id,
+            tenant_id=tenant.tenant_code,
             category='compliance',
             table_name='accred/comp_accred_001',
             inputs={'metric_types': parsed_input.metric_types, 'specialty': parsed_input.specialty},
@@ -416,7 +416,7 @@ async def execute(input_data: dict[str, Any]) -> dict[str, Any]:
 
             # Métricas Prometheus por tipo
             clinical_metrics_aggregations_total.labels(
-                tenant_id=tenant.id,
+                tenant_id=tenant.tenant_code,
                 metric_type=metric_type,
                 status="success",
             ).inc()
@@ -437,7 +437,7 @@ async def execute(input_data: dict[str, Any]) -> dict[str, Any]:
         logger.info(
             _("Agregação de métricas clínicas concluída"),
             extra={
-                "tenant_id": tenant.id,
+                "tenant_id": tenant.tenant_code,
                 "aggregation_id": aggregation_id,
                 "metrics_calculated": len(metrics),
                 "duration_ms": duration_ms,
@@ -450,7 +450,7 @@ async def execute(input_data: dict[str, Any]) -> dict[str, Any]:
         logger.error(
             _("Erro na agregação de métricas clínicas"),
             extra={
-                "tenant_id": tenant.id,
+                "tenant_id": tenant.tenant_code,
                 "aggregation_id": aggregation_id,
                 "error": str(e),
             },

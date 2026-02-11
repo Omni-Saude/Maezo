@@ -154,7 +154,7 @@ class OptimizePricingStrategyStub(OptimizePricingStrategyProtocol):
         tenant = get_required_tenant()
         try:
             _dmn_result = self._dmn.evaluate(
-                tenant_id=tenant.id,
+                tenant_id=tenant.tenant_code,
                 category='compliance',
                 table_name='ans/comp_ans_002',
                 inputs={'pricing_model': input_data.pricing_model},

@@ -11,9 +11,9 @@ from healthcare_platform.shared.multi_tenant.context import TenantContext, set_c
 
 
 @pytest.fixture
-def tenant_austa():
+def tenant_hospital_a():
     """Set up AUSTA tenant context."""
-    ctx = TenantContext.from_tenant_code(TenantCode.AUSTA)
+    ctx = TenantContext.from_tenant_code(TenantCode.HOSPITAL_A)
     set_current_tenant(ctx)
     yield ctx
     clear_tenant()
@@ -36,7 +36,7 @@ class TestCareTransitionsWorker:
     """Test cases for CareTransitionsWorker."""
 
     @pytest.mark.asyncio
-    async def test_happy_path_manage_transition(self, worker, fhir_client, tenant_austa):
+    async def test_happy_path_manage_transition(self, worker, fhir_client, tenant_hospital_a):
         """Test successful care transition management."""
         fhir_client.create.return_value = {
             "resourceType": "Task",
@@ -59,7 +59,7 @@ class TestCareTransitionsWorker:
         fhir_client.create.assert_called_once()
 
     @pytest.mark.asyncio
-    async def test_missing_transition_type_raises(self, worker, tenant_austa):
+    async def test_missing_transition_type_raises(self, worker, tenant_hospital_a):
         """Test that missing transition_type raises DomainException."""
         with pytest.raises(DomainException, match="transition_type is required"):
             await worker.execute({
@@ -68,7 +68,7 @@ class TestCareTransitionsWorker:
             })
 
     @pytest.mark.asyncio
-    async def test_transition_checklist_validation(self, worker, fhir_client, tenant_austa):
+    async def test_transition_checklist_validation(self, worker, fhir_client, tenant_hospital_a):
         """Test transition checklist validation."""
         fhir_client.create.return_value = {"resourceType": "Task", "id": "transition-123"}
 

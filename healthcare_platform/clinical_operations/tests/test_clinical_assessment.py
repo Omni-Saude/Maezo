@@ -11,9 +11,9 @@ from healthcare_platform.shared.multi_tenant.context import TenantContext, set_c
 
 
 @pytest.fixture
-def tenant_austa():
+def tenant_hospital_a():
     """Set up AUSTA tenant context."""
-    ctx = TenantContext.from_tenant_code(TenantCode.AUSTA)
+    ctx = TenantContext.from_tenant_code(TenantCode.HOSPITAL_A)
     set_current_tenant(ctx)
     yield ctx
     clear_tenant()
@@ -36,7 +36,7 @@ class TestClinicalAssessmentWorker:
     """Test cases for ClinicalAssessmentWorker."""
 
     @pytest.mark.asyncio
-    async def test_happy_path_initial_assessment(self, worker, fhir_client, tenant_austa):
+    async def test_happy_path_initial_assessment(self, worker, fhir_client, tenant_hospital_a):
         """Test successful initial clinical assessment."""
         fhir_client.search.return_value = [
             {"resourceType": "Patient", "id": "patient-123", "name": [{"given": ["João"], "family": "Silva"}]}
@@ -57,13 +57,13 @@ class TestClinicalAssessmentWorker:
         fhir_client.create.assert_called_once()
 
     @pytest.mark.asyncio
-    async def test_missing_patient_id_raises(self, worker, tenant_austa):
+    async def test_missing_patient_id_raises(self, worker, tenant_hospital_a):
         """Test that missing patient_id raises DomainException."""
         with pytest.raises(DomainException, match="patient_id is required"):
             await worker.execute({"encounter_id": "encounter-789"})
 
     @pytest.mark.asyncio
-    async def test_missing_encounter_id_raises(self, worker, tenant_austa):
+    async def test_missing_encounter_id_raises(self, worker, tenant_hospital_a):
         """Test that missing encounter_id raises DomainException."""
         with pytest.raises(DomainException, match="encounter_id is required"):
             await worker.execute({"patient_id": "patient-123"})

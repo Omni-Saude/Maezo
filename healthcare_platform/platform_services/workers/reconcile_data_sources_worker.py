@@ -174,7 +174,7 @@ class ReconcileDataSourcesStub(ReconcileDataSourcesProtocol):
         tenant = get_required_tenant()
         try:
             _dmn_result = self._dmn.evaluate(
-                tenant_id=tenant.id,
+                tenant_id=tenant.tenant_code,
                 category='infrastructure',
                 table_name='config/infra_002',
                 inputs={'entity_type': input_data.entity_type},
@@ -190,7 +190,7 @@ class ReconcileDataSourcesStub(ReconcileDataSourcesProtocol):
                 source_b=input_data.source_b,
             ),
             extra={
-                "tenant_id": tenant.id,
+                "tenant_id": tenant.tenant_code,
                 "entity_type": input_data.entity_type,
                 "mode": input_data.reconciliation_mode,
             },
@@ -249,7 +249,7 @@ class ReconcileDataSourcesStub(ReconcileDataSourcesProtocol):
             unresolved_count = len([m for m in mismatches if not m.auto_resolved])
 
             # Gera relatório detalhado (simulado)
-            reconciliation_id = f"REC-{tenant.id}-{int(start_time.timestamp())}"
+            reconciliation_id = f"REC-{tenant.tenant_code}-{int(start_time.timestamp())}"
             report_url = await self._generate_reconciliation_report(
                 reconciliation_id=reconciliation_id,
                 mismatches=mismatches,
@@ -260,20 +260,20 @@ class ReconcileDataSourcesStub(ReconcileDataSourcesProtocol):
 
             # Atualiza métricas Prometheus
             reconciliations_total.labels(
-                tenant_id=tenant.id,
+                tenant_id=tenant.tenant_code,
                 source_a=input_data.source_a,
                 source_b=input_data.source_b,
                 status="success",
             ).inc()
 
             reconciliation_duration_seconds.labels(
-                tenant_id=tenant.id,
+                tenant_id=tenant.tenant_code,
                 source_a=input_data.source_a,
                 source_b=input_data.source_b,
             ).observe(duration)
 
             mismatches_gauge.labels(
-                tenant_id=tenant.id,
+                tenant_id=tenant.tenant_code,
                 source_a=input_data.source_a,
                 source_b=input_data.source_b,
                 entity_type=input_data.entity_type,
@@ -300,7 +300,7 @@ class ReconcileDataSourcesStub(ReconcileDataSourcesProtocol):
                     unresolved=unresolved_count,
                 ),
                 extra={
-                    "tenant_id": tenant.id,
+                    "tenant_id": tenant.tenant_code,
                     "reconciliation_id": reconciliation_id,
                 },
             )
@@ -309,7 +309,7 @@ class ReconcileDataSourcesStub(ReconcileDataSourcesProtocol):
 
         except Exception as e:
             reconciliations_total.labels(
-                tenant_id=tenant.id,
+                tenant_id=tenant.tenant_code,
                 source_a=input_data.source_a,
                 source_b=input_data.source_b,
                 status="error",

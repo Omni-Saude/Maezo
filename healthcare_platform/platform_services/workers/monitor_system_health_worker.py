@@ -170,7 +170,7 @@ class MonitorSystemHealthStub(MonitorSystemHealthProtocol):
         _dmn = get_dmn_service()
         try:
             _dmn_result = _dmn.evaluate(
-                tenant_id=tenant.id,
+                tenant_id=tenant.tenant_code,
                 category='infrastructure',
                 table_name='config/infra_001',
                 inputs={'components': input_data.components, 'alert_threshold': input_data.alert_threshold},
@@ -184,7 +184,7 @@ class MonitorSystemHealthStub(MonitorSystemHealthProtocol):
             _("Iniciando monitoramento de saúde: {components}").format(
                 components=", ".join(input_data.components)
             ),
-            extra={"tenant_id": tenant.id},
+            extra={"tenant_id": tenant.tenant_code},
         )
 
         try:
@@ -199,13 +199,13 @@ class MonitorSystemHealthStub(MonitorSystemHealthProtocol):
 
                 # Atualiza gauge Prometheus
                 system_health_gauge.labels(
-                    tenant_id=tenant.id,
+                    tenant_id=tenant.tenant_code,
                     component=component,
                 ).set(component_health.health_score)
 
                 # Contador por status
                 health_checks_total.labels(
-                    tenant_id=tenant.id,
+                    tenant_id=tenant.tenant_code,
                     component=component,
                     status=component_health.status,
                 ).inc()
@@ -246,11 +246,11 @@ class MonitorSystemHealthStub(MonitorSystemHealthProtocol):
 
             # Histogram de duração
             health_duration_seconds.labels(
-                tenant_id=tenant.id,
+                tenant_id=tenant.tenant_code,
                 component="overall",
             ).observe(duration)
 
-            monitoring_id = f"HEALTH-{tenant.id}-{int(start_time.timestamp())}"
+            monitoring_id = f"HEALTH-{tenant.tenant_code}-{int(start_time.timestamp())}"
 
             output = MonitorSystemHealthOutput(
                 monitoring_id=monitoring_id,
@@ -270,7 +270,7 @@ class MonitorSystemHealthStub(MonitorSystemHealthProtocol):
                     status=overall_status,
                 ),
                 extra={
-                    "tenant_id": tenant.id,
+                    "tenant_id": tenant.tenant_code,
                     "monitoring_id": monitoring_id,
                 },
             )

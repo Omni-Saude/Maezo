@@ -156,7 +156,7 @@ def run(
     """Start external task workers and begin polling CIB Seven."""
 
     engine_url = os.getenv("CIBSEVEN_ENGINE_URL", "http://localhost:8080/engine-rest")
-    worker_id = os.getenv("WORKER_ID", f"maestro-worker-{os.getpid()}")
+    worker_id = os.getenv("WORKER_ID", f"maezo-worker-{os.getpid()}")
     health_port = int(os.getenv("HEALTH_PORT", "8000"))
 
     config = {
@@ -221,7 +221,7 @@ def run(
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Maestro CIB Seven Worker Runner")
+    parser = argparse.ArgumentParser(description="MAEZO CIB Seven Worker Runner")
     group = parser.add_mutually_exclusive_group(required=True)
     group.add_argument("--topics", help="Comma-separated topic names")
     group.add_argument(

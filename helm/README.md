@@ -1,4 +1,5 @@
-# Maestro Healthcare Platform - Infrastructure Quick Start
+# MAEZO Healthcare Platform - Infrastructure Quick Start
+**Master of Automation for Ecosystems & Orchestration**
 # This README guides DevOps through deploying the platform
 
 ## Prerequisites
@@ -159,7 +160,7 @@ Edit `k8s/base/secrets.yaml` and replace all `CHANGE_ME` values.
 ```bash
 # Create secrets in AWS
 aws secretsmanager create-secret \
-  --name maestro/db-credentials \
+  --name maezo/db-credentials \
   --secret-string '{"password":"secure-password"}'
 
 # Use External Secrets Operator
@@ -174,7 +175,7 @@ Integrate with Vault CSI driver for secrets injection.
 ### Grafana Dashboards
 
 Pre-configured dashboards:
-- Maestro Overview (BPM metrics)
+- MAEZO Overview (BPM metrics)
 - Worker Performance
 - FHIR Server Health
 - Revenue Cycle KPIs
@@ -200,21 +201,21 @@ All components output JSON logs compatible with:
 
 ### CIB Seven not starting
 ```bash
-kubectl -n maestro logs -l app.kubernetes.io/component=bpm-engine
-kubectl -n maestro describe pod -l app.kubernetes.io/component=bpm-engine
+kubectl -n maezo logs -l app.kubernetes.io/component=bpm-engine
+kubectl -n maezo describe pod -l app.kubernetes.io/component=bpm-engine
 ```
 
 ### Workers not processing tasks
 ```bash
 # Check external task locks
-kubectl -n maestro exec -it deploy/maestro-cib-seven -- \
+kubectl -n maezo exec -it deploy/maezo-cib-seven -- \
   curl http://localhost:8080/engine-rest/external-task?active=true
 ```
 
 ### FHIR queries slow
 ```bash
 # Check PostgreSQL connections
-kubectl -n maestro exec -it maestro-postgresql-0 -- \
+kubectl -n maezo exec -it maezo-postgresql-0 -- \
   psql -U fhir -c "SELECT count(*) FROM pg_stat_activity"
 ```
 

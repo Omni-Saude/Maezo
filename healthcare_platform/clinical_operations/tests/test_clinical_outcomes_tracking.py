@@ -11,9 +11,9 @@ from healthcare_platform.shared.multi_tenant.context import TenantContext, set_c
 
 
 @pytest.fixture
-def tenant_austa():
+def tenant_hospital_a():
     """Set up AUSTA tenant context."""
-    ctx = TenantContext.from_tenant_code(TenantCode.AUSTA)
+    ctx = TenantContext.from_tenant_code(TenantCode.HOSPITAL_A)
     set_current_tenant(ctx)
     yield ctx
     clear_tenant()
@@ -36,7 +36,7 @@ class TestClinicalOutcomesTrackingWorker:
     """Test cases for ClinicalOutcomesTrackingWorker."""
 
     @pytest.mark.asyncio
-    async def test_happy_path_track_outcome(self, worker, fhir_client, tenant_austa):
+    async def test_happy_path_track_outcome(self, worker, fhir_client, tenant_hospital_a):
         """Test successful clinical outcome tracking."""
         fhir_client.create.return_value = {
             "resourceType": "Observation",
@@ -59,7 +59,7 @@ class TestClinicalOutcomesTrackingWorker:
         fhir_client.create.assert_called_once()
 
     @pytest.mark.asyncio
-    async def test_missing_outcome_type_raises(self, worker, tenant_austa):
+    async def test_missing_outcome_type_raises(self, worker, tenant_hospital_a):
         """Test that missing outcome_type raises DomainException."""
         with pytest.raises(DomainException, match="outcome_type is required"):
             await worker.execute({
@@ -68,7 +68,7 @@ class TestClinicalOutcomesTrackingWorker:
             })
 
     @pytest.mark.asyncio
-    async def test_trend_analysis(self, worker, fhir_client, tenant_austa):
+    async def test_trend_analysis(self, worker, fhir_client, tenant_hospital_a):
         """Test outcome trend analysis over time."""
         fhir_client.search.return_value = [
             {"resourceType": "Observation", "id": "out-1", "valueInteger": 7},

@@ -33,7 +33,7 @@ class TenantCredentials:
 
     tenant_id: str
     keycloak_url: str
-    realm: str  # default: "austa-bpm"
+    realm: str  # default: "maezo-bpm"
     client_id: str
     client_secret: str
     token_endpoint: str
@@ -48,7 +48,7 @@ class VaultClient(Protocol):
 class TenantCredentialManager:
     """Manages per-tenant OAuth2 credentials via vault integration.
 
-    ADR-008: Keycloak realm "austa-bpm" with per-tenant service clients.
+    ADR-008: Keycloak realm "maezo-bpm" with per-tenant service clients.
     """
 
     def __init__(
@@ -57,7 +57,7 @@ class TenantCredentialManager:
         vault_backend: VaultBackend = VaultBackend.ENV,
         vault_client: VaultClient | None = None,
         keycloak_url: str = "",
-        realm: str = "austa-bpm",
+        realm: str = "maezo-bpm",
         secret_path_template: str = "healthcare/{tenant_id}/keycloak",
     ) -> None:
         self._vault_backend = vault_backend

@@ -15,7 +15,7 @@ def worker(fhir_client):
 
 class TestRegisterDependentWorker:
     @pytest.mark.asyncio
-    async def test_happy_path_registers_dependent(self, worker, fhir_client, tenant_austa, mock_patient):
+    async def test_happy_path_registers_dependent(self, worker, fhir_client, tenant_hospital_a, mock_patient):
         """Test successful dependent registration."""
         dependent_patient = {**mock_patient, "id": "patient-456"}
         fhir_client.create.return_value = dependent_patient
@@ -32,7 +32,7 @@ class TestRegisterDependentWorker:
         fhir_client.update.assert_called_once()
 
     @pytest.mark.asyncio
-    async def test_missing_required_field_raises(self, worker, tenant_austa):
+    async def test_missing_required_field_raises(self, worker, tenant_hospital_a):
         """Test that missing subscriber_id raises DomainException."""
         with pytest.raises(DomainException):
             await worker.execute({})
@@ -45,7 +45,7 @@ class TestRegisterDependentWorker:
             await worker.execute({"subscriber_id": "patient-123"})
 
     @pytest.mark.asyncio
-    async def test_invalid_relationship_raises(self, worker, tenant_austa):
+    async def test_invalid_relationship_raises(self, worker, tenant_hospital_a):
         """Test that invalid relationship type raises DomainException."""
         with pytest.raises(DomainException):
             await worker.execute({

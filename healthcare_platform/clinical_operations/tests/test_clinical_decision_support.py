@@ -11,9 +11,9 @@ from healthcare_platform.shared.multi_tenant.context import TenantContext, set_c
 
 
 @pytest.fixture
-def tenant_austa():
+def tenant_hospital_a():
     """Set up AUSTA tenant context."""
-    ctx = TenantContext.from_tenant_code(TenantCode.AUSTA)
+    ctx = TenantContext.from_tenant_code(TenantCode.HOSPITAL_A)
     set_current_tenant(ctx)
     yield ctx
     clear_tenant()
@@ -36,7 +36,7 @@ class TestClinicalDecisionSupportWorker:
     """Test cases for ClinicalDecisionSupportWorker."""
 
     @pytest.mark.asyncio
-    async def test_happy_path_generate_recommendations(self, worker, fhir_client, tenant_austa):
+    async def test_happy_path_generate_recommendations(self, worker, fhir_client, tenant_hospital_a):
         """Test successful CDS recommendation generation."""
         fhir_client.search.return_value = [
             {"resourceType": "Observation", "id": "obs-1", "code": {"coding": [{"code": "glucose"}]}}
@@ -55,7 +55,7 @@ class TestClinicalDecisionSupportWorker:
         fhir_client.search.assert_called()
 
     @pytest.mark.asyncio
-    async def test_missing_context_raises(self, worker, tenant_austa):
+    async def test_missing_context_raises(self, worker, tenant_hospital_a):
         """Test that missing context raises DomainException."""
         with pytest.raises(DomainException, match="context is required"):
             await worker.execute({
@@ -64,7 +64,7 @@ class TestClinicalDecisionSupportWorker:
             })
 
     @pytest.mark.asyncio
-    async def test_drug_interaction_alert(self, worker, fhir_client, tenant_austa):
+    async def test_drug_interaction_alert(self, worker, fhir_client, tenant_hospital_a):
         """Test drug interaction detection."""
         fhir_client.search.return_value = [
             {"resourceType": "MedicationRequest", "id": "med-1", "medicationCodeableConcept": {"coding": [{"code": "warfarin"}]}}

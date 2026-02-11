@@ -14,12 +14,12 @@ CIB Seven supports: Basic Auth (username/password), OAuth2/OIDC with external pr
 
 We will use **Keycloak 24** as the identity provider with OAuth2 and OpenID Connect for all platform authentication.
 
-A dedicated realm `austa-bpm` will contain:
+A dedicated realm `maezo-bpm` will contain:
 
 1. **Service clients** with `client_credentials` grant for workers and CDC bridge — each worker type has its own client ID (e.g., `worker-eligibility`, `worker-tiss`, `cdc-bridge`) with scoped permissions
 2. **User accounts** for human operators (Cockpit, Tasklist, Admin) with password + MFA
 3. **Tenant-to-group mappings** — each hospital unit is a Keycloak group; users/clients assigned to groups enforce data visibility:
-   - `austa-hospital`
+   - `hospital-a`
    - `amh-sp-morumbi`
    - `amh-rj-barra`
    - `amh-mg-bh`
@@ -39,4 +39,4 @@ Realm configuration exported as JSON, stored in IaC repo, deployed via Helm char
 **Negative:**
 
 - Keycloak adds an infrastructure component. *Mitigation:* deployed as Kubernetes Deployment with PostgreSQL backing, included in standard monitoring.
-- Workers must handle token refresh. *Mitigation:* `AustaWorker` base framework handles refresh transparently; individual developers never interact with auth directly.
+- Workers must handle token refresh. *Mitigation:* `MaezoWorker` base framework handles refresh transparently; individual developers never interact with auth directly.

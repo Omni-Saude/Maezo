@@ -6,7 +6,7 @@
 
 ## Context
 
-The Grupo AUSTA hospital network requires a central BPM engine to orchestrate revenue cycle, clinical alerts, and patient experience processes across multiple units (Hospital AUSTA, AMH SP, AMH RJ, AMH MG). The engine must support BPMN 2.0, DMN 1.3, External Task pattern, multi-tenancy, and a complete REST API.
+The Healthcare Group hospital network requires a central BPM engine to orchestrate revenue cycle, clinical alerts, and patient experience processes across multiple units (Hospital AUSTA, AMH SP, AMH RJ, AMH MG). The engine must support BPMN 2.0, DMN 1.3, External Task pattern, multi-tenancy, and a complete REST API.
 
 Four candidates were evaluated:
 

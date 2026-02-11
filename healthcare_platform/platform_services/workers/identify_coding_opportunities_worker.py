@@ -146,7 +146,7 @@ class IdentifyCodingOpportunitiesStub(IdentifyCodingOpportunitiesProtocol):
         tenant = get_required_tenant()
         try:
             _dmn_result = self._dmn.evaluate(
-                tenant_id=tenant.id,
+                tenant_id=tenant.tenant_code,
                 category='compliance',
                 table_name='tiss/comp_tiss_005',
                 inputs={'encounter_id': input_data.encounter_id},

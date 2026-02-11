@@ -30,7 +30,7 @@ Single **mono-repo** (`austa-orchestration-platform`) with this top-level struct
 ├── dmn/
 │   ├── global/            # Default decision tables
 │   └── tenants/           # Tenant-specific overrides
-│       ├── austa-hospital/
+│       ├── hospital-a/
 │       ├── amh-sp-morumbi/
 │       └── ...
 ├── workers/
@@ -39,7 +39,7 @@ Single **mono-repo** (`austa-orchestration-platform`) with this top-level struct
 │   ├── worker-denial/
 │   ├── worker-whatsapp/
 │   ├── worker-clinical/
-│   └── worker-base/       # Shared AustaWorker framework
+│   └── worker-base/       # Shared MaezoWorker framework
 ├── adapters/
 │   ├── tasy-adapter/
 │   ├── mvsoul-adapter/

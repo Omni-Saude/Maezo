@@ -156,7 +156,7 @@ class GenerateRegulatoryReportsStub(GenerateRegulatoryReportsProtocol):
         tenant = get_required_tenant()
         try:
             _dmn_result = self._dmn.evaluate(
-                tenant_id=tenant.id,
+                tenant_id=tenant.tenant_code,
                 category='compliance',
                 table_name='ans/comp_ans_001',
                 inputs={'report_type': input_data.report_type, 'reference_period': input_data.reference_period},
@@ -172,7 +172,7 @@ class GenerateRegulatoryReportsStub(GenerateRegulatoryReportsProtocol):
                 period=input_data.reference_period,
             ),
             extra={
-                "tenant_id": tenant.id,
+                "tenant_id": tenant.tenant_code,
                 "ans_code": input_data.ans_registry_code,
             },
         )
@@ -219,17 +219,17 @@ class GenerateRegulatoryReportsStub(GenerateRegulatoryReportsProtocol):
 
             # Atualiza métricas Prometheus
             regulatory_reports_total.labels(
-                tenant_id=tenant.id,
+                tenant_id=tenant.tenant_code,
                 report_type=input_data.report_type,
                 status="success",
             ).inc()
 
             report_duration_seconds.labels(
-                tenant_id=tenant.id,
+                tenant_id=tenant.tenant_code,
                 report_type=input_data.report_type,
             ).observe(duration)
 
-            report_id = f"REG-{tenant.id}-{input_data.report_type}-{input_data.reference_period}"
+            report_id = f"REG-{tenant.tenant_code}-{input_data.report_type}-{input_data.reference_period}"
 
             output = GenerateRegulatoryReportsOutput(
                 report_id=report_id,
@@ -250,7 +250,7 @@ class GenerateRegulatoryReportsStub(GenerateRegulatoryReportsProtocol):
                     compliance=round(compliance_rate, 1),
                 ),
                 extra={
-                    "tenant_id": tenant.id,
+                    "tenant_id": tenant.tenant_code,
                     "report_id": report_id,
                 },
             )
@@ -259,7 +259,7 @@ class GenerateRegulatoryReportsStub(GenerateRegulatoryReportsProtocol):
 
         except Exception as e:
             regulatory_reports_total.labels(
-                tenant_id=tenant.id,
+                tenant_id=tenant.tenant_code,
                 report_type=input_data.report_type,
                 status="error",
             ).inc()

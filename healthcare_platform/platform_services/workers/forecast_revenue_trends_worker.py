@@ -430,7 +430,7 @@ class ForecastRevenueTrendsWorkerStub(ForecastRevenueTrendsProtocol):
         tenant_id = get_required_tenant()
         try:
             _dmn_result = self._dmn.evaluate(
-                tenant_id=tenant.id,
+                tenant_id=tenant.tenant_code,
                 category='compliance',
                 table_name='ans/comp_ans_004',
                 inputs={'forecast_horizon': input_data.forecast_horizon_months},

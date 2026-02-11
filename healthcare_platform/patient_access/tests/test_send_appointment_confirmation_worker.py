@@ -24,7 +24,7 @@ def worker(fhir_client, whatsapp_client):
 
 class TestSendAppointmentConfirmationWorker:
     @pytest.mark.asyncio
-    async def test_happy_path_sends_confirmation(self, worker, fhir_client, tenant_austa, mock_appointment, mock_patient):
+    async def test_happy_path_sends_confirmation(self, worker, fhir_client, tenant_hospital_a, mock_appointment, mock_patient):
         """Test successful appointment confirmation."""
         fhir_client.read.side_effect = [mock_appointment, mock_patient]
         worker.confirmation_sender.send_whatsapp.return_value = {
@@ -41,7 +41,7 @@ class TestSendAppointmentConfirmationWorker:
         worker.confirmation_sender.send_whatsapp.assert_called_once()
 
     @pytest.mark.asyncio
-    async def test_missing_required_field_raises(self, worker, tenant_austa):
+    async def test_missing_required_field_raises(self, worker, tenant_hospital_a):
         """Test that missing appointment_id raises DomainException."""
         with pytest.raises(DomainException):
             await worker.execute({})
@@ -54,7 +54,7 @@ class TestSendAppointmentConfirmationWorker:
             await worker.execute({"appointment_id": "appointment-789"})
 
     @pytest.mark.asyncio
-    async def test_confirmation_failure_logs_error(self, worker, fhir_client, tenant_austa, mock_appointment, mock_patient):
+    async def test_confirmation_failure_logs_error(self, worker, fhir_client, tenant_hospital_a, mock_appointment, mock_patient):
         """Test that confirmation failure is handled gracefully."""
         fhir_client.read.side_effect = [mock_appointment, mock_patient]
         worker.confirmation_sender.send_whatsapp.side_effect = Exception("WhatsApp API unavailable")

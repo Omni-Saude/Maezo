@@ -24,7 +24,7 @@ def worker(fhir_client, whatsapp_client):
 
 class TestSendReminderNotificationWorker:
     @pytest.mark.asyncio
-    async def test_happy_path_sends_reminder(self, worker, fhir_client, tenant_austa, mock_appointment, mock_patient):
+    async def test_happy_path_sends_reminder(self, worker, fhir_client, tenant_hospital_a, mock_appointment, mock_patient):
         """Test successful reminder notification."""
         fhir_client.read.side_effect = [mock_appointment, mock_patient]
         worker.reminder_sender.send_whatsapp.return_value = {
@@ -42,7 +42,7 @@ class TestSendReminderNotificationWorker:
         worker.reminder_sender.send_whatsapp.assert_called_once()
 
     @pytest.mark.asyncio
-    async def test_missing_required_field_raises(self, worker, tenant_austa):
+    async def test_missing_required_field_raises(self, worker, tenant_hospital_a):
         """Test that missing appointment_id raises DomainException."""
         with pytest.raises(DomainException):
             await worker.execute({})
@@ -55,7 +55,7 @@ class TestSendReminderNotificationWorker:
             await worker.execute({"appointment_id": "appointment-789"})
 
     @pytest.mark.asyncio
-    async def test_multiple_reminder_types(self, worker, fhir_client, tenant_austa, mock_appointment, mock_patient):
+    async def test_multiple_reminder_types(self, worker, fhir_client, tenant_hospital_a, mock_appointment, mock_patient):
         """Test different reminder types."""
         fhir_client.read.side_effect = [mock_appointment, mock_patient]
         worker.reminder_sender.send_whatsapp.return_value = {

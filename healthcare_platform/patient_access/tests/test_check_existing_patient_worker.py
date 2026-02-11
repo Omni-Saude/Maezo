@@ -15,7 +15,7 @@ def worker(fhir_client):
 
 class TestCheckExistingPatientWorker:
     @pytest.mark.asyncio
-    async def test_happy_path_finds_existing_patient(self, worker, fhir_client, tenant_austa, mock_patient):
+    async def test_happy_path_finds_existing_patient(self, worker, fhir_client, tenant_hospital_a, mock_patient):
         """Test successful check for existing patient."""
         fhir_client.search.return_value = {"entry": [{"resource": mock_patient}]}
 
@@ -28,7 +28,7 @@ class TestCheckExistingPatientWorker:
         fhir_client.search.assert_called_once()
 
     @pytest.mark.asyncio
-    async def test_missing_required_field_raises(self, worker, tenant_austa):
+    async def test_missing_required_field_raises(self, worker, tenant_hospital_a):
         """Test that missing cpf raises DomainException."""
         with pytest.raises(DomainException):
             await worker.execute({})
@@ -41,7 +41,7 @@ class TestCheckExistingPatientWorker:
             await worker.execute({"cpf": "12345678901"})
 
     @pytest.mark.asyncio
-    async def test_patient_not_found_returns_false(self, worker, fhir_client, tenant_austa):
+    async def test_patient_not_found_returns_false(self, worker, fhir_client, tenant_hospital_a):
         """Test that non-existing patient returns exists=False."""
         fhir_client.search.return_value = {"entry": []}
 

@@ -11,9 +11,9 @@ from healthcare_platform.shared.multi_tenant.context import TenantContext, set_c
 
 
 @pytest.fixture
-def tenant_austa():
+def tenant_hospital_a():
     """Set up AUSTA tenant context."""
-    ctx = TenantContext.from_tenant_code(TenantCode.AUSTA)
+    ctx = TenantContext.from_tenant_code(TenantCode.HOSPITAL_A)
     set_current_tenant(ctx)
     yield ctx
     clear_tenant()
@@ -36,7 +36,7 @@ class TestClinicalReportingWorker:
     """Test cases for ClinicalReportingWorker."""
 
     @pytest.mark.asyncio
-    async def test_happy_path_generate_report(self, worker, fhir_client, tenant_austa):
+    async def test_happy_path_generate_report(self, worker, fhir_client, tenant_hospital_a):
         """Test successful clinical report generation."""
         fhir_client.search.return_value = [
             {"resourceType": "Encounter", "id": "enc-1", "status": "finished"},
@@ -56,7 +56,7 @@ class TestClinicalReportingWorker:
         fhir_client.search.assert_called()
 
     @pytest.mark.asyncio
-    async def test_missing_report_type_raises(self, worker, tenant_austa):
+    async def test_missing_report_type_raises(self, worker, tenant_hospital_a):
         """Test that missing report_type raises DomainException."""
         with pytest.raises(DomainException, match="report_type is required"):
             await worker.execute({
@@ -65,7 +65,7 @@ class TestClinicalReportingWorker:
             })
 
     @pytest.mark.asyncio
-    async def test_patient_specific_report(self, worker, fhir_client, tenant_austa):
+    async def test_patient_specific_report(self, worker, fhir_client, tenant_hospital_a):
         """Test patient-specific clinical report."""
         fhir_client.search.return_value = [
             {"resourceType": "Observation", "id": "obs-1"},

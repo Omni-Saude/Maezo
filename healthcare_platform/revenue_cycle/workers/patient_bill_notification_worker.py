@@ -134,7 +134,7 @@ class PatientBillNotificationWorker:
         except Exception as e:
             logger.error(
                 "Validation error for bill notification",
-                extra={"error": str(e), "tenant_id": tenant.id},
+                extra={"error": str(e), "tenant_id": tenant.tenant_code},
             )
             raise RevenueCycleException(
                 message=_("Invalid input for bill notification"),
@@ -146,7 +146,7 @@ class PatientBillNotificationWorker:
             extra={
                 "patient_id": input_data.patient_id,
                 "bill_id": input_data.bill_id,
-                "tenant_id": tenant.id,
+                "tenant_id": tenant.tenant_code,
                 # LGPD: Never log phone_number or payment details
             },
         )
@@ -166,19 +166,22 @@ class PatientBillNotificationWorker:
 
         # Add interactive buttons (WhatsApp max 3 buttons)
         try:
-            view_url = f"https://portal.austa.com.br/bill/{input_data.bill_id}"
-            pay_url = f"https://portal.austa.com.br/pay/bill/{input_data.bill_id}"
-            plan_url = f"https://portal.austa.com.br/plan/{input_data.bill_id}"
+            view_url = f"https://portal.maezo.com.br/bill/{input_data.bill_id}"
+            pay_url = f"https://portal.maezo.com.br/pay/bill/{input_data.bill_id}"
+            plan_url = f"https://portal.maezo.com.br/plan/{input_data.bill_id}"
 
-            template.buttons = [
-                {"type": "url", "text": "Ver Detalhes", "url": view_url},
-                {"type": "url", "text": "Pagar Agora", "url": pay_url},
-                {"type": "url", "text": "Parcelar", "url": plan_url},
-            ]
+            # Note: buttons attribute may not exist in base WhatsAppTemplate
+            # This is handled by the WhatsApp client implementation
+            if hasattr(template, 'buttons'):
+                template.buttons = [
+                    {"type": "url", "text": "Ver Conta", "url": view_url},
+                    {"type": "url", "text": "Pagar Agora", "url": pay_url},
+                    {"type": "url", "text": "Parcelar", "url": plan_url},
+                ]
         except Exception as e:
             logger.warning(
                 "Could not add interactive buttons to template",
-                extra={"error": str(e), "tenant_id": tenant.id},
+                extra={"error": str(e), "tenant_id": tenant.tenant_code},
             )
 
         # Send WhatsApp notification
@@ -194,7 +197,7 @@ class PatientBillNotificationWorker:
                     "patient_id": input_data.patient_id,
                     "bill_id": input_data.bill_id,
                     "error": str(e),
-                    "tenant_id": tenant.id,
+                    "tenant_id": tenant.tenant_code,
                 },
             )
             raise RevenueCycleException(
@@ -218,7 +221,7 @@ class PatientBillNotificationWorker:
                 "patient_id": input_data.patient_id,
                 "bill_id": input_data.bill_id,
                 "message_id": message_id,
-                "tenant_id": tenant.id,
+                "tenant_id": tenant.tenant_code,
             },
         )
 

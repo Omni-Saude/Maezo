@@ -19,7 +19,7 @@ logger = logging.getLogger(__name__)
 # ── Tenant-to-identifier mapping (ADR-002) ─────────────────────────────
 
 TENANT_ID_MAP: dict[TenantCode, str] = {
-    TenantCode.AUSTA: "austa-hospital",
+    TenantCode.HOSPITAL_A: "austa-hospital",
     TenantCode.AMH_SP: "amh-sp-morumbi",
     TenantCode.AMH_RJ: "amh-rj-barra",
     TenantCode.AMH_MG: "amh-mg-bh",

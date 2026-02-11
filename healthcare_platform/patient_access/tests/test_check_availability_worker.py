@@ -15,7 +15,7 @@ def worker(fhir_client):
 
 class TestCheckAvailabilityWorker:
     @pytest.mark.asyncio
-    async def test_happy_path_checks_availability(self, worker, fhir_client, tenant_austa):
+    async def test_happy_path_checks_availability(self, worker, fhir_client, tenant_hospital_a):
         """Test successful availability check."""
         fhir_client.search.return_value = {
             "entry": []  # No conflicting appointments
@@ -31,7 +31,7 @@ class TestCheckAvailabilityWorker:
         fhir_client.search.assert_called_once()
 
     @pytest.mark.asyncio
-    async def test_missing_required_field_raises(self, worker, tenant_austa):
+    async def test_missing_required_field_raises(self, worker, tenant_hospital_a):
         """Test that missing practitioner_id raises DomainException."""
         with pytest.raises(DomainException):
             await worker.execute({})
@@ -44,7 +44,7 @@ class TestCheckAvailabilityWorker:
             await worker.execute({"practitioner_id": "practitioner-001"})
 
     @pytest.mark.asyncio
-    async def test_conflicting_appointment_returns_false(self, worker, fhir_client, tenant_austa, mock_appointment):
+    async def test_conflicting_appointment_returns_false(self, worker, fhir_client, tenant_hospital_a, mock_appointment):
         """Test that conflicting appointment returns available=False."""
         fhir_client.search.return_value = {
             "entry": [{"resource": mock_appointment}]

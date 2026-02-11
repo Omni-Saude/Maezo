@@ -151,7 +151,7 @@ class AppointmentStatus(StrEnum):
 # -- Tenant --
 @unique
 class TenantCode(StrEnum):
-    AUSTA = "AUSTA"
+    HOSPITAL_A = "HOSPITAL_A"
     AMH_SP = "AMH-SP"
     AMH_RJ = "AMH-RJ"
     AMH_MG = "AMH-MG"

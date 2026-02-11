@@ -339,7 +339,7 @@ async def execute(input_data: dict[str, Any]) -> dict[str, Any]:
     logger.info(
         _("Iniciando integração laboratorial"),
         extra={
-            "tenant_id": tenant.id,
+            "tenant_id": tenant.tenant_code,
             "integration_id": integration_id,
             "patient_id_hash": patient_id_hash,
             "test_type": parsed_input.test_type,
@@ -351,7 +351,7 @@ async def execute(input_data: dict[str, Any]) -> dict[str, Any]:
     _dmn = get_dmn_service()
     try:
         _dmn_config = _dmn.evaluate(
-            tenant_id=tenant.id,
+            tenant_id=tenant.tenant_code,
             category='infrastructure',
             table_name='config/infra_001',
             inputs={'order_type': parsed_input.order_type},
@@ -414,26 +414,26 @@ async def execute(input_data: dict[str, Any]) -> dict[str, Any]:
 
         # Métricas
         lab_integrations_total.labels(
-            tenant_id=tenant.id,
+            tenant_id=tenant.tenant_code,
             test_type=parsed_input.test_type,
             status="success",
         ).inc()
 
         lab_duration_seconds.labels(
-            tenant_id=tenant.id,
+            tenant_id=tenant.tenant_code,
             test_type=parsed_input.test_type,
         ).observe(duration_ms / 1000.0)
 
         if critical_results:
             lab_critical_results_total.labels(
-                tenant_id=tenant.id,
+                tenant_id=tenant.tenant_code,
                 test_type=parsed_input.test_type,
             ).inc(len(critical_results))
 
         logger.info(
             _("Integração laboratorial concluída com sucesso"),
             extra={
-                "tenant_id": tenant.id,
+                "tenant_id": tenant.tenant_code,
                 "integration_id": integration_id,
                 "patient_id_hash": patient_id_hash,
                 "results_count": len(results),
@@ -448,7 +448,7 @@ async def execute(input_data: dict[str, Any]) -> dict[str, Any]:
         logger.error(
             _("Erro na integração laboratorial"),
             extra={
-                "tenant_id": tenant.id,
+                "tenant_id": tenant.tenant_code,
                 "integration_id": integration_id,
                 "patient_id_hash": patient_id_hash,
                 "error": str(e),
