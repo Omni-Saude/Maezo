@@ -1,15 +1,45 @@
 # Pendências para Desenvolvedores
 
-**Versão:** 1.1
-**Data:** 10 de Fevereiro de 2026
-**Última Atualização:** Wave 0.5 - Infrastructure Acceleration
+**Versão:** 1.2
+**Data:** 11 de Fevereiro de 2026
+**Última Atualização:** Waves 3.7, 3.8, 3.9, 6.1 - Webhook, CDC Bridge, DMN Tooling, Pharmacy Adapters
 **Baseado em:** [Especificação Técnica Consolidada v1.1](../Technical%20specification/technical-specification.md)
 
 > Tarefas que **não podem ser automatizadas por agentes de IA** e requerem trabalho manual de desenvolvedores humanos, DevOps, analistas de negócio ou stakeholders hospitalares.
 
 ---
 
-## ✅ NOVO: Artefatos Gerados pelo AI (Wave 0.5)
+## ✅ NOVO: Artefatos Gerados pelo AI (Wave 3.7-6.1 — 2026-02-11)
+
+### Session Summary: 8 Waves Completed, 45+ Files, ~8,300 Lines
+
+| Wave | Artefato | Localização | Linhas | Status |
+|------|----------|-------------|--------|--------|
+| **3.7a** | Webhook Infrastructure | `healthcare_platform/shared/webhooks/` | 1,111 | ✅ VERIFIED |
+| **3.7b** | FHIR Adapters (Claim, ClaimResponse, Observation, MedicationRequest) | `healthcare_platform/shared/integrations/tasy_adapters/` | 2,243 | ✅ VERIFIED |
+| **3.7-INFRA** | Helm/K8s for Webhook & CDC Bridge | `helm/maestro/templates/` | 279+ | ✅ VERIFIED |
+| **3.7c** | Webhook Handlers (5 handlers) | `healthcare_platform/shared/webhooks/handlers/` | 904 | ✅ VERIFIED |
+| **3.8** | CDC-to-BPM Bridge Service | `healthcare_platform/shared/cdc_bridge/` | 719 | ✅ VERIFIED |
+| **3.8.1** | CDC Bridge Unit Tests | `tests/unit/cdc_bridge/` | 738 | ✅ 35/35 PASSED |
+| **3.9** | DMN Validation Tooling | `scripts/` | 632 | ✅ VERIFIED (85% FEEL coverage) |
+| **6.1** | TASY Pharmacy Adapters + Tests | `healthcare_platform/shared/integrations/tasy_adapters/` | 1,663 | ✅ 12/12 PASSED |
+
+### New Components Available:
+
+| Componente | Localização | Descrição |
+|------------|-------------|-----------|
+| **Webhook Receiver Service** | `healthcare_platform/shared/webhooks/` | FastAPI async callback receiver (ADR-014) |
+| **5 Webhook Handlers** | `healthcare_platform/shared/webhooks/handlers/` | tasy_regulatory, tasy_authorization, pix_payment, whatsapp_message, tiss_response |
+| **CDC Bridge Service** | `healthcare_platform/shared/cdc_bridge/` | Kafka→CIB7 event transformer (ADR-004) |
+| **4 New FHIR Adapters** | `healthcare_platform/shared/integrations/tasy_adapters/` | claim, claim_response, observation, medication_request |
+| **3 Pharmacy Adapters** | `healthcare_platform/shared/integrations/tasy_adapters/` | medication_dispense, pharmacy_inventory, drug_interaction |
+| **DMN Validation Scripts** | `scripts/` | validate_dmn.py, dmn_inventory.py, dmn_tenant_resolver.py |
+| **Webhook K8s Deployment** | `helm/maestro/templates/webhook-receiver-*.yaml` | Deployment, Service, HPA |
+| **CDC Bridge K8s Deployment** | `helm/maestro/templates/cdc-bridge-*.yaml` | Deployment, Service |
+
+---
+
+## ✅ ATUALIZADO: Artefatos Gerados pelo AI (Wave 0.5)
 
 Os seguintes artefatos foram gerados e estão prontos para uso:
 
@@ -117,11 +147,14 @@ Os seguintes artefatos foram gerados e estão prontos para uso:
 - [ ] Configurar canais HL7 para integração com sistemas hospitalares
 - [ ] Configurar tópico Kafka `mirth.fhir.observations`
 
-### 3.5 cdc-to-bpm-bridge (Python)
-- [ ] Implementar consumer Kafka → REST API CIB Seven
-- [ ] Implementar lógica de start/correlate process instances
-- [ ] Configurar dead-letter queue (`bridge.dead-letter`)
-- [ ] Implementar retry com backoff
+### 3.5 cdc-to-bpm-bridge (Python) ✅ IMPLEMENTADO
+- [x] Implementar consumer Kafka → REST API CIB Seven — **`healthcare_platform/shared/cdc_bridge/`**
+- [x] Implementar lógica de start/correlate process instances — **4 tables mapeadas (ADR-004)**
+- [x] Configurar dead-letter queue (`bridge.dead-letter`) — **`dead_letter.py`**
+- [x] Implementar retry com backoff — **Exponential backoff (3 attempts)**
+- [x] Unit tests com 100% pass rate — **35/35 tests (`tests/unit/cdc_bridge/`)**
+- [ ] **HUMANO**: Habilitar Oracle LogMiner no Tasy para CDC funcionar
+- [ ] **HUMANO**: Deploy em staging com Kafka real
 
 ---
 

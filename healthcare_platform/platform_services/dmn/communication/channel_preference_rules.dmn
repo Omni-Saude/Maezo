@@ -1,0 +1,328 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/"
+             xmlns:dc="http://www.omg.org/spec/DMN/20180521/DC/"
+             xmlns:camunda="http://camunda.org/schema/1.0/dmn"
+             xmlns:biodi="http://bpmn.io/schema/dmn/biodi/2.0"
+             id="Definitions_channel_preference"
+             name="Channel Preference Rules"
+             namespace="http://healthcare.platform/dmn/communication">
+
+  <decision id="channel_preference_rules" name="Channel Preference Rules">
+    <informationRequirement>
+      <requiredInput href="#InputData_patientAge"/>
+    </informationRequirement>
+    <informationRequirement>
+      <requiredInput href="#InputData_hasWhatsApp"/>
+    </informationRequirement>
+    <informationRequirement>
+      <requiredInput href="#InputData_preferredChannel"/>
+    </informationRequirement>
+    <informationRequirement>
+      <requiredInput href="#InputData_messageType"/>
+    </informationRequirement>
+
+    <decisionTable id="DecisionTable_channel" hitPolicy="FIRST">
+      <input id="Input_patientAge" label="Patient Age" camunda:inputVariable="patientAge">
+        <inputExpression id="InputExpression_patientAge" typeRef="integer">
+          <text>patientAge</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_hasWhatsApp" label="Has WhatsApp" camunda:inputVariable="hasWhatsApp">
+        <inputExpression id="InputExpression_hasWhatsApp" typeRef="boolean">
+          <text>hasWhatsApp</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_preferredChannel" label="Preferred Channel" camunda:inputVariable="preferredChannel">
+        <inputExpression id="InputExpression_preferredChannel" typeRef="string">
+          <text>preferredChannel</text>
+        </inputExpression>
+        <inputValues id="UnaryTests_preferredChannel">
+          <text>"whatsapp","sms","email","any"</text>
+        </inputValues>
+      </input>
+
+      <input id="Input_messageType" label="Message Type" camunda:inputVariable="messageType">
+        <inputExpression id="InputExpression_messageType" typeRef="string">
+          <text>messageType</text>
+        </inputExpression>
+        <inputValues id="UnaryTests_messageType">
+          <text>"notification","interactive","document"</text>
+        </inputValues>
+      </input>
+
+      <output id="Output_primaryChannel" label="Primary Channel" name="primaryChannel" typeRef="string">
+        <outputValues id="UnaryTests_primaryChannel">
+          <text>"whatsapp","sms","email"</text>
+        </outputValues>
+      </output>
+      <output id="Output_fallbackChannel" label="Fallback Channel" name="fallbackChannel" typeRef="string">
+        <outputValues id="UnaryTests_fallbackChannel">
+          <text>"whatsapp","sms","email"</text>
+        </outputValues>
+      </output>
+
+      <!-- Rule 1: Interactive messages with WhatsApp available -->
+      <rule id="Rule_interactive_whatsapp">
+        <description>Interactive messages: prefer WhatsApp for rich interactions, fallback to SMS</description>
+        <inputEntry id="InputEntry_r1_patientAge">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_r1_hasWhatsApp">
+          <text>true</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_r1_preferredChannel">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_r1_messageType">
+          <text>"interactive"</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_r1_primaryChannel">
+          <text>"whatsapp"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_r1_fallbackChannel">
+          <text>"sms"</text>
+        </outputEntry>
+      </rule>
+
+      <!-- Rule 2: Interactive messages without WhatsApp -->
+      <rule id="Rule_interactive_no_whatsapp">
+        <description>Interactive messages without WhatsApp: use SMS, fallback to email</description>
+        <inputEntry id="InputEntry_r2_patientAge">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_r2_hasWhatsApp">
+          <text>false</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_r2_preferredChannel">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_r2_messageType">
+          <text>"interactive"</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_r2_primaryChannel">
+          <text>"sms"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_r2_fallbackChannel">
+          <text>"email"</text>
+        </outputEntry>
+      </rule>
+
+      <!-- Rule 3: Document messages with WhatsApp -->
+      <rule id="Rule_document_whatsapp">
+        <description>Document messages: WhatsApp supports rich media and PDFs, fallback to email</description>
+        <inputEntry id="InputEntry_r3_patientAge">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_r3_hasWhatsApp">
+          <text>true</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_r3_preferredChannel">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_r3_messageType">
+          <text>"document"</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_r3_primaryChannel">
+          <text>"whatsapp"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_r3_fallbackChannel">
+          <text>"email"</text>
+        </outputEntry>
+      </rule>
+
+      <!-- Rule 4: Document messages without WhatsApp -->
+      <rule id="Rule_document_no_whatsapp">
+        <description>Document messages without WhatsApp: email is best for attachments</description>
+        <inputEntry id="InputEntry_r4_patientAge">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_r4_hasWhatsApp">
+          <text>false</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_r4_preferredChannel">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_r4_messageType">
+          <text>"document"</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_r4_primaryChannel">
+          <text>"email"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_r4_fallbackChannel">
+          <text>"sms"</text>
+        </outputEntry>
+      </rule>
+
+      <!-- Rule 5: Elderly patients - simple notification -->
+      <rule id="Rule_elderly_notification">
+        <description>Elderly patients (70+) with notifications: prefer simpler SMS channel</description>
+        <inputEntry id="InputEntry_r5_patientAge">
+          <text>&gt; 70</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_r5_hasWhatsApp">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_r5_preferredChannel">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_r5_messageType">
+          <text>"notification"</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_r5_primaryChannel">
+          <text>"sms"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_r5_fallbackChannel">
+          <text>"email"</text>
+        </outputEntry>
+      </rule>
+
+      <!-- Rule 6: Elderly patients - interactive with WhatsApp -->
+      <rule id="Rule_elderly_interactive_whatsapp">
+        <description>Elderly patients (70+) with WhatsApp and interactive: still use WhatsApp for familiarity</description>
+        <inputEntry id="InputEntry_r6_patientAge">
+          <text>&gt; 70</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_r6_hasWhatsApp">
+          <text>true</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_r6_preferredChannel">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_r6_messageType">
+          <text>"interactive"</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_r6_primaryChannel">
+          <text>"whatsapp"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_r6_fallbackChannel">
+          <text>"sms"</text>
+        </outputEntry>
+      </rule>
+
+      <!-- Rule 7: User preference WhatsApp with capability -->
+      <rule id="Rule_preference_whatsapp">
+        <description>User explicitly prefers WhatsApp and has it enabled</description>
+        <inputEntry id="InputEntry_r7_patientAge">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_r7_hasWhatsApp">
+          <text>true</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_r7_preferredChannel">
+          <text>"whatsapp"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_r7_messageType">
+          <text>-</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_r7_primaryChannel">
+          <text>"whatsapp"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_r7_fallbackChannel">
+          <text>"sms"</text>
+        </outputEntry>
+      </rule>
+
+      <!-- Rule 8: User preference SMS -->
+      <rule id="Rule_preference_sms">
+        <description>User explicitly prefers SMS</description>
+        <inputEntry id="InputEntry_r8_patientAge">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_r8_hasWhatsApp">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_r8_preferredChannel">
+          <text>"sms"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_r8_messageType">
+          <text>-</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_r8_primaryChannel">
+          <text>"sms"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_r8_fallbackChannel">
+          <text>"whatsapp"</text>
+        </outputEntry>
+      </rule>
+
+      <!-- Rule 9: User preference email -->
+      <rule id="Rule_preference_email">
+        <description>User explicitly prefers email</description>
+        <inputEntry id="InputEntry_r9_patientAge">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_r9_hasWhatsApp">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_r9_preferredChannel">
+          <text>"email"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_r9_messageType">
+          <text>-</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_r9_primaryChannel">
+          <text>"email"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_r9_fallbackChannel">
+          <text>"whatsapp"</text>
+        </outputEntry>
+      </rule>
+
+      <!-- Rule 10: Default with WhatsApp -->
+      <rule id="Rule_default_whatsapp">
+        <description>Default case with WhatsApp available: use WhatsApp with email fallback</description>
+        <inputEntry id="InputEntry_r10_patientAge">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_r10_hasWhatsApp">
+          <text>true</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_r10_preferredChannel">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_r10_messageType">
+          <text>-</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_r10_primaryChannel">
+          <text>"whatsapp"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_r10_fallbackChannel">
+          <text>"email"</text>
+        </outputEntry>
+      </rule>
+
+      <!-- Rule 11: Default without WhatsApp -->
+      <rule id="Rule_default_no_whatsapp">
+        <description>Default case without WhatsApp: use SMS with email fallback</description>
+        <inputEntry id="InputEntry_r11_patientAge">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_r11_hasWhatsApp">
+          <text>false</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_r11_preferredChannel">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_r11_messageType">
+          <text>-</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_r11_primaryChannel">
+          <text>"sms"</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_r11_fallbackChannel">
+          <text>"email"</text>
+        </outputEntry>
+      </rule>
+
+    </decisionTable>
+  </decision>
+
+  <inputData id="InputData_patientAge" name="Patient Age"/>
+  <inputData id="InputData_hasWhatsApp" name="Has WhatsApp"/>
+  <inputData id="InputData_preferredChannel" name="Preferred Channel"/>
+  <inputData id="InputData_messageType" name="Message Type"/>
+
+</definitions>

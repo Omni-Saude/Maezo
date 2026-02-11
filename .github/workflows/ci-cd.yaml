@@ -138,8 +138,8 @@ jobs:
   # ==========================================================================
   # DMN VALIDATION
   # ==========================================================================
-  validate-dmn:
-    name: Validate DMN Rules
+  dmn-validation:
+    name: DMN Validation
     runs-on: ubuntu-latest
     needs: lint
     steps:
@@ -148,31 +148,22 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: ${{ env.PYTHON_VERSION }}
+          python-version: '3.12'
 
-      - name: Install DMN validator
-        run: pip install dmn-check feel-parser
+      - name: Install dependencies
+        run: pip install lxml
 
-      - name: Validate DMN syntax
-        run: |
-          find healthcare_platform -name "*.dmn" -type f | while read dmn; do
-            echo "Validating: $dmn"
-            python -c "from xml.etree import ElementTree; ElementTree.parse('$dmn')" || exit 1
-          done
+      - name: Validate DMN files
+        run: python scripts/validate_dmn.py healthcare_platform/
 
       - name: Generate DMN inventory
-        run: |
-          echo "# DMN Inventory - $(date)" > dmn-inventory.md
-          echo "" >> dmn-inventory.md
-          find healthcare_platform -name "*.dmn" -type f | wc -l | xargs -I {} echo "Total DMN files: {}" >> dmn-inventory.md
-          echo "" >> dmn-inventory.md
-          find healthcare_platform -name "*.dmn" -type f | sort >> dmn-inventory.md
+        run: python scripts/dmn_inventory.py --output dmn_inventory.json
 
-      - name: Upload DMN inventory
+      - name: Upload inventory
         uses: actions/upload-artifact@v4
         with:
           name: dmn-inventory
-          path: dmn-inventory.md
+          path: dmn_inventory.json
 
   # ==========================================================================
   # BPMN VALIDATION
@@ -216,7 +207,7 @@ jobs:
   build:
     name: Build Docker Images
     runs-on: ubuntu-latest
-    needs: [test, validate-dmn, validate-bpmn]
+    needs: [test, dmn-validation, validate-bpmn]
     permissions:
       contents: read
       packages: write

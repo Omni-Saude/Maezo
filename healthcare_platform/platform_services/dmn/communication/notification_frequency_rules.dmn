@@ -1,0 +1,426 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/"
+             xmlns:dc="http://www.omg.org/spec/DMN/20180521/DC/"
+             xmlns:camunda="http://camunda.org/schema/1.0/dmn"
+             xmlns:biodi="http://bpmn.io/schema/dmn/biodi/2.0"
+             id="Definitions_notification_frequency"
+             name="Notification Frequency Rules"
+             namespace="http://healthcare.platform/dmn/communication">
+
+  <decision id="notification_frequency_rules" name="Notification Frequency Rules">
+    <informationRequirement>
+      <requiredInput href="#InputData_recipientId"/>
+    </informationRequirement>
+    <informationRequirement>
+      <requiredInput href="#InputData_messagesLast24h"/>
+    </informationRequirement>
+    <informationRequirement>
+      <requiredInput href="#InputData_lastMessageMinutes"/>
+    </informationRequirement>
+    <informationRequirement>
+      <requiredInput href="#InputData_urgencyLevel"/>
+    </informationRequirement>
+    <informationRequirement>
+      <requiredInput href="#InputData_messageCategory"/>
+    </informationRequirement>
+
+    <decisionTable id="DecisionTable_frequency" hitPolicy="FIRST">
+      <input id="Input_recipientId" label="Recipient ID" camunda:inputVariable="recipientId">
+        <inputExpression id="InputExpression_recipientId" typeRef="string">
+          <text>recipientId</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_messagesLast24h" label="Messages Last 24h" camunda:inputVariable="messagesLast24h">
+        <inputExpression id="InputExpression_messagesLast24h" typeRef="integer">
+          <text>messagesLast24h</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_lastMessageMinutes" label="Last Message Minutes" camunda:inputVariable="lastMessageMinutes">
+        <inputExpression id="InputExpression_lastMessageMinutes" typeRef="integer">
+          <text>lastMessageMinutes</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_urgencyLevel" label="Urgency Level" camunda:inputVariable="urgencyLevel">
+        <inputExpression id="InputExpression_urgencyLevel" typeRef="string">
+          <text>urgencyLevel</text>
+        </inputExpression>
+        <inputValues id="UnaryTests_urgencyLevel">
+          <text>"low","medium","high","critical"</text>
+        </inputValues>
+      </input>
+
+      <input id="Input_messageCategory" label="Message Category" camunda:inputVariable="messageCategory">
+        <inputExpression id="InputExpression_messageCategory" typeRef="string">
+          <text>messageCategory</text>
+        </inputExpression>
+        <inputValues id="UnaryTests_messageCategory">
+          <text>"appointment","medication","billing","general"</text>
+        </inputValues>
+      </input>
+
+      <output id="Output_allowMessage" label="Allow Message" name="allowMessage" typeRef="boolean"/>
+      <output id="Output_delayUntil" label="Delay Until (minutes)" name="delayUntil" typeRef="integer"/>
+      <output id="Output_consolidateWith" label="Consolidate With" name="consolidateWith" typeRef="string"/>
+
+      <!-- Rule 1: Critical always sends immediately -->
+      <rule id="Rule_critical_immediate">
+        <description>Critical urgency: always send immediately regardless of frequency limits</description>
+        <inputEntry id="InputEntry_r1_recipientId">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_r1_messagesLast24h">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_r1_lastMessageMinutes">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_r1_urgencyLevel">
+          <text>"critical"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_r1_messageCategory">
+          <text>-</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_r1_allowMessage">
+          <text>true</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_r1_delayUntil">
+          <text>0</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_r1_consolidateWith">
+          <text>"none"</text>
+        </outputEntry>
+      </rule>
+
+      <!-- Rule 2: High urgency with high volume still goes through -->
+      <rule id="Rule_high_high_volume">
+        <description>High urgency with more than 10 messages in 24h: still send immediately (important)</description>
+        <inputEntry id="InputEntry_r2_recipientId">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_r2_messagesLast24h">
+          <text>&gt; 10</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_r2_lastMessageMinutes">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_r2_urgencyLevel">
+          <text>"high"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_r2_messageCategory">
+          <text>-</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_r2_allowMessage">
+          <text>true</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_r2_delayUntil">
+          <text>0</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_r2_consolidateWith">
+          <text>"none"</text>
+        </outputEntry>
+      </rule>
+
+      <!-- Rule 3: High urgency with recent message - slight delay -->
+      <rule id="Rule_high_recent">
+        <description>High urgency sent within last 15 minutes: add 15 minute delay to avoid immediate duplicate</description>
+        <inputEntry id="InputEntry_r3_recipientId">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_r3_messagesLast24h">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_r3_lastMessageMinutes">
+          <text>&lt; 15</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_r3_urgencyLevel">
+          <text>"high"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_r3_messageCategory">
+          <text>-</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_r3_allowMessage">
+          <text>true</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_r3_delayUntil">
+          <text>15</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_r3_consolidateWith">
+          <text>"none"</text>
+        </outputEntry>
+      </rule>
+
+      <!-- Rule 4: Medium urgency with moderate volume - consolidate -->
+      <rule id="Rule_medium_moderate_volume">
+        <description>Medium urgency with more than 5 messages in 24h: delay and consolidate similar messages</description>
+        <inputEntry id="InputEntry_r4_recipientId">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_r4_messagesLast24h">
+          <text>&gt; 5</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_r4_lastMessageMinutes">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_r4_urgencyLevel">
+          <text>"medium"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_r4_messageCategory">
+          <text>-</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_r4_allowMessage">
+          <text>false</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_r4_delayUntil">
+          <text>60</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_r4_consolidateWith">
+          <text>messageCategory</text>
+        </outputEntry>
+      </rule>
+
+      <!-- Rule 5: Medium urgency same category recent - consolidate -->
+      <rule id="Rule_medium_same_category_recent">
+        <description>Medium urgency with same category sent within 30 minutes: consolidate to reduce noise</description>
+        <inputEntry id="InputEntry_r5_recipientId">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_r5_messagesLast24h">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_r5_lastMessageMinutes">
+          <text>&lt; 30</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_r5_urgencyLevel">
+          <text>"medium"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_r5_messageCategory">
+          <text>-</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_r5_allowMessage">
+          <text>false</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_r5_delayUntil">
+          <text>30</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_r5_consolidateWith">
+          <text>messageCategory</text>
+        </outputEntry>
+      </rule>
+
+      <!-- Rule 6: Medium urgency normal conditions -->
+      <rule id="Rule_medium_normal">
+        <description>Medium urgency under normal conditions (not recent, low volume): send immediately</description>
+        <inputEntry id="InputEntry_r6_recipientId">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_r6_messagesLast24h">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_r6_lastMessageMinutes">
+          <text>&gt;= 30</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_r6_urgencyLevel">
+          <text>"medium"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_r6_messageCategory">
+          <text>-</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_r6_allowMessage">
+          <text>true</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_r6_delayUntil">
+          <text>0</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_r6_consolidateWith">
+          <text>"none"</text>
+        </outputEntry>
+      </rule>
+
+      <!-- Rule 7: Low urgency moderate volume - consolidate all -->
+      <rule id="Rule_low_moderate_volume">
+        <description>Low urgency with more than 5 messages in 24h: delay and consolidate all low priority</description>
+        <inputEntry id="InputEntry_r7_recipientId">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_r7_messagesLast24h">
+          <text>&gt; 5</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_r7_lastMessageMinutes">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_r7_urgencyLevel">
+          <text>"low"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_r7_messageCategory">
+          <text>-</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_r7_allowMessage">
+          <text>false</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_r7_delayUntil">
+          <text>120</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_r7_consolidateWith">
+          <text>"general"</text>
+        </outputEntry>
+      </rule>
+
+      <!-- Rule 8: Low urgency recent message - delay -->
+      <rule id="Rule_low_recent">
+        <description>Low urgency with message sent within 60 minutes: delay to reduce frequency</description>
+        <inputEntry id="InputEntry_r8_recipientId">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_r8_messagesLast24h">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_r8_lastMessageMinutes">
+          <text>&lt; 60</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_r8_urgencyLevel">
+          <text>"low"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_r8_messageCategory">
+          <text>-</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_r8_allowMessage">
+          <text>false</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_r8_delayUntil">
+          <text>60</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_r8_consolidateWith">
+          <text>messageCategory</text>
+        </outputEntry>
+      </rule>
+
+      <!-- Rule 9: Low urgency minimal volume - send -->
+      <rule id="Rule_low_minimal_volume">
+        <description>Low urgency with 3 or fewer messages in 24h: send immediately (minimal impact)</description>
+        <inputEntry id="InputEntry_r9_recipientId">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_r9_messagesLast24h">
+          <text>&lt;= 3</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_r9_lastMessageMinutes">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_r9_urgencyLevel">
+          <text>"low"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_r9_messageCategory">
+          <text>-</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_r9_allowMessage">
+          <text>true</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_r9_delayUntil">
+          <text>0</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_r9_consolidateWith">
+          <text>"none"</text>
+        </outputEntry>
+      </rule>
+
+      <!-- Rule 10: Low urgency low volume - send with delay -->
+      <rule id="Rule_low_low_volume">
+        <description>Low urgency with 4-5 messages in 24h: send with 30 minute delay</description>
+        <inputEntry id="InputEntry_r10_recipientId">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_r10_messagesLast24h">
+          <text>[4..5]</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_r10_lastMessageMinutes">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_r10_urgencyLevel">
+          <text>"low"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_r10_messageCategory">
+          <text>-</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_r10_allowMessage">
+          <text>true</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_r10_delayUntil">
+          <text>30</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_r10_consolidateWith">
+          <text>"none"</text>
+        </outputEntry>
+      </rule>
+
+      <!-- Rule 11: Rate limit - too many messages -->
+      <rule id="Rule_rate_limit">
+        <description>More than 15 messages in 24h (non-critical): rate limit with 4 hour delay and consolidate</description>
+        <inputEntry id="InputEntry_r11_recipientId">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_r11_messagesLast24h">
+          <text>&gt; 15</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_r11_lastMessageMinutes">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_r11_urgencyLevel">
+          <text>"low","medium","high"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_r11_messageCategory">
+          <text>-</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_r11_allowMessage">
+          <text>false</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_r11_delayUntil">
+          <text>240</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_r11_consolidateWith">
+          <text>"general"</text>
+        </outputEntry>
+      </rule>
+
+      <!-- Rule 12: Default case - allow -->
+      <rule id="Rule_default_allow">
+        <description>Default case: allow message with no delay or consolidation</description>
+        <inputEntry id="InputEntry_r12_recipientId">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_r12_messagesLast24h">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_r12_lastMessageMinutes">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_r12_urgencyLevel">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_r12_messageCategory">
+          <text>-</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_r12_allowMessage">
+          <text>true</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_r12_delayUntil">
+          <text>0</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_r12_consolidateWith">
+          <text>"none"</text>
+        </outputEntry>
+      </rule>
+
+    </decisionTable>
+  </decision>
+
+  <inputData id="InputData_recipientId" name="Recipient ID"/>
+  <inputData id="InputData_messagesLast24h" name="Messages Last 24h"/>
+  <inputData id="InputData_lastMessageMinutes" name="Last Message Minutes"/>
+  <inputData id="InputData_urgencyLevel" name="Urgency Level"/>
+  <inputData id="InputData_messageCategory" name="Message Category"/>
+
+</definitions>

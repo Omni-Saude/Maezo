@@ -1,0 +1,623 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+                  xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+                  xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+                  xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
+                  xmlns:camunda="http://camunda.org/schema/1.0/bpmn"
+                  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                  id="Definitions_SP_PA_010"
+                  targetNamespace="http://cib7.healthcare/patient-access/doctor-engagement"
+                  exporter="CIB Seven 2.1.3"
+                  exporterVersion="2.1.3">
+
+  <!-- ================================================================ -->
+  <!-- Process: SP-PA-010 Doctor Daily Engagement                       -->
+  <!-- Purpose: Orchestrate daily doctor notifications, schedule        -->
+  <!--          summaries, patient arrivals, and emergency alerts       -->
+  <!-- ================================================================ -->
+
+  <bpmn:process id="SP_PA_010_Doctor_Daily_Engagement"
+                name="SP-PA-010 Doctor Daily Engagement"
+                isExecutable="true"
+                camunda:versionTag="1.0.0">
+
+    <!-- ============================================================== -->
+    <!-- Timer Start Event: Daily at 6:00 AM                            -->
+    <!-- ============================================================== -->
+    <bpmn:startEvent id="StartEvent_DailyTimer" name="Daily 6:00 AM">
+      <bpmn:timerEventDefinition id="TimerEventDefinition_Daily">
+        <bpmn:timeCycle xsi:type="bpmn:tFormalExpression">0 0 6 * * ?</bpmn:timeCycle>
+      </bpmn:timerEventDefinition>
+      <bpmn:outgoing>Flow_StartToAggregateSchedules</bpmn:outgoing>
+    </bpmn:startEvent>
+
+    <!-- ============================================================== -->
+    <!-- Service Task: Aggregate Doctor Schedules                       -->
+    <!-- ============================================================== -->
+    <bpmn:serviceTask id="Task_AggregateSchedules"
+                      name="Aggregate Doctor Schedules"
+                      camunda:type="external"
+                      camunda:topic="doctor.schedule_summary">
+      <bpmn:extensionElements>
+        <camunda:inputOutput>
+          <camunda:inputParameter name="tenantId">${tenantId}</camunda:inputParameter>
+          <camunda:inputParameter name="scheduleDate">${scheduleDate}</camunda:inputParameter>
+          <camunda:outputParameter name="doctorSchedules">${doctorSchedules}</camunda:outputParameter>
+          <camunda:outputParameter name="totalDoctors">${totalDoctors}</camunda:outputParameter>
+        </camunda:inputOutput>
+        <camunda:executionListener event="start">
+          <camunda:script scriptFormat="javascript">
+            execution.setVariable('scheduleDate', new Date().toISOString().split('T')[0]);
+          </camunda:script>
+        </camunda:executionListener>
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_StartToAggregateSchedules</bpmn:incoming>
+      <bpmn:outgoing>Flow_AggregateToPrioritySort</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Error Boundary Event on Aggregate Schedules -->
+    <bpmn:boundaryEvent id="BoundaryEvent_ScheduleError"
+                        name="Schedule Error"
+                        attachedToRef="Task_AggregateSchedules">
+      <bpmn:errorEventDefinition id="ErrorEventDefinition_ScheduleError"
+                                 errorRef="Error_DoctorScheduleError" />
+      <bpmn:outgoing>Flow_ScheduleErrorToEnd</bpmn:outgoing>
+    </bpmn:boundaryEvent>
+
+    <!-- ============================================================== -->
+    <!-- Service Task: Priority Sort Patients                           -->
+    <!-- ============================================================== -->
+    <bpmn:serviceTask id="Task_PrioritySortPatients"
+                      name="Priority Sort Patients"
+                      camunda:type="external"
+                      camunda:topic="doctor.priority_sort">
+      <bpmn:extensionElements>
+        <camunda:inputOutput>
+          <camunda:inputParameter name="doctorSchedules">${doctorSchedules}</camunda:inputParameter>
+          <camunda:inputParameter name="tenantId">${tenantId}</camunda:inputParameter>
+          <camunda:outputParameter name="sortedSchedules">${sortedSchedules}</camunda:outputParameter>
+        </camunda:inputOutput>
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_AggregateToPrioritySort</bpmn:incoming>
+      <bpmn:outgoing>Flow_PrioritySortToMultiInstance</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- ============================================================== -->
+    <!-- Multi-Instance Subprocess: Process Each Doctor                 -->
+    <!-- ============================================================== -->
+    <bpmn:subProcess id="SubProcess_DoctorNotifications"
+                     name="Process Doctor Notifications">
+      <bpmn:incoming>Flow_PrioritySortToMultiInstance</bpmn:incoming>
+      <bpmn:outgoing>Flow_MultiInstanceToEnd</bpmn:outgoing>
+
+      <!-- Multi-Instance Configuration -->
+      <bpmn:multiInstanceLoopCharacteristics isSequential="true">
+        <bpmn:loopCardinality xsi:type="bpmn:tFormalExpression">${totalDoctors}</bpmn:loopCardinality>
+        <bpmn:loopDataInputRef>sortedSchedules</bpmn:loopDataInputRef>
+        <bpmn:inputDataItem name="currentDoctor" />
+      </bpmn:multiInstanceLoopCharacteristics>
+
+      <!-- Subprocess Start Event -->
+      <bpmn:startEvent id="StartEvent_DoctorSubprocess" name="Start Doctor Process">
+        <bpmn:outgoing>Flow_SubStartToSendNotification</bpmn:outgoing>
+      </bpmn:startEvent>
+
+      <!-- ============================================================ -->
+      <!-- Service Task: Send Schedule Notification                     -->
+      <!-- ============================================================ -->
+      <bpmn:serviceTask id="Task_SendScheduleNotification"
+                        name="Send Schedule Notification"
+                        camunda:type="external"
+                        camunda:topic="doctor.send_notification">
+        <bpmn:extensionElements>
+          <camunda:inputOutput>
+            <camunda:inputParameter name="doctorId">${currentDoctor.doctorId}</camunda:inputParameter>
+            <camunda:inputParameter name="schedule">${currentDoctor.schedule}</camunda:inputParameter>
+            <camunda:inputParameter name="channelPreference">${currentDoctor.channelPreference}</camunda:inputParameter>
+            <camunda:inputParameter name="tenantId">${tenantId}</camunda:inputParameter>
+            <camunda:outputParameter name="notificationId">${notificationId}</camunda:outputParameter>
+            <camunda:outputParameter name="notificationType">${notificationType}</camunda:outputParameter>
+          </camunda:inputOutput>
+        </bpmn:extensionElements>
+        <bpmn:incoming>Flow_SubStartToSendNotification</bpmn:incoming>
+        <bpmn:outgoing>Flow_SendNotificationToGateway</bpmn:outgoing>
+      </bpmn:serviceTask>
+
+      <!-- Error Boundary Event on Send Notification -->
+      <bpmn:boundaryEvent id="BoundaryEvent_NotificationError"
+                          name="Notification Error"
+                          attachedToRef="Task_SendScheduleNotification">
+        <bpmn:errorEventDefinition id="ErrorEventDefinition_NotificationError"
+                                   errorRef="Error_DoctorNotificationError" />
+        <bpmn:outgoing>Flow_NotificationErrorToTrack</bpmn:outgoing>
+      </bpmn:boundaryEvent>
+
+      <!-- ============================================================ -->
+      <!-- Exclusive Gateway: Check Notification Type                   -->
+      <!-- ============================================================ -->
+      <bpmn:exclusiveGateway id="Gateway_NotificationType"
+                             name="Notification Type?"
+                             default="Flow_DefaultToTrack">
+        <bpmn:incoming>Flow_SendNotificationToGateway</bpmn:incoming>
+        <bpmn:outgoing>Flow_PatientArrival</bpmn:outgoing>
+        <bpmn:outgoing>Flow_EmergencyAlert</bpmn:outgoing>
+        <bpmn:outgoing>Flow_DefaultToTrack</bpmn:outgoing>
+      </bpmn:exclusiveGateway>
+
+      <!-- ============================================================ -->
+      <!-- Path 1: Patient Arrival                                      -->
+      <!-- ============================================================ -->
+      <bpmn:serviceTask id="Task_PatientArrival"
+                        name="Process Patient Arrival"
+                        camunda:type="external"
+                        camunda:topic="doctor.patient_arrival">
+        <bpmn:extensionElements>
+          <camunda:inputOutput>
+            <camunda:inputParameter name="doctorId">${currentDoctor.doctorId}</camunda:inputParameter>
+            <camunda:inputParameter name="patientId">${currentDoctor.nextPatientId}</camunda:inputParameter>
+            <camunda:inputParameter name="arrivalTime">${currentDoctor.arrivalTime}</camunda:inputParameter>
+            <camunda:inputParameter name="tenantId">${tenantId}</camunda:inputParameter>
+            <camunda:outputParameter name="arrivalProcessed">${arrivalProcessed}</camunda:outputParameter>
+          </camunda:inputOutput>
+        </bpmn:extensionElements>
+        <bpmn:incoming>Flow_PatientArrival</bpmn:incoming>
+        <bpmn:outgoing>Flow_PatientArrivalToResponse</bpmn:outgoing>
+      </bpmn:serviceTask>
+
+      <!-- Message Intermediate Catch Event: Doctor Response -->
+      <bpmn:intermediateCatchEvent id="Event_DoctorResponse"
+                                   name="Wait for Doctor Response (30 min)">
+        <bpmn:incoming>Flow_PatientArrivalToResponse</bpmn:incoming>
+        <bpmn:outgoing>Flow_DoctorResponseToJoin</bpmn:outgoing>
+        <bpmn:messageEventDefinition id="MessageEventDefinition_DoctorResponse"
+                                     messageRef="Message_DoctorResponse" />
+      </bpmn:intermediateCatchEvent>
+
+      <!-- Timer Boundary Event on Doctor Response (Timeout) -->
+      <bpmn:boundaryEvent id="BoundaryEvent_ResponseTimeout"
+                          name="30 min timeout"
+                          cancelActivity="true"
+                          attachedToRef="Event_DoctorResponse">
+        <bpmn:timerEventDefinition id="TimerEventDefinition_ResponseTimeout">
+          <bpmn:timeDuration xsi:type="bpmn:tFormalExpression">PT30M</bpmn:timeDuration>
+        </bpmn:timerEventDefinition>
+        <bpmn:outgoing>Flow_TimeoutToJoin</bpmn:outgoing>
+      </bpmn:boundaryEvent>
+
+      <!-- ============================================================ -->
+      <!-- Path 2: Emergency Alert                                      -->
+      <!-- ============================================================ -->
+      <bpmn:serviceTask id="Task_EmergencyAlert"
+                        name="Send Emergency Alert"
+                        camunda:type="external"
+                        camunda:topic="doctor.emergency_alert">
+        <bpmn:extensionElements>
+          <camunda:inputOutput>
+            <camunda:inputParameter name="doctorId">${currentDoctor.doctorId}</camunda:inputParameter>
+            <camunda:inputParameter name="emergencyType">${currentDoctor.emergencyType}</camunda:inputParameter>
+            <camunda:inputParameter name="patientId">${currentDoctor.patientId}</camunda:inputParameter>
+            <camunda:inputParameter name="severity">${currentDoctor.severity}</camunda:inputParameter>
+            <camunda:inputParameter name="tenantId">${tenantId}</camunda:inputParameter>
+            <camunda:outputParameter name="alertSent">${alertSent}</camunda:outputParameter>
+          </camunda:inputOutput>
+        </bpmn:extensionElements>
+        <bpmn:incoming>Flow_EmergencyAlert</bpmn:incoming>
+        <bpmn:outgoing>Flow_EmergencyAlertToJoin</bpmn:outgoing>
+      </bpmn:serviceTask>
+
+      <!-- Timer Boundary Event on Emergency Alert (Retry) -->
+      <bpmn:boundaryEvent id="BoundaryEvent_EmergencyRetry"
+                          name="Retry after 5 min"
+                          cancelActivity="false"
+                          attachedToRef="Task_EmergencyAlert">
+        <bpmn:timerEventDefinition id="TimerEventDefinition_EmergencyRetry">
+          <bpmn:timeDuration xsi:type="bpmn:tFormalExpression">PT5M</bpmn:timeDuration>
+        </bpmn:timerEventDefinition>
+        <bpmn:outgoing>Flow_RetryToEmergency</bpmn:outgoing>
+      </bpmn:boundaryEvent>
+
+      <!-- ============================================================ -->
+      <!-- Joining Gateway: Merge Notification Paths                    -->
+      <!-- ============================================================ -->
+      <bpmn:exclusiveGateway id="Gateway_JoinNotificationPaths" name="Join Paths">
+        <bpmn:incoming>Flow_DoctorResponseToJoin</bpmn:incoming>
+        <bpmn:incoming>Flow_TimeoutToJoin</bpmn:incoming>
+        <bpmn:incoming>Flow_EmergencyAlertToJoin</bpmn:incoming>
+        <bpmn:incoming>Flow_DefaultToTrack</bpmn:incoming>
+        <bpmn:incoming>Flow_NotificationErrorToTrack</bpmn:incoming>
+        <bpmn:outgoing>Flow_JoinToTrackResponse</bpmn:outgoing>
+      </bpmn:exclusiveGateway>
+
+      <!-- ============================================================ -->
+      <!-- Service Task: Track Response                                 -->
+      <!-- ============================================================ -->
+      <bpmn:serviceTask id="Task_TrackResponse"
+                        name="Track Doctor Response"
+                        camunda:type="external"
+                        camunda:topic="doctor.track_response">
+        <bpmn:extensionElements>
+          <camunda:inputOutput>
+            <camunda:inputParameter name="doctorId">${currentDoctor.doctorId}</camunda:inputParameter>
+            <camunda:inputParameter name="notificationId">${notificationId}</camunda:inputParameter>
+            <camunda:inputParameter name="responseReceived">${responseReceived}</camunda:inputParameter>
+            <camunda:inputParameter name="responseTime">${responseTime}</camunda:inputParameter>
+            <camunda:inputParameter name="tenantId">${tenantId}</camunda:inputParameter>
+            <camunda:outputParameter name="trackingComplete">${trackingComplete}</camunda:outputParameter>
+          </camunda:inputOutput>
+        </bpmn:extensionElements>
+        <bpmn:incoming>Flow_JoinToTrackResponse</bpmn:incoming>
+        <bpmn:outgoing>Flow_TrackResponseToSubEnd</bpmn:outgoing>
+      </bpmn:serviceTask>
+
+      <!-- Subprocess End Event -->
+      <bpmn:endEvent id="EndEvent_DoctorSubprocess" name="Doctor Process Complete">
+        <bpmn:incoming>Flow_TrackResponseToSubEnd</bpmn:incoming>
+      </bpmn:endEvent>
+
+      <!-- ============================================================ -->
+      <!-- Subprocess Sequence Flows                                    -->
+      <!-- ============================================================ -->
+      <bpmn:sequenceFlow id="Flow_SubStartToSendNotification"
+                         sourceRef="StartEvent_DoctorSubprocess"
+                         targetRef="Task_SendScheduleNotification" />
+
+      <bpmn:sequenceFlow id="Flow_SendNotificationToGateway"
+                         sourceRef="Task_SendScheduleNotification"
+                         targetRef="Gateway_NotificationType" />
+
+      <bpmn:sequenceFlow id="Flow_PatientArrival"
+                         name="Patient Arrival"
+                         sourceRef="Gateway_NotificationType"
+                         targetRef="Task_PatientArrival">
+        <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">
+          ${notificationType == 'PATIENT_ARRIVAL'}
+        </bpmn:conditionExpression>
+      </bpmn:sequenceFlow>
+
+      <bpmn:sequenceFlow id="Flow_EmergencyAlert"
+                         name="Emergency"
+                         sourceRef="Gateway_NotificationType"
+                         targetRef="Task_EmergencyAlert">
+        <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">
+          ${notificationType == 'EMERGENCY'}
+        </bpmn:conditionExpression>
+      </bpmn:sequenceFlow>
+
+      <bpmn:sequenceFlow id="Flow_DefaultToTrack"
+                         name="Default"
+                         sourceRef="Gateway_NotificationType"
+                         targetRef="Gateway_JoinNotificationPaths" />
+
+      <bpmn:sequenceFlow id="Flow_PatientArrivalToResponse"
+                         sourceRef="Task_PatientArrival"
+                         targetRef="Event_DoctorResponse" />
+
+      <bpmn:sequenceFlow id="Flow_DoctorResponseToJoin"
+                         sourceRef="Event_DoctorResponse"
+                         targetRef="Gateway_JoinNotificationPaths" />
+
+      <bpmn:sequenceFlow id="Flow_TimeoutToJoin"
+                         sourceRef="BoundaryEvent_ResponseTimeout"
+                         targetRef="Gateway_JoinNotificationPaths" />
+
+      <bpmn:sequenceFlow id="Flow_EmergencyAlertToJoin"
+                         sourceRef="Task_EmergencyAlert"
+                         targetRef="Gateway_JoinNotificationPaths" />
+
+      <bpmn:sequenceFlow id="Flow_RetryToEmergency"
+                         sourceRef="BoundaryEvent_EmergencyRetry"
+                         targetRef="Task_EmergencyAlert" />
+
+      <bpmn:sequenceFlow id="Flow_NotificationErrorToTrack"
+                         sourceRef="BoundaryEvent_NotificationError"
+                         targetRef="Gateway_JoinNotificationPaths" />
+
+      <bpmn:sequenceFlow id="Flow_JoinToTrackResponse"
+                         sourceRef="Gateway_JoinNotificationPaths"
+                         targetRef="Task_TrackResponse" />
+
+      <bpmn:sequenceFlow id="Flow_TrackResponseToSubEnd"
+                         sourceRef="Task_TrackResponse"
+                         targetRef="EndEvent_DoctorSubprocess" />
+
+    </bpmn:subProcess>
+
+    <!-- ============================================================== -->
+    <!-- End Event: Process Complete                                    -->
+    <!-- ============================================================== -->
+    <bpmn:endEvent id="EndEvent_ProcessComplete" name="Daily Engagement Complete">
+      <bpmn:incoming>Flow_MultiInstanceToEnd</bpmn:incoming>
+      <bpmn:incoming>Flow_ScheduleErrorToEnd</bpmn:incoming>
+    </bpmn:endEvent>
+
+    <!-- ============================================================== -->
+    <!-- Main Process Sequence Flows                                    -->
+    <!-- ============================================================== -->
+    <bpmn:sequenceFlow id="Flow_StartToAggregateSchedules"
+                       sourceRef="StartEvent_DailyTimer"
+                       targetRef="Task_AggregateSchedules" />
+
+    <bpmn:sequenceFlow id="Flow_AggregateToPrioritySort"
+                       sourceRef="Task_AggregateSchedules"
+                       targetRef="Task_PrioritySortPatients" />
+
+    <bpmn:sequenceFlow id="Flow_PrioritySortToMultiInstance"
+                       sourceRef="Task_PrioritySortPatients"
+                       targetRef="SubProcess_DoctorNotifications" />
+
+    <bpmn:sequenceFlow id="Flow_MultiInstanceToEnd"
+                       sourceRef="SubProcess_DoctorNotifications"
+                       targetRef="EndEvent_ProcessComplete" />
+
+    <bpmn:sequenceFlow id="Flow_ScheduleErrorToEnd"
+                       sourceRef="BoundaryEvent_ScheduleError"
+                       targetRef="EndEvent_ProcessComplete" />
+
+  </bpmn:process>
+
+  <!-- ================================================================ -->
+  <!-- Error Definitions                                                -->
+  <!-- ================================================================ -->
+  <bpmn:error id="Error_DoctorNotificationError"
+              name="DOCTOR_NOTIFICATION_ERROR"
+              errorCode="DOC_NOTIFY" />
+
+  <bpmn:error id="Error_DoctorScheduleError"
+              name="DOCTOR_SCHEDULE_ERROR"
+              errorCode="DOC_SCHEDULE" />
+
+  <!-- ================================================================ -->
+  <!-- Message Definitions                                              -->
+  <!-- ================================================================ -->
+  <bpmn:message id="Message_DoctorResponse"
+                name="msg_doctor_response" />
+
+  <bpmn:message id="Message_EmergencyAck"
+                name="msg_emergency_ack" />
+
+  <!-- ================================================================ -->
+  <!-- BPMN Diagram Interchange                                         -->
+  <!-- ================================================================ -->
+  <bpmndi:BPMNDiagram id="BPMNDiagram_SP_PA_010">
+    <bpmndi:BPMNPlane id="BPMNPlane_SP_PA_010" bpmnElement="SP_PA_010_Doctor_Daily_Engagement">
+
+      <!-- Start Event -->
+      <bpmndi:BPMNShape id="Shape_StartEvent_DailyTimer" bpmnElement="StartEvent_DailyTimer">
+        <dc:Bounds x="152" y="102" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="133" y="145" width="74" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+
+      <!-- Aggregate Schedules -->
+      <bpmndi:BPMNShape id="Shape_Task_AggregateSchedules" bpmnElement="Task_AggregateSchedules">
+        <dc:Bounds x="250" y="80" width="100" height="80" />
+      </bpmndi:BPMNShape>
+
+      <!-- Schedule Error Boundary -->
+      <bpmndi:BPMNShape id="Shape_BoundaryEvent_ScheduleError" bpmnElement="BoundaryEvent_ScheduleError">
+        <dc:Bounds x="282" y="142" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="315" y="173" width="70" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+
+      <!-- Priority Sort Patients -->
+      <bpmndi:BPMNShape id="Shape_Task_PrioritySortPatients" bpmnElement="Task_PrioritySortPatients">
+        <dc:Bounds x="410" y="80" width="100" height="80" />
+      </bpmndi:BPMNShape>
+
+      <!-- Multi-Instance Subprocess -->
+      <bpmndi:BPMNShape id="Shape_SubProcess_DoctorNotifications" bpmnElement="SubProcess_DoctorNotifications" isExpanded="true">
+        <dc:Bounds x="570" y="50" width="850" height="420" />
+      </bpmndi:BPMNShape>
+
+      <!-- Subprocess Start Event -->
+      <bpmndi:BPMNShape id="Shape_StartEvent_DoctorSubprocess" bpmnElement="StartEvent_DoctorSubprocess">
+        <dc:Bounds x="610" y="152" width="36" height="36" />
+      </bpmndi:BPMNShape>
+
+      <!-- Send Schedule Notification -->
+      <bpmndi:BPMNShape id="Shape_Task_SendScheduleNotification" bpmnElement="Task_SendScheduleNotification">
+        <dc:Bounds x="690" y="130" width="100" height="80" />
+      </bpmndi:BPMNShape>
+
+      <!-- Notification Error Boundary -->
+      <bpmndi:BPMNShape id="Shape_BoundaryEvent_NotificationError" bpmnElement="BoundaryEvent_NotificationError">
+        <dc:Bounds x="722" y="192" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="755" y="223" width="70" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+
+      <!-- Notification Type Gateway -->
+      <bpmndi:BPMNShape id="Shape_Gateway_NotificationType" bpmnElement="Gateway_NotificationType" isMarkerVisible="true">
+        <dc:Bounds x="835" y="145" width="50" height="50" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="822" y="115" width="76" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+
+      <!-- Patient Arrival Task -->
+      <bpmndi:BPMNShape id="Shape_Task_PatientArrival" bpmnElement="Task_PatientArrival">
+        <dc:Bounds x="930" y="80" width="100" height="80" />
+      </bpmndi:BPMNShape>
+
+      <!-- Doctor Response Event -->
+      <bpmndi:BPMNShape id="Shape_Event_DoctorResponse" bpmnElement="Event_DoctorResponse">
+        <dc:Bounds x="1072" y="102" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1050" y="145" width="80" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+
+      <!-- Response Timeout Boundary -->
+      <bpmndi:BPMNShape id="Shape_BoundaryEvent_ResponseTimeout" bpmnElement="BoundaryEvent_ResponseTimeout">
+        <dc:Bounds x="1092" y="120" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1125" y="151" width="70" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+
+      <!-- Emergency Alert Task -->
+      <bpmndi:BPMNShape id="Shape_Task_EmergencyAlert" bpmnElement="Task_EmergencyAlert">
+        <dc:Bounds x="930" y="240" width="100" height="80" />
+      </bpmndi:BPMNShape>
+
+      <!-- Emergency Retry Boundary -->
+      <bpmndi:BPMNShape id="Shape_BoundaryEvent_EmergencyRetry" bpmnElement="BoundaryEvent_EmergencyRetry">
+        <dc:Bounds x="962" y="302" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="995" y="333" width="70" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+
+      <!-- Join Notification Paths Gateway -->
+      <bpmndi:BPMNShape id="Shape_Gateway_JoinNotificationPaths" bpmnElement="Gateway_JoinNotificationPaths" isMarkerVisible="true">
+        <dc:Bounds x="1145" y="255" width="50" height="50" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1203" y="273" width="54" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+
+      <!-- Track Response Task -->
+      <bpmndi:BPMNShape id="Shape_Task_TrackResponse" bpmnElement="Task_TrackResponse">
+        <dc:Bounds x="1240" y="240" width="100" height="80" />
+      </bpmndi:BPMNShape>
+
+      <!-- Subprocess End Event -->
+      <bpmndi:BPMNShape id="Shape_EndEvent_DoctorSubprocess" bpmnElement="EndEvent_DoctorSubprocess">
+        <dc:Bounds x="1372" y="262" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1354" y="305" width="73" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+
+      <!-- End Event -->
+      <bpmndi:BPMNShape id="Shape_EndEvent_ProcessComplete" bpmnElement="EndEvent_ProcessComplete">
+        <dc:Bounds x="1482" y="242" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1462" y="285" width="77" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+
+      <!-- Main Process Edges -->
+      <bpmndi:BPMNEdge id="Edge_Flow_StartToAggregateSchedules" bpmnElement="Flow_StartToAggregateSchedules">
+        <di:waypoint x="188" y="120" />
+        <di:waypoint x="250" y="120" />
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_Flow_AggregateToPrioritySort" bpmnElement="Flow_AggregateToPrioritySort">
+        <di:waypoint x="350" y="120" />
+        <di:waypoint x="410" y="120" />
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_Flow_PrioritySortToMultiInstance" bpmnElement="Flow_PrioritySortToMultiInstance">
+        <di:waypoint x="510" y="120" />
+        <di:waypoint x="540" y="120" />
+        <di:waypoint x="540" y="260" />
+        <di:waypoint x="570" y="260" />
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_Flow_MultiInstanceToEnd" bpmnElement="Flow_MultiInstanceToEnd">
+        <di:waypoint x="1420" y="260" />
+        <di:waypoint x="1482" y="260" />
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_Flow_ScheduleErrorToEnd" bpmnElement="Flow_ScheduleErrorToEnd">
+        <di:waypoint x="300" y="178" />
+        <di:waypoint x="300" y="350" />
+        <di:waypoint x="1500" y="350" />
+        <di:waypoint x="1500" y="278" />
+      </bpmndi:BPMNEdge>
+
+      <!-- Subprocess Edges -->
+      <bpmndi:BPMNEdge id="Edge_Flow_SubStartToSendNotification" bpmnElement="Flow_SubStartToSendNotification">
+        <di:waypoint x="646" y="170" />
+        <di:waypoint x="690" y="170" />
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_Flow_SendNotificationToGateway" bpmnElement="Flow_SendNotificationToGateway">
+        <di:waypoint x="790" y="170" />
+        <di:waypoint x="835" y="170" />
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_Flow_PatientArrival" bpmnElement="Flow_PatientArrival">
+        <di:waypoint x="860" y="145" />
+        <di:waypoint x="860" y="120" />
+        <di:waypoint x="930" y="120" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="867" y="103" width="66" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_Flow_EmergencyAlert" bpmnElement="Flow_EmergencyAlert">
+        <di:waypoint x="860" y="195" />
+        <di:waypoint x="860" y="280" />
+        <di:waypoint x="930" y="280" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="867" y="263" width="56" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_Flow_DefaultToTrack" bpmnElement="Flow_DefaultToTrack">
+        <di:waypoint x="885" y="170" />
+        <di:waypoint x="1015" y="170" />
+        <di:waypoint x="1015" y="280" />
+        <di:waypoint x="1145" y="280" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="947" y="153" width="36" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_Flow_PatientArrivalToResponse" bpmnElement="Flow_PatientArrivalToResponse">
+        <di:waypoint x="1030" y="120" />
+        <di:waypoint x="1072" y="120" />
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_Flow_DoctorResponseToJoin" bpmnElement="Flow_DoctorResponseToJoin">
+        <di:waypoint x="1108" y="120" />
+        <di:waypoint x="1170" y="120" />
+        <di:waypoint x="1170" y="255" />
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_Flow_TimeoutToJoin" bpmnElement="Flow_TimeoutToJoin">
+        <di:waypoint x="1110" y="156" />
+        <di:waypoint x="1110" y="280" />
+        <di:waypoint x="1145" y="280" />
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_Flow_EmergencyAlertToJoin" bpmnElement="Flow_EmergencyAlertToJoin">
+        <di:waypoint x="1030" y="280" />
+        <di:waypoint x="1145" y="280" />
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_Flow_RetryToEmergency" bpmnElement="Flow_RetryToEmergency">
+        <di:waypoint x="980" y="338" />
+        <di:waypoint x="980" y="360" />
+        <di:waypoint x="900" y="360" />
+        <di:waypoint x="900" y="280" />
+        <di:waypoint x="930" y="280" />
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_Flow_NotificationErrorToTrack" bpmnElement="Flow_NotificationErrorToTrack">
+        <di:waypoint x="740" y="228" />
+        <di:waypoint x="740" y="390" />
+        <di:waypoint x="1170" y="390" />
+        <di:waypoint x="1170" y="305" />
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_Flow_JoinToTrackResponse" bpmnElement="Flow_JoinToTrackResponse">
+        <di:waypoint x="1195" y="280" />
+        <di:waypoint x="1240" y="280" />
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_Flow_TrackResponseToSubEnd" bpmnElement="Flow_TrackResponseToSubEnd">
+        <di:waypoint x="1340" y="280" />
+        <di:waypoint x="1372" y="280" />
+      </bpmndi:BPMNEdge>
+
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+
+</bpmn:definitions>

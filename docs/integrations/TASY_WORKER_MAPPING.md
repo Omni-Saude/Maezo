@@ -12,6 +12,7 @@
 | **Workers with TASY Integration** | 7 / ~100+ |
 | **Scoring APIs Used** | 9 / 9 (100%) |
 | **Scheduling Endpoints Used** | 0 / 122 |
+| **Surgical Endpoints Used** | 0 / 122 |
 | **Supply Chain Endpoints Used** | 0 / 212 |
 | **Regulatory Endpoints Used** | 0 / 16 |
 
@@ -192,7 +193,57 @@ Polls 5 TASY tables when Debezium is unavailable:
 
 ---
 
-## 10. Cross-Cutting Gaps
+## 10. Surgical Services Domain (122 endpoints → 0 used)
+
+### surgical_services Workers (14 workers need TASY)
+
+| Worker | TASY Integration | TASY Endpoints NEEDED |
+|--------|-----------------|----------------------|
+| `manage_operating_rooms_worker` | **STUB** | `GET/POST /api/v1/surgical/rooms/*` — room CRUD, availability, status |
+| `schedule_surgery_worker` | **STUB** | `POST /api/v1/surgical/records`, `GET/PUT /api/v1/surgical/rooms/{id}/schedule` |
+| `assign_surgical_team_worker` | **STUB** | `GET /api/v1/surgical/centers/{id}/staff`, `POST /api/v1/surgical/records/{id}/team` |
+| `prepare_surgical_materials_worker` | **STUB** | `GET /api/v1/surgical/materials/preference-cards/{id}`, `POST /api/v1/surgical/materials/requests` |
+| `surgical_safety_checklist_worker` | **STUB** | `GET/POST /api/v1/surgical/centers/{id}/checklist` |
+| `monitor_room_turnover_worker` | **STUB** | `GET/POST /api/v1/surgical/rooms/{id}/turnover`, cleaning endpoints |
+| `track_surgery_timeline_worker` | **STUB** | `GET/POST /api/v1/surgical/records/{id}/timeline` |
+| `record_surgical_notes_worker` | **STUB** | `GET/POST /api/v1/surgical/records/{id}/notes` |
+| `record_anesthesia_worker` | **STUB** | `GET/POST/PUT /api/v1/surgical/records/{id}/anesthesia` |
+| `manage_surgical_consent_worker` | **STUB** | `GET/POST /api/v1/surgical/records/{id}/consent` |
+| `detect_surgical_complications_worker` | **STUB** | `POST /api/v1/surgical/records/{id}/complications` |
+| `track_surgical_outcomes_worker` | **STUB** | `GET/POST /api/v1/surgical/records/{id}/outcomes` |
+| `manage_surgical_queue_worker` | **STUB** | `GET /api/v1/surgical/centers/{id}/queue`, priority endpoints |
+| `surgical_analytics_worker` | **STUB** | `GET /api/v1/surgical/centers/{id}/metrics/*`, procedure statistics |
+
+### Worker → TASY Endpoint Mapping
+
+| Worker | Primary Endpoints | Secondary Endpoints |
+|--------|------------------|-------------------|
+| `manage_operating_rooms_worker` | rooms (27) | centers/rooms (1) |
+| `schedule_surgery_worker` | rooms/schedule (3), records (4) | procedures/duration (2) |
+| `assign_surgical_team_worker` | records/team (3) | centers/staff (3) |
+| `prepare_surgical_materials_worker` | materials/* (19) | procedures/materials (3) |
+| `surgical_safety_checklist_worker` | centers/checklist (2) | records/counts (2) |
+| `monitor_room_turnover_worker` | rooms/turnover (2), rooms/cleaning (3) | rooms/status (2) |
+| `track_surgery_timeline_worker` | records/timeline (2) | records/vitals (2) |
+| `record_surgical_notes_worker` | records/notes (3) | records/images (2) |
+| `record_anesthesia_worker` | records/anesthesia (3) | records/vitals (2) |
+| `manage_surgical_consent_worker` | records/consent (2) | procedures/consent-template (1) |
+| `detect_surgical_complications_worker` | records/complications (3) | records/outcomes (2) |
+| `track_surgical_outcomes_worker` | records/outcomes (2), procedures/statistics (1) | records/summary (1) |
+| `manage_surgical_queue_worker` | centers/queue (2) | centers/metrics/delays (1) |
+| `surgical_analytics_worker` | centers/metrics (4) | rooms/utilization (1), procedures/statistics (1) |
+
+### Surgical State Machine
+
+**States**: REQUESTED → SCHEDULED → CONFIRMED → PRE_OP → IN_ROOM → ANESTHESIA → IN_PROGRESS → CLOSING → POST_OP → RECOVERY → COMPLETED
+
+**Cancellation paths**: Any state before IN_PROGRESS → CANCELLED (with reason)
+
+**Emergency override**: Any state → EMERGENCY_OVERRIDE (bypasses queue)
+
+---
+
+## 11. Cross-Cutting Gaps
 
 | Gap | Affected Workers | Impact |
 |-----|-----------------|--------|

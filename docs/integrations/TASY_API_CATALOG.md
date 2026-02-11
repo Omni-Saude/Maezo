@@ -692,6 +692,161 @@ Accept: application/json
 
 ---
 
+## Surgical Services Domain (122 endpoints)
+
+This domain covers all surgical workflow management in TASY, from operating room scheduling through surgical records and materials management.
+
+**TASY Module**: Centro Cirúrgico (CC)
+
+### 5.1 Operating Rooms (27 endpoints)
+
+| # | Endpoint | Method | TASY Table | Description | Rate Limit |
+|---|----------|--------|------------|-------------|------------|
+| 1 | `/api/v1/surgical/rooms` | GET | `SALA_CIRURGICA` | List all operating rooms | 10 req/s |
+| 2 | `/api/v1/surgical/rooms/{id}` | GET | `SALA_CIRURGICA` | Get room details | 10 req/s |
+| 3 | `/api/v1/surgical/rooms/{id}/availability` | GET | `AGENDA_SALA` | Check room availability | 10 req/s |
+| 4 | `/api/v1/surgical/rooms/{id}/schedule` | GET | `AGENDA_SALA` | Get room schedule | 10 req/s |
+| 5 | `/api/v1/surgical/rooms/{id}/schedule` | POST | `AGENDA_SALA` | Book room slot | 10 req/s |
+| 6 | `/api/v1/surgical/rooms/{id}/schedule/{slot_id}` | PUT | `AGENDA_SALA` | Update room booking | 10 req/s |
+| 7 | `/api/v1/surgical/rooms/{id}/schedule/{slot_id}` | DELETE | `AGENDA_SALA` | Cancel room booking | 10 req/s |
+| 8 | `/api/v1/surgical/rooms/{id}/status` | GET | `SALA_CIRURGICA` | Get room current status | 10 req/s |
+| 9 | `/api/v1/surgical/rooms/{id}/status` | PUT | `SALA_CIRURGICA` | Update room status | 10 req/s |
+| 10 | `/api/v1/surgical/rooms/{id}/turnover` | GET | `TURNOVER_SALA` | Get turnover metrics | 10 req/s |
+| 11 | `/api/v1/surgical/rooms/{id}/turnover` | POST | `TURNOVER_SALA` | Record turnover event | 10 req/s |
+| 12 | `/api/v1/surgical/rooms/{id}/equipment` | GET | `EQUIPAMENTO_SALA` | List room equipment | 10 req/s |
+| 13 | `/api/v1/surgical/rooms/{id}/equipment` | POST | `EQUIPAMENTO_SALA` | Assign equipment to room | 10 req/s |
+| 14 | `/api/v1/surgical/rooms/{id}/equipment/{eq_id}` | DELETE | `EQUIPAMENTO_SALA` | Remove equipment from room | 10 req/s |
+| 15 | `/api/v1/surgical/rooms/search` | GET | `SALA_CIRURGICA` | Search rooms by criteria | 10 req/s |
+| 16 | `/api/v1/surgical/rooms/{id}/cleaning` | POST | `LIMPEZA_SALA` | Start room cleaning | 10 req/s |
+| 17 | `/api/v1/surgical/rooms/{id}/cleaning` | PUT | `LIMPEZA_SALA` | Complete room cleaning | 10 req/s |
+| 18 | `/api/v1/surgical/rooms/{id}/cleaning/status` | GET | `LIMPEZA_SALA` | Get cleaning status | 10 req/s |
+| 19 | `/api/v1/surgical/rooms/{id}/maintenance` | POST | `MANUTENCAO_SALA` | Report maintenance need | 10 req/s |
+| 20 | `/api/v1/surgical/rooms/{id}/maintenance` | GET | `MANUTENCAO_SALA` | Get maintenance history | 10 req/s |
+| 21 | `/api/v1/surgical/rooms/{id}/block` | POST | `BLOQUEIO_SALA` | Block room | 10 req/s |
+| 22 | `/api/v1/surgical/rooms/{id}/unblock` | POST | `BLOQUEIO_SALA` | Unblock room | 10 req/s |
+| 23 | `/api/v1/surgical/rooms/{id}/capacity` | GET | `SALA_CIRURGICA` | Get room capacity info | 10 req/s |
+| 24 | `/api/v1/surgical/rooms/{id}/utilization` | GET | `UTILIZACAO_SALA` | Get utilization metrics | 10 req/s |
+| 25 | `/api/v1/surgical/rooms/{id}/history` | GET | `HISTORICO_SALA` | Get room usage history | 10 req/s |
+| 26 | `/api/v1/surgical/rooms/dashboard` | GET | `SALA_CIRURGICA` | Operating room dashboard | 10 req/s |
+| 27 | `/api/v1/surgical/rooms/{id}/activate` | PUT | `SALA_CIRURGICA` | Activate room | 10 req/s |
+
+### 5.2 Centro Cirúrgico - Surgical Center (24 endpoints)
+
+| # | Endpoint | Method | TASY Table | Description | Rate Limit |
+|---|----------|--------|------------|-------------|------------|
+| 1 | `/api/v1/surgical/centers` | GET | `CENTRO_CIRURGICO` | List surgical centers | 10 req/s |
+| 2 | `/api/v1/surgical/centers/{id}` | GET | `CENTRO_CIRURGICO` | Get center details | 10 req/s |
+| 3 | `/api/v1/surgical/centers/{id}/rooms` | GET | `SALA_CIRURGICA` | List rooms in center | 10 req/s |
+| 4 | `/api/v1/surgical/centers/{id}/capacity` | GET | `CAPACIDADE_CC` | Get center capacity | 10 req/s |
+| 5 | `/api/v1/surgical/centers/{id}/schedule` | GET | `AGENDA_CC` | Get center daily schedule | 10 req/s |
+| 6 | `/api/v1/surgical/centers/{id}/schedule/weekly` | GET | `AGENDA_CC` | Get weekly schedule | 10 req/s |
+| 7 | `/api/v1/surgical/centers/{id}/staff` | GET | `EQUIPE_CC` | List center staff | 10 req/s |
+| 8 | `/api/v1/surgical/centers/{id}/staff` | POST | `EQUIPE_CC` | Assign staff to center | 10 req/s |
+| 9 | `/api/v1/surgical/centers/{id}/staff/{staff_id}` | DELETE | `EQUIPE_CC` | Remove staff from center | 10 req/s |
+| 10 | `/api/v1/surgical/centers/{id}/metrics` | GET | `METRICAS_CC` | Get center KPIs | 10 req/s |
+| 11 | `/api/v1/surgical/centers/{id}/metrics/utilization` | GET | `UTILIZACAO_CC` | Utilization rates | 10 req/s |
+| 12 | `/api/v1/surgical/centers/{id}/metrics/delays` | GET | `ATRASOS_CC` | Delay analytics | 10 req/s |
+| 13 | `/api/v1/surgical/centers/{id}/metrics/cancellations` | GET | `CANCELAMENTOS_CC` | Cancellation analytics | 10 req/s |
+| 14 | `/api/v1/surgical/centers/{id}/queue` | GET | `FILA_CC` | Surgical queue | 10 req/s |
+| 15 | `/api/v1/surgical/centers/{id}/queue/priority` | GET | `FILA_CC` | Priority queue | 10 req/s |
+| 16 | `/api/v1/surgical/centers/{id}/protocols` | GET | `PROTOCOLO_CC` | List surgical protocols | 10 req/s |
+| 17 | `/api/v1/surgical/centers/{id}/protocols` | POST | `PROTOCOLO_CC` | Create protocol | 10 req/s |
+| 18 | `/api/v1/surgical/centers/{id}/protocols/{proto_id}` | PUT | `PROTOCOLO_CC` | Update protocol | 10 req/s |
+| 19 | `/api/v1/surgical/centers/{id}/checklist` | GET | `CHECKLIST_CC` | Get surgical safety checklist | 10 req/s |
+| 20 | `/api/v1/surgical/centers/{id}/checklist` | POST | `CHECKLIST_CC` | Submit checklist completion | 10 req/s |
+| 21 | `/api/v1/surgical/centers/{id}/alerts` | GET | `ALERTA_CC` | Get center alerts | 10 req/s |
+| 22 | `/api/v1/surgical/centers/{id}/recovery` | GET | `RECUPERACAO_CC` | Recovery room status | 10 req/s |
+| 23 | `/api/v1/surgical/centers/{id}/recovery/patients` | GET | `RECUPERACAO_CC` | Patients in recovery | 10 req/s |
+| 24 | `/api/v1/surgical/centers/{id}/dashboard` | GET | `CENTRO_CIRURGICO` | Center operational dashboard | 10 req/s |
+
+### 5.3 Surgery Map - Procedure Mapping (19 endpoints)
+
+| # | Endpoint | Method | TASY Table | Description | Rate Limit |
+|---|----------|--------|------------|-------------|------------|
+| 1 | `/api/v1/surgical/procedures` | GET | `MAPA_CIRURGICO` | List surgical procedures | 10 req/s |
+| 2 | `/api/v1/surgical/procedures/{id}` | GET | `MAPA_CIRURGICO` | Get procedure details | 10 req/s |
+| 3 | `/api/v1/surgical/procedures` | POST | `MAPA_CIRURGICO` | Create surgical map entry | 10 req/s |
+| 4 | `/api/v1/surgical/procedures/{id}` | PUT | `MAPA_CIRURGICO` | Update procedure mapping | 10 req/s |
+| 5 | `/api/v1/surgical/procedures/{id}/protocols` | GET | `PROTOCOLO_CIRURGICO` | Get procedure protocols | 10 req/s |
+| 6 | `/api/v1/surgical/procedures/{id}/protocols` | POST | `PROTOCOLO_CIRURGICO` | Assign protocol | 10 req/s |
+| 7 | `/api/v1/surgical/procedures/{id}/duration` | GET | `DURACAO_CIRURGIA` | Get estimated duration | 10 req/s |
+| 8 | `/api/v1/surgical/procedures/{id}/duration/history` | GET | `DURACAO_CIRURGIA` | Duration history stats | 10 req/s |
+| 9 | `/api/v1/surgical/procedures/{id}/materials` | GET | `MATERIAL_PROCEDIMENTO` | Required materials list | 10 req/s |
+| 10 | `/api/v1/surgical/procedures/{id}/materials` | POST | `MATERIAL_PROCEDIMENTO` | Add required material | 10 req/s |
+| 11 | `/api/v1/surgical/procedures/{id}/materials/{mat_id}` | DELETE | `MATERIAL_PROCEDIMENTO` | Remove required material | 10 req/s |
+| 12 | `/api/v1/surgical/procedures/{id}/team-requirements` | GET | `REQUISITO_EQUIPE` | Team requirements | 10 req/s |
+| 13 | `/api/v1/surgical/procedures/{id}/room-requirements` | GET | `REQUISITO_SALA` | Room requirements | 10 req/s |
+| 14 | `/api/v1/surgical/procedures/search` | GET | `MAPA_CIRURGICO` | Search procedures | 10 req/s |
+| 15 | `/api/v1/surgical/procedures/{id}/tuss-mapping` | GET | `TUSS_CIRURGIA` | TUSS code mapping | 10 req/s |
+| 16 | `/api/v1/surgical/procedures/{id}/tuss-mapping` | PUT | `TUSS_CIRURGIA` | Update TUSS mapping | 10 req/s |
+| 17 | `/api/v1/surgical/procedures/{id}/contraindications` | GET | `CONTRAINDICACAO` | Contraindications | 10 req/s |
+| 18 | `/api/v1/surgical/procedures/{id}/statistics` | GET | `ESTATISTICA_CIRURGIA` | Procedure statistics | 10 req/s |
+| 19 | `/api/v1/surgical/procedures/{id}/consent-template` | GET | `TERMO_CONSENTIMENTO` | Consent form template | 10 req/s |
+
+### 5.4 Surgery Records (33 endpoints)
+
+| # | Endpoint | Method | TASY Table | Description | Rate Limit |
+|---|----------|--------|------------|-------------|------------|
+| 1 | `/api/v1/surgical/records` | GET | `REGISTRO_CIRURGICO` | List surgical records | 10 req/s |
+| 2 | `/api/v1/surgical/records/{id}` | GET | `REGISTRO_CIRURGICO` | Get surgical record | 10 req/s |
+| 3 | `/api/v1/surgical/records` | POST | `REGISTRO_CIRURGICO` | Create surgical record | 10 req/s |
+| 4 | `/api/v1/surgical/records/{id}` | PUT | `REGISTRO_CIRURGICO` | Update surgical record | 10 req/s |
+| 5 | `/api/v1/surgical/records/{id}/notes` | GET | `NOTA_CIRURGICA` | Get surgical notes | 10 req/s |
+| 6 | `/api/v1/surgical/records/{id}/notes` | POST | `NOTA_CIRURGICA` | Add surgical note | 10 req/s |
+| 7 | `/api/v1/surgical/records/{id}/notes/{note_id}` | PUT | `NOTA_CIRURGICA` | Update surgical note | 10 req/s |
+| 8 | `/api/v1/surgical/records/{id}/anesthesia` | GET | `ANESTESIA` | Get anesthesia record | 10 req/s |
+| 9 | `/api/v1/surgical/records/{id}/anesthesia` | POST | `ANESTESIA` | Create anesthesia record | 10 req/s |
+| 10 | `/api/v1/surgical/records/{id}/anesthesia` | PUT | `ANESTESIA` | Update anesthesia record | 10 req/s |
+| 11 | `/api/v1/surgical/records/{id}/complications` | GET | `COMPLICACAO_CIRURGICA` | List complications | 10 req/s |
+| 12 | `/api/v1/surgical/records/{id}/complications` | POST | `COMPLICACAO_CIRURGICA` | Record complication | 10 req/s |
+| 13 | `/api/v1/surgical/records/{id}/complications/{comp_id}` | PUT | `COMPLICACAO_CIRURGICA` | Update complication | 10 req/s |
+| 14 | `/api/v1/surgical/records/{id}/outcomes` | GET | `DESFECHO_CIRURGICO` | Get surgical outcome | 10 req/s |
+| 15 | `/api/v1/surgical/records/{id}/outcomes` | POST | `DESFECHO_CIRURGICO` | Record outcome | 10 req/s |
+| 16 | `/api/v1/surgical/records/{id}/team` | GET | `EQUIPE_CIRURGICA` | Get surgical team | 10 req/s |
+| 17 | `/api/v1/surgical/records/{id}/team` | POST | `EQUIPE_CIRURGICA` | Assign team member | 10 req/s |
+| 18 | `/api/v1/surgical/records/{id}/team/{member_id}` | DELETE | `EQUIPE_CIRURGICA` | Remove team member | 10 req/s |
+| 19 | `/api/v1/surgical/records/{id}/timeline` | GET | `TIMELINE_CIRURGICA` | Surgery timeline events | 10 req/s |
+| 20 | `/api/v1/surgical/records/{id}/timeline` | POST | `TIMELINE_CIRURGICA` | Add timeline event | 10 req/s |
+| 21 | `/api/v1/surgical/records/{id}/vitals` | GET | `SINAL_VITAL_CC` | Intraoperative vitals | 10 req/s |
+| 22 | `/api/v1/surgical/records/{id}/vitals` | POST | `SINAL_VITAL_CC` | Record intraop vitals | 10 req/s |
+| 23 | `/api/v1/surgical/records/{id}/counts` | GET | `CONTAGEM_CIRURGICA` | Surgical counts | 10 req/s |
+| 24 | `/api/v1/surgical/records/{id}/counts` | POST | `CONTAGEM_CIRURGICA` | Submit count | 10 req/s |
+| 25 | `/api/v1/surgical/records/{id}/images` | GET | `IMAGEM_CIRURGICA` | Surgical images | 10 req/s |
+| 26 | `/api/v1/surgical/records/{id}/images` | POST | `IMAGEM_CIRURGICA` | Upload surgical image | 10 req/s |
+| 27 | `/api/v1/surgical/records/{id}/consent` | GET | `CONSENTIMENTO` | Get consent status | 10 req/s |
+| 28 | `/api/v1/surgical/records/{id}/consent` | POST | `CONSENTIMENTO` | Record consent | 10 req/s |
+| 29 | `/api/v1/surgical/records/{id}/pathology` | POST | `PATOLOGIA` | Send to pathology | 10 req/s |
+| 30 | `/api/v1/surgical/records/{id}/pathology` | GET | `PATOLOGIA` | Get pathology results | 10 req/s |
+| 31 | `/api/v1/surgical/records/{id}/recovery` | GET | `RECUPERACAO` | Recovery status | 10 req/s |
+| 32 | `/api/v1/surgical/records/{id}/recovery` | POST | `RECUPERACAO` | Update recovery status | 10 req/s |
+| 33 | `/api/v1/surgical/records/{id}/summary` | GET | `REGISTRO_CIRURGICO` | Complete surgery summary | 10 req/s |
+
+### 5.5 Surgery Materials (19 endpoints)
+
+| # | Endpoint | Method | TASY Table | Description | Rate Limit |
+|---|----------|--------|------------|-------------|------------|
+| 1 | `/api/v1/surgical/materials/preference-cards` | GET | `FICHA_PREFERENCIA` | List preference cards | 10 req/s |
+| 2 | `/api/v1/surgical/materials/preference-cards/{id}` | GET | `FICHA_PREFERENCIA` | Get preference card | 10 req/s |
+| 3 | `/api/v1/surgical/materials/preference-cards` | POST | `FICHA_PREFERENCIA` | Create preference card | 10 req/s |
+| 4 | `/api/v1/surgical/materials/preference-cards/{id}` | PUT | `FICHA_PREFERENCIA` | Update preference card | 10 req/s |
+| 5 | `/api/v1/surgical/materials/preference-cards/{id}/items` | GET | `ITEM_FICHA_PREFERENCIA` | List card items | 10 req/s |
+| 6 | `/api/v1/surgical/materials/preference-cards/{id}/items` | POST | `ITEM_FICHA_PREFERENCIA` | Add item to card | 10 req/s |
+| 7 | `/api/v1/surgical/materials/preference-cards/{id}/items/{item_id}` | DELETE | `ITEM_FICHA_PREFERENCIA` | Remove item from card | 10 req/s |
+| 8 | `/api/v1/surgical/materials/requests` | GET | `SOLICITACAO_MATERIAL_CC` | List material requests | 10 req/s |
+| 9 | `/api/v1/surgical/materials/requests` | POST | `SOLICITACAO_MATERIAL_CC` | Create material request | 10 req/s |
+| 10 | `/api/v1/surgical/materials/requests/{id}` | GET | `SOLICITACAO_MATERIAL_CC` | Get request details | 10 req/s |
+| 11 | `/api/v1/surgical/materials/requests/{id}/status` | PUT | `SOLICITACAO_MATERIAL_CC` | Update request status | 10 req/s |
+| 12 | `/api/v1/surgical/materials/availability` | GET | `ESTOQUE_CC` | Check CC stock levels | 10 req/s |
+| 13 | `/api/v1/surgical/materials/availability/{material_id}` | GET | `ESTOQUE_CC` | Check specific material | 10 req/s |
+| 14 | `/api/v1/surgical/materials/kits` | GET | `KIT_CIRURGICO` | List surgical kits | 10 req/s |
+| 15 | `/api/v1/surgical/materials/kits/{id}` | GET | `KIT_CIRURGICO` | Get kit details | 10 req/s |
+| 16 | `/api/v1/surgical/materials/kits/{id}/items` | GET | `ITEM_KIT` | List kit items | 10 req/s |
+| 17 | `/api/v1/surgical/materials/consignment` | GET | `CONSIGNADO_CC` | List consigned materials | 10 req/s |
+| 18 | `/api/v1/surgical/materials/consignment/{id}` | GET | `CONSIGNADO_CC` | Get consignment details | 10 req/s |
+| 19 | `/api/v1/surgical/materials/usage/{record_id}` | GET | `CONSUMO_MATERIAL_CC` | Materials used in surgery | 10 req/s |
+
+---
+
 ## Complete Endpoint Summary
 
 | Endpoint | Method | TASY Table | FHIR Resource | Rate Limit | Description |
@@ -705,6 +860,11 @@ Accept: application/json
 | `/api/v1/billing/accounts/{id}/items` | GET | `ITEM_CONTA` | Claim.item | 10 req/s | Get billing line items |
 | `/api/v1/prescriptions/{id}` | GET | `PRESCRICAO` | MedicationRequest | 10 req/s | Get prescription |
 | `/api/v1/encounters/{id}/vitals` | GET | `SINAL_VITAL` | Observation | 10 req/s | Get vital signs |
+| `/api/v1/surgical/rooms/*` | GET/POST/PUT/DELETE | `SALA_CIRURGICA`, `AGENDA_SALA` | Location, Schedule, Slot | 10 req/s | Operating room management (27 endpoints) |
+| `/api/v1/surgical/centers/*` | GET/POST/PUT/DELETE | `CENTRO_CIRURGICO` | Location | 10 req/s | Surgical center management (24 endpoints) |
+| `/api/v1/surgical/procedures/*` | GET/POST/PUT | `MAPA_CIRURGICO` | Procedure | 10 req/s | Procedure mapping (19 endpoints) |
+| `/api/v1/surgical/records/*` | GET/POST/PUT | `REGISTRO_CIRURGICO` | Procedure, DiagnosticReport | 10 req/s | Surgical records (33 endpoints) |
+| `/api/v1/surgical/materials/*` | GET/POST/PUT/DELETE | `FICHA_PREFERENCIA`, `KIT_CIRURGICO` | SupplyRequest, Device | 10 req/s | Surgical materials (19 endpoints) |
 
 ---
 

@@ -14,6 +14,14 @@ Available adapters:
     TasyPaymentAdapter: PAGAMENTO -> FHIR Payment
     TasyInsuranceAuthAdapter: AUTORIZACAO -> FHIR CoverageEligibilityRequest
     TasyGlosaAdapter: GLOSA -> FHIR ClaimResponse (RC-GAP-3)
+    TasySurgicalAdapter: REGISTRO_CIRURGICO -> FHIR Procedure (Wave 3.6)
+    TasyClaimAdapter: CONTA_MEDICA -> FHIR Claim with TUSS/CBHPM/CID-10 (Wave 3.7b)
+    TasyClaimResponseAdapter: GLOSA -> FHIR ClaimResponse with ANS codes (Wave 3.7b)
+    TasyObservationAdapter: Vitals/Lab -> FHIR Observation with LOINC (Wave 3.7b)
+    TasyMedicationRequestAdapter: PRESCRICAO -> FHIR MedicationRequest with ANVISA (Wave 3.7b)
+    TasyMedicationDispenseAdapter: DISPENSACAO -> FHIR MedicationDispense (Wave 6.1)
+    TasyPharmacyInventoryAdapter: ESTOQUE_FARMACIA -> FHIR SupplyDelivery (Wave 6.1)
+    TasyDrugInteractionAdapter: INTERACAO_MEDICAMENTOSA -> FHIR DetectedIssue (Wave 6.1)
 
 Usage:
     from healthcare_platform.shared.integrations.tasy_adapters import TasyPatientAdapter
@@ -63,6 +71,30 @@ from healthcare_platform.shared.integrations.tasy_adapters.glosa_adapter import 
 from healthcare_platform.shared.integrations.tasy_adapters.scoring_adapter import (
     TasyScoringAdapter,
 )
+from healthcare_platform.shared.integrations.tasy_adapters.surgical_adapter import (
+    TasySurgicalAdapter,
+)
+from healthcare_platform.shared.integrations.tasy_adapters.claim_adapter import (
+    TasyClaimAdapter,
+)
+from healthcare_platform.shared.integrations.tasy_adapters.claim_response_adapter import (
+    TasyClaimResponseAdapter,
+)
+from healthcare_platform.shared.integrations.tasy_adapters.observation_adapter import (
+    TasyObservationAdapter,
+)
+from healthcare_platform.shared.integrations.tasy_adapters.medication_request_adapter import (
+    TasyMedicationRequestAdapter,
+)
+from healthcare_platform.shared.integrations.tasy_adapters.medication_dispense_adapter import (
+    TasyMedicationDispenseAdapter,
+)
+from healthcare_platform.shared.integrations.tasy_adapters.pharmacy_inventory_adapter import (
+    TasyPharmacyInventoryAdapter,
+)
+from healthcare_platform.shared.integrations.tasy_adapters.drug_interaction_adapter import (
+    TasyDrugInteractionAdapter,
+)
 
 __all__ = [
     "TasyToFhirAdapter",
@@ -78,4 +110,12 @@ __all__ = [
     "TasyInsuranceAuthAdapter",
     "TasyGlosaAdapter",
     "TasyScoringAdapter",
+    "TasySurgicalAdapter",
+    "TasyClaimAdapter",
+    "TasyClaimResponseAdapter",
+    "TasyObservationAdapter",
+    "TasyMedicationRequestAdapter",
+    "TasyMedicationDispenseAdapter",
+    "TasyPharmacyInventoryAdapter",
+    "TasyDrugInteractionAdapter",
 ]

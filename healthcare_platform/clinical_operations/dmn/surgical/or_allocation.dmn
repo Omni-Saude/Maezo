@@ -1,0 +1,180 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  ============================================================================
+  OR Allocation - Operating Room Scheduling Decision
+  ============================================================================
+  Determines optimal operating room allocation based on procedure type,
+  duration, equipment needs, and urgency. Supports tenant overrides (ADR-007).
+  Hit Policy: FIRST (priority-based matching)
+  ============================================================================
+-->
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/"
+             xmlns:dc="http://www.omg.org/spec/DMN/20180521/DC/"
+             id="Definitions_or_allocation"
+             name="OR Allocation Decision"
+             targetNamespace="http://camunda.org/schema/1.0/dmn">
+
+  <decision id="Decision_or_allocation" name="Operating Room Allocation">
+    <decisionTable id="DecisionTable_or_allocation" hitPolicy="FIRST">
+
+      <!-- INPUT 1: Procedure Type -->
+      <input id="Input_or_1" label="Procedure Type">
+        <inputExpression id="InputExpr_or_1" typeRef="string">
+          <text>procedureType</text>
+        </inputExpression>
+      </input>
+
+      <!-- INPUT 2: Estimated Duration (minutes) -->
+      <input id="Input_or_2" label="Estimated Duration (min)">
+        <inputExpression id="InputExpr_or_2" typeRef="number">
+          <text>estimatedDuration</text>
+        </inputExpression>
+      </input>
+
+      <!-- INPUT 3: Surgeon ID -->
+      <input id="Input_or_3" label="Surgeon ID">
+        <inputExpression id="InputExpr_or_3" typeRef="string">
+          <text>surgeonId</text>
+        </inputExpression>
+      </input>
+
+      <!-- INPUT 4: Equipment Needs -->
+      <input id="Input_or_4" label="Equipment Needs">
+        <inputExpression id="InputExpr_or_4" typeRef="string">
+          <text>equipmentNeeds</text>
+        </inputExpression>
+      </input>
+
+      <!-- INPUT 5: Urgency Level -->
+      <input id="Input_or_5" label="Urgency Level">
+        <inputExpression id="InputExpr_or_5" typeRef="string">
+          <text>urgencyLevel</text>
+        </inputExpression>
+      </input>
+
+      <!-- INPUT 6: Tenant ID (ADR-007 federation) -->
+      <input id="Input_or_6" label="Tenant ID">
+        <inputExpression id="InputExpr_or_6" typeRef="string">
+          <text>tenantId</text>
+        </inputExpression>
+      </input>
+
+      <!-- OUTPUT 1: Recommended Room -->
+      <output id="Output_or_1" label="Recommended Room" name="recommendedRoom" typeRef="string"/>
+
+      <!-- OUTPUT 2: Alternative Rooms -->
+      <output id="Output_or_2" label="Alternative Rooms" name="alternativeRooms" typeRef="string"/>
+
+      <!-- OUTPUT 3: Scheduling Priority -->
+      <output id="Output_or_3" label="Scheduling Priority" name="schedulingPriority" typeRef="number"/>
+
+      <!-- OUTPUT 4: Conflict Risk -->
+      <output id="Output_or_4" label="Conflict Risk" name="conflictRisk" typeRef="string">
+        <outputValues id="OutputValues_or_4">
+          <text>"LOW", "MEDIUM", "HIGH"</text>
+        </outputValues>
+      </output>
+
+      <!-- RULE 1: Emergency - highest priority -->
+      <rule id="Rule_or_emergency">
+        <description>Emergency procedures get immediate OR allocation with highest priority</description>
+        <inputEntry id="IE_or_1_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_or_1_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_or_1_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_or_1_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_or_1_5"><text>"EMERGENCY"</text></inputEntry>
+        <inputEntry id="IE_or_1_6"><text>-</text></inputEntry>
+        <outputEntry id="OE_or_1_1"><text>"OR-EMERGENCY"</text></outputEntry>
+        <outputEntry id="OE_or_1_2"><text>"OR-01,OR-02,OR-03"</text></outputEntry>
+        <outputEntry id="OE_or_1_3"><text>1</text></outputEntry>
+        <outputEntry id="OE_or_1_4"><text>"HIGH"</text></outputEntry>
+      </rule>
+
+      <!-- RULE 2: Cardiac surgery - specialized room -->
+      <rule id="Rule_or_cardiac">
+        <description>Cardiac procedures require specialized hybrid OR</description>
+        <inputEntry id="IE_or_2_1"><text>"CARDIAC"</text></inputEntry>
+        <inputEntry id="IE_or_2_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_or_2_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_or_2_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_or_2_5"><text>-</text></inputEntry>
+        <inputEntry id="IE_or_2_6"><text>-</text></inputEntry>
+        <outputEntry id="OE_or_2_1"><text>"OR-HYBRID-01"</text></outputEntry>
+        <outputEntry id="OE_or_2_2"><text>"OR-HYBRID-02"</text></outputEntry>
+        <outputEntry id="OE_or_2_3"><text>2</text></outputEntry>
+        <outputEntry id="OE_or_2_4"><text>"MEDIUM"</text></outputEntry>
+      </rule>
+
+      <!-- RULE 3: Neuro surgery - specialized room -->
+      <rule id="Rule_or_neuro">
+        <description>Neurosurgical procedures require specialized OR with navigation</description>
+        <inputEntry id="IE_or_3_1"><text>"NEUROSURGERY"</text></inputEntry>
+        <inputEntry id="IE_or_3_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_or_3_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_or_3_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_or_3_5"><text>-</text></inputEntry>
+        <inputEntry id="IE_or_3_6"><text>-</text></inputEntry>
+        <outputEntry id="OE_or_3_1"><text>"OR-NEURO-01"</text></outputEntry>
+        <outputEntry id="OE_or_3_2"><text>"OR-NEURO-02"</text></outputEntry>
+        <outputEntry id="OE_or_3_3"><text>2</text></outputEntry>
+        <outputEntry id="OE_or_3_4"><text>"MEDIUM"</text></outputEntry>
+      </rule>
+
+      <!-- RULE 4: Long procedures (>4h) -->
+      <rule id="Rule_or_long">
+        <description>Long procedures need dedicated room to avoid turnover conflicts</description>
+        <inputEntry id="IE_or_4_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_or_4_2"><text>&gt; 240</text></inputEntry>
+        <inputEntry id="IE_or_4_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_or_4_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_or_4_5"><text>-</text></inputEntry>
+        <inputEntry id="IE_or_4_6"><text>-</text></inputEntry>
+        <outputEntry id="OE_or_4_1"><text>"OR-MAJOR-01"</text></outputEntry>
+        <outputEntry id="OE_or_4_2"><text>"OR-MAJOR-02,OR-01"</text></outputEntry>
+        <outputEntry id="OE_or_4_3"><text>3</text></outputEntry>
+        <outputEntry id="OE_or_4_4"><text>"HIGH"</text></outputEntry>
+      </rule>
+
+      <!-- RULE 5: Urgent elective -->
+      <rule id="Rule_or_urgent">
+        <description>Urgent elective cases get priority scheduling</description>
+        <inputEntry id="IE_or_5_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_or_5_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_or_5_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_or_5_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_or_5_5"><text>"URGENT"</text></inputEntry>
+        <inputEntry id="IE_or_5_6"><text>-</text></inputEntry>
+        <outputEntry id="OE_or_5_1"><text>"OR-01"</text></outputEntry>
+        <outputEntry id="OE_or_5_2"><text>"OR-02,OR-03"</text></outputEntry>
+        <outputEntry id="OE_or_5_3"><text>2</text></outputEntry>
+        <outputEntry id="OE_or_5_4"><text>"MEDIUM"</text></outputEntry>
+      </rule>
+
+      <!-- RULE 6: Fallback - standard elective -->
+      <rule id="Rule_or_fallback">
+        <description>Standard elective procedures - allocate next available room</description>
+        <inputEntry id="IE_or_6_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_or_6_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_or_6_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_or_6_4"><text>-</text></inputEntry>
+        <inputEntry id="IE_or_6_5"><text>-</text></inputEntry>
+        <inputEntry id="IE_or_6_6"><text>-</text></inputEntry>
+        <outputEntry id="OE_or_6_1"><text>"OR-NEXT-AVAILABLE"</text></outputEntry>
+        <outputEntry id="OE_or_6_2"><text>"OR-01,OR-02,OR-03"</text></outputEntry>
+        <outputEntry id="OE_or_6_3"><text>5</text></outputEntry>
+        <outputEntry id="OE_or_6_4"><text>"LOW"</text></outputEntry>
+      </rule>
+
+    </decisionTable>
+  </decision>
+
+  <dmndi:DMNDI>
+    <dmndi:DMNDiagram id="DMNDiagram_or_allocation">
+      <dmndi:DMNShape id="DMNShape_or_allocation" dmnElementRef="Decision_or_allocation">
+        <dc:Bounds height="80" width="180" x="160" y="100"/>
+      </dmndi:DMNShape>
+    </dmndi:DMNDiagram>
+  </dmndi:DMNDI>
+
+</definitions>

@@ -1,0 +1,555 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+                   xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+                   xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+                   xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
+                   xmlns:camunda="http://camunda.org/schema/1.0/bpmn"
+                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                   id="Definitions_SP_CO_007"
+                   targetNamespace="http://cib7.healthcare/clinical-operations/surgical"
+                   exporter="CIB Seven 2.1.3"
+                   exporterVersion="1.0">
+
+  <!-- Error Definitions -->
+  <bpmn:error id="Error_SurgicalValidation" name="SURGICAL_VALIDATION_ERROR" errorCode="SURG_VALIDATION"/>
+  <bpmn:error id="Error_SurgicalScheduling" name="SURGICAL_SCHEDULING_CONFLICT" errorCode="SURG_SCHEDULING"/>
+  <bpmn:error id="Error_SurgicalSafety" name="SURGICAL_SAFETY_CHECK_FAILED" errorCode="SURG_SAFETY"/>
+
+  <!-- Message Definitions -->
+  <bpmn:message id="msg_procedures_completed" name="msg_procedures_completed"/>
+
+  <!-- Escalation Definitions -->
+  <bpmn:escalation id="Escalation_CriticalFailure" name="SURGICAL_CRITICAL_FAILURE" escalationCode="SURG_CRITICAL"/>
+
+  <!-- ========================================================================
+       SP-CO-007: Surgical Services Coordination
+       WHO Safe Surgery Framework: Pre-Op → Intra-Op → Post-Op
+       ======================================================================== -->
+  <bpmn:process id="SP_CO_007_Surgical_Services" name="SP-CO-007 Surgical Services Coordination" isExecutable="true">
+
+    <!-- ====================================================================
+         A) PRE-OPERATIVE PHASE
+         ==================================================================== -->
+
+    <!-- Start Event: Triggered by call activity from clinical-ops-main -->
+    <bpmn:startEvent id="start_surgical" name="Surgical Services Started">
+      <bpmn:outgoing>flow_to_scheduling</bpmn:outgoing>
+    </bpmn:startEvent>
+
+    <!-- Service Task: Get surgery details from TASY -->
+    <bpmn:serviceTask id="task_surgical_scheduling" name="Obter Detalhes Cirúrgicos (TASY)"
+                      camunda:type="external" camunda:topic="surgical-scheduling">
+      <bpmn:incoming>flow_to_scheduling</bpmn:incoming>
+      <bpmn:outgoing>flow_to_team_assign</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Error Boundary: Scheduling Conflict -->
+    <bpmn:boundaryEvent id="error_scheduling" name="Scheduling Conflict" attachedToRef="task_surgical_scheduling">
+      <bpmn:outgoing>flow_to_scheduling_error_end</bpmn:outgoing>
+      <bpmn:errorEventDefinition id="errDef_scheduling" errorRef="Error_SurgicalScheduling"/>
+    </bpmn:boundaryEvent>
+
+    <!-- Service Task: Assign surgical team -->
+    <bpmn:serviceTask id="task_surgical_team_assign" name="Escalar Equipe Cirúrgica"
+                      camunda:type="external" camunda:topic="surgical-team-assign">
+      <bpmn:incoming>flow_to_team_assign</bpmn:incoming>
+      <bpmn:outgoing>flow_to_materials</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Service Task: Prepare materials per preference card -->
+    <bpmn:serviceTask id="task_surgical_materials" name="Preparar Materiais (Cartão de Preferência)"
+                      camunda:type="external" camunda:topic="surgical-materials">
+      <bpmn:incoming>flow_to_materials</bpmn:incoming>
+      <bpmn:outgoing>flow_to_consent</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Service Task: Verify informed consent -->
+    <bpmn:serviceTask id="task_surgical_consent" name="Verificar Consentimento Informado"
+                      camunda:type="external" camunda:topic="surgical-consent">
+      <bpmn:incoming>flow_to_consent</bpmn:incoming>
+      <bpmn:outgoing>flow_to_anesthesia</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Service Task: Anesthesia evaluation -->
+    <bpmn:serviceTask id="task_anesthesia_eval" name="Avaliação Anestésica"
+                      camunda:type="external" camunda:topic="surgical-anesthesia-eval">
+      <bpmn:incoming>flow_to_anesthesia</bpmn:incoming>
+      <bpmn:outgoing>flow_to_site_mark</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Service Task: Verify surgical site marking -->
+    <bpmn:serviceTask id="task_surgical_site_mark" name="Verificar Demarcação do Sítio Cirúrgico"
+                      camunda:type="external" camunda:topic="surgical-site-mark">
+      <bpmn:incoming>flow_to_site_mark</bpmn:incoming>
+      <bpmn:outgoing>flow_to_readiness_check</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Timer Boundary: 15 min timeout on pre-op checklist -->
+    <bpmn:boundaryEvent id="timer_preop_checklist" name="Pre-Op SLA 15min" cancelActivity="true" attachedToRef="task_surgical_site_mark">
+      <bpmn:outgoing>flow_to_preop_timeout_end</bpmn:outgoing>
+      <bpmn:timerEventDefinition id="timerDef_preop">
+        <bpmn:timeDuration xsi:type="bpmn:tFormalExpression">PT15M</bpmn:timeDuration>
+      </bpmn:timerEventDefinition>
+    </bpmn:boundaryEvent>
+
+    <!-- Business Rule Task: Validate pre-op readiness -->
+    <bpmn:businessRuleTask id="task_readiness_check" name="Avaliar Prontidão Cirúrgica"
+                           camunda:decisionRef="surgical_readiness"
+                           camunda:mapDecisionResult="collectEntries">
+      <bpmn:incoming>flow_to_readiness_check</bpmn:incoming>
+      <bpmn:outgoing>flow_to_preop_gateway</bpmn:outgoing>
+    </bpmn:businessRuleTask>
+
+    <!-- Exclusive Gateway: Pre-op complete? -->
+    <bpmn:exclusiveGateway id="gateway_preop_complete" name="Pre-Op Complete?">
+      <bpmn:incoming>flow_to_preop_gateway</bpmn:incoming>
+      <bpmn:outgoing>flow_preop_yes</bpmn:outgoing>
+      <bpmn:outgoing>flow_preop_no</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+
+    <!-- ====================================================================
+         B) INTRA-OPERATIVE PHASE
+         ==================================================================== -->
+
+    <!-- Service Task: WHO Time-Out checklist -->
+    <bpmn:serviceTask id="task_surgical_checklist" name="Checklist WHO Time-Out"
+                      camunda:type="external" camunda:topic="surgical-checklist">
+      <bpmn:incoming>flow_preop_yes</bpmn:incoming>
+      <bpmn:outgoing>flow_to_safety_dmn</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Business Rule Task: WHO Safety Checklist DMN -->
+    <bpmn:businessRuleTask id="task_safety_checklist_dmn" name="Validar Checklist de Segurança"
+                           camunda:decisionRef="surgical_safety_checklist"
+                           camunda:mapDecisionResult="collectEntries">
+      <bpmn:incoming>flow_to_safety_dmn</bpmn:incoming>
+      <bpmn:outgoing>flow_to_or_turnover</bpmn:outgoing>
+    </bpmn:businessRuleTask>
+
+    <!-- Error Boundary: Safety Check Failed -->
+    <bpmn:boundaryEvent id="error_safety_check" name="Safety Check Failed" attachedToRef="task_safety_checklist_dmn">
+      <bpmn:outgoing>flow_to_safety_error_end</bpmn:outgoing>
+      <bpmn:errorEventDefinition id="errDef_safety" errorRef="Error_SurgicalSafety"/>
+    </bpmn:boundaryEvent>
+
+    <!-- Service Task: Track OR time -->
+    <bpmn:serviceTask id="task_or_turnover" name="Monitorar Tempo de Sala"
+                      camunda:type="external" camunda:topic="surgical-or-turnover">
+      <bpmn:incoming>flow_to_or_turnover</bpmn:incoming>
+      <bpmn:outgoing>flow_to_equipment</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Timer Boundary: 2h max procedure warning (non-interrupting) -->
+    <bpmn:boundaryEvent id="timer_procedure_warning" name="2h Procedure Warning" cancelActivity="false" attachedToRef="task_or_turnover">
+      <bpmn:outgoing>flow_to_procedure_warning_escalation</bpmn:outgoing>
+      <bpmn:timerEventDefinition id="timerDef_procedure">
+        <bpmn:timeDuration xsi:type="bpmn:tFormalExpression">PT2H</bpmn:timeDuration>
+      </bpmn:timerEventDefinition>
+    </bpmn:boundaryEvent>
+
+    <!-- Escalation: Procedure exceeding expected duration -->
+    <bpmn:endEvent id="end_procedure_warning" name="Procedure Duration Escalation">
+      <bpmn:incoming>flow_to_procedure_warning_escalation</bpmn:incoming>
+      <bpmn:escalationEventDefinition id="escDef_procedure" escalationRef="Escalation_CriticalFailure"/>
+    </bpmn:endEvent>
+
+    <!-- Service Task: Equipment tracking -->
+    <bpmn:serviceTask id="task_surgical_equipment" name="Rastrear Equipamentos"
+                      camunda:type="external" camunda:topic="surgical-equipment">
+      <bpmn:incoming>flow_to_equipment</bpmn:incoming>
+      <bpmn:outgoing>flow_to_count</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Service Task: Instrument/sponge counts -->
+    <bpmn:serviceTask id="task_count_verification" name="Contagem de Instrumentais e Compressas"
+                      camunda:type="external" camunda:topic="surgical-count-verification">
+      <bpmn:incoming>flow_to_count</bpmn:incoming>
+      <bpmn:outgoing>flow_to_postop</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- ====================================================================
+         C) POST-OPERATIVE PHASE
+         ==================================================================== -->
+
+    <!-- Service Task: Specimen handling -->
+    <bpmn:serviceTask id="task_surgical_specimen" name="Manejo de Espécime Cirúrgico"
+                      camunda:type="external" camunda:topic="surgical-specimen">
+      <bpmn:incoming>flow_to_postop</bpmn:incoming>
+      <bpmn:outgoing>flow_to_recovery</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Service Task: PACU handoff -->
+    <bpmn:serviceTask id="task_post_op_recovery" name="Transferência para SRPA (PACU)"
+                      camunda:type="external" camunda:topic="surgical-post-op-recovery">
+      <bpmn:incoming>flow_to_recovery</bpmn:incoming>
+      <bpmn:outgoing>flow_to_or_allocation</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Business Rule Task: Next case scheduling -->
+    <bpmn:businessRuleTask id="task_or_allocation" name="Alocação de Sala para Próximo Caso"
+                           camunda:decisionRef="or_allocation"
+                           camunda:mapDecisionResult="singleResult">
+      <bpmn:incoming>flow_to_or_allocation</bpmn:incoming>
+      <bpmn:outgoing>flow_to_msg_throw</bpmn:outgoing>
+    </bpmn:businessRuleTask>
+
+    <!-- MSG-002: ProceduresCompleted throw to revenue-cycle-main -->
+    <bpmn:intermediateThrowEvent id="throw_procedures_completed" name="MSG-002 ProceduresCompleted">
+      <bpmn:incoming>flow_to_msg_throw</bpmn:incoming>
+      <bpmn:outgoing>flow_to_end</bpmn:outgoing>
+      <bpmn:messageEventDefinition id="msgEvtDef_procedures_completed" messageRef="msg_procedures_completed"
+                                    camunda:expression="${execution.setVariable('procedureFhirId', procedureFhirId)}"
+                                    camunda:resultVariable="msgResult">
+      </bpmn:messageEventDefinition>
+    </bpmn:intermediateThrowEvent>
+
+    <!-- End Event: Surgery completed -->
+    <bpmn:endEvent id="end_surgery_completed" name="Surgery Completed">
+      <bpmn:incoming>flow_to_end</bpmn:incoming>
+    </bpmn:endEvent>
+
+    <!-- ====================================================================
+         ERROR HANDLING
+         ==================================================================== -->
+
+    <!-- Error End: Pre-op validation failure -->
+    <bpmn:endEvent id="error_end_validation" name="Pre-Op Validation Failed">
+      <bpmn:incoming>flow_preop_no</bpmn:incoming>
+      <bpmn:errorEventDefinition id="errEvtDef_validation" errorRef="Error_SurgicalValidation"/>
+    </bpmn:endEvent>
+
+    <!-- Error End: Scheduling conflict -->
+    <bpmn:endEvent id="error_end_scheduling" name="Scheduling Conflict">
+      <bpmn:incoming>flow_to_scheduling_error_end</bpmn:incoming>
+      <bpmn:errorEventDefinition id="errEvtDef_scheduling" errorRef="Error_SurgicalScheduling"/>
+    </bpmn:endEvent>
+
+    <!-- Error End: Safety check failed -->
+    <bpmn:endEvent id="error_end_safety" name="Safety Check Failed">
+      <bpmn:incoming>flow_to_safety_error_end</bpmn:incoming>
+      <bpmn:errorEventDefinition id="errEvtDef_safety" errorRef="Error_SurgicalSafety"/>
+    </bpmn:endEvent>
+
+    <!-- Error End: Pre-op timeout -->
+    <bpmn:endEvent id="error_end_preop_timeout" name="Pre-Op Timeout">
+      <bpmn:incoming>flow_to_preop_timeout_end</bpmn:incoming>
+      <bpmn:errorEventDefinition id="errEvtDef_timeout" errorRef="Error_SurgicalValidation"/>
+    </bpmn:endEvent>
+
+    <!-- ====================================================================
+         SEQUENCE FLOWS
+         ==================================================================== -->
+
+    <!-- Pre-Op flows -->
+    <bpmn:sequenceFlow id="flow_to_scheduling" sourceRef="start_surgical" targetRef="task_surgical_scheduling"/>
+    <bpmn:sequenceFlow id="flow_to_team_assign" sourceRef="task_surgical_scheduling" targetRef="task_surgical_team_assign"/>
+    <bpmn:sequenceFlow id="flow_to_materials" sourceRef="task_surgical_team_assign" targetRef="task_surgical_materials"/>
+    <bpmn:sequenceFlow id="flow_to_consent" sourceRef="task_surgical_materials" targetRef="task_surgical_consent"/>
+    <bpmn:sequenceFlow id="flow_to_anesthesia" sourceRef="task_surgical_consent" targetRef="task_anesthesia_eval"/>
+    <bpmn:sequenceFlow id="flow_to_site_mark" sourceRef="task_anesthesia_eval" targetRef="task_surgical_site_mark"/>
+    <bpmn:sequenceFlow id="flow_to_readiness_check" sourceRef="task_surgical_site_mark" targetRef="task_readiness_check"/>
+    <bpmn:sequenceFlow id="flow_to_preop_gateway" sourceRef="task_readiness_check" targetRef="gateway_preop_complete"/>
+    <bpmn:sequenceFlow id="flow_preop_yes" name="Ready" sourceRef="gateway_preop_complete" targetRef="task_surgical_checklist">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${canProceed == true}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="flow_preop_no" name="Not Ready" sourceRef="gateway_preop_complete" targetRef="error_end_validation">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${canProceed == false}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+
+    <!-- Intra-Op flows -->
+    <bpmn:sequenceFlow id="flow_to_safety_dmn" sourceRef="task_surgical_checklist" targetRef="task_safety_checklist_dmn"/>
+    <bpmn:sequenceFlow id="flow_to_or_turnover" sourceRef="task_safety_checklist_dmn" targetRef="task_or_turnover"/>
+    <bpmn:sequenceFlow id="flow_to_equipment" sourceRef="task_or_turnover" targetRef="task_surgical_equipment"/>
+    <bpmn:sequenceFlow id="flow_to_count" sourceRef="task_surgical_equipment" targetRef="task_count_verification"/>
+    <bpmn:sequenceFlow id="flow_to_procedure_warning_escalation" sourceRef="timer_procedure_warning" targetRef="end_procedure_warning"/>
+
+    <!-- Post-Op flows -->
+    <bpmn:sequenceFlow id="flow_to_postop" sourceRef="task_count_verification" targetRef="task_surgical_specimen"/>
+    <bpmn:sequenceFlow id="flow_to_recovery" sourceRef="task_surgical_specimen" targetRef="task_post_op_recovery"/>
+    <bpmn:sequenceFlow id="flow_to_or_allocation" sourceRef="task_post_op_recovery" targetRef="task_or_allocation"/>
+    <bpmn:sequenceFlow id="flow_to_msg_throw" sourceRef="task_or_allocation" targetRef="throw_procedures_completed"/>
+    <bpmn:sequenceFlow id="flow_to_end" sourceRef="throw_procedures_completed" targetRef="end_surgery_completed"/>
+
+    <!-- Error flows -->
+    <bpmn:sequenceFlow id="flow_to_scheduling_error_end" sourceRef="error_scheduling" targetRef="error_end_scheduling"/>
+    <bpmn:sequenceFlow id="flow_to_safety_error_end" sourceRef="error_safety_check" targetRef="error_end_safety"/>
+    <bpmn:sequenceFlow id="flow_to_preop_timeout_end" sourceRef="timer_preop_checklist" targetRef="error_end_preop_timeout"/>
+
+  </bpmn:process>
+
+  <!-- BPMN Diagram -->
+  <bpmndi:BPMNDiagram id="BPMNDiagram_SP_CO_007">
+    <bpmndi:BPMNPlane id="BPMNPlane_SP_CO_007" bpmnElement="SP_CO_007_Surgical_Services">
+
+      <!-- Start Event -->
+      <bpmndi:BPMNShape id="shape_start_surgical" bpmnElement="start_surgical">
+        <dc:Bounds x="152" y="192" width="36" height="36"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="130" y="235" width="80" height="27"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+
+      <!-- Pre-Op: Scheduling -->
+      <bpmndi:BPMNShape id="shape_task_surgical_scheduling" bpmnElement="task_surgical_scheduling">
+        <dc:Bounds x="240" y="170" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="shape_error_scheduling" bpmnElement="error_scheduling">
+        <dc:Bounds x="322" y="232" width="36" height="36"/>
+      </bpmndi:BPMNShape>
+
+      <!-- Pre-Op: Team Assignment -->
+      <bpmndi:BPMNShape id="shape_task_surgical_team_assign" bpmnElement="task_surgical_team_assign">
+        <dc:Bounds x="390" y="170" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <!-- Pre-Op: Materials -->
+      <bpmndi:BPMNShape id="shape_task_surgical_materials" bpmnElement="task_surgical_materials">
+        <dc:Bounds x="540" y="170" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <!-- Pre-Op: Consent -->
+      <bpmndi:BPMNShape id="shape_task_surgical_consent" bpmnElement="task_surgical_consent">
+        <dc:Bounds x="690" y="170" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <!-- Pre-Op: Anesthesia -->
+      <bpmndi:BPMNShape id="shape_task_anesthesia_eval" bpmnElement="task_anesthesia_eval">
+        <dc:Bounds x="840" y="170" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <!-- Pre-Op: Site Marking -->
+      <bpmndi:BPMNShape id="shape_task_surgical_site_mark" bpmnElement="task_surgical_site_mark">
+        <dc:Bounds x="990" y="170" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="shape_timer_preop_checklist" bpmnElement="timer_preop_checklist">
+        <dc:Bounds x="1072" y="232" width="36" height="36"/>
+      </bpmndi:BPMNShape>
+
+      <!-- Pre-Op: Readiness DMN -->
+      <bpmndi:BPMNShape id="shape_task_readiness_check" bpmnElement="task_readiness_check">
+        <dc:Bounds x="1140" y="170" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <!-- Gateway: Pre-Op Complete -->
+      <bpmndi:BPMNShape id="shape_gateway_preop_complete" bpmnElement="gateway_preop_complete" isMarkerVisible="true">
+        <dc:Bounds x="1295" y="185" width="50" height="50"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1283" y="155" width="75" height="27"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+
+      <!-- Intra-Op: WHO Checklist -->
+      <bpmndi:BPMNShape id="shape_task_surgical_checklist" bpmnElement="task_surgical_checklist">
+        <dc:Bounds x="240" y="400" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <!-- Intra-Op: Safety DMN -->
+      <bpmndi:BPMNShape id="shape_task_safety_checklist_dmn" bpmnElement="task_safety_checklist_dmn">
+        <dc:Bounds x="390" y="400" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="shape_error_safety_check" bpmnElement="error_safety_check">
+        <dc:Bounds x="472" y="462" width="36" height="36"/>
+      </bpmndi:BPMNShape>
+
+      <!-- Intra-Op: OR Turnover -->
+      <bpmndi:BPMNShape id="shape_task_or_turnover" bpmnElement="task_or_turnover">
+        <dc:Bounds x="540" y="400" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="shape_timer_procedure_warning" bpmnElement="timer_procedure_warning">
+        <dc:Bounds x="622" y="462" width="36" height="36"/>
+      </bpmndi:BPMNShape>
+
+      <!-- Intra-Op: Equipment -->
+      <bpmndi:BPMNShape id="shape_task_surgical_equipment" bpmnElement="task_surgical_equipment">
+        <dc:Bounds x="690" y="400" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <!-- Intra-Op: Count Verification -->
+      <bpmndi:BPMNShape id="shape_task_count_verification" bpmnElement="task_count_verification">
+        <dc:Bounds x="840" y="400" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <!-- Post-Op: Specimen -->
+      <bpmndi:BPMNShape id="shape_task_surgical_specimen" bpmnElement="task_surgical_specimen">
+        <dc:Bounds x="240" y="600" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <!-- Post-Op: Recovery -->
+      <bpmndi:BPMNShape id="shape_task_post_op_recovery" bpmnElement="task_post_op_recovery">
+        <dc:Bounds x="390" y="600" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <!-- Post-Op: OR Allocation DMN -->
+      <bpmndi:BPMNShape id="shape_task_or_allocation" bpmnElement="task_or_allocation">
+        <dc:Bounds x="540" y="600" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <!-- Post-Op: MSG-002 Throw -->
+      <bpmndi:BPMNShape id="shape_throw_procedures_completed" bpmnElement="throw_procedures_completed">
+        <dc:Bounds x="692" y="622" width="36" height="36"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="665" y="665" width="90" height="27"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+
+      <!-- End Event: Success -->
+      <bpmndi:BPMNShape id="shape_end_surgery_completed" bpmnElement="end_surgery_completed">
+        <dc:Bounds x="782" y="622" width="36" height="36"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="760" y="665" width="80" height="27"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+
+      <!-- Error End: Validation -->
+      <bpmndi:BPMNShape id="shape_error_end_validation" bpmnElement="error_end_validation">
+        <dc:Bounds x="1302" y="302" width="36" height="36"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1280" y="345" width="80" height="27"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+
+      <!-- Error End: Scheduling -->
+      <bpmndi:BPMNShape id="shape_error_end_scheduling" bpmnElement="error_end_scheduling">
+        <dc:Bounds x="322" y="302" width="36" height="36"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="300" y="345" width="80" height="27"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+
+      <!-- Error End: Safety -->
+      <bpmndi:BPMNShape id="shape_error_end_safety" bpmnElement="error_end_safety">
+        <dc:Bounds x="472" y="532" width="36" height="36"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="450" y="575" width="80" height="27"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+
+      <!-- Error End: Pre-Op Timeout -->
+      <bpmndi:BPMNShape id="shape_error_end_preop_timeout" bpmnElement="error_end_preop_timeout">
+        <dc:Bounds x="1072" y="302" width="36" height="36"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1050" y="345" width="80" height="27"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+
+      <!-- Escalation End: Procedure Warning -->
+      <bpmndi:BPMNShape id="shape_end_procedure_warning" bpmnElement="end_procedure_warning">
+        <dc:Bounds x="622" y="532" width="36" height="36"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="600" y="575" width="80" height="27"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+
+      <!-- Sequence Flow Edges: Pre-Op -->
+      <bpmndi:BPMNEdge id="edge_flow_to_scheduling" bpmnElement="flow_to_scheduling">
+        <di:waypoint x="188" y="210"/>
+        <di:waypoint x="240" y="210"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="edge_flow_to_team_assign" bpmnElement="flow_to_team_assign">
+        <di:waypoint x="340" y="210"/>
+        <di:waypoint x="390" y="210"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="edge_flow_to_materials" bpmnElement="flow_to_materials">
+        <di:waypoint x="490" y="210"/>
+        <di:waypoint x="540" y="210"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="edge_flow_to_consent" bpmnElement="flow_to_consent">
+        <di:waypoint x="640" y="210"/>
+        <di:waypoint x="690" y="210"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="edge_flow_to_anesthesia" bpmnElement="flow_to_anesthesia">
+        <di:waypoint x="790" y="210"/>
+        <di:waypoint x="840" y="210"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="edge_flow_to_site_mark" bpmnElement="flow_to_site_mark">
+        <di:waypoint x="940" y="210"/>
+        <di:waypoint x="990" y="210"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="edge_flow_to_readiness_check" bpmnElement="flow_to_readiness_check">
+        <di:waypoint x="1090" y="210"/>
+        <di:waypoint x="1140" y="210"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="edge_flow_to_preop_gateway" bpmnElement="flow_to_preop_gateway">
+        <di:waypoint x="1240" y="210"/>
+        <di:waypoint x="1295" y="210"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="edge_flow_preop_yes" bpmnElement="flow_preop_yes">
+        <di:waypoint x="1320" y="235"/>
+        <di:waypoint x="1320" y="440"/>
+        <di:waypoint x="340" y="440"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1325" y="300" width="30" height="14"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="edge_flow_preop_no" bpmnElement="flow_preop_no">
+        <di:waypoint x="1320" y="235"/>
+        <di:waypoint x="1320" y="302"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1325" y="263" width="50" height="14"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+
+      <!-- Sequence Flow Edges: Intra-Op -->
+      <bpmndi:BPMNEdge id="edge_flow_to_safety_dmn" bpmnElement="flow_to_safety_dmn">
+        <di:waypoint x="340" y="440"/>
+        <di:waypoint x="390" y="440"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="edge_flow_to_or_turnover" bpmnElement="flow_to_or_turnover">
+        <di:waypoint x="490" y="440"/>
+        <di:waypoint x="540" y="440"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="edge_flow_to_equipment" bpmnElement="flow_to_equipment">
+        <di:waypoint x="640" y="440"/>
+        <di:waypoint x="690" y="440"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="edge_flow_to_count" bpmnElement="flow_to_count">
+        <di:waypoint x="790" y="440"/>
+        <di:waypoint x="840" y="440"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="edge_flow_to_procedure_warning_escalation" bpmnElement="flow_to_procedure_warning_escalation">
+        <di:waypoint x="640" y="498"/>
+        <di:waypoint x="640" y="532"/>
+      </bpmndi:BPMNEdge>
+
+      <!-- Sequence Flow Edges: Post-Op -->
+      <bpmndi:BPMNEdge id="edge_flow_to_postop" bpmnElement="flow_to_postop">
+        <di:waypoint x="940" y="440"/>
+        <di:waypoint x="960" y="440"/>
+        <di:waypoint x="960" y="640"/>
+        <di:waypoint x="340" y="640"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="edge_flow_to_recovery" bpmnElement="flow_to_recovery">
+        <di:waypoint x="340" y="640"/>
+        <di:waypoint x="390" y="640"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="edge_flow_to_or_allocation" bpmnElement="flow_to_or_allocation">
+        <di:waypoint x="490" y="640"/>
+        <di:waypoint x="540" y="640"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="edge_flow_to_msg_throw" bpmnElement="flow_to_msg_throw">
+        <di:waypoint x="640" y="640"/>
+        <di:waypoint x="692" y="640"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="edge_flow_to_end" bpmnElement="flow_to_end">
+        <di:waypoint x="728" y="640"/>
+        <di:waypoint x="782" y="640"/>
+      </bpmndi:BPMNEdge>
+
+      <!-- Error Flow Edges -->
+      <bpmndi:BPMNEdge id="edge_flow_to_scheduling_error_end" bpmnElement="flow_to_scheduling_error_end">
+        <di:waypoint x="340" y="268"/>
+        <di:waypoint x="340" y="302"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="edge_flow_to_safety_error_end" bpmnElement="flow_to_safety_error_end">
+        <di:waypoint x="490" y="498"/>
+        <di:waypoint x="490" y="532"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="edge_flow_to_preop_timeout_end" bpmnElement="flow_to_preop_timeout_end">
+        <di:waypoint x="1090" y="268"/>
+        <di:waypoint x="1090" y="302"/>
+      </bpmndi:BPMNEdge>
+
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+
+</bpmn:definitions>

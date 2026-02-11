@@ -1,0 +1,116 @@
+{{- if .Values.webhookReceiver.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "maestro.fullname" . }}-webhook-receiver
+  labels:
+    {{- include "maestro.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: webhook-receiver
+spec:
+  replicas: {{ .Values.webhookReceiver.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "maestro.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: webhook-receiver
+  template:
+    metadata:
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8090"
+        prometheus.io/path: "/metrics"
+      labels:
+        {{- include "maestro.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: webhook-receiver
+    spec:
+      serviceAccountName: {{ include "maestro.serviceAccountName" . }}
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        fsGroup: 1000
+      containers:
+        - name: webhook-receiver
+          image: "{{ .Values.webhookReceiver.image.repository }}:{{ .Values.webhookReceiver.image.tag }}"
+          imagePullPolicy: {{ .Values.webhookReceiver.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: 8090
+              protocol: TCP
+          env:
+            - name: CIB7_ENGINE_URL
+              value: {{ .Values.webhookReceiver.config.cib7EngineUrl | default "http://cib-seven:8080/engine-rest" }}
+            - name: REDIS_URL
+              value: {{ .Values.webhookReceiver.config.redisUrl | default (include "maestro.redisUrl" .) }}
+            - name: KEYCLOAK_URL
+              value: {{ include "maestro.keycloakUrl" . }}
+            - name: TASY_WEBHOOK_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: maestro-webhook-credentials
+                  key: tasy-webhook-secret
+            - name: PIX_CERT_PATH
+              value: /etc/pix/certs/pix-cert.pem
+            - name: WHATSAPP_VERIFY_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: maestro-webhook-credentials
+                  key: whatsapp-verify-token
+                  optional: true
+            - name: KEYCLOAK_CLIENT_ID
+              value: webhook-receiver
+            - name: KEYCLOAK_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: maestro-webhook-credentials
+                  key: keycloak-client-secret
+                  optional: true
+            - name: LOG_LEVEL
+              value: {{ .Values.webhookReceiver.config.logLevel | default "INFO" }}
+            - name: TENANTS_CONFIG
+              value: {{ include "maestro.tenantsJson" . | quote }}
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 15
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 3
+          resources:
+            {{- toYaml .Values.webhookReceiver.resources | nindent 12 }}
+          securityContext:
+            readOnlyRootFilesystem: true
+            allowPrivilegeEscalation: false
+          volumeMounts:
+            - name: pix-certs
+              mountPath: /etc/pix/certs
+              readOnly: true
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: pix-certs
+          secret:
+            secretName: maestro-pix-certificates
+            optional: true
+        - name: tmp
+          emptyDir: {}
+      {{- with .Values.webhookReceiver.nodeSelector | default dict }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.webhookReceiver.affinity | default dict }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.webhookReceiver.tolerations | default list }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+{{- end }}
