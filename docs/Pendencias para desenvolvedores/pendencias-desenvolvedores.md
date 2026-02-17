@@ -163,7 +163,7 @@ Os seguintes artefatos foram gerados e estão prontos para uso:
 ### 4.1 Framework Base (✅ Parcialmente Implementado)
 - [x] Criar `pyproject.toml` com dependências do projeto
 - [x] Configurar `camunda-external-task-client-python3` para conectar ao CIB Seven (`worker_runner.py`)
-- [x] Auto-discovery de 184 workers via `registry.py` (padrões `@worker` e `WORKER_TYPE`)
+- [x] Auto-discovery de 402 workers via `registry.py` (padrões `@worker` e `WORKER_TYPE`)
 - [x] Health checks HTTP para K8s probes (`:8000/health`)
 - [x] Logging estruturado (structlog)
 - [x] Dockerfile + Docker Compose com 4 workers por domínio
@@ -185,14 +185,30 @@ Os seguintes artefatos foram gerados e estão prontos para uso:
 
 ## 5. BPMN — Deploy e Validação
 
-### 5.1 Deploy de Processos
-- [ ] Validar e fazer deploy dos 42 arquivos BPMN no CIB Seven via API
+### 5.1 Deploy de Processos ✅ PARCIALMENTE PRONTO
+- [x] **NOVO**: Consolidar e refatorar processos BPMN (ADR-019 compliance)
+- [x] **NOVO**: Padronizar nomenclatura (`SP-{DOMAIN}-{NNN}_Process_Name.bpmn`)
+- [x] **NOVO**: Validação automática (CI/CD) — XML, XSD, BPMNDI, topics
+- [x] **NOVO**: Pre-commit hook para BPMN compliance — **`scripts/bpmn_pre_commit_hook.sh`**
+- [x] **NOVO**: Worker connectivity validator — **`scripts/validate_bpmn_worker_connectivity.py`**
+- [x] **NOVO**: Integration tests (deployment, namespace, instantiation, topics) — **`tests/integration/bpmn/`**
+- [ ] Validar e fazer deploy dos 64 arquivos BPMN no CIB Seven via API
 - [ ] Configurar tenant-specific deployments onde necessário
 - [ ] Testar timer events (SLA enforcement) em ambiente real
 - [ ] Validar call activities entre processos (revenue-cycle-main → sub-processes)
 
-### 5.2 DMN — Deploy e Validação
-- [ ] Validar os 838 arquivos DMN (FEEL 1.3 syntax)
+**Recentes Mudanças:**
+- Revenue Cycle: `SP-RC-008A/B` consolidados em `SP-RC-008`, `SP-RC-009` promovido para `SP-RC-011`
+- Clinical Ops: `SP-PA-011/012` movidos para `SP-CO-011/012` (patient access → clinical ops)
+- Main process: `revenue-cycle-main.bpmn` → `SP-RC-000_Revenue_Cycle_Main.bpmn`
+- 13 processos deletados/consolidados, 6 processos renomeados/reestruturados
+
+### 5.2 DMN — Deploy e Validação ✅ PARCIALMENTE PRONTO
+- [x] **NOVO**: DMN validation tooling — **`scripts/validate_dmn.py`**
+- [x] **NOVO**: DMN inventory generator — **`scripts/dmn_inventory.py`**
+- [x] **NOVO**: DMN tenant resolver — **`scripts/dmn_tenant_resolver.py`**
+- [x] **NOVO**: Surgery DMN generator — **`scripts/generate_surgery_dmn.py`**
+- [ ] Validar os 1.276 arquivos DMN (FEEL 1.3 syntax)
 - [ ] Deploy DMN com resolução por tenant (local override > global)
 - [ ] Validar regras com dados reais de cada operadora
 - [ ] Configurar revisão trimestral de regras DMN com analistas

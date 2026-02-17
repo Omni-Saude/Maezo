@@ -5,11 +5,11 @@
 </p>
 
 <p align="center">
-  <a href="#metricas-do-repositorio"><img src="https://img.shields.io/badge/Python-98%2C000_linhas-blue?logo=python&logoColor=white" alt="Linhas Python"></a>
-  <a href="#metricas-do-repositorio"><img src="https://img.shields.io/badge/Testes-508_arquivos-green?logo=pytest&logoColor=white" alt="Testes"></a>
-  <a href="#metricas-do-repositorio"><img src="https://img.shields.io/badge/Workers-302_automações-orange?logo=apache&logoColor=white" alt="Workers"></a>
-  <a href="#metricas-do-repositorio"><img src="https://img.shields.io/badge/DMN-1%2C118_regras-purple?logo=diagrams.net&logoColor=white" alt="Regras DMN"></a>
-  <a href="#metricas-do-repositorio"><img src="https://img.shields.io/badge/BPMN-56_processos-red?logo=camunda&logoColor=white" alt="Processos BPMN"></a>
+  <a href="#metricas-do-repositorio"><img src="https://img.shields.io/badge/Python-124%2C620_linhas-blue?logo=python&logoColor=white" alt="Linhas Python"></a>
+  <a href="#metricas-do-repositorio"><img src="https://img.shields.io/badge/Testes-393_arquivos-green?logo=pytest&logoColor=white" alt="Testes"></a>
+  <a href="#metricas-do-repositorio"><img src="https://img.shields.io/badge/Workers-402_automações-orange?logo=apache&logoColor=white" alt="Workers"></a>
+  <a href="#metricas-do-repositorio"><img src="https://img.shields.io/badge/DMN-1%2C275_tabelas-purple?logo=diagrams.net&logoColor=white" alt="Tabelas DMN"></a>
+  <a href="#metricas-do-repositorio"><img src="https://img.shields.io/badge/BPMN-64_processos-red?logo=camunda&logoColor=white" alt="Processos BPMN"></a>
 </p>
 
 <p align="center">
@@ -43,7 +43,7 @@ Hospitais brasileiros perdem **R$ 2-4 bilhões por ano** com vazamentos de recei
 
 **MAEZO** é o motor único que automatiza e orquestra o ecossistema de saúde, conectando hospitais, operadoras, sistemas legados e agentes de IA em jornadas contínuas, clínicas e financeiras, com zero fricção.
 
-Substitui fluxos fragmentados e isolados por departamento por **jornadas orquestradas** que acompanham o paciente do primeiro contato ao recebimento final — conectando sistemas clínicos, administrativos e financeiros através de **processos BPMN automatizados** e **mais de 1.100 regras de negócio inteligentes (DMN)**.
+Substitui fluxos fragmentados e isolados por departamento por **jornadas orquestradas** que acompanham o paciente do primeiro contato ao recebimento final — conectando sistemas clínicos, administrativos e financeiros através de **processos BPMN automatizados** e **1.275 tabelas de decisão inteligentes (DMN) com 5.983 regras de negócio**.
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
@@ -89,7 +89,7 @@ Substitui fluxos fragmentados e isolados por departamento por **jornadas orquest
 ### 💰 Ciclo de Receita
 - **Captura de Produção** — Tempo real, sem perda de lançamentos
 - **Otimização de Codificação** — Sugestões TUSS, CID-10, CBHPM
-- **Prevenção de Glosas** — 600+ regras identificam problemas antes do envio
+- **Prevenção de Glosas** — 5.983 regras identificam problemas antes do envio
 - **Conformidade TISS** — Geração automática de XML, validação de schema
 - **Gestão de Negativas** — Workflows de recurso, análise de causa raiz
 - **Conciliação de Pagamentos** — Parsing CNAB, matching automático, detecção de variância
@@ -104,21 +104,21 @@ Substitui fluxos fragmentados e isolados por departamento por **jornadas orquest
 
 ## Métricas do Repositório
 
-> **Última Atualização:** Fevereiro 2026 | **Commit:** `73f6d34`
+> **Última Atualização:** Fevereiro 2026 | **Commit:** `3f47c67`
 
 ### Visão Geral do Código
 
 | Métrica | Quantidade | Descrição |
 |---------|----------:|-----------|
-| **Arquivos Python** | 683 | Código de produção + testes |
-| **Linhas de Código** | 148.696 | Python (excluindo vendor) |
-| **Arquivos de Teste** | 301 | Cobertura automatizada |
-| **Workers de Automação** | 414 | Processadores de tarefas externas |
-| **Tabelas de Decisão DMN** | 778 | Motor de regras de negócio |
-| **Processos BPMN** | 40 | Fluxos orquestrados |
-| **Adaptadores de Integração** | 29 | Conectores Tasy, FHIR, TISS |
-| **ADRs Documentados** | 14 | Decisões de arquitetura |
-| **Templates Helm** | 10 | Deployments Kubernetes |
+| **Arquivos Python** | 662 | Código de produção (healthcare_platform) |
+| **Linhas de Código** | 124.620 | Python produção (excluindo testes e vendor) |
+| **Arquivos de Teste** | 393 | Cobertura automatizada |
+| **Workers de Automação** | 402 | Processadores de tarefas externas |
+| **Tabelas de Decisão DMN** | 1.275 | Motor de regras de negócio (5.983 regras) |
+| **Processos BPMN** | 64 | Fluxos orquestrados |
+| **Adaptadores de Integração** | 34 | Conectores Tasy, FHIR, TISS, CDC |
+| **ADRs Documentados** | 19 | Decisões de arquitetura |
+| **Templates Helm** | 16 | Deployments Kubernetes |
 
 ### Indicadores de Qualidade
 
@@ -135,10 +135,10 @@ Substitui fluxos fragmentados e isolados por departamento por **jornadas orquest
 
 | Domínio | Workers | BPMN | DMN | Testes |
 |---------|--------:|-----:|----:|-------:|
-| **Ciclo de Receita** | 156 | 15 | 237 | 89 |
-| **Acesso do Paciente** | 89 | 8 | 168 | 67 |
-| **Operações Clínicas** | 78 | 10 | 279 | 82 |
-| **Serviços de Plataforma** | 91 | 7 | 94 | 63 |
+| **Ciclo de Receita** | 210 | 21 | 479 | 170 |
+| **Acesso do Paciente** | 53 | 12 | 68 | 40 |
+| **Operações Clínicas** | 121 | 15 | 520 | 54 |
+| **Serviços de Plataforma** | 7 | 12 | 166 | 61 |
 
 ---
 
@@ -183,6 +183,11 @@ Substitui fluxos fragmentados e isolados por departamento por **jornadas orquest
 | 012 | Réplicas de Engine Faseadas | Estratégia de escala gradual |
 | 013 | Claude Flow Swarm Intelligence | Desenvolvimento assistido por IA |
 | 014 | Webhook Receivers Async Callbacks | Integração com sistemas externos |
+| 015 | Worker Archetypes DMN Delegation | Framework genérico de workers |
+| 016 | Topic Naming Convention | Padronização de tópicos |
+| 017 | Anti-Pattern Enforcement | Eliminação de anti-padrões |
+| 018 | Atomization Blueprint | Blueprint de atomização |
+| 019 | BPMN Compliance Mandatory | Conformidade BPMN obrigatória |
 
 ---
 
@@ -190,14 +195,14 @@ Substitui fluxos fragmentados e isolados por departamento por **jornadas orquest
 
 | Métrica | Valor | Verificado |
 |---------|-------|------------|
-| **Workers Python** | 302 processadores de tarefas automatizados | ✅ Feb 2026 |
-| **Workers V2 Migrados** | 190 (63% adoção padrão V2) | ✅ Feb 2026 |
-| **Regras de Negócio (DMN)** | 1,118 tabelas de decisão | ✅ Feb 2026 |
-| **Processos BPMN** | 56 fluxos orquestrados | ✅ Feb 2026 |
-| **Linhas de Código** | ~98,000 (Python, após redução 65%) | ✅ Feb 2026 |
-| **Testes Automatizados** | 508+ arquivos de teste (>95% pass rate) | ✅ Feb 2026 |
-| **Camadas de Serviço** | 14 classes (separação de concerns) | ✅ Feb 2026 |
-| **Adaptadores de Integração** | 29 (Tasy, FHIR, TISS, CDC) | ✅ Feb 2026 |
+| **Workers Python** | 402 processadores de tarefas automatizados | ✅ Feb 2026 |
+| **Workers V2 Migrados** | 60 (15% adoção padrão V2) | ✅ Feb 2026 |
+| **Tabelas de Decisão (DMN)** | 1,275 tabelas (5,983 regras individuais) | ✅ Feb 2026 |
+| **Processos BPMN** | 64 fluxos orquestrados | ✅ Feb 2026 |
+| **Linhas de Código** | 124,620 (Python produção, healthcare_platform) | ✅ Feb 2026 |
+| **Testes Automatizados** | 393 arquivos de teste (>95% pass rate) | ✅ Feb 2026 |
+| **Camadas de Serviço** | 28 classes (separação de concerns) | ✅ Feb 2026 |
+| **Adaptadores de Integração** | 34 (Tasy, FHIR, TISS, CDC) | ✅ Feb 2026 |
 | **Domínios Cobertos** | 4 (Acesso, Clínico, Receita, Plataforma) | ✅ |
 | **Anti-Patterns Eliminados** | 100% (AP1-AP6 = 0 instâncias) | ✅ Feb 2026 |
 | **Cobertura de Correlação** | 73% (66/91 workers com correlation IDs) | ✅ Feb 2026 |
@@ -252,10 +257,10 @@ O MAEZO orquestra a experiência completa do paciente em **5 jornadas interconec
 │  Orquestração: CIB Seven 2.1.3 (BPMN · DMN · CMMN)          │
 │  Engine Único · Multi-Tenant · Padrão External Task         │
 ├─────────────────────────────────────────────────────────────┤
-│  Workers: Python 3.11+ (414 processadores stateless)        │
+│  Workers: Python 3.11+ (402 processadores stateless)        │
 │  elegibilidade · tiss · glosa · whatsapp · clínico · …      │
 ├─────────────────────────────────────────────────────────────┤
-│  Inteligência: 778 Tabelas de Decisão DMN (FEEL 1.3)        │
+│  Inteligência: 1.275 Tabelas de Decisão DMN (FEEL 1.3)      │
 │  prevenção de glosa · regras de codificação · conformidade  │
 ├─────────────────────────────────────────────────────────────┤
 │  Integração: Debezium CDC · Kafka · HAPI FHIR R4            │
@@ -323,16 +328,16 @@ curl http://localhost:8080/engine-rest/engine
 
 ```text
 maestro/
-├── healthcare_platform/       # Código principal da plataforma (683 arquivos Python)
-│   ├── patient_access/        # 89 workers, 8 BPMN, 168 DMN
-│   ├── clinical_operations/   # 78 workers, 10 BPMN, 279 DMN
-│   ├── revenue_cycle/         # 156 workers, 15 BPMN, 237 DMN
-│   ├── platform_services/     # 91 workers, 7 BPMN, 94 DMN
+├── healthcare_platform/       # Código principal da plataforma (662 arquivos Python)
+│   ├── patient_access/        # 53 workers, 12 BPMN, 68 DMN
+│   ├── clinical_operations/   # 121 workers, 15 BPMN, 520 DMN
+│   ├── revenue_cycle/         # 210 workers, 21 BPMN, 479 DMN
+│   ├── platform_services/     # 7 workers, 12 BPMN, 166 DMN
 │   └── shared/                # CDC bridge, webhooks, adaptadores, multi-tenant
-├── tests/                     # 301 arquivos de teste (pytest + asyncio)
-├── docs/                      # 14 ADRs, specs, guias de migração
+├── tests/                     # 393 arquivos de teste (pytest + asyncio)
+├── docs/                      # 19 ADRs, specs, guias de migração
 ├── config/                    # Observabilidade (Prometheus, Grafana), Keycloak
-├── helm/                      # Charts Kubernetes Helm (10 templates)
+├── helm/                      # Charts Kubernetes Helm (16 templates)
 ├── k8s/                       # Manifests base (namespace, secrets, network policies)
 └── scripts/                   # Validação DMN, ferramentas de deploy
 ```
@@ -344,7 +349,7 @@ maestro/
 | Documento | Descrição |
 |-----------|-----------|
 | [Especificação Técnica](docs/Technical%20specification/technical-specification.md) | Arquitetura completa do sistema |
-| [ADRs](docs/ADRs/) | 13 Registros de Decisão de Arquitetura |
+| [ADRs](docs/ADRs/) | 19 Registros de Decisão de Arquitetura |
 | [Guia de Migração](docs/Migration/) | Migração de sistemas legados |
 | [Regras de Negócio](docs/Regras%20de%20Negocio%20(PT-BR)/) | Inventário completo de regras |
 
@@ -356,33 +361,33 @@ maestro/
 
 | Artefato | Quantidade | Status |
 |----------|------------|--------|
-| **Workers Python** | 414 | ✅ Prontos para produção |
-| **Tabelas DMN** | 778 | ✅ FEEL 1.3 validado |
-| **Processos BPMN** | 40 | ✅ Compatível CIB Seven |
-| **Testes automatizados** | 301 arquivos | ✅ pytest + asyncio |
-| **Arquivos Python total** | 683 | — |
-| **Linhas de código** | 148.696 | — |
-| **ADRs documentados** | 14 | ✅ Completo |
-| **Adaptadores de integração** | 29 | ✅ Tasy, FHIR, TISS |
-| **Templates Helm** | 10 | ✅ K8s pronto |
+| **Workers Python** | 402 | ✅ Prontos para produção |
+| **Tabelas DMN** | 1.275 | ✅ FEEL 1.3 validado (5.983 regras) |
+| **Processos BPMN** | 64 | ✅ Compatível CIB Seven |
+| **Testes automatizados** | 393 arquivos | ✅ pytest + asyncio |
+| **Arquivos Python total** | 662 | — |
+| **Linhas de código** | 124.620 | — |
+| **ADRs documentados** | 19 | ✅ Completo |
+| **Adaptadores de integração** | 34 | ✅ Tasy, FHIR, TISS, CDC |
+| **Templates Helm** | 16 | ✅ K8s pronto |
 
 ### Distribuição por Domínio
 
 | Domínio | Workers | BPMN | DMN | Testes |
 |---------|--------:|-----:|----:|-------:|
-| **Ciclo de Receita** | 156 | 15 | 237 | 89 |
-| **Acesso do Paciente** | 89 | 8 | 168 | 67 |
-| **Operações Clínicas** | 78 | 10 | 279 | 82 |
-| **Serviços de Plataforma** | 91 | 7 | 94 | 63 |
+| **Ciclo de Receita** | 210 | 21 | 479 | 170 |
+| **Acesso do Paciente** | 53 | 12 | 68 | 40 |
+| **Operações Clínicas** | 121 | 15 | 520 | 54 |
+| **Serviços de Plataforma** | 7 | 12 | 166 | 61 |
 
 ### Cobertura por Fase de Implementação
 
 | Fase | Escopo | Workers | Testes | Status |
 |------|--------|--------:|-------:|--------|
-| **Fase 1** — Revenue Cycle MVP | Faturamento, codificação, glosas, pagamentos | 156 | 89 | ✅ Código completo |
-| **Fase 2** — Acesso + Alta | Agendamento, elegibilidade, check-in, alta | 89 | 67 | ✅ Código completo |
-| **Fase 3** — Operações Clínicas | Triagem, sepse, cirúrgico, medicamentos | 78 | 82 | ✅ Código completo |
-| **Fase 4** — Plataforma | Supply chain, analytics, compliance | 91 | 63 | ✅ Código completo |
+| **Fase 1** — Revenue Cycle MVP | Faturamento, codificação, glosas, pagamentos | 210 | 170 | ✅ Código completo |
+| **Fase 2** — Acesso + Alta | Agendamento, elegibilidade, check-in, alta | 53 | 40 | ✅ Código completo |
+| **Fase 3** — Operações Clínicas | Triagem, sepse, cirúrgico, medicamentos | 121 | 54 | ✅ Código completo |
+| **Fase 4** — Plataforma | Supply chain, analytics, compliance | 7 | 61 | ✅ Código completo |
 
 > **Nota:** Todas as fases estão com código completo. Trabalho restante é deploy de infraestrutura e integração com APIs externas.
 
@@ -441,14 +446,18 @@ O código da plataforma (workers, BPMN, DMN) está implementado. As pendências 
 
 ### Runtime Bridge — Workers ↔ CIB Seven (Implementado)
 
-O runtime que conecta os 184 workers ao engine CIB Seven já está pronto:
+O runtime que conecta os 402 workers ao engine CIB Seven já está pronto:
 
 | Componente | Arquivo | Função |
 |------------|---------|--------|
 | **Worker Runner** | `healthcare_platform/shared/runtime/worker_runner.py` | Bootstrap que conecta workers ao External Task REST API via `camunda-external-task-client-python3` |
-| **Worker Registry** | `healthcare_platform/shared/runtime/registry.py` | Auto-discovery dos 184 workers (padrões `@worker(topic=...)` e `WORKER_TYPE`) |
+| **Worker Registry** | `healthcare_platform/shared/runtime/registry.py` | Auto-discovery dos 402 workers (padrões `@worker(topic=...)` e `WORKER_TYPE`) |
+| **Generic Worker Framework** | `healthcare_platform/shared/workers/generic/` | 8 archetypes DMN-driven (AdminAdjudication, ClinicalAlert, ClinicalScore, ComplianceValidation, DataEnrichment, FinancialCalculation, OperationalRouting, BaseGeneric) |
+| **Topic Registry** | `config/topic_registry.yaml` | 2,290 linhas, 200+ topics validados |
+| **Registry Loader** | `healthcare_platform/shared/workers/generic/registry_loader.py` | Auto-discovery e validação de workers contra topic registry |
 | **Dockerfile** | `Dockerfile` | Imagem Python 3.12 com health check em `:8000` |
-| **Docker Compose** | `docker-compose.yml` | 12 serviços: engine + 4 workers + FHIR + Keycloak + Kafka + Redis + Prometheus + Grafana |
+| **Docker Compose** | `docker-compose.yml` | 17 serviços: engine + 4 workers + FHIR + Keycloak + Kafka + Redis + Prometheus + Grafana |
+| **Docker Compose Test** | `docker-compose.test.yml` | Ambiente de teste isolado para CI/CD |
 | **pyproject.toml** | `pyproject.toml` | Dependências Python (httpx, pydantic, structlog, camunda-client, etc.) |
 
 ```bash
