@@ -6,11 +6,11 @@
 </p>
 
 <p align="center">
-  <a href="#metricas-do-repositorio"><img src="https://img.shields.io/badge/Python-148%2C696_linhas-blue?logo=python&logoColor=white" alt="Linhas Python"></a>
-  <a href="#metricas-do-repositorio"><img src="https://img.shields.io/badge/Testes-301_arquivos-green?logo=pytest&logoColor=white" alt="Testes"></a>
-  <a href="#metricas-do-repositorio"><img src="https://img.shields.io/badge/Workers-414_automações-orange?logo=apache&logoColor=white" alt="Workers"></a>
-  <a href="#metricas-do-repositorio"><img src="https://img.shields.io/badge/DMN-778_regras-purple?logo=diagrams.net&logoColor=white" alt="Regras DMN"></a>
-  <a href="#metricas-do-repositorio"><img src="https://img.shields.io/badge/BPMN-40_processos-red?logo=camunda&logoColor=white" alt="Processos BPMN"></a>
+  <a href="#metricas-do-repositorio"><img src="https://img.shields.io/badge/Python-98%2C000_linhas-blue?logo=python&logoColor=white" alt="Linhas Python"></a>
+  <a href="#metricas-do-repositorio"><img src="https://img.shields.io/badge/Testes-508_arquivos-green?logo=pytest&logoColor=white" alt="Testes"></a>
+  <a href="#metricas-do-repositorio"><img src="https://img.shields.io/badge/Workers-302_automações-orange?logo=apache&logoColor=white" alt="Workers"></a>
+  <a href="#metricas-do-repositorio"><img src="https://img.shields.io/badge/DMN-1%2C118_regras-purple?logo=diagrams.net&logoColor=white" alt="Regras DMN"></a>
+  <a href="#metricas-do-repositorio"><img src="https://img.shields.io/badge/BPMN-56_processos-red?logo=camunda&logoColor=white" alt="Processos BPMN"></a>
 </p>
 
 <p align="center">
@@ -44,7 +44,7 @@ Hospitais brasileiros perdem **R$ 2-4 bilhões por ano** com vazamentos de recei
 
 **MAEZO** é o motor único que automatiza e orquestra o ecossistema de saúde, conectando hospitais, operadoras, sistemas legados e agentes de IA em jornadas contínuas, clínicas e financeiras, com zero fricção.
 
-Substitui fluxos fragmentados e isolados por departamento por **jornadas orquestradas** que acompanham o paciente do primeiro contato ao recebimento final — conectando sistemas clínicos, administrativos e financeiros através de **processos BPMN automatizados** e **mais de 600 regras de negócio inteligentes (DMN)**.
+Substitui fluxos fragmentados e isolados por departamento por **jornadas orquestradas** que acompanham o paciente do primeiro contato ao recebimento final — conectando sistemas clínicos, administrativos e financeiros através de **processos BPMN automatizados** e **mais de 1.100 regras de negócio inteligentes (DMN)**.
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
@@ -191,13 +191,17 @@ Substitui fluxos fragmentados e isolados por departamento por **jornadas orquest
 
 | Métrica | Valor | Verificado |
 |---------|-------|------------|
-| **Workers Python** | 414 processadores de tarefas automatizados | ✅ Feb 2026 |
-| **Regras de Negócio (DMN)** | 778 tabelas de decisão | ✅ Feb 2026 |
-| **Processos BPMN** | 40 fluxos orquestrados | ✅ Feb 2026 |
-| **Linhas de Código** | 148,696 (Python) | ✅ Feb 2026 |
-| **Testes Automatizados** | 301 arquivos de teste | ✅ Feb 2026 |
+| **Workers Python** | 302 processadores de tarefas automatizados | ✅ Feb 2026 |
+| **Workers V2 Migrados** | 190 (63% adoção padrão V2) | ✅ Feb 2026 |
+| **Regras de Negócio (DMN)** | 1,118 tabelas de decisão | ✅ Feb 2026 |
+| **Processos BPMN** | 56 fluxos orquestrados | ✅ Feb 2026 |
+| **Linhas de Código** | ~98,000 (Python, após redução 65%) | ✅ Feb 2026 |
+| **Testes Automatizados** | 508+ arquivos de teste (>95% pass rate) | ✅ Feb 2026 |
+| **Camadas de Serviço** | 14 classes (separação de concerns) | ✅ Feb 2026 |
 | **Adaptadores de Integração** | 29 (Tasy, FHIR, TISS, CDC) | ✅ Feb 2026 |
 | **Domínios Cobertos** | 4 (Acesso, Clínico, Receita, Plataforma) | ✅ |
+| **Anti-Patterns Eliminados** | 100% (AP1-AP6 = 0 instâncias) | ✅ Feb 2026 |
+| **Cobertura de Correlação** | 73% (66/91 workers com correlation IDs) | ✅ Feb 2026 |
 | **Tenants Suportados** | 4 hospitais (Hospital A, AMH-SP, AMH-RJ, AMH-MG) | ✅ |
 | **Padrões de Conformidade** | ANS, TISS 4.0, LGPD, ANVISA, FHIR R4 | ✅ |
 
