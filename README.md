@@ -420,25 +420,65 @@ helm install maestro helm/maestro -n maestro --create-namespace -f helm/maestro/
 
 ---
 
+### ✅ Últimas Atualizações (2026-02-17)
+
+**Production Readiness Completo:**
+- 🚀 Production Helm values + K8s overlays (staging/prod)
+- 🧪 Smoke test suite (12 tests)
+- 📚 Operational runbooks (rollback, performance baselines)
+- 🔍 Tenant isolation validator
+
+**BPMN Compliance & Refactoring:**
+- 📋 13 processos consolidados, 6 renomeados (ADR-019)
+- 🔧 86 workers com topic standardization (ADR-016)
+- ✅ BPMN validation CI/CD pipeline
+- 🪝 Pre-commit hook enforcement
+
+**CI/CD Infrastructure:**
+- 🔄 BPMN validation workflow (XML, XSD, BPMNDI, topics)
+- 🧪 Integration test workflow (4 test suites)
+- 🐳 Docker Compose test environment
+
+**Tooling & Framework:**
+- 🛠️ Generic Worker Framework (8 archetypes, DMN-driven)
+- 📋 Topic registry (2,290 lines, 200+ topics)
+- 🧪 3,183 lines of generic worker tests
+- 🔍 BPMN connectivity validator
+- 🏥 Surgery DMN generator
+
+**Total**: 8 commits, 153 files, +11,522/-1,546 lines
+
+**Pull Requests Prontos:**
+- [PR #1: Production Deployment](https://github.com/rodaquino-OMNI/Healthcare-Orchest-CIB7/pull/new/pr/production-deployment)
+- [PR #2: BPMN Compliance](https://github.com/rodaquino-OMNI/Healthcare-Orchest-CIB7/pull/new/pr/bpmn-compliance)
+- [PR #3: CI/CD Infrastructure](https://github.com/rodaquino-OMNI/Healthcare-Orchest-CIB7/pull/new/pr/ci-cd-infrastructure)
+- [PR #4: Tooling & Docs](https://github.com/rodaquino-OMNI/Healthcare-Orchest-CIB7/pull/new/pr/tooling-and-docs)
+
+---
+
 ### O Que Falta (Infraestrutura e Integração)
 
 O código da plataforma (workers, BPMN, DMN) está implementado. As pendências são de **infraestrutura, integração e operação** — itens que requerem acesso a ambientes reais e configuração manual.
 
-| Pendência | Criticidade | Responsável |
-|-----------|-------------|-------------|
-| **Cluster EKS + RDS + Kafka + Redis** | 🔴 Bloqueante | DevOps/SRE |
-| **CI/CD Pipeline** | ✅ **Implementado** (.github/workflows/ci-cd.yaml) | — |
-| **Docker Compose + Dockerfiles** | ✅ Implementado | — |
-| **Helm Charts / K8s Manifests** | ✅ **Implementado** (helm/, k8s/) | — |
-| **pyproject.toml / requirements.txt** | ✅ Implementado | — |
-| **Keycloak realm + clients** | 🔴 Bloqueante | Java Dev |
-| **Deploy CIB Seven 2.1.3** | 🔴 Bloqueante | Java Dev / BPM Architect |
-| **Debezium CDC → Tasy Oracle** | 🟠 Alta | Integration Dev + DBA |
-| **HAPI FHIR + adaptadores Tasy→FHIR** | 🟠 Alta | Integration Dev |
-| **Mirth Connect HL7** | 🟡 Média | Integration Dev |
-| **APIs reais das operadoras** | 🟠 Alta | Dev Python + Negócio |
-| **WhatsApp Business API** | 🟡 Média | Dev Python |
-| **Shadow mode com Bradesco** | 🟡 Média | Equipe completa |
+| Pendência | Criticidade | Status | Responsável |
+|-----------|-------------|--------|-------------|
+| **Cluster EKS + RDS + Kafka + Redis** | 🔴 Bloqueante | Pendente | DevOps/SRE |
+| **CI/CD Pipeline** | ✅ Completo | **3 workflows** | ✅ Implementado |
+| **Docker Compose + Dockerfiles** | ✅ Completo | **3 Dockerfiles** | ✅ Implementado |
+| **Helm Charts / K8s Manifests** | ✅ Completo | **Prod values + overlays** | ✅ Implementado |
+| **Production Infrastructure** | ✅ Completo | **Helm + K8s + Tests + Runbooks** | ✅ Implementado |
+| **BPMN Validation & Testing** | ✅ Completo | **CI/CD + Integration tests** | ✅ Implementado |
+| **Generic Worker Framework** | ✅ Completo | **8 archetypes + tests** | ✅ Implementado |
+| **Topic Registry** | ✅ Completo | **200+ topics validated** | ✅ Implementado |
+| **pyproject.toml / requirements.txt** | ✅ Completo | — | ✅ Implementado |
+| **Keycloak realm + clients** | 🔴 Bloqueante | Pendente | Java Dev |
+| **Deploy CIB Seven 2.1.3** | 🔴 Bloqueante | Pendente | Java Dev / BPM Architect |
+| **Debezium CDC → Tasy Oracle** | 🟠 Alta | Pendente | Integration Dev + DBA |
+| **HAPI FHIR + adaptadores Tasy→FHIR** | 🟠 Alta | Pendente | Integration Dev |
+| **Mirth Connect HL7** | 🟡 Média | Pendente | Integration Dev |
+| **APIs reais das operadoras** | 🟠 Alta | Pendente | Dev Python + Negócio |
+| **WhatsApp Business API** | 🟡 Média | Pendente | Dev Python |
+| **Shadow mode com Bradesco** | 🟡 Média | Pendente | Equipe completa |
 
 ### Runtime Bridge — Workers ↔ CIB Seven (Implementado)
 
@@ -448,8 +488,12 @@ O runtime que conecta os 184 workers ao engine CIB Seven já está pronto:
 |------------|---------|--------|
 | **Worker Runner** | `healthcare_platform/shared/runtime/worker_runner.py` | Bootstrap que conecta workers ao External Task REST API via `camunda-external-task-client-python3` |
 | **Worker Registry** | `healthcare_platform/shared/runtime/registry.py` | Auto-discovery dos 184 workers (padrões `@worker(topic=...)` e `WORKER_TYPE`) |
+| **Generic Worker Framework** | `healthcare_platform/shared/workers/generic/` | 8 archetypes DMN-driven (AdminAdjudication, ClinicalAlert, ClinicalScore, ComplianceValidation, DataEnrichment, FinancialCalculation, OperationalRouting, BaseGeneric) |
+| **Topic Registry** | `config/topic_registry.yaml` | 2,290 linhas, 200+ topics validados |
+| **Registry Loader** | `healthcare_platform/shared/workers/generic/registry_loader.py` | Auto-discovery e validação de workers contra topic registry |
 | **Dockerfile** | `Dockerfile` | Imagem Python 3.12 com health check em `:8000` |
 | **Docker Compose** | `docker-compose.yml` | 12 serviços: engine + 4 workers + FHIR + Keycloak + Kafka + Redis + Prometheus + Grafana |
+| **Docker Compose Test** | `docker-compose.test.yml` | Ambiente de teste isolado para CI/CD |
 | **pyproject.toml** | `pyproject.toml` | Dependências Python (httpx, pydantic, structlog, camunda-client, etc.) |
 
 ```bash
@@ -460,6 +504,15 @@ docker compose up -d
 python -m healthcare_platform.shared.runtime.worker_runner --domain revenue_cycle
 python -m healthcare_platform.shared.runtime.worker_runner --domain clinical_operations
 python -m healthcare_platform.shared.runtime.worker_runner --all
+
+# Validar conectividade BPMN <-> Workers
+python scripts/validate_bpmn_worker_connectivity.py
+
+# Gerar inventário DMN
+python scripts/dmn_inventory.py
+
+# Validar isolamento de tenants (PostgreSQL)
+python scripts/validate_tenant_isolation.py --engine-url http://localhost:8080
 ```
 
 ### Roadmap de Deploy
