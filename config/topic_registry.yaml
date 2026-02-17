@@ -1,0 +1,2290 @@
+# Topic Registry — AUSTA Healthcare Platform
+#
+# Defines External Task worker topics for CIB Seven orchestration.
+# Each topic maps process context → DMN decision logic → task actions.
+#
+# Schema:
+#   topic_name (dot.snake_case):
+#     archetype:       One of 7 archetypes (see below)
+#     dmn_key:         Single DMN decision ID (mutually exclusive with dmn_pipeline)
+#     dmn_pipeline:    Array of DMN decisions applied sequentially (for complex routing)
+#     dmn_category:    FederatedDMNService category (for tenant/global resolution)
+#     input_map:       Context variable names → DMN input parameter names
+#     output_map:      DMN output names → result variable names
+#     error_strategy:  'fail_closed' (BLOQUEAR) or 'fail_safe' (REVISAR)
+#     timeout_ms:      Task lock duration (default: 300000 / 5 min)
+#     retry_backoff:   Retry configuration (default: exponential 3 attempts)
+#
+# Archetypes:
+#   ADMIN_ADJUDICATION       — Authorization, eligibility, claims adjudication
+#   CLINICAL_ALERT           — Sepsis, NEWS2, critical thresholds (immediate escalation)
+#   CLINICAL_SCORE           — Risk scores, SOFA, qSOFA (diagnostic, non-blocking)
+#   OPERATIONAL_ROUTING      — Triage, bed allocation, staff assignment
+#   COMPLIANCE_VALIDATION    — LGPD, audit trail, documentation integrity
+#   FINANCIAL_CALCULATION    — Pricing, denial analysis, revenue impact
+#   DATA_ENRICHMENT          — FHIR normalization, data quality enhancement
+#
+# Error Strategies:
+#   fail_closed (BLOQUEAR)   — Stop process immediately; escalate to human
+#   fail_safe (REVISAR)      — Continue process; queue for async review
+#
+
+topics:
+
+  # ============================================================================
+  # ADMIN_ADJUDICATION: Billing claim validation with multi-step DMN pipeline
+  # ============================================================================
+
+  billing.validate_claim:
+    archetype: ADMIN_ADJUDICATION
+    dmn_pipeline:
+      - key: DMN-RC-001
+        category: eligibility_rules
+        merge_strategy: worst_case
+      - key: DMN-RC-004
+        category: tiss_validation
+        merge_strategy: worst_case
+      - key: DMN-RC-005
+        category: coding_optimization
+        merge_strategy: best_case
+    dmn_category: revenue_cycle
+    input_map:
+      claimFhirId: claim_id
+      payerId: payer_id
+      procedureCodes: procedure_list
+      billableAmount: amount_claimed
+      coverageFhirId: coverage_id
+      documentationScore: doc_completeness
+    output_map:
+      validationStatus: claim_status
+      auditFlags: compliance_alerts
+      optimizedCodes: suggested_cid_codes
+      recommendedAction: action
+    error_strategy: fail_closed
+    timeout_ms: 15000
+    description: >
+      Validates billing claim across eligibility, TISS, and coding rules.
+      Returns validation status and recommended action (PROSSEGUIR, REVISAR, BLOQUEAR).
+      Fail-closed ensures manual review on error.
+
+  # ============================================================================
+  # CLINICAL_SCORE: Multi-stage sepsis detection with pipeline routing
+  # ============================================================================
+
+  clinical.auditing:
+    archetype: CLINICAL_SCORE
+    dmn_pipeline:
+      - key: DMN-CA-001
+        category: sepsis_protocol
+        merge_strategy: worst_case
+      - key: DMN-CA-002
+        category: news2_escalation
+        merge_strategy: worst_case
+      - key: DMN-RC-003
+        category: clinical_risk_assessment
+        merge_strategy: worst_case
+    dmn_category: clinical_operations
+    input_map:
+      patientFhirId: patient_id
+      vitalSigns: vitals_object
+      labValues: lab_results
+      age: patient_age
+      comorbidities: comorbidity_list
+      qsofaComponents: qsofa_data
+      news2Scores: news2_individual_scores
+    output_map:
+      qsofaScore: qsofa_total
+      sepsisRiskLevel: sepsis_risk
+      news2Score: news2_total
+      escalationLevel: alert_severity
+      recommendedAction: clinical_action
+      notificationTargets: escalation_recipients
+    error_strategy: fail_safe
+    timeout_ms: 5000
+    description: >
+      Multi-stage clinical scoring (qSOFA → NEWS2 → Risk Assessment).
+      Uses worst_case merge for all stages to prioritize patient safety.
+      Escalates based on severity (ALERTA_CRÍTICA, REVISÃO_URGENTE, PROSSEGUIR_MONITORAMENTO).
+      Fail-safe allows continued monitoring even on evaluation error.
+
+  # ============================================================================
+  # OPERATIONAL_ROUTING: Triage and patient flow routing
+  # ============================================================================
+
+  emergency.triage_status:
+    archetype: OPERATIONAL_ROUTING
+    dmn_key: DMN-CO-001
+    dmn_category: clinical_operations
+    input_map:
+      patientFhirId: patient_id
+      chiefComplaint: complaint_text
+      vitalSigns: vitals_object
+      age: patient_age
+      acuityIndicators: acuity_flags
+      bedAvailability: bed_status
+      specialtyNeeds: specialty_requirements
+    output_map:
+      triageLevel: acuity_level
+      recommendedLocation: location_code
+      estimatedWaitTime: wait_minutes
+      assignedTeam: team_id
+      routingAction: action
+    error_strategy: fail_closed
+    timeout_ms: 10000
+    description: >
+      Routes incoming emergency patients to appropriate triage level and location.
+      Returns acuity level (Vermelho/Amarelo/Verde/Azul per Brazilian protocols),
+      recommended location, and assigned care team.
+      Fail-closed ensures escalation if routing logic fails.
+
+  # ============================================================================
+  # FINANCIAL_CALCULATION: Denial analysis and contestation priority
+  # ============================================================================
+
+  financial.analyze_denial:
+    archetype: FINANCIAL_CALCULATION
+    dmn_key: DMN-RC-003
+    dmn_category: revenue_cycle
+    input_map:
+      denialCode: denial_code
+      denialReason: denial_text
+      claimFhirId: claim_id
+      payerId: payer_id
+      claimAmount: claim_value
+      historicalRecoveryRate: payer_recovery_pct
+      documentationScore: doc_quality
+    output_map:
+      contestationText: contestation_narrative
+      contestationPriority: priority_rank
+      recoveryProbability: expected_recovery_pct
+      recommendedAction: action
+      appealDeadline: deadline_date
+    error_strategy: fail_safe
+    timeout_ms: 30000
+    description: >
+      Analyzes denial reason and generates contestation text with priority scoring.
+      Uses historical payer recovery rates and documentation quality to estimate
+      recovery probability. Returns priority (ALTA, MÉDIA, BAIXA) for queue ordering.
+      Fail-safe allows manual contestation if analysis fails.
+
+  # ============================================================================
+  # DATA_ENRICHMENT: FHIR normalization from ERP data
+  # ============================================================================
+
+  data.normalize_fhir:
+    archetype: DATA_ENRICHMENT
+    dmn_key: DMN-DA-001
+    dmn_category: data_quality
+    input_map:
+      erpSystem: source_system
+      erpEntityType: entity_type
+      erpData: raw_entity
+      tenantId: tenant_code
+      dataQualityFlags: quality_issues
+    output_map:
+      fhirResourceId: resource_id
+      fhirJson: resource_json
+      normalizedStatus: normalization_status
+      qualityScore: quality_rating
+      recommendedAction: action
+    error_strategy: fail_safe
+    timeout_ms: 20000
+    description: >
+      Normalizes ERP data (Tasy/MV Soul) to FHIR R4 resources.
+      Returns FHIR resource ID and quality score.
+      Fail-safe allows process continuation with quality flag.
+
+  # ============================================================================
+  # COMPLIANCE_VALIDATION: Audit trail and LGPD data handling
+  # ============================================================================
+
+  compliance.validate_audit_trail:
+    archetype: COMPLIANCE_VALIDATION
+    dmn_key: DMN-CMP-001
+    dmn_category: governance
+    input_map:
+      processInstanceId: process_id
+      taskId: task_id
+      userId: user_id
+      dataAccessed: accessed_fields
+      actionPerformed: action_type
+      timestamp: event_timestamp
+      tenantId: tenant_code
+    output_map:
+      complianceStatus: audit_status
+      piiDetected: pii_flag
+      retentionPolicy: retention_days
+      recommendedAction: action
+      auditLogId: log_id
+    error_strategy: fail_closed
+    timeout_ms: 5000
+    description: >
+      Validates each task against LGPD/ANS compliance rules.
+      Detects PII patterns, applies retention policies, logs audit trail.
+      Returns compliance status (CONFORME, NÃO_CONFORME, REVISÃO_NECESSÁRIA).
+      Fail-closed escalates to compliance officer on error.
+
+  # ============================================================================
+  # CLINICAL_ALERT: WhatsApp notification with template selection
+  # ============================================================================
+
+  communication.send_patient_notification:
+    archetype: CLINICAL_ALERT
+    dmn_key: DMN-COM-001
+    dmn_category: communication
+    input_map:
+      patientFhirId: patient_id
+      patientPhone: phone_number
+      notificationType: notification_type
+      templateId: template_code
+      templateParams: param_map
+      preferredLanguage: language_code
+      communicationPreferences: pref_object
+    output_map:
+      messageId: msg_id
+      deliveryStatus: status
+      deliveryTimestamp: sent_at
+      recipientConfirmed: confirmed_flag
+      recommendedAction: action
+    error_strategy: fail_safe
+    timeout_ms: 10000
+    description: >
+      Selects WhatsApp template and sends patient notification (appointments,
+      pre-auth results, discharge instructions, NPS survey).
+      Respects patient preferences and communication opt-ins.
+      Returns delivery status (ENVIADO, FALHA_TEMPORÁRIA, BLOQUEADO).
+      Fail-safe queues for retry without blocking process.
+
+  # ============================================================================
+  # ADMIN_ADJUDICATION: Authorization request routing to payer
+  # ============================================================================
+
+  authorization.request_payer:
+    archetype: ADMIN_ADJUDICATION
+    dmn_key: DMN-RC-002
+    dmn_category: revenue_cycle
+    input_map:
+      encounterFhirId: encounter_id
+      procedureCodes: procedure_list
+      payerId: payer_id
+      procedureType: procedure_category
+      estimatedCost: cost_estimate
+      urgencyLevel: urgency_code
+      patientAge: age
+    output_map:
+      authorizationNumber: auth_number
+      authorizationStatus: auth_status
+      authorizedAmount: approved_amount
+      authorizedDays: approved_days
+      authorizationDeadline: deadline_date
+      recommendedAction: action
+    error_strategy: fail_closed
+    timeout_ms: 30000
+    description: >
+      Routes authorization requests to payer based on procedure type and cost threshold.
+      Returns authorization number and approval details.
+      Fail-closed escalates manual authorization request if payer lookup fails.
+
+  # ============================================================================
+  # FINANCIAL_CALCULATION: TISS XML generation with validation
+  # ============================================================================
+
+  billing.generate_tiss:
+    archetype: FINANCIAL_CALCULATION
+    dmn_pipeline:
+      - key: DMN-RC-004
+        category: tiss_validation
+        merge_strategy: worst_case
+      - key: DMN-RC-001
+        category: eligibility_rules
+        merge_strategy: best_case
+    dmn_category: revenue_cycle
+    input_map:
+      encounterFhirId: encounter_id
+      billingItems: billing_items_list
+      payerId: payer_id
+      ansVersion: ans_version_code
+      patientFhirId: patient_id
+      coverageFhirId: coverage_id
+    output_map:
+      tissXml: tiss_xml_content
+      tissHash: file_hash
+      validationErrors: error_list
+      totalBilledAmount: amount
+      recommendedAction: action
+    error_strategy: fail_closed
+    timeout_ms: 15000
+    description: >
+      Generates ANS-compliant TISS 4.01 XML with validation against
+      payer-specific rules. Uses worst_case merge for validation,
+      best_case merge for eligibility. Returns XML and validation status.
+      Fail-closed prevents invalid submission.
+
+  # ============================================================================
+  # DATA_ENRICHMENT: FHIR observation capture from IoT/RFID
+  # ============================================================================
+
+  production.capture_charges:
+    archetype: DATA_ENRICHMENT
+    dmn_key: DMN-RC-004
+    dmn_category: revenue_cycle
+    input_map:
+      encounterFhirId: encounter_id
+      iotEventIds: event_id_list
+      procedureCode: procedure_code
+      itemCode: material_code
+      quantity: item_quantity
+      patientFhirId: patient_id
+      departmentCode: dept_code
+    output_map:
+      billingItems: billing_object_list
+      captureCompleteness: completeness_pct
+      consumptionRecord: consumption_entry
+      recommendedAction: action
+    error_strategy: fail_safe
+    timeout_ms: 15000
+    description: >
+      Converts IoT/RFID charge capture events to billing items with
+      procedure and material code validation. Returns billing items array
+      and completeness percentage for the encounter.
+      Fail-safe queues unmatched charges for manual review.
+
+  # ============================================================================
+  # ADMIN_ADJUDICATION: Pre-authorization review by adjudication team
+  # ============================================================================
+
+  authorization.pre_auth_review:
+    archetype: ADMIN_ADJUDICATION
+    dmn_key: DMN-RC-006
+    dmn_category: revenue_cycle
+    input_map:
+      preAuthFhirId: pre_auth_id
+      procedureCodes: procedure_list
+      payerId: payer_id
+      claimAmount: requested_amount
+      clinicalNotes: clinical_documentation
+      doctorSpecialty: specialty_code
+      urgencyFlag: is_urgent
+      denialHistory: past_denials_count
+    output_map:
+      adjudicationDecision: decision_status
+      approvedAmount: approved_amount
+      reviewComments: adjudication_notes
+      escalationFlag: requires_escalation
+      recommendedAction: action
+    error_strategy: fail_closed
+    timeout_ms: 20000
+    description: >
+      Validates pre-authorization requests against payer rules and clinical guidelines.
+      Returns adjudication decision (APROVADO, NEGADO, REVISAR) and approved amount.
+      Escalates to human adjudicator if decision threshold exceeded.
+      Fail-closed ensures manual review on DMN evaluation error.
+
+  # ============================================================================
+  # CLINICAL_ALERT: Drug interaction screening
+  # ============================================================================
+
+  clinical.drug_interaction_check:
+    archetype: CLINICAL_ALERT
+    dmn_key: DMN-CA-003
+    dmn_category: clinical_operations
+    input_map:
+      patientFhirId: patient_id
+      currentMedications: active_meds_list
+      proposedMedication: new_drug_code
+      patientAge: age
+      patientGender: gender
+      renalFunction: creatinine_clearance
+      hepaticFunction: liver_score
+      drugAllergies: allergy_list
+    output_map:
+      interactionLevel: severity_level
+      interactingDrugs: conflicting_meds
+      clinicalRecommendation: recommendation_text
+      pharmacistNotification: notify_flag
+      recommendedAction: action
+    error_strategy: fail_safe
+    timeout_ms: 8000
+    description: >
+      Screens proposed medication against patient's active medications and allergies.
+      Returns interaction severity (CRÍTICA, MODERADA, LEVE, AUSENTE) and clinical
+      recommendation (PRESCREVER, REVISAR_DOSAGEM, BLOQUEAR).
+      Fail-safe logs alert for pharmacist review without blocking prescription.
+
+  # ============================================================================
+  # CLINICAL_SCORE: Risk score calculation for patient stratification
+  # ============================================================================
+
+  clinical.risk_score_calculation:
+    archetype: CLINICAL_SCORE
+    dmn_key: DMN-CA-004
+    dmn_category: clinical_operations
+    input_map:
+      patientFhirId: patient_id
+      age: patient_age
+      labValues: lab_results_object
+      vitalSigns: vitals_object
+      comorbidities: comorbidity_list
+      hospitalizationDays: los_count
+      recentAdmissions: admission_history
+      functionStatus: adl_score
+    output_map:
+      riskScore: total_risk_points
+      riskCategory: risk_tier
+      interventionLevel: care_intensity
+      priorityFlag: priority_ranking
+      recommendedAction: action
+    error_strategy: fail_safe
+    timeout_ms: 7000
+    description: >
+      Calculates patient risk score combining demographic, clinical, and
+      utilization factors. Returns risk tier (BAIXO, MÉDIO, ALTO, CRÍTICO)
+      for care planning and resource allocation.
+      Fail-safe defaults to MÉDIO risk if calculation fails.
+
+  # ============================================================================
+  # OPERATIONAL_ROUTING: Bed assignment and patient placement
+  # ============================================================================
+
+  patient.bed_assignment:
+    archetype: OPERATIONAL_ROUTING
+    dmn_key: DMN-CO-002
+    dmn_category: clinical_operations
+    input_map:
+      patientFhirId: patient_id
+      admissionType: admission_category
+      acuityLevel: triage_level
+      specialtyNeeds: specialty_list
+      isolationRequirements: isolation_precautions
+      mobilityStatus: mobility_level
+      bedPreferences: patient_preferences
+      locationAvailability: bed_inventory
+    output_map:
+      assignedBedId: bed_id
+      assignedUnit: unit_code
+      roomType: room_category
+      specialServices: service_list
+      recommendedAction: action
+    error_strategy: fail_closed
+    timeout_ms: 10000
+    description: >
+      Routes admitted patient to appropriate bed based on acuity, specialty needs,
+      and isolation precautions. Returns bed ID, unit assignment, and any special
+      services required. Coordinates with real-time bed availability.
+      Fail-closed escalates to bed management coordinator if no suitable bed.
+
+  # ============================================================================
+  # COMPLIANCE_VALIDATION: ANS compliance verification for care decisions
+  # ============================================================================
+
+  regulatory.ans_compliance_check:
+    archetype: COMPLIANCE_VALIDATION
+    dmn_pipeline:
+      - key: DMN-CMP-002
+        category: ans_coverage_rules
+        merge_strategy: worst_case
+      - key: DMN-CMP-003
+        category: documentation_requirements
+        merge_strategy: worst_case
+    dmn_category: governance
+    input_map:
+      planId: health_plan_id
+      procedureCode: procedure_code
+      patientAge: age
+      diagnosisCodes: icd_codes
+      clinicalJustification: medical_notes
+      requiredDocumentation: doc_checklist
+      institutionCode: provider_code
+    output_map:
+      ansComplianceStatus: compliance_flag
+      coverageConfirmed: coverage_status
+      missingDocuments: doc_gaps_list
+      complianceNotes: validation_comments
+      recommendedAction: action
+    error_strategy: fail_closed
+    timeout_ms: 12000
+    description: >
+      Two-stage ANS compliance validation: coverage rules + documentation requirements.
+      Uses worst_case merge to ensure no coverage loopholes. Returns compliance status
+      (CONFORME, NÃO_CONFORME, CONTINGÊNCIA) and missing documentation list.
+      Fail-closed prevents non-compliant care delivery.
+
+  # ============================================================================
+  # FINANCIAL_CALCULATION: Procedure pricing and cost estimation
+  # ============================================================================
+
+  billing.procedure_pricing:
+    archetype: FINANCIAL_CALCULATION
+    dmn_key: DMN-RC-007
+    dmn_category: revenue_cycle
+    input_map:
+      procedureCode: procedure_code
+      payerId: payer_id
+      patientAge: age
+      patientLocation: location_code
+      procedureUrgency: urgency_level
+      equipmentUsed: equipment_list
+      estimatedDuration: duration_minutes
+      complexity: procedure_complexity
+    output_map:
+      basePrice: base_amount
+      adjustedPrice: final_amount
+      priceComponents: component_breakdown
+      validityPeriod: price_expiry_date
+      recommendedAction: action
+    error_strategy: fail_closed
+    timeout_ms: 8000
+    description: >
+      Calculates procedure pricing based on ANS table, payer contracts, and
+      adjustment factors (urgency, complexity, equipment). Returns itemized cost
+      estimate (APROVADO, AJUSTE_NECESSÁRIO, FORA_TABELA).
+      Fail-closed prevents billing at incorrect rates.
+
+  # ============================================================================
+  # DATA_ENRICHMENT: Patient demographic enrichment from external sources
+  # ============================================================================
+
+  patient.demographic_enrichment:
+    archetype: DATA_ENRICHMENT
+    dmn_key: DMN-DA-002
+    dmn_category: data_quality
+    input_map:
+      patientFhirId: patient_id
+      cpf: cpf_number
+      basicDemographics: demographic_object
+      contactInfo: contact_object
+      registrySource: source_system
+      qualityFlags: data_quality_issues
+      lastUpdateDate: last_modified
+    output_map:
+      enrichedDemographics: enriched_object
+      dataQuality: quality_score
+      matchConfidence: confidence_pct
+      addressNormalized: normalized_address
+      recommendedAction: action
+    error_strategy: fail_safe
+    timeout_ms: 10000
+    description: >
+      Enriches patient demographics from SADT, external CRM, and government registries.
+      Validates CPF, normalizes addresses, confirms contact information.
+      Returns enriched data object with quality score (VÁLIDO, PARCIAL, REVISÃO_NECESSÁRIA).
+      Fail-safe preserves existing data if enrichment service unavailable.
+
+  # ============================================================================
+  # DATA_ENRICHMENT: Audit finding consolidation across multiple DMN tables
+  # ============================================================================
+
+  clinical.audit_consolidation:
+    archetype: DATA_ENRICHMENT
+    dmn_pipeline:
+      - key: DMN-CMP-004
+        category: clinical_audit_findings
+        merge_strategy: append
+      - key: DMN-CMP-005
+        category: documentation_audit_findings
+        merge_strategy: append
+    dmn_category: governance
+    input_map:
+      processInstanceId: process_id
+      encounterId: encounter_id
+      auditPeriod: audit_period
+      clinicalActions: action_list
+      documentationItems: doc_item_list
+      auditorId: auditor_id
+      tenantId: tenant_code
+    output_map:
+      consolidatedFindings: findings_list
+      totalFindingsCount: findings_count
+      findingsSeverity: severity_breakdown
+      auditCompleteness: completeness_pct
+      recommendedAction: action
+    error_strategy: fail_safe
+    timeout_ms: 20000
+    description: >
+      Consolidates audit findings from clinical actions and documentation reviews
+      across two DMN tables. Uses append merge so findings from both tables are
+      accumulated into a unified list rather than overwritten.
+      Returns combined findings array, severity breakdown, and completeness score.
+      Fail-safe preserves partial findings if one DMN stage fails.
+
+  # ============================================================================
+  # FINANCIAL_CALCULATION: Pricing override pipeline where later rules take precedence
+  # ============================================================================
+
+  billing.override_pricing:
+    archetype: FINANCIAL_CALCULATION
+    dmn_pipeline:
+      - key: DMN-RC-007
+        category: base_pricing_table
+        merge_strategy: override
+      - key: DMN-RC-008
+        category: payer_contract_overrides
+        merge_strategy: override
+    dmn_category: revenue_cycle
+    input_map:
+      procedureCode: procedure_code
+      payerId: payer_id
+      contractId: contract_id
+      patientCategory: patient_category
+      procedureUrgency: urgency_level
+      billingDate: billing_date
+      tenantId: tenant_code
+    output_map:
+      finalPrice: override_amount
+      appliedContractId: applied_contract
+      overrideReason: override_justification
+      priceSource: price_origin
+      recommendedAction: action
+    error_strategy: fail_closed
+    timeout_ms: 10000
+    description: >
+      Two-stage pricing pipeline where payer contract rules override the base
+      ANS pricing table. Uses override merge so payer-specific contract values
+      fully replace base prices when a matching contract exists.
+      Returns final effective price, applied contract ID, and override justification.
+      Fail-closed prevents billing at incorrect or unverified rates.
+
+  # ============================================================================
+  # COMPLIANCE_VALIDATION: Access control and identity management stubs
+  # ============================================================================
+
+  access_control.audit:
+    archetype: COMPLIANCE_VALIDATION
+    dmn_key: DMN-STUB-AC
+    dmn_category: access_control
+    error_strategy: fail_safe
+    description: "Stub: access control audit trail validation"
+
+  access_control.authentication:
+    archetype: COMPLIANCE_VALIDATION
+    dmn_key: DMN-STUB-AC
+    dmn_category: access_control
+    error_strategy: fail_safe
+    description: "Stub: user authentication compliance check"
+
+  access_control.data_access:
+    archetype: COMPLIANCE_VALIDATION
+    dmn_key: DMN-STUB-AC
+    dmn_category: access_control
+    error_strategy: fail_safe
+    description: "Stub: data access authorization validation"
+
+  access_control.denial:
+    archetype: COMPLIANCE_VALIDATION
+    dmn_key: DMN-STUB-AC
+    dmn_category: access_control
+    error_strategy: fail_safe
+    description: "Stub: access denial event processing and logging"
+
+  access_control.provisioning:
+    archetype: COMPLIANCE_VALIDATION
+    dmn_key: DMN-STUB-AC
+    dmn_category: access_control
+    error_strategy: fail_safe
+    description: "Stub: user provisioning compliance validation"
+
+  access_control.restriction:
+    archetype: COMPLIANCE_VALIDATION
+    dmn_key: DMN-STUB-AC
+    dmn_category: access_control
+    error_strategy: fail_safe
+    description: "Stub: access restriction enforcement check"
+
+  # ============================================================================
+  # DATA_ENRICHMENT: Analytics and intelligence reporting stubs
+  # ============================================================================
+
+  analytics.analyze_payer_performance:
+    archetype: DATA_ENRICHMENT
+    dmn_key: DMN-STUB-ANA
+    dmn_category: analytics
+    error_strategy: fail_safe
+    description: "Stub: payer performance analysis for revenue intelligence"
+
+  analytics.calculate_collection_rate:
+    archetype: DATA_ENRICHMENT
+    dmn_key: DMN-STUB-ANA
+    dmn_category: analytics
+    error_strategy: fail_safe
+    description: "Stub: collection rate calculation for analytics dashboard"
+
+  analytics.calculate_dso:
+    archetype: DATA_ENRICHMENT
+    dmn_key: DMN-STUB-ANA
+    dmn_category: analytics
+    error_strategy: fail_safe
+    description: "Stub: days sales outstanding (DSO) calculation"
+
+  analytics.generate_executive_dashboard:
+    archetype: DATA_ENRICHMENT
+    dmn_key: DMN-STUB-ANA
+    dmn_category: analytics
+    error_strategy: fail_safe
+    description: "Stub: executive dashboard generation with KPI aggregation"
+
+  analytics.generate_operational_metrics:
+    archetype: DATA_ENRICHMENT
+    dmn_key: DMN-STUB-ANA
+    dmn_category: analytics
+    error_strategy: fail_safe
+    description: "Stub: operational metrics report generation"
+
+  analytics.generate_recommendations:
+    archetype: DATA_ENRICHMENT
+    dmn_key: DMN-STUB-ANA
+    dmn_category: analytics
+    error_strategy: fail_safe
+    description: "Stub: AI-driven recommendations based on analytics data"
+
+  # ============================================================================
+  # CLINICAL_ALERT: Clinical alert lifecycle management stubs
+  # ============================================================================
+
+  clinical.alert_classification:
+    archetype: CLINICAL_ALERT
+    dmn_key: DMN-STUB-CA
+    dmn_category: clinical_operations
+    error_strategy: fail_safe
+    description: "Stub: clinical alert classification by severity and type"
+
+  clinical.alert_logging:
+    archetype: CLINICAL_ALERT
+    dmn_key: DMN-STUB-CA
+    dmn_category: clinical_operations
+    error_strategy: fail_safe
+    description: "Stub: clinical alert logging to audit trail"
+
+  clinical.alert_notification:
+    archetype: CLINICAL_ALERT
+    dmn_key: DMN-STUB-CA
+    dmn_category: clinical_operations
+    error_strategy: fail_safe
+    description: "Stub: clinical alert notification to care team"
+
+  clinical.alert_resolution:
+    archetype: CLINICAL_ALERT
+    dmn_key: DMN-STUB-CA
+    dmn_category: clinical_operations
+    error_strategy: fail_safe
+    description: "Stub: clinical alert resolution and closure tracking"
+
+  clinical.assessment:
+    archetype: CLINICAL_ALERT
+    dmn_key: DMN-STUB-CA
+    dmn_category: clinical_operations
+    error_strategy: fail_safe
+    description: "Stub: patient clinical assessment and decision support"
+
+  clinical.care_team:
+    archetype: CLINICAL_ALERT
+    dmn_key: DMN-STUB-CA
+    dmn_category: clinical_operations
+    error_strategy: fail_safe
+    description: "Stub: care team coordination and assignment"
+
+  clinical.care_transitions:
+    archetype: CLINICAL_ALERT
+    dmn_key: DMN-STUB-CA
+    dmn_category: clinical_operations
+    error_strategy: fail_safe
+    description: "Stub: care transition coordination between units"
+
+  clinical.documentation:
+    archetype: CLINICAL_ALERT
+    dmn_key: DMN-STUB-CA
+    dmn_category: clinical_operations
+    error_strategy: fail_safe
+    description: "Stub: clinical documentation completeness validation"
+
+  clinical.evaluate_trends:
+    archetype: CLINICAL_ALERT
+    dmn_key: DMN-STUB-CA
+    dmn_category: clinical_operations
+    error_strategy: fail_safe
+    description: "Stub: patient vital signs trend evaluation"
+
+  clinical.fetch_vitals:
+    archetype: CLINICAL_ALERT
+    dmn_key: DMN-STUB-CA
+    dmn_category: clinical_operations
+    error_strategy: fail_safe
+    description: "Stub: fetch current patient vital signs for alert evaluation"
+
+  clinical.handoffs:
+    archetype: CLINICAL_ALERT
+    dmn_key: DMN-STUB-CA
+    dmn_category: clinical_operations
+    error_strategy: fail_safe
+    description: "Stub: clinical handoff coordination between care providers"
+
+  clinical.lab_results:
+    archetype: CLINICAL_ALERT
+    dmn_key: DMN-STUB-CA
+    dmn_category: clinical_operations
+    error_strategy: fail_safe
+    description: "Stub: lab result processing and alert triggering"
+
+  clinical.nursing_alert:
+    archetype: CLINICAL_ALERT
+    dmn_key: DMN-STUB-CA
+    dmn_category: clinical_operations
+    error_strategy: fail_safe
+    description: "Stub: nursing staff alert generation and routing"
+
+  clinical.pathways:
+    archetype: CLINICAL_ALERT
+    dmn_key: DMN-STUB-CA
+    dmn_category: clinical_operations
+    error_strategy: fail_safe
+    description: "Stub: clinical pathway selection and progression tracking"
+
+  clinical.protocols:
+    archetype: CLINICAL_ALERT
+    dmn_key: DMN-STUB-CA
+    dmn_category: clinical_operations
+    error_strategy: fail_safe
+    description: "Stub: clinical protocol application and compliance check"
+
+  clinical.quality_indicators:
+    archetype: CLINICAL_ALERT
+    dmn_key: DMN-STUB-CA
+    dmn_category: clinical_operations
+    error_strategy: fail_safe
+    description: "Stub: clinical quality indicator measurement and reporting"
+
+  clinical.reporting:
+    archetype: CLINICAL_ALERT
+    dmn_key: DMN-STUB-CA
+    dmn_category: clinical_operations
+    error_strategy: fail_safe
+    description: "Stub: clinical outcome reporting to regulatory bodies"
+
+  clinical.sepsis_timeout_escalation:
+    archetype: CLINICAL_ALERT
+    dmn_key: DMN-STUB-CA
+    dmn_category: clinical_operations
+    error_strategy: fail_safe
+    description: "Stub: sepsis protocol timeout escalation to senior clinician"
+
+  # ============================================================================
+  # ADMIN_ADJUDICATION: Collection reconciliation and payment management stubs
+  # ============================================================================
+
+  collection.analyze_payer_performance:
+    archetype: ADMIN_ADJUDICATION
+    dmn_key: DMN-STUB-COL
+    dmn_category: collection
+    error_strategy: fail_safe
+    description: "Stub: payer payment performance analysis for collections"
+
+  collection.apply_contractual_adjustments:
+    archetype: ADMIN_ADJUDICATION
+    dmn_key: DMN-STUB-COL
+    dmn_category: collection
+    error_strategy: fail_safe
+    description: "Stub: apply contractual payment adjustments to received amounts"
+
+  collection.apply_penalties:
+    archetype: ADMIN_ADJUDICATION
+    dmn_key: DMN-STUB-COL
+    dmn_category: collection
+    error_strategy: fail_safe
+    description: "Stub: apply late payment penalties to outstanding balances"
+
+  collection.archive_reconciliation:
+    archetype: ADMIN_ADJUDICATION
+    dmn_key: DMN-STUB-COL
+    dmn_category: collection
+    error_strategy: fail_safe
+    description: "Stub: archive completed reconciliation records"
+
+  collection.auto_matching:
+    archetype: ADMIN_ADJUDICATION
+    dmn_key: DMN-STUB-COL
+    dmn_category: collection
+    error_strategy: fail_safe
+    description: "Stub: auto matching for collection reconciliation"
+
+  collection.calculate_aging_bucket:
+    archetype: ADMIN_ADJUDICATION
+    dmn_key: DMN-STUB-COL
+    dmn_category: collection
+    error_strategy: fail_safe
+    description: "Stub: calculate aging bucket for outstanding receivables"
+
+  collection.calculate_collection_rate:
+    archetype: ADMIN_ADJUDICATION
+    dmn_key: DMN-STUB-COL
+    dmn_category: collection
+    error_strategy: fail_safe
+    description: "Stub: calculate collection rate by payer and period"
+
+  collection.calculate_dso:
+    archetype: ADMIN_ADJUDICATION
+    dmn_key: DMN-STUB-COL
+    dmn_category: collection
+    error_strategy: fail_safe
+    description: "Stub: calculate days sales outstanding for collections"
+
+  collection.calculate_net_payment:
+    archetype: ADMIN_ADJUDICATION
+    dmn_key: DMN-STUB-COL
+    dmn_category: collection
+    error_strategy: fail_safe
+    description: "Stub: calculate net payment after adjustments and deductions"
+
+  collection.calculate_revenue_cycle_time:
+    archetype: ADMIN_ADJUDICATION
+    dmn_key: DMN-STUB-COL
+    dmn_category: collection
+    error_strategy: fail_safe
+    description: "Stub: calculate end-to-end revenue cycle processing time"
+
+  collection.calculate_variance:
+    archetype: ADMIN_ADJUDICATION
+    dmn_key: DMN-STUB-COL
+    dmn_category: collection
+    error_strategy: fail_safe
+    description: "Stub: calculate variance between expected and received payments"
+
+  collection.classify_payment_type:
+    archetype: ADMIN_ADJUDICATION
+    dmn_key: DMN-STUB-COL
+    dmn_category: collection
+    error_strategy: fail_safe
+    description: "Stub: classify incoming payment by type for reconciliation routing"
+
+  collection.convert_currency:
+    archetype: ADMIN_ADJUDICATION
+    dmn_key: DMN-STUB-COL
+    dmn_category: collection
+    error_strategy: fail_safe
+    description: "Stub: convert payment currency for multi-currency reconciliation"
+
+  collection.detect_duplicate_payment:
+    archetype: ADMIN_ADJUDICATION
+    dmn_key: DMN-STUB-COL
+    dmn_category: collection
+    error_strategy: fail_safe
+    description: "Stub: detect duplicate payment entries in reconciliation"
+
+  collection.detect_revenue_leakage:
+    archetype: ADMIN_ADJUDICATION
+    dmn_key: DMN-STUB-COL
+    dmn_category: collection
+    error_strategy: fail_safe
+    description: "Stub: detect revenue leakage patterns in collections"
+
+  collection.escalate_to_legal:
+    archetype: ADMIN_ADJUDICATION
+    dmn_key: DMN-STUB-COL
+    dmn_category: collection
+    error_strategy: fail_safe
+    description: "Stub: escalate delinquent accounts to legal department"
+
+  collection.escalate_unmatched:
+    archetype: ADMIN_ADJUDICATION
+    dmn_key: DMN-STUB-COL
+    dmn_category: collection
+    error_strategy: fail_safe
+    description: "Stub: escalate unmatched payments for manual review"
+
+  collection.export_to_erp:
+    archetype: ADMIN_ADJUDICATION
+    dmn_key: DMN-STUB-COL
+    dmn_category: collection
+    error_strategy: fail_safe
+    description: "Stub: export reconciled collection data to ERP system"
+
+  collection.flag_discrepancies:
+    archetype: ADMIN_ADJUDICATION
+    dmn_key: DMN-STUB-COL
+    dmn_category: collection
+    error_strategy: fail_safe
+    description: "Stub: flag payment discrepancies for review"
+
+  collection.generate_aging_report:
+    archetype: ADMIN_ADJUDICATION
+    dmn_key: DMN-STUB-COL
+    dmn_category: collection
+    error_strategy: fail_safe
+    description: "Stub: generate accounts receivable aging report"
+
+  collection.generate_collection_letter:
+    archetype: ADMIN_ADJUDICATION
+    dmn_key: DMN-STUB-COL
+    dmn_category: collection
+    error_strategy: fail_safe
+    description: "Stub: generate collection notice letter for overdue accounts"
+
+  collection.generate_executive_dashboard:
+    archetype: ADMIN_ADJUDICATION
+    dmn_key: DMN-STUB-COL
+    dmn_category: collection
+    error_strategy: fail_safe
+    description: "Stub: generate collection executive dashboard summary"
+
+  collection.handle_overpayment:
+    archetype: ADMIN_ADJUDICATION
+    dmn_key: DMN-STUB-COL
+    dmn_category: collection
+    error_strategy: fail_safe
+    description: "Stub: process and route overpayment for refund or credit"
+
+  collection.handle_underpayment:
+    archetype: ADMIN_ADJUDICATION
+    dmn_key: DMN-STUB-COL
+    dmn_category: collection
+    error_strategy: fail_safe
+    description: "Stub: process underpayment and initiate balance recovery"
+
+  collection.identify_overdue:
+    archetype: ADMIN_ADJUDICATION
+    dmn_key: DMN-STUB-COL
+    dmn_category: collection
+    error_strategy: fail_safe
+    description: "Stub: identify overdue accounts for collection follow-up"
+
+  collection.identify_slow_payers:
+    archetype: ADMIN_ADJUDICATION
+    dmn_key: DMN-STUB-COL
+    dmn_category: collection
+    error_strategy: fail_safe
+    description: "Stub: identify payers with consistently slow payment patterns"
+
+  collection.match_by_invoice:
+    archetype: ADMIN_ADJUDICATION
+    dmn_key: DMN-STUB-COL
+    dmn_category: collection
+    error_strategy: fail_safe
+    description: "Stub: match payment to invoice number for reconciliation"
+
+  collection.match_by_patient:
+    archetype: ADMIN_ADJUDICATION
+    dmn_key: DMN-STUB-COL
+    dmn_category: collection
+    error_strategy: fail_safe
+    description: "Stub: match payment to patient record for reconciliation"
+
+  collection.match_by_protocol:
+    archetype: ADMIN_ADJUDICATION
+    dmn_key: DMN-STUB-COL
+    dmn_category: collection
+    error_strategy: fail_safe
+    description: "Stub: match payment to protocol number for reconciliation"
+
+  collection.negotiate_payment_plan:
+    archetype: ADMIN_ADJUDICATION
+    dmn_key: DMN-STUB-COL
+    dmn_category: collection
+    error_strategy: fail_safe
+    description: "Stub: negotiate installment payment plan for outstanding balance"
+
+  collection.parse_payment_file:
+    archetype: ADMIN_ADJUDICATION
+    dmn_key: DMN-STUB-COL
+    dmn_category: collection
+    error_strategy: fail_safe
+    description: "Stub: parse CNAB or remittance file for payment reconciliation"
+
+  collection.persist_payment:
+    archetype: ADMIN_ADJUDICATION
+    dmn_key: DMN-STUB-COL
+    dmn_category: collection
+    error_strategy: fail_safe
+    description: "Stub: persist validated payment record to financial database"
+
+  collection.predict_collection_date:
+    archetype: ADMIN_ADJUDICATION
+    dmn_key: DMN-STUB-COL
+    dmn_category: collection
+    error_strategy: fail_safe
+    description: "Stub: predict expected collection date based on payer patterns"
+
+  collection.prioritize_collection:
+    archetype: ADMIN_ADJUDICATION
+    dmn_key: DMN-STUB-COL
+    dmn_category: collection
+    error_strategy: fail_safe
+    description: "Stub: prioritize collection queue by value and aging"
+
+  collection.reconcile_monthly:
+    archetype: ADMIN_ADJUDICATION
+    dmn_key: DMN-STUB-COL
+    dmn_category: collection
+    error_strategy: fail_safe
+    description: "Stub: perform monthly reconciliation of all payer payments"
+
+  collection.reconcile_weekly:
+    archetype: ADMIN_ADJUDICATION
+    dmn_key: DMN-STUB-COL
+    dmn_category: collection
+    error_strategy: fail_safe
+    description: "Stub: perform weekly reconciliation of pending payments"
+
+  collection.schedule_collection_call:
+    archetype: ADMIN_ADJUDICATION
+    dmn_key: DMN-STUB-COL
+    dmn_category: collection
+    error_strategy: fail_safe
+    description: "Stub: schedule outbound collection call for overdue account"
+
+  collection.send_daily_summary:
+    archetype: ADMIN_ADJUDICATION
+    dmn_key: DMN-STUB-COL
+    dmn_category: collection
+    error_strategy: fail_safe
+    description: "Stub: send daily collection summary to finance team"
+
+  collection.send_whatsapp_reminder:
+    archetype: ADMIN_ADJUDICATION
+    dmn_key: DMN-STUB-COL
+    dmn_category: collection
+    error_strategy: fail_safe
+    description: "Stub: send WhatsApp payment reminder to payer contact"
+
+  collection.update_bi_datawarehouse:
+    archetype: ADMIN_ADJUDICATION
+    dmn_key: DMN-STUB-COL
+    dmn_category: collection
+    error_strategy: fail_safe
+    description: "Stub: update BI datawarehouse with collection metrics"
+
+  collection.update_forecasts:
+    archetype: ADMIN_ADJUDICATION
+    dmn_key: DMN-STUB-COL
+    dmn_category: collection
+    error_strategy: fail_safe
+    description: "Stub: update revenue forecasts based on collection actuals"
+
+  collection.validate_payment_data:
+    archetype: ADMIN_ADJUDICATION
+    dmn_key: DMN-STUB-COL
+    dmn_category: collection
+    error_strategy: fail_safe
+    description: "Stub: validate incoming payment data before reconciliation"
+
+  collection.write_off_bad_debt:
+    archetype: ADMIN_ADJUDICATION
+    dmn_key: DMN-STUB-COL
+    dmn_category: collection
+    error_strategy: fail_safe
+    description: "Stub: write off uncollectable debt after exhausting collection efforts"
+
+  # ============================================================================
+  # COMPLIANCE_VALIDATION: Compliance audit and regulatory management stubs
+  # ============================================================================
+
+  compliance.audit:
+    archetype: COMPLIANCE_VALIDATION
+    dmn_key: DMN-STUB-CMP
+    dmn_category: governance
+    error_strategy: fail_safe
+    description: "Stub: compliance audit execution and findings recording"
+
+  compliance.lgpd:
+    archetype: COMPLIANCE_VALIDATION
+    dmn_key: DMN-STUB-CMP
+    dmn_category: governance
+    error_strategy: fail_safe
+    description: "Stub: LGPD personal data handling compliance validation"
+
+  compliance.remediation:
+    archetype: COMPLIANCE_VALIDATION
+    dmn_key: DMN-STUB-CMP
+    dmn_category: governance
+    error_strategy: fail_safe
+    description: "Stub: compliance finding remediation tracking"
+
+  compliance.reporting:
+    archetype: COMPLIANCE_VALIDATION
+    dmn_key: DMN-STUB-CMP
+    dmn_category: governance
+    error_strategy: fail_safe
+    description: "Stub: regulatory compliance report generation"
+
+  # ============================================================================
+  # CLINICAL_ALERT: Post-discharge continuity of care stubs
+  # ============================================================================
+
+  continuity.adherence_intervention:
+    archetype: CLINICAL_ALERT
+    dmn_key: DMN-STUB-CNT
+    dmn_category: clinical_operations
+    error_strategy: fail_safe
+    description: "Stub: intervene when patient medication adherence is low"
+
+  continuity.doctor_alert:
+    archetype: CLINICAL_ALERT
+    dmn_key: DMN-STUB-CNT
+    dmn_category: clinical_operations
+    error_strategy: fail_safe
+    description: "Stub: alert physician about post-discharge patient concern"
+
+  continuity.followup_reminder:
+    archetype: CLINICAL_ALERT
+    dmn_key: DMN-STUB-CNT
+    dmn_category: clinical_operations
+    error_strategy: fail_safe
+    description: "Stub: send post-discharge follow-up appointment reminder"
+
+  continuity.medication_adherence:
+    archetype: CLINICAL_ALERT
+    dmn_key: DMN-STUB-CNT
+    dmn_category: clinical_operations
+    error_strategy: fail_safe
+    description: "Stub: monitor and assess patient medication adherence post-discharge"
+
+  continuity.recovery_checkin:
+    archetype: CLINICAL_ALERT
+    dmn_key: DMN-STUB-CNT
+    dmn_category: clinical_operations
+    error_strategy: fail_safe
+    description: "Stub: patient recovery status check-in post-discharge"
+
+  continuity.satisfaction_survey:
+    archetype: CLINICAL_ALERT
+    dmn_key: DMN-STUB-CNT
+    dmn_category: clinical_operations
+    error_strategy: fail_safe
+    description: "Stub: send patient satisfaction survey post-discharge"
+
+  continuity.weekly_checkin:
+    archetype: CLINICAL_ALERT
+    dmn_key: DMN-STUB-CNT
+    dmn_category: clinical_operations
+    error_strategy: fail_safe
+    description: "Stub: weekly patient check-in call for recovery monitoring"
+
+  # ============================================================================
+  # COMPLIANCE_VALIDATION: Provider credentialing management stubs
+  # ============================================================================
+
+  credentialing.activation:
+    archetype: COMPLIANCE_VALIDATION
+    dmn_key: DMN-STUB-CRED
+    dmn_category: governance
+    error_strategy: fail_safe
+    description: "Stub: activate provider credentials upon successful verification"
+
+  credentialing.expiration:
+    archetype: COMPLIANCE_VALIDATION
+    dmn_key: DMN-STUB-CRED
+    dmn_category: governance
+    error_strategy: fail_safe
+    description: "Stub: process credential expiration notification and renewal"
+
+  credentialing.facility:
+    archetype: COMPLIANCE_VALIDATION
+    dmn_key: DMN-STUB-CRED
+    dmn_category: governance
+    error_strategy: fail_safe
+    description: "Stub: validate provider facility credentialing requirements"
+
+  credentialing.license:
+    archetype: COMPLIANCE_VALIDATION
+    dmn_key: DMN-STUB-CRED
+    dmn_category: governance
+    error_strategy: fail_safe
+    description: "Stub: validate provider professional license status"
+
+  credentialing.notification:
+    archetype: COMPLIANCE_VALIDATION
+    dmn_key: DMN-STUB-CRED
+    dmn_category: governance
+    error_strategy: fail_safe
+    description: "Stub: send credentialing status notification to provider"
+
+  credentialing.provider:
+    archetype: COMPLIANCE_VALIDATION
+    dmn_key: DMN-STUB-CRED
+    dmn_category: governance
+    error_strategy: fail_safe
+    description: "Stub: provider credentialing enrollment and verification"
+
+  # ============================================================================
+  # ADMIN_ADJUDICATION: Denial management and appeal processing stubs
+  # ============================================================================
+
+  denial.check_appeal_eligibility:
+    archetype: ADMIN_ADJUDICATION
+    dmn_key: DMN-STUB-DEN
+    dmn_category: revenue_cycle
+    error_strategy: fail_safe
+    description: "Stub: check if denied claim is eligible for appeal"
+
+  denial.generate_appeal_documentation:
+    archetype: ADMIN_ADJUDICATION
+    dmn_key: DMN-STUB-DEN
+    dmn_category: revenue_cycle
+    error_strategy: fail_safe
+    description: "Stub: generate clinical and administrative appeal documentation"
+
+  denial.submit_appeal:
+    archetype: ADMIN_ADJUDICATION
+    dmn_key: DMN-STUB-DEN
+    dmn_category: revenue_cycle
+    error_strategy: fail_safe
+    description: "Stub: submit denial appeal to payer via TISS or portal"
+
+  denial.track_appeal_status:
+    archetype: ADMIN_ADJUDICATION
+    dmn_key: DMN-STUB-DEN
+    dmn_category: revenue_cycle
+    error_strategy: fail_safe
+    description: "Stub: track appeal status and update accounts receivable"
+
+  # ============================================================================
+  # CLINICAL_ALERT: Discharge coordination and care transition stubs
+  # ============================================================================
+
+  discharge.coordinate_care_transition:
+    archetype: CLINICAL_ALERT
+    dmn_key: DMN-STUB-DIS
+    dmn_category: clinical_operations
+    error_strategy: fail_safe
+    description: "Stub: coordinate care transition from inpatient to outpatient"
+
+  discharge.generate_discharge_summary:
+    archetype: CLINICAL_ALERT
+    dmn_key: DMN-STUB-DIS
+    dmn_category: clinical_operations
+    error_strategy: fail_safe
+    description: "Stub: generate patient discharge summary document"
+
+  discharge.notify_care_team:
+    archetype: CLINICAL_ALERT
+    dmn_key: DMN-STUB-DIS
+    dmn_category: clinical_operations
+    error_strategy: fail_safe
+    description: "Stub: notify care team of patient discharge decision"
+
+  discharge.schedule_followup:
+    archetype: CLINICAL_ALERT
+    dmn_key: DMN-STUB-DIS
+    dmn_category: clinical_operations
+    error_strategy: fail_safe
+    description: "Stub: schedule post-discharge follow-up appointments"
+
+  discharge.verify_discharge_criteria:
+    archetype: CLINICAL_ALERT
+    dmn_key: DMN-STUB-DIS
+    dmn_category: clinical_operations
+    error_strategy: fail_safe
+    description: "Stub: verify all clinical discharge criteria are met"
+
+  # ============================================================================
+  # CLINICAL_ALERT: Doctor engagement and daily workflow stubs
+  # ============================================================================
+
+  doctor.emergency_alert:
+    archetype: CLINICAL_ALERT
+    dmn_key: DMN-STUB-DOC
+    dmn_category: clinical_operations
+    error_strategy: fail_safe
+    description: "Stub: send emergency alert to attending physician"
+
+  doctor.patient_arrival:
+    archetype: CLINICAL_ALERT
+    dmn_key: DMN-STUB-DOC
+    dmn_category: clinical_operations
+    error_strategy: fail_safe
+    description: "Stub: notify doctor of assigned patient arrival"
+
+  doctor.priority_sort:
+    archetype: CLINICAL_ALERT
+    dmn_key: DMN-STUB-DOC
+    dmn_category: clinical_operations
+    error_strategy: fail_safe
+    description: "Stub: sort doctor patient queue by clinical priority"
+
+  doctor.schedule_summary:
+    archetype: CLINICAL_ALERT
+    dmn_key: DMN-STUB-DOC
+    dmn_category: clinical_operations
+    error_strategy: fail_safe
+    description: "Stub: generate daily schedule summary for physician"
+
+  doctor.send_notification:
+    archetype: CLINICAL_ALERT
+    dmn_key: DMN-STUB-DOC
+    dmn_category: clinical_operations
+    error_strategy: fail_safe
+    description: "Stub: send clinical notification to physician via preferred channel"
+
+  doctor.track_response:
+    archetype: CLINICAL_ALERT
+    dmn_key: DMN-STUB-DOC
+    dmn_category: clinical_operations
+    error_strategy: fail_safe
+    description: "Stub: track physician response time to clinical alerts"
+
+  # ============================================================================
+  # CLINICAL_ALERT: Emergency department additional workflow stubs
+  # ============================================================================
+
+  emergency.specialist_consult:
+    archetype: CLINICAL_ALERT
+    dmn_key: DMN-STUB-EM
+    dmn_category: clinical_operations
+    error_strategy: fail_safe
+    description: "Stub: request specialist consultation for emergency patient"
+
+  emergency.triage_escalation:
+    archetype: CLINICAL_ALERT
+    dmn_key: DMN-STUB-EM
+    dmn_category: clinical_operations
+    error_strategy: fail_safe
+    description: "Stub: escalate triage level based on deteriorating condition"
+
+  # ============================================================================
+  # FINANCIAL_CALCULATION: Patient self-service financial portal stubs
+  # ============================================================================
+
+  financial.bill_detail:
+    archetype: FINANCIAL_CALCULATION
+    dmn_key: DMN-STUB-FIN
+    dmn_category: revenue_cycle
+    error_strategy: fail_safe
+    description: "Stub: retrieve itemized bill detail for patient self-service"
+
+  financial.bill_notification:
+    archetype: FINANCIAL_CALCULATION
+    dmn_key: DMN-STUB-FIN
+    dmn_category: revenue_cycle
+    error_strategy: fail_safe
+    description: "Stub: send bill ready notification to patient via WhatsApp"
+
+  financial.billing_support:
+    archetype: FINANCIAL_CALCULATION
+    dmn_key: DMN-STUB-FIN
+    dmn_category: revenue_cycle
+    error_strategy: fail_safe
+    description: "Stub: route patient to billing support representative"
+
+  financial.insurance_request:
+    archetype: FINANCIAL_CALCULATION
+    dmn_key: DMN-STUB-FIN
+    dmn_category: revenue_cycle
+    error_strategy: fail_safe
+    description: "Stub: process patient insurance document request"
+
+  financial.payment_plan:
+    archetype: FINANCIAL_CALCULATION
+    dmn_key: DMN-STUB-FIN
+    dmn_category: revenue_cycle
+    error_strategy: fail_safe
+    description: "Stub: set up patient payment installment plan"
+
+  financial.payment_process:
+    archetype: FINANCIAL_CALCULATION
+    dmn_key: DMN-STUB-FIN
+    dmn_category: revenue_cycle
+    error_strategy: fail_safe
+    description: "Stub: process patient payment via digital payment gateway"
+
+  financial.send_estimate:
+    archetype: FINANCIAL_CALCULATION
+    dmn_key: DMN-STUB-FIN
+    dmn_category: revenue_cycle
+    error_strategy: fail_safe
+    description: "Stub: send cost estimate to patient before service"
+
+  financial.send_receipt:
+    archetype: FINANCIAL_CALCULATION
+    dmn_key: DMN-STUB-FIN
+    dmn_category: revenue_cycle
+    error_strategy: fail_safe
+    description: "Stub: send payment receipt to patient"
+
+  financial.update_record:
+    archetype: FINANCIAL_CALCULATION
+    dmn_key: DMN-STUB-FIN
+    dmn_category: revenue_cycle
+    error_strategy: fail_safe
+    description: "Stub: update patient financial record after payment"
+
+  financial.verify_coverage:
+    archetype: FINANCIAL_CALCULATION
+    dmn_key: DMN-STUB-FIN
+    dmn_category: revenue_cycle
+    error_strategy: fail_safe
+    description: "Stub: verify insurance coverage for requested service"
+
+  # ============================================================================
+  # CLINICAL_ALERT: Post-discharge follow-up care stubs
+  # ============================================================================
+
+  followup.assess_recovery:
+    archetype: CLINICAL_ALERT
+    dmn_key: DMN-STUB-FUP
+    dmn_category: clinical_operations
+    error_strategy: fail_safe
+    description: "Stub: assess patient recovery progress post-discharge"
+
+  followup.check_medication_adherence:
+    archetype: CLINICAL_ALERT
+    dmn_key: DMN-STUB-FUP
+    dmn_category: clinical_operations
+    error_strategy: fail_safe
+    description: "Stub: check patient medication adherence at follow-up"
+
+  followup.detect_readmission_risk:
+    archetype: CLINICAL_ALERT
+    dmn_key: DMN-STUB-FUP
+    dmn_category: clinical_operations
+    error_strategy: fail_safe
+    description: "Stub: detect early readmission risk signals at follow-up"
+
+  followup.escalate_concern:
+    archetype: CLINICAL_ALERT
+    dmn_key: DMN-STUB-FUP
+    dmn_category: clinical_operations
+    error_strategy: fail_safe
+    description: "Stub: escalate patient concern identified at follow-up"
+
+  followup.schedule_contact:
+    archetype: CLINICAL_ALERT
+    dmn_key: DMN-STUB-FUP
+    dmn_category: clinical_operations
+    error_strategy: fail_safe
+    description: "Stub: schedule next follow-up contact with patient"
+
+  # ============================================================================
+  # OPERATIONAL_ROUTING: IT infrastructure and system configuration stubs
+  # ============================================================================
+
+  infrastructure.config:
+    archetype: OPERATIONAL_ROUTING
+    dmn_key: DMN-STUB-INF
+    dmn_category: infrastructure
+    error_strategy: fail_safe
+    description: "Stub: system configuration change processing and validation"
+
+  infrastructure.confirmation:
+    archetype: OPERATIONAL_ROUTING
+    dmn_key: DMN-STUB-INF
+    dmn_category: infrastructure
+    error_strategy: fail_safe
+    description: "Stub: configuration change confirmation and acknowledgment"
+
+  infrastructure.deployment:
+    archetype: OPERATIONAL_ROUTING
+    dmn_key: DMN-STUB-INF
+    dmn_category: infrastructure
+    error_strategy: fail_safe
+    description: "Stub: system deployment execution and validation"
+
+  infrastructure.health:
+    archetype: OPERATIONAL_ROUTING
+    dmn_key: DMN-STUB-INF
+    dmn_category: infrastructure
+    error_strategy: fail_safe
+    description: "Stub: system health check and availability monitoring"
+
+  infrastructure.rejection:
+    archetype: OPERATIONAL_ROUTING
+    dmn_key: DMN-STUB-INF
+    dmn_category: infrastructure
+    error_strategy: fail_safe
+    description: "Stub: process configuration change rejection and rollback"
+
+  infrastructure.rollback:
+    archetype: OPERATIONAL_ROUTING
+    dmn_key: DMN-STUB-INF
+    dmn_category: infrastructure
+    error_strategy: fail_safe
+    description: "Stub: execute system rollback to previous stable state"
+
+  # ============================================================================
+  # CLINICAL_ALERT: Inpatient experience management stubs
+  # ============================================================================
+
+  inpatient.bed_available:
+    archetype: CLINICAL_ALERT
+    dmn_key: DMN-STUB-INP
+    dmn_category: clinical_operations
+    error_strategy: fail_safe
+    description: "Stub: notify of bed availability for patient admission"
+
+  inpatient.care_team_intro:
+    archetype: CLINICAL_ALERT
+    dmn_key: DMN-STUB-INP
+    dmn_category: clinical_operations
+    error_strategy: fail_safe
+    description: "Stub: introduce care team to newly admitted patient"
+
+  inpatient.daily_plan:
+    archetype: CLINICAL_ALERT
+    dmn_key: DMN-STUB-INP
+    dmn_category: clinical_operations
+    error_strategy: fail_safe
+    description: "Stub: communicate daily care plan to patient"
+
+  inpatient.discharge_prep:
+    archetype: CLINICAL_ALERT
+    dmn_key: DMN-STUB-INP
+    dmn_category: clinical_operations
+    error_strategy: fail_safe
+    description: "Stub: prepare patient for discharge process"
+
+  inpatient.evening_summary:
+    archetype: CLINICAL_ALERT
+    dmn_key: DMN-STUB-INP
+    dmn_category: clinical_operations
+    error_strategy: fail_safe
+    description: "Stub: send evening care summary to patient and family"
+
+  inpatient.family_update:
+    archetype: CLINICAL_ALERT
+    dmn_key: DMN-STUB-INP
+    dmn_category: clinical_operations
+    error_strategy: fail_safe
+    description: "Stub: send family update on patient status"
+
+  inpatient.init_context:
+    archetype: CLINICAL_ALERT
+    dmn_key: DMN-STUB-INP
+    dmn_category: clinical_operations
+    error_strategy: fail_safe
+    description: "Stub: initialize patient context for inpatient workflow"
+
+  inpatient.meal_choice:
+    archetype: CLINICAL_ALERT
+    dmn_key: DMN-STUB-INP
+    dmn_category: clinical_operations
+    error_strategy: fail_safe
+    description: "Stub: collect patient meal preference for dietary management"
+
+  inpatient.medication_reminder:
+    archetype: CLINICAL_ALERT
+    dmn_key: DMN-STUB-INP
+    dmn_category: clinical_operations
+    error_strategy: fail_safe
+    description: "Stub: send inpatient medication reminder notification"
+
+  inpatient.team_intro:
+    archetype: CLINICAL_ALERT
+    dmn_key: DMN-STUB-INP
+    dmn_category: clinical_operations
+    error_strategy: fail_safe
+    description: "Stub: introduce nursing team to patient at shift change"
+
+  # ============================================================================
+  # OPERATIONAL_ROUTING: Patient access and registration stubs
+  # ============================================================================
+
+  patient.assign_medical_record_number:
+    archetype: OPERATIONAL_ROUTING
+    dmn_key: DMN-STUB-PAT
+    dmn_category: patient_access
+    error_strategy: fail_safe
+    description: "Stub: assign medical record number to new patient"
+
+  patient.check_existing_patient:
+    archetype: OPERATIONAL_ROUTING
+    dmn_key: DMN-STUB-PAT
+    dmn_category: patient_access
+    error_strategy: fail_safe
+    description: "Stub: check for existing patient record before registration"
+
+  patient.complete_checkin:
+    archetype: OPERATIONAL_ROUTING
+    dmn_key: DMN-STUB-PAT
+    dmn_category: patient_access
+    error_strategy: fail_safe
+    description: "Stub: complete patient check-in process"
+
+  patient.create_patient_record:
+    archetype: OPERATIONAL_ROUTING
+    dmn_key: DMN-STUB-PAT
+    dmn_category: patient_access
+    error_strategy: fail_safe
+    description: "Stub: create new patient FHIR record in registry"
+
+  patient.escalate_auth_sla:
+    archetype: OPERATIONAL_ROUTING
+    dmn_key: DMN-STUB-PAT
+    dmn_category: patient_access
+    error_strategy: fail_safe
+    description: "Stub: escalate authorization SLA breach to supervisor"
+
+  patient.generate_patient_card:
+    archetype: OPERATIONAL_ROUTING
+    dmn_key: DMN-STUB-PAT
+    dmn_category: patient_access
+    error_strategy: fail_safe
+    description: "Stub: generate patient identification card"
+
+  patient.generate_pre_admission_checklist:
+    archetype: OPERATIONAL_ROUTING
+    dmn_key: DMN-STUB-PAT
+    dmn_category: patient_access
+    error_strategy: fail_safe
+    description: "Stub: generate pre-admission documentation checklist"
+
+  patient.grant_clearance:
+    archetype: OPERATIONAL_ROUTING
+    dmn_key: DMN-STUB-PAT
+    dmn_category: patient_access
+    error_strategy: fail_safe
+    description: "Stub: grant financial clearance for service delivery"
+
+  patient.notify_care_team:
+    archetype: OPERATIONAL_ROUTING
+    dmn_key: DMN-STUB-PAT
+    dmn_category: patient_access
+    error_strategy: fail_safe
+    description: "Stub: notify care team of patient arrival or status update"
+
+  patient.notify_registration_complete:
+    archetype: OPERATIONAL_ROUTING
+    dmn_key: DMN-STUB-PAT
+    dmn_category: patient_access
+    error_strategy: fail_safe
+    description: "Stub: notify stakeholders of patient registration completion"
+
+  patient.register_demand:
+    archetype: OPERATIONAL_ROUTING
+    dmn_key: DMN-STUB-PAT
+    dmn_category: patient_access
+    error_strategy: fail_safe
+    description: "Stub: register initial patient demand and triage intent"
+
+  patient.request_missing_documents:
+    archetype: OPERATIONAL_ROUTING
+    dmn_key: DMN-STUB-PAT
+    dmn_category: patient_access
+    error_strategy: fail_safe
+    description: "Stub: request missing documentation from patient"
+
+  patient.send_checklist:
+    archetype: OPERATIONAL_ROUTING
+    dmn_key: DMN-STUB-PAT
+    dmn_category: patient_access
+    error_strategy: fail_safe
+    description: "Stub: send pre-admission checklist to patient digitally"
+
+  patient.update_patient_registry:
+    archetype: OPERATIONAL_ROUTING
+    dmn_key: DMN-STUB-PAT
+    dmn_category: patient_access
+    error_strategy: fail_safe
+    description: "Stub: update patient demographic record in registry"
+
+  patient.validate_appointment_rules:
+    archetype: OPERATIONAL_ROUTING
+    dmn_key: DMN-STUB-PAT
+    dmn_category: patient_access
+    error_strategy: fail_safe
+    description: "Stub: validate appointment scheduling rules at check-in"
+
+  patient.validate_patient_data:
+    archetype: OPERATIONAL_ROUTING
+    dmn_key: DMN-STUB-PAT
+    dmn_category: patient_access
+    error_strategy: fail_safe
+    description: "Stub: validate patient data integrity and completeness"
+
+  patient.verify_documents_checkin:
+    archetype: OPERATIONAL_ROUTING
+    dmn_key: DMN-STUB-PAT
+    dmn_category: patient_access
+    error_strategy: fail_safe
+    description: "Stub: verify required documents at patient check-in"
+
+  # ============================================================================
+  # DATA_ENRICHMENT: Platform integration and analytics service stubs
+  # ============================================================================
+
+  platform.aggregate_clinical_metrics:
+    archetype: DATA_ENRICHMENT
+    dmn_key: DMN-STUB-PLT
+    dmn_category: platform_services
+    error_strategy: fail_safe
+    description: "Stub: aggregate clinical metrics for analytics platform"
+
+  platform.analyze_denial_patterns:
+    archetype: DATA_ENRICHMENT
+    dmn_key: DMN-STUB-PLT
+    dmn_category: platform_services
+    error_strategy: fail_safe
+    description: "Stub: analyze denial patterns for revenue optimization"
+
+  platform.analyze_financial_performance:
+    archetype: DATA_ENRICHMENT
+    dmn_key: DMN-STUB-PLT
+    dmn_category: platform_services
+    error_strategy: fail_safe
+    description: "Stub: analyze financial performance across revenue streams"
+
+  platform.benchmark_payer_performance:
+    archetype: DATA_ENRICHMENT
+    dmn_key: DMN-STUB-PLT
+    dmn_category: platform_services
+    error_strategy: fail_safe
+    description: "Stub: benchmark payer performance against industry standards"
+
+  platform.calculate_operational_metrics:
+    archetype: DATA_ENRICHMENT
+    dmn_key: DMN-STUB-PLT
+    dmn_category: platform_services
+    error_strategy: fail_safe
+    description: "Stub: calculate operational KPIs and efficiency metrics"
+
+  platform.calculate_revenue_potential:
+    archetype: DATA_ENRICHMENT
+    dmn_key: DMN-STUB-PLT
+    dmn_category: platform_services
+    error_strategy: fail_safe
+    description: "Stub: calculate untapped revenue potential by service line"
+
+  platform.detect_data_quality_issues:
+    archetype: DATA_ENRICHMENT
+    dmn_key: DMN-STUB-PLT
+    dmn_category: platform_services
+    error_strategy: fail_safe
+    description: "Stub: detect data quality issues across integrated systems"
+
+  platform.detect_revenue_leakage:
+    archetype: DATA_ENRICHMENT
+    dmn_key: DMN-STUB-PLT
+    dmn_category: platform_services
+    error_strategy: fail_safe
+    description: "Stub: detect revenue leakage via analytics pattern matching"
+
+  platform.forecast_revenue_trends:
+    archetype: DATA_ENRICHMENT
+    dmn_key: DMN-STUB-PLT
+    dmn_category: platform_services
+    error_strategy: fail_safe
+    description: "Stub: forecast revenue trends using historical data"
+
+  platform.generate_executive_dashboard:
+    archetype: DATA_ENRICHMENT
+    dmn_key: DMN-STUB-PLT
+    dmn_category: platform_services
+    error_strategy: fail_safe
+    description: "Stub: generate C-suite executive dashboard with KPIs"
+
+  platform.generate_optimization_report:
+    archetype: DATA_ENRICHMENT
+    dmn_key: DMN-STUB-PLT
+    dmn_category: platform_services
+    error_strategy: fail_safe
+    description: "Stub: generate revenue optimization action report"
+
+  platform.identify_coding_opportunities:
+    archetype: DATA_ENRICHMENT
+    dmn_key: DMN-STUB-PLT
+    dmn_category: platform_services
+    error_strategy: fail_safe
+    description: "Stub: identify coding optimization opportunities for revenue"
+
+  platform.identify_contract_gaps:
+    archetype: DATA_ENRICHMENT
+    dmn_key: DMN-STUB-PLT
+    dmn_category: platform_services
+    error_strategy: fail_safe
+    description: "Stub: identify gaps in payer contract terms"
+
+  platform.integrate_imaging:
+    archetype: DATA_ENRICHMENT
+    dmn_key: DMN-STUB-PLT
+    dmn_category: platform_services
+    error_strategy: fail_safe
+    description: "Stub: integrate imaging system data into analytics platform"
+
+  platform.integrate_laboratory:
+    archetype: DATA_ENRICHMENT
+    dmn_key: DMN-STUB-PLT
+    dmn_category: platform_services
+    error_strategy: fail_safe
+    description: "Stub: integrate laboratory system data into analytics platform"
+
+  platform.optimize_pricing_strategy:
+    archetype: DATA_ENRICHMENT
+    dmn_key: DMN-STUB-PLT
+    dmn_category: platform_services
+    error_strategy: fail_safe
+    description: "Stub: optimize pricing strategy based on market data"
+
+  platform.optimize_resource_utilization:
+    archetype: DATA_ENRICHMENT
+    dmn_key: DMN-STUB-PLT
+    dmn_category: platform_services
+    error_strategy: fail_safe
+    description: "Stub: optimize clinical and operational resource utilization"
+
+  platform.prioritize_high_value_cases:
+    archetype: DATA_ENRICHMENT
+    dmn_key: DMN-STUB-PLT
+    dmn_category: platform_services
+    error_strategy: fail_safe
+    description: "Stub: prioritize high-value cases for revenue optimization"
+
+  platform.recommend_procedure_bundles:
+    archetype: DATA_ENRICHMENT
+    dmn_key: DMN-STUB-PLT
+    dmn_category: platform_services
+    error_strategy: fail_safe
+    description: "Stub: recommend procedure bundling for billing optimization"
+
+  platform.send_whatsapp:
+    archetype: CLINICAL_ALERT
+    dmn_key: DMN-STUB-PLT
+    dmn_category: platform_services
+    error_strategy: fail_safe
+    description: "Stub: send WhatsApp notification via platform messaging service"
+
+  platform.suggest_documentation_improvements:
+    archetype: DATA_ENRICHMENT
+    dmn_key: DMN-STUB-PLT
+    dmn_category: platform_services
+    error_strategy: fail_safe
+    description: "Stub: suggest clinical documentation improvements for coding"
+
+  platform.sync_erp_data:
+    archetype: DATA_ENRICHMENT
+    dmn_key: DMN-STUB-PLT
+    dmn_category: platform_services
+    error_strategy: fail_safe
+    description: "Stub: synchronize ERP data with analytics data warehouse"
+
+  platform.track_optimization_roi:
+    archetype: DATA_ENRICHMENT
+    dmn_key: DMN-STUB-PLT
+    dmn_category: platform_services
+    error_strategy: fail_safe
+    description: "Stub: track ROI of revenue optimization initiatives"
+
+  # ============================================================================
+  # FINANCIAL_CALCULATION: Revenue cycle management stubs
+  # ============================================================================
+
+  revenue_cycle.analyze_revenue_opportunities:
+    archetype: FINANCIAL_CALCULATION
+    dmn_key: DMN-STUB-RC
+    dmn_category: revenue_cycle
+    error_strategy: fail_safe
+    description: "Stub: analyze revenue opportunities across service lines"
+
+  revenue_cycle.auto_matching:
+    archetype: FINANCIAL_CALCULATION
+    dmn_key: DMN-STUB-RC
+    dmn_category: revenue_cycle
+    error_strategy: fail_safe
+    description: "Stub: auto-match payments to revenue cycle claims"
+
+  revenue_cycle.calculate_quantity:
+    archetype: FINANCIAL_CALCULATION
+    dmn_key: DMN-STUB-RC
+    dmn_category: revenue_cycle
+    error_strategy: fail_safe
+    description: "Stub: calculate procedure quantity for clinical service billing"
+
+  revenue_cycle.capture_procedure:
+    archetype: FINANCIAL_CALCULATION
+    dmn_key: DMN-STUB-RC
+    dmn_category: revenue_cycle
+    error_strategy: fail_safe
+    description: "Stub: capture procedure performed during clinical service"
+
+  revenue_cycle.check_authorization:
+    archetype: FINANCIAL_CALCULATION
+    dmn_key: DMN-STUB-RC
+    dmn_category: revenue_cycle
+    error_strategy: fail_safe
+    description: "Stub: check prior authorization status for procedure"
+
+  revenue_cycle.check_eligibility:
+    archetype: FINANCIAL_CALCULATION
+    dmn_key: DMN-STUB-RC
+    dmn_category: revenue_cycle
+    error_strategy: fail_safe
+    description: "Stub: check patient insurance eligibility at scheduling"
+
+  revenue_cycle.coding.audit_coding:
+    archetype: FINANCIAL_CALCULATION
+    dmn_key: DMN-STUB-RCC
+    dmn_category: revenue_cycle
+    error_strategy: fail_safe
+    description: "Stub: audit clinical coding for accuracy and compliance"
+
+  revenue_cycle.coding.check_compatibility:
+    archetype: FINANCIAL_CALCULATION
+    dmn_key: DMN-STUB-RCC
+    dmn_category: revenue_cycle
+    error_strategy: fail_safe
+    description: "Stub: check procedure code compatibility rules"
+
+  revenue_cycle.coding.detect_fraud:
+    archetype: FINANCIAL_CALCULATION
+    dmn_key: DMN-STUB-RCC
+    dmn_category: revenue_cycle
+    error_strategy: fail_safe
+    description: "Stub: detect fraudulent coding patterns"
+
+  revenue_cycle.coding.extract_clinical_data:
+    archetype: FINANCIAL_CALCULATION
+    dmn_key: DMN-STUB-RCC
+    dmn_category: revenue_cycle
+    error_strategy: fail_safe
+    description: "Stub: extract clinical data for coding assignment"
+
+  revenue_cycle.coding.suggest_cid10:
+    archetype: FINANCIAL_CALCULATION
+    dmn_key: DMN-STUB-RCC
+    dmn_category: revenue_cycle
+    error_strategy: fail_safe
+    description: "Stub: suggest CID-10 diagnosis codes from clinical notes"
+
+  revenue_cycle.coding.suggest_tuss:
+    archetype: FINANCIAL_CALCULATION
+    dmn_key: DMN-STUB-RCC
+    dmn_category: revenue_cycle
+    error_strategy: fail_safe
+    description: "Stub: suggest TUSS procedure codes from clinical context"
+
+  revenue_cycle.coding.validate_coding:
+    archetype: FINANCIAL_CALCULATION
+    dmn_key: DMN-STUB-RCC
+    dmn_category: revenue_cycle
+    error_strategy: fail_safe
+    description: "Stub: validate final coding set before submission"
+
+  revenue_cycle.detect_revenue_leakage:
+    archetype: FINANCIAL_CALCULATION
+    dmn_key: DMN-STUB-RC
+    dmn_category: revenue_cycle
+    error_strategy: fail_safe
+    description: "Stub: detect revenue leakage in analytics intelligence"
+
+  revenue_cycle.enrich_procedure:
+    archetype: FINANCIAL_CALCULATION
+    dmn_key: DMN-STUB-RC
+    dmn_category: revenue_cycle
+    error_strategy: fail_safe
+    description: "Stub: enrich procedure record with clinical context"
+
+  revenue_cycle.generate_maximization_action_plan:
+    archetype: FINANCIAL_CALCULATION
+    dmn_key: DMN-STUB-RC
+    dmn_category: revenue_cycle
+    error_strategy: fail_safe
+    description: "Stub: generate revenue maximization action plan"
+
+  revenue_cycle.identify_slow_payers:
+    archetype: FINANCIAL_CALCULATION
+    dmn_key: DMN-STUB-RC
+    dmn_category: revenue_cycle
+    error_strategy: fail_safe
+    description: "Stub: identify payers with slow payment patterns"
+
+  revenue_cycle.negotiate_payment_plan:
+    archetype: FINANCIAL_CALCULATION
+    dmn_key: DMN-STUB-RC
+    dmn_category: revenue_cycle
+    error_strategy: fail_safe
+    description: "Stub: negotiate payment plan for outstanding balances"
+
+  revenue_cycle.optimize_contract_terms:
+    archetype: FINANCIAL_CALCULATION
+    dmn_key: DMN-STUB-RC
+    dmn_category: revenue_cycle
+    error_strategy: fail_safe
+    description: "Stub: optimize payer contract terms for better reimbursement"
+
+  revenue_cycle.optimize_pricing_strategy:
+    archetype: FINANCIAL_CALCULATION
+    dmn_key: DMN-STUB-RC
+    dmn_category: revenue_cycle
+    error_strategy: fail_safe
+    description: "Stub: optimize pricing strategy for revenue maximization"
+
+  revenue_cycle.predict_collection_date:
+    archetype: FINANCIAL_CALCULATION
+    dmn_key: DMN-STUB-RC
+    dmn_category: revenue_cycle
+    error_strategy: fail_safe
+    description: "Stub: predict collection date for outstanding claims"
+
+  revenue_cycle.production.assign_prices:
+    archetype: FINANCIAL_CALCULATION
+    dmn_key: DMN-STUB-RCP
+    dmn_category: revenue_cycle
+    error_strategy: fail_safe
+    description: "Stub: assign prices to clinical production items"
+
+  revenue_cycle.production.calculate_value:
+    archetype: FINANCIAL_CALCULATION
+    dmn_key: DMN-STUB-RCP
+    dmn_category: revenue_cycle
+    error_strategy: fail_safe
+    description: "Stub: calculate total value of clinical production"
+
+  revenue_cycle.production.record_production:
+    archetype: FINANCIAL_CALCULATION
+    dmn_key: DMN-STUB-RCP
+    dmn_category: revenue_cycle
+    error_strategy: fail_safe
+    description: "Stub: record clinical production for billing"
+
+  revenue_cycle.production.validate_compatibility:
+    archetype: FINANCIAL_CALCULATION
+    dmn_key: DMN-STUB-RCP
+    dmn_category: revenue_cycle
+    error_strategy: fail_safe
+    description: "Stub: validate procedure compatibility for production billing"
+
+  revenue_cycle.receive_payment_notification:
+    archetype: FINANCIAL_CALCULATION
+    dmn_key: DMN-STUB-RC
+    dmn_category: revenue_cycle
+    error_strategy: fail_safe
+    description: "Stub: receive and process payment notification from payer"
+
+  revenue_cycle.reconcile_daily:
+    archetype: FINANCIAL_CALCULATION
+    dmn_key: DMN-STUB-RC
+    dmn_category: revenue_cycle
+    error_strategy: fail_safe
+    description: "Stub: perform daily revenue cycle reconciliation"
+
+  revenue_cycle.request_authorization:
+    archetype: FINANCIAL_CALCULATION
+    dmn_key: DMN-STUB-RC
+    dmn_category: revenue_cycle
+    error_strategy: fail_safe
+    description: "Stub: submit prior authorization request to payer"
+
+  revenue_cycle.schedule_appointment:
+    archetype: FINANCIAL_CALCULATION
+    dmn_key: DMN-STUB-RC
+    dmn_category: revenue_cycle
+    error_strategy: fail_safe
+    description: "Stub: schedule appointment and initiate revenue cycle"
+
+  revenue_cycle.update_accounts_receivable:
+    archetype: FINANCIAL_CALCULATION
+    dmn_key: DMN-STUB-RC
+    dmn_category: revenue_cycle
+    error_strategy: fail_safe
+    description: "Stub: update accounts receivable after payment or adjustment"
+
+  revenue_cycle.update_forecasts:
+    archetype: FINANCIAL_CALCULATION
+    dmn_key: DMN-STUB-RC
+    dmn_category: revenue_cycle
+    error_strategy: fail_safe
+    description: "Stub: update revenue forecasts based on collection actuals"
+
+  revenue_cycle.validate_clinical_data:
+    archetype: FINANCIAL_CALCULATION
+    dmn_key: DMN-STUB-RC
+    dmn_category: revenue_cycle
+    error_strategy: fail_safe
+    description: "Stub: validate clinical data completeness for billing"
+
+  revenue_cycle.validate_procedure:
+    archetype: FINANCIAL_CALCULATION
+    dmn_key: DMN-STUB-RC
+    dmn_category: revenue_cycle
+    error_strategy: fail_safe
+    description: "Stub: validate procedure eligibility for reimbursement"
+
+  revenue_cycle.verify_insurance:
+    archetype: FINANCIAL_CALCULATION
+    dmn_key: DMN-STUB-RC
+    dmn_category: revenue_cycle
+    error_strategy: fail_safe
+    description: "Stub: verify patient insurance coverage and benefits"
+
+  # ============================================================================
+  # OPERATIONAL_ROUTING: Scheduling and appointment management stubs
+  # ============================================================================
+
+  scheduling.calculate_estimated_duration:
+    archetype: OPERATIONAL_ROUTING
+    dmn_key: DMN-STUB-SCH
+    dmn_category: patient_access
+    error_strategy: fail_safe
+    description: "Stub: calculate estimated appointment duration for scheduling"
+
+  scheduling.escalate_sla:
+    archetype: OPERATIONAL_ROUTING
+    dmn_key: DMN-STUB-SCH
+    dmn_category: patient_access
+    error_strategy: fail_safe
+    description: "Stub: escalate scheduling SLA breach to operations"
+
+  scheduling.send_appointment_confirmation:
+    archetype: OPERATIONAL_ROUTING
+    dmn_key: DMN-STUB-SCH
+    dmn_category: patient_access
+    error_strategy: fail_safe
+    description: "Stub: send appointment confirmation to patient"
+
+  scheduling.send_reminder_notification:
+    archetype: OPERATIONAL_ROUTING
+    dmn_key: DMN-STUB-SCH
+    dmn_category: patient_access
+    error_strategy: fail_safe
+    description: "Stub: send appointment reminder notification to patient"
+
+  scheduling.update_scheduling_system:
+    archetype: OPERATIONAL_ROUTING
+    dmn_key: DMN-STUB-SCH
+    dmn_category: patient_access
+    error_strategy: fail_safe
+    description: "Stub: update scheduling system with appointment changes"
+
+  # ============================================================================
+  # CLINICAL_ALERT: Surgical services coordination stubs
+  # ============================================================================
+
+  surgical.site_mark:
+    archetype: CLINICAL_ALERT
+    dmn_key: DMN-STUB-SUR
+    dmn_category: clinical_operations
+    error_strategy: fail_safe
+    description: "Stub: validate surgical site marking compliance"
+
+  # ============================================================================
+  # DATA_ENRICHMENT: Patient experience survey stubs
+  # ============================================================================
+
+  survey.analyze_sentiment:
+    archetype: DATA_ENRICHMENT
+    dmn_key: DMN-STUB-NPS
+    dmn_category: patient_experience
+    error_strategy: fail_safe
+    description: "Stub: analyze NPS survey response sentiment"
+
+  survey.close_loop:
+    archetype: DATA_ENRICHMENT
+    dmn_key: DMN-STUB-NPS
+    dmn_category: patient_experience
+    error_strategy: fail_safe
+    description: "Stub: close feedback loop with patient after survey response"
+
+  survey.collect_response:
+    archetype: DATA_ENRICHMENT
+    dmn_key: DMN-STUB-NPS
+    dmn_category: patient_experience
+    error_strategy: fail_safe
+    description: "Stub: collect and store patient survey response"
+
+  survey.route_feedback:
+    archetype: DATA_ENRICHMENT
+    dmn_key: DMN-STUB-NPS
+    dmn_category: patient_experience
+    error_strategy: fail_safe
+    description: "Stub: route survey feedback to relevant department"
+
+  survey.send_nps_survey:
+    archetype: DATA_ENRICHMENT
+    dmn_key: DMN-STUB-NPS
+    dmn_category: patient_experience
+    error_strategy: fail_safe
+    description: "Stub: send NPS survey to patient post-discharge"
