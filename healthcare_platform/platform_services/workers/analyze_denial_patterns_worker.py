@@ -432,4 +432,4 @@ class AnalyzeDenialPatternsStub(AnalyzeDenialPatternsProtocol):
 
 
 # Task topic para Camunda
-TOPIC = "analyze-denial-patterns"
+TOPIC = "platform.analyze_denial_patterns"

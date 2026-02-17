@@ -19,7 +19,7 @@ from healthcare_platform.revenue_cycle.production.services.procedure_capture_ser
 class CaptureProcedureWorker(BaseExternalTaskWorker):
     """Captures procedures from ERP. Thin worker - delegates to ProcedureCaptureService."""
 
-    TOPIC = "production.capture_procedure"
+    TOPIC = "revenue_cycle.production.capture_procedure"
     DMN_DECISION_KEY = "erp_system_routing"
     DMN_CATEGORY = "pricing"
 

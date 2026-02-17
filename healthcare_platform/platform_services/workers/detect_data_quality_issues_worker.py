@@ -606,4 +606,4 @@ async def execute(input_data: dict[str, Any]) -> dict[str, Any]:
 
 
 # Topic Kafka
-TOPIC = "platform.services.detect-data-quality-issues"
+TOPIC = "platform.detect_data_quality_issues"

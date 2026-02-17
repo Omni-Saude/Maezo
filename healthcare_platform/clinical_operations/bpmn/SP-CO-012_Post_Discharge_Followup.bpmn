@@ -1,0 +1,486 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+                   xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+                   xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+                   xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
+                   xmlns:camunda="http://camunda.org/schema/1.0/bpmn"
+                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                   id="Definitions_SP_CO_012"
+                   targetNamespace="http://cib7.healthcare/clinical-operations/post-discharge"
+                   exporter="CIB Seven 2.1.3"
+                   exporterVersion="2.1.3">
+
+  <!-- ================================================================ -->
+  <!-- SP-PA-012: Post-Discharge Follow-up Process                     -->
+  <!-- Purpose: Recovery check-ins, medication adherence, follow-ups    -->
+  <!-- ================================================================ -->
+
+  <bpmn:error id="Error_FollowupNotification" name="FOLLOWUP_NOTIFICATION_ERROR" errorCode="FOLLOWUP_NOTIFICATION_ERROR" />
+  <bpmn:error id="Error_FollowupEscalation" name="FOLLOWUP_ESCALATION_ERROR" errorCode="FOLLOWUP_ESCALATION_ERROR" />
+
+  <bpmn:message id="Message_DischargeInitiated" name="msg_discharge_initiated" />
+  <bpmn:message id="Message_PatientResponse" name="msg_patient_response" />
+
+  <bpmn:process id="SP_CO_012_Post_Discharge_Followup" name="Post-Discharge Follow-up" isExecutable="true">
+
+    <!-- Process Variables:
+         - tenantId: string
+         - patientId: string
+         - dischargeId: string
+         - channelPreference: string (email|sms|app)
+         - recoveryStatus: string (Better|Same|Worse)
+         - weeklyIterationCount: integer
+         - medicationAdherenceOK: boolean
+    -->
+
+    <!-- ============================================================ -->
+    <!-- Start Event: Discharge Completed (Message Start)             -->
+    <!-- ============================================================ -->
+    <bpmn:startEvent id="StartEvent_DischargeCompleted" name="Discharge Completed">
+      <bpmn:outgoing>Flow_DischargeToDay1</bpmn:outgoing>
+      <bpmn:messageEventDefinition messageRef="Message_DischargeInitiated" />
+    </bpmn:startEvent>
+
+    <!-- ============================================================ -->
+    <!-- Day 1 Check-in                                               -->
+    <!-- ============================================================ -->
+    <bpmn:serviceTask id="ServiceTask_Day1Checkin"
+                      name="Day 1 Check-in"
+                      camunda:type="external"
+                      camunda:topic="continuity.recovery_checkin">
+      <bpmn:incoming>Flow_DischargeToDay1</bpmn:incoming>
+      <bpmn:outgoing>Flow_Day1ToPatientResponse</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- ============================================================ -->
+    <!-- Patient Response (with 48-hour timeout)                      -->
+    <!-- ============================================================ -->
+    <bpmn:intermediateCatchEvent id="IntermediateMessage_PatientResponse"
+                                  name="Patient Response">
+      <bpmn:incoming>Flow_Day1ToPatientResponse</bpmn:incoming>
+      <bpmn:outgoing>Flow_ResponseToStatusCheck</bpmn:outgoing>
+      <bpmn:messageEventDefinition messageRef="Message_PatientResponse" />
+    </bpmn:intermediateCatchEvent>
+
+    <!-- Timeout Boundary Event -->
+    <bpmn:boundaryEvent id="BoundaryTimer_ResponseTimeout"
+                        name="Timeout (PT48H)"
+                        attachedToRef="IntermediateMessage_PatientResponse">
+      <bpmn:outgoing>Flow_TimeoutToStatusCheck</bpmn:outgoing>
+      <bpmn:timerEventDefinition>
+        <bpmn:timeDuration xsi:type="bpmn:tFormalExpression">PT48H</bpmn:timeDuration>
+      </bpmn:timerEventDefinition>
+    </bpmn:boundaryEvent>
+
+    <!-- ============================================================ -->
+    <!-- Patient Status Check                                         -->
+    <!-- ============================================================ -->
+    <bpmn:exclusiveGateway id="ExclusiveGateway_PatientStatus"
+                           name="Patient Status?"
+                           default="Flow_StatusContinue">
+      <bpmn:incoming>Flow_ResponseToStatusCheck</bpmn:incoming>
+      <bpmn:incoming>Flow_TimeoutToStatusCheck</bpmn:incoming>
+      <bpmn:outgoing>Flow_StatusWorse</bpmn:outgoing>
+      <bpmn:outgoing>Flow_StatusContinue</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+
+    <!-- ============================================================ -->
+    <!-- Doctor Alert (Call Activity Subprocess)                      -->
+    <!-- ============================================================ -->
+    <bpmn:callActivity id="CallActivity_DoctorAlert"
+                       name="Doctor Alert"
+                       calledElement="SubProcess_DoctorAlert">
+      <bpmn:extensionElements>
+        <camunda:in businessKey="#{execution.processBusinessKey}" />
+        <camunda:in variables="all" />
+        <camunda:out variables="all" />
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_StatusWorse</bpmn:incoming>
+      <bpmn:outgoing>Flow_DoctorAlertToWait</bpmn:outgoing>
+    </bpmn:callActivity>
+
+    <!-- Doctor Alert Subprocess (Embedded Definition) -->
+    <bpmn:process id="SubProcess_DoctorAlert" name="Doctor Alert Subprocess" isExecutable="true">
+      <bpmn:startEvent id="StartEvent_DoctorAlert" name="Alert Triggered">
+        <bpmn:outgoing>Flow_AlertToNotify</bpmn:outgoing>
+      </bpmn:startEvent>
+
+      <bpmn:serviceTask id="ServiceTask_NotifyDoctor"
+                        name="Notify Doctor"
+                        camunda:type="external"
+                        camunda:topic="continuity.doctor_alert">
+        <bpmn:incoming>Flow_AlertToNotify</bpmn:incoming>
+        <bpmn:outgoing>Flow_NotifyToEnd</bpmn:outgoing>
+      </bpmn:serviceTask>
+
+      <bpmn:endEvent id="EndEvent_DoctorAlert" name="Alert Complete">
+        <bpmn:incoming>Flow_NotifyToEnd</bpmn:incoming>
+      </bpmn:endEvent>
+
+      <bpmn:sequenceFlow id="Flow_AlertToNotify" sourceRef="StartEvent_DoctorAlert" targetRef="ServiceTask_NotifyDoctor" />
+      <bpmn:sequenceFlow id="Flow_NotifyToEnd" sourceRef="ServiceTask_NotifyDoctor" targetRef="EndEvent_DoctorAlert" />
+    </bpmn:process>
+
+    <!-- ============================================================ -->
+    <!-- Wait 7 Days Timer                                            -->
+    <!-- ============================================================ -->
+    <bpmn:intermediateCatchEvent id="IntermediateTimer_Wait7Days"
+                                  name="Wait 7 Days (P7D)">
+      <bpmn:incoming>Flow_DoctorAlertToWait</bpmn:incoming>
+      <bpmn:incoming>Flow_StatusContinue</bpmn:incoming>
+      <bpmn:outgoing>Flow_Wait7DaysToWeeklyCycle</bpmn:outgoing>
+      <bpmn:timerEventDefinition>
+        <bpmn:timeDuration xsi:type="bpmn:tFormalExpression">P7D</bpmn:timeDuration>
+      </bpmn:timerEventDefinition>
+    </bpmn:intermediateCatchEvent>
+
+    <!-- ============================================================ -->
+    <!-- Weekly Recovery Cycle Subprocess (Multi-Instance)            -->
+    <!-- ============================================================ -->
+    <bpmn:subProcess id="SubProcess_WeeklyRecoveryCycle" name="Weekly Recovery Cycle">
+      <bpmn:extensionElements>
+        <camunda:executionListener event="start">
+          <camunda:script scriptFormat="javascript">
+            execution.setVariable('weeklyIterationCount', 0);
+          </camunda:script>
+        </camunda:executionListener>
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_Wait7DaysToWeeklyCycle</bpmn:incoming>
+      <bpmn:outgoing>Flow_WeeklyCycleToFollowupSchedule</bpmn:outgoing>
+      <bpmn:multiInstanceLoopCharacteristics isSequential="true">
+        <bpmn:loopCardinality xsi:type="bpmn:tFormalExpression">4</bpmn:loopCardinality>
+      </bpmn:multiInstanceLoopCharacteristics>
+
+      <!-- Weekly Cycle Start -->
+      <bpmn:startEvent id="StartEvent_WeeklyCycle" name="Weekly Start">
+        <bpmn:outgoing>Flow_WeeklyStartToCheckin</bpmn:outgoing>
+      </bpmn:startEvent>
+
+      <!-- Weekly Check-in -->
+      <bpmn:serviceTask id="ServiceTask_WeeklyCheckin"
+                        name="Weekly Check-in"
+                        camunda:type="external"
+                        camunda:topic="continuity.weekly_checkin">
+        <bpmn:incoming>Flow_WeeklyStartToCheckin</bpmn:incoming>
+        <bpmn:outgoing>Flow_CheckinToMedication</bpmn:outgoing>
+      </bpmn:serviceTask>
+
+      <!-- Medication Adherence Check -->
+      <bpmn:serviceTask id="ServiceTask_MedicationAdherence"
+                        name="Medication Adherence Check"
+                        camunda:type="external"
+                        camunda:topic="continuity.medication_adherence">
+        <bpmn:incoming>Flow_CheckinToMedication</bpmn:incoming>
+        <bpmn:outgoing>Flow_MedicationToAdherenceCheck</bpmn:outgoing>
+      </bpmn:serviceTask>
+
+      <!-- Adherence OK Gateway -->
+      <bpmn:exclusiveGateway id="ExclusiveGateway_AdherenceOK"
+                             name="Adherence OK?"
+                             default="Flow_AdherenceYes">
+        <bpmn:incoming>Flow_MedicationToAdherenceCheck</bpmn:incoming>
+        <bpmn:outgoing>Flow_AdherenceNo</bpmn:outgoing>
+        <bpmn:outgoing>Flow_AdherenceYes</bpmn:outgoing>
+      </bpmn:exclusiveGateway>
+
+      <!-- Adherence Intervention -->
+      <bpmn:serviceTask id="ServiceTask_AdherenceIntervention"
+                        name="Adherence Intervention"
+                        camunda:type="external"
+                        camunda:topic="continuity.adherence_intervention">
+        <bpmn:incoming>Flow_AdherenceNo</bpmn:incoming>
+        <bpmn:outgoing>Flow_InterventionToEnd</bpmn:outgoing>
+      </bpmn:serviceTask>
+
+      <!-- Weekly Cycle End -->
+      <bpmn:endEvent id="EndEvent_WeeklyCycle" name="Weekly End">
+        <bpmn:incoming>Flow_AdherenceYes</bpmn:incoming>
+        <bpmn:incoming>Flow_InterventionToEnd</bpmn:incoming>
+      </bpmn:endEvent>
+
+      <!-- Weekly Cycle Sequence Flows -->
+      <bpmn:sequenceFlow id="Flow_WeeklyStartToCheckin" sourceRef="StartEvent_WeeklyCycle" targetRef="ServiceTask_WeeklyCheckin" />
+      <bpmn:sequenceFlow id="Flow_CheckinToMedication" sourceRef="ServiceTask_WeeklyCheckin" targetRef="ServiceTask_MedicationAdherence" />
+      <bpmn:sequenceFlow id="Flow_MedicationToAdherenceCheck" sourceRef="ServiceTask_MedicationAdherence" targetRef="ExclusiveGateway_AdherenceOK" />
+      <bpmn:sequenceFlow id="Flow_AdherenceNo" name="No" sourceRef="ExclusiveGateway_AdherenceOK" targetRef="ServiceTask_AdherenceIntervention">
+        <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${medicationAdherenceOK == false}</bpmn:conditionExpression>
+      </bpmn:sequenceFlow>
+      <bpmn:sequenceFlow id="Flow_AdherenceYes" name="Yes" sourceRef="ExclusiveGateway_AdherenceOK" targetRef="EndEvent_WeeklyCycle" />
+      <bpmn:sequenceFlow id="Flow_InterventionToEnd" sourceRef="ServiceTask_AdherenceIntervention" targetRef="EndEvent_WeeklyCycle" />
+
+    </bpmn:subProcess>
+
+    <!-- ============================================================ -->
+    <!-- Schedule Follow-up Appointment                               -->
+    <!-- ============================================================ -->
+    <bpmn:serviceTask id="ServiceTask_FollowupReminder"
+                      name="Schedule Follow-up Appointment"
+                      camunda:type="external"
+                      camunda:topic="continuity.followup_reminder">
+      <bpmn:incoming>Flow_WeeklyCycleToFollowupSchedule</bpmn:incoming>
+      <bpmn:outgoing>Flow_FollowupToSurvey</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- ============================================================ -->
+    <!-- Satisfaction Survey                                          -->
+    <!-- ============================================================ -->
+    <bpmn:serviceTask id="ServiceTask_SatisfactionSurvey"
+                      name="Satisfaction Survey"
+                      camunda:type="external"
+                      camunda:topic="continuity.satisfaction_survey">
+      <bpmn:incoming>Flow_FollowupToSurvey</bpmn:incoming>
+      <bpmn:outgoing>Flow_SurveyToEnd</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- ============================================================ -->
+    <!-- End Event: Recovery Journey Complete                         -->
+    <!-- ============================================================ -->
+    <bpmn:endEvent id="EndEvent_RecoveryComplete" name="Recovery Journey Complete">
+      <bpmn:incoming>Flow_SurveyToEnd</bpmn:incoming>
+    </bpmn:endEvent>
+
+    <!-- ============================================================ -->
+    <!-- Main Process Sequence Flows                                  -->
+    <!-- ============================================================ -->
+    <bpmn:sequenceFlow id="Flow_DischargeToDay1" sourceRef="StartEvent_DischargeCompleted" targetRef="ServiceTask_Day1Checkin" />
+    <bpmn:sequenceFlow id="Flow_Day1ToPatientResponse" sourceRef="ServiceTask_Day1Checkin" targetRef="IntermediateMessage_PatientResponse" />
+    <bpmn:sequenceFlow id="Flow_ResponseToStatusCheck" sourceRef="IntermediateMessage_PatientResponse" targetRef="ExclusiveGateway_PatientStatus" />
+    <bpmn:sequenceFlow id="Flow_TimeoutToStatusCheck" sourceRef="BoundaryTimer_ResponseTimeout" targetRef="ExclusiveGateway_PatientStatus" />
+    <bpmn:sequenceFlow id="Flow_StatusWorse" name="Worse" sourceRef="ExclusiveGateway_PatientStatus" targetRef="CallActivity_DoctorAlert">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${recoveryStatus == 'Worse'}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_StatusContinue" name="Better/Same" sourceRef="ExclusiveGateway_PatientStatus" targetRef="IntermediateTimer_Wait7Days" />
+    <bpmn:sequenceFlow id="Flow_DoctorAlertToWait" sourceRef="CallActivity_DoctorAlert" targetRef="IntermediateTimer_Wait7Days" />
+    <bpmn:sequenceFlow id="Flow_Wait7DaysToWeeklyCycle" sourceRef="IntermediateTimer_Wait7Days" targetRef="SubProcess_WeeklyRecoveryCycle" />
+    <bpmn:sequenceFlow id="Flow_WeeklyCycleToFollowupSchedule" sourceRef="SubProcess_WeeklyRecoveryCycle" targetRef="ServiceTask_FollowupReminder" />
+    <bpmn:sequenceFlow id="Flow_FollowupToSurvey" sourceRef="ServiceTask_FollowupReminder" targetRef="ServiceTask_SatisfactionSurvey" />
+    <bpmn:sequenceFlow id="Flow_SurveyToEnd" sourceRef="ServiceTask_SatisfactionSurvey" targetRef="EndEvent_RecoveryComplete" />
+
+  </bpmn:process>
+
+  <!-- ================================================================ -->
+  <!-- BPMN Diagram Interchange (DI)                                    -->
+  <!-- ================================================================ -->
+  <bpmndi:BPMNDiagram id="BPMNDiagram_SP_CO_012">
+    <bpmndi:BPMNPlane id="BPMNPlane_SP_CO_012" bpmnElement="SP_CO_012_Post_Discharge_Followup">
+
+      <!-- Start Event -->
+      <bpmndi:BPMNShape id="Shape_StartEvent_DischargeCompleted" bpmnElement="StartEvent_DischargeCompleted">
+        <dc:Bounds x="152" y="202" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="145" y="245" width="50" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+
+      <!-- Day 1 Check-in -->
+      <bpmndi:BPMNShape id="Shape_ServiceTask_Day1Checkin" bpmnElement="ServiceTask_Day1Checkin">
+        <dc:Bounds x="240" y="180" width="100" height="80" />
+      </bpmndi:BPMNShape>
+
+      <!-- Patient Response -->
+      <bpmndi:BPMNShape id="Shape_IntermediateMessage_PatientResponse" bpmnElement="IntermediateMessage_PatientResponse">
+        <dc:Bounds x="392" y="202" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="385" y="245" width="50" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+
+      <!-- Response Timeout Boundary -->
+      <bpmndi:BPMNShape id="Shape_BoundaryTimer_ResponseTimeout" bpmnElement="BoundaryTimer_ResponseTimeout">
+        <dc:Bounds x="392" y="270" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="428" y="291" width="84" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+
+      <!-- Patient Status Gateway -->
+      <bpmndi:BPMNShape id="Shape_ExclusiveGateway_PatientStatus" bpmnElement="ExclusiveGateway_PatientStatus" isMarkerVisible="true">
+        <dc:Bounds x="485" y="195" width="50" height="50" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="470" y="165" width="80" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+
+      <!-- Doctor Alert Call Activity -->
+      <bpmndi:BPMNShape id="Shape_CallActivity_DoctorAlert" bpmnElement="CallActivity_DoctorAlert">
+        <dc:Bounds x="590" y="80" width="100" height="80" />
+      </bpmndi:BPMNShape>
+
+      <!-- Wait 7 Days Timer -->
+      <bpmndi:BPMNShape id="Shape_IntermediateTimer_Wait7Days" bpmnElement="IntermediateTimer_Wait7Days">
+        <dc:Bounds x="622" y="282" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="604" y="325" width="72" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+
+      <!-- Weekly Recovery Cycle Subprocess -->
+      <bpmndi:BPMNShape id="Shape_SubProcess_WeeklyRecoveryCycle" bpmnElement="SubProcess_WeeklyRecoveryCycle" isExpanded="true">
+        <dc:Bounds x="730" y="80" width="600" height="320" />
+      </bpmndi:BPMNShape>
+
+      <!-- Weekly Cycle Inner Elements -->
+      <bpmndi:BPMNShape id="Shape_StartEvent_WeeklyCycle" bpmnElement="StartEvent_WeeklyCycle">
+        <dc:Bounds x="762" y="162" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="749" y="205" width="62" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Shape_ServiceTask_WeeklyCheckin" bpmnElement="ServiceTask_WeeklyCheckin">
+        <dc:Bounds x="850" y="140" width="100" height="80" />
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Shape_ServiceTask_MedicationAdherence" bpmnElement="ServiceTask_MedicationAdherence">
+        <dc:Bounds x="1010" y="140" width="100" height="80" />
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Shape_ExclusiveGateway_AdherenceOK" bpmnElement="ExclusiveGateway_AdherenceOK" isMarkerVisible="true">
+        <dc:Bounds x="1165" y="155" width="50" height="50" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1149" y="125" width="82" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Shape_ServiceTask_AdherenceIntervention" bpmnElement="ServiceTask_AdherenceIntervention">
+        <dc:Bounds x="1140" y="260" width="100" height="80" />
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Shape_EndEvent_WeeklyCycle" bpmnElement="EndEvent_WeeklyCycle">
+        <dc:Bounds x="1272" y="162" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1259" y="205" width="62" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+
+      <!-- Weekly Cycle Edges -->
+      <bpmndi:BPMNEdge id="Edge_WeeklyStartToCheckin" bpmnElement="Flow_WeeklyStartToCheckin">
+        <di:waypoint x="798" y="180" />
+        <di:waypoint x="850" y="180" />
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_CheckinToMedication" bpmnElement="Flow_CheckinToMedication">
+        <di:waypoint x="950" y="180" />
+        <di:waypoint x="1010" y="180" />
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_MedicationToAdherenceCheck" bpmnElement="Flow_MedicationToAdherenceCheck">
+        <di:waypoint x="1110" y="180" />
+        <di:waypoint x="1165" y="180" />
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_AdherenceNo" bpmnElement="Flow_AdherenceNo">
+        <di:waypoint x="1190" y="205" />
+        <di:waypoint x="1190" y="260" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1199" y="230" width="15" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_AdherenceYes" bpmnElement="Flow_AdherenceYes">
+        <di:waypoint x="1215" y="180" />
+        <di:waypoint x="1272" y="180" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1235" y="162" width="18" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_InterventionToEnd" bpmnElement="Flow_InterventionToEnd">
+        <di:waypoint x="1240" y="300" />
+        <di:waypoint x="1290" y="300" />
+        <di:waypoint x="1290" y="198" />
+      </bpmndi:BPMNEdge>
+
+      <!-- Follow-up Appointment -->
+      <bpmndi:BPMNShape id="Shape_ServiceTask_FollowupReminder" bpmnElement="ServiceTask_FollowupReminder">
+        <dc:Bounds x="1390" y="180" width="100" height="80" />
+      </bpmndi:BPMNShape>
+
+      <!-- Satisfaction Survey -->
+      <bpmndi:BPMNShape id="Shape_ServiceTask_SatisfactionSurvey" bpmnElement="ServiceTask_SatisfactionSurvey">
+        <dc:Bounds x="1540" y="180" width="100" height="80" />
+      </bpmndi:BPMNShape>
+
+      <!-- End Event -->
+      <bpmndi:BPMNShape id="Shape_EndEvent_RecoveryComplete" bpmnElement="EndEvent_RecoveryComplete">
+        <dc:Bounds x="1692" y="202" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1672" y="245" width="76" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+
+      <!-- Main Process Edges -->
+      <bpmndi:BPMNEdge id="Edge_DischargeToDay1" bpmnElement="Flow_DischargeToDay1">
+        <di:waypoint x="188" y="220" />
+        <di:waypoint x="240" y="220" />
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_Day1ToPatientResponse" bpmnElement="Flow_Day1ToPatientResponse">
+        <di:waypoint x="340" y="220" />
+        <di:waypoint x="392" y="220" />
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_ResponseToStatusCheck" bpmnElement="Flow_ResponseToStatusCheck">
+        <di:waypoint x="428" y="220" />
+        <di:waypoint x="485" y="220" />
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_TimeoutToStatusCheck" bpmnElement="Flow_TimeoutToStatusCheck">
+        <di:waypoint x="410" y="306" />
+        <di:waypoint x="410" y="350" />
+        <di:waypoint x="510" y="350" />
+        <di:waypoint x="510" y="245" />
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_StatusWorse" bpmnElement="Flow_StatusWorse">
+        <di:waypoint x="510" y="195" />
+        <di:waypoint x="510" y="120" />
+        <di:waypoint x="590" y="120" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="519" y="155" width="33" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_StatusContinue" bpmnElement="Flow_StatusContinue">
+        <di:waypoint x="510" y="245" />
+        <di:waypoint x="510" y="300" />
+        <di:waypoint x="622" y="300" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="514" y="270" width="62" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_DoctorAlertToWait" bpmnElement="Flow_DoctorAlertToWait">
+        <di:waypoint x="690" y="120" />
+        <di:waypoint x="710" y="120" />
+        <di:waypoint x="710" y="240" />
+        <di:waypoint x="640" y="240" />
+        <di:waypoint x="640" y="282" />
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_Wait7DaysToWeeklyCycle" bpmnElement="Flow_Wait7DaysToWeeklyCycle">
+        <di:waypoint x="658" y="300" />
+        <di:waypoint x="694" y="300" />
+        <di:waypoint x="694" y="240" />
+        <di:waypoint x="730" y="240" />
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_WeeklyCycleToFollowupSchedule" bpmnElement="Flow_WeeklyCycleToFollowupSchedule">
+        <di:waypoint x="1330" y="220" />
+        <di:waypoint x="1390" y="220" />
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_FollowupToSurvey" bpmnElement="Flow_FollowupToSurvey">
+        <di:waypoint x="1490" y="220" />
+        <di:waypoint x="1540" y="220" />
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_SurveyToEnd" bpmnElement="Flow_SurveyToEnd">
+        <di:waypoint x="1640" y="220" />
+        <di:waypoint x="1692" y="220" />
+      </bpmndi:BPMNEdge>
+
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+
+</bpmn:definitions>

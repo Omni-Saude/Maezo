@@ -18,7 +18,7 @@ from healthcare_platform.revenue_cycle.production.services.procedure_enrichment_
 class EnrichProcedureWorker(BaseExternalTaskWorker):
     """Enriches procedures with clinical data. Thin worker - delegates to ProcedureEnrichmentService."""
 
-    TOPIC = "production.enrich_procedure"
+    TOPIC = "revenue_cycle.production.enrich_procedure"
     DMN_DECISION_KEY = "diagnosis_requirement_adjudication"
     DMN_CATEGORY = "pricing"
 

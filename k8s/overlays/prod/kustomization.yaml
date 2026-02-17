@@ -1,0 +1,61 @@
+# Maestro Healthcare Platform - Production Environment Overlay
+# Kustomize overlay for the production namespace.
+# Resource quotas are expanded beyond the base defaults to support full
+# production load: 30/60 CPU, 60Gi/120Gi memory, 150 pods, 50 services.
+# No namePrefix is used; production resources keep their canonical names.
+#
+# Apply with:
+#   kubectl apply -k k8s/overlays/prod
+# or:
+#   kustomize build k8s/overlays/prod | kubectl apply -f -
+#
+# IMPORTANT: Before applying, replace all CHANGE_ME placeholders in
+# k8s/base/secrets.yaml or use an External Secrets Operator integration.
+
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# Production uses the canonical "maestro" namespace defined in the base.
+namespace: maestro
+
+# Inherit all base resources: Namespace, ServiceAccount, Role, RoleBinding,
+# ResourceQuota, LimitRange, NetworkPolicies, and Secrets
+resources:
+  - ../../base
+
+# Labels applied to ALL resources (merged with existing labels)
+commonLabels:
+  environment: production
+  app.kubernetes.io/part-of: healthcare-platform
+
+patches:
+  # --- ResourceQuota patch ---
+  # Production capacity targets (150% of base defaults):
+  #   requests.cpu:    30  (base: 20)
+  #   requests.memory: 60Gi (base: 40Gi)
+  #   limits.cpu:      60  (base: 40)
+  #   limits.memory:   120Gi (base: 80Gi)
+  #   pods:            150 (base: 100)
+  #   services:        50  (base: 30)
+  - target:
+      kind: ResourceQuota
+      name: maestro-quota
+    patch: |-
+      - op: replace
+        path: /spec/hard/requests.cpu
+        value: "30"
+      - op: replace
+        path: /spec/hard/requests.memory
+        value: "60Gi"
+      - op: replace
+        path: /spec/hard/limits.cpu
+        value: "60"
+      - op: replace
+        path: /spec/hard/limits.memory
+        value: "120Gi"
+      - op: replace
+        path: /spec/hard/pods
+        value: "150"
+      - op: replace
+        path: /spec/hard/services
+        value: "50"

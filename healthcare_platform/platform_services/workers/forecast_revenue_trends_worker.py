@@ -537,4 +537,4 @@ class ForecastRevenueTrendsWorkerStub(ForecastRevenueTrendsProtocol):
 
 
 # Topic constant for Camunda message correlation
-TOPIC = "forecast-revenue-trends"
+TOPIC = "platform.forecast_revenue_trends"

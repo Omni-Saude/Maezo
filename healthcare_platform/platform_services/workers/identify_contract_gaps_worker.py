@@ -456,4 +456,4 @@ class IdentifyContractGapsStub(IdentifyContractGapsProtocol):
 
 
 # Task topic para Camunda
-TOPIC = "identify-contract-gaps"
+TOPIC = "platform.identify_contract_gaps"

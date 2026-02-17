@@ -53,7 +53,7 @@ class AssignPricesWorker:
     Archetype: OPERATIONAL_ROUTING
     """
 
-    TOPIC = "production.assign_prices"
+    TOPIC = "revenue_cycle.production.assign_prices"
 
     def __init__(
         self,

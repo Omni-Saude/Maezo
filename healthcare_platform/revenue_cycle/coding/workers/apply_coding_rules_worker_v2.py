@@ -25,7 +25,7 @@ class ApplyCodingRulesOutputV2(BaseModel):
         return {"rulesPassed": self.rules_passed, "ruleViolations": self.rule_violations, "modifiersRequired": self.modifiers_required}
 class ApplyCodingRulesWorkerV2:
     """V2 thin worker: delegates rule logic to DMN tables. ORPHAN: No companion DMN tables exist yet."""
-    TOPIC = "coding.apply_rules"
+    TOPIC = "revenue_cycle.coding.apply_rules"
 
     def __init__(self, dmn_service: FederatedDMNService | None = None, rules_engine: Any | None = None) -> None:
         """Initialize worker with optional dependency injection for testing.

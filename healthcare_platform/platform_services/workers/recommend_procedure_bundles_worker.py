@@ -460,4 +460,4 @@ class RecommendProcedureBundlesStub(RecommendProcedureBundlesProtocol):
 
 
 # Task topic para Camunda
-TOPIC = "recommend-procedure-bundles"
+TOPIC = "platform.recommend_procedure_bundles"

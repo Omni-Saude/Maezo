@@ -291,7 +291,7 @@ class SuggestCid10Worker:
     implementations can integrate NLP/ML models.
     """
 
-    TOPIC = "coding.suggest_cid10_codes"
+    TOPIC = "revenue_cycle.coding.suggest_cid10"
 
     def __init__(
         self, suggestion_engine: CID10SuggestionEngine | None = None

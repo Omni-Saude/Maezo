@@ -1,6 +1,6 @@
 """Surgical Equipment Worker V2 - DMN-based equipment validation.
 
-TOPIC: surgical.equipment_check | BPMN Error: SURGICAL_OPERATIONS_ERROR
+TOPIC: surgical.equipment | BPMN Error: SURGICAL_OPERATIONS_ERROR
 DMN: surgical/equipment_availability_001, surgical/sterilization_validation_001
 ADR: 002, 003, 007, 013 | Refactored 263 -> ~135 LOC
 Archetype: COMPLIANCE_VALIDATION
@@ -32,7 +32,7 @@ class SurgicalEquipmentWorker(BaseExternalTaskWorker):
     All business rules handled by DMN.
     """
 
-    TOPIC = "surgical.equipment_check"
+    TOPIC = "surgical.equipment"
     DMN_AVAILABILITY_KEY = "equipment_availability_check_001"
     DMN_STERILIZATION_KEY = "sterilization_status_validation_001"
     DMN_CATEGORY = "surgical"

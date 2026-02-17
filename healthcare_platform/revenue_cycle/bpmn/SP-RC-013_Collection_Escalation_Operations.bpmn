@@ -1,0 +1,678 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+                  xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+                  xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+                  xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
+                  xmlns:camunda="http://camunda.org/schema/1.0/bpmn"
+                  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                  id="Definitions_RC008B"
+                  targetNamespace="http://cib7.healthcare/revenue-cycle"
+                  exporter="Camunda Modeler"
+                  exporterVersion="5.0.0">
+  <bpmn:process id="SP_RC_013_Collection_Escalation_Operations" name="Escalação e Operações de Cobrança" isExecutable="true">
+
+    <!-- Start Event -->
+    <bpmn:startEvent id="StartEvent_Collection_Escalation" name="Iniciar Escalação">
+      <bpmn:outgoing>Flow_Start_To_AgingBucket</bpmn:outgoing>
+    </bpmn:startEvent>
+
+    <!-- ESCALATION GROUP -->
+
+    <!-- Task 1: Calculate Aging Bucket -->
+    <bpmn:serviceTask id="Task_Calculate_Aging_Bucket" name="Calcular Faixa de Envelhecimento" camunda:type="external" camunda:topic="collection.calculate_aging_bucket">
+      <bpmn:extensionElements>
+        <camunda:inputOutput>
+          <camunda:inputParameter name="invoiceId">${invoiceId}</camunda:inputParameter>
+          <camunda:inputParameter name="dueDate">${dueDate}</camunda:inputParameter>
+          <camunda:inputParameter name="currentDate">${currentDate}</camunda:inputParameter>
+          <camunda:outputParameter name="agingBucket">${agingBucket}</camunda:outputParameter>
+          <camunda:outputParameter name="daysOverdue">${daysOverdue}</camunda:outputParameter>
+        </camunda:inputOutput>
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_Start_To_AgingBucket</bpmn:incoming>
+      <bpmn:outgoing>Flow_AgingBucket_To_Prioritize</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Task 2: Prioritize Collection -->
+    <bpmn:serviceTask id="Task_Prioritize_Collection" name="Priorizar Cobrança" camunda:type="external" camunda:topic="collection.prioritize_collection">
+      <bpmn:extensionElements>
+        <camunda:inputOutput>
+          <camunda:inputParameter name="invoiceId">${invoiceId}</camunda:inputParameter>
+          <camunda:inputParameter name="agingBucket">${agingBucket}</camunda:inputParameter>
+          <camunda:inputParameter name="invoiceAmount">${invoiceAmount}</camunda:inputParameter>
+          <camunda:inputParameter name="payerType">${payerType}</camunda:inputParameter>
+          <camunda:inputParameter name="paymentHistory">${paymentHistory}</camunda:inputParameter>
+          <camunda:outputParameter name="priority">${priority}</camunda:outputParameter>
+          <camunda:outputParameter name="collectionStrategy">${collectionStrategy}</camunda:outputParameter>
+        </camunda:inputOutput>
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_AgingBucket_To_Prioritize</bpmn:incoming>
+      <bpmn:outgoing>Flow_Prioritize_To_GatewayPriority</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- XOR Gateway: Priority Decision -->
+    <bpmn:exclusiveGateway id="Gateway_Priority_Decision" name="Prioridade">
+      <bpmn:incoming>Flow_Prioritize_To_GatewayPriority</bpmn:incoming>
+      <bpmn:outgoing>Flow_Priority_High</bpmn:outgoing>
+      <bpmn:outgoing>Flow_Priority_Medium</bpmn:outgoing>
+      <bpmn:outgoing>Flow_Priority_Low</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+
+    <!-- CONTACT GROUP -->
+
+    <!-- Task 5: Schedule Collection Call (High Priority) -->
+    <bpmn:serviceTask id="Task_Schedule_Collection_Call" name="Agendar Ligação de Cobrança" camunda:type="external" camunda:topic="collection.schedule_collection_call">
+      <bpmn:extensionElements>
+        <camunda:inputOutput>
+          <camunda:inputParameter name="invoiceId">${invoiceId}</camunda:inputParameter>
+          <camunda:inputParameter name="patientId">${patientId}</camunda:inputParameter>
+          <camunda:inputParameter name="phoneNumber">${phoneNumber}</camunda:inputParameter>
+          <camunda:inputParameter name="preferredTime">${preferredTime}</camunda:inputParameter>
+          <camunda:inputParameter name="collectionAgent">${collectionAgent}</camunda:inputParameter>
+          <camunda:outputParameter name="callScheduled">${callScheduled}</camunda:outputParameter>
+          <camunda:outputParameter name="scheduledDateTime">${scheduledDateTime}</camunda:outputParameter>
+        </camunda:inputOutput>
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_Priority_High</bpmn:incoming>
+      <bpmn:outgoing>Flow_Call_To_ContactJoin</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Timer Boundary Event on Schedule Collection Call -->
+    <bpmn:boundaryEvent id="BoundaryEvent_Call_Followup" name="7 dias sem retorno" attachedToRef="Task_Schedule_Collection_Call">
+      <bpmn:outgoing>Flow_Timer_To_Escalate</bpmn:outgoing>
+      <bpmn:timerEventDefinition id="TimerEventDefinition_1">
+        <bpmn:timeDuration xsi:type="bpmn:tFormalExpression">P7D</bpmn:timeDuration>
+      </bpmn:timerEventDefinition>
+    </bpmn:boundaryEvent>
+
+    <!-- Task 6: Generate Collection Letter (Medium Priority) -->
+    <bpmn:serviceTask id="Task_Generate_Collection_Letter" name="Gerar Carta de Cobrança" camunda:type="external" camunda:topic="collection.generate_collection_letter">
+      <bpmn:extensionElements>
+        <camunda:inputOutput>
+          <camunda:inputParameter name="invoiceId">${invoiceId}</camunda:inputParameter>
+          <camunda:inputParameter name="patientId">${patientId}</camunda:inputParameter>
+          <camunda:inputParameter name="invoiceAmount">${invoiceAmount}</camunda:inputParameter>
+          <camunda:inputParameter name="daysOverdue">${daysOverdue}</camunda:inputParameter>
+          <camunda:inputParameter name="letterTemplate">${letterTemplate}</camunda:inputParameter>
+          <camunda:outputParameter name="letterGenerated">${letterGenerated}</camunda:outputParameter>
+          <camunda:outputParameter name="letterPath">${letterPath}</camunda:outputParameter>
+        </camunda:inputOutput>
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_Priority_Medium</bpmn:incoming>
+      <bpmn:outgoing>Flow_Letter_To_ContactJoin</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Task 7: Send WhatsApp Reminder (Low Priority) -->
+    <bpmn:serviceTask id="Task_Send_WhatsApp_Reminder" name="Enviar Lembrete WhatsApp" camunda:type="external" camunda:topic="collection.send_whatsapp_reminder">
+      <bpmn:extensionElements>
+        <camunda:inputOutput>
+          <camunda:inputParameter name="invoiceId">${invoiceId}</camunda:inputParameter>
+          <camunda:inputParameter name="patientId">${patientId}</camunda:inputParameter>
+          <camunda:inputParameter name="whatsappNumber">${whatsappNumber}</camunda:inputParameter>
+          <camunda:inputParameter name="messageTemplate">${messageTemplate}</camunda:inputParameter>
+          <camunda:inputParameter name="invoiceAmount">${invoiceAmount}</camunda:inputParameter>
+          <camunda:outputParameter name="messageSent">${messageSent}</camunda:outputParameter>
+          <camunda:outputParameter name="messageId">${messageId}</camunda:outputParameter>
+        </camunda:inputOutput>
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_Priority_Low</bpmn:incoming>
+      <bpmn:outgoing>Flow_WhatsApp_To_ContactJoin</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- XOR Gateway Join: Return from Contact -->
+    <bpmn:exclusiveGateway id="Gateway_Contact_Join" name="Retorno do Contato">
+      <bpmn:incoming>Flow_Call_To_ContactJoin</bpmn:incoming>
+      <bpmn:incoming>Flow_Letter_To_ContactJoin</bpmn:incoming>
+      <bpmn:incoming>Flow_WhatsApp_To_ContactJoin</bpmn:incoming>
+      <bpmn:outgoing>Flow_ContactJoin_To_ResponseCheck</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+
+    <!-- XOR Gateway: Response Check -->
+    <bpmn:exclusiveGateway id="Gateway_Response_Check" name="Resposta?">
+      <bpmn:incoming>Flow_ContactJoin_To_ResponseCheck</bpmn:incoming>
+      <bpmn:incoming>Flow_Timer_To_Escalate</bpmn:incoming>
+      <bpmn:outgoing>Flow_No_Response</bpmn:outgoing>
+      <bpmn:outgoing>Flow_Has_Response</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+
+    <!-- Task 3: Escalate Unmatched -->
+    <bpmn:serviceTask id="Task_Escalate_Unmatched" name="Escalar Não Conciliados" camunda:type="external" camunda:topic="collection.escalate_unmatched">
+      <bpmn:extensionElements>
+        <camunda:inputOutput>
+          <camunda:inputParameter name="invoiceId">${invoiceId}</camunda:inputParameter>
+          <camunda:inputParameter name="unmatchedReason">${unmatchedReason}</camunda:inputParameter>
+          <camunda:inputParameter name="escalationLevel">${escalationLevel}</camunda:inputParameter>
+          <camunda:inputParameter name="assignedTo">${assignedTo}</camunda:inputParameter>
+          <camunda:outputParameter name="escalated">${escalated}</camunda:outputParameter>
+          <camunda:outputParameter name="escalationTicket">${escalationTicket}</camunda:outputParameter>
+        </camunda:inputOutput>
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_No_Response</bpmn:incoming>
+      <bpmn:outgoing>Flow_Escalate_To_LegalCheck</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- XOR Gateway: Legal Deadline Check -->
+    <bpmn:exclusiveGateway id="Gateway_Legal_Check" name="Prazo Legal?">
+      <bpmn:incoming>Flow_Escalate_To_LegalCheck</bpmn:incoming>
+      <bpmn:outgoing>Flow_Legal_Yes</bpmn:outgoing>
+      <bpmn:outgoing>Flow_Legal_No</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+
+    <!-- Task 4: Escalate to Legal -->
+    <bpmn:serviceTask id="Task_Escalate_To_Legal" name="Escalar para Jurídico" camunda:type="external" camunda:topic="collection.escalate_to_legal">
+      <bpmn:extensionElements>
+        <camunda:inputOutput>
+          <camunda:inputParameter name="invoiceId">${invoiceId}</camunda:inputParameter>
+          <camunda:inputParameter name="patientId">${patientId}</camunda:inputParameter>
+          <camunda:inputParameter name="invoiceAmount">${invoiceAmount}</camunda:inputParameter>
+          <camunda:inputParameter name="daysOverdue">${daysOverdue}</camunda:inputParameter>
+          <camunda:inputParameter name="collectionHistory">${collectionHistory}</camunda:inputParameter>
+          <camunda:outputParameter name="legalCaseCreated">${legalCaseCreated}</camunda:outputParameter>
+          <camunda:outputParameter name="caseNumber">${caseNumber}</camunda:outputParameter>
+        </camunda:inputOutput>
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_Legal_Yes</bpmn:incoming>
+      <bpmn:outgoing>Flow_Legal_To_End</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Task 12: Write Off Bad Debt -->
+    <bpmn:serviceTask id="Task_Write_Off_Bad_Debt" name="Baixar Inadimplência" camunda:type="external" camunda:topic="collection.write_off_bad_debt">
+      <bpmn:extensionElements>
+        <camunda:inputOutput>
+          <camunda:inputParameter name="invoiceId">${invoiceId}</camunda:inputParameter>
+          <camunda:inputParameter name="writeOffReason">${writeOffReason}</camunda:inputParameter>
+          <camunda:inputParameter name="writeOffAmount">${writeOffAmount}</camunda:inputParameter>
+          <camunda:inputParameter name="approvedBy">${approvedBy}</camunda:inputParameter>
+          <camunda:outputParameter name="writeOffCompleted">${writeOffCompleted}</camunda:outputParameter>
+          <camunda:outputParameter name="writeOffDate">${writeOffDate}</camunda:outputParameter>
+        </camunda:inputOutput>
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_Legal_No</bpmn:incoming>
+      <bpmn:outgoing>Flow_WriteOff_To_End</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- OPERATIONS GROUP - Parallel Gateway Split -->
+    <bpmn:parallelGateway id="Gateway_Operations_Split" name="Operações Paralelas">
+      <bpmn:incoming>Flow_Has_Response</bpmn:incoming>
+      <bpmn:outgoing>Flow_Split_To_AgingReport</bpmn:outgoing>
+      <bpmn:outgoing>Flow_Split_To_DailySummary</bpmn:outgoing>
+      <bpmn:outgoing>Flow_Split_To_ERP</bpmn:outgoing>
+      <bpmn:outgoing>Flow_Split_To_BI</bpmn:outgoing>
+    </bpmn:parallelGateway>
+
+    <!-- Task 11: Generate Aging Report -->
+    <bpmn:serviceTask id="Task_Generate_Aging_Report" name="Gerar Relatório de Envelhecimento" camunda:type="external" camunda:topic="collection.generate_aging_report">
+      <bpmn:extensionElements>
+        <camunda:inputOutput>
+          <camunda:inputParameter name="reportPeriod">${reportPeriod}</camunda:inputParameter>
+          <camunda:inputParameter name="reportFormat">${reportFormat}</camunda:inputParameter>
+          <camunda:inputParameter name="agingBuckets">${agingBuckets}</camunda:inputParameter>
+          <camunda:outputParameter name="reportGenerated">${reportGenerated}</camunda:outputParameter>
+          <camunda:outputParameter name="reportPath">${reportPath}</camunda:outputParameter>
+        </camunda:inputOutput>
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_Split_To_AgingReport</bpmn:incoming>
+      <bpmn:outgoing>Flow_AgingReport_To_Join</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Task 8: Send Daily Summary -->
+    <bpmn:serviceTask id="Task_Send_Daily_Summary" name="Enviar Resumo Diário" camunda:type="external" camunda:topic="collection.send_daily_summary">
+      <bpmn:extensionElements>
+        <camunda:inputOutput>
+          <camunda:inputParameter name="summaryDate">${summaryDate}</camunda:inputParameter>
+          <camunda:inputParameter name="recipientList">${recipientList}</camunda:inputParameter>
+          <camunda:inputParameter name="summaryMetrics">${summaryMetrics}</camunda:inputParameter>
+          <camunda:outputParameter name="summarySent">${summarySent}</camunda:outputParameter>
+          <camunda:outputParameter name="sentDateTime">${sentDateTime}</camunda:outputParameter>
+        </camunda:inputOutput>
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_Split_To_DailySummary</bpmn:incoming>
+      <bpmn:outgoing>Flow_DailySummary_To_Join</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Task 9: Export to ERP -->
+    <bpmn:serviceTask id="Task_Export_To_ERP" name="Exportar para ERP" camunda:type="external" camunda:topic="collection.export_to_erp">
+      <bpmn:extensionElements>
+        <camunda:inputOutput>
+          <camunda:inputParameter name="invoiceId">${invoiceId}</camunda:inputParameter>
+          <camunda:inputParameter name="exportData">${exportData}</camunda:inputParameter>
+          <camunda:inputParameter name="erpSystem">${erpSystem}</camunda:inputParameter>
+          <camunda:inputParameter name="exportFormat">${exportFormat}</camunda:inputParameter>
+          <camunda:outputParameter name="exportCompleted">${exportCompleted}</camunda:outputParameter>
+          <camunda:outputParameter name="erpRecordId">${erpRecordId}</camunda:outputParameter>
+        </camunda:inputOutput>
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_Split_To_ERP</bpmn:incoming>
+      <bpmn:outgoing>Flow_ERP_To_Join</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Task 10: Update BI/Data Warehouse -->
+    <bpmn:serviceTask id="Task_Update_BI_DataWarehouse" name="Atualizar BI/Data Warehouse" camunda:type="external" camunda:topic="collection.update_bi_datawarehouse">
+      <bpmn:extensionElements>
+        <camunda:inputOutput>
+          <camunda:inputParameter name="invoiceId">${invoiceId}</camunda:inputParameter>
+          <camunda:inputParameter name="collectionMetrics">${collectionMetrics}</camunda:inputParameter>
+          <camunda:inputParameter name="updateType">${updateType}</camunda:inputParameter>
+          <camunda:outputParameter name="biUpdated">${biUpdated}</camunda:outputParameter>
+          <camunda:outputParameter name="updateTimestamp">${updateTimestamp}</camunda:outputParameter>
+        </camunda:inputOutput>
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_Split_To_BI</bpmn:incoming>
+      <bpmn:outgoing>Flow_BI_To_Join</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Parallel Gateway Join -->
+    <bpmn:parallelGateway id="Gateway_Operations_Join" name="Convergência de Operações">
+      <bpmn:incoming>Flow_AgingReport_To_Join</bpmn:incoming>
+      <bpmn:incoming>Flow_DailySummary_To_Join</bpmn:incoming>
+      <bpmn:incoming>Flow_ERP_To_Join</bpmn:incoming>
+      <bpmn:incoming>Flow_BI_To_Join</bpmn:incoming>
+      <bpmn:outgoing>Flow_Join_To_End</bpmn:outgoing>
+    </bpmn:parallelGateway>
+
+    <!-- End Events -->
+    <bpmn:endEvent id="EndEvent_Legal" name="Fim - Escalado Jurídico">
+      <bpmn:incoming>Flow_Legal_To_End</bpmn:incoming>
+    </bpmn:endEvent>
+
+    <bpmn:endEvent id="EndEvent_WriteOff" name="Fim - Baixado">
+      <bpmn:incoming>Flow_WriteOff_To_End</bpmn:incoming>
+    </bpmn:endEvent>
+
+    <bpmn:endEvent id="EndEvent_Success" name="Fim - Concluído">
+      <bpmn:incoming>Flow_Join_To_End</bpmn:incoming>
+    </bpmn:endEvent>
+
+    <!-- Sequence Flows -->
+    <bpmn:sequenceFlow id="Flow_Start_To_AgingBucket" sourceRef="StartEvent_Collection_Escalation" targetRef="Task_Calculate_Aging_Bucket"/>
+    <bpmn:sequenceFlow id="Flow_AgingBucket_To_Prioritize" sourceRef="Task_Calculate_Aging_Bucket" targetRef="Task_Prioritize_Collection"/>
+    <bpmn:sequenceFlow id="Flow_Prioritize_To_GatewayPriority" sourceRef="Task_Prioritize_Collection" targetRef="Gateway_Priority_Decision"/>
+
+    <!-- Priority Gateway Flows -->
+    <bpmn:sequenceFlow id="Flow_Priority_High" name="Alta" sourceRef="Gateway_Priority_Decision" targetRef="Task_Schedule_Collection_Call">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${priority == 'HIGH'}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_Priority_Medium" name="Média" sourceRef="Gateway_Priority_Decision" targetRef="Task_Generate_Collection_Letter">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${priority == 'MEDIUM'}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_Priority_Low" name="Baixa" sourceRef="Gateway_Priority_Decision" targetRef="Task_Send_WhatsApp_Reminder">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${priority == 'LOW'}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+
+    <!-- Contact to Join Flows -->
+    <bpmn:sequenceFlow id="Flow_Call_To_ContactJoin" sourceRef="Task_Schedule_Collection_Call" targetRef="Gateway_Contact_Join"/>
+    <bpmn:sequenceFlow id="Flow_Letter_To_ContactJoin" sourceRef="Task_Generate_Collection_Letter" targetRef="Gateway_Contact_Join"/>
+    <bpmn:sequenceFlow id="Flow_WhatsApp_To_ContactJoin" sourceRef="Task_Send_WhatsApp_Reminder" targetRef="Gateway_Contact_Join"/>
+
+    <!-- Timer to Response Check -->
+    <bpmn:sequenceFlow id="Flow_Timer_To_Escalate" sourceRef="BoundaryEvent_Call_Followup" targetRef="Gateway_Response_Check"/>
+
+    <!-- Contact Join to Response Check -->
+    <bpmn:sequenceFlow id="Flow_ContactJoin_To_ResponseCheck" sourceRef="Gateway_Contact_Join" targetRef="Gateway_Response_Check"/>
+
+    <!-- Response Gateway Flows -->
+    <bpmn:sequenceFlow id="Flow_No_Response" name="Sem Resposta" sourceRef="Gateway_Response_Check" targetRef="Task_Escalate_Unmatched">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${response == false || response == null}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_Has_Response" name="Com Resposta" sourceRef="Gateway_Response_Check" targetRef="Gateway_Operations_Split">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${response == true}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+
+    <!-- Escalate to Legal Check -->
+    <bpmn:sequenceFlow id="Flow_Escalate_To_LegalCheck" sourceRef="Task_Escalate_Unmatched" targetRef="Gateway_Legal_Check"/>
+
+    <!-- Legal Gateway Flows -->
+    <bpmn:sequenceFlow id="Flow_Legal_Yes" name="Sim" sourceRef="Gateway_Legal_Check" targetRef="Task_Escalate_To_Legal">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${legalDeadline == true &amp;&amp; daysOverdue &gt; 90}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_Legal_No" name="Não" sourceRef="Gateway_Legal_Check" targetRef="Task_Write_Off_Bad_Debt">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${legalDeadline == false || daysOverdue &gt; 180}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+
+    <!-- Legal and WriteOff to End -->
+    <bpmn:sequenceFlow id="Flow_Legal_To_End" sourceRef="Task_Escalate_To_Legal" targetRef="EndEvent_Legal"/>
+    <bpmn:sequenceFlow id="Flow_WriteOff_To_End" sourceRef="Task_Write_Off_Bad_Debt" targetRef="EndEvent_WriteOff"/>
+
+    <!-- Parallel Split Flows -->
+    <bpmn:sequenceFlow id="Flow_Split_To_AgingReport" sourceRef="Gateway_Operations_Split" targetRef="Task_Generate_Aging_Report"/>
+    <bpmn:sequenceFlow id="Flow_Split_To_DailySummary" sourceRef="Gateway_Operations_Split" targetRef="Task_Send_Daily_Summary"/>
+    <bpmn:sequenceFlow id="Flow_Split_To_ERP" sourceRef="Gateway_Operations_Split" targetRef="Task_Export_To_ERP"/>
+    <bpmn:sequenceFlow id="Flow_Split_To_BI" sourceRef="Gateway_Operations_Split" targetRef="Task_Update_BI_DataWarehouse"/>
+
+    <!-- Parallel Join Flows -->
+    <bpmn:sequenceFlow id="Flow_AgingReport_To_Join" sourceRef="Task_Generate_Aging_Report" targetRef="Gateway_Operations_Join"/>
+    <bpmn:sequenceFlow id="Flow_DailySummary_To_Join" sourceRef="Task_Send_Daily_Summary" targetRef="Gateway_Operations_Join"/>
+    <bpmn:sequenceFlow id="Flow_ERP_To_Join" sourceRef="Task_Export_To_ERP" targetRef="Gateway_Operations_Join"/>
+    <bpmn:sequenceFlow id="Flow_BI_To_Join" sourceRef="Task_Update_BI_DataWarehouse" targetRef="Gateway_Operations_Join"/>
+
+    <!-- Join to End -->
+    <bpmn:sequenceFlow id="Flow_Join_To_End" sourceRef="Gateway_Operations_Join" targetRef="EndEvent_Success"/>
+
+  </bpmn:process>
+
+  <!-- BPMN Diagram -->
+  <bpmndi:BPMNDiagram id="BPMNDiagram_1">
+    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="SP_RC_013_Collection_Escalation_Operations">
+
+      <!-- Start Event -->
+      <bpmndi:BPMNShape id="StartEvent_Collection_Escalation_di" bpmnElement="StartEvent_Collection_Escalation">
+        <dc:Bounds x="152" y="242" width="36" height="36"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="131" y="285" width="78" height="14"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+
+      <!-- Task 1: Calculate Aging Bucket -->
+      <bpmndi:BPMNShape id="Task_Calculate_Aging_Bucket_di" bpmnElement="Task_Calculate_Aging_Bucket">
+        <dc:Bounds x="240" y="220" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <!-- Task 2: Prioritize Collection -->
+      <bpmndi:BPMNShape id="Task_Prioritize_Collection_di" bpmnElement="Task_Prioritize_Collection">
+        <dc:Bounds x="390" y="220" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <!-- Gateway: Priority Decision -->
+      <bpmndi:BPMNShape id="Gateway_Priority_Decision_di" bpmnElement="Gateway_Priority_Decision" isMarkerVisible="true">
+        <dc:Bounds x="540" y="235" width="50" height="50"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="541" y="211" width="49" height="14"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+
+      <!-- Task 5: Schedule Collection Call (High) -->
+      <bpmndi:BPMNShape id="Task_Schedule_Collection_Call_di" bpmnElement="Task_Schedule_Collection_Call">
+        <dc:Bounds x="640" y="120" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <!-- Boundary Timer Event -->
+      <bpmndi:BPMNShape id="BoundaryEvent_Call_Followup_di" bpmnElement="BoundaryEvent_Call_Followup">
+        <dc:Bounds x="722" y="182" width="36" height="36"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="752" y="206" width="76" height="27"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+
+      <!-- Task 6: Generate Collection Letter (Medium) -->
+      <bpmndi:BPMNShape id="Task_Generate_Collection_Letter_di" bpmnElement="Task_Generate_Collection_Letter">
+        <dc:Bounds x="640" y="220" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <!-- Task 7: Send WhatsApp Reminder (Low) -->
+      <bpmndi:BPMNShape id="Task_Send_WhatsApp_Reminder_di" bpmnElement="Task_Send_WhatsApp_Reminder">
+        <dc:Bounds x="640" y="320" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <!-- Gateway: Contact Join -->
+      <bpmndi:BPMNShape id="Gateway_Contact_Join_di" bpmnElement="Gateway_Contact_Join" isMarkerVisible="true">
+        <dc:Bounds x="790" y="235" width="50" height="50"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="850" y="246" width="90" height="27"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+
+      <!-- Gateway: Response Check -->
+      <bpmndi:BPMNShape id="Gateway_Response_Check_di" bpmnElement="Gateway_Response_Check" isMarkerVisible="true">
+        <dc:Bounds x="890" y="235" width="50" height="50"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="888" y="211" width="54" height="14"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+
+      <!-- Task 3: Escalate Unmatched -->
+      <bpmndi:BPMNShape id="Task_Escalate_Unmatched_di" bpmnElement="Task_Escalate_Unmatched">
+        <dc:Bounds x="990" y="320" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <!-- Gateway: Legal Check -->
+      <bpmndi:BPMNShape id="Gateway_Legal_Check_di" bpmnElement="Gateway_Legal_Check" isMarkerVisible="true">
+        <dc:Bounds x="1140" y="335" width="50" height="50"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1130" y="311" width="70" height="14"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+
+      <!-- Task 4: Escalate to Legal -->
+      <bpmndi:BPMNShape id="Task_Escalate_To_Legal_di" bpmnElement="Task_Escalate_To_Legal">
+        <dc:Bounds x="1240" y="280" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <!-- Task 12: Write Off Bad Debt -->
+      <bpmndi:BPMNShape id="Task_Write_Off_Bad_Debt_di" bpmnElement="Task_Write_Off_Bad_Debt">
+        <dc:Bounds x="1240" y="390" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <!-- Gateway: Operations Split -->
+      <bpmndi:BPMNShape id="Gateway_Operations_Split_di" bpmnElement="Gateway_Operations_Split">
+        <dc:Bounds x="990" y="135" width="50" height="50"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="978" y="111" width="74" height="27"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+
+      <!-- Task 11: Generate Aging Report -->
+      <bpmndi:BPMNShape id="Task_Generate_Aging_Report_di" bpmnElement="Task_Generate_Aging_Report">
+        <dc:Bounds x="1090" y="20" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <!-- Task 8: Send Daily Summary -->
+      <bpmndi:BPMNShape id="Task_Send_Daily_Summary_di" bpmnElement="Task_Send_Daily_Summary">
+        <dc:Bounds x="1090" y="120" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <!-- Task 9: Export to ERP -->
+      <bpmndi:BPMNShape id="Task_Export_To_ERP_di" bpmnElement="Task_Export_To_ERP">
+        <dc:Bounds x="1090" y="220" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <!-- Task 10: Update BI/Data Warehouse -->
+      <bpmndi:BPMNShape id="Task_Update_BI_DataWarehouse_di" bpmnElement="Task_Update_BI_DataWarehouse">
+        <dc:Bounds x="1090" y="320" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <!-- Gateway: Operations Join -->
+      <bpmndi:BPMNShape id="Gateway_Operations_Join_di" bpmnElement="Gateway_Operations_Join">
+        <dc:Bounds x="1240" y="135" width="50" height="50"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1228" y="98" width="74" height="27"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+
+      <!-- End Events -->
+      <bpmndi:BPMNShape id="EndEvent_Legal_di" bpmnElement="EndEvent_Legal">
+        <dc:Bounds x="1392" y="302" width="36" height="36"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1374" y="345" width="72" height="27"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="EndEvent_WriteOff_di" bpmnElement="EndEvent_WriteOff">
+        <dc:Bounds x="1392" y="412" width="36" height="36"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1377" y="455" width="66" height="14"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="EndEvent_Success_di" bpmnElement="EndEvent_Success">
+        <dc:Bounds x="1342" y="142" width="36" height="36"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1321" y="185" width="78" height="14"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+
+      <!-- Edges (Sequence Flows) -->
+      <bpmndi:BPMNEdge id="Flow_Start_To_AgingBucket_di" bpmnElement="Flow_Start_To_AgingBucket">
+        <di:waypoint x="188" y="260"/>
+        <di:waypoint x="240" y="260"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Flow_AgingBucket_To_Prioritize_di" bpmnElement="Flow_AgingBucket_To_Prioritize">
+        <di:waypoint x="340" y="260"/>
+        <di:waypoint x="390" y="260"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Flow_Prioritize_To_GatewayPriority_di" bpmnElement="Flow_Prioritize_To_GatewayPriority">
+        <di:waypoint x="490" y="260"/>
+        <di:waypoint x="540" y="260"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Flow_Priority_High_di" bpmnElement="Flow_Priority_High">
+        <di:waypoint x="565" y="235"/>
+        <di:waypoint x="565" y="160"/>
+        <di:waypoint x="640" y="160"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="579" y="143" width="21" height="14"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Flow_Priority_Medium_di" bpmnElement="Flow_Priority_Medium">
+        <di:waypoint x="590" y="260"/>
+        <di:waypoint x="640" y="260"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="598" y="243" width="32" height="14"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Flow_Priority_Low_di" bpmnElement="Flow_Priority_Low">
+        <di:waypoint x="565" y="285"/>
+        <di:waypoint x="565" y="360"/>
+        <di:waypoint x="640" y="360"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="577" y="373" width="30" height="14"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Flow_Call_To_ContactJoin_di" bpmnElement="Flow_Call_To_ContactJoin">
+        <di:waypoint x="740" y="160"/>
+        <di:waypoint x="815" y="160"/>
+        <di:waypoint x="815" y="235"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Flow_Letter_To_ContactJoin_di" bpmnElement="Flow_Letter_To_ContactJoin">
+        <di:waypoint x="740" y="260"/>
+        <di:waypoint x="790" y="260"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Flow_WhatsApp_To_ContactJoin_di" bpmnElement="Flow_WhatsApp_To_ContactJoin">
+        <di:waypoint x="740" y="360"/>
+        <di:waypoint x="815" y="360"/>
+        <di:waypoint x="815" y="285"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Flow_Timer_To_Escalate_di" bpmnElement="Flow_Timer_To_Escalate">
+        <di:waypoint x="740" y="218"/>
+        <di:waypoint x="740" y="230"/>
+        <di:waypoint x="915" y="230"/>
+        <di:waypoint x="915" y="235"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Flow_ContactJoin_To_ResponseCheck_di" bpmnElement="Flow_ContactJoin_To_ResponseCheck">
+        <di:waypoint x="840" y="260"/>
+        <di:waypoint x="890" y="260"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Flow_No_Response_di" bpmnElement="Flow_No_Response">
+        <di:waypoint x="915" y="285"/>
+        <di:waypoint x="915" y="360"/>
+        <di:waypoint x="990" y="360"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="901" y="373" width="69" height="14"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Flow_Has_Response_di" bpmnElement="Flow_Has_Response">
+        <di:waypoint x="915" y="235"/>
+        <di:waypoint x="915" y="160"/>
+        <di:waypoint x="990" y="160"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="897" y="143" width="74" height="14"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Flow_Escalate_To_LegalCheck_di" bpmnElement="Flow_Escalate_To_LegalCheck">
+        <di:waypoint x="1090" y="360"/>
+        <di:waypoint x="1140" y="360"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Flow_Legal_Yes_di" bpmnElement="Flow_Legal_Yes">
+        <di:waypoint x="1165" y="335"/>
+        <di:waypoint x="1165" y="320"/>
+        <di:waypoint x="1240" y="320"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1198" y="303" width="20" height="14"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Flow_Legal_No_di" bpmnElement="Flow_Legal_No">
+        <di:waypoint x="1165" y="385"/>
+        <di:waypoint x="1165" y="430"/>
+        <di:waypoint x="1240" y="430"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1198" y="413" width="21" height="14"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Flow_Legal_To_End_di" bpmnElement="Flow_Legal_To_End">
+        <di:waypoint x="1340" y="320"/>
+        <di:waypoint x="1392" y="320"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Flow_WriteOff_To_End_di" bpmnElement="Flow_WriteOff_To_End">
+        <di:waypoint x="1340" y="430"/>
+        <di:waypoint x="1392" y="430"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Flow_Split_To_AgingReport_di" bpmnElement="Flow_Split_To_AgingReport">
+        <di:waypoint x="1015" y="135"/>
+        <di:waypoint x="1015" y="60"/>
+        <di:waypoint x="1090" y="60"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Flow_Split_To_DailySummary_di" bpmnElement="Flow_Split_To_DailySummary">
+        <di:waypoint x="1040" y="160"/>
+        <di:waypoint x="1090" y="160"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Flow_Split_To_ERP_di" bpmnElement="Flow_Split_To_ERP">
+        <di:waypoint x="1015" y="185"/>
+        <di:waypoint x="1015" y="260"/>
+        <di:waypoint x="1090" y="260"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Flow_Split_To_BI_di" bpmnElement="Flow_Split_To_BI">
+        <di:waypoint x="1015" y="185"/>
+        <di:waypoint x="1015" y="360"/>
+        <di:waypoint x="1090" y="360"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Flow_AgingReport_To_Join_di" bpmnElement="Flow_AgingReport_To_Join">
+        <di:waypoint x="1190" y="60"/>
+        <di:waypoint x="1265" y="60"/>
+        <di:waypoint x="1265" y="135"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Flow_DailySummary_To_Join_di" bpmnElement="Flow_DailySummary_To_Join">
+        <di:waypoint x="1190" y="160"/>
+        <di:waypoint x="1240" y="160"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Flow_ERP_To_Join_di" bpmnElement="Flow_ERP_To_Join">
+        <di:waypoint x="1190" y="260"/>
+        <di:waypoint x="1265" y="260"/>
+        <di:waypoint x="1265" y="185"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Flow_BI_To_Join_di" bpmnElement="Flow_BI_To_Join">
+        <di:waypoint x="1190" y="360"/>
+        <di:waypoint x="1265" y="360"/>
+        <di:waypoint x="1265" y="185"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Flow_Join_To_End_di" bpmnElement="Flow_Join_To_End">
+        <di:waypoint x="1290" y="160"/>
+        <di:waypoint x="1342" y="160"/>
+      </bpmndi:BPMNEdge>
+
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>

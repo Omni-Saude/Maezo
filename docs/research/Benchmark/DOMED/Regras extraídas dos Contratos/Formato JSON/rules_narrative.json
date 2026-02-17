@@ -1,0 +1,1169 @@
+{
+  "metadata": {
+    "extracted_at": "2026-02-17T03:45:00Z",
+    "source_contract": "SESDF-DOMED-2024",
+    "agent": "P1A",
+    "total_rules": 31,
+    "archetypes": {
+      "ROUTING": 8,
+      "PRICING": 10,
+      "AUTHORIZATION": 8,
+      "BUNDLING": 5
+    }
+  },
+  "rules": [
+    {
+      "rule_id": "RN-001",
+      "archetype": "ROUTING",
+      "source": {
+        "document": "Contrato 055374/2025 e Edital 05/2024",
+        "section": "4.3.4 / 2.5",
+        "text_excerpt": "UTI ADULTO - Faixa etária: acima de 18 anos; mas poderá atender pacientes de 13 a 17 anos e 11 meses e 29 dias, desde que não haja vaga disponível em UTI Pediátrica"
+      },
+      "actor": "CERIH/CRDF",
+      "trigger": "Patient admission request for UTI Adulto",
+      "condition": {
+        "inputs": [
+          {"name": "patient_age_days", "type": "number", "values": []},
+          {"name": "uti_type_requested", "type": "string", "values": ["UTI_ADULTO"]}
+        ],
+        "expression": "patient_age_days >= 6570"
+      },
+      "action": "Route to UTI Adulto (SIGTAP 04.09.01.059-2)",
+      "parameters": {
+        "sigtap_code": "04.09.01.059-2",
+        "uti_type": "UTI_ADULTO",
+        "age_threshold_years": 18,
+        "age_threshold_days": 6570
+      },
+      "evidence": null,
+      "consequence": {
+        "type": "autorizacao",
+        "detail": "Internação autorizada em UTI Adulto"
+      },
+      "dmn_table": "uti_type_routing",
+      "dmn_category": "authorization",
+      "hit_policy": "FIRST",
+      "parent_rule_id": null
+    },
+    {
+      "rule_id": "RN-002",
+      "archetype": "ROUTING",
+      "source": {
+        "document": "Contrato 055374/2025 e Edital 05/2024",
+        "section": "4.3.4 / 2.5",
+        "text_excerpt": "UTI PEDIÁTRICA - Faixa etária: de 29 dias a 17 anos e 11 meses e 29 dias"
+      },
+      "actor": "CERIH/CRDF",
+      "trigger": "Patient admission request for UTI Pediátrica",
+      "condition": {
+        "inputs": [
+          {"name": "patient_age_days", "type": "number", "values": []},
+          {"name": "uti_type_requested", "type": "string", "values": ["UTI_PEDIATRICA"]}
+        ],
+        "expression": "patient_age_days >= 29 AND patient_age_days <= 6569"
+      },
+      "action": "Route to UTI Pediátrica (SIGTAP 03.01.04.016-8)",
+      "parameters": {
+        "sigtap_code": "03.01.04.016-8",
+        "uti_type": "UTI_PEDIATRICA",
+        "age_min_days": 29,
+        "age_max_days": 6569
+      },
+      "evidence": null,
+      "consequence": {
+        "type": "autorizacao",
+        "detail": "Internação autorizada em UTI Pediátrica"
+      },
+      "dmn_table": "uti_type_routing",
+      "dmn_category": "authorization",
+      "hit_policy": "FIRST",
+      "parent_rule_id": null
+    },
+    {
+      "rule_id": "RN-003",
+      "archetype": "ROUTING",
+      "source": {
+        "document": "Contrato 055374/2025 e Edital 05/2024",
+        "section": "4.3.4 / 2.5",
+        "text_excerpt": "UTI NEONATAL - Faixa etária: de 0 a 28 dias; acima de 28 dias caso tenha peso inferior a 2.500g ou idade gestacional corrigida inferior a 40 semanas"
+      },
+      "actor": "CERIH/CRDF",
+      "trigger": "Patient admission request for UTI Neonatal",
+      "condition": {
+        "inputs": [
+          {"name": "patient_age_days", "type": "number", "values": []},
+          {"name": "patient_weight_grams", "type": "number", "values": []},
+          {"name": "gestational_age_weeks", "type": "number", "values": []}
+        ],
+        "expression": "patient_age_days >= 0 AND (patient_age_days <= 28 OR (patient_age_days > 28 AND (patient_weight_grams < 2500 OR gestational_age_weeks < 40)))"
+      },
+      "action": "Route to UTI Neonatal (SIGTAP 03.01.01.007-2)",
+      "parameters": {
+        "sigtap_code": "03.01.01.007-2",
+        "uti_type": "UTI_NEONATAL",
+        "age_max_days_primary": 28,
+        "weight_threshold_grams": 2500,
+        "gestational_age_threshold_weeks": 40
+      },
+      "evidence": null,
+      "consequence": {
+        "type": "autorizacao",
+        "detail": "Internação autorizada em UTI Neonatal"
+      },
+      "dmn_table": "uti_type_routing",
+      "dmn_category": "authorization",
+      "hit_policy": "FIRST",
+      "parent_rule_id": null
+    },
+    {
+      "rule_id": "RN-004",
+      "archetype": "ROUTING",
+      "source": {
+        "document": "Contrato 055374/2025 e Edital 05/2024",
+        "section": "4.3.4 / 2.5",
+        "text_excerpt": "UTI ADULTO poderá atender pacientes de 13 a 17 anos e 11 meses e 29 dias, desde que não haja vaga disponível em UTI Pediátrica"
+      },
+      "actor": "CERIH/CRDF",
+      "trigger": "Pediatric patient admission request when no pediatric bed available (crossover)",
+      "condition": {
+        "inputs": [
+          {"name": "patient_age_days", "type": "number", "values": []},
+          {"name": "uti_pediatrica_vaga_disponivel", "type": "boolean", "values": [false]}
+        ],
+        "expression": "patient_age_days >= 4748 AND patient_age_days <= 6569 AND uti_pediatrica_vaga_disponivel == false"
+      },
+      "action": "Route to UTI Adulto as crossover (exception)",
+      "parameters": {
+        "sigtap_code": "04.09.01.059-2",
+        "uti_type": "UTI_ADULTO",
+        "age_min_years": 13,
+        "age_max_days": 6569,
+        "crossover_trigger": "NO_PEDIATRIC_BED_AVAILABLE"
+      },
+      "evidence": null,
+      "consequence": {
+        "type": "autorizacao_excecional",
+        "detail": "Internação autorizada excepcionalmente em UTI Adulto quando não há vaga em UTI Pediátrica"
+      },
+      "dmn_table": "uti_type_routing_crossover",
+      "dmn_category": "authorization",
+      "hit_policy": "FIRST",
+      "parent_rule_id": "RN-001"
+    },
+    {
+      "rule_id": "RN-005",
+      "archetype": "ROUTING",
+      "source": {
+        "document": "Contrato 055374/2025 e Edital 05/2024",
+        "section": "4.3.4 / 2.5",
+        "text_excerpt": "Recém-nascidos (0 a 28 dias) que já receberam alta hospitalar e retornaram na emergência pediátrica, desde que não haja vaga disponível em UTI Neonatal, poderão ser admitidos em leito de UTI Pediátrica, desde que tenham peso igual ou maior que 2.500g e idade gestacional corrigida igual ou maior que 40 semanas"
+      },
+      "actor": "CERIH/CRDF",
+      "trigger": "Neonate previously discharged returns to pediatric emergency, no neonatal bed available",
+      "condition": {
+        "inputs": [
+          {"name": "patient_age_days", "type": "number", "values": []},
+          {"name": "patient_weight_grams", "type": "number", "values": []},
+          {"name": "gestational_age_weeks", "type": "number", "values": []},
+          {"name": "uti_neonatal_vaga_disponivel", "type": "boolean", "values": [false]},
+          {"name": "paciente_teve_alta_anterior", "type": "boolean", "values": [true]}
+        ],
+        "expression": "patient_age_days >= 0 AND patient_age_days <= 28 AND patient_weight_grams >= 2500 AND gestational_age_weeks >= 40 AND uti_neonatal_vaga_disponivel == false AND paciente_teve_alta_anterior == true"
+      },
+      "action": "Route neonate to UTI Pediátrica as exception",
+      "parameters": {
+        "sigtap_code": "03.01.04.016-8",
+        "uti_type": "UTI_PEDIATRICA",
+        "weight_min_grams": 2500,
+        "gestational_age_min_weeks": 40,
+        "crossover_trigger": "NO_NEONATAL_BED_AVAILABLE"
+      },
+      "evidence": null,
+      "consequence": {
+        "type": "autorizacao_excecional",
+        "detail": "Internação neonatal excepcionalmente em UTI Pediátrica quando não há vaga em UTI Neonatal"
+      },
+      "dmn_table": "uti_type_routing_crossover",
+      "dmn_category": "authorization",
+      "hit_policy": "FIRST",
+      "parent_rule_id": "RN-002"
+    },
+    {
+      "rule_id": "RN-006",
+      "archetype": "ROUTING",
+      "source": {
+        "document": "Contrato 055374/2025 e Edital 05/2024",
+        "section": "4.3.5.3 / 2.6.3",
+        "text_excerpt": "A CERIH direcionará, para os leitos contratados, apenas pacientes com perfil de ATENDIMENTO DE SUPORTE CLÍNICO EM UTI"
+      },
+      "actor": "CERIH",
+      "trigger": "Patient referral to contracted UTI beds",
+      "condition": {
+        "inputs": [
+          {"name": "patient_profile", "type": "string", "values": ["SUPORTE_CLINICO_UTI"]}
+        ],
+        "expression": "patient_profile == 'SUPORTE_CLINICO_UTI'"
+      },
+      "action": "Allow routing only for clinical support UTI profile; block surgical/elective profiles",
+      "parameters": {
+        "allowed_profile": "SUPORTE_CLINICO_UTI",
+        "excluded_profiles": ["REABORDAGEM_CIRURGICA_PROGRAMADA", "PROCEDIMENTO_ELETIVO"]
+      },
+      "evidence": null,
+      "consequence": {
+        "type": "restricao",
+        "detail": "Pacientes fora do perfil de suporte clínico em UTI não devem ser direcionados para leitos contratados"
+      },
+      "dmn_table": "uti_patient_profile_routing",
+      "dmn_category": "restriction",
+      "hit_policy": "UNIQUE",
+      "parent_rule_id": null
+    },
+    {
+      "rule_id": "RN-007",
+      "archetype": "ROUTING",
+      "source": {
+        "document": "Contrato 055374/2025 e Edital 05/2024",
+        "section": "4.3.5.2 / 2.6.2",
+        "text_excerpt": "O direcionamento dos pacientes para o leito de UTI obedecerá aos níveis de prioridade para assistência em terapia intensiva estabelecidos na Resolução CFM nº 2.156/2016"
+      },
+      "actor": "CERIH",
+      "trigger": "Patient routing to UTI bed",
+      "condition": {
+        "inputs": [
+          {"name": "priority_level", "type": "string", "values": ["1", "2", "3", "4"]}
+        ],
+        "expression": "priority_level IN ['1', '2', '3'] (conforme Resolução CFM 2.156/2016)"
+      },
+      "action": "Apply CFM 2.156/2016 priority levels when routing to UTI beds",
+      "parameters": {
+        "reference_legislation": "Resolução CFM nº 2.156/2016",
+        "priority_levels": "1 to 4 (1=highest priority)"
+      },
+      "evidence": null,
+      "consequence": {
+        "type": "restricao",
+        "detail": "Direcionamento deve respeitar prioridades conforme Resolução CFM 2.156/2016"
+      },
+      "dmn_table": "uti_priority_routing",
+      "dmn_category": "authorization",
+      "hit_policy": "FIRST",
+      "parent_rule_id": null
+    },
+    {
+      "rule_id": "RN-008",
+      "archetype": "ROUTING",
+      "source": {
+        "document": "Contrato 055374/2025 e Edital 05/2024",
+        "section": "4.3.5.4 / 2.6.4",
+        "text_excerpt": "Todos os leitos de UTI (em seu subtipo, adulto, pediátrica ou neonatal) têm o mesmo perfil, assim, o direcionamento dos pacientes deverá ser feito de forma impessoal e equânime entre as CONTRATADAS"
+      },
+      "actor": "CERIH",
+      "trigger": "Patient routing to any contracted UTI bed",
+      "condition": {
+        "inputs": [
+          {"name": "uti_subtype", "type": "string", "values": ["UTI_ADULTO", "UTI_PEDIATRICA", "UTI_NEONATAL"]}
+        ],
+        "expression": "routing must be impersonal and equitable among all providers"
+      },
+      "action": "Distribute patients equitably among all contracted providers of same UTI subtype",
+      "parameters": {
+        "distribution_method": "impessoal_e_equânime",
+        "applies_to": ["UTI_ADULTO", "UTI_PEDIATRICA", "UTI_NEONATAL"]
+      },
+      "evidence": null,
+      "consequence": {
+        "type": "obrigacao",
+        "detail": "Direcionamento equitativo entre contratadas do mesmo subtipo de UTI"
+      },
+      "dmn_table": "uti_equitable_routing",
+      "dmn_category": "restriction",
+      "hit_policy": "UNIQUE",
+      "parent_rule_id": null
+    },
+    {
+      "rule_id": "RN-009",
+      "archetype": "PRICING",
+      "source": {
+        "document": "Contrato 055374/2025 e Edital 05/2024",
+        "section": "3.4 / 7.4 / 1.1 (Edital)",
+        "text_excerpt": "O pagamento será realizado considerando o leito efetivamente utilizado e não pelo total de leitos contratados"
+      },
+      "actor": "CONTRATANTE (SES/DF)",
+      "trigger": "Monthly billing calculation",
+      "condition": {
+        "inputs": [
+          {"name": "leitos_utilizados_dia", "type": "number", "values": []},
+          {"name": "leitos_contratados_total", "type": "number", "values": []}
+        ],
+        "expression": "payment_base = leitos_utilizados_dia (NOT leitos_contratados_total)"
+      },
+      "action": "Calculate payment based only on leito/dia effectively used (paciente-dia)",
+      "parameters": {
+        "payment_unit": "leito/dia",
+        "payment_basis": "efetivamente_utilizado",
+        "valor_diaria_uti_adulto": {"currency": "BRL", "amount": 6051.45, "display_value": "R$ 6.051,45"},
+        "valor_diaria_uti_pediatrica": {"currency": "BRL", "amount": 3216.72, "display_value": "R$ 3.216,72"},
+        "valor_diaria_uti_neonatal": {"currency": "BRL", "amount": 2423.81, "display_value": "R$ 2.423,81"}
+      },
+      "evidence": null,
+      "consequence": {
+        "type": "cobranca",
+        "detail": "Fatura calculada pelo paciente-dia efetivo, não pela disponibilidade total contratada"
+      },
+      "dmn_table": "uti_billing_base",
+      "dmn_category": "pricing",
+      "hit_policy": "UNIQUE",
+      "parent_rule_id": null
+    },
+    {
+      "rule_id": "RN-010",
+      "archetype": "PRICING",
+      "source": {
+        "document": "Edital 05/2024",
+        "section": "1.1 (Tabela de estimativa)",
+        "text_excerpt": "UTI NEONATAL: 14 leitos; UTI PEDIÁTRICA: 17 leitos; UTI ADULTO: 273 leitos; total geral: 304"
+      },
+      "actor": "CONTRATANTE (SES/DF)",
+      "trigger": "Contract scope definition",
+      "condition": {
+        "inputs": [],
+        "expression": "always applies"
+      },
+      "action": "Total contracted beds: 304 (14 neonatal + 17 pediatric + 273 adult)",
+      "parameters": {
+        "leitos_uti_neonatal": 14,
+        "leitos_uti_pediatrica": 17,
+        "leitos_uti_adulto": 273,
+        "total_leitos": 304,
+        "sigtap_neonatal": "03.01.01.007-2",
+        "sigtap_pediatrica": "03.01.04.016-8",
+        "sigtap_adulto": "04.09.01.059-2"
+      },
+      "evidence": null,
+      "consequence": {
+        "type": "definicao_contratual",
+        "detail": "Disponibilidade máxima de 304 leitos contratuais para direcionamento pela CERIH"
+      },
+      "dmn_table": "contract_bed_totals",
+      "dmn_category": "pricing",
+      "hit_policy": "UNIQUE",
+      "parent_rule_id": null
+    },
+    {
+      "rule_id": "RN-011",
+      "archetype": "PRICING",
+      "source": {
+        "document": "Apêndice VIII",
+        "section": "PACOTE DE HEMODIÁLISE CONTÍNUA - PRIMEIRAS 24H",
+        "text_excerpt": "Hemodiálise Contínua - Primeiras 24H: Kit específico para máquina de hemodiálise contínua INCLUSO; SIGTAP 03.05.01.004-2"
+      },
+      "actor": "CONTRATADA",
+      "trigger": "First 24h session of continuous hemodialysis billing",
+      "condition": {
+        "inputs": [
+          {"name": "hemodialise_tipo", "type": "string", "values": ["CONTINUA"]},
+          {"name": "sessao_numero", "type": "number", "values": [1]},
+          {"name": "sessao_primeiras_24h", "type": "boolean", "values": [true]}
+        ],
+        "expression": "hemodialise_tipo == 'CONTINUA' AND sessao_primeiras_24h == true"
+      },
+      "action": "Include kit in billing for first 24h of continuous hemodialysis",
+      "parameters": {
+        "sigtap_code": "03.05.01.004-2",
+        "kit_incluido": true,
+        "kit_ciclo_horas": 72,
+        "pacote": "PACOTE_HEMODIALISE_CONTINUA_PRIMEIRAS_24H"
+      },
+      "evidence": null,
+      "consequence": {
+        "type": "cobranca",
+        "detail": "Kit específico para máquina de hemodiálise contínua incluído na cobrança das primeiras 24h"
+      },
+      "dmn_table": "hemodialise_billing",
+      "dmn_category": "pricing",
+      "hit_policy": "FIRST",
+      "parent_rule_id": null
+    },
+    {
+      "rule_id": "RN-012",
+      "archetype": "PRICING",
+      "source": {
+        "document": "Apêndice VIII",
+        "section": "PACOTE DE HEMODIÁLISE CONTÍNUA - 24H SUBSEQUENTES",
+        "text_excerpt": "24H SUBSEQUENTES - Kit específico para máquina de hemodiálise contínua: EXCLUÍDO (itens_exclusos)"
+      },
+      "actor": "CONTRATADA",
+      "trigger": "Subsequent 24h sessions of continuous hemodialysis billing",
+      "condition": {
+        "inputs": [
+          {"name": "hemodialise_tipo", "type": "string", "values": ["CONTINUA"]},
+          {"name": "sessao_primeiras_24h", "type": "boolean", "values": [false]}
+        ],
+        "expression": "hemodialise_tipo == 'CONTINUA' AND sessao_primeiras_24h == false"
+      },
+      "action": "Exclude kit from billing for subsequent 24h sessions of continuous hemodialysis",
+      "parameters": {
+        "sigtap_code": "03.05.01.004-2",
+        "kit_incluido": false,
+        "pacote": "PACOTE_HEMODIALISE_CONTINUA_24H_SUBSEQUENTES"
+      },
+      "evidence": null,
+      "consequence": {
+        "type": "restricao_cobranca",
+        "detail": "Kit específico NÃO incluído nas sessões subsequentes de 24h de hemodiálise contínua"
+      },
+      "dmn_table": "hemodialise_billing",
+      "dmn_category": "pricing",
+      "hit_policy": "FIRST",
+      "parent_rule_id": "RN-011"
+    },
+    {
+      "rule_id": "RN-013",
+      "archetype": "PRICING",
+      "source": {
+        "document": "Apêndice VIII",
+        "section": "PACOTE DE HEMODIÁLISE INTERMITENTE",
+        "text_excerpt": "Hemodiálise Intermitente Hospitalar - período de até 4 horas (sessão); SIGTAP 03.05.01.013-1"
+      },
+      "actor": "CONTRATADA",
+      "trigger": "Intermittent hemodialysis session billing",
+      "condition": {
+        "inputs": [
+          {"name": "hemodialise_tipo", "type": "string", "values": ["INTERMITENTE_PADRAO"]},
+          {"name": "duracao_horas", "type": "number", "values": []}
+        ],
+        "expression": "hemodialise_tipo == 'INTERMITENTE_PADRAO' AND duracao_horas <= 4"
+      },
+      "action": "Bill intermittent hemodialysis standard (up to 4 hours per session)",
+      "parameters": {
+        "sigtap_code": "03.05.01.013-1",
+        "duracao_maxima_horas": 4,
+        "pacote": "PACOTE_HEMODIALISE_INTERMITENTE"
+      },
+      "evidence": null,
+      "consequence": {
+        "type": "cobranca",
+        "detail": "Hemodiálise intermitente padrão: sessão de até 4 horas"
+      },
+      "dmn_table": "hemodialise_billing",
+      "dmn_category": "pricing",
+      "hit_policy": "FIRST",
+      "parent_rule_id": null
+    },
+    {
+      "rule_id": "RN-014",
+      "archetype": "PRICING",
+      "source": {
+        "document": "Apêndice VIII",
+        "section": "PACOTE DE HEMODIÁLISE INTERMITENTE ESTENDIDA",
+        "text_excerpt": "Hemodiálise Intermitente Hospitalar estendida de 6 a 8 horas (sessão). Indicada para pacientes graves que necessitem de métodos lentos de hemodiálise (HDC); SIGTAP 03.05.01.013-1"
+      },
+      "actor": "CONTRATADA",
+      "trigger": "Extended intermittent hemodialysis session billing",
+      "condition": {
+        "inputs": [
+          {"name": "hemodialise_tipo", "type": "string", "values": ["INTERMITENTE_ESTENDIDA"]},
+          {"name": "duracao_horas", "type": "number", "values": []}
+        ],
+        "expression": "hemodialise_tipo == 'INTERMITENTE_ESTENDIDA' AND duracao_horas >= 6 AND duracao_horas <= 8"
+      },
+      "action": "Bill extended intermittent hemodialysis (6 to 8 hours per session)",
+      "parameters": {
+        "sigtap_code": "03.05.01.013-1",
+        "duracao_minima_horas": 6,
+        "duracao_maxima_horas": 8,
+        "pacote": "PACOTE_HEMODIALISE_INTERMITENTE_ESTENDIDA",
+        "indicacao": "pacientes graves, métodos lentos de hemodiálise"
+      },
+      "evidence": null,
+      "consequence": {
+        "type": "cobranca",
+        "detail": "Hemodiálise intermitente estendida: sessão de 6 a 8 horas; requer autorização do supervisor"
+      },
+      "dmn_table": "hemodialise_billing",
+      "dmn_category": "pricing",
+      "hit_policy": "FIRST",
+      "parent_rule_id": "RN-013"
+    },
+    {
+      "rule_id": "RN-015",
+      "archetype": "PRICING",
+      "source": {
+        "document": "Contrato 055374/2025 e Edital 05/2024",
+        "section": "4.3.7.5.6 / 2.8.5.5",
+        "text_excerpt": "Será definido como medicamento de alto custo aquele que tenha valor unitário igual ou superior a meio salário mínimo. Os medicamentos de alto custo necessitarão de autorização prévia"
+      },
+      "actor": "CONTRATADA / médico supervisor SES/DF",
+      "trigger": "Medication prescription with unit cost >= 0.5 minimum wage",
+      "condition": {
+        "inputs": [
+          {"name": "medicamento_valor_unitario", "type": "number", "values": []},
+          {"name": "salario_minimo_metade", "type": "number", "values": []}
+        ],
+        "expression": "medicamento_valor_unitario >= (salario_minimo / 2)"
+      },
+      "action": "Classify as alto custo; require prior written authorization",
+      "parameters": {
+        "threshold": "0.5 * salario_minimo_vigente",
+        "autorizacao_requerida": "escrita_previa",
+        "excecao_urgencia": "realizar imediatamente, autorizar em ate 72h",
+        "glosa_urgencializacao_indevida": "50%"
+      },
+      "evidence": null,
+      "consequence": {
+        "type": "autorizacao_previa",
+        "detail": "Medicamento de alto custo: autorização prévia por escrito; urgência: 72h para autorização posterior; glosa de 50% por urgencialização indevida"
+      },
+      "dmn_table": "medication_high_cost_billing",
+      "dmn_category": "pricing",
+      "hit_policy": "UNIQUE",
+      "parent_rule_id": null
+    },
+    {
+      "rule_id": "RN-016",
+      "archetype": "PRICING",
+      "source": {
+        "document": "Contrato 055374/2025 e Edital 05/2024",
+        "section": "4.3.7.6.5 / 2.8.6.5",
+        "text_excerpt": "Para SADT de alto custo (valor acima de R$ 450,00), deverá ser solicitada autorização pelo médico supervisor da SES/DF. Tais exames poderão ser autorizados a posteriori, caso realizados em caráter de urgência/emergência"
+      },
+      "actor": "CONTRATADA / médico supervisor SES/DF",
+      "trigger": "SADT request with value above R$ 450.00",
+      "condition": {
+        "inputs": [
+          {"name": "sadt_valor", "type": "number", "values": []}
+        ],
+        "expression": "sadt_valor > 450.00"
+      },
+      "action": "Request prior authorization from SES/DF supervisor for high-cost SADT",
+      "parameters": {
+        "threshold": {"currency": "BRL", "amount": 450.00, "display_value": "R$ 450,00"},
+        "autorizacao_requerida": "previa_supervisor_sesdf",
+        "excecao_urgencia": "autorizar a posteriori",
+        "glosa_urgencializacao_indevida": "50%"
+      },
+      "evidence": null,
+      "consequence": {
+        "type": "autorizacao_previa",
+        "detail": "SADT acima de R$ 450,00 requer autorização prévia; urgência: autorização posterior; glosa 50% por urgencialização indevida"
+      },
+      "dmn_table": "sadt_high_cost_billing",
+      "dmn_category": "pricing",
+      "hit_policy": "UNIQUE",
+      "parent_rule_id": null
+    },
+    {
+      "rule_id": "RN-017",
+      "archetype": "PRICING",
+      "source": {
+        "document": "Contrato 055374/2025 e Edital 05/2024",
+        "section": "4.3.7.10.1 / 2.8.10.1",
+        "text_excerpt": "Os honorários médicos não estão incluídos na diária de UTI"
+      },
+      "actor": "CONTRATADA",
+      "trigger": "Medical fee billing for ICU care",
+      "condition": {
+        "inputs": [
+          {"name": "item_type", "type": "string", "values": ["HONORARIO_MEDICO"]}
+        ],
+        "expression": "item_type == 'HONORARIO_MEDICO'"
+      },
+      "action": "Bill medical fees separately from UTI daily rate",
+      "parameters": {
+        "incluido_na_diaria": false,
+        "tipos_cobrados_separadamente": ["intensivista_plantonista", "intensivista_diarista", "especialistas"],
+        "especialista_requer_autorizacao": true
+      },
+      "evidence": null,
+      "consequence": {
+        "type": "cobranca_separada",
+        "detail": "Honorários médicos cobrados separadamente da diária de UTI"
+      },
+      "dmn_table": "uti_billing_components",
+      "dmn_category": "pricing",
+      "hit_policy": "UNIQUE",
+      "parent_rule_id": "RN-009"
+    },
+    {
+      "rule_id": "RN-018",
+      "archetype": "PRICING",
+      "source": {
+        "document": "Edital 05/2024 - Anexo I",
+        "section": "9.9.1",
+        "text_excerpt": "Medicamentos: a) BRASÍNDICE Preço Fábrica (PF) + 15% (DF); b) SIMPRO; c) Menor de 3 orçamentos"
+      },
+      "actor": "CONTRATADA / CONTRATANTE",
+      "trigger": "Medication price calculation for billing",
+      "condition": {
+        "inputs": [
+          {"name": "medicamento_disponivel_brasindice", "type": "boolean", "values": []},
+          {"name": "medicamento_disponivel_simpro", "type": "boolean", "values": []}
+        ],
+        "expression": "hierarchical: BRASINDICE_PF first, then SIMPRO, then 3_quotes minimum"
+      },
+      "action": "Apply pricing hierarchy: BRASÍNDICE PF+15% > SIMPRO > menor de 3 orçamentos",
+      "parameters": {
+        "prioridade_1": "BRASINDICE_PF_mais_15pct",
+        "prioridade_2": "SIMPRO",
+        "prioridade_3": "menor_de_3_orcamentos",
+        "tabelas_referencia": ["CBHPM", "BRASINDICE", "SIMPRO", "AMB92", "SBH_1995"]
+      },
+      "evidence": null,
+      "consequence": {
+        "type": "cobranca",
+        "detail": "Preço dos medicamentos segue hierarquia: BRASÍNDICE PF+15%, SIMPRO, ou 3 orçamentos"
+      },
+      "dmn_table": "medication_pricing_hierarchy",
+      "dmn_category": "pricing",
+      "hit_policy": "FIRST",
+      "parent_rule_id": null
+    },
+    {
+      "rule_id": "RN-019",
+      "archetype": "AUTHORIZATION",
+      "source": {
+        "document": "Apêndice VIII",
+        "section": "PACOTE DE HEMODIÁLISE CONTÍNUA - PRIMEIRAS 24H (observações)",
+        "text_excerpt": "Caso haja necessidade de troca do kit antes de 72 horas de uso, será necessária justificativa por escrito e autorização pelo médico supervisor"
+      },
+      "actor": "CONTRATADA",
+      "trigger": "Kit replacement required before 72-hour lifecycle ends",
+      "condition": {
+        "inputs": [
+          {"name": "kit_horas_em_uso", "type": "number", "values": []},
+          {"name": "troca_necessaria", "type": "boolean", "values": [true]}
+        ],
+        "expression": "kit_horas_em_uso < 72 AND troca_necessaria == true"
+      },
+      "action": "Submit written justification and obtain supervisor authorization before kit replacement",
+      "parameters": {
+        "kit_lifecycle_hours": 72,
+        "justificativa_requerida": "escrita",
+        "autorizacao_requerida": "medico_supervisor_sesdf",
+        "frequencia_padrao": "1 kit a cada 72h"
+      },
+      "evidence": null,
+      "consequence": {
+        "type": "autorizacao_previa",
+        "detail": "Troca do kit antes de 72h requer justificativa escrita e autorização do supervisor; sem autorização haverá glosa"
+      },
+      "dmn_table": "hemodialise_kit_authorization",
+      "dmn_category": "authorization",
+      "hit_policy": "UNIQUE",
+      "parent_rule_id": "RN-011"
+    },
+    {
+      "rule_id": "RN-020",
+      "archetype": "AUTHORIZATION",
+      "source": {
+        "document": "Contrato 055374/2025 e Edital 05/2024",
+        "section": "4.3.7.7.2 / 2.8.7.2",
+        "text_excerpt": "Diante dos riscos associados ao atraso no início do procedimento de Terapia Renal Substituta, tal intervenção deve ser imediatamente realizada, com avaliação e autorização posterior, dentro de até 72h, pelo médico supervisor da SES/DF"
+      },
+      "actor": "CONTRATADA / médico supervisor SES/DF",
+      "trigger": "Renal replacement therapy initiation needed urgently",
+      "condition": {
+        "inputs": [
+          {"name": "urgencia_renal", "type": "boolean", "values": [true]}
+        ],
+        "expression": "urgencia_renal == true"
+      },
+      "action": "Start TRS immediately; request posterior authorization within 72h",
+      "parameters": {
+        "prazo_autorizacao_posterior_horas": 72,
+        "autorizacao_responsavel": "medico_supervisor_sesdf",
+        "pacotes_referencia": "APENDICE_VIII"
+      },
+      "evidence": null,
+      "consequence": {
+        "type": "autorizacao_posterior",
+        "detail": "TRS pode ser iniciada imediatamente em urgência, com autorização posterior em até 72h"
+      },
+      "dmn_table": "trs_authorization",
+      "dmn_category": "authorization",
+      "hit_policy": "FIRST",
+      "parent_rule_id": null
+    },
+    {
+      "rule_id": "RN-021",
+      "archetype": "AUTHORIZATION",
+      "source": {
+        "document": "Contrato 055374/2025 e Edital 05/2024",
+        "section": "4.3.7.8.2 / 2.8.8.2",
+        "text_excerpt": "Diante dos riscos associados ao atraso no início da hemoterapia, tal intervenção deve ser imediatamente realizada, com avaliação e autorização posterior, dentro de até 72h, pelo médico supervisor da SES/DF"
+      },
+      "actor": "CONTRATADA / médico supervisor SES/DF",
+      "trigger": "Hemotherapy initiation needed urgently",
+      "condition": {
+        "inputs": [
+          {"name": "urgencia_hemoterapia", "type": "boolean", "values": [true]}
+        ],
+        "expression": "urgencia_hemoterapia == true"
+      },
+      "action": "Start hemotherapy immediately; request posterior authorization within 72h",
+      "parameters": {
+        "prazo_autorizacao_posterior_horas": 72,
+        "autorizacao_responsavel": "medico_supervisor_sesdf",
+        "pacotes_referencia": "APENDICE_IX",
+        "norma_hemocomponentes": ["RDC_ANVISA_34/2014", "Portaria_GM_MS_158/2016"]
+      },
+      "evidence": null,
+      "consequence": {
+        "type": "autorizacao_posterior",
+        "detail": "Hemoterapia pode ser iniciada imediatamente em urgência, com autorização posterior em até 72h"
+      },
+      "dmn_table": "hemotherapy_authorization",
+      "dmn_category": "authorization",
+      "hit_policy": "FIRST",
+      "parent_rule_id": null
+    },
+    {
+      "rule_id": "RN-022",
+      "archetype": "AUTHORIZATION",
+      "source": {
+        "document": "Contrato 055374/2025 e Edital 05/2024",
+        "section": "4.3.7.14.2 / 2.10-2.11",
+        "text_excerpt": "Nos casos de prescrição de itens que necessitem de autorização, o prestador deverá solicitar autorização em até 24h, por meio eletrônico, contendo no mínimo: I- Nome do paciente; II- Relatório médico justificando a solicitação"
+      },
+      "actor": "CONTRATADA",
+      "trigger": "Authorization request for any item requiring prior approval",
+      "condition": {
+        "inputs": [
+          {"name": "item_requer_autorizacao", "type": "boolean", "values": [true]}
+        ],
+        "expression": "item_requer_autorizacao == true"
+      },
+      "action": "Submit electronic authorization request within 24h with patient name and medical report",
+      "parameters": {
+        "prazo_solicitacao_horas": 24,
+        "canal": "eletronico",
+        "conteudo_minimo": ["nome_paciente", "relatorio_medico_justificativa"],
+        "urgencia_sinalizacao": "explicita_no_relatorio"
+      },
+      "evidence": null,
+      "consequence": {
+        "type": "autorizacao_previa",
+        "detail": "Solicitação de autorização em até 24h por meio eletrônico com relatório médico"
+      },
+      "dmn_table": "authorization_request_flow",
+      "dmn_category": "authorization",
+      "hit_policy": "UNIQUE",
+      "parent_rule_id": null
+    },
+    {
+      "rule_id": "RN-023",
+      "archetype": "AUTHORIZATION",
+      "source": {
+        "document": "Contrato 055374/2025 e Edital 05/2024",
+        "section": "4.3.7.14.3 / 2.12",
+        "text_excerpt": "A partir do recebimento da solicitação de autorização, o médico supervisor deverá dar parecer favorável ou desfavorável em até 24h, por meio eletrônico, podendo ser prorrogado por mais 24h se justificado. A visita médica deverá ser realizada em até 72h"
+      },
+      "actor": "médico supervisor SES/DF (CEMEDS)",
+      "trigger": "Authorization request received from provider",
+      "condition": {
+        "inputs": [
+          {"name": "solicitacao_recebida", "type": "boolean", "values": [true]}
+        ],
+        "expression": "solicitacao_recebida == true"
+      },
+      "action": "Issue favorable/unfavorable opinion within 24h (extendable 24h); medical visit within 72h",
+      "parameters": {
+        "prazo_parecer_horas": 24,
+        "prorrogacao_maxima_horas": 24,
+        "prazo_visita_medica_horas": 72,
+        "orgao_responsavel": "CEMEDS",
+        "portaria_referencia": "Portaria_SES/DF_460/2024"
+      },
+      "evidence": null,
+      "consequence": {
+        "type": "autorizacao",
+        "detail": "Médico supervisor deve emitir parecer em 24h (prorrogável +24h); visita médica em até 72h"
+      },
+      "dmn_table": "authorization_response_flow",
+      "dmn_category": "authorization",
+      "hit_policy": "UNIQUE",
+      "parent_rule_id": "RN-022"
+    },
+    {
+      "rule_id": "RN-024",
+      "archetype": "AUTHORIZATION",
+      "source": {
+        "document": "Contrato 055374/2025 e Edital 05/2024",
+        "section": "4.3.7.13.1 / 2.8.13.1",
+        "text_excerpt": "Os OPME deverão ser solicitados por relatório médico com justificativa e definição de quantitativo previsto para uso, o qual será analisado pelo médico supervisor da SES/DF para autorização em até 72 horas"
+      },
+      "actor": "CONTRATADA",
+      "trigger": "OPME (orthopedic/prosthetic/special materials) requisition",
+      "condition": {
+        "inputs": [
+          {"name": "item_tipo", "type": "string", "values": ["OPME"]}
+        ],
+        "expression": "item_tipo == 'OPME'"
+      },
+      "action": "Submit detailed medical report with justification and quantity; await 72h authorization",
+      "parameters": {
+        "prazo_autorizacao_horas": 72,
+        "documentacao_requerida": ["relatorio_medico_justificativa", "quantitativo_previsto"],
+        "urgencia_excecao": "autorizar_imediatamente_posterior_72h",
+        "glosa_urgencializacao_indevida": "50%"
+      },
+      "evidence": null,
+      "consequence": {
+        "type": "autorizacao_previa",
+        "detail": "OPME: autorização prévia em 72h; urgência: realizar imediatamente com autorização posterior em 72h; glosa 50% por urgencialização indevida"
+      },
+      "dmn_table": "opme_authorization",
+      "dmn_category": "authorization",
+      "hit_policy": "UNIQUE",
+      "parent_rule_id": null
+    },
+    {
+      "rule_id": "RN-025",
+      "archetype": "AUTHORIZATION",
+      "source": {
+        "document": "Contrato 055374/2025 e Edital 05/2024",
+        "section": "4.3.7.5.11 / 2.8.5.10",
+        "text_excerpt": "A terapia nutricional (nutrição enteral e parenteral) necessitará de autorização, que deverá ser solicitada por escrito (com o tipo de dieta solicitada, a indicação clínica e o tempo previsto da terapêutica) em até 6 (seis) horas a contar da prescrição"
+      },
+      "actor": "CONTRATADA",
+      "trigger": "Enteral or parenteral nutrition prescription",
+      "condition": {
+        "inputs": [
+          {"name": "nutricao_tipo", "type": "string", "values": ["ENTERAL", "PARENTERAL"]}
+        ],
+        "expression": "nutricao_tipo IN ['ENTERAL', 'PARENTERAL']"
+      },
+      "action": "Request written authorization within 6h of prescription with diet type, clinical indication, treatment duration",
+      "parameters": {
+        "prazo_solicitacao_horas": 6,
+        "conteudo_solicitacao": ["tipo_dieta", "indicacao_clinica", "tempo_previsto_terapia"],
+        "revisao_autorizacao": "a_cada_72h_ou_troca_tipo_nutricao",
+        "glosa_sem_autorizacao": "formulacoes_prescr_apos_negativa"
+      },
+      "evidence": null,
+      "consequence": {
+        "type": "autorizacao_previa",
+        "detail": "Nutrição enteral/parenteral: solicitação em até 6h da prescrição; revisão a cada 72h; glosa para itens sem autorização"
+      },
+      "dmn_table": "nutrition_authorization",
+      "dmn_category": "authorization",
+      "hit_policy": "UNIQUE",
+      "parent_rule_id": null
+    },
+    {
+      "rule_id": "RN-026",
+      "archetype": "AUTHORIZATION",
+      "source": {
+        "document": "Contrato 055374/2025 e Edital 05/2024",
+        "section": "4.3.7.9.2 / 2.8.9.1",
+        "text_excerpt": "Procedimentos cirúrgicos de urgência: poderão, excepcionalmente, ser realizados mediante autorização prévia do médico supervisor da SES/DF; b) Procedimentos cirúrgicos de emergência: poderão, excepcionalmente, realizados, mediante a avaliação e autorização posterior do médico supervisor da SES/DF"
+      },
+      "actor": "CONTRATADA",
+      "trigger": "Surgical procedure needed for ICU patient",
+      "condition": {
+        "inputs": [
+          {"name": "procedimento_tipo", "type": "string", "values": ["CIRURGICO"]},
+          {"name": "natureza", "type": "string", "values": ["URGENCIA", "EMERGENCIA", "ELETIVO"]}
+        ],
+        "expression": "procedimento_tipo == 'CIRURGICO'"
+      },
+      "action": "For urgency: prior authorization required; for emergency: immediate then posterior; for elective: NOT allowed",
+      "parameters": {
+        "urgencia_autorizacao": "previa",
+        "emergencia_autorizacao": "posterior",
+        "eletivo_permitido": false,
+        "eletivo_acao": "retorno_rede_propria_sesdf",
+        "glosa_urgencializacao_indevida": "50%"
+      },
+      "evidence": null,
+      "consequence": {
+        "type": "autorizacao",
+        "detail": "Cirurgia urgência: autorização prévia; emergência: autorização posterior; eletivo: não permitido, paciente retorna à rede SES/DF"
+      },
+      "dmn_table": "surgical_authorization",
+      "dmn_category": "authorization",
+      "hit_policy": "FIRST",
+      "parent_rule_id": null
+    },
+    {
+      "rule_id": "RN-027",
+      "archetype": "BUNDLING",
+      "source": {
+        "document": "Apêndice VIII",
+        "section": "PACOTE DE HEMODIÁLISE CONTÍNUA - PRIMEIRAS 24H",
+        "text_excerpt": "Materiais a cada 72h: Kit específico para máquina de hemodiálise contínua*, 01 bolsa de drenagem HP SP 354 e 01 tubo extensor; Materiais de uso diário: Solução eletrolítica 0,61% 5000 ml: 10 bolsas; citrato de sódio 4% 3000ml: 2 bolsas; seringas; heparina sódica; luvas; máscara; agulhas; swabs"
+      },
+      "actor": "CONTRATADA",
+      "trigger": "Billing for continuous hemodialysis first 24h package",
+      "condition": {
+        "inputs": [
+          {"name": "pacote", "type": "string", "values": ["HEMODIALISE_CONTINUA_PRIMEIRAS_24H"]}
+        ],
+        "expression": "pacote == 'HEMODIALISE_CONTINUA_PRIMEIRAS_24H'"
+      },
+      "action": "Include all specified items in the package billing",
+      "parameters": {
+        "itens_incluidos_72h": [
+          "Kit específico para máquina de hemodiálise contínua (1 kit/72h)",
+          "01 bolsa de drenagem HP SP 354",
+          "01 tubo extensor"
+        ],
+        "itens_incluidos_diarios": [
+          "Solução eletrolítica 0,61% 5000ml: 10 bolsas/24h",
+          "Citrato de sódio 4% 3000ml: 2 bolsas/24h",
+          "01 seringa 3ml",
+          "01 seringa 5ml",
+          "01 seringa 10ml",
+          "01 seringa 20ml",
+          "01 frasco (5ml) heparina sódica",
+          "2 pares luvas estéreis",
+          "01 máscara cirúrgica",
+          "02 agulha 25x0,8",
+          "02 pares luvas de procedimento",
+          "Swabs álcool 70%"
+        ],
+        "servicos_incluidos": [
+          "Serviços de enfermagem e auxiliares 24h",
+          "Locomoção material e equipe",
+          "Equipamentos: utilização, manutenção, esterilização, montagem, calibragem",
+          "Bombas de duplo canal de infusão",
+          "Sistema de tratamento de água portátil",
+          "Honorários médicos diálise"
+        ],
+        "itens_excluidos": [
+          "Honorários médicos acesso para hemodiálise",
+          "Cateter de duplo ou triplo lúmen para hemodiálise",
+          "Parecer/visita médica"
+        ]
+      },
+      "evidence": null,
+      "consequence": {
+        "type": "pacote_definicao",
+        "detail": "Definição completa dos itens incluídos e excluídos do pacote de hemodiálise contínua - primeiras 24h"
+      },
+      "dmn_table": "hemodialise_continua_bundle",
+      "dmn_category": "bundling",
+      "hit_policy": "UNIQUE",
+      "parent_rule_id": "RN-011"
+    },
+    {
+      "rule_id": "RN-028",
+      "archetype": "BUNDLING",
+      "source": {
+        "document": "Apêndice VIII",
+        "section": "PACOTE DE HEMODIÁLISE INTERMITENTE",
+        "text_excerpt": "Materiais e medicamentos: 01 capilar, 01 linha arterial, 01 linha venosa, 01 par agulhas fistula 16 ou 17, 02 isoladores de pressão, 01 frasco solução ácida, 02 frascos solução básica, seringas, gaze, tampa catéter, equipo soro, heparina, luvas, máscara, agulhas, soro fisiológico 0,9% 1000ml, swabs"
+      },
+      "actor": "CONTRATADA",
+      "trigger": "Billing for intermittent hemodialysis package",
+      "condition": {
+        "inputs": [
+          {"name": "pacote", "type": "string", "values": ["HEMODIALISE_INTERMITENTE"]}
+        ],
+        "expression": "pacote == 'HEMODIALISE_INTERMITENTE'"
+      },
+      "action": "Include all specified items in intermittent hemodialysis package billing",
+      "parameters": {
+        "itens_incluidos": [
+          "01 capilar",
+          "01 linha arterial",
+          "01 linha venosa",
+          "01 par agulhas fistula 16 ou 17",
+          "02 isoladores de pressão",
+          "01 frasco solução ácida",
+          "02 frascos solução básica",
+          "01 seringa 3ml",
+          "01 seringa 5ml",
+          "01 seringa 10ml",
+          "01 seringa 20ml",
+          "02 pacotes gaze estéril",
+          "01 par tampa para catéter",
+          "01 equipo de soro",
+          "01 frasco (5ml) heparina sódica",
+          "2 pares luvas estéreis",
+          "01 máscara cirúrgica",
+          "02 agulha 25x0,8",
+          "02 pares luvas de procedimento",
+          "Soro fisiológico 0,9% 1000ml",
+          "Swabs álcool 70%"
+        ],
+        "servicos_incluidos": [
+          "Serviços de enfermagem e auxiliares",
+          "Locomoção material e equipe",
+          "Equipamentos: utilização, manutenção, esterilização, montagem, calibragem",
+          "Bombas de duplo canal de infusão",
+          "Sistema de osmose portátil",
+          "Honorários médicos diálise"
+        ],
+        "itens_excluidos": [
+          "Honorários médicos acesso para hemodiálise",
+          "Cateter de duplo ou triplo lúmen para hemodiálise",
+          "Parecer/visita médica"
+        ],
+        "sem_reuso": "capilares e linhas não podem ser reutilizados"
+      },
+      "evidence": null,
+      "consequence": {
+        "type": "pacote_definicao",
+        "detail": "Definição completa dos itens incluídos e excluídos do pacote de hemodiálise intermitente padrão"
+      },
+      "dmn_table": "hemodialise_intermitente_bundle",
+      "dmn_category": "bundling",
+      "hit_policy": "UNIQUE",
+      "parent_rule_id": "RN-013"
+    },
+    {
+      "rule_id": "RN-029",
+      "archetype": "BUNDLING",
+      "source": {
+        "document": "Apêndice VIII",
+        "section": "PACOTE DE HEMODIÁLISE CONTÍNUA - 24H SUBSEQUENTES (itens_exclusos)",
+        "text_excerpt": "Kit específico para máquina de hemodiálise contínua: EXCLUÍDO das 24H SUBSEQUENTES; Cateter de duplo ou triplo lúmen para hemodiálise: EXCLUÍDO de todos os pacotes"
+      },
+      "actor": "CONTRATADA",
+      "trigger": "Billing for hemodialysis packages (any type)",
+      "condition": {
+        "inputs": [
+          {"name": "pacote_tipo", "type": "string", "values": ["HEMODIALISE_CONTINUA_SUBSEQUENTES", "HEMODIALISE_INTERMITENTE", "HEMODIALISE_INTERMITENTE_ESTENDIDA"]}
+        ],
+        "expression": "always applies to hemodialysis packages"
+      },
+      "action": "Exclude physician catheter access and luminal catheter from all hemodialysis packages",
+      "parameters": {
+        "itens_sempre_excluidos_todos_pacotes": [
+          "Honorários médicos para acesso para hemodiálise",
+          "Cateter de duplo ou triplo lúmen para hemodiálise",
+          "Parecer/visita médica"
+        ],
+        "excluido_apenas_subsequentes": [
+          "Kit específico para máquina de hemodiálise contínua"
+        ]
+      },
+      "evidence": null,
+      "consequence": {
+        "type": "exclusao_pacote",
+        "detail": "Cateter luminal e honorários de acesso SEMPRE excluídos de qualquer pacote de hemodiálise; Kit excluído nas sessões subsequentes de hemodiálise contínua"
+      },
+      "dmn_table": "hemodialise_bundle_exclusions",
+      "dmn_category": "bundling",
+      "hit_policy": "UNIQUE",
+      "parent_rule_id": null
+    },
+    {
+      "rule_id": "RN-030",
+      "archetype": "BUNDLING",
+      "source": {
+        "document": "Contrato 055374/2025 e Edital 05/2024",
+        "section": "4.3.5.8 / 2.6.8",
+        "text_excerpt": "Durante o período de busca ativa do leito de menor complexidade para retorno para a SES/DF, o relatório de alta deve ser atualizado e enviado a cada 24 horas à CERIH pela CONTRATADA, até a efetiva alta administrativa do paciente"
+      },
+      "actor": "CONTRATADA",
+      "trigger": "Post-ICU discharge, bed search active period",
+      "condition": {
+        "inputs": [
+          {"name": "alta_uti_emitida", "type": "boolean", "values": [true]},
+          {"name": "alta_administrativa_efetivada", "type": "boolean", "values": [false]}
+        ],
+        "expression": "alta_uti_emitida == true AND alta_administrativa_efetivada == false"
+      },
+      "action": "Update and send discharge report to CERIH every 24h until administrative discharge",
+      "parameters": {
+        "frequencia_atualizacao_horas": 24,
+        "destinatario": "CERIH",
+        "condicao_termino": "alta_administrativa_efetivada",
+        "acao_cerih": "busca_ativa_leito_menor_complexidade"
+      },
+      "evidence": null,
+      "consequence": {
+        "type": "obrigacao_operacional",
+        "detail": "Relatório de alta deve ser atualizado e enviado a cada 24h à CERIH durante busca de leito pós-UTI"
+      },
+      "dmn_table": "discharge_reporting_flow",
+      "dmn_category": "bundling",
+      "hit_policy": "UNIQUE",
+      "parent_rule_id": null
+    },
+    {
+      "rule_id": "RN-031",
+      "archetype": "BUNDLING",
+      "source": {
+        "document": "Contrato 055374/2025",
+        "section": "4.3.7.1.2",
+        "text_excerpt": "Consideram-se os seguintes itens inclusos na Diária UTI: Aspiração, esvaziamento; manutenção mecânica; imobilização provisória; instalação de tenda; lavagem e aspiração traqueal; sondagem gástrica; sondagem retal; sondagem vesical; ventilador pulmonar; bomba de infusão; monitor; desfibrilador; incubadora; dieta oral; serviços de enfermagem, farmacêutico clínico, nutricionista e assistente social"
+      },
+      "actor": "CONTRATADA",
+      "trigger": "UTI daily billing",
+      "condition": {
+        "inputs": [
+          {"name": "item_cobranca", "type": "string", "values": []}
+        ],
+        "expression": "item_cobranca IN [lista_inclusos_diaria_uti]"
+      },
+      "action": "Items listed are INCLUDED in daily UTI rate; must not be separately billed",
+      "parameters": {
+        "itens_inclusos_diaria_uti": [
+          "Aspiração e esvaziamento",
+          "Manutenção mecânica",
+          "Imobilização provisória",
+          "Instalação de tenda",
+          "Lavagem e aspiração traqueal",
+          "Sondagem gástrica",
+          "Sondagem retal",
+          "Sondagem vesical",
+          "Aparelho RX portátil na UTI",
+          "Bandeja punção subclávia",
+          "Bandeja dissecção venosa",
+          "Bandeja punção lombar",
+          "Berço aquecido",
+          "Bisturi elétrico",
+          "Bomba de infusão",
+          "Capacete de hood",
+          "Halo capnógrafo",
+          "Cardiotocógrafo",
+          "Colchão d'água ou ar",
+          "Desfibrilador (cardioversor)",
+          "Fototerapia",
+          "Halo craniano",
+          "Incubadora",
+          "Ionizador",
+          "Marcapasso temporário",
+          "Monitor",
+          "Nebulizador",
+          "Oxímetro",
+          "Curativos",
+          "Quadro balcânico",
+          "Ventilador pulmonar (inclusive filtros obrigatórios)",
+          "PA não invasiva",
+          "Monitor cardíaco",
+          "EPI equipamento de proteção individual",
+          "Dieta oral",
+          "Serviços de enfermagem",
+          "Farmacêutico clínico",
+          "Nutricionista",
+          "Assistente social"
+        ],
+        "nao_incluidos_diaria": [
+          "Honorários médicos",
+          "Atendimento multiprofissional (fisio, fono, psicólogo, OT, odonto)",
+          "Gases medicinais (cobrados separadamente)",
+          "Medicamentos",
+          "SADT",
+          "OPME",
+          "Terapia renal substitutiva",
+          "Hemoterapia"
+        ]
+      },
+      "evidence": null,
+      "consequence": {
+        "type": "pacote_diaria_uti",
+        "detail": "Itens da diária de UTI não podem ser faturados separadamente; glosa aplicada para cobrança em duplicidade"
+      },
+      "dmn_table": "uti_daily_bundle",
+      "dmn_category": "bundling",
+      "hit_policy": "UNIQUE",
+      "parent_rule_id": "RN-009"
+    }
+  ]
+}

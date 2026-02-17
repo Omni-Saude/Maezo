@@ -1,0 +1,80 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             id="hemodialysis_pricing_def"
+             name="Hemodialysis Pricing"
+             namespace="http://healthcare.platform/dmn/contract_extraction">
+  <!--
+    Session types and SIGTAP codes from Apendice VIII (Terapia Renal Substitutiva):
+    - CONTINUA (both): SIGTAP 03.05.01.004-2 (Hemodialise Continua Hospitalar)
+    - INTERMITENTE and INTERMITENTE_ESTENDIDA: SIGTAP 03.05.01.013-1
+    - DIALISE_PERITONEAL: SIGTAP 03.05.01.003-4
+
+    Kit inclusion rules:
+    - Continua primeiras 24h: kit incluido (materials at 72h intervals including kit especifico)
+    - Continua 24h subsequentes: kit EXCLUIDO (kit especifico para maquina excluido)
+    - Intermitente (<=4h): capilar, linhas e materiais incluidos
+    - Intermitente Estendida (6-8h): capilar, linhas e materiais incluidos
+  -->
+  <decision id="decision_hemodialysis_pricing" name="Hemodialysis Pricing">
+    <decisionTable id="dt_hemodialysis_pricing" hitPolicy="FIRST">
+      <input id="in_session_type_hp" label="Session Type">
+        <inputExpression id="inExpr_session_type_hp" typeRef="string">
+          <text>session_type</text>
+        </inputExpression>
+      </input>
+      <input id="in_hour_in_treatment" label="Hour in Treatment Cycle">
+        <inputExpression id="inExpr_hour_in_treatment" typeRef="number">
+          <text>hour_in_treatment</text>
+        </inputExpression>
+      </input>
+      <output id="out_kit_included" label="Kit Included" name="kit_included" typeRef="boolean"/>
+      <output id="out_package_code" label="Package SIGTAP Code" name="package_code" typeRef="string"/>
+      <output id="out_billing_basis_hd" label="Billing Basis" name="billing_basis" typeRef="string"/>
+      <!-- Rule 1: Continuous Hemodialysis - First 24 hours (kit included) -->
+      <rule id="r_hd_continua_first24">
+        <description>Hemodiálise Contínua - Primeiras 24h: kit especifico incluido, materiais a cada 72h (Apendice VIII)</description>
+        <inputEntry id="ie_hcf_1"><text>"CONTINUA_PRIMEIRAS_24H"</text></inputEntry>
+        <inputEntry id="ie_hcf_2"><text>[0..24]</text></inputEntry>
+        <outputEntry id="oe_hcf_1"><text>true</text></outputEntry>
+        <outputEntry id="oe_hcf_2"><text>"03.05.01.004-2"</text></outputEntry>
+        <outputEntry id="oe_hcf_3"><text>"Hemodiálise Contínua Hospitalar - primeiras 24h com kit especifico para maquina incluido (materiais a cada 72h). Inclui: enfermagem 24h, equipamentos, kit maquina, bolsas eletrolíticas, citrato sodio, heparina, seringas, luvas (Apendice VIII)"</text></outputEntry>
+      </rule>
+      <!-- Rule 2: Continuous Hemodialysis - Subsequent 24h periods (kit NOT included) -->
+      <rule id="r_hd_continua_subsequent">
+        <description>Hemodiálise Contínua - 24h Subsequentes: kit especifico EXCLUIDO (Apendice VIII)</description>
+        <inputEntry id="ie_hcs_1"><text>"CONTINUA_SUBSEQUENTE"</text></inputEntry>
+        <inputEntry id="ie_hcs_2"><text></text></inputEntry>
+        <outputEntry id="oe_hcs_1"><text>false</text></outputEntry>
+        <outputEntry id="oe_hcs_2"><text>"03.05.01.004-2"</text></outputEntry>
+        <outputEntry id="oe_hcs_3"><text>"Hemodiálise Contínua Hospitalar - 24h subsequentes: kit especifico para maquina EXCLUIDO do pacote. Inclui: enfermagem 24h, equipamentos, bolsas eletrolíticas diarias, citrato sodio, heparina, seringas, luvas (Apendice VIII)"</text></outputEntry>
+      </rule>
+      <!-- Rule 3: Intermittent Hemodialysis (up to 4 hours) - kit included -->
+      <rule id="r_hd_intermitente">
+        <description>Hemodiálise Intermitente - ate 4 horas: capilar, linhas, agulhas, concentrados incluidos (Apendice VIII)</description>
+        <inputEntry id="ie_hi_1"><text>"INTERMITENTE"</text></inputEntry>
+        <inputEntry id="ie_hi_2"><text>[0..4]</text></inputEntry>
+        <outputEntry id="oe_hi_1"><text>true</text></outputEntry>
+        <outputEntry id="oe_hi_2"><text>"03.05.01.013-1"</text></outputEntry>
+        <outputEntry id="oe_hi_3"><text>"Hemodiálise Intermitente - ate 4h: inclui capilar, linha arterial, linha venosa, agulhas fistula, isoladores pressao, solucao acida, solucao basica, seringas, gaze, heparina, luvas, SF 0,9%. Sem reuso capilares/linhas (Apendice VIII)"</text></outputEntry>
+      </rule>
+      <!-- Rule 4: Extended Intermittent Hemodialysis (6-8 hours) - kit included -->
+      <rule id="r_hd_intermitente_estendida">
+        <description>Hemodiálise Intermitente Estendida - 6 a 8 horas: capilar, linhas, concentrados extra incluidos (Apendice VIII)</description>
+        <inputEntry id="ie_hie_1"><text>"INTERMITENTE_ESTENDIDA"</text></inputEntry>
+        <inputEntry id="ie_hie_2"><text>[6..8]</text></inputEntry>
+        <outputEntry id="oe_hie_1"><text>true</text></outputEntry>
+        <outputEntry id="oe_hie_2"><text>"03.05.01.013-1"</text></outputEntry>
+        <outputEntry id="oe_hie_3"><text>"Hemodiálise Intermitente Estendida - 6 a 8h: inclui capilar, linha arterial, linha venosa, agulhas fistula, 2 isoladores pressao, 2 frascos solucao acida, 3 frascos solucao basica, seringas, gaze, heparina, luvas, SF 0,9%. Sem reuso capilares/linhas (Apendice VIII)"</text></outputEntry>
+      </rule>
+      <!-- Rule 5: Peritoneal Dialysis -->
+      <rule id="r_dialise_peritoneal">
+        <description>Diálise Peritoneal - inclui materiais, equipe enfermagem especializada, equipamentos e aluguel maquina (Apendice VIII)</description>
+        <inputEntry id="ie_dp_1"><text>"DIALISE_PERITONEAL"</text></inputEntry>
+        <inputEntry id="ie_dp_2"><text></text></inputEntry>
+        <outputEntry id="oe_dp_1"><text>true</text></outputEntry>
+        <outputEntry id="oe_dp_2"><text>"03.05.01.003-4"</text></outputEntry>
+        <outputEntry id="oe_dp_3"><text>"Dialise Peritoneal Intermitente - inclui enfermagem Nefrologia, equipamentos, bolsas solucao, mascara, clamps, equipo cassete, prep kit, alcool, mini caps, luvas, compressas. Exclui cateter Tenckhoff e visita medica (Apendice VIII)"</text></outputEntry>
+      </rule>
+    </decisionTable>
+  </decision>
+</definitions>

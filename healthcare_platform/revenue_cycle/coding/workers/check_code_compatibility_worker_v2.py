@@ -30,7 +30,7 @@ class CheckCodeCompatibilityOutputV2(BaseModel):
         return {"compatible": self.compatible, "incompatibilities": [i.model_dump() for i in self.incompatibilities], "warnings": self.warnings}
 class CheckCodeCompatibilityWorkerV2:
     """V2 thin worker: delegates compatibility checks to DMN tables. ORPHAN: No companion DMN tables exist yet."""
-    TOPIC = "coding.check_compatibility"
+    TOPIC = "revenue_cycle.coding.check_compatibility"
 
     def __init__(self, **kwargs: Any) -> None:
         """Initialize worker with optional v1 compatibility params (ignored)."""

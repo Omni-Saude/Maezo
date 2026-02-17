@@ -1,0 +1,254 @@
+# MAEZO Healthcare Platform - Production Environment Values
+#
+# Usage:
+#   helm upgrade --install maestro ./helm/maestro \
+#     -f values.yaml \
+#     -f values-prod.yaml \
+#     --set postgresql.auth.postgresPassword="$DB_PASS" \
+#     --set keycloak.auth.adminPassword="$KC_PASS"
+#
+# This file overrides values.yaml for the production environment.
+# It enforces higher replica counts, tighter autoscaling bounds, full
+# resource limits, 30-day metric retention, and production TLS hostnames
+# under austa.com.br. All secrets are expected to exist as Kubernetes
+# Secrets before deployment — never set plaintext credentials here.
+#
+# ADR references:
+#   ADR-002  Multi-tenancy
+#   ADR-003  External task workers
+#   ADR-004  CDC bridge
+#   ADR-005  HAPI FHIR
+#   ADR-010  Observability
+#   ADR-011  LGPD / data retention
+#   ADR-012  CIB Seven HA configuration
+#   ADR-014  Webhook receiver
+
+# =============================================================================
+# GLOBAL SETTINGS
+# =============================================================================
+global:
+  environment: production
+  # Primary domain — no subdomain prefix.
+  # Staging uses staging.austa.com.br; production uses austa.com.br directly.
+  domain: austa.com.br
+
+# =============================================================================
+# CIB SEVEN ENGINE (Camunda 7 Fork) — ADR-012
+# =============================================================================
+cibSeven:
+  # Two replicas are the ADR-012 Phase 2+ minimum for high availability.
+  # Pod Disruption Budget below ensures at least 1 is always available
+  # during rolling updates or node maintenance.
+  replicaCount: 2
+
+  resources:
+    requests:
+      memory: "2Gi"
+      cpu: "1000m"
+    limits:
+      memory: "4Gi"
+      cpu: "2000m"
+
+  ingress:
+    hosts:
+      - host: bpm.austa.com.br
+        paths:
+          - path: /
+            pathType: Prefix
+    tls:
+      - secretName: bpm-tls
+        hosts:
+          - bpm.austa.com.br
+
+# =============================================================================
+# PYTHON WORKERS — ADR-003
+# =============================================================================
+# Production autoscaling bounds are wider than staging to absorb real patient
+# load spikes. Minimum replicas are raised to 2 for each domain so that a
+# single pod failure never interrupts service during low-traffic windows.
+workers:
+  domains:
+    # Revenue Cycle — highest throughput domain; scales aggressively.
+    revenueCycle:
+      replicaCount: 3
+      autoscaling:
+        enabled: true
+        minReplicas: 2   # Never drop below 2 in production
+        maxReplicas: 6   # Increased from staging's 3
+
+    # Patient Access — moderate throughput; 2 min for HA.
+    patientAccess:
+      replicaCount: 2
+      autoscaling:
+        enabled: true
+        minReplicas: 2
+        maxReplicas: 4   # Increased from staging's 2
+
+    # Clinical Operations — safety-critical; wide scale ceiling.
+    # CPU threshold kept at 60% (inherited from base) for clinical safety margin.
+    clinicalOperations:
+      replicaCount: 2
+      autoscaling:
+        enabled: true
+        minReplicas: 2
+        maxReplicas: 6   # Increased from staging's 3
+
+    # Platform Services — analytics / reporting; moderate burst.
+    platformServices:
+      replicaCount: 2
+      autoscaling:
+        enabled: true
+        minReplicas: 2
+        maxReplicas: 4   # Increased from staging's 2
+
+# =============================================================================
+# HAPI FHIR SERVER — ADR-005
+# =============================================================================
+hapiFhir:
+  # Two replicas for HA; matches CIB Seven replica count.
+  replicaCount: 2
+
+  resources:
+    requests:
+      memory: "2Gi"
+      cpu: "1000m"
+    limits:
+      memory: "4Gi"
+      cpu: "2000m"
+
+  ingress:
+    hosts:
+      - host: fhir.austa.com.br
+        paths:
+          - path: /fhir
+            pathType: Prefix
+    tls:
+      - secretName: fhir-tls
+        hosts:
+          - fhir.austa.com.br
+
+# =============================================================================
+# CDC BRIDGE — ADR-004
+# =============================================================================
+cdcBridge:
+  # Two replicas to ensure CDC events are never lost if one pod restarts.
+  # Consumer group offsets are committed to Kafka, so failover is seamless.
+  replicaCount: 2
+
+# =============================================================================
+# WEBHOOK RECEIVER — ADR-014
+# =============================================================================
+webhookReceiver:
+  # Minimum two replicas for HA; webhook loss from external payers is
+  # non-recoverable, so we keep a wide autoscaling ceiling.
+  replicaCount: 2
+  autoscaling:
+    enabled: true
+    minReplicas: 2
+    maxReplicas: 10   # Matches base default; explicit here for clarity
+
+  ingress:
+    hosts:
+      - host: webhooks.austa.com.br
+        paths:
+          - path: /api/callbacks
+            pathType: Prefix
+    tls:
+      - secretName: webhooks-tls
+        hosts:
+          - webhooks.austa.com.br
+
+# =============================================================================
+# POSTGRESQL (Bitnami Chart)
+# =============================================================================
+# Production uses a larger primary PVC (100 Gi) and one read replica for
+# analytics queries. Staging uses 50 Gi with no separate replica resources.
+postgresql:
+  primary:
+    persistence:
+      # 100 Gi keeps us safe for 12+ months of process history at projected
+      # AUSTA patient volume before we need to resize the PVC.
+      size: 100Gi
+
+  readReplicas:
+    # One read replica offloads reporting / analytics queries from primary.
+    # HAPI FHIR search and Grafana data sources should target this replica.
+    replicaCount: 1
+
+# =============================================================================
+# KAFKA (Bitnami Chart — KRaft mode)
+# =============================================================================
+# KRaft controller and broker counts are set to 3 for production quorum.
+# Broker persistence is raised to 50 Gi to store 7 days of CDC events at
+# production volume (staging uses 30 Gi).
+kafka:
+  controller:
+    replicaCount: 3
+
+  broker:
+    replicaCount: 3
+    persistence:
+      size: 50Gi   # Staging uses 30 Gi; production needs the larger allocation
+
+# =============================================================================
+# REDIS (Bitnami Chart — Sentinel mode)
+# =============================================================================
+# Two replicas + Sentinel quorum of 2 (inherited from base) gives automatic
+# failover without operator intervention. Master persistence size stays at
+# the base default of 10 Gi, which is adequate for the distributed cache.
+redis:
+  replica:
+    replicaCount: 2
+
+# =============================================================================
+# KEYCLOAK (Bitnami Chart)
+# =============================================================================
+keycloak:
+  # Two replicas with session replication ensures no login disruption during
+  # rolling restarts or zone failures.
+  replicaCount: 2
+
+  ingress:
+    hostname: auth.austa.com.br   # No staging subdomain
+    tls: true
+
+# =============================================================================
+# OBSERVABILITY — ADR-010
+# =============================================================================
+observability:
+  prometheus:
+    # 30-day retention satisfies LGPD audit requirements (ADR-011).
+    # Staging uses 15 days; production doubles that for compliance.
+    retention: 30d
+
+  grafana:
+    ingress:
+      hosts:
+        - grafana.austa.com.br
+      tls:
+        - secretName: grafana-tls
+          hosts:
+            - grafana.austa.com.br
+
+# =============================================================================
+# NETWORK POLICIES
+# =============================================================================
+# Explicitly enabled in production. Ensure no accidental relaxation when
+# applying this overlay on top of a base that already sets enabled: true.
+networkPolicies:
+  enabled: true
+
+# =============================================================================
+# POD DISRUPTION BUDGETS
+# =============================================================================
+# minAvailable: 1 guarantees that voluntary disruptions (e.g. node drain,
+# helm upgrades) never take all pods of a critical component offline at once.
+# These values match the base defaults and are restated here for operational
+# clarity — they must never be accidentally lowered via a partial overlay.
+podDisruptionBudgets:
+  cibSeven:
+    minAvailable: 1
+  hapiFhir:
+    minAvailable: 1
+  workers:
+    minAvailable: 1

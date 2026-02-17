@@ -402,4 +402,4 @@ class PrioritizeHighValueCasesWorkerStub(PrioritizeHighValueCasesProtocol):
 
 
 # Topic constant for Camunda message correlation
-TOPIC = "prioritize-high-value-cases"
+TOPIC = "platform.prioritize_high_value_cases"

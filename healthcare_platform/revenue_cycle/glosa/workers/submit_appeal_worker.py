@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """
 Submit Glosa Appeal Worker.
 

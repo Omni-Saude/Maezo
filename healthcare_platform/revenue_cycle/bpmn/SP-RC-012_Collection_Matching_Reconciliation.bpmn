@@ -1,0 +1,784 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+                  xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+                  xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+                  xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
+                  xmlns:camunda="http://camunda.org/schema/1.0/bpmn"
+                  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                  id="Definitions_RC008A"
+                  targetNamespace="http://cib7.healthcare/revenue-cycle">
+
+  <bpmn:process id="SP_RC_012_Collection_Matching_Reconciliation" name="Conciliação de Pagamentos e Reconciliação" isExecutable="true">
+
+    <bpmn:startEvent id="start_matching_reconciliation" name="Início Conciliação">
+      <bpmn:outgoing>flow_to_parse_payment_file</bpmn:outgoing>
+    </bpmn:startEvent>
+
+    <!-- MATCHING GROUP -->
+
+    <!-- Parse Payment File -->
+    <bpmn:serviceTask id="task_parse_payment_file" name="Processar Arquivo de Pagamento"
+                      camunda:type="external" camunda:topic="collection.parse_payment_file">
+      <bpmn:extensionElements>
+        <camunda:inputOutput>
+          <camunda:inputParameter name="filePath">${paymentFilePath}</camunda:inputParameter>
+          <camunda:inputParameter name="fileFormat">${paymentFileFormat}</camunda:inputParameter>
+          <camunda:outputParameter name="parsedPayments">${payments}</camunda:outputParameter>
+          <camunda:outputParameter name="recordCount">${paymentCount}</camunda:outputParameter>
+        </camunda:inputOutput>
+      </bpmn:extensionElements>
+      <bpmn:incoming>flow_to_parse_payment_file</bpmn:incoming>
+      <bpmn:outgoing>flow_to_validate_payment_data</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Validate Payment Data -->
+    <bpmn:serviceTask id="task_validate_payment_data" name="Validar Dados de Pagamento"
+                      camunda:type="external" camunda:topic="collection.validate_payment_data">
+      <bpmn:extensionElements>
+        <camunda:inputOutput>
+          <camunda:inputParameter name="payments">${parsedPayments}</camunda:inputParameter>
+          <camunda:outputParameter name="validPayments">${validatedPayments}</camunda:outputParameter>
+          <camunda:outputParameter name="validationErrors">${errors}</camunda:outputParameter>
+        </camunda:inputOutput>
+      </bpmn:extensionElements>
+      <bpmn:incoming>flow_to_validate_payment_data</bpmn:incoming>
+      <bpmn:outgoing>flow_to_classify_payment_type</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Classify Payment Type -->
+    <bpmn:serviceTask id="task_classify_payment_type" name="Classificar Tipo de Pagamento"
+                      camunda:type="external" camunda:topic="collection.classify_payment_type">
+      <bpmn:extensionElements>
+        <camunda:inputOutput>
+          <camunda:inputParameter name="payments">${validatedPayments}</camunda:inputParameter>
+          <camunda:outputParameter name="classifiedPayments">${classifiedPayments}</camunda:outputParameter>
+          <camunda:outputParameter name="paymentTypes">${paymentTypeBreakdown}</camunda:outputParameter>
+        </camunda:inputOutput>
+      </bpmn:extensionElements>
+      <bpmn:incoming>flow_to_classify_payment_type</bpmn:incoming>
+      <bpmn:outgoing>flow_to_matching_strategy</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Matching Strategy Gateway -->
+    <bpmn:exclusiveGateway id="gateway_matching_strategy" name="Estratégia de Conciliação">
+      <bpmn:incoming>flow_to_matching_strategy</bpmn:incoming>
+      <bpmn:outgoing>flow_to_match_protocol</bpmn:outgoing>
+      <bpmn:outgoing>flow_to_match_invoice</bpmn:outgoing>
+      <bpmn:outgoing>flow_to_match_patient</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+
+    <!-- Match by Protocol -->
+    <bpmn:serviceTask id="task_match_by_protocol" name="Conciliar por Protocolo"
+                      camunda:type="external" camunda:topic="collection.match_by_protocol">
+      <bpmn:extensionElements>
+        <camunda:inputOutput>
+          <camunda:inputParameter name="payments">${classifiedPayments}</camunda:inputParameter>
+          <camunda:inputParameter name="matchingField">protocolNumber</camunda:inputParameter>
+          <camunda:outputParameter name="matchedPayments">${protocolMatches}</camunda:outputParameter>
+        </camunda:inputOutput>
+      </bpmn:extensionElements>
+      <bpmn:incoming>flow_to_match_protocol</bpmn:incoming>
+      <bpmn:outgoing>flow_protocol_to_join</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Match by Invoice -->
+    <bpmn:serviceTask id="task_match_by_invoice" name="Conciliar por Fatura"
+                      camunda:type="external" camunda:topic="collection.match_by_invoice">
+      <bpmn:extensionElements>
+        <camunda:inputOutput>
+          <camunda:inputParameter name="payments">${classifiedPayments}</camunda:inputParameter>
+          <camunda:inputParameter name="matchingField">invoiceNumber</camunda:inputParameter>
+          <camunda:outputParameter name="matchedPayments">${invoiceMatches}</camunda:outputParameter>
+        </camunda:inputOutput>
+      </bpmn:extensionElements>
+      <bpmn:incoming>flow_to_match_invoice</bpmn:incoming>
+      <bpmn:outgoing>flow_invoice_to_join</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Match by Patient -->
+    <bpmn:serviceTask id="task_match_by_patient" name="Conciliar por Paciente"
+                      camunda:type="external" camunda:topic="collection.match_by_patient">
+      <bpmn:extensionElements>
+        <camunda:inputOutput>
+          <camunda:inputParameter name="payments">${classifiedPayments}</camunda:inputParameter>
+          <camunda:inputParameter name="matchingField">patientId</camunda:inputParameter>
+          <camunda:outputParameter name="matchedPayments">${patientMatches}</camunda:outputParameter>
+        </camunda:inputOutput>
+      </bpmn:extensionElements>
+      <bpmn:incoming>flow_to_match_patient</bpmn:incoming>
+      <bpmn:outgoing>flow_patient_to_join</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Matching Strategy Join -->
+    <bpmn:exclusiveGateway id="gateway_matching_join">
+      <bpmn:incoming>flow_protocol_to_join</bpmn:incoming>
+      <bpmn:incoming>flow_invoice_to_join</bpmn:incoming>
+      <bpmn:incoming>flow_patient_to_join</bpmn:incoming>
+      <bpmn:outgoing>flow_to_auto_matching</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+
+    <!-- Auto Matching -->
+    <bpmn:serviceTask id="task_auto_matching" name="Conciliação Automática"
+                      camunda:type="external" camunda:topic="collection.auto_matching">
+      <bpmn:extensionElements>
+        <camunda:inputOutput>
+          <camunda:inputParameter name="payments">${matchedPayments}</camunda:inputParameter>
+          <camunda:inputParameter name="openAccounts">${accountsReceivable}</camunda:inputParameter>
+          <camunda:outputParameter name="reconciledPayments">${autoMatched}</camunda:outputParameter>
+          <camunda:outputParameter name="unmatchedPayments">${pendingMatching}</camunda:outputParameter>
+        </camunda:inputOutput>
+      </bpmn:extensionElements>
+      <bpmn:incoming>flow_to_auto_matching</bpmn:incoming>
+      <bpmn:outgoing>flow_to_detect_duplicate</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Detect Duplicate Payment -->
+    <bpmn:serviceTask id="task_detect_duplicate_payment" name="Detectar Pagamento Duplicado"
+                      camunda:type="external" camunda:topic="collection.detect_duplicate_payment">
+      <bpmn:extensionElements>
+        <camunda:inputOutput>
+          <camunda:inputParameter name="payments">${reconciledPayments}</camunda:inputParameter>
+          <camunda:inputParameter name="historicalPayments">${paymentHistory}</camunda:inputParameter>
+          <camunda:outputParameter name="uniquePayments">${uniquePayments}</camunda:outputParameter>
+          <camunda:outputParameter name="duplicates">${duplicatePayments}</camunda:outputParameter>
+        </camunda:inputOutput>
+      </bpmn:extensionElements>
+      <bpmn:incoming>flow_to_detect_duplicate</bpmn:incoming>
+      <bpmn:outgoing>flow_to_convert_currency</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Error boundary for duplicate detection -->
+    <bpmn:boundaryEvent id="error_duplicate_detected" name="Duplicado Detectado" attachedToRef="task_detect_duplicate_payment">
+      <bpmn:errorEventDefinition errorRef="Error_DuplicatePayment"/>
+      <bpmn:outgoing>flow_to_end_error</bpmn:outgoing>
+    </bpmn:boundaryEvent>
+
+    <!-- Convert Currency -->
+    <bpmn:serviceTask id="task_convert_currency" name="Converter Moeda"
+                      camunda:type="external" camunda:topic="collection.convert_currency">
+      <bpmn:extensionElements>
+        <camunda:inputOutput>
+          <camunda:inputParameter name="payments">${uniquePayments}</camunda:inputParameter>
+          <camunda:inputParameter name="baseCurrency">BRL</camunda:inputParameter>
+          <camunda:inputParameter name="exchangeDate">${paymentDate}</camunda:inputParameter>
+          <camunda:outputParameter name="convertedPayments">${currencyConverted}</camunda:outputParameter>
+        </camunda:inputOutput>
+      </bpmn:extensionElements>
+      <bpmn:incoming>flow_to_convert_currency</bpmn:incoming>
+      <bpmn:outgoing>flow_to_apply_adjustments</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Apply Contractual Adjustments -->
+    <bpmn:serviceTask id="task_apply_contractual_adjustments" name="Aplicar Ajustes Contratuais"
+                      camunda:type="external" camunda:topic="collection.apply_contractual_adjustments">
+      <bpmn:extensionElements>
+        <camunda:inputOutput>
+          <camunda:inputParameter name="payments">${currencyConverted}</camunda:inputParameter>
+          <camunda:inputParameter name="contractRules">${payerContracts}</camunda:inputParameter>
+          <camunda:outputParameter name="adjustedPayments">${contractualAdjusted}</camunda:outputParameter>
+          <camunda:outputParameter name="adjustmentTotal">${totalAdjustments}</camunda:outputParameter>
+        </camunda:inputOutput>
+      </bpmn:extensionElements>
+      <bpmn:incoming>flow_to_apply_adjustments</bpmn:incoming>
+      <bpmn:outgoing>flow_to_calculate_net</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- PAYMENT GROUP -->
+
+    <!-- Calculate Net Payment -->
+    <bpmn:serviceTask id="task_calculate_net_payment" name="Calcular Pagamento Líquido"
+                      camunda:type="external" camunda:topic="collection.calculate_net_payment">
+      <bpmn:extensionElements>
+        <camunda:inputOutput>
+          <camunda:inputParameter name="payments">${adjustedPayments}</camunda:inputParameter>
+          <camunda:inputParameter name="adjustments">${totalAdjustments}</camunda:inputParameter>
+          <camunda:outputParameter name="netPayments">${netPaymentAmounts}</camunda:outputParameter>
+          <camunda:outputParameter name="variance">${paymentVariance}</camunda:outputParameter>
+        </camunda:inputOutput>
+      </bpmn:extensionElements>
+      <bpmn:incoming>flow_to_calculate_net</bpmn:incoming>
+      <bpmn:outgoing>flow_to_payment_value_gateway</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Payment Value Gateway -->
+    <bpmn:exclusiveGateway id="gateway_payment_value" name="Valor do Pagamento">
+      <bpmn:incoming>flow_to_payment_value_gateway</bpmn:incoming>
+      <bpmn:outgoing>flow_to_overpayment</bpmn:outgoing>
+      <bpmn:outgoing>flow_to_underpayment</bpmn:outgoing>
+      <bpmn:outgoing>flow_to_exact_match</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+
+    <!-- Handle Overpayment -->
+    <bpmn:serviceTask id="task_handle_overpayment" name="Tratar Pagamento a Maior"
+                      camunda:type="external" camunda:topic="collection.handle_overpayment">
+      <bpmn:extensionElements>
+        <camunda:inputOutput>
+          <camunda:inputParameter name="payments">${netPayments}</camunda:inputParameter>
+          <camunda:inputParameter name="variance">${paymentVariance}</camunda:inputParameter>
+          <camunda:outputParameter name="processedPayments">${overpaymentProcessed}</camunda:outputParameter>
+          <camunda:outputParameter name="creditBalance">${creditAmount}</camunda:outputParameter>
+        </camunda:inputOutput>
+      </bpmn:extensionElements>
+      <bpmn:incoming>flow_to_overpayment</bpmn:incoming>
+      <bpmn:outgoing>flow_overpayment_to_join</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Handle Underpayment -->
+    <bpmn:serviceTask id="task_handle_underpayment" name="Tratar Pagamento a Menor"
+                      camunda:type="external" camunda:topic="collection.handle_underpayment">
+      <bpmn:extensionElements>
+        <camunda:inputOutput>
+          <camunda:inputParameter name="payments">${netPayments}</camunda:inputParameter>
+          <camunda:inputParameter name="variance">${paymentVariance}</camunda:inputParameter>
+          <camunda:outputParameter name="processedPayments">${underpaymentProcessed}</camunda:outputParameter>
+          <camunda:outputParameter name="debitBalance">${outstandingAmount}</camunda:outputParameter>
+        </camunda:inputOutput>
+      </bpmn:extensionElements>
+      <bpmn:incoming>flow_to_underpayment</bpmn:incoming>
+      <bpmn:outgoing>flow_underpayment_to_join</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Payment Value Join -->
+    <bpmn:exclusiveGateway id="gateway_payment_value_join">
+      <bpmn:incoming>flow_overpayment_to_join</bpmn:incoming>
+      <bpmn:incoming>flow_underpayment_to_join</bpmn:incoming>
+      <bpmn:incoming>flow_to_exact_match</bpmn:incoming>
+      <bpmn:outgoing>flow_to_persist_payment</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+
+    <!-- Persist Payment -->
+    <bpmn:serviceTask id="task_persist_payment" name="Persistir Pagamento"
+                      camunda:type="external" camunda:topic="collection.persist_payment">
+      <bpmn:extensionElements>
+        <camunda:inputOutput>
+          <camunda:inputParameter name="payments">${processedPayments}</camunda:inputParameter>
+          <camunda:inputParameter name="reconciliationDate">${currentDate}</camunda:inputParameter>
+          <camunda:outputParameter name="persistedPayments">${savedPayments}</camunda:outputParameter>
+          <camunda:outputParameter name="paymentIds">${paymentIdentifiers}</camunda:outputParameter>
+        </camunda:inputOutput>
+      </bpmn:extensionElements>
+      <bpmn:incoming>flow_to_persist_payment</bpmn:incoming>
+      <bpmn:outgoing>flow_to_reconciliation_frequency</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- RECONCILIATION GROUP -->
+
+    <!-- Reconciliation Frequency Gateway -->
+    <bpmn:exclusiveGateway id="gateway_reconciliation_frequency" name="Frequência de Reconciliação">
+      <bpmn:incoming>flow_to_reconciliation_frequency</bpmn:incoming>
+      <bpmn:outgoing>flow_to_weekly</bpmn:outgoing>
+      <bpmn:outgoing>flow_to_monthly</bpmn:outgoing>
+      <bpmn:outgoing>flow_to_archive_direct</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+
+    <!-- Reconcile Weekly -->
+    <bpmn:serviceTask id="task_reconcile_weekly" name="Reconciliar Semanalmente"
+                      camunda:type="external" camunda:topic="collection.reconcile_weekly">
+      <bpmn:extensionElements>
+        <camunda:inputOutput>
+          <camunda:inputParameter name="payments">${persistedPayments}</camunda:inputParameter>
+          <camunda:inputParameter name="weekStartDate">${weekStart}</camunda:inputParameter>
+          <camunda:inputParameter name="weekEndDate">${weekEnd}</camunda:inputParameter>
+          <camunda:outputParameter name="weeklyReport">${weeklyReconciliation}</camunda:outputParameter>
+          <camunda:outputParameter name="weeklyTotal">${weeklyTotalAmount}</camunda:outputParameter>
+        </camunda:inputOutput>
+      </bpmn:extensionElements>
+      <bpmn:incoming>flow_to_weekly</bpmn:incoming>
+      <bpmn:outgoing>flow_weekly_to_join</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Reconcile Monthly -->
+    <bpmn:serviceTask id="task_reconcile_monthly" name="Reconciliar Mensalmente"
+                      camunda:type="external" camunda:topic="collection.reconcile_monthly">
+      <bpmn:extensionElements>
+        <camunda:inputOutput>
+          <camunda:inputParameter name="payments">${persistedPayments}</camunda:inputParameter>
+          <camunda:inputParameter name="monthStartDate">${monthStart}</camunda:inputParameter>
+          <camunda:inputParameter name="monthEndDate">${monthEnd}</camunda:inputParameter>
+          <camunda:outputParameter name="monthlyReport">${monthlyReconciliation}</camunda:outputParameter>
+          <camunda:outputParameter name="monthlyTotal">${monthlyTotalAmount}</camunda:outputParameter>
+        </camunda:inputOutput>
+      </bpmn:extensionElements>
+      <bpmn:incoming>flow_to_monthly</bpmn:incoming>
+      <bpmn:outgoing>flow_monthly_to_join</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Reconciliation Frequency Join -->
+    <bpmn:exclusiveGateway id="gateway_reconciliation_join">
+      <bpmn:incoming>flow_weekly_to_join</bpmn:incoming>
+      <bpmn:incoming>flow_monthly_to_join</bpmn:incoming>
+      <bpmn:incoming>flow_to_archive_direct</bpmn:incoming>
+      <bpmn:outgoing>flow_to_flag_discrepancies</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+
+    <!-- Flag Discrepancies -->
+    <bpmn:serviceTask id="task_flag_discrepancies" name="Sinalizar Divergências"
+                      camunda:type="external" camunda:topic="collection.flag_discrepancies">
+      <bpmn:extensionElements>
+        <camunda:inputOutput>
+          <camunda:inputParameter name="reconciliationReport">${reconciliationData}</camunda:inputParameter>
+          <camunda:inputParameter name="thresholdAmount">${discrepancyThreshold}</camunda:inputParameter>
+          <camunda:outputParameter name="discrepancies">${flaggedDiscrepancies}</camunda:outputParameter>
+          <camunda:outputParameter name="discrepancyCount">${totalDiscrepancies}</camunda:outputParameter>
+        </camunda:inputOutput>
+      </bpmn:extensionElements>
+      <bpmn:incoming>flow_to_flag_discrepancies</bpmn:incoming>
+      <bpmn:outgoing>flow_to_archive_reconciliation</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Archive Reconciliation -->
+    <bpmn:serviceTask id="task_archive_reconciliation" name="Arquivar Reconciliação"
+                      camunda:type="external" camunda:topic="collection.archive_reconciliation">
+      <bpmn:extensionElements>
+        <camunda:inputOutput>
+          <camunda:inputParameter name="reconciliationReport">${reconciliationData}</camunda:inputParameter>
+          <camunda:inputParameter name="discrepancies">${flaggedDiscrepancies}</camunda:inputParameter>
+          <camunda:inputParameter name="archiveDate">${currentDate}</camunda:inputParameter>
+          <camunda:outputParameter name="archiveId">${reconciliationArchiveId}</camunda:outputParameter>
+          <camunda:outputParameter name="archiveStatus">archived</camunda:outputParameter>
+        </camunda:inputOutput>
+      </bpmn:extensionElements>
+      <bpmn:incoming>flow_to_archive_reconciliation</bpmn:incoming>
+      <bpmn:outgoing>flow_to_end_success</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- End Events -->
+    <bpmn:endEvent id="end_success" name="Reconciliação Concluída">
+      <bpmn:incoming>flow_to_end_success</bpmn:incoming>
+    </bpmn:endEvent>
+
+    <bpmn:endEvent id="end_error" name="Erro Duplicado">
+      <bpmn:incoming>flow_to_end_error</bpmn:incoming>
+      <bpmn:errorEventDefinition errorRef="Error_DuplicatePayment"/>
+    </bpmn:endEvent>
+
+    <!-- Sequence Flows -->
+    <bpmn:sequenceFlow id="flow_to_parse_payment_file" sourceRef="start_matching_reconciliation" targetRef="task_parse_payment_file"/>
+    <bpmn:sequenceFlow id="flow_to_validate_payment_data" sourceRef="task_parse_payment_file" targetRef="task_validate_payment_data"/>
+    <bpmn:sequenceFlow id="flow_to_classify_payment_type" sourceRef="task_validate_payment_data" targetRef="task_classify_payment_type"/>
+    <bpmn:sequenceFlow id="flow_to_matching_strategy" sourceRef="task_classify_payment_type" targetRef="gateway_matching_strategy"/>
+
+    <bpmn:sequenceFlow id="flow_to_match_protocol" name="Por Protocolo" sourceRef="gateway_matching_strategy" targetRef="task_match_by_protocol">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${matchingStrategy == 'PROTOCOL'}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="flow_to_match_invoice" name="Por Fatura" sourceRef="gateway_matching_strategy" targetRef="task_match_by_invoice">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${matchingStrategy == 'INVOICE'}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="flow_to_match_patient" name="Por Paciente" sourceRef="gateway_matching_strategy" targetRef="task_match_by_patient">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${matchingStrategy == 'PATIENT'}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+
+    <bpmn:sequenceFlow id="flow_protocol_to_join" sourceRef="task_match_by_protocol" targetRef="gateway_matching_join"/>
+    <bpmn:sequenceFlow id="flow_invoice_to_join" sourceRef="task_match_by_invoice" targetRef="gateway_matching_join"/>
+    <bpmn:sequenceFlow id="flow_patient_to_join" sourceRef="task_match_by_patient" targetRef="gateway_matching_join"/>
+    <bpmn:sequenceFlow id="flow_to_auto_matching" sourceRef="gateway_matching_join" targetRef="task_auto_matching"/>
+    <bpmn:sequenceFlow id="flow_to_detect_duplicate" sourceRef="task_auto_matching" targetRef="task_detect_duplicate_payment"/>
+    <bpmn:sequenceFlow id="flow_to_convert_currency" sourceRef="task_detect_duplicate_payment" targetRef="task_convert_currency"/>
+    <bpmn:sequenceFlow id="flow_to_apply_adjustments" sourceRef="task_convert_currency" targetRef="task_apply_contractual_adjustments"/>
+    <bpmn:sequenceFlow id="flow_to_calculate_net" sourceRef="task_apply_contractual_adjustments" targetRef="task_calculate_net_payment"/>
+    <bpmn:sequenceFlow id="flow_to_payment_value_gateway" sourceRef="task_calculate_net_payment" targetRef="gateway_payment_value"/>
+
+    <bpmn:sequenceFlow id="flow_to_overpayment" name="Pagamento a Maior" sourceRef="gateway_payment_value" targetRef="task_handle_overpayment">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${paymentVariance &gt; 0}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="flow_to_underpayment" name="Pagamento a Menor" sourceRef="gateway_payment_value" targetRef="task_handle_underpayment">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${paymentVariance &lt; 0}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="flow_to_exact_match" name="Pagamento Exato" sourceRef="gateway_payment_value" targetRef="gateway_payment_value_join">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${paymentVariance == 0}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+
+    <bpmn:sequenceFlow id="flow_overpayment_to_join" sourceRef="task_handle_overpayment" targetRef="gateway_payment_value_join"/>
+    <bpmn:sequenceFlow id="flow_underpayment_to_join" sourceRef="task_handle_underpayment" targetRef="gateway_payment_value_join"/>
+    <bpmn:sequenceFlow id="flow_to_persist_payment" sourceRef="gateway_payment_value_join" targetRef="task_persist_payment"/>
+    <bpmn:sequenceFlow id="flow_to_reconciliation_frequency" sourceRef="task_persist_payment" targetRef="gateway_reconciliation_frequency"/>
+
+    <bpmn:sequenceFlow id="flow_to_weekly" name="Semanal" sourceRef="gateway_reconciliation_frequency" targetRef="task_reconcile_weekly">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${reconciliationFrequency == 'WEEKLY'}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="flow_to_monthly" name="Mensal" sourceRef="gateway_reconciliation_frequency" targetRef="task_reconcile_monthly">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${reconciliationFrequency == 'MONTHLY'}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="flow_to_archive_direct" name="Arquivar Direto" sourceRef="gateway_reconciliation_frequency" targetRef="gateway_reconciliation_join">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${reconciliationFrequency == 'NONE'}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+
+    <bpmn:sequenceFlow id="flow_weekly_to_join" sourceRef="task_reconcile_weekly" targetRef="gateway_reconciliation_join"/>
+    <bpmn:sequenceFlow id="flow_monthly_to_join" sourceRef="task_reconcile_monthly" targetRef="gateway_reconciliation_join"/>
+    <bpmn:sequenceFlow id="flow_to_flag_discrepancies" sourceRef="gateway_reconciliation_join" targetRef="task_flag_discrepancies"/>
+    <bpmn:sequenceFlow id="flow_to_archive_reconciliation" sourceRef="task_flag_discrepancies" targetRef="task_archive_reconciliation"/>
+    <bpmn:sequenceFlow id="flow_to_end_success" sourceRef="task_archive_reconciliation" targetRef="end_success"/>
+    <bpmn:sequenceFlow id="flow_to_end_error" sourceRef="error_duplicate_detected" targetRef="end_error"/>
+
+  </bpmn:process>
+
+  <bpmn:error id="Error_DuplicatePayment" name="DuplicatePayment" errorCode="ERR_DUPLICATE_PAYMENT_001"/>
+
+  <bpmndi:BPMNDiagram id="BPMNDiagram_1">
+    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="SP_RC_012_Collection_Matching_Reconciliation">
+
+      <!-- Start Event -->
+      <bpmndi:BPMNShape id="start_matching_reconciliation_di" bpmnElement="start_matching_reconciliation">
+        <dc:Bounds x="162" y="162" width="36" height="36"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="136" y="205" width="88" height="14"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+
+      <!-- Parse Payment File -->
+      <bpmndi:BPMNShape id="task_parse_payment_file_di" bpmnElement="task_parse_payment_file">
+        <dc:Bounds x="250" y="140" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <!-- Validate Payment Data -->
+      <bpmndi:BPMNShape id="task_validate_payment_data_di" bpmnElement="task_validate_payment_data">
+        <dc:Bounds x="400" y="140" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <!-- Classify Payment Type -->
+      <bpmndi:BPMNShape id="task_classify_payment_type_di" bpmnElement="task_classify_payment_type">
+        <dc:Bounds x="550" y="140" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <!-- Matching Strategy Gateway -->
+      <bpmndi:BPMNShape id="gateway_matching_strategy_di" bpmnElement="gateway_matching_strategy" isMarkerVisible="true">
+        <dc:Bounds x="700" y="155" width="50" height="50"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="684" y="212" width="82" height="27"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+
+      <!-- Match by Protocol -->
+      <bpmndi:BPMNShape id="task_match_by_protocol_di" bpmnElement="task_match_by_protocol">
+        <dc:Bounds x="800" y="60" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <!-- Match by Invoice -->
+      <bpmndi:BPMNShape id="task_match_by_invoice_di" bpmnElement="task_match_by_invoice">
+        <dc:Bounds x="800" y="140" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <!-- Match by Patient -->
+      <bpmndi:BPMNShape id="task_match_by_patient_di" bpmnElement="task_match_by_patient">
+        <dc:Bounds x="800" y="220" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <!-- Matching Join -->
+      <bpmndi:BPMNShape id="gateway_matching_join_di" bpmnElement="gateway_matching_join" isMarkerVisible="true">
+        <dc:Bounds x="950" y="155" width="50" height="50"/>
+      </bpmndi:BPMNShape>
+
+      <!-- Auto Matching -->
+      <bpmndi:BPMNShape id="task_auto_matching_di" bpmnElement="task_auto_matching">
+        <dc:Bounds x="1050" y="140" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <!-- Detect Duplicate Payment -->
+      <bpmndi:BPMNShape id="task_detect_duplicate_payment_di" bpmnElement="task_detect_duplicate_payment">
+        <dc:Bounds x="1200" y="140" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <!-- Error Boundary Event -->
+      <bpmndi:BPMNShape id="error_duplicate_detected_di" bpmnElement="error_duplicate_detected">
+        <dc:Bounds x="1282" y="202" width="36" height="36"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1308" y="243" width="64" height="27"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+
+      <!-- Convert Currency -->
+      <bpmndi:BPMNShape id="task_convert_currency_di" bpmnElement="task_convert_currency">
+        <dc:Bounds x="1350" y="140" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <!-- Apply Contractual Adjustments -->
+      <bpmndi:BPMNShape id="task_apply_contractual_adjustments_di" bpmnElement="task_apply_contractual_adjustments">
+        <dc:Bounds x="1500" y="140" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <!-- Calculate Net Payment -->
+      <bpmndi:BPMNShape id="task_calculate_net_payment_di" bpmnElement="task_calculate_net_payment">
+        <dc:Bounds x="1650" y="140" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <!-- Payment Value Gateway -->
+      <bpmndi:BPMNShape id="gateway_payment_value_di" bpmnElement="gateway_payment_value" isMarkerVisible="true">
+        <dc:Bounds x="1800" y="155" width="50" height="50"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1789" y="212" width="72" height="27"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+
+      <!-- Handle Overpayment -->
+      <bpmndi:BPMNShape id="task_handle_overpayment_di" bpmnElement="task_handle_overpayment">
+        <dc:Bounds x="1900" y="60" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <!-- Handle Underpayment -->
+      <bpmndi:BPMNShape id="task_handle_underpayment_di" bpmnElement="task_handle_underpayment">
+        <dc:Bounds x="1900" y="220" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <!-- Payment Value Join -->
+      <bpmndi:BPMNShape id="gateway_payment_value_join_di" bpmnElement="gateway_payment_value_join" isMarkerVisible="true">
+        <dc:Bounds x="2050" y="155" width="50" height="50"/>
+      </bpmndi:BPMNShape>
+
+      <!-- Persist Payment -->
+      <bpmndi:BPMNShape id="task_persist_payment_di" bpmnElement="task_persist_payment">
+        <dc:Bounds x="2150" y="140" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <!-- Reconciliation Frequency Gateway -->
+      <bpmndi:BPMNShape id="gateway_reconciliation_frequency_di" bpmnElement="gateway_reconciliation_frequency" isMarkerVisible="true">
+        <dc:Bounds x="2300" y="155" width="50" height="50"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="2283" y="212" width="84" height="27"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+
+      <!-- Reconcile Weekly -->
+      <bpmndi:BPMNShape id="task_reconcile_weekly_di" bpmnElement="task_reconcile_weekly">
+        <dc:Bounds x="2400" y="60" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <!-- Reconcile Monthly -->
+      <bpmndi:BPMNShape id="task_reconcile_monthly_di" bpmnElement="task_reconcile_monthly">
+        <dc:Bounds x="2400" y="220" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <!-- Reconciliation Join -->
+      <bpmndi:BPMNShape id="gateway_reconciliation_join_di" bpmnElement="gateway_reconciliation_join" isMarkerVisible="true">
+        <dc:Bounds x="2550" y="155" width="50" height="50"/>
+      </bpmndi:BPMNShape>
+
+      <!-- Flag Discrepancies -->
+      <bpmndi:BPMNShape id="task_flag_discrepancies_di" bpmnElement="task_flag_discrepancies">
+        <dc:Bounds x="2650" y="140" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <!-- Archive Reconciliation -->
+      <bpmndi:BPMNShape id="task_archive_reconciliation_di" bpmnElement="task_archive_reconciliation">
+        <dc:Bounds x="2800" y="140" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <!-- End Success -->
+      <bpmndi:BPMNShape id="end_success_di" bpmnElement="end_success">
+        <dc:Bounds x="2950" y="162" width="36" height="36"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="2925" y="205" width="86" height="27"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+
+      <!-- End Error -->
+      <bpmndi:BPMNShape id="end_error_di" bpmnElement="end_error">
+        <dc:Bounds x="1282" y="282" width="36" height="36"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1264" y="325" width="72" height="14"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+
+      <!-- Sequence Flow Edges -->
+      <bpmndi:BPMNEdge id="flow_to_parse_payment_file_di" bpmnElement="flow_to_parse_payment_file">
+        <di:waypoint x="198" y="180"/>
+        <di:waypoint x="250" y="180"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="flow_to_validate_payment_data_di" bpmnElement="flow_to_validate_payment_data">
+        <di:waypoint x="350" y="180"/>
+        <di:waypoint x="400" y="180"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="flow_to_classify_payment_type_di" bpmnElement="flow_to_classify_payment_type">
+        <di:waypoint x="500" y="180"/>
+        <di:waypoint x="550" y="180"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="flow_to_matching_strategy_di" bpmnElement="flow_to_matching_strategy">
+        <di:waypoint x="650" y="180"/>
+        <di:waypoint x="700" y="180"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="flow_to_match_protocol_di" bpmnElement="flow_to_match_protocol">
+        <di:waypoint x="725" y="155"/>
+        <di:waypoint x="725" y="100"/>
+        <di:waypoint x="800" y="100"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="732" y="83" width="66" height="14"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="flow_to_match_invoice_di" bpmnElement="flow_to_match_invoice">
+        <di:waypoint x="750" y="180"/>
+        <di:waypoint x="800" y="180"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="752" y="163" width="56" height="14"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="flow_to_match_patient_di" bpmnElement="flow_to_match_patient">
+        <di:waypoint x="725" y="205"/>
+        <di:waypoint x="725" y="260"/>
+        <di:waypoint x="800" y="260"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="730" y="273" width="66" height="14"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="flow_protocol_to_join_di" bpmnElement="flow_protocol_to_join">
+        <di:waypoint x="900" y="100"/>
+        <di:waypoint x="975" y="100"/>
+        <di:waypoint x="975" y="155"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="flow_invoice_to_join_di" bpmnElement="flow_invoice_to_join">
+        <di:waypoint x="900" y="180"/>
+        <di:waypoint x="950" y="180"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="flow_patient_to_join_di" bpmnElement="flow_patient_to_join">
+        <di:waypoint x="900" y="260"/>
+        <di:waypoint x="975" y="260"/>
+        <di:waypoint x="975" y="205"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="flow_to_auto_matching_di" bpmnElement="flow_to_auto_matching">
+        <di:waypoint x="1000" y="180"/>
+        <di:waypoint x="1050" y="180"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="flow_to_detect_duplicate_di" bpmnElement="flow_to_detect_duplicate">
+        <di:waypoint x="1150" y="180"/>
+        <di:waypoint x="1200" y="180"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="flow_to_convert_currency_di" bpmnElement="flow_to_convert_currency">
+        <di:waypoint x="1300" y="180"/>
+        <di:waypoint x="1350" y="180"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="flow_to_apply_adjustments_di" bpmnElement="flow_to_apply_adjustments">
+        <di:waypoint x="1450" y="180"/>
+        <di:waypoint x="1500" y="180"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="flow_to_calculate_net_di" bpmnElement="flow_to_calculate_net">
+        <di:waypoint x="1600" y="180"/>
+        <di:waypoint x="1650" y="180"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="flow_to_payment_value_gateway_di" bpmnElement="flow_to_payment_value_gateway">
+        <di:waypoint x="1750" y="180"/>
+        <di:waypoint x="1800" y="180"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="flow_to_overpayment_di" bpmnElement="flow_to_overpayment">
+        <di:waypoint x="1825" y="155"/>
+        <di:waypoint x="1825" y="100"/>
+        <di:waypoint x="1900" y="100"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1824" y="83" width="62" height="27"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="flow_to_underpayment_di" bpmnElement="flow_to_underpayment">
+        <di:waypoint x="1825" y="205"/>
+        <di:waypoint x="1825" y="260"/>
+        <di:waypoint x="1900" y="260"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1829" y="273" width="62" height="27"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="flow_to_exact_match_di" bpmnElement="flow_to_exact_match">
+        <di:waypoint x="1850" y="180"/>
+        <di:waypoint x="2050" y="180"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1920" y="163" width="60" height="27"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="flow_overpayment_to_join_di" bpmnElement="flow_overpayment_to_join">
+        <di:waypoint x="2000" y="100"/>
+        <di:waypoint x="2075" y="100"/>
+        <di:waypoint x="2075" y="155"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="flow_underpayment_to_join_di" bpmnElement="flow_underpayment_to_join">
+        <di:waypoint x="2000" y="260"/>
+        <di:waypoint x="2075" y="260"/>
+        <di:waypoint x="2075" y="205"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="flow_to_persist_payment_di" bpmnElement="flow_to_persist_payment">
+        <di:waypoint x="2100" y="180"/>
+        <di:waypoint x="2150" y="180"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="flow_to_reconciliation_frequency_di" bpmnElement="flow_to_reconciliation_frequency">
+        <di:waypoint x="2250" y="180"/>
+        <di:waypoint x="2300" y="180"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="flow_to_weekly_di" bpmnElement="flow_to_weekly">
+        <di:waypoint x="2325" y="155"/>
+        <di:waypoint x="2325" y="100"/>
+        <di:waypoint x="2400" y="100"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="2334" y="83" width="42" height="14"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="flow_to_monthly_di" bpmnElement="flow_to_monthly">
+        <di:waypoint x="2325" y="205"/>
+        <di:waypoint x="2325" y="260"/>
+        <di:waypoint x="2400" y="260"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="2340" y="273" width="36" height="14"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="flow_to_archive_direct_di" bpmnElement="flow_to_archive_direct">
+        <di:waypoint x="2350" y="180"/>
+        <di:waypoint x="2550" y="180"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="2422" y="163" width="56" height="27"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="flow_weekly_to_join_di" bpmnElement="flow_weekly_to_join">
+        <di:waypoint x="2500" y="100"/>
+        <di:waypoint x="2575" y="100"/>
+        <di:waypoint x="2575" y="155"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="flow_monthly_to_join_di" bpmnElement="flow_monthly_to_join">
+        <di:waypoint x="2500" y="260"/>
+        <di:waypoint x="2575" y="260"/>
+        <di:waypoint x="2575" y="205"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="flow_to_flag_discrepancies_di" bpmnElement="flow_to_flag_discrepancies">
+        <di:waypoint x="2600" y="180"/>
+        <di:waypoint x="2650" y="180"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="flow_to_archive_reconciliation_di" bpmnElement="flow_to_archive_reconciliation">
+        <di:waypoint x="2750" y="180"/>
+        <di:waypoint x="2800" y="180"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="flow_to_end_success_di" bpmnElement="flow_to_end_success">
+        <di:waypoint x="2900" y="180"/>
+        <di:waypoint x="2950" y="180"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="flow_to_end_error_di" bpmnElement="flow_to_end_error">
+        <di:waypoint x="1300" y="238"/>
+        <di:waypoint x="1300" y="282"/>
+      </bpmndi:BPMNEdge>
+
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+
+</bpmn:definitions>

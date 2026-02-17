@@ -62,7 +62,7 @@ class ExtractClinicalDataWorker:
     Archetype: FINANCIAL_CALCULATION
     """
 
-    TOPIC = "coding.extract_clinical_data"
+    TOPIC = "revenue_cycle.coding.extract_clinical_data"
 
     def __init__(self, fhir_client: FHIRClientProtocol) -> None:
         self._fhir = fhir_client

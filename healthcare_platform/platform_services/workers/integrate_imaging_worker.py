@@ -426,4 +426,4 @@ async def execute(input_data: dict[str, Any]) -> dict[str, Any]:
 
 
 # Topic Kafka
-TOPIC = "platform.services.integrate-imaging"
+TOPIC = "platform.integrate_imaging"

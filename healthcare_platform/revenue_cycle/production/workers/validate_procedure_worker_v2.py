@@ -30,7 +30,7 @@ class ValidateProcedureWorker(BaseExternalTaskWorker):
     Worker handles: input parsing, per-code DMN calls, result assembly.
     """
 
-    TOPIC = "production.validate_procedure"
+    TOPIC = "revenue_cycle.production.validate_procedure"
     DMN_DECISION_KEY = "procedure_code_adjudication"
     DMN_CATEGORY = "pricing"
 

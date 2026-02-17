@@ -265,7 +265,7 @@ class ApplyCodingRulesWorker:
     API (Phase 6 integration).
     """
 
-    TOPIC = "apply-coding-rules"
+    TOPIC = "revenue_cycle.coding.apply_rules"
     _DMN_TABLE = "coding-rules-v1"
 
     def __init__(

@@ -550,4 +550,4 @@ class OptimizeResourceUtilizationWorkerStub(OptimizeResourceUtilizationProtocol)
 
 
 # Topic constant for Camunda message correlation
-TOPIC = "optimize-resource-utilization"
+TOPIC = "platform.optimize_resource_utilization"

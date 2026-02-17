@@ -39,7 +39,7 @@ class CheckAuthorizationWorker:
     Archetype: COMPLIANCE_VALIDATION
     """
 
-    TOPIC = "production.check_authorization"
+    TOPIC = "revenue_cycle.production.check_authorization"
 
     def __init__(
         self,

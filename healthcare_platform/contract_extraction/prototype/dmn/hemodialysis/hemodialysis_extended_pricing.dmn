@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             id="hemodialysis_extended_pricing_def"
+             name="Hemodialysis Extended Pricing"
+             namespace="http://healthcare.platform/dmn/contract_extraction">
+  <!--
+    HD Intermitente Estendida 6-8h pricing from Apendice VIII (Terapia Renal Substitutiva):
+    Hemodiálise Intermitente Hospitalar estendida de 6 a 8 horas.
+    Indicada para pacientes graves que necessitem de métodos lentos.
+    SIGTAP 03.05.01.013-1
+    Materiais: 01 capilar, 01 linha arterial, 01 linha venosa, 01 par agulhas fistula 16/17,
+    02 isoladores pressao, 02 frascos solucao acida, 03 frascos solucao basica,
+    seringas, gaze, heparina, luvas, SF 0.9%. Sem reuso.
+    Exclui: honorarios medicos acesso, cateter duplo/triplo lumen, parecer/visita medica.
+    Requer autorizacao medico supervisor SES/DF.
+  -->
+  <decision id="decision_hie_pricing" name="Hemodialysis Extended Pricing">
+    <decisionTable id="dt_hie_pricing" hitPolicy="FIRST">
+      <input id="in_session_type_hie" label="Session Type">
+        <inputExpression id="inExpr_session_type_hie" typeRef="string">
+          <text>session_type</text>
+        </inputExpression>
+      </input>
+      <input id="in_duration_hours_hie" label="Duration Hours">
+        <inputExpression id="inExpr_duration_hours_hie" typeRef="number">
+          <text>duration_hours</text>
+        </inputExpression>
+      </input>
+      <output id="out_package_code_hie" label="Package SIGTAP Code" name="package_code" typeRef="string"/>
+      <output id="out_billing_basis_hie" label="Billing Basis" name="billing_basis" typeRef="string"/>
+      <output id="out_kit_included_hie" label="Kit Included" name="kit_included" typeRef="boolean"/>
+      <!-- Rule 1: Extended intermittent HD 6-8h - valid range -->
+      <rule id="r_hie_extended_valid">
+        <description>HD Intermitente Estendida 6-8h: pacientes graves, metodos lentos. Materiais incluidos: capilar, linhas, 02 frascos sol acida, 03 frascos sol basica. Requer autorizacao supervisor SES/DF (Apendice VIII)</description>
+        <inputEntry id="ie_hie_v1"><text>"INTERMITENTE_ESTENDIDA"</text></inputEntry>
+        <inputEntry id="ie_hie_v2"><text>[6..8]</text></inputEntry>
+        <outputEntry id="oe_hie_v1"><text>"03.05.01.013-1"</text></outputEntry>
+        <outputEntry id="oe_hie_v2"><text>"Hemodiálise Intermitente Estendida 6-8h: inclui capilar, linha arterial, linha venosa, agulhas fistula 16/17, 02 isoladores pressao, 02 frascos solucao acida, 03 frascos solucao basica, seringas, gaze, heparina, luvas, SF 0,9%. Sem reuso. Requer autorizacao medico supervisor SES/DF (Apendice VIII)"</text></outputEntry>
+        <outputEntry id="oe_hie_v3"><text>true</text></outputEntry>
+      </rule>
+      <!-- Rule 2: Duration below 6h - should use regular intermittent -->
+      <rule id="r_hie_below_range">
+        <description>Duracao abaixo de 6h: usar pacote HD Intermitente regular ate 4h (Apendice VIII)</description>
+        <inputEntry id="ie_hie_b1"><text>"INTERMITENTE_ESTENDIDA"</text></inputEntry>
+        <inputEntry id="ie_hie_b2"><text>&lt; 6</text></inputEntry>
+        <outputEntry id="oe_hie_b1"><text>"03.05.01.013-1"</text></outputEntry>
+        <outputEntry id="oe_hie_b2"><text>"RECLASSIFICAR: duracao inferior a 6h - utilizar pacote HD Intermitente regular (ate 4h)"</text></outputEntry>
+        <outputEntry id="oe_hie_b3"><text>false</text></outputEntry>
+      </rule>
+      <!-- Rule 3: Duration above 8h - exceeds extended range -->
+      <rule id="r_hie_above_range">
+        <description>Duracao acima de 8h: considerar HD Continua (Apendice VIII)</description>
+        <inputEntry id="ie_hie_a1"><text>"INTERMITENTE_ESTENDIDA"</text></inputEntry>
+        <inputEntry id="ie_hie_a2"><text>&gt; 8</text></inputEntry>
+        <outputEntry id="oe_hie_a1"><text>"03.05.01.004-2"</text></outputEntry>
+        <outputEntry id="oe_hie_a2"><text>"RECLASSIFICAR: duracao superior a 8h - considerar HD Continua Hospitalar"</text></outputEntry>
+        <outputEntry id="oe_hie_a3"><text>false</text></outputEntry>
+      </rule>
+    </decisionTable>
+  </decision>
+</definitions>

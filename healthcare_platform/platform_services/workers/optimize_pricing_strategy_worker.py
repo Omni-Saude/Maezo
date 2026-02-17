@@ -438,4 +438,4 @@ class OptimizePricingStrategyStub(OptimizePricingStrategyProtocol):
 
 
 # Task topic para Camunda
-TOPIC = "optimize-pricing-strategy"
+TOPIC = "platform.optimize_pricing_strategy"

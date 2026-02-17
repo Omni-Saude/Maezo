@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             id="hemodialysis_authorization_def"
+             name="Hemodialysis Authorization"
+             namespace="http://healthcare.platform/dmn/contract_extraction">
+  <!--
+    Kit replacement authorization rules from Apendice VIII (Terapia Renal Substitutiva):
+    "Caso haja necessidade de troca do kit antes de 72 horas de uso, sera necessaria
+     justificativa por escrito e autorizacao pelo medico supervisor."
+    Authorization for TRS procedures: Contrato 4.3.7.7, Edital 2.8.7:
+    "Intervencao deve ser imediatamente realizada, com avaliacao e autorizacao posterior,
+     dentro de ate 72h, pelo medico supervisor da SES/DF"
+  -->
+  <decision id="decision_hemodialysis_authorization" name="Hemodialysis Authorization">
+    <decisionTable id="dt_hemodialysis_authorization" hitPolicy="FIRST">
+      <input id="in_kit_hours" label="Hours Since Last Kit Placed">
+        <inputExpression id="inExpr_kit_hours" typeRef="number">
+          <text>kit_replacement_hours</text>
+        </inputExpression>
+      </input>
+      <input id="in_replacement_reason" label="Reason for Replacement">
+        <inputExpression id="inExpr_replacement_reason" typeRef="string">
+          <text>replacement_reason</text>
+        </inputExpression>
+      </input>
+      <output id="out_auth_required" label="Authorization Required" name="authorization_required" typeRef="boolean"/>
+      <output id="out_auth_level" label="Authorization Level" name="authorization_level" typeRef="string"/>
+      <output id="out_docs_required" label="Documentation Required" name="documentation_required" typeRef="string"/>
+      <!-- Rule 1: Kit replacement before 72h - supervisor authorization required -->
+      <rule id="r_auth_early_replacement">
+        <description>Troca de kit antes de 72h - necessaria justificativa escrita e autorizacao supervisor SES/DF (Apendice VIII observacao)</description>
+        <inputEntry id="ie_ar_1"><text>&lt; 72</text></inputEntry>
+        <inputEntry id="ie_ar_2"><text></text></inputEntry>
+        <outputEntry id="oe_ar_1"><text>true</text></outputEntry>
+        <outputEntry id="oe_ar_2"><text>"SUPERVISOR_REQUIRED"</text></outputEntry>
+        <outputEntry id="oe_ar_3"><text>"Justificativa por escrito descrevendo a necessidade clinica de troca antecipada do kit + autorizacao pelo medico supervisor da SES/DF (Apendice VIII: kit valido por 72h)"</text></outputEntry>
+      </rule>
+      <!-- Rule 2: Kit replacement after 72h - routine exchange, standard documentation -->
+      <rule id="r_auth_routine_72h">
+        <description>Troca de kit apos 72h - troca de rotina, registro padrao (Apendice VIII)</description>
+        <inputEntry id="ie_rr_1"><text>[72..144]</text></inputEntry>
+        <inputEntry id="ie_rr_2"><text></text></inputEntry>
+        <outputEntry id="oe_rr_1"><text>false</text></outputEntry>
+        <outputEntry id="oe_rr_2"><text>"ROUTINE"</text></outputEntry>
+        <outputEntry id="oe_rr_3"><text>"Registro padrao de troca de kit apos 72h de uso - sem autorizacao especial necessaria"</text></outputEntry>
+      </rule>
+      <!-- Rule 3: Kit replacement after 144h (new 72h cycle) - routine -->
+      <rule id="r_auth_routine_144h">
+        <description>Troca de kit apos 144h (segundo ciclo 72h) - rotina</description>
+        <inputEntry id="ie_r144_1"><text>&gt;= 144</text></inputEntry>
+        <inputEntry id="ie_r144_2"><text></text></inputEntry>
+        <outputEntry id="oe_r144_1"><text>false</text></outputEntry>
+        <outputEntry id="oe_r144_2"><text>"ROUTINE"</text></outputEntry>
+        <outputEntry id="oe_r144_3"><text>"Registro padrao de troca de kit - ciclo regular de 72h completado"</text></outputEntry>
+      </rule>
+      <!-- Rule 4: Early replacement due to equipment malfunction - still requires supervisor -->
+      <rule id="r_auth_malfunction">
+        <description>Troca antecipada por falha equipamento - mesmo antes de 72h requer supervisor</description>
+        <inputEntry id="ie_mf_1"><text>&lt; 72</text></inputEntry>
+        <inputEntry id="ie_mf_2"><text>"FALHA_EQUIPAMENTO"</text></inputEntry>
+        <outputEntry id="oe_mf_1"><text>true</text></outputEntry>
+        <outputEntry id="oe_mf_2"><text>"SUPERVISOR_REQUIRED"</text></outputEntry>
+        <outputEntry id="oe_mf_3"><text>"Justificativa escrita + laudo tecnico de falha do equipamento + autorizacao pelo medico supervisor da SES/DF"</text></outputEntry>
+      </rule>
+      <!-- Rule 5: Early replacement due to clinical emergency - immediate action allowed, posterior authorization -->
+      <rule id="r_auth_emergency">
+        <description>Troca antecipada por emergencia clinica - acao imediata permitida, autorizacao posterior em ate 72h (Contrato 4.3.7.7)</description>
+        <inputEntry id="ie_em_1"><text>&lt; 72</text></inputEntry>
+        <inputEntry id="ie_em_2"><text>"EMERGENCIA_CLINICA"</text></inputEntry>
+        <outputEntry id="oe_em_1"><text>true</text></outputEntry>
+        <outputEntry id="oe_em_2"><text>"POSTERIOR_72H"</text></outputEntry>
+        <outputEntry id="oe_em_3"><text>"Intervencao imediata autorizada para emergencia - avaliacao e autorizacao posterior pelo medico supervisor SES/DF em ate 72h (Contrato 4.3.7.7)"</text></outputEntry>
+      </rule>
+    </decisionTable>
+  </decision>
+</definitions>
