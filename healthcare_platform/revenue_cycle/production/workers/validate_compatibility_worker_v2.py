@@ -30,7 +30,7 @@ class ValidateCompatibilityWorker(BaseExternalTaskWorker):
     Worker handles: input extraction, per-procedure DMN calls, result assembly.
     """
 
-    TOPIC = "production.validate_compatibility"
+    TOPIC = "revenue_cycle.production.validate_compatibility"
     DMN_DECISION_KEY = "procedure_compatibility_adjudication"
     DMN_CATEGORY = "pricing"
 

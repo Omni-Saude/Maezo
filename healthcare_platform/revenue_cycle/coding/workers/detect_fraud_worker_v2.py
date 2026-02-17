@@ -44,7 +44,7 @@ class DetectFraudOutput(BaseModel):
         return self.model_dump(by_alias=True)
 class DetectFraudWorkerV2(BaseExternalTaskWorker):
     """Thin DMN-federated worker for fraud detection. All 25 rule blocks delegated to 7 DMN tables."""
-    TOPIC = "coding.detect_fraud"
+    TOPIC = "revenue_cycle.coding.detect_fraud"
 
     def __init__(self, dmn_service: FederatedDMNService | None = None, fraud_engine: Any = None, **kwargs: Any) -> None:
         super().__init__(dmn_service=dmn_service)

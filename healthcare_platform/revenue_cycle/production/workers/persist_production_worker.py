@@ -34,7 +34,7 @@ class PersistProductionWorker:
     Archetype: FINANCIAL_CALCULATION
     """
 
-    TOPIC = "production.persist_production"
+    TOPIC = "revenue_cycle.production.record_production"
 
     def __init__(self, fhir_client: FHIRClientProtocol) -> None:
         self._fhir = fhir_client

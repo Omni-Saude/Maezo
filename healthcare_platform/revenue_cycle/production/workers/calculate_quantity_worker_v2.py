@@ -32,7 +32,7 @@ class CalculateQuantityWorker(BaseExternalTaskWorker):
     Worker handles: input parsing, datetime math, result assembly.
     """
 
-    TOPIC = "production.calculate_quantity"
+    TOPIC = "revenue_cycle.production.calculate_value"
     DMN_DECISION_KEY = "quantity_calculation_adjudication"
     DMN_CATEGORY = "pricing"
 

@@ -455,4 +455,4 @@ class DetectRevenueLeakageWorkerStub(DetectRevenueLeakageProtocol):
 
 
 # Topic constant for Camunda message correlation
-TOPIC = "detect-revenue-leakage"
+TOPIC = "platform.detect_revenue_leakage"

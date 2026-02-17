@@ -19,7 +19,7 @@ from healthcare_platform.revenue_cycle.production.services.pricing_assignment_se
 class AssignPricesWorker(BaseExternalTaskWorker):
     """Assigns prices to procedures. Thin worker - delegates to PricingAssignmentService."""
 
-    TOPIC = "production.assign_prices"
+    TOPIC = "revenue_cycle.production.assign_prices"
 
     def __init__(self, fhir_client: Optional[FHIRClientProtocol] = None,
                  tasy_api_client: Optional[TasyApiClientProtocol] = None, **kwargs) -> None:

@@ -29,7 +29,7 @@ class ValidateProcedureWorker:
     Archetype: COMPLIANCE_VALIDATION
     """
 
-    TOPIC = "production.validate_procedure"
+    TOPIC = "revenue_cycle.production.validate_procedure"
 
     def __init__(
         self,

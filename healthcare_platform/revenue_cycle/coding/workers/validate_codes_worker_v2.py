@@ -57,7 +57,7 @@ class ValidateCodesWorkerV2(BaseExternalTaskWorker):
     Delegates all business logic to companion DMN tables in code_validation/.
     """
 
-    TOPIC = "coding.validate_coding"
+    TOPIC = "revenue_cycle.coding.validate_coding"
 
     def __init__(self, dmn_service: FederatedDMNService | None = None, ans_client: Any = None, **kwargs: Any) -> None:
         super().__init__(dmn_service=dmn_service)

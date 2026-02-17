@@ -327,7 +327,7 @@ class AuditCodingWorker:
     findings and a recommendation (approve / revise / reject).
     """
 
-    TOPIC = "audit-coding"
+    TOPIC = "revenue_cycle.coding.audit_coding"
     _FAIL_THRESHOLD = 60
 
     def __init__(

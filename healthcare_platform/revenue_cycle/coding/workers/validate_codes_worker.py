@@ -96,7 +96,7 @@ class ValidateCodesWorker:
     3. Cross-code compatibility checks
     """
 
-    TOPIC = "coding.validate_coding"
+    TOPIC = "revenue_cycle.coding.validate_coding"
 
     def __init__(self, ans_client: ANSClientProtocol) -> None:
         self._ans = ans_client

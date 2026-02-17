@@ -522,4 +522,4 @@ class GenerateOptimizationReportWorkerStub(GenerateOptimizationReportProtocol):
 
 
 # Topic constant for Camunda message correlation
-TOPIC = "generate-optimization-report"
+TOPIC = "platform.generate_optimization_report"

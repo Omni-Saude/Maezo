@@ -478,4 +478,4 @@ async def execute(input_data: dict[str, Any]) -> dict[str, Any]:
 
 
 # Topic Kafka
-TOPIC = "platform.services.generate-executive-dashboard"
+TOPIC = "platform.generate_executive_dashboard"

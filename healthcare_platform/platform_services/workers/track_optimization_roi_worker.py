@@ -597,4 +597,4 @@ class TrackOptimizationROIWorkerStub(TrackOptimizationROIProtocol):
 
 
 # Topic constant for Camunda message correlation
-TOPIC = "track-optimization-roi"
+TOPIC = "platform.track_optimization_roi"

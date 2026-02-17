@@ -30,7 +30,7 @@ class EnrichProcedureWorker:
     Archetype: DATA_ENRICHMENT
     """
 
-    TOPIC = "production.enrich_procedure"
+    TOPIC = "revenue_cycle.production.enrich_procedure"
 
     def __init__(self, fhir_client: FHIRClientProtocol) -> None:
         self._fhir = fhir_client

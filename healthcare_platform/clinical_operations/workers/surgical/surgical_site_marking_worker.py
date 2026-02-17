@@ -1,7 +1,7 @@
 """
 Surgical Site Marking Worker - WHO surgical site marking verification.
 
-CIB7 External Task Topic: surgical.site_marking
+CIB7 External Task Topic: surgical.site_mark
 BPMN Error Code: SURGICAL_OPERATIONS_ERROR
 
 Verifies surgical site marking per WHO Safe Surgery Checklist Sign In phase.
@@ -23,7 +23,7 @@ from healthcare_platform.shared.multi_tenant.decorators import require_tenant
 from healthcare_platform.shared.observability.logging import get_logger
 from healthcare_platform.shared.observability.metrics import track_task_execution
 
-logger = get_logger(__name__, worker="surgical.site_marking")
+logger = get_logger(__name__, worker="surgical.site_mark")
 
 
 class SurgicalOperationsException(DomainException):
@@ -180,7 +180,7 @@ class SurgicalSiteMarkingWorker:
         self.logger = logger
 
     @require_tenant
-    @track_task_execution(task_type="surgical.site_marking")
+    @track_task_execution(task_type="surgical.site_mark")
     async def execute(self, task_variables: dict[str, Any]) -> dict[str, Any]:
         """Execute surgical site marking verification.
 
