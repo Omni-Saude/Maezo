@@ -22,6 +22,9 @@ class RuleArchetype(enum.Enum):
     PRICING = "PRICING"
     AUTHORIZATION = "AUTHORIZATION"
     BUNDLING = "BUNDLING"
+    WHITELIST = "WHITELIST"
+    OPME = "OPME"
+    DISCOUNT = "DISCOUNT"
 
 
 class RuleStatus(enum.Enum):
