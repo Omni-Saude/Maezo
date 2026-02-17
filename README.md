@@ -1,8 +1,7 @@
 <h1 align="center">🏥 MAEZO</h1>
 
 <p align="center">
-  <strong>Master of Automation for Ecosystems & Orchestration</strong><br/>
-  <em>Motor de Automação de Ecossistemas e Orquestração</em>
+  <strong>Motor de Automação de Ecossistemas e Orquestração</strong><br/>
 </p>
 
 <p align="center">
