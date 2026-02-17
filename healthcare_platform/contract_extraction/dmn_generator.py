@@ -24,6 +24,8 @@ _ARCHETYPE_MAP = {
     "AUTHORIZATION": "authorization.xml.j2",
     "ROUTING": "routing.xml.j2",
     "WHITELIST": "whitelist.xml.j2",
+    "OPME": "opme.xml.j2",
+    "DISCOUNT": "discount.xml.j2",
 }
 
 
