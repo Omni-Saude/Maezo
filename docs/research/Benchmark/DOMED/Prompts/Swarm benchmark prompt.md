@@ -1,6 +1,5 @@
-
 npx @claude-flow/cli@latest hive-mind spawn \
-  --workers 9 \
+  --workers 6 \
   --topology hierarchical-mesh \
   --consensus byzantine \
   --claude \
@@ -10,145 +9,307 @@ npx @claude-flow/cli@latest hive-mind spawn \
   --use-patterns \
   --use-vectors \
   --use-learning \
-  --objective " SWARM O: COLLECTION WORKERS V1.5→V2 | 48 workers | 12 DMN | 2 BPMN | 65% code reduction
+  --objective "SWARM PRODUCTION_PREP: IaC + CI/CD Readiness | 7 deliverables | ADR-002,010,012 compliance
 
-MEMORY: collection-workers-refactoring-strategy, phase-3-final-summary, swarm-M-completion
+MEMORY: production-prep-scope, pattern-complete-swarm-workflow, handoff-production-prep
 WORKSPACE: /Users/rodrigo/claude-projects/Ochestrator-CIB7-OP/Healthcare-Orchest-CIB7
-DURATION: 20-25h | PYTHON: 3.11
+DURATION: 25-35min | PYTHON: 3.12
 
 PRIMARY DELIVERABLES:
-1. 48 collection workers refactored to BaseExternalTaskWorker pattern (avg 70 lines, down from 200)
-2. 12 new DMN tables in healthcare_platform/revenue_cycle/dmn/collection_operations/
-3. healthcare_platform/revenue_cycle/bpmn/SP-RC-009_Collection_Management.bpmn (expanded)
-4. healthcare_platform/revenue_cycle/bpmn/SP-RC-010_Payment_Reconciliation.bpmn (NEW)
-5. .swarm/dmn-extraction-report.md
-6. .swarm/swarm-O-verification-report.txt
-7. .swarm/swarm-O-completion-report.md
+1. helm/maestro/values-prod.yaml
+2. k8s/overlays/staging/kustomization.yaml + patches
+3. k8s/overlays/prod/kustomization.yaml + patches  
+4. tests/smoke/__init__.py + conftest.py + 5 test files
+5. docs/runbooks/ROLLBACK.md
+6. docs/runbooks/PERFORMANCE_BASELINE.md
+7. scripts/validate_tenant_isolation.py
 
-━━━ ANTI-PATTERNS TO ELIMINATE (4 categories) ━━━
-❌AP1: HARDCODED_RULES (73% workers) → DMN tables
-  Signature: WEIGHT=0.4, if score>=80, threshold<1000, rates={}, PERCENTAGE=
-❌AP2: EMBEDDED_WORKFLOW (58% workers) → BPMN orchestration  
-  Signature: try X→fallback Y, for step in [A,B,C], if fail_retry, sequential_validation
-❌AP3: COMPLEX_CONDITIONALS (52% workers) → DMN decision logic
-  Signature: if/elif chains, _calculate_*_score(), bracket_logic(amount<1000), nested_conditions
-❌AP4: EMBEDDED_DECISION_TABLES (42% workers) → DMN federation
-  Signature: type_scores={}, mappings={}, LOOKUP_TABLE={}, priority_map={}
-
-ANTI-PATTERNS TO AVOID (from memory pattern-queen-as-coder-prevention):
+ANTI-PATTERNS TO AVOID:
+❌AP7: No throwaway scripts in .swarm/ - commit to proper locations
+❌AP1: No hardcoded credentials - use K8s secrets references
+❌AP2: No single-tenant assumptions - validate tenant markers
 ❌ Queen coding directly — DELEGATE to specialist agents
-❌ Batch updates — each agent works on specific subset
-❌ Skip verification — Tier 4 MUST validate all changes
-❌ Manual grep commands — use workspace tools and code analysis
+❌ Skip verification — Tier 6 MUST validate all changes
 
-━━━ V2 PATTERN (from Swarm M) ━━━
-@worker(topic='collection.X')
-class XWorker(BaseWorker):
-  def __init__(self): super().__init__(); self.dmn_service=FederatedDMNService()
-  @property operation_name(self)->str: return _('X')
-  async def execute_task(self, task_variables: dict)->dict:
-    result = self.dmn_service.evaluate(tenant_id=get_required_tenant(), category='collection_operations', table_name='Y', inputs={...})
-    return {...}
-TARGET: <80 lines (avg 70), 0 helper methods, 0 constants, 100% DMN-driven
-
-━━━ PHASE O1: DMN EXTRACTION (2 agents, parallel) ━━━
-O1A: Workers 1-24 | O1B: Workers 25-48
-OUTPUT: .swarm/dmn-extraction-{1-24|25-48}.json
-SCAN FOR: AP1 (WEIGHT, thresholds), AP2 (try/fallback), AP3 (if/elif, _calc_), AP4 (dicts)
-JSON SCHEMA: {workers_analyzed:int, anti_patterns_found:{AP1:[{worker,line,code,dmn_table}], AP2:[], AP3:[], AP4:[]}, dmn_tables_needed:[{name,inputs,outputs,hit_policy}]}
-
-━━━ PHASE O2: DMN CREATION (1 agent) ━━━
-O2: CREATE 12 DMN in healthcare_platform/revenue_cycle/dmn/collection_operations/
-1. priority_scoring.dmn | IN: amount,days_overdue,payer_default_rate,claim_type | OUT: priority_score,priority_level | HIT: COLLECT
-2. aging_buckets.dmn | IN: days_overdue | OUT: aging_bucket | HIT: FIRST
-3. payment_plan_eligibility.dmn | IN: amount_due,payer_history_score,days_overdue | OUT: eligible,plan_tier,max_installments | HIT: FIRST
-4. legal_escalation_criteria.dmn | IN: amount_due,days_overdue,collection_attempts,payer_type | OUT: escalate_to_legal,urgency_level,reason_code | HIT: FIRST
-5. write_off_thresholds.dmn | IN: amount,days_overdue,collection_cost,recovery_probability | OUT: write_off_approved,reason_code,requires_manager_approval | HIT: FIRST
-6. currency_conversion_rules.dmn | IN: source_currency,target_currency,conversion_date | OUT: exchange_rate,rate_source | HIT: FIRST
-7. contractual_adjustment_rules.dmn | IN: payer_contract_id,procedure_code,billed_amount | OUT: adjustment_amount,adjustment_reason,final_amount | HIT: COLLECT
-8. penalty_calculation.dmn | IN: days_overdue,amount_due,payer_type | OUT: penalty_amount,penalty_rate,penalty_type | HIT: FIRST
-9. discrepancy_tolerance.dmn | IN: expected_amount,received_amount,payment_type | OUT: within_tolerance,tolerance_percentage,action,variance | HIT: FIRST
-10. collection_strategy.dmn | IN: priority,days_overdue,amount,payer_profile | OUT: strategy,contact_frequency,escalation_path | HIT: FIRST
-11. payment_type_classification.dmn | IN: payment_method | OUT: payment_category,processing_days,requires_manual_review | HIT: FIRST
-12. overpayment_handling.dmn | IN: overpayment_amount,payer_type,relationship_status | OUT: action,processing_priority,approval_required | HIT: FIRST
-VALIDATE: xmllint --noout *.dmn
-NAMESPACE: http://healthcare.platform/dmn/collection_operations
-
-━━━ PHASE O3: BPMN ORCHESTRATION (1 agent) ━━━
-O3A: EXPAND healthcare_platform/revenue_cycle/bpmn/SP-RC-009_Collection_Management.bpmn
-  ADD: 6 service tasks (prioritize_collection, generate_collection_letter, schedule_collection_call, escalate_to_legal, write_off_bad_debt, negotiate_payment_plan)
-  ADD: Gateways (priority routing, escalation decision, write-off approval)
-  ADD: Timers (retry intervals, escalation timeout), Error boundaries (PAYMENT_NOT_FOUND, LEGAL_ESCALATION_REQUIRED, WRITE_OFF_REJECTED)
-  ENSURE: 100% BPMNDI coverage
-
-O3B: CREATE healthcare_platform/revenue_cycle/bpmn/SP-RC-010_Payment_Reconciliation.bpmn
-  FLOW: Start→classify_payment_type→[parallel: detect_duplicate + auto_matching]→[gateway: match?]→YES[apply_adjustments→calculate_net→persist]|NO[flag_discrepancies→manual_task]→check_overpayment→reconcile_monthly→End
-  SERVICE TASKS: 8 topics (collection.*)
-  ERROR BOUNDARIES: DUPLICATE_PAYMENT, OVERPAYMENT_DETECTED, RECONCILIATION_FAILED
-  TIMER BOUNDARIES: 24h manual matching, 48h discrepancy review
-  ENSURE: 100% BPMNDI coverage
-
-VALIDATE: xmllint --noout SP-RC-*.bpmn
-
-━━━ PHASE O4: V2 MIGRATION (4 agents, parallel - IMPROVED SPLIT) ━━━
-COMMON CONTEXT (ALL AGENTS):
-  BASE: from healthcare_platform.revenue_cycle.collection.workers.base import BaseWorker, worker
-  DMN: from healthcare_platform.shared.dmn.federation_service import FederatedDMNService
-  TENANT: from healthcare_platform.shared.multi_tenant.context import get_required_tenant
-  I18N: from healthcare_platform.shared.i18n import _
-  LOG: from healthcare_platform.shared.observability.logging import get_logger
+━━━ EXISTING CODE (READ BEFORE WRITING) ━━━
+HELM BASE: helm/maestro/values.yaml (679 LOC)
+  cibSeven.replicaCount: 2 (ADR-012)
+  global.tenants: 4 tenants (hospital-a, amh-sp-morumbi, amh-rj-barra, amh-mg-bh)
+  observability: prometheus+grafana+alertmanager (ADR-010)
+  workers.domains: revenueCycle, patientAccess, clinicalOperations, platformServices
+  postgresql.primary.persistence.size: 100Gi
+  kafka.broker.replicaCount: 3
   
-  TRANSFORMATION STEPS:
-  1. class XWorker: → class XWorker(BaseWorker):
-  2. TOPIC='collection.X' → @worker(topic='collection.X')
-  3. __init__: add super().__init__()
-  4. Add @property operation_name()->str: return _('...')
-  5. execute() → execute_task()
-  6. DELETE: AP1 constants, AP3 helper methods, AP4 dicts
-  7. REPLACE logic with: dmn_service.evaluate(tenant_id=get_required_tenant(), category='collection_operations', table_name='X', inputs={...})
-  8. TARGET: <80 lines
+HELM STAGING: helm/maestro/values-staging.yaml (157 LOC)
+  global.environment: staging
+  global.domain: staging.austa.com.br
+  cibSeven.replicaCount: 2
+  workers reduced replicas, smaller autoscaling
+  observability.prometheus.retention: 15d
+  
+CI/CD: .github/workflows/ci-cd.yaml (363 LOC)
+  jobs: lint, test, dmn-validation, validate-bpmn, build, deploy, integration-test
+  helm upgrade --install with values overlay pattern
+  Docker images: workers, cdc-bridge, webhook-receiver
+  
+K8S BASE: k8s/base/namespace.yaml (103 LOC), network-policies.yaml, secrets.yaml
+  namespace: maestro
+  serviceAccount: maestro
+  Role: read configmaps/secrets/pods
 
-O4A: Workers 1-12 (alert_anomalies→classify_payment_type)
-O4B: Workers 13-24 (convert_currency→match_by_invoice)
-O4C: Workers 25-36 (match_by_protocol→write_off_bad_debt)
-O4D: Workers 37-48 (calculate_write_off_threshold→calculate_interest)
+DOCKER-COMPOSE: docker-compose.yml (local stack reference)
 
-PER WORKER:
-  READ: .swarm/dmn-extraction-*.json for anti-pattern locations
-  APPLY: 8-step transformation
-  MAP TO DMN: Use extraction report table_name mapping
-  VALIDATE: python3.11 -m py_compile {file}
-  CHECK: wc -l {file} → <80
+ADR-002: Multi-tenancy with tenant markers, federation model, 4 tenants
+ADR-010: Observability stack (Prometheus, Grafana, AlertManager, ins7ght)
+ADR-012: Engine replicas phased (1→2, database locking, jdbcPoolSize: 50)
 
-━━━ PHASE O5: VERIFICATION (1 agent) ━━━
-O5: OUTPUT .swarm/swarm-O-verification-report.txt
+━━━ PHASE 1: RECON (1 agent) ━━━
+READ: helm/maestro/values.yaml, values-staging.yaml, .github/workflows/ci-cd.yaml, k8s/base/*.yaml, docker-compose.yml
+READ: docs/ADRs/002-single-engine-tenant-markers.md, 010-observability-stack.md, 012-engine-replicas-phased.md
+EXTRACT: Production requirements (replica counts, resource limits, ingress domains, TLS secrets, PDB configs, autoscaling thresholds)
+OUTPUT: .swarm/phase1-requirements.json (internal, for Phase 2-6)
 
-V1: PATTERN | grep -l 'BaseWorker' */workers/*_worker.py | wc -l → 48 | grep -l '@worker' */workers/*_worker.py | wc -l → 48 | grep -c 'TOPIC = ' */workers/*_worker.py → 0
-V2: ANTI-PATTERNS | grep -r 'WEIGHT = ' */workers/ → 0 | grep -r 'def _calculate_' */workers/ → 0 | grep -r '= {.*:.*}' */workers/ → minimal
-V3: SIZE | wc -l */workers/*_worker.py | tail -1 | awk '{print \$1/48}' → <80
-V4: IMPORTS | python -c 'from healthcare_platform.revenue_cycle.collection import *' → exit 0 | grep -c FederatedDMNService */workers/*_worker.py → 48
-V5: SYNTAX | find */workers -name '*_worker.py' -exec python3.11 -m py_compile {} \\; 2>&1 → 0 errors
-V6: DMN | find dmn/collection_operations -name '*.dmn' | wc -l → 12 | for f in dmn/collection_operations/*.dmn; do xmllint --noout \$f; done → 0 errors
-V7: BPMN | xmllint --noout bpmn/SP-RC-009*.bpmn → 0 | xmllint --noout bpmn/SP-RC-010*.bpmn → 0 | grep -c 'camunda:topic=\"collection\\.' bpmn/SP-RC-*.bpmn → >14
-V8: TESTS | pytest tests/revenue_cycle/collection/ --collect-only 2>&1 | grep -c 'ModuleNotFoundError' → 0
-V9: EXECUTION (EXIT CRITERIA) | pytest tests/revenue_cycle/collection/ -v --tb=short → PASS_RATE >95%
-V10: SCOPE | git diff healthcare_platform/revenue_cycle/{billing,glosa,coding,production} → 0 changes
+━━━ PHASE 2: HELM PRODUCTION VALUES (1 agent) ━━━
+CREATE: helm/maestro/values-prod.yaml
+SPEC:
+  global:
+    environment: production
+    domain: austa.com.br  # NOT staging subdomain
+  
+  cibSeven:
+    replicaCount: 2  # ADR-012 Phase 2+
+    resources:  # SAME as values.yaml base (full production sizing)
+      requests: {memory: 2Gi, cpu: 1000m}
+      limits: {memory: 4Gi, cpu: 2000m}
+    ingress:
+      hosts: [{host: bpm.austa.com.br}]
+      tls: [{secretName: bpm-tls, hosts: [bpm.austa.com.br]}]
+  
+  workers:
+    domains:
+      revenueCycle: {replicaCount: 3, autoscaling: {minReplicas: 2, maxReplicas: 6}}
+      patientAccess: {replicaCount: 2, autoscaling: {minReplicas: 2, maxReplicas: 4}}
+      clinicalOperations: {replicaCount: 2, autoscaling: {minReplicas: 2, maxReplicas: 6}}
+      platformServices: {replicaCount: 2, autoscaling: {minReplicas: 2, maxReplicas: 4}}
+  
+  hapiFhir:
+    replicaCount: 2
+    resources: {requests: {memory: 2Gi, cpu: 1000m}, limits: {memory: 4Gi, cpu: 2000m}}
+    ingress:
+      hosts: [{host: fhir.austa.com.br}]
+      tls: [{secretName: fhir-tls, hosts: [fhir.austa.com.br]}]
+  
+  postgresql:
+    primary: {persistence: {size: 100Gi}}
+    readReplicas: {replicaCount: 1}
+  
+  kafka:
+    controller: {replicaCount: 3}
+    broker: {replicaCount: 3, persistence: {size: 50Gi}}
+  
+  redis:
+    replica: {replicaCount: 2}
+  
+  observability:
+    prometheus: {retention: 30d}  # NOT 15d like staging
+    grafana:
+      ingress:
+        hosts: [grafana.austa.com.br]
+        tls: [{secretName: grafana-tls, hosts: [grafana.austa.com.br]}]
+  
+  networkPolicies: {enabled: true}
+  podDisruptionBudgets:
+    cibSeven: {minAvailable: 1}
+    hapiFhir: {minAvailable: 1}
+    workers: {minAvailable: 1}
 
-━━━ EXIT CRITERIA (13 checks) ━━━
-✅ 48 workers: BaseWorker + @worker + execute_task + operation_name
-✅ 0 anti-patterns: AP1(0 WEIGHT) + AP2(0 try/fallback) + AP3(0 _calc_) + AP4(0 dicts)
-✅ <80 lines avg (target 70, 65% reduction from 200)
-✅ 12 DMN files valid XML in collection_operations/
-✅ 2 BPMN files: SP-RC-009 expanded + SP-RC-010 new, 100% BPMNDI
-✅ 0 import errors (python -c test)
-✅ 0 syntax errors (py_compile)
-✅ 48 FederatedDMNService calls
-✅ 48 get_required_tenant calls
-✅ >95% test pass rate (CRITICAL)
-✅ ~150+ tests collected
-✅ No scope creep (billing/glosa/coding/production unchanged)
-✅ All verification commands PASS
+VALIDATE: helm template maestro helm/maestro -f helm/maestro/values.yaml -f helm/maestro/values-prod.yaml 2>&1 | grep -i error
 
-ROLLBACK (if pass_rate <90%): git stash → git restore collection/ dmn/collection_operations/ bpmn/SP-RC-*.bpmn → .swarm/swarm-O-rollback-report.md → memory:swarm-O-failure
+━━━ PHASE 3: KUSTOMIZE OVERLAYS (2 agents, parallel) ━━━
+P3A - STAGING OVERLAY:
+  CREATE: k8s/overlays/staging/kustomization.yaml
+  SPEC:
+    apiVersion: kustomize.config.k8s.io/v1beta1
+    kind: Kustomization
+    namespace: maestro-staging
+    bases: [../../base]
+    namePrefix: staging-
+    commonLabels: {environment: staging}
+    patches: [{patch: reduce replicas to 1 for non-HA resources}]
+  VALIDATE: kubectl kustomize k8s/overlays/staging/ 2>&1 | grep -i error
 
-DELIVERABLES: 48 workers refactored, 12 DMN files, 2 BPMN files, dmn-extraction-report.md, verification-report.txt, completion-report.md"
+P3B - PROD OVERLAY:
+  CREATE: k8s/overlays/prod/kustomization.yaml
+  SPEC:
+    apiVersion: kustomize.config.k8s.io/v1beta1
+    kind: Kustomization
+    namespace: maestro
+    bases: [../../base]
+    namePrefix: prod-
+    commonLabels: {environment: production}
+    patches: [{patch: strict network policies}, {patch: PodDisruptionBudgets minAvailable=1}]
+  VALIDATE: kubectl kustomize k8s/overlays/prod/ 2>&1 | grep -i error
+
+━━━ PHASE 4: SMOKE TESTS (1 agent) ━━━
+CREATE: tests/smoke/__init__.py (empty marker)
+
+CREATE: tests/smoke/conftest.py
+  FIXTURES: camunda_client, fhir_client, kafka_producer, redis_client, keycloak_client
+  ENV VARS: CAMUNDA_BASE_URL, FHIR_BASE_URL, KAFKA_BOOTSTRAP_SERVERS, REDIS_URL, KEYCLOAK_URL
+  
+CREATE: tests/smoke/test_health.py
+  test_cib_seven_health: GET /engine-rest/engine → 200
+  test_fhir_server_health: GET /fhir/metadata → 200
+  test_redis_ping: redis.ping() → True
+  test_kafka_broker_list: kafka.list_topics() → success
+
+CREATE: tests/smoke/test_auth.py
+  test_keycloak_realm_exists: GET /auth/realms/austa-bpm → 200
+  test_worker_service_account_token: obtain token, verify valid
+
+CREATE: tests/smoke/test_tenant.py (ADR-002)
+  test_tenant_markers_in_deployments: list deployments, verify tenantId in metadata
+  test_cross_tenant_isolation: start process in tenant A, verify tenant B cannot see it
+
+CREATE: tests/smoke/test_bpmn.py
+  test_deploy_simple_process: deploy hello-world.bpmn → 200
+  test_start_process_instance: start process, verify state=ACTIVE
+
+CREATE: tests/smoke/test_dmn.py
+  test_deploy_dmn_table: deploy simple DMN → 200
+  test_evaluate_decision: evaluate with test input, verify output matches expected
+
+DEPENDENCIES: pytest, requests, httpx, redis, kafka-python
+VALIDATE: pytest tests/smoke/ --collect-only 2>&1 | grep -c 'test session starts' → 1
+
+━━━ PHASE 5: RUNBOOKS (2 agents, parallel) ━━━
+P5A - ROLLBACK RUNBOOK:
+  CREATE: docs/runbooks/ROLLBACK.md
+  STRUCTURE:
+    # Rollback Procedure
+    ## 3-Step Rollback
+    ### Step 1: Helm Rollback
+    helm rollback maestro <REVISION> -n maestro --wait
+    kubectl -n maestro get pods -w
+    ### Step 2: Verify Deployments  
+    kubectl -n maestro rollout status deployment/maestro-cib-seven
+    kubectl -n maestro get pods | grep -v Running
+    ### Step 3: Validate Engine Health
+    curl https://bpm.austa.com.br/engine-rest/engine
+    
+    ## Common Failure Scenarios
+    - Migration failure → helm rollback, restore DB snapshot
+    - Worker OOMKilled → reduce autoscaling maxReplicas
+    - Database connection pool exhausted → increase jdbcPoolSize in values
+    - Kafka consumer lag spike → check worker logs, scale up replicas
+    
+    ## Emergency Contacts
+    DevOps Lead: devops@austa.com.br
+    Slack: #incidents-maestro
+    PagerDuty: https://austa.pagerduty.com
+
+P5B - PERFORMANCE BASELINE:
+  CREATE: docs/runbooks/PERFORMANCE_BASELINE.md
+  STRUCTURE:
+    # Performance Baseline
+    ## Expected Metrics (Production)
+    | Metric | P50 | P95 | P99 |
+    |--------|-----|-----|-----|
+    | Process Start Latency | <200ms | <500ms | <1s |
+    | External Task Fetch | <100ms | <300ms | <500ms |
+    | DMN Evaluation | <50ms | <150ms | <300ms |
+    | FHIR Read | <100ms | <250ms | <500ms |
+    | Worker Task Execution | <2s | <5s | <10s |
+    
+    ## Throughput
+    - Process Instances/day: 10,000 target, 50,000 peak capacity
+    - External Tasks/minute: 500 sustained, 2,000 burst
+    - DMN Evaluations/second: 100 sustained
+    
+    ## Error Rate
+    - Process start failures: <0.1%
+    - Worker task failures: <1% (after 3 retries)
+    - FHIR API errors: <0.5%
+    
+    ## Resource Utilization
+    - CIB Seven CPU: 60-80% avg, <90% peak
+    - PostgreSQL connections: <70% pool usage (35/50)
+    - Kafka consumer lag: <1,000 messages
+    - Redis memory: <80% capacity
+    
+    ## SLA Thresholds (Alertmanager)
+    - P95 latency >1s for 5min → P2 alert
+    - Error rate >5% for 2min → P1 alert
+    - Database pool >80% for 3min → P2 alert
+    - Worker OOMKilled → P1 alert
+
+━━━ PHASE 6: TENANT ISOLATION VALIDATOR (1 agent) ━━━
+CREATE: scripts/validate_tenant_isolation.py
+SPEC:
+  SHEBANG: Use triple quotes or escaped version to avoid zsh history expansion
+  IMPORTS: psycopg2, sys, os, typing
+  
+  def check_tenant_columns() -> List[str]:
+    # Query information_schema for ACT_* tables
+    # Verify tenant_id_ column exists in all process/task tables
+    # Return list of tables missing tenant_id_
+  
+  def check_cross_tenant_leakage() -> List[Dict]:
+    # Query ACT_RU_EXECUTION, ACT_RU_TASK for valid tenant IDs
+    # Verify all rows have tenant_id_ in (hospital-a, amh-sp-morumbi, amh-rj-barra, amh-mg-bh)
+    # Return list of rows with invalid/null tenant_id_
+  
+  def check_deployment_isolation() -> List[Dict]:
+    # Query ACT_RE_DEPLOYMENT for tenant markers
+    # Verify no global deployments without tenant_id_ (except bootstrap)
+  
+  def main():
+    DATABASE_URL = os.getenv('DATABASE_URL', 'postgresql://camunda:camunda@localhost:5432/camunda')
+    conn = psycopg2.connect(DATABASE_URL)
+    issues = []
+    issues += check_tenant_columns()
+    issues += check_cross_tenant_leakage()
+    issues += check_deployment_isolation()
+    if issues:
+      print(f'FAIL: {len(issues)} tenant isolation issues found')
+      for issue in issues: print(f'  - {issue}')
+      sys.exit(1)
+    else:
+      print('PASS: Tenant isolation validated')
+      sys.exit(0)
+  
+  if __name__ == '__main__':
+    main()
+
+VALIDATE: python3 scripts/validate_tenant_isolation.py --help 2>&1 | head -5
+
+━━━ PHASE 7: VERIFICATION (1 agent) ━━━
+OUTPUT: .swarm/production-prep-verification.txt
+
+V1: helm template maestro helm/maestro -f helm/maestro/values-prod.yaml 2>&1 | grep -ci error → 0
+V2: kubectl kustomize k8s/overlays/staging/ 2>&1 | grep -ci error → 0
+V3: kubectl kustomize k8s/overlays/prod/ 2>&1 | grep -ci error → 0
+V4: pytest tests/smoke/ --collect-only 2>&1 | grep -c 'test session starts' → 1
+V5: pytest tests/smoke/ --collect-only 2>&1 | grep -oP '\\d+ tests? collected' | grep -oP '\\d+' → >=5
+V6: python3 scripts/validate_tenant_isolation.py --help 2>&1 | grep -c 'usage\\|Usage' → >=0
+V7: grep -c '### Step' docs/runbooks/ROLLBACK.md → 3
+V8: grep -c '| P50 | P95 | P99 |' docs/runbooks/PERFORMANCE_BASELINE.md → >=1
+V9: wc -l helm/maestro/values-prod.yaml | awk '{print \$1}' → >100
+V10: find k8s/overlays -name 'kustomization.yaml' | wc -l → 2
+
+━━━ EXIT CRITERIA (10 checks) ━━━
+✅ helm template values-prod.yaml → valid YAML, 0 errors
+✅ kubectl kustomize overlays/staging + overlays/prod → valid manifests, 0 errors
+✅ tests/smoke/ → 5+ tests collected
+✅ ROLLBACK.md → 3-step procedure documented
+✅ PERFORMANCE_BASELINE.md → metrics table with P50/P95/P99
+✅ validate_tenant_isolation.py → executable, has main()
+✅ values-prod.yaml → production domain (austa.com.br, NOT staging)
+✅ values-prod.yaml → 2 replicas for cibSeven (ADR-012)
+✅ All deliverables in correct paths (NO .swarm/ files except verification report)
+✅ All files pass syntax validation
+
+ROLLBACK: If validation fails, report issues in .swarm/production-prep-verification.txt, do NOT auto-fix
+
+ESTIMATED TIME: 25-35 minutes (6 workers, 7 phases, some parallel)
+"
