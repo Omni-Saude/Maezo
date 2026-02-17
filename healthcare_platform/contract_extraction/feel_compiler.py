@@ -53,6 +53,16 @@ class FEELCompiler:
             input_entries=input_entries, output_entries=output_entries,
         )]
 
+    @staticmethod
+    def _xml_escape(text: str) -> str:
+        """Escape XML special characters for DMN text nodes."""
+        return (text
+                .replace("&", "&amp;")
+                .replace("<", "&lt;")
+                .replace(">", "&gt;")
+                .replace("'", "&apos;")
+                .replace('"', "&quot;"))
+
     def _to_feel(self, operator: str, value: Any, field_type: str) -> str:
         """Convert operator + value + type into a FEEL expression string."""
         sym = self.OPERATOR_MAP.get(operator, operator)
@@ -63,8 +73,8 @@ class FEELCompiler:
         if field_type == "boolean":
             return str(value).lower()
         if field_type == "number":
-            return f"{sym} {value}" if sym in (">", ">=", "<", "<=") else str(value)
-        return f'"{value}"'
+            return self._xml_escape(f"{sym} {value}") if sym in (">", ">=", "<", "<=") else str(value)
+        return self._xml_escape(f'"{value}"')
 
     def _fmt(self, value: Any, out_type: str) -> str:
         """Format an output value for DMN outputEntry."""

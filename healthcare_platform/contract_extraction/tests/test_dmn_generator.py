@@ -104,7 +104,7 @@ class TestDMNGenerator:
         conditions = compiler.compile(rule_def, template)
         assert len(conditions) == 1
         entries = conditions[0].input_entries
-        assert ">= 100.0" in entries[2]
+        assert "&gt;= 100.0" in entries[2]
 
     def test_feel_compiler_authorization_threshold(self):
         """Test 5: FEELCompiler generates '>= 5000' for authorization threshold."""
@@ -124,7 +124,7 @@ class TestDMNGenerator:
         }
         conditions = compiler.compile(rule_def, template)
         entries = conditions[0].input_entries
-        assert ">= 5000" in entries[1]
+        assert "&gt;= 5000" in entries[1]
 
     def test_tenant_file_manager_write_read(self, tmp_path):
         """Test 6: TenantFileManager write/read roundtrip."""

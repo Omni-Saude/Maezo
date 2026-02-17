@@ -4,7 +4,7 @@ from datetime import date, datetime
 from typing import Any, Dict, List, Optional
 from uuid import UUID
 
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 from healthcare_platform.contract_extraction.models import (
     RuleArchetype,
@@ -32,6 +32,13 @@ class RuleCreateRequest(BaseModel):
     effective_date: date
     expiry_date: Optional[date] = None
 
+    @field_validator("payer_id")
+    @classmethod
+    def validate_payer_id(cls, v: str) -> str:
+        if not re.match(r'^[A-Za-z0-9_-]+$', v):
+            raise ValueError("payer_id must match ^[A-Za-z0-9_-]+$")
+        return v
+
     @model_validator(mode="after")
     def expiry_must_be_after_effective(self) -> "RuleCreateRequest":
         if self.expiry_date is not None and self.expiry_date <= self.effective_date:
@@ -54,6 +61,13 @@ class RuleUpdateRequest(BaseModel):
     )
     effective_date: Optional[date] = None
     expiry_date: Optional[date] = None
+
+    @field_validator("payer_id")
+    @classmethod
+    def validate_payer_id(cls, v: str | None) -> str | None:
+        if v is not None and not re.match(r'^[A-Za-z0-9_-]+$', v):
+            raise ValueError("payer_id must match ^[A-Za-z0-9_-]+$")
+        return v
 
     @model_validator(mode="after")
     def expiry_must_be_after_effective(self) -> "RuleUpdateRequest":
@@ -121,3 +135,17 @@ class DeployResponse(BaseModel):
     dmn_path: str
     version: str
     deployed_at: datetime
+
+
+class ChangeResponse(BaseModel):
+    """Response schema for a single audit trail entry."""
+
+    model_config = {"from_attributes": True}
+
+    id: UUID
+    rule_id: UUID
+    changed_by: str
+    changed_at: datetime
+    change_type: str
+    old_value: Optional[Dict[str, Any]] = None
+    new_value: Optional[Dict[str, Any]] = None

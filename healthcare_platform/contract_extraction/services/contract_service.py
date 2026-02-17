@@ -1,5 +1,6 @@
 """Service layer for Contract Rule Extraction — CRUD operations."""
 import uuid
+from datetime import date
 from typing import List, Optional
 
 from sqlalchemy.orm import Session
@@ -65,6 +66,15 @@ class ContractService(DMNService):
             expiry_date=request.expiry_date,
             status=RuleStatus.DRAFT,
         )
+        conflicts = self.detect_conflicts(
+            tenant_id, request.payer_id, request.category,
+            request.effective_date, request.expiry_date,
+        )
+        if conflicts:
+            raise ValueError(
+                f"Conflicting rules found for {request.category.value} "
+                f"with payer {request.payer_id} in the given date range"
+            )
         self.session.add(rule)
         self.session.commit()
 
@@ -123,6 +133,29 @@ class ContractService(DMNService):
         """
         return self._get_rule(tenant_id, rule_id)
 
+    def get_rule_history(
+        self, tenant_id: str, rule_id: uuid.UUID
+    ) -> List[ContractRuleChange]:
+        """Return all change records for a rule ordered newest-first.
+
+        Args:
+            tenant_id: Owning tenant identifier.
+            rule_id: UUID primary key of the rule.
+
+        Raises:
+            KeyError: When no matching rule is found.
+
+        Returns:
+            List of ContractRuleChange instances.
+        """
+        rule = self.get_rule(tenant_id, rule_id)
+        return (
+            self.session.query(ContractRuleChange)
+            .filter(ContractRuleChange.rule_id == rule.id)
+            .order_by(ContractRuleChange.changed_at.desc())
+            .all()
+        )
+
     def update_rule(
         self,
         tenant_id: str,
@@ -159,6 +192,10 @@ class ContractService(DMNService):
         for field, value in request.model_dump(exclude_unset=True).items():
             setattr(rule, field, value)
 
+        if "rule_definition" in request.model_dump(exclude_unset=True):
+            if request.rule_definition != old_snapshot["rule_definition"]:
+                self.auto_bump_version(rule)
+
         self.session.commit()
 
         new_snapshot = {
@@ -183,6 +220,71 @@ class ContractService(DMNService):
 
         return rule
 
+    @staticmethod
+    def auto_bump_version(rule: ContractRule) -> str:
+        """Increment the patch segment of a semver version string in-place.
+
+        Args:
+            rule: The ContractRule whose version will be bumped.
+
+        Returns:
+            The new version string.
+        """
+        parts = rule.version.split(".")
+        parts[2] = str(int(parts[2]) + 1)
+        rule.version = ".".join(parts)
+        return rule.version
+
+    def detect_conflicts(
+        self,
+        tenant_id: str,
+        payer_id: str,
+        category: RuleCategory,
+        effective_date: date,
+        expiry_date: Optional[date],
+        exclude_rule_id: Optional[uuid.UUID] = None,
+    ) -> List[ContractRule]:
+        """Return existing non-archived rules whose date range overlaps the given range.
+
+        Args:
+            tenant_id: Owning tenant identifier.
+            payer_id: Payer identifier to scope the search.
+            category: Rule category to match.
+            effective_date: Start of the candidate rule's validity period.
+            expiry_date: End of the candidate rule's validity period (None = open-ended).
+            exclude_rule_id: Optional rule id to exclude from the search (used on update).
+
+        Returns:
+            List of conflicting ContractRule instances.
+        """
+        query = (
+            self.session.query(ContractRule)
+            .filter(
+                ContractRule.tenant_id == tenant_id,
+                ContractRule.payer_id == payer_id,
+                ContractRule.category == category,
+                ContractRule.status != RuleStatus.ARCHIVED,
+            )
+        )
+        if exclude_rule_id:
+            query = query.filter(ContractRule.id != exclude_rule_id)
+        results = []
+        for rule in query.all():
+            rule_end = rule.expiry_date
+            new_end = expiry_date
+            if rule_end is None and new_end is None:
+                results.append(rule)
+            elif rule_end is None:
+                if rule.effective_date <= new_end:
+                    results.append(rule)
+            elif new_end is None:
+                if effective_date <= rule_end:
+                    results.append(rule)
+            else:
+                if effective_date <= rule_end and rule.effective_date <= new_end:
+                    results.append(rule)
+        return results
+
     def delete_rule(self, tenant_id: str, rule_id: uuid.UUID) -> None:
         """Delete a contract rule from the database.
 
@@ -194,5 +296,25 @@ class ContractService(DMNService):
             KeyError: When no matching rule is found.
         """
         rule = self.get_rule(tenant_id, rule_id)
-        self.session.delete(rule)
+        snapshot = {
+            "payer_id": rule.payer_id,
+            "category": rule.category.value,
+            "archetype": rule.archetype.value,
+            "rule_definition": rule.rule_definition,
+            "version": rule.version,
+            "effective_date": str(rule.effective_date),
+            "expiry_date": str(rule.expiry_date) if rule.expiry_date else None,
+        }
+        change = ContractRuleChange(
+            rule_id=rule.id,
+            change_type="DELETED",
+            old_value=snapshot,
+            changed_by="system",
+        )
+        self.session.add(change)
+        self.session.flush()
+        # Delete via SQL to avoid ORM cascade removing the DELETED change record
+        self.session.execute(
+            ContractRule.__table__.delete().where(ContractRule.id == rule.id)
+        )
         self.session.commit()

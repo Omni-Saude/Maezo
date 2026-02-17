@@ -32,7 +32,8 @@ def create_request():
 
 @pytest.fixture
 def sample_rule(service, create_request):
-    return service.create_rule("tenant-a", create_request, created_by="tester")
+    tenant_id = f"tenant-svc-{uuid.uuid4().hex[:8]}"
+    return service.create_rule(tenant_id, create_request, created_by="tester")
 
 
 # ---------------------------------------------------------------------------
@@ -105,7 +106,7 @@ def test_update_rule_applies_partial_changes(service, sample_rule):
     original_archetype = sample_rule.archetype
     update_req = RuleUpdateRequest(payer_id="payer-updated")
 
-    updated = service.update_rule("tenant-a", sample_rule.id, update_req)
+    updated = service.update_rule(sample_rule.tenant_id, sample_rule.id, update_req)
 
     assert updated.payer_id == "payer-updated"
     assert updated.archetype == original_archetype
@@ -131,7 +132,7 @@ def test_validate_rule_by_id_returns_errors(service, sample_rule):
         mock_validate.return_value = [
             ValidationError(field="f", message="bad", code="ERR")
         ]
-        result = service.validate_rule_by_id("tenant-a", sample_rule.id)
+        result = service.validate_rule_by_id(sample_rule.tenant_id, sample_rule.id)
 
     assert result["is_valid"] is False
     assert len(result["errors"]) == 1
@@ -140,7 +141,7 @@ def test_validate_rule_by_id_returns_errors(service, sample_rule):
 
 def test_preview_dmn_calls_generate_not_save(service, dmn_mock, sample_rule):
     """preview_dmn calls dmn_generator.generate but never generate_and_save."""
-    result = service.preview_dmn("tenant-a", sample_rule.id)
+    result = service.preview_dmn(sample_rule.tenant_id, sample_rule.id)
 
     dmn_mock.generate.assert_called_once()
     dmn_mock.generate_and_save.assert_not_called()
@@ -157,7 +158,7 @@ def test_deploy_rule_validates_first_raises_on_errors(service, sample_rule):
             ValidationError(field="x", message="missing", code="MISSING")
         ]
         with pytest.raises(ValueError, match="failed validation"):
-            service.deploy_rule("tenant-a", sample_rule.id)
+            service.deploy_rule(sample_rule.tenant_id, sample_rule.id)
 
 
 def test_deploy_rule_sets_active_status(service, session, dmn_mock, create_request):
