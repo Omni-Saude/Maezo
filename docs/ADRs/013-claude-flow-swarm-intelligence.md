@@ -635,12 +635,117 @@ The project's `package.json` is used only for claude-flow native module dependen
 
 ---
 
+## Stored Workflow Patterns (Memory Keys)
+
+**CRITICAL:** These patterns are stored in claude-flow memory and MUST be followed for all swarm operations.
+
+### Pattern: Complete Swarm Workflow
+
+**Memory Key:** `pattern-complete-swarm-workflow`
+
+**Workflow:**
+
+1. **PRE-SPAWN (5 steps, sequential)**
+   - `hooks pre-task` — Register task, get routing recommendation
+   - `memory store scope` — Store task scope for swarm agents to retrieve
+   - `hive-mind init` — Initialize coordination (hierarchical-mesh topology)
+   - `hive-mind status` — Verify initialization
+   - Display spawn command — Code block for user to copy-paste to separate terminal
+
+2. **SPAWN (user-executed)**
+   - User copies command to separate terminal
+   - User monitors progress
+   - User notifies agent when complete
+
+3. **POST-TASK (2 core steps + conditional)**
+   - `memory store` — Store completion with results summary
+   - `hooks post-task` — Record completion status
+   - `neural train` — Only if significant new code patterns
+   - `pattern store` — Only if reusable pattern discovered
+
+**RULE:** Memory holds state, NOT HANDOFF.yaml updates after every swarm.
+
+### Pattern: Benchmark Prompt Structure
+
+**Memory Key:** `pattern-prompt-structure-benchmark`
+
+**Structure (mandatory for all swarm objectives):**
+
+```text
+SWARM [NAME]: [SCOPE SUMMARY] | [metrics] | [file count] | [key metric]
+
+MEMORY: [key1], [key2], [key3]
+WORKSPACE: [absolute path]
+PYTHON: [version]
+
+PRIMARY DELIVERABLES:
+1. [exact/file/path.py]
+2. [exact/file/path.py]
+
+ANTI-PATTERNS TO AVOID:
+❌AP5: Queen coding directly — DELEGATE
+❌ [domain-specific antipattern]
+
+━━━ EXISTING CODE (READ BEFORE WRITING) ━━━
+[MODULE]: [path]
+  [ClassName].[method](args) → return_type
+  [key constants, mappings, patterns]
+
+━━━ PHASE [X]1: RECON (1 agent) ━━━
+READ: [exact files]
+MAP: [what to extract]
+OUTPUT: internal report for Phase [X]2
+
+━━━ PHASE [X]2: CODER (N agents, parallel if split) ━━━
+CREATE/MODIFY: [exact file paths]
+[Numbered items with exact specs per file]
+VALIDATE: [command]
+
+━━━ PHASE [X]3: VERIFIER (1 agent) ━━━
+V1: [command] → [expected result]
+V2: [command] → [expected result]
+...
+
+━━━ EXIT CRITERIA ━━━
+✅ [criterion with measurable check]
+✅ [criterion with measurable check]
+
+ROLLBACK: [recovery command if fails]
+```
+
+**Key Prompt Rules:**
+
+- **Line 1**: "DELEGATE DO NOT CODE" (or encoded in swarm name)
+- **3-Tier Minimum**: RECON → CODER → VERIFIER sequential tiers
+- **Exact Paths**: No ambiguity in file/function references
+- **Exact Signatures**: Agents don't guess APIs
+- **Exact Validation**: V-checks with expected output
+- **Memory Keys**: Single line, comma-separated
+- **Anti-Patterns**: Explicit list with ❌ prefix
+- **Exit Criteria**: ✅ checkmarks with grep/wc/pytest commands
+- **Rollback**: Recovery procedure if pass rate drops
+
+**Retrieval:**
+
+```bash
+npx @claude-flow/cli@latest memory retrieve \
+  --key "pattern-complete-swarm-workflow" \
+  --namespace healthcare-platform
+
+npx @claude-flow/cli@latest memory retrieve \
+  --key "pattern-prompt-structure-benchmark" \
+  --namespace healthcare-platform
+```
+
+---
+
 ## Related ADRs
 
 - ADR-001: CIB Seven as BPM Engine
 - ADR-003: Python External Task Workers
 - ADR-009: Mono-repo folder per concern
 - ADR-010: Observability stack (logs, metrics)
+- ADR-019: BPMN Compliance Mandatory
 
 ---
 
@@ -654,6 +759,7 @@ The project's `package.json` is used only for claude-flow native module dependen
 ---
 
 **Next Steps:**
+
 1. Team training on claude-flow CLI (scheduled 2026-02-10)
 2. Execute Phase 0 of swarm strategy (memory preparation)
 3. Pilot swarm execution on revenue cycle domain
