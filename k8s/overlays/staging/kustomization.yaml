@@ -1,0 +1,70 @@
+# Maestro Healthcare Platform - Staging Environment Overlay
+# Kustomize overlay for the staging namespace.
+# Resource quotas are reduced relative to production (50% CPU, 50% memory, 50% pods).
+# A namePrefix of "staging-" is applied to all generated resources to avoid collisions
+# when both environments share the same cluster.
+#
+# Apply with:
+#   kubectl apply -k k8s/overlays/staging
+# or:
+#   kustomize build k8s/overlays/staging | kubectl apply -f -
+
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# Target namespace for all resources in this overlay
+namespace: maestro-staging
+
+# Inherit all base resources: Namespace, ServiceAccount, Role, RoleBinding,
+# ResourceQuota, LimitRange, NetworkPolicies, and Secrets
+resources:
+  - ../../base
+
+# Prefix every resource name with "staging-" to prevent name collisions
+# when deployed alongside the production namespace on the same cluster.
+# e.g. maestro-quota -> staging-maestro-quota
+namePrefix: staging-
+
+# Labels applied to ALL resources (merged with existing labels)
+commonLabels:
+  environment: staging
+  app.kubernetes.io/part-of: healthcare-platform
+
+patches:
+  # --- Namespace patch ---
+  # Rename the namespace from "maestro" to "maestro-staging" and update
+  # the environment label so monitoring dashboards can distinguish environments.
+  - target:
+      kind: Namespace
+      name: maestro        # matches the base name BEFORE namePrefix is applied
+    patch: |-
+      - op: replace
+        path: /metadata/name
+        value: maestro-staging
+      - op: replace
+        path: /metadata/labels/environment
+        value: staging
+
+  # --- ResourceQuota patch ---
+  # Staging runs at roughly 50% of production capacity.
+  # Base values (production):  cpu=20/40, memory=40Gi/80Gi, pods=100
+  # Staging values:            cpu=10/20, memory=20Gi/40Gi, pods=50
+  - target:
+      kind: ResourceQuota
+      name: maestro-quota  # matches the base name BEFORE namePrefix is applied
+    patch: |-
+      - op: replace
+        path: /spec/hard/requests.cpu
+        value: "10"
+      - op: replace
+        path: /spec/hard/requests.memory
+        value: "20Gi"
+      - op: replace
+        path: /spec/hard/limits.cpu
+        value: "20"
+      - op: replace
+        path: /spec/hard/limits.memory
+        value: "40Gi"
+      - op: replace
+        path: /spec/hard/pods
+        value: "50"
