@@ -1,0 +1,145 @@
+name: BPMN Compliance Check (ADR-019)
+
+on:
+  pull_request:
+    paths:
+      - 'healthcare_platform/**/*.bpmn'
+      - 'scripts/validate_bpmn_worker_connectivity.py'
+
+jobs:
+  bpmn-validate:
+    name: BPMN Compliance Validation
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Validate XML well-formedness
+        run: |
+          echo "🔍 Checking XML well-formedness..."
+          ERRORS=0
+          for f in $(find healthcare_platform -name '*.bpmn' -not -path '*/.archive/*'); do
+            if ! xmllint --noout "$f" 2>/dev/null; then
+              echo "❌ Malformed XML: $f"
+              ERRORS=$((ERRORS + 1))
+            fi
+          done
+          if [ "$ERRORS" -gt 0 ]; then
+            echo "❌ $ERRORS file(s) have XML errors"
+            exit 1
+          fi
+          echo "✅ All BPMN files are well-formed XML"
+
+      - name: "R1: Check namespace (CRITICAL — blocker)"
+        run: |
+          echo "🔍 R1: Checking for Zeebe/custom namespaces..."
+          ZEEBE=$(grep -rl 'schema/zeebe' healthcare_platform --include='*.bpmn' || true)
+          CUSTOM=$(grep -rl 'xmlns:cib7' healthcare_platform --include='*.bpmn' || true)
+          VIOLATIONS=""
+          if [ -n "$ZEEBE" ]; then
+            VIOLATIONS="$VIOLATIONS
+          Zeebe namespace found in:
+          $ZEEBE"
+          fi
+          if [ -n "$CUSTOM" ]; then
+            VIOLATIONS="$VIOLATIONS
+          Custom cib7 namespace found in:
+          $CUSTOM"
+          fi
+          if [ -n "$VIOLATIONS" ]; then
+            echo "❌ R1 VIOLATION: Invalid namespace detected"
+            echo "$VIOLATIONS"
+            echo ""
+            echo "Required: xmlns:camunda=\"http://camunda.org/schema/1.0/bpmn\""
+            echo "See: docs/ADRs/019-bpmn-compliance-mandatory.md#r1-namespace--critical"
+            exit 1
+          fi
+          echo "✅ R1: All files use correct Camunda 7 namespace"
+
+      - name: "R2: Check topic format (CRITICAL — blocker)"
+        run: |
+          echo "🔍 R2: Checking for kebab-case topics..."
+          # Match camunda:topic="anything-with-hyphens"
+          KEBAB=$(grep -rn 'camunda:topic="[^"]*-[^"]*"' healthcare_platform --include='*.bpmn' || true)
+          if [ -n "$KEBAB" ]; then
+            echo "❌ R2 VIOLATION: Kebab-case topics found (must use dot.snake_case per ADR-016)"
+            echo "$KEBAB"
+            echo ""
+            echo "Required format: {domain}.{subprocess}.{action}"
+            echo "Example: revenue_cycle.billing.validate_claim"
+            echo "See: docs/ADRs/019-bpmn-compliance-mandatory.md#r2-topic-format--critical"
+            exit 1
+          fi
+          echo "✅ R2: All topics use correct dot.snake_case format"
+
+      - name: "R5: Check duplicate process IDs (CRITICAL — blocker)"
+        run: |
+          echo "🔍 R5: Checking for duplicate process IDs..."
+          # Extract process IDs from all non-archived BPMN files
+          DUPES=$(grep -rh 'process id="[^"]*"' healthcare_platform --include='*.bpmn' \
+            | grep -v '.archive' \
+            | sed 's/.*process id="\([^"]*\)".*/\1/' \
+            | sort | uniq -d)
+          if [ -n "$DUPES" ]; then
+            echo "❌ R5 VIOLATION: Duplicate process IDs found"
+            echo "$DUPES"
+            echo ""
+            for DUP in $DUPES; do
+              echo "Files containing '$DUP':"
+              grep -rl "process id=\"$DUP\"" healthcare_platform --include='*.bpmn' | grep -v '.archive'
+              echo ""
+            done
+            echo "See: docs/ADRs/019-bpmn-compliance-mandatory.md#r5-unique-process-ids--critical"
+            exit 1
+          fi
+          echo "✅ R5: All process IDs are unique"
+
+      - name: "R3: Check file naming (HIGH — warning)"
+        run: |
+          echo "🔍 R3: Checking BPMN file naming convention..."
+          WARNINGS=0
+          for f in $(find healthcare_platform -name '*.bpmn' -not -path '*/.archive/*' -not -path '*/template*'); do
+            BASENAME=$(basename "$f")
+            if ! echo "$BASENAME" | grep -qE '^SP-(PA|CO|RC|PS)-[0-9]{3}_'; then
+              echo "⚠️  R3 WARNING: Non-standard filename: $f"
+              WARNINGS=$((WARNINGS + 1))
+            fi
+          done
+          if [ "$WARNINGS" -gt 0 ]; then
+            echo "⚠️  R3: $WARNINGS file(s) don't follow SP-{DOMAIN}-{NNN}_{Description}.bpmn"
+            echo "This is a warning, not a blocker."
+          else
+            echo "✅ R3: All files follow naming convention"
+          fi
+
+      - name: "R4: Check BPMNDI presence (HIGH — warning)"
+        run: |
+          echo "🔍 R4: Checking for BPMNDI diagram sections..."
+          MISSING=$(grep -rL 'bpmndi:BPMNDiagram' healthcare_platform --include='*.bpmn' | grep -v '.archive' || true)
+          if [ -n "$MISSING" ]; then
+            echo "⚠️  R4 WARNING: Missing BPMNDI section (cannot edit in Camunda Modeler):"
+            echo "$MISSING"
+            echo "This is a warning, not a blocker."
+          else
+            echo "✅ R4: All files have BPMNDI diagram sections"
+          fi
+
+  bpmn-connectivity:
+    name: BPMN ↔ Worker Connectivity
+    runs-on: ubuntu-latest
+    needs: bpmn-validate
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: "R7: Validate topic ↔ worker connectivity"
+        run: |
+          echo "🔍 R7: Cross-referencing BPMN topics with worker TOPIC constants..."
+          python3 scripts/validate_bpmn_worker_connectivity.py --json-report

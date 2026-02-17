@@ -1,0 +1,86 @@
+name: BPMN Integration Tests
+
+on:
+  pull_request:
+    paths:
+      - 'healthcare_platform/**/bpmn/*.bpmn'
+      - 'healthcare_platform/**/*_worker*.py'
+      - 'tests/integration/bpmn/**'
+      - 'docker-compose.test.yml'
+  push:
+    branches: [main, develop]
+  workflow_dispatch:
+
+concurrency:
+  group: bpmn-integration-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  integration-test-bpmn:
+    name: BPMN Integration Test Suite
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r tests/integration/requirements-test.txt
+
+      - name: Start CIB7 test environment
+        timeout-minutes: 5
+        run: |
+          echo "Starting CIB7 test environment..."
+          if ! docker compose -f docker-compose.test.yml up -d; then
+            echo "docker compose up failed"
+            docker compose -f docker-compose.test.yml logs || true
+            exit 1
+          fi
+          echo "Waiting for services to be healthy..."
+          for service in postgres-test cib7-engine-test; do
+            echo "  Waiting for $service..."
+            timeout 180 bash -c "
+              until [ \"\$(docker inspect --format='{{.State.Health.Status}}' \$service 2>/dev/null)\" = 'healthy' ]; do
+                sleep 3
+              done
+            "
+            echo "  $service is healthy"
+          done
+          echo "All services healthy"
+
+      - name: Run BPMN integration tests
+        timeout-minutes: 10
+        env:
+          CIB7_URL: http://localhost:8081/engine-rest
+        run: |
+          echo "Running BPMN integration tests..."
+          pytest tests/integration/bpmn/ -v --tb=short --junitxml=pytest-report.xml
+          echo "Tests completed"
+
+      - name: Capture service logs
+        if: always()
+        timeout-minutes: 3
+        run: |
+          mkdir -p /tmp/compose-logs
+          for service in $(docker compose -f docker-compose.test.yml ps --format '{{.Name}}' 2>/dev/null); do
+            docker compose -f docker-compose.test.yml logs --no-color "$service" > "/tmp/compose-logs/${service}.log" 2>&1 || true
+          done
+          docker compose -f docker-compose.test.yml down -v || true
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: bpmn-integration-test-results-${{ github.run_id }}
+          path: pytest-report.xml
+          if-no-files-found: warn
+          retention-days: 30
