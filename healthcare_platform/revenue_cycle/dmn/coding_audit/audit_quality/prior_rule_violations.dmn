@@ -1,0 +1,96 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/"
+             xmlns:dc="http://www.omg.org/spec/DMN/20180521/DC/"
+             id="Definitions_PriorRuleViolations"
+             name="Prior Rule Violations Decision"
+             namespace="http://camunda.org/schema/1.0/dmn">
+  <!-- Archetype: CLINICAL_SCORE | Source: prior_rule_violations_worker.py -->
+
+  <!-- DMN: Prior Rule Violations Check
+       Based on: audit_coding_worker.py lines 277-294
+       Rule: Flag if failed rules exist from prior steps
+  -->
+
+  <decision id="Decision_PriorRuleViolations" name="Prior Rule Violations">
+    <decisionTable id="DecisionTable_PriorRuleViolations" hitPolicy="FIRST">
+
+      <!-- === INPUTS === -->
+      <input id="Input_failedRulesCount" label="Failed Rules Count">
+        <inputExpression id="InputExpr_failedRulesCount" typeRef="number">
+          <text>failed_rules_count</text>
+        </inputExpression>
+      </input>
+
+      <!-- === OUTPUTS === -->
+      <output id="Output_resultado" label="Resultado" name="resultado" typeRef="string">
+        <outputValues><text>"PROSSEGUIR","BLOQUEAR","REVISAR"</text></outputValues>
+      </output>
+
+      <output id="Output_acao" label="Acao" name="acao" typeRef="string"/>
+
+      <output id="Output_risco" label="Risco" name="risco" typeRef="string">
+        <outputValues><text>"CRITICO","ALTO","MEDIO","BAIXO"</text></outputValues>
+      </output>
+
+      <!-- === RULES === -->
+
+      <!-- Has prior violations -->
+      <rule id="Rule_Has_Violations">
+        <description>Violacoes de regras anteriores detectadas</description>
+        <inputEntry id="IE_HasViol_1"><text>&gt; 0</text></inputEntry>
+        <outputEntry id="OE_HasViol_res"><text>"REVISAR"</text></outputEntry>
+        <outputEntry id="OE_HasViol_acao"><text>"Violacoes de regras de codificacao detectadas na etapa anterior - revisao obrigatoria"</text></outputEntry>
+        <outputEntry id="OE_HasViol_risco"><text>"MEDIO"</text></outputEntry>
+      </rule>
+
+      <!-- No prior violations -->
+      <rule id="Rule_No_Violations">
+        <description>Nenhuma violacao de regras anteriores</description>
+        <inputEntry id="IE_NoViol_1"><text>0</text></inputEntry>
+        <outputEntry id="OE_NoViol_res"><text>"PROSSEGUIR"</text></outputEntry>
+        <outputEntry id="OE_NoViol_acao"><text>"Nenhuma violacao de regras anteriores"</text></outputEntry>
+        <outputEntry id="OE_NoViol_risco"><text>"BAIXO"</text></outputEntry>
+      </rule>
+
+      <!-- Fallback -->
+      
+      <rule id="Rule_MultipleViolations">
+        <description>Multiplas violacoes anteriores</description>
+        <inputEntry id="IE_MultipleViolations_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_MultipleViolations_2"><text>>= 5</text></inputEntry>
+        <outputEntry id="OE_MultipleViolations_res"><text>"BLOQUEAR"</text></outputEntry>
+        <outputEntry id="OE_MultipleViolations_acao"><text>"Historico com 5+ violacoes - bloqueio obrigatorio para auditoria detalhada"</text></outputEntry>
+        <outputEntry id="OE_MultipleViolations_risco"><text>"CRITICO"</text></outputEntry>
+      </rule>
+
+
+      <rule id="Rule_ModerateViolations">
+        <description>Violacoes moderadas</description>
+        <inputEntry id="IE_ModerateViolations_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_ModerateViolations_2"><text>[3..4]</text></inputEntry>
+        <outputEntry id="OE_ModerateViolations_res"><text>"REVISAR"</text></outputEntry>
+        <outputEntry id="OE_ModerateViolations_acao"><text>"Historico com 3-4 violacoes - revisao obrigatoria antes de prosseguir"</text></outputEntry>
+        <outputEntry id="OE_ModerateViolations_risco"><text>"ALTO"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Fallback">
+        <description>Caso nao enquadrado - revisao obrigatoria</description>
+        <inputEntry id="IE_FB_1"><text>-</text></inputEntry>
+        <outputEntry id="OE_FB_res"><text>"REVISAR"</text></outputEntry>
+        <outputEntry id="OE_FB_acao"><text>"Caso requer avaliacao manual"</text></outputEntry>
+        <outputEntry id="OE_FB_risco"><text>"MEDIO"</text></outputEntry>
+      </rule>
+
+    </decisionTable>
+  </decision>
+
+  <dmndi:DMNDI>
+    <dmndi:DMNDiagram id="DMNDiagram_PriorRuleViolations">
+      <dmndi:DMNShape id="DMNShape_Decision" dmnElementRef="Decision_PriorRuleViolations">
+        <dc:Bounds height="80" width="180" x="160" y="100"/>
+      </dmndi:DMNShape>
+    </dmndi:DMNDiagram>
+  </dmndi:DMNDI>
+
+</definitions>

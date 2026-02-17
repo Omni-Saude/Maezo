@@ -26,6 +26,8 @@ class TrackAppealStatusWorker(BaseWorker, GlosaWorkerMixin):
 
     Checks submission status via TISS, maps payer responses,
     and determines if follow-up is required.
+
+        Archetype: ADMIN_ADJUDICATION
     """
 
     def __init__(self, tiss_client: TISSClientProtocol) -> None:

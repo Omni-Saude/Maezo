@@ -13,7 +13,10 @@ logger = get_logger(__name__)
 
 
 class CalculateRevenueCycleTimeWorker:
-    """Calcula o tempo médio do ciclo de receita (encounter até pagamento)."""
+    """    Calcula o tempo médio do ciclo de receita (encounter até pagamento).
+    
+        Archetype: FINANCIAL_CALCULATION
+        """
 
     WORKER_TYPE = "calculate_revenue_cycle_time"
 

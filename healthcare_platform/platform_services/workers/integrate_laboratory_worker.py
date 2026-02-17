@@ -53,7 +53,10 @@ lab_critical_results_total = Counter(
 
 
 class LaboratoryIntegrationException(DomainException):
-    """Exceção lançada quando ocorrem erros na integração laboratorial."""
+    """    Exceção lançada quando ocorrem erros na integração laboratorial.
+    
+        Archetype: DATA_ENRICHMENT
+        """
 
     def __init__(self, message: str, details: dict[str, Any] | None = None):
         super().__init__(

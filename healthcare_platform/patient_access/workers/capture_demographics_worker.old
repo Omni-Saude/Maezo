@@ -1,0 +1,311 @@
+"""
+Capture Demographics Worker
+
+CIB7 External Task Topic: patient.capture_demographics
+BPMN Error Code: PATIENT_ACCESS_ERROR
+
+Captures patient demographics including address, phone, and email.
+All PII is hashed via SHA-256 before storage.
+"""
+
+from __future__ import annotations
+
+import hashlib
+import re
+from abc import ABC, abstractmethod
+from typing import Any
+
+from pydantic import BaseModel, Field, validator
+
+from healthcare_platform.shared.dmn.federation_service import FederatedDMNService
+from healthcare_platform.shared.domain.exceptions import DomainException
+from healthcare_platform.shared.i18n import _
+from healthcare_platform.shared.integrations.fhir_client import FHIRClientProtocol
+from healthcare_platform.shared.multi_tenant.context import get_required_tenant
+from healthcare_platform.shared.multi_tenant.decorators import require_tenant
+from healthcare_platform.shared.observability.logging import get_logger
+from healthcare_platform.shared.observability.metrics import track_task_execution
+
+
+class PatientAccessException(DomainException):
+    """    Exception for patient access domain errors.
+    
+        Archetype: DATA_ENRICHMENT
+        """
+
+    def __init__(self, message: str, details: dict[str, Any] | None = None):
+        super().__init__(message, details)
+        self.bpmn_error_code = "PATIENT_ACCESS_ERROR"
+
+
+class CaptureDemographicsInput(BaseModel):
+    """Input model for capturing demographics."""
+
+    patient_reference: str = Field(..., description="Referência FHIR do paciente")
+    address_cep: str = Field(..., description="CEP (8 dígitos)")
+    address_street: str = Field(..., description="Logradouro")
+    address_number: str = Field(..., description="Número")
+    address_complement: str | None = Field(None, description="Complemento")
+    address_city: str = Field(..., description="Cidade")
+    address_state: str = Field(..., description="Estado (UF)")
+    phone: str = Field(..., description="Telefone")
+    email: str = Field(..., description="E-mail")
+
+    @validator("address_cep")
+    def validate_cep(cls, v: str) -> str:
+        """Validate CEP format."""
+        cep = re.sub(r"\D", "", v)
+        if len(cep) != 8:
+            raise ValueError(_("CEP deve ter 8 dígitos"))
+        return cep
+
+    @validator("phone")
+    def validate_phone(cls, v: str) -> str:
+        """Validate phone format."""
+        phone = re.sub(r"\D", "", v)
+        if len(phone) < 10 or len(phone) > 11:
+            raise ValueError(_("Telefone deve ter 10 ou 11 dígitos"))
+        return phone
+
+    @validator("email")
+    def validate_email(cls, v: str) -> str:
+        """Validate email format."""
+        email_pattern = r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$"
+        if not re.match(email_pattern, v):
+            raise ValueError(_("E-mail inválido"))
+        return v
+
+    @validator("address_state")
+    def validate_state(cls, v: str) -> str:
+        """Validate state UF."""
+        valid_states = [
+            "AC", "AL", "AP", "AM", "BA", "CE", "DF", "ES", "GO", "MA",
+            "MT", "MS", "MG", "PA", "PB", "PR", "PE", "PI", "RJ", "RN",
+            "RS", "RO", "RR", "SC", "SP", "SE", "TO"
+        ]
+        if v.upper() not in valid_states:
+            raise ValueError(_("Estado (UF) inválido"))
+        return v.upper()
+
+
+class CaptureDemographicsOutput(BaseModel):
+    """Output model for capturing demographics."""
+
+    demographics_updated: bool = Field(
+        ..., description="Se os dados demográficos foram atualizados"
+    )
+    address_hash: str = Field(..., description="Hash SHA-256 do endereço")
+    phone_hash: str = Field(..., description="Hash SHA-256 do telefone")
+    email_hash: str = Field(..., description="Hash SHA-256 do e-mail")
+
+
+class DemographicsCapture(ABC):
+    """Protocol for capturing demographics."""
+
+    @abstractmethod
+    async def hash_pii(self, value: str) -> str:
+        """Hash PII using SHA-256."""
+        pass
+
+    @abstractmethod
+    async def build_address_resource(
+        self, cep: str, street: str, number: str, complement: str | None,
+        city: str, state: str
+    ) -> dict[str, Any]:
+        """Build FHIR Address structure."""
+        pass
+
+    @abstractmethod
+    async def build_telecom_resources(
+        self, phone: str, email: str
+    ) -> list[dict[str, Any]]:
+        """Build FHIR ContactPoint structures."""
+        pass
+
+
+class StubDemographicsCapture(DemographicsCapture):
+    """Stub implementation for testing."""
+
+    def __init__(self):
+        self.dmn_service = FederatedDMNService()
+        # DMN integration point: fed_auth_001
+        # Inputs: {'patient_data': patient_data}
+        # Call: self.dmn_service.evaluate(tenant_id=..., category='authorization', table_name='fed_auth_001', inputs={...})
+
+
+    async def hash_pii(self, value: str) -> str:
+        """Hash PII using SHA-256."""
+        return hashlib.sha256(value.encode()).hexdigest()
+
+    async def build_address_resource(
+        self, cep: str, street: str, number: str, complement: str | None,
+        city: str, state: str
+    ) -> dict[str, Any]:
+        """Build FHIR Address structure."""
+        lines = [f"{street}, {number}"]
+        if complement:
+            lines.append(complement)
+
+        return {
+            "use": "home",
+            "type": "physical",
+            "line": lines,
+            "city": city,
+            "state": state,
+            "postalCode": cep,
+            "country": "BR",
+        }
+
+    async def build_telecom_resources(
+        self, phone: str, email: str
+    ) -> list[dict[str, Any]]:
+        """Build FHIR ContactPoint structures."""
+        return [
+            {
+                "system": "phone",
+                "value": phone,
+                "use": "mobile",
+            },
+            {
+                "system": "email",
+                "value": email,
+                "use": "home",
+            },
+        ]
+
+
+class CaptureDemographicsWorker:
+    """Worker for capturing patient demographics."""
+
+    TOPIC = "patient.capture_demographics"
+
+    def __init__(
+        self,
+        fhir_client: FHIRClientProtocol,
+        capture: DemographicsCapture | None = None,
+    ):
+        """Initialize worker with FHIR client and capture."""
+        self.fhir_client = fhir_client
+        self.capture = capture or StubDemographicsCapture()
+        self.logger = get_logger(__name__, worker=self.TOPIC)
+
+    @require_tenant
+    @track_task_execution(task_type="patient.capture_demographics")
+    async def execute(self, task_variables: dict[str, Any]) -> dict[str, Any]:
+        """
+        Execute demographics capture.
+
+        Args:
+            task_variables: Task variables containing demographics data
+
+        Returns:
+            Demographics update result with hashed PII
+
+        Raises:
+            PatientAccessException: If capture fails
+        """
+        tenant_id = get_required_tenant()
+        self.logger.info(
+            "Capturando dados demográficos",
+            extra={"tenant_id": tenant_id, "task_variables": task_variables},
+        )
+
+        try:
+            # Parse input (validation happens in Pydantic model)
+            input_data = CaptureDemographicsInput(**task_variables)
+
+            # Hash PII
+            address_string = (
+                f"{input_data.address_cep}|{input_data.address_street}|"
+                f"{input_data.address_number}|{input_data.address_city}|"
+                f"{input_data.address_state}"
+            )
+            address_hash = await self.capture.hash_pii(address_string)
+            phone_hash = await self.capture.hash_pii(input_data.phone)
+            email_hash = await self.capture.hash_pii(input_data.email)
+
+            self.logger.info(
+                "PII hasheado com sucesso",
+                extra={
+                    "tenant_id": tenant_id,
+                    "address_hash": address_hash,
+                    "phone_hash": phone_hash,
+                    "email_hash": email_hash,
+                },
+            )
+
+            # Build FHIR Address resource
+            address_resource = await self.capture.build_address_resource(
+                cep=input_data.address_cep,
+                street=input_data.address_street,
+                number=input_data.address_number,
+                complement=input_data.address_complement,
+                city=input_data.address_city,
+                state=input_data.address_state,
+            )
+
+            # Build FHIR ContactPoint resources
+            telecom_resources = await self.capture.build_telecom_resources(
+                phone=input_data.phone, email=input_data.email
+            )
+
+            # Update patient resource
+            patient_id = input_data.patient_reference.split("/")[-1]
+
+            try:
+                # Read existing patient
+                existing_patient = await self.fhir_client.read("Patient", patient_id)
+
+                # Update with new demographics
+                existing_patient["address"] = [address_resource]
+                existing_patient["telecom"] = telecom_resources
+
+                # Update patient in FHIR
+                updated_patient = await self.fhir_client.update(
+                    "Patient", patient_id, existing_patient
+                )
+
+                self.logger.info(
+                    "Dados demográficos atualizados no FHIR",
+                    extra={
+                        "tenant_id": tenant_id,
+                        "patient_id": patient_id,
+                    },
+                )
+
+                output = CaptureDemographicsOutput(
+                    demographics_updated=True,
+                    address_hash=address_hash,
+                    phone_hash=phone_hash,
+                    email_hash=email_hash,
+                )
+
+                return output.model_dump()
+
+            except Exception as fhir_error:
+                self.logger.error(
+                    "Erro ao atualizar dados demográficos no FHIR",
+                    extra={"tenant_id": tenant_id, "error": str(fhir_error)},
+                    exc_info=True,
+                )
+                raise PatientAccessException(
+                    _("Erro ao atualizar dados demográficos no FHIR: {error}").format(
+                        error=str(fhir_error)
+                    ),
+                    details={"original_error": str(fhir_error)},
+                )
+
+        except PatientAccessException:
+            raise
+        except Exception as e:
+            self.logger.error(
+                "Erro ao capturar dados demográficos",
+                extra={"tenant_id": tenant_id, "error": str(e)},
+                exc_info=True,
+            )
+            raise PatientAccessException(
+                _("Erro ao capturar dados demográficos: {error}").format(
+                    error=str(e)
+                ),
+                details={"original_error": str(e)},
+            )

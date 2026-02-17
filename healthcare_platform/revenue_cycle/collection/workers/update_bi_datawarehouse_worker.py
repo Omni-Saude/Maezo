@@ -16,7 +16,10 @@ logger = get_logger(__name__)
 
 
 class FactCollectionMetrics(BaseModel):
-    """Fact table: collection metrics."""
+    """    Fact table: collection metrics.
+    
+        Archetype: FINANCIAL_CALCULATION
+        """
 
     date_key: str
     payer_key: str

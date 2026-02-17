@@ -27,7 +27,10 @@ logger = get_logger(__name__, worker="surgical.site_marking")
 
 
 class SurgicalOperationsException(DomainException):
-    """Exception for surgical operations errors."""
+    """    Exception for surgical operations errors.
+    
+        Archetype: COMPLIANCE_VALIDATION
+        """
 
     def __init__(
         self,

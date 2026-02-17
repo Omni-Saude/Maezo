@@ -16,7 +16,10 @@ logger = get_logger(__name__)
 
 
 class ExportToERPWorker:
-    """Sincroniza dados de reconciliação para ERP (Tasy/MV Soul) usando padrão CDC."""
+    """    Sincroniza dados de reconciliação para ERP (Tasy/MV Soul) usando padrão CDC.
+    
+        Archetype: FINANCIAL_CALCULATION
+        """
 
     WORKER_TYPE = "export_to_erp"
 

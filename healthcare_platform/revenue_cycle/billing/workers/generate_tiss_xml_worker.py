@@ -1,4 +1,7 @@
-"""Generate TISS XML from claim data."""
+"""Generate TISS XML from claim data.
+
+Archetype: INTEGRATION_BRIDGE
+"""
 from __future__ import annotations
 
 from datetime import datetime

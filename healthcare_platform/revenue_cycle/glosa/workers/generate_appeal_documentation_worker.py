@@ -166,6 +166,8 @@ class GenerateAppealDocumentationWorker(GlosaWorkerMixin):
     2. Evidence checklist per glosa type
     3. Regulatory references (ANS RN 424/2017, TISS 4.01)
     4. Required documents list
+
+        Archetype: ADMIN_ADJUDICATION
     """
 
     def __init__(self) -> None:

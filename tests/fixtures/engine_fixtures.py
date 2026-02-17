@@ -1,5 +1,7 @@
 """Camunda engine fixtures para testes."""
 
+from __future__ import annotations
+
 from typing import Dict, Any, List
 
 

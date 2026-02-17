@@ -16,7 +16,10 @@ logger = get_logger(__name__)
 
 
 class HandleUnderpaymentWorker:
-    """Handles underpayments - calculates shortfall and flags for collection."""
+    """    Handles underpayments - calculates shortfall and flags for collection.
+    
+        Archetype: FINANCIAL_CALCULATION
+        """
 
     WORKER_TYPE = "handle_underpayment"
 

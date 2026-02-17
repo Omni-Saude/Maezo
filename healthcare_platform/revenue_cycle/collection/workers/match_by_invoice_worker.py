@@ -15,7 +15,10 @@ logger = get_logger(__name__)
 
 
 class MatchByInvoiceWorker:
-    """Matches payment to claim by invoice/fatura number."""
+    """    Matches payment to claim by invoice/fatura number.
+    
+        Archetype: FINANCIAL_CALCULATION
+        """
 
     WORKER_TYPE = "match_by_invoice"
 

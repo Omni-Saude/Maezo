@@ -14,7 +14,10 @@ logger = get_logger(__name__)
 
 
 class UpdateForecastsWorker:
-    """Atualiza previsões de fluxo de caixa baseado em datas previstas e AR atual."""
+    """    Atualiza previsões de fluxo de caixa baseado em datas previstas e AR atual.
+    
+        Archetype: FINANCIAL_CALCULATION
+        """
 
     WORKER_TYPE = "update_forecasts"
 

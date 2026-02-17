@@ -6,8 +6,23 @@ from uuid import uuid4
 
 import pytest
 
-from healthcare_platform.revenue_cycle.billing.workers.validate_tiss_schema_worker import ValidateTISSSchemaWorker
+from healthcare_platform.revenue_cycle.billing.workers.validate_tiss_schema_worker_v2 import ValidateTISSSchemaWorker
 from healthcare_platform.shared.integrations.tiss_client import StubTISSClient
+
+from unittest.mock import Mock
+
+
+@pytest.fixture
+def mock_dmn_service():
+    """Create mock DMN service."""
+    dmn_service = Mock()
+    # Default DMN response: PROSSEGUIR (allow processing)
+    dmn_service.evaluate.return_value = {
+        "resultado": "PROSSEGUIR",
+        "acao": "Processar com sucesso",
+        "risco": "BAIXO"
+    }
+    return dmn_service
 
 
 @pytest.fixture
@@ -17,9 +32,12 @@ def tiss_client():
 
 
 @pytest.fixture
-def worker(tiss_client):
+def worker(tiss_client, mock_dmn_service):
     """Create worker instance."""
-    return ValidateTISSSchemaWorker(tiss_client=tiss_client)
+    return ValidateTISSSchemaWorker(
+        tiss_client=tiss_client,
+        dmn_service=mock_dmn_service
+    )
 
 
 @pytest.fixture

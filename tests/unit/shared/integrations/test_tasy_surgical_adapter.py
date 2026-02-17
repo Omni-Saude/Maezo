@@ -19,6 +19,8 @@ def make_surgery_data(**overrides) -> dict[str, Any]:
         "NR_ATENDIMENTO": "ATD-789",
         "CD_SALA": "SALA-01",
         "DT_CIRURGIA": "2024-06-15T08:00:00",
+        "DT_INICIO": "2024-06-15T08:00:00",
+        "DT_FIM": "2024-06-15T10:30:00",
         "HR_INICIO": "08:00",
         "HR_FIM": "10:30",
         "CD_PROCEDIMENTO": "30101012",

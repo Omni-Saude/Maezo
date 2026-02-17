@@ -1,5 +1,7 @@
 """Root conftest with shared fixtures for all tests."""
 
+from __future__ import annotations
+
 from unittest.mock import AsyncMock
 import pytest
 from datetime import datetime
@@ -45,6 +47,15 @@ def tenant_austa() -> TenantContext:
 def tenant_hpa() -> TenantContext:
     """Fixture para tenant AMH_SP com contexto configurado."""
     tenant = TenantContext.from_tenant_code(TenantCode.AMH_SP)
+    set_current_tenant(tenant)
+    yield tenant
+    clear_tenant()
+
+
+@pytest.fixture
+def tenant_saude_mais() -> TenantContext:
+    """Fixture para tenant Saude Mais (alias for HOSPITAL_B)."""
+    tenant = TenantContext.from_tenant_code(TenantCode.HOSPITAL_B)
     set_current_tenant(tenant)
     yield tenant
     clear_tenant()

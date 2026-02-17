@@ -1,7 +1,8 @@
 # ADR-014: Webhook Receivers for Async Callbacks
 
-**Status:** Draft  
-**Date:** 2026-02-10  
+**Status:** Accepted
+**Date:** 2026-02-10
+**Implemented:** 2026-02-16
 **Deciders:** Tech Lead, Integration Lead, Architecture Team
 
 ## Context

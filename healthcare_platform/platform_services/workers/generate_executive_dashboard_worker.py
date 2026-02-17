@@ -45,7 +45,10 @@ dashboard_duration_seconds = Histogram(
 
 
 class DashboardGenerationException(DomainException):
-    """Exceção lançada quando ocorrem erros na geração do dashboard."""
+    """    Exceção lançada quando ocorrem erros na geração do dashboard.
+    
+        Archetype: CLINICAL_ALERT
+        """
 
     def __init__(self, message: str, details: dict[str, Any] | None = None):
         super().__init__(

@@ -1,194 +1,77 @@
-"""
-Patient Birthday Greeting Worker
-
-CIB7 External Task Topic: relationship.birthday
-BPMN Error Code: PATIENT_ACCESS_ERROR
-
-Sends personalized birthday greeting with age-appropriate wellness tip.
-"""
-
+"""V2: Envia saudação de aniversário personalizada com dicas de bem-estar."""
 from __future__ import annotations
 
-from datetime import datetime, timezone
-from typing import Any
+import time
 
-from pydantic import BaseModel, Field, ValidationError
-
-from healthcare_platform.shared.domain.exceptions import DomainException
-from healthcare_platform.shared.i18n import _
-from healthcare_platform.shared.integrations.whatsapp_client import (
-    StubWhatsAppClient,
-    WhatsAppClientProtocol,
-    WhatsAppTemplate,
+from healthcare_platform.revenue_cycle.billing.workers.base import worker
+from healthcare_platform.shared.observability.correlation import (
+    extract_correlation,
+    log_worker_start,
+    log_worker_end,
 )
-from healthcare_platform.shared.multi_tenant.context import get_required_tenant
-from healthcare_platform.shared.multi_tenant.decorators import require_tenant
-from healthcare_platform.shared.observability.logging import get_logger
-from healthcare_platform.shared.observability.metrics import track_task_execution
+from healthcare_platform.shared.workers.base import (
+    BaseExternalTaskWorker,
+    TaskContext,
+    TaskResult,
+)
 
 
-class PatientAccessException(DomainException):
-    """Domain exception for patient access operations."""
+@worker(topic='relationship.birthday')
+class PatientBirthdayWorkerV2(BaseExternalTaskWorker):
+    """Envia mensagem de aniversário personalizada com dica de saúde adequada à idade.
 
-    def __init__(self, message: str, details: dict[str, Any] | None = None):
-        super().__init__(
-            message=message,
-            code="PATIENT_ACCESS_ERROR",
-            details=details,
-            bpmn_error_code="PATIENT_ACCESS_ERROR",
+    Archetype: OPERATIONAL_ROUTING
+    """
+
+    TOPIC = 'relationship.birthday'
+    OPERATION_NAME = 'Saudação de Aniversário'
+
+    def execute(self, context: TaskContext) -> TaskResult:
+        correlation = extract_correlation(context.variables, self.TOPIC)
+        log_worker_start(correlation)
+        t0 = time.monotonic()
+
+        # Extract inputs from context.variables
+        patient_id = context.variables.get('patient_id') or context.variables.get('patientId', '')
+        patient_name = context.variables.get('patient_name') or context.variables.get('patientName', 'Paciente')
+        phone_number = context.variables.get('phone_number') or context.variables.get('phoneNumber', '')
+        age = context.variables.get('age', 0)
+        health_conditions = context.variables.get('health_conditions') or context.variables.get('healthConditions', [])
+
+        # DMN evaluation
+        dmn = self.evaluate_dmn(
+            context,
+            decision_key='patient_birthday_greeting',
+            variables={
+                'patientId': patient_id,
+                'patientName': patient_name,
+                'age': age,
+                'healthConditions': health_conditions if isinstance(health_conditions, str) else ','.join(health_conditions),
+            },
+            category='patient_access',
         )
+        routing = dmn.get('resultado', 'PROSSEGUIR')
+        acao = dmn.get('acao', '')
 
-
-class PatientBirthdayInput(BaseModel):
-    """Input DTO for birthday greeting notification."""
-
-    patient_id: str = Field(..., description="FHIR Patient ID")
-    phone_number: str = Field(..., description="Patient phone E.164 format")
-    patient_name: str = Field(..., description="Patient first name")
-    birth_date: str = Field(..., description="Birth date ISO 8601")
-    age: int = Field(..., description="Patient age in years", ge=0)
-    health_conditions: list[str] = Field(
-        default=[], description="Active health conditions"
-    )
-
-
-class PatientBirthdayOutput(BaseModel):
-    """Output DTO for birthday greeting notification."""
-
-    notification_sent: bool = Field(
-        ..., description="Whether notification was sent successfully"
-    )
-    message_id: str | None = Field(None, description="Message ID from provider")
-    sent_at: str = Field(..., description="Timestamp of sending (ISO 8601)")
-
-
-class PatientBirthdayWorker:
-    """Worker to send personalized birthday greetings to patients."""
-
-    TOPIC = "relationship.birthday"
-
-    def __init__(
-        self,
-        whatsapp_client: WhatsAppClientProtocol | None = None,
-    ):
-        self.whatsapp_client = whatsapp_client or StubWhatsAppClient()
-        self.logger = get_logger(__name__, worker=self.TOPIC)
-
-    def _get_wellness_tip(self, age: int, conditions: list[str]) -> str:
-        """Return age-appropriate wellness tip, adjusted for conditions."""
-
-        if age < 18:
-            tip = "Continue brincando e praticando atividades físicas todos os dias!"
-        elif age <= 64:
-            tip = "Mantenha seus check-ups em dia e pratique exercícios regularmente."
-        else:
-            tip = (
-                "Mantenha-se ativo, hidratado e cultive suas conexões sociais."
+        if routing == 'BLOQUEAR':
+            log_worker_end(correlation, time.monotonic() - t0, {'routing': 'BLOQUEAR'})
+            return TaskResult.bpmn_error(
+                'PATIENT_ACCESS_BLOCKED', acao, {'routing': 'BLOQUEAR', 'acao': acao},
             )
 
-        condition_tips: list[str] = []
-        lower_conditions = [c.lower() for c in conditions]
+        # Build output variables
+        notification_sent = dmn.get('notification_sent', True)
+        message_id = dmn.get('message_id', f'birthday_{patient_id[:8]}')
 
-        if "diabetes" in lower_conditions:
-            condition_tips.append(
-                "Cuide da alimentação equilibrada para manter a glicemia estável."
-            )
-        if "hypertension" in lower_conditions:
-            condition_tips.append(
-                "Reduza o sal e pratique técnicas de relaxamento para o estresse."
-            )
-        if "cancer" in lower_conditions:
-            condition_tips.append(
-                "Continue acompanhando seus exames de seguimento com a equipe médica."
-            )
+        out = {
+            'notificationSent': notification_sent,
+            'messageId': message_id,
+            'sentAt': time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime()),
+        }
 
-        if condition_tips:
-            tip = f"{tip} {' '.join(condition_tips)}"
+        if routing == 'REVISAR':
+            log_worker_end(correlation, time.monotonic() - t0, {'routing': 'REVISAR'})
+            return TaskResult.success({**out, 'routing': 'REVISAR', 'requiresReview': True})
 
-        return tip
-
-    @require_tenant
-    @track_task_execution(task_type="relationship.birthday")
-    async def execute(self, task_variables: dict[str, Any]) -> dict[str, Any]:
-        """Execute birthday greeting notification."""
-
-        tenant_id = get_required_tenant()
-
-        try:
-            input_data = PatientBirthdayInput(**task_variables)
-        except ValidationError as ve:
-            raise PatientAccessException(
-                message=_("Dados inválidos para notificação de aniversário."),
-                details={
-                    "patient_id": task_variables.get("patient_id"),
-                    "validation_errors": ve.errors(),
-                },
-            ) from ve
-
-        try:
-            # CRITICAL: NEVER log phone_number or health_conditions (LGPD)
-            self.logger.info(
-                "sending_birthday_greeting",
-                tenant_id=tenant_id,
-                patient_id=input_data.patient_id,
-                age=input_data.age,
-            )
-
-            wellness_tip = self._get_wellness_tip(
-                input_data.age, input_data.health_conditions
-            )
-
-            template = WhatsAppTemplate(
-                name="birthday_greeting_v1",
-                language="pt_BR",
-                components=[
-                    {
-                        "type": "body",
-                        "parameters": [
-                            {"type": "text", "text": input_data.patient_name},
-                            {"type": "text", "text": wellness_tip},
-                        ],
-                    }
-                ],
-            )
-
-            message_id = await self.whatsapp_client.send_template_message(
-                phone=input_data.phone_number,
-                template=template,
-            )
-
-            sent_at = datetime.now(timezone.utc).isoformat()
-            output = PatientBirthdayOutput(
-                notification_sent=True,
-                message_id=message_id,
-                sent_at=sent_at,
-            )
-
-            self.logger.info(
-                "birthday_greeting_sent",
-                tenant_id=tenant_id,
-                patient_id=input_data.patient_id,
-                message_id=message_id,
-                sent_at=sent_at,
-            )
-
-            return output.model_dump()
-
-        except PatientAccessException:
-            raise
-        except Exception as e:
-            self.logger.error(
-                "birthday_greeting_failed",
-                tenant_id=tenant_id,
-                error=str(e),
-                error_type=type(e).__name__,
-            )
-            raise PatientAccessException(
-                message=_(
-                    "Falha ao enviar saudação de aniversário: {error}"
-                ).format(error=str(e)),
-                details={
-                    "patient_id": task_variables.get("patient_id"),
-                    "error_type": type(e).__name__,
-                },
-            ) from e
+        log_worker_end(correlation, time.monotonic() - t0, {'routing': 'PROSSEGUIR'})
+        return TaskResult.success({**out, 'routing': 'PROSSEGUIR'})

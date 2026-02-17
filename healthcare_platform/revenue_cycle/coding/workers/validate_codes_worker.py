@@ -47,7 +47,9 @@ _TUSS_REQUIRES_CID10: dict[str, list[str]] = {
 
 
 class CodeValidationError(BaseModel):
-    """A single validation error entry."""
+    """A single validation error entry.
+
+    Archetype: COMPLIANCE_VALIDATION"""
 
     code: str = Field(..., description="Code that failed validation")
     code_type: str = Field(..., description="CID10 or TUSS")

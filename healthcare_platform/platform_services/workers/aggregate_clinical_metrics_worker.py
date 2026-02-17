@@ -136,7 +136,10 @@ class AggregateClinicalMetricsOutput(BaseModel):
 
 
 class AggregateClinicalMetricsProtocol(ABC):
-    """Protocolo para agregação de métricas clínicas."""
+    """Protocolo para agregação de métricas clínicas.
+
+    Archetype: CLINICAL_SCORE
+    """
 
     @abstractmethod
     async def calculate_readmission_rate(

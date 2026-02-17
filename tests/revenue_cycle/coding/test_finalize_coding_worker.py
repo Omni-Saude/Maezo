@@ -1,9 +1,11 @@
 """Tests for finalize_coding_worker - Phase 2.2 Coding & Audit."""
 
+from __future__ import annotations
+
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 
-from healthcare_platform.revenue_cycle.coding.workers.finalize_coding_worker import (
+from healthcare_platform.revenue_cycle.coding.workers import (
     FinalizeCodingWorker,
     FinalizeCodingInput,
     FinalizeCodingOutput,
@@ -22,8 +24,11 @@ class TestFinalizeCodingWorker:
         return svc
 
     @pytest.fixture
-    def worker(self, mock_encounter_service):
-        return FinalizeCodingWorker(encounter_service=mock_encounter_service)
+    def worker(self, mock_encounter_service, mock_dmn_service):
+        return FinalizeCodingWorker(
+            encounter_service=mock_encounter_service,
+            dmn_service=mock_dmn_service
+        )
 
     def _make_task_vars(self, overrides=None):
         base = {

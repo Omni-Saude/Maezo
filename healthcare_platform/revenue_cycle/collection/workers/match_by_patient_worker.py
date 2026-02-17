@@ -15,7 +15,10 @@ logger = get_logger(__name__)
 
 
 class MatchByPatientWorker:
-    """Matches payment to claim by patient reference when other methods fail."""
+    """    Matches payment to claim by patient reference when other methods fail.
+    
+        Archetype: FINANCIAL_CALCULATION
+        """
 
     WORKER_TYPE = "match_by_patient"
 

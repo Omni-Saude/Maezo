@@ -15,7 +15,9 @@ logger = get_logger(__name__)
 
 @worker(topic="billing-retry-failed-submission")
 class RetryFailedSubmissionWorker(BaseWorker):
-    """Worker to retry failed submissions with exponential backoff."""
+    """Worker to retry failed submissions with exponential backoff.
+
+    Archetype: FINANCIAL_CALCULATION"""
 
     def __init__(self, tiss_client: TISSClientProtocol) -> None:
         """

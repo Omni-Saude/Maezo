@@ -1,9 +1,11 @@
 """Tests for calculate_complexity_worker - Phase 2.2 Coding & Audit."""
 
+from __future__ import annotations
+
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 
-from healthcare_platform.revenue_cycle.coding.workers.calculate_complexity_worker import (
+from healthcare_platform.revenue_cycle.coding.workers import (
     CalculateComplexityWorker,
     CalculateComplexityInput,
     CalculateComplexityOutput,
@@ -28,8 +30,8 @@ class TestCalculateComplexityWorker:
         return engine
 
     @pytest.fixture
-    def worker(self, mock_complexity_engine):
-        return CalculateComplexityWorker(complexity_engine=mock_complexity_engine)
+    def worker(self, mock_complexity_engine, mock_dmn_service):
+        return CalculateComplexityWorker(complexity_engine=mock_complexity_engine, dmn_service=mock_dmn_service)
 
     def _make_task_vars(self, overrides=None):
         base = {

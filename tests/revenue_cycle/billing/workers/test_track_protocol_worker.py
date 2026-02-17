@@ -6,13 +6,28 @@ from datetime import datetime
 
 import pytest
 
-from healthcare_platform.revenue_cycle.billing.workers.track_protocol_worker import TrackProtocolWorker
+from healthcare_platform.revenue_cycle.billing.workers.track_protocol_worker_v2 import TrackProtocolWorker
+
+from unittest.mock import Mock
 
 
 @pytest.fixture
-def worker():
+def mock_dmn_service():
+    """Create mock DMN service."""
+    dmn_service = Mock()
+    # Default DMN response: PROSSEGUIR (allow processing)
+    dmn_service.evaluate.return_value = {
+        "resultado": "PROSSEGUIR",
+        "acao": "Processar com sucesso",
+        "risco": "BAIXO"
+    }
+    return dmn_service
+
+
+@pytest.fixture
+def worker(mock_dmn_service):
     """Create worker instance."""
-    return TrackProtocolWorker()
+    return TrackProtocolWorker(dmn_service=mock_dmn_service)
 
 
 @pytest.fixture

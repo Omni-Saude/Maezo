@@ -12,7 +12,10 @@ logger = get_logger(__name__)
 
 
 class CalculateAgingBucketWorker:
-    """Calcula o bucket de aging baseado nos dias de vencimento."""
+    """    Calcula o bucket de aging baseado nos dias de vencimento.
+    
+        Archetype: FINANCIAL_CALCULATION
+        """
 
     WORKER_TYPE = "calculate_aging_bucket"
 

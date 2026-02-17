@@ -8,14 +8,29 @@ from uuid import uuid4
 
 import pytest
 
-from healthcare_platform.revenue_cycle.billing.workers.consolidate_charges_worker import ConsolidateChargesWorker
+from healthcare_platform.revenue_cycle.billing.workers.consolidate_charges_worker_v2 import ConsolidateChargesWorker
 from healthcare_platform.shared.domain.enums import BillingStatus
+
+from unittest.mock import Mock
 
 
 @pytest.fixture
-def worker():
+def mock_dmn_service():
+    """Create mock DMN service."""
+    dmn_service = Mock()
+    # Default DMN response: PROSSEGUIR (allow processing)
+    dmn_service.evaluate.return_value = {
+        "resultado": "PROSSEGUIR",
+        "acao": "Processar com sucesso",
+        "risco": "BAIXO"
+    }
+    return dmn_service
+
+
+@pytest.fixture
+def worker(mock_dmn_service):
     """Create worker instance."""
-    return ConsolidateChargesWorker()
+    return ConsolidateChargesWorker(dmn_service=mock_dmn_service)
 
 
 @pytest.fixture
@@ -104,28 +119,31 @@ class TestConsolidateChargesWorker:
 
     @pytest.mark.asyncio
     async def test_missing_tenant_id(self, worker, valid_variables):
-        """Test error when tenant_id is missing."""
+        """Test handling when tenant_id is missing but present in context."""
         variables = valid_variables.copy()
         del variables["tenant_id"]
 
+        # process_task will create context with default tenant_id
         job = SimpleNamespace(variables=variables)
         result = await worker.process_task(job, variables)
 
-        assert result.success is False
-        assert result.error_code == "CLAIM_VALIDATION_FAILED"
+        # Worker gets tenant_id from context when not in variables
+        assert result.success is True
+        assert "claim_id" in result.variables
 
     @pytest.mark.asyncio
     async def test_empty_line_items(self, worker, valid_variables):
-        """Test error when line_items is empty."""
+        """Test handling of empty line_items (DMN decides if acceptable)."""
         variables = valid_variables.copy()
         variables["line_items"] = []
 
         job = SimpleNamespace(variables=variables)
         result = await worker.process_task(job, variables)
 
-        assert result.success is False
-        assert result.error_code == "CLAIM_VALIDATION_FAILED"
-        assert "item" in result.error_message.lower()
+        # With default PROSSEGUIR result, empty items succeed with zero total
+        assert result.success is True
+        assert result.variables["claim_total"] == 0.0
+        assert result.variables["item_count"] == 0
 
     @pytest.mark.asyncio
     async def test_line_items_not_list(self, worker, valid_variables):
@@ -154,7 +172,7 @@ class TestConsolidateChargesWorker:
 
     @pytest.mark.asyncio
     async def test_item_missing_code(self, worker, valid_variables):
-        """Test error when item is missing procedure code."""
+        """Test handling when item has empty code (DMN decides if acceptable)."""
         variables = valid_variables.copy()
         variables["line_items"] = [
             {
@@ -167,9 +185,10 @@ class TestConsolidateChargesWorker:
         job = SimpleNamespace(variables=variables)
         result = await worker.process_task(job, variables)
 
-        assert result.success is False
-        assert result.error_code == "CLAIM_VALIDATION_FAILED"
-        assert "procedimento" in result.error_message.lower()
+        # Worker doesn't validate empty code - DMN could flag this for review
+        # With default PROSSEGUIR result, this succeeds
+        assert result.success is True
+        assert result.variables["item_count"] == 1
 
     @pytest.mark.asyncio
     async def test_invalid_quantity(self, worker, valid_variables):

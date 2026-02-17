@@ -83,6 +83,8 @@ class PatientBillNotificationWorker:
     - Due date
     - Interactive buttons (View Details, Pay Now, Payment Plan)
     - Deep links for self-service portal
+
+    Archetype: FINANCIAL_CALCULATION
     """
 
     TOPIC = "financial.bill_ready"

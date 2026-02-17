@@ -1,0 +1,105 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/"
+             xmlns:dc="http://www.omg.org/spec/DMN/20180521/DC/"
+             id="Definitions_BundlingValidation"
+             name="Bundling Validation Decision"
+             namespace="http://camunda.org/schema/1.0/dmn">
+  <!-- Archetype: ADMIN_ADJUDICATION | Source: bundling_validation_worker.py -->
+
+  <!-- DMN: Bundling Validation
+       Based on: apply_coding_rules_worker.py lines 132-136, 188-217
+       Rule: Detect codes from same bundle group billed together
+  -->
+
+  <decision id="Decision_BundlingValidation" name="Bundling Validation">
+    <decisionTable id="DecisionTable_BundlingValidation" hitPolicy="FIRST">
+
+      <!-- === INPUTS === -->
+      <input id="Input_tussCode1" label="TUSS Code 1">
+        <inputExpression id="InputExpr_tussCode1" typeRef="string">
+          <text>tuss_code_1</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_tussCode2" label="TUSS Code 2">
+        <inputExpression id="InputExpr_tussCode2" typeRef="string">
+          <text>tuss_code_2</text>
+        </inputExpression>
+      </input>
+
+      <!-- === OUTPUTS === -->
+      <output id="Output_resultado" label="Resultado" name="resultado" typeRef="string">
+        <outputValues><text>"PROSSEGUIR","BLOQUEAR","REVISAR"</text></outputValues>
+      </output>
+
+      <output id="Output_acao" label="Acao" name="acao" typeRef="string"/>
+
+      <output id="Output_risco" label="Risco" name="risco" typeRef="string">
+        <outputValues><text>"CRITICO","ALTO","MEDIO","BAIXO"</text></outputValues>
+      </output>
+
+      <!-- === RULES === -->
+
+      <!-- Bundle Group 1: Consulta simples + detalhada -->
+      <rule id="Rule_Bundle_Consulta">
+        <description>Bundling violacao: consultas simples + detalhada</description>
+        <inputEntry id="IE_BC_1"><text>"30101012","30101020"</text></inputEntry>
+        <inputEntry id="IE_BC_2"><text>"30101012","30101020"</text></inputEntry>
+        <outputEntry id="OE_BC_res"><text>"BLOQUEAR"</text></outputEntry>
+        <outputEntry id="OE_BC_acao"><text>"Codigos 30101012 e 30101020 nao podem ser cobrados juntos (bundling)"</text></outputEntry>
+        <outputEntry id="OE_BC_risco"><text>"ALTO"</text></outputEntry>
+      </rule>
+
+      <!-- Bundle Group 2: ECG repouso + esforco -->
+      <rule id="Rule_Bundle_ECG">
+        <description>Bundling violacao: ECG repouso + esforco</description>
+        <inputEntry id="IE_BECG_1"><text>"40201010","40201028"</text></inputEntry>
+        <inputEntry id="IE_BECG_2"><text>"40201010","40201028"</text></inputEntry>
+        <outputEntry id="OE_BECG_res"><text>"BLOQUEAR"</text></outputEntry>
+        <outputEntry id="OE_BECG_acao"><text>"Codigos 40201010 e 40201028 nao podem ser cobrados juntos (bundling)"</text></outputEntry>
+        <outputEntry id="OE_BECG_risco"><text>"ALTO"</text></outputEntry>
+      </rule>
+
+      <!-- No bundling conflict detected -->
+      
+      <rule id="Rule_PartialBundle">
+        <description>Bundle parcialmente completo</description>
+        <inputEntry id="IE_PartialBundle_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_PartialBundle_2"><text>-</text></inputEntry>
+        <outputEntry id="OE_PartialBundle_res"><text>"REVISAR"</text></outputEntry>
+        <outputEntry id="OE_PartialBundle_acao"><text>"Bundle com componentes parciais - verificar se todos itens foram incluidos"</text></outputEntry>
+        <outputEntry id="OE_PartialBundle_risco"><text>"ALTO"</text></outputEntry>
+      </rule>
+
+
+      <rule id="Rule_OverBundle">
+        <description>Itens extras alem do bundle</description>
+        <inputEntry id="IE_OverBundle_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_OverBundle_2"><text>-</text></inputEntry>
+        <outputEntry id="OE_OverBundle_res"><text>"REVISAR"</text></outputEntry>
+        <outputEntry id="OE_OverBundle_acao"><text>"Itens cobrados alem do bundle padrao - justificar necessidade"</text></outputEntry>
+        <outputEntry id="OE_OverBundle_risco"><text>"MEDIO"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_No_Bundle_Conflict">
+        <description>Sem conflito de bundling</description>
+        <inputEntry id="IE_NB_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_NB_2"><text>-</text></inputEntry>
+        <outputEntry id="OE_NB_res"><text>"PROSSEGUIR"</text></outputEntry>
+        <outputEntry id="OE_NB_acao"><text>"Nenhum conflito de bundling detectado"</text></outputEntry>
+        <outputEntry id="OE_NB_risco"><text>"BAIXO"</text></outputEntry>
+      </rule>
+
+    </decisionTable>
+  </decision>
+
+  <dmndi:DMNDI>
+    <dmndi:DMNDiagram id="DMNDiagram_BundlingValidation">
+      <dmndi:DMNShape id="DMNShape_Decision" dmnElementRef="Decision_BundlingValidation">
+        <dc:Bounds height="80" width="180" x="160" y="100"/>
+      </dmndi:DMNShape>
+    </dmndi:DMNDiagram>
+  </dmndi:DMNDI>
+
+</definitions>

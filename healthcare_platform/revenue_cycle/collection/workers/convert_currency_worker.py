@@ -13,7 +13,10 @@ logger = get_logger(__name__)
 
 
 class ConvertCurrencyWorker:
-    """Converts non-BRL payments to BRL using exchange rates."""
+    """    Converts non-BRL payments to BRL using exchange rates.
+    
+        Archetype: FINANCIAL_CALCULATION
+        """
 
     WORKER_TYPE = "convert_currency"
 

@@ -1,8 +1,10 @@
 """Test fixtures for Healthcare-Orchest-CIB7."""
 
+from __future__ import annotations
+
 from .tenant_fixtures import (
     TENANT_AUSTA,
-    TENANT_HPA,
+    TENANT_AMH_SP,
     tenant_configuration,
 )
 from .patient_fixtures import (
@@ -52,7 +54,7 @@ from .engine_fixtures import (
 __all__ = [
     # Tenant fixtures
     "TENANT_AUSTA",
-    "TENANT_HPA",
+    "TENANT_AMH_SP",
     "tenant_configuration",
     # Patient fixtures
     "PATIENT_VALID",

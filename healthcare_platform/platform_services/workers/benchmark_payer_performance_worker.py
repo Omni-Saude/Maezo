@@ -41,7 +41,10 @@ benchmark_duration_seconds = Histogram(
 
 
 class PayerBenchmarkingError(DomainException):
-    """Exception raised when payer benchmarking fails."""
+    """    Exception raised when payer benchmarking fails.
+    
+        Archetype: COMPLIANCE_VALIDATION
+        """
 
     def __init__(self, message: str, details: dict[str, Any] | None = None) -> None:
         super().__init__(

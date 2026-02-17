@@ -1,9 +1,11 @@
 """Tests for extract_clinical_data_worker - Phase 2.2 Coding & Audit."""
 
+from __future__ import annotations
+
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 
-from healthcare_platform.revenue_cycle.coding.workers.extract_clinical_data_worker import (
+from healthcare_platform.revenue_cycle.coding.workers import (
     ExtractClinicalDataWorker,
     ExtractClinicalDataInput,
     ExtractClinicalDataOutput,
@@ -33,8 +35,8 @@ class TestExtractClinicalDataWorker:
         return svc
 
     @pytest.fixture
-    def worker(self, mock_fhir_service):
-        return ExtractClinicalDataWorker(fhir_service=mock_fhir_service)
+    def worker(self, mock_fhir_service, mock_dmn_service):
+        return ExtractClinicalDataWorker(fhir_service=mock_fhir_service, dmn_service=mock_dmn_service)
 
     @pytest.mark.asyncio
     async def test_successful_extraction(self, worker, mock_task, mock_fhir_service):

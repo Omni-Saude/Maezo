@@ -38,7 +38,9 @@ _STATUS_CODED = "CODED"
 # ---------------------------------------------------------------------------
 
 class FinalizeCodingInput(BaseModel):
-    """Input variables for the finalize-coding task."""
+    """Input variables for the finalize-coding task.
+
+    Archetype: FINANCIAL_CALCULATION"""
 
     model_config = ConfigDict(populate_by_name=True)
 

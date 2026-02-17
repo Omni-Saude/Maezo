@@ -15,7 +15,10 @@ logger = get_logger(__name__)
 
 
 class ParsePaymentFileWorker:
-    """Parses CNAB 240/400 bank return files."""
+    """    Parses CNAB 240/400 bank return files.
+    
+        Archetype: FINANCIAL_CALCULATION
+        """
 
     WORKER_TYPE = "parse_payment_file"
 

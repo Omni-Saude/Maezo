@@ -30,7 +30,9 @@ TUSS_PATTERN = re.compile(r"^\d{8}$")
 
 
 class TUSSSuggestion(BaseModel):
-    """A suggested TUSS code with confidence score."""
+    """A suggested TUSS code with confidence score.
+
+    Archetype: FINANCIAL_CALCULATION"""
 
     code: str = Field(..., description="TUSS 8-digit code (e.g., 40101010)")
     name: str = Field(..., description="Procedure name in Portuguese")

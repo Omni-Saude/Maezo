@@ -12,7 +12,10 @@ logger = get_logger(__name__)
 
 
 class SendWhatsAppReminderWorker:
-    """Envia lembretes de pagamento via WhatsApp (LGPD compliant)."""
+    """    Envia lembretes de pagamento via WhatsApp (LGPD compliant).
+    
+        Archetype: FINANCIAL_CALCULATION
+        """
 
     WORKER_TYPE = "send_whatsapp_reminder"
 

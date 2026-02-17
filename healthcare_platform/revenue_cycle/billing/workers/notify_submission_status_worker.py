@@ -1,4 +1,7 @@
-"""Notify submission status via WhatsApp worker."""
+"""Notify submission status via WhatsApp worker.
+
+Archetype: CLINICAL_ALERT
+"""
 from __future__ import annotations
 
 from typing import Any

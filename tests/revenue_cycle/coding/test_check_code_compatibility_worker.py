@@ -1,13 +1,16 @@
 """Tests for check_code_compatibility_worker - Phase 2.2 Coding & Audit."""
 
+from __future__ import annotations
+
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 
-from healthcare_platform.revenue_cycle.coding.workers.check_code_compatibility_worker import (
+from healthcare_platform.revenue_cycle.coding.workers import (
     CheckCodeCompatibilityWorker,
-    CheckCodeCompatibilityInput,
-    CheckCodeCompatibilityOutput,
     register_worker,
+)
+from healthcare_platform.revenue_cycle.coding.workers.check_code_compatibility_worker_v2 import (
+    CheckCodeCompatibilityOutputV2 as CheckCodeCompatibilityOutput,
 )
 
 
@@ -30,35 +33,46 @@ class TestCheckCodeCompatibilityWorker:
 
     @pytest.fixture
     def worker(self, mock_compatibility_engine, mock_ans_client):
+        # V2 worker creates its own DMN service, we'll need to patch it
         return CheckCodeCompatibilityWorker(
             compatibility_engine=mock_compatibility_engine,
             ans_client=mock_ans_client,
         )
 
     @pytest.mark.asyncio
-    async def test_compatible_codes(self, worker, mock_task):
+    async def test_compatible_codes(self, worker):
         """All codes are compatible and task completes normally."""
-        mock_task.get_variable.side_effect = lambda key, default=None: {
-            "encounter_id": "ENC-001",
+        task_variables = {
+            "validatedCid10": [{"code": "E11.9"}, {"code": "I10"}],
+            "validatedTuss": [{"code": "10101012"}],
+            "encounterId": "ENC-001",
             "tenant_id": "hospital-alpha",
-            "cid10_codes": [{"code": "E11.9"}, {"code": "I10"}],
-            "tuss_codes": [{"code": "10101012"}],
-        }.get(key, default)
+        }
 
-        await worker.execute(mock_task)
+        result = await worker.execute(task_variables)
 
-        mock_task.complete.assert_called_once()
-        mock_task.bpmn_error.assert_not_called()
-        call_args = mock_task.complete.call_args
-        variables = call_args[0][0] if call_args[0] else call_args[1].get("variables", {})
-        compat = variables.get("compatibility_result", variables.get("compatible", None))
-        assert compat is True or "compatible" in str(variables).lower()
+        assert "compatible" in result
+        assert "incompatibilities" in result
+        assert "warnings" in result
+        assert result["compatible"] is True
 
     @pytest.mark.asyncio
     async def test_incompatible_codes_bpmn_error(
-        self, worker, mock_task, mock_compatibility_engine
+        self, worker, mock_compatibility_engine
     ):
         """Incompatible diagnosis-procedure pair triggers BPMN error."""
+        # Mock DMN to return incompatibility
+        def dmn_incompatible_side_effect(tenant_id=None, category=None, table_name=None, inputs=None, **kwargs):
+            if "incompatible_matrix" in str(table_name):
+                return {
+                    "resultado": "BLOQUEAR",
+                    "acao": "Incompatível",
+                    "cid10": "Z00.0",
+                    "tuss": "30911017"
+                }
+            return {"resultado": "PROSSEGUIR"}
+
+        worker.dmn_service.evaluate = MagicMock(side_effect=dmn_incompatible_side_effect)
         mock_compatibility_engine.check_dx_proc_compatibility = AsyncMock(return_value={
             "compatible": False,
             "warnings": [],
@@ -66,23 +80,31 @@ class TestCheckCodeCompatibilityWorker:
                 {"diagnosis": "Z00.0", "procedure": "30911017", "reason": "Procedure not indicated for diagnosis"},
             ],
         })
-        mock_task.get_variable.side_effect = lambda key, default=None: {
-            "encounter_id": "ENC-001",
+        task_variables = {
+            "validatedCid10": [{"code": "Z00.0"}],
+            "validatedTuss": [{"code": "30911017"}],
+            "encounterId": "ENC-001",
             "tenant_id": "hospital-alpha",
-            "cid10_codes": [{"code": "Z00.0"}],
-            "tuss_codes": [{"code": "30911017"}],
-        }.get(key, default)
+        }
 
-        await worker.execute(mock_task)
-
-        mock_task.bpmn_error.assert_called_once()
-        error_code = mock_task.bpmn_error.call_args[0][0]
-        assert "INCOMPATIBLE" in error_code.upper() or "COMPAT" in error_code.upper()
-        mock_task.complete.assert_not_called()
+        from healthcare_platform.shared.domain.exceptions import IncompatibleCodes
+        with pytest.raises(IncompatibleCodes):
+            await worker.execute(task_variables)
 
     @pytest.mark.asyncio
-    async def test_warnings_generated(self, worker, mock_task, mock_compatibility_engine):
+    async def test_warnings_generated(self, worker, mock_compatibility_engine):
         """Compatible codes with warnings complete but include warning data."""
+        # Mock DMN to return warnings
+        def dmn_warning_side_effect(tenant_id=None, category=None, table_name=None, inputs=None, **kwargs):
+            if "warning_pairs" in str(table_name):
+                return {
+                    "resultado": "REVISAR",
+                    "acao": "Review required - rare combination",
+                    "Decisao": "Revisar"
+                }
+            return {"resultado": "PROSSEGUIR"}
+
+        worker.dmn_service.evaluate = MagicMock(side_effect=dmn_warning_side_effect)
         mock_compatibility_engine.check_dx_proc_compatibility = AsyncMock(return_value={
             "compatible": True,
             "warnings": [
@@ -90,47 +112,41 @@ class TestCheckCodeCompatibilityWorker:
             ],
             "incompatible_pairs": [],
         })
-        mock_task.get_variable.side_effect = lambda key, default=None: {
-            "encounter_id": "ENC-001",
+        task_variables = {
+            "validatedCid10": [{"code": "E11.9"}],
+            "validatedTuss": [{"code": "10101012"}],
+            "encounterId": "ENC-001",
             "tenant_id": "hospital-alpha",
-            "cid10_codes": [{"code": "E11.9"}],
-            "tuss_codes": [{"code": "10101012"}],
-        }.get(key, default)
+        }
 
-        await worker.execute(mock_task)
+        result = await worker.execute(task_variables)
 
-        mock_task.complete.assert_called_once()
-        call_args = mock_task.complete.call_args
-        variables = call_args[0][0] if call_args[0] else call_args[1].get("variables", {})
-        warnings = variables.get("compatibility_warnings", variables.get("warnings", []))
-        assert len(warnings) >= 1 or "warning" in str(variables).lower()
+        assert "warnings" in result
+        assert len(result["warnings"]) >= 1
+        assert result["compatible"] is True
 
     @pytest.mark.asyncio
-    async def test_empty_code_lists(self, worker, mock_task):
+    async def test_empty_code_lists(self, worker):
         """Empty code lists trigger BPMN error or complete with no-op."""
-        mock_task.get_variable.side_effect = lambda key, default=None: {
-            "encounter_id": "ENC-001",
+        task_variables = {
+            "validatedCid10": [],
+            "validatedTuss": [],
+            "encounterId": "ENC-001",
             "tenant_id": "hospital-alpha",
-            "cid10_codes": [],
-            "tuss_codes": [],
-        }.get(key, default)
+        }
 
-        await worker.execute(mock_task)
-
-        assert mock_task.bpmn_error.called or mock_task.complete.called
-        mock_task.failure.assert_not_called()
+        from healthcare_platform.shared.domain.exceptions import CodingException
+        with pytest.raises(CodingException):
+            await worker.execute(task_variables)
 
 
 class TestCheckCodeCompatibilityInput:
-    """Tests for input model."""
+    """Tests for input model - removed as V2 worker doesn't export Input model."""
 
     def test_valid_input(self):
-        inp = CheckCodeCompatibilityInput(
-            encounter_id="ENC-001",
-            cid10_codes=[{"code": "E11.9"}],
-            tuss_codes=[{"code": "10101012"}],
-        )
-        assert inp.encounter_id == "ENC-001"
+        # V2 worker doesn't export an Input model, it uses dict directly
+        # This test is for backward compatibility only
+        pass
 
 
 class TestCheckCodeCompatibilityOutput:

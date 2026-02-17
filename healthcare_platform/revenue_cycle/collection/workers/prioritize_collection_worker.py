@@ -12,7 +12,10 @@ logger = get_logger(__name__)
 
 
 class PrioritizeCollectionWorker:
-    """Calcula prioridade de cobrança baseado em múltiplos fatores."""
+    """    Calcula prioridade de cobrança baseado em múltiplos fatores.
+    
+        Archetype: FINANCIAL_CALCULATION
+        """
 
     WORKER_TYPE = "prioritize_collection"
 

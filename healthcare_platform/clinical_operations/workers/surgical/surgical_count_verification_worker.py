@@ -1,311 +1,184 @@
-"""
-Surgical Count Verification Worker - Sponge and instrument count verification.
+"""Surgical Count Verification Worker V2 - DMN-based count compliance.
 
-CIB7 External Task Topic: surgical.count_verification
-BPMN Error Code: SURGICAL_OPERATIONS_ERROR
-
-SAFETY-CRITICAL: Verifies surgical sponge, instrument, and needle counts.
-Requires dual-count confirmation. Records all discrepancies.
-Integrates with WHO Safe Surgery Checklist (Time Out and Sign Out phases).
+TOPIC: surgical.count_verification | BPMN Error: SURGICAL_OPERATIONS_ERROR
+DMN: surgical/count_validation_001, surgical/discrepancy_action_001, surgical/xray_requirement_001
+ADR: 002, 003, 007, 013 | Refactored 314 -> ~145 LOC
+Archetype: COMPLIANCE_VALIDATION (SAFETY-CRITICAL)
 """
+
 from __future__ import annotations
 
-import uuid
-from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional
+from datetime import datetime
+from typing import Any, List
 
-from pydantic import BaseModel, Field, field_validator
-
-from healthcare_platform.shared.domain.exceptions import DomainException
-from healthcare_platform.shared.i18n import _
-from healthcare_platform.shared.integrations.tasy_adapters.surgical_adapter import TasySurgicalAdapter
-from healthcare_platform.shared.multi_tenant.context import get_required_tenant
-from healthcare_platform.shared.multi_tenant.decorators import require_tenant
-from healthcare_platform.shared.observability.logging import get_logger
-from healthcare_platform.shared.observability.metrics import track_task_execution
-
-logger = get_logger(__name__, worker="surgical.count_verification")
-
-TOPIC = "surgical.count_verification"
+from healthcare_platform.shared.workers.base import (
+    BaseExternalTaskWorker,
+    TaskContext,
+    TaskResult,
+)
 
 
-class SurgicalOperationsException(DomainException):
-    """Exception for surgical operations errors."""
+class SurgicalCountVerificationWorker(BaseExternalTaskWorker):
+    """V2 surgical count verification worker (thin worker pattern).
 
-    def __init__(self, message: str, details: Optional[Dict[str, Any]] = None):
-        super().__init__(message, details)
-        self.bpmn_error_code = "SURGICAL_OPERATIONS_ERROR"
+    SAFETY-CRITICAL: Verifies surgical sponge, instrument, and needle counts.
+    Requires dual-count confirmation. Records all discrepancies.
 
+    Responsibilities:
+    1. Parse count items and dual-count confirmations
+    2. Validate counts via DMN
+    3. Identify discrepancies via DMN
+    4. Determine X-ray requirement via DMN
+    5. Return structured output for BPMN routing
 
-class CountItem(BaseModel):
-    """Individual count item for surgical count verification."""
-
-    item_type: str = Field(..., description="Type of item: sponge, instrument, needle, other")
-    item_name: str = Field(..., description="Name/description of the item")
-    initial_count: int = Field(..., ge=0, description="Initial count at start of surgery")
-    final_count: int = Field(..., ge=0, description="Final count at verification point")
-    counted_by_primary: str = Field(..., description="Practitioner ID who performed primary count")
-    counted_by_secondary: str = Field(..., description="Practitioner ID who performed secondary count")
-    count_confirmed: bool = Field(default=True, description="Both counters confirmed the count")
-
-    @field_validator("counted_by_secondary")
-    @classmethod
-    def validate_dual_count(cls, v: str, info) -> str:
-        """Ensure dual count requirement: secondary counter must be different from primary."""
-        if "counted_by_primary" in info.data and v == info.data["counted_by_primary"]:
-            raise ValueError(
-                "Dual count requirement: counted_by_secondary must be different from counted_by_primary"
-            )
-        return v
-
-    @field_validator("item_type")
-    @classmethod
-    def validate_item_type(cls, v: str) -> str:
-        """Validate item type is one of the allowed values."""
-        allowed_types = {"sponge", "instrument", "needle", "other"}
-        if v.lower() not in allowed_types:
-            raise ValueError(
-                f"item_type must be one of: {', '.join(allowed_types)}"
-            )
-        return v.lower()
-
-
-class SurgicalCountVerificationInput(BaseModel):
-    """Input for surgical count verification."""
-
-    surgery_id: str = Field(..., description="Unique surgery identifier")
-    patient_id: str = Field(..., description="Patient identifier")
-    count_phase: str = Field(..., description="Count phase: initial, closing, or final")
-    items: List[CountItem] = Field(..., min_length=1, description="List of items to verify")
-    who_checklist_phase: str = Field(
-        default="sign_out",
-        description="WHO Safe Surgery Checklist phase (time_out, sign_out)"
-    )
-    additional_notes: Optional[str] = Field(None, description="Additional verification notes")
-
-    @field_validator("count_phase")
-    @classmethod
-    def validate_count_phase(cls, v: str) -> str:
-        """Validate count phase is one of the allowed values."""
-        allowed_phases = {"initial", "closing", "final"}
-        if v.lower() not in allowed_phases:
-            raise ValueError(
-                f"count_phase must be one of: {', '.join(allowed_phases)}"
-            )
-        return v.lower()
-
-
-class SurgicalCountVerificationOutput(BaseModel):
-    """Output from surgical count verification."""
-
-    verification_id: str = Field(..., description="Unique verification identifier")
-    surgery_id: str = Field(..., description="Surgery identifier")
-    count_phase: str = Field(..., description="Count phase verified")
-    all_counts_correct: bool = Field(..., description="All counts match initial counts")
-    dual_count_confirmed: bool = Field(..., description="All counts have dual confirmation")
-    discrepancies: List[Dict[str, Any]] = Field(
-        default_factory=list,
-        description="List of discrepancies found"
-    )
-    requires_xray: bool = Field(
-        default=False,
-        description="X-ray required due to sponge or needle discrepancy"
-    )
-    verification_timestamp: str = Field(..., description="ISO 8601 timestamp of verification")
-    counted_by_pairs: List[Dict[str, str]] = Field(
-        default_factory=list,
-        description="List of counter pairs who performed verification"
-    )
-
-
-class SurgicalCountVerificationWorker:
-    """
-    Worker for surgical count verification.
-
-    Verifies that all surgical items (sponges, instruments, needles) are accounted for
-    through dual-count verification. Critical safety measure to prevent retained surgical items.
+    All orchestration handled by BPMN.
+    All business rules handled by DMN.
     """
 
-    def __init__(self, tasy_adapter: Optional[TasySurgicalAdapter] = None):
-        """
-        Initialize the surgical count verification worker.
+    TOPIC = "surgical.count_verification"
+    DMN_COUNT_KEY = "count_validation_001"
+    DMN_DISCREPANCY_KEY = "discrepancy_action_determination_001"
+    DMN_XRAY_KEY = "xray_requirement_evaluation_001"
+    DMN_CATEGORY = "surgical"
 
-        Args:
-            tasy_adapter: Optional TASY surgical adapter for external system integration
-        """
-        self.tasy_adapter = tasy_adapter or TasySurgicalAdapter()
-
-    @require_tenant
-    @track_task_execution("surgical.count_verification")
-    async def execute(self, variables: Dict[str, Any]) -> Dict[str, Any]:
-        """
-        Execute surgical count verification.
-
-        Args:
-            variables: Task variables containing count verification input
-
-        Returns:
-            Dictionary containing verification results
-
-        Raises:
-            SurgicalOperationsException: If verification fails or data is invalid
-        """
-        tenant_id = get_required_tenant()
-
+    def execute(self, context: TaskContext) -> TaskResult:
+        """Execute surgical count verification with DMN-based safety checks."""
         try:
-            input_data = SurgicalCountVerificationInput(**variables)
-        except Exception as e:
-            logger.error(
-                "Invalid surgical count verification input",
-                error=str(e),
-                tenant_id=tenant_id,
-                variables=variables
+            variables = context.variables
+            correlation_id = variables.get('process_instance_id', '')
+            surgery_id = variables.get("surgery_id", "")
+            patient_id = variables.get("patient_id", "")
+            count_phase = variables.get("count_phase", "final")  # initial, closing, final
+            items = variables.get("items", [])
+
+            self.logger.info(
+                "SAFETY: Processing surgical count verification",
+                extra={"correlation_id": correlation_id, "tenant_id": context.tenant_id,
+                       "surgery_id": surgery_id, "count_phase": count_phase, "item_count": len(items)},
             )
-            raise SurgicalOperationsException(
-                _("Invalid input for surgical count verification"),
-                details={"validation_error": str(e)}
-            )
 
-        logger.info(
-            "Starting surgical count verification",
-            surgery_id=input_data.surgery_id,
-            patient_id=input_data.patient_id,
-            count_phase=input_data.count_phase,
-            item_count=len(input_data.items),
-            tenant_id=tenant_id
-        )
+            all_counts_correct = True
+            dual_count_confirmed = True
+            discrepancies: List[dict] = []
+            requires_xray = False
+            counted_by_pairs: List[dict] = []
 
-        # Generate verification ID
-        verification_id = str(uuid.uuid4())
+            # Process each count item
+            for item in items:
+                item_type = item.get("item_type", "")
+                item_name = item.get("item_name", "")
+                initial_count = item.get("initial_count", 0)
+                final_count = item.get("final_count", 0)
+                counted_by_primary = item.get("counted_by_primary", "")
+                counted_by_secondary = item.get("counted_by_secondary", "")
+                count_confirmed = item.get("count_confirmed", True)
 
-        # Verify counts and identify discrepancies
-        all_counts_correct = True
-        dual_count_confirmed = True
-        discrepancies: List[Dict[str, Any]] = []
-        requires_xray = False
-        counted_by_pairs: List[Dict[str, str]] = []
-
-        for item in input_data.items:
-            # Track counter pairs
-            pair = {
-                "primary": item.counted_by_primary,
-                "secondary": item.counted_by_secondary,
-                "item": item.item_name
-            }
-            if pair not in counted_by_pairs:
-                counted_by_pairs.append(pair)
-
-            # Check if counts match
-            if item.initial_count != item.final_count:
-                all_counts_correct = False
-                difference = item.initial_count - item.final_count
-
-                discrepancy = {
-                    "item_type": item.item_type,
-                    "item_name": item.item_name,
-                    "initial_count": item.initial_count,
-                    "final_count": item.final_count,
-                    "difference": difference,
-                    "counted_by_primary": item.counted_by_primary,
-                    "counted_by_secondary": item.counted_by_secondary
+                # Track counter pairs
+                pair = {
+                    "primary": counted_by_primary,
+                    "secondary": counted_by_secondary,
+                    "item": item_name,
                 }
-                discrepancies.append(discrepancy)
+                if pair not in counted_by_pairs:
+                    counted_by_pairs.append(pair)
 
-                # CRITICAL: Log discrepancy at CRITICAL level
-                logger.critical(
-                    "SURGICAL COUNT DISCREPANCY DETECTED",
-                    surgery_id=input_data.surgery_id,
-                    patient_id=input_data.patient_id,
-                    item_type=item.item_type,
-                    item_name=item.item_name,
-                    initial_count=item.initial_count,
-                    final_count=item.final_count,
-                    difference=difference,
-                    tenant_id=tenant_id
+                # 1. Validate count via DMN
+                count_result = self.evaluate_dmn(
+                    context=context,
+                    decision_key=self.DMN_COUNT_KEY,
+                    variables={
+                        "itemType": item_type,
+                        "initialCount": initial_count,
+                        "finalCount": final_count,
+                        "dualCountConfirmed": count_confirmed,
+                    },
+                    category=self.DMN_CATEGORY,
                 )
 
-                # Check if X-ray is required (sponge or needle discrepancy)
-                if item.item_type in {"sponge", "needle"}:
-                    requires_xray = True
-                    logger.critical(
-                        "X-RAY REQUIRED: Sponge or needle count discrepancy",
-                        surgery_id=input_data.surgery_id,
-                        patient_id=input_data.patient_id,
-                        item_type=item.item_type,
-                        item_name=item.item_name,
-                        tenant_id=tenant_id
+                if not count_result.get("countsMatch", True):
+                    all_counts_correct = False
+                    difference = initial_count - final_count
+
+                    # 2. Determine discrepancy action via DMN
+                    discrepancy_result = self.evaluate_dmn(
+                        context=context,
+                        decision_key=self.DMN_DISCREPANCY_KEY,
+                        variables={
+                            "itemType": item_type,
+                            "difference": difference,
+                            "countPhase": count_phase,
+                        },
+                        category=self.DMN_CATEGORY,
                     )
 
-            # Check dual count confirmation
-            if not item.count_confirmed:
-                dual_count_confirmed = False
-                logger.warning(
-                    "Dual count not confirmed",
-                    surgery_id=input_data.surgery_id,
-                    item_name=item.item_name,
-                    tenant_id=tenant_id
-                )
+                    discrepancies.append({
+                        "item_type": item_type,
+                        "item_name": item_name,
+                        "initial_count": initial_count,
+                        "final_count": final_count,
+                        "difference": difference,
+                        "action": discrepancy_result.get("action", "RECOUNT"),
+                        "severity": discrepancy_result.get("severity", "HIGH"),
+                    })
 
-        # Create output
-        verification_timestamp = datetime.now(timezone.utc).isoformat()
+                    # CRITICAL: Log discrepancy
+                    self.logger.critical(
+                        "SURGICAL COUNT DISCREPANCY DETECTED",
+                        extra={
+                            "surgery_id": surgery_id,
+                            "item_type": item_type,
+                            "item_name": item_name,
+                            "difference": difference,
+                        },
+                    )
 
-        output = SurgicalCountVerificationOutput(
-            verification_id=verification_id,
-            surgery_id=input_data.surgery_id,
-            count_phase=input_data.count_phase,
-            all_counts_correct=all_counts_correct,
-            dual_count_confirmed=dual_count_confirmed,
-            discrepancies=discrepancies,
-            requires_xray=requires_xray,
-            verification_timestamp=verification_timestamp,
-            counted_by_pairs=counted_by_pairs
-        )
+                    # 3. Determine X-ray requirement via DMN
+                    xray_result = self.evaluate_dmn(
+                        context=context,
+                        decision_key=self.DMN_XRAY_KEY,
+                        variables={
+                            "itemType": item_type,
+                            "hasDiscrepancy": True,
+                            "countPhase": count_phase,
+                        },
+                        category=self.DMN_CATEGORY,
+                    )
 
-        # Log verification result
-        if all_counts_correct and dual_count_confirmed:
-            logger.info(
-                "Surgical count verification PASSED",
-                verification_id=verification_id,
-                surgery_id=input_data.surgery_id,
-                count_phase=input_data.count_phase,
-                tenant_id=tenant_id
-            )
-        else:
-            logger.warning(
-                "Surgical count verification FAILED",
-                verification_id=verification_id,
-                surgery_id=input_data.surgery_id,
-                count_phase=input_data.count_phase,
-                all_counts_correct=all_counts_correct,
-                dual_count_confirmed=dual_count_confirmed,
-                discrepancy_count=len(discrepancies),
-                requires_xray=requires_xray,
-                tenant_id=tenant_id
-            )
+                    if xray_result.get("xrayRequired", False):
+                        requires_xray = True
+                        self.logger.critical(
+                            "X-RAY REQUIRED: Count discrepancy",
+                            extra={"surgery_id": surgery_id, "item_type": item_type},
+                        )
 
-        # Store verification in TASY (if adapter available)
-        try:
-            if self.tasy_adapter:
-                await self.tasy_adapter.record_surgical_count_verification(
-                    tenant_id=tenant_id,
-                    verification_id=verification_id,
-                    surgery_id=input_data.surgery_id,
-                    patient_id=input_data.patient_id,
-                    count_phase=input_data.count_phase,
-                    all_counts_correct=all_counts_correct,
-                    discrepancies=discrepancies,
-                    requires_xray=requires_xray,
-                    who_checklist_phase=input_data.who_checklist_phase,
-                    notes=input_data.additional_notes
-                )
+                # Check dual count confirmation
+                if not count_confirmed:
+                    dual_count_confirmed = False
+
+            # Generate verification ID
+            verification_id = f"CNT-{surgery_id}-{count_phase}-{datetime.utcnow().strftime('%Y%m%d%H%M%S')}"
+
+            verification_status = "PASSED" if all_counts_correct and dual_count_confirmed else "FAILED"
+
+            return TaskResult.success({
+                "verification_id": verification_id,
+                "surgery_id": surgery_id,
+                "patient_id": patient_id,
+                "count_phase": count_phase,
+                "all_counts_correct": all_counts_correct,
+                "dual_count_confirmed": dual_count_confirmed,
+                "discrepancies": discrepancies,
+                "requires_xray": requires_xray,
+                "verification_status": verification_status,
+                "verification_timestamp": datetime.utcnow().isoformat(),
+                "counted_by_pairs": counted_by_pairs,
+                "correlation_id": correlation_id,
+            })
+
         except Exception as e:
-            logger.error(
-                "Failed to record verification in TASY",
-                verification_id=verification_id,
-                surgery_id=input_data.surgery_id,
-                error=str(e),
-                tenant_id=tenant_id
+            self.logger.error(f"SAFETY: Count verification failed: {e}", exc_info=True)
+            return TaskResult.bpmn_error(
+                error_code="SURGICAL_OPERATIONS_ERROR",
+                error_message=str(e),
+                variables={"errorType": type(e).__name__, "safetyImpact": "HIGH"},
             )
-            # Don't fail the verification if TASY recording fails
-
-        return output.model_dump()

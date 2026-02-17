@@ -1,0 +1,117 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/"
+             xmlns:dc="http://www.omg.org/spec/DMN/20180521/DC/"
+             id="Definitions_payment_update_adjudication"
+             name="Payment Update Adjudication"
+             namespace="http://camunda.org/schema/1.0/dmn">
+
+  <!-- DMN: Payment Update Adjudication
+       For: update_payment_worker
+       Archetype: ADMIN_ADJUDICATION
+       Purpose: Determine payment adjustment action based on recovery rate
+  -->
+
+  <decision id="Decision_payment_update_adjudication" name="Payment Update Adjudication">
+    <decisionTable id="DecisionTable_payment_update_adjudication" hitPolicy="FIRST">
+
+      <!-- === INPUTS === -->
+
+      <input id="Input_1" label="Recovery Rate">
+        <inputExpression id="InputExpr_1" typeRef="number">
+          <text>recoveryRate</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_2" label="Denied Amount">
+        <inputExpression id="InputExpr_2" typeRef="number">
+          <text>deniedAmount</text>
+        </inputExpression>
+      </input>
+
+      <!-- === OUTPUTS === -->
+
+      <output id="Output_resultado" label="Resultado" name="resultado" typeRef="string">
+        <outputValues><text>"PROSSEGUIR","BLOQUEAR","REVISAR"</text></outputValues>
+      </output>
+
+      <output id="Output_acao" label="Acao" name="acao" typeRef="string"/>
+
+      <output id="Output_risco" label="Risco" name="risco" typeRef="string">
+        <outputValues><text>"CRITICO","ALTO","MEDIO","BAIXO"</text></outputValues>
+      </output>
+
+      <!-- === RULES === -->
+
+      <!-- Rule 1: Sem glosa - sem ajuste -->
+      <rule id="Rule_1">
+        <description>Sem glosa - sem ajuste</description>
+        <inputEntry id="IE_1_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_1_2"><text>0</text></inputEntry>
+        <outputEntry id="OE_1_res"><text>"PROSSEGUIR"</text></outputEntry>
+        <outputEntry id="OE_1_acao"><text>"Sem glosa - NO_ADJUSTMENT"</text></outputEntry>
+        <outputEntry id="OE_1_risco"><text>"BAIXO"</text></outputEntry>
+      </rule>
+
+      <!-- Rule 2: Recuperação total >= 95% -->
+      <rule id="Rule_2">
+        <description>Recuperação total - PAYMENT_EXPECTED</description>
+        <inputEntry id="IE_2_1"><text>&gt;= 0.95</text></inputEntry>
+        <inputEntry id="IE_2_2"><text>-</text></inputEntry>
+        <outputEntry id="OE_2_res"><text>"PROSSEGUIR"</text></outputEntry>
+        <outputEntry id="OE_2_acao"><text>"Recuperação total - PAYMENT_EXPECTED"</text></outputEntry>
+        <outputEntry id="OE_2_risco"><text>"BAIXO"</text></outputEntry>
+      </rule>
+
+      <!-- Rule 3: Recuperação parcial >= 10% -->
+      <rule id="Rule_3">
+        <description>Recuperação parcial - PARTIAL_PAYMENT_EXPECTED</description>
+        <inputEntry id="IE_3_1"><text>&gt;= 0.10</text></inputEntry>
+        <inputEntry id="IE_3_2"><text>-</text></inputEntry>
+        <outputEntry id="OE_3_res"><text>"REVISAR"</text></outputEntry>
+        <outputEntry id="OE_3_acao"><text>"Recuperação parcial - PARTIAL_PAYMENT_EXPECTED"</text></outputEntry>
+        <outputEntry id="OE_3_risco"><text>"MEDIO"</text></outputEntry>
+      </rule>
+
+      <!-- Rule 4: Recuperação mínima > 0 -->
+      <rule id="Rule_4">
+        <description>Recuperação mínima - avaliar baixa</description>
+        <inputEntry id="IE_4_1"><text>&gt; 0</text></inputEntry>
+        <inputEntry id="IE_4_2"><text>-</text></inputEntry>
+        <outputEntry id="OE_4_res"><text>"REVISAR"</text></outputEntry>
+        <outputEntry id="OE_4_acao"><text>"Recuperação mínima - avaliar baixa"</text></outputEntry>
+        <outputEntry id="OE_4_risco"><text>"ALTO"</text></outputEntry>
+      </rule>
+
+      <!-- Rule 5: Sem recuperação - baixa contábil -->
+      <rule id="Rule_5">
+        <description>Sem recuperação - WRITE_OFF</description>
+        <inputEntry id="IE_5_1"><text>0</text></inputEntry>
+        <inputEntry id="IE_5_2"><text>&gt; 0</text></inputEntry>
+        <outputEntry id="OE_5_res"><text>"BLOQUEAR"</text></outputEntry>
+        <outputEntry id="OE_5_acao"><text>"Sem recuperação - WRITE_OFF"</text></outputEntry>
+        <outputEntry id="OE_5_risco"><text>"CRITICO"</text></outputEntry>
+      </rule>
+
+      <!-- Fallback -->
+      <rule id="Rule_fallback">
+        <description>Caso não enquadrado — revisão obrigatória</description>
+        <inputEntry id="IE_fb_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_fb_2"><text>-</text></inputEntry>
+        <outputEntry id="OE_fb_res"><text>"REVISAR"</text></outputEntry>
+        <outputEntry id="OE_fb_acao"><text>"Avaliar ajuste manualmente"</text></outputEntry>
+        <outputEntry id="OE_fb_risco"><text>"MEDIO"</text></outputEntry>
+      </rule>
+
+    </decisionTable>
+  </decision>
+
+  <dmndi:DMNDI>
+    <dmndi:DMNDiagram id="DMNDiagram_1">
+      <dmndi:DMNShape id="DMNShape_Decision" dmnElementRef="Decision_payment_update_adjudication">
+        <dc:Bounds height="80" width="180" x="160" y="100"/>
+      </dmndi:DMNShape>
+    </dmndi:DMNDiagram>
+  </dmndi:DMNDI>
+
+</definitions>

@@ -16,7 +16,10 @@ logger = get_logger(__name__)
 
 
 class PredictCollectionDateWorker:
-    """Prediz data esperada de cobrança usando regressão linear baseada em histórico."""
+    """    Prediz data esperada de cobrança usando regressão linear baseada em histórico.
+    
+        Archetype: FINANCIAL_CALCULATION
+        """
 
     WORKER_TYPE = "predict_collection_date"
 

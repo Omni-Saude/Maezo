@@ -131,7 +131,9 @@ _SUGGESTED_DRG: dict[ComplexityLevel, str] = {
 # ---------------------------------------------------------------------------
 
 class CalculateComplexityInput(BaseModel):
-    """Input for calculate-clinical-complexity task."""
+    """Input for calculate-clinical-complexity task.
+
+    Archetype: CLINICAL_SCORE"""
 
     model_config = ConfigDict(populate_by_name=True)
 

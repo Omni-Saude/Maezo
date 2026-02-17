@@ -48,7 +48,9 @@ class FindingSeverity(str, Enum):
 
 
 class AuditCodingInput(BaseModel):
-    """Variables consumed from the BPMN process."""
+    """Variables consumed from the BPMN process.
+
+    Archetype: FINANCIAL_CALCULATION"""
 
     encounter_id: str = Field(..., alias="encounterId")
     validated_cid10: list[str] = Field(..., alias="validatedCid10", min_length=1)

@@ -3,6 +3,8 @@ Worker para sugestão de melhorias em documentação clínica.
 
 Identifica gaps em prontuários médicos que afetam acurácia de codificação
 e sugere adições específicas para melhorar documentação.
+
+Archetype: DATA_ENRICHMENT
 """
 from __future__ import annotations
 

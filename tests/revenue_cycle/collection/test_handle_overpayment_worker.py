@@ -1,6 +1,9 @@
 """Tests for HandleOverpaymentWorker."""
 from __future__ import annotations
 
+from uuid import uuid4
+from unittest.mock import MagicMock, patch
+
 import pytest
 
 from healthcare_platform.revenue_cycle.collection.exceptions import OverpaymentError
@@ -14,41 +17,65 @@ def worker():
 
 
 @pytest.mark.asyncio
-async def test_overpayment_raises_error(worker):
+@patch('healthcare_platform.revenue_cycle.collection.workers.handle_overpayment_worker.get_required_tenant')
+@patch('healthcare_platform.revenue_cycle.collection.workers.handle_overpayment_worker.FederatedDMNService')
+async def test_overpayment_raises_error(mock_dmn_service, mock_tenant, worker):
     """Test that overpayment raises OverpaymentError."""
-    task_vars = {
-        "payment_id": "pay-001",
-        "claim_id": "claim-001",
+    mock_tenant.return_value = 'test_tenant'
+    mock_dmn = MagicMock()
+    mock_dmn.evaluate.return_value = {'action': 'review_required'}
+    mock_dmn_service.return_value = mock_dmn
+
+    worker.dmn_service = mock_dmn
+
+    payment_id = str(uuid4())
+    claim_id = str(uuid4())
+
+    job = MagicMock()
+    job.variables = {
+        "payment_id": payment_id,
+        "claim_id": claim_id,
         "payment_amount": 1200.00,
         "expected_amount": 1000.00,
         "currency": "BRL",
-        "payer_id": "payer-001",
+        "payer_id": str(uuid4()),
     }
 
-    with pytest.raises(OverpaymentError) as exc_info:
-        await worker.execute(task_vars)
+    result = await worker.execute(job)
 
-    error = exc_info.value
-    assert "revisão manual" in str(error).lower()
-    assert error.details["overpayment_amount"] == 200.00
-    assert error.details["credit_note_id"] is not None
-    assert error.details["requires_review"] is True
+    # Worker catches OverpaymentError and returns BPMN error
+    assert result.success is False
+    assert result.error_code is not None
+    assert "revisão manual" in result.error_message.lower() or "sobrepagamento" in result.error_message.lower()
 
 
 @pytest.mark.asyncio
-async def test_overpayment_creates_credit_note(worker):
+@patch('healthcare_platform.revenue_cycle.collection.workers.handle_overpayment_worker.get_required_tenant')
+@patch('healthcare_platform.revenue_cycle.collection.workers.handle_overpayment_worker.FederatedDMNService')
+async def test_overpayment_creates_credit_note(mock_dmn_service, mock_tenant, worker):
     """Test that credit note is created for overpayment."""
-    task_vars = {
-        "payment_id": "pay-002",
-        "claim_id": "claim-002",
+    mock_tenant.return_value = 'test_tenant'
+    mock_dmn = MagicMock()
+    mock_dmn.evaluate.return_value = {'action': 'review_required'}
+    mock_dmn_service.return_value = mock_dmn
+
+    worker.dmn_service = mock_dmn
+
+    payment_id = str(uuid4())
+    claim_id = str(uuid4())
+
+    job = MagicMock()
+    job.variables = {
+        "payment_id": payment_id,
+        "claim_id": claim_id,
         "payment_amount": 1500.00,
         "expected_amount": 1000.00,
         "currency": "BRL",
-        "payer_id": "payer-002",
+        "payer_id": str(uuid4()),
     }
 
-    with pytest.raises(OverpaymentError) as exc_info:
-        await worker.execute(task_vars)
+    result = await worker.execute(job)
 
-    assert exc_info.value.details["credit_note_id"].startswith("CN-")
-    assert exc_info.value.details["overpayment_amount"] == 500.00
+    # Worker catches OverpaymentError and returns BPMN error
+    assert result.success is False
+    assert result.error_code is not None

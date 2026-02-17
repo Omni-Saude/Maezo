@@ -26,6 +26,8 @@ class EnrichProcedureWorker:
     - Performer references (practitioner)
     - Body site information
     - Specialty classification
+
+    Archetype: DATA_ENRICHMENT
     """
 
     TOPIC = "production.enrich_procedure"

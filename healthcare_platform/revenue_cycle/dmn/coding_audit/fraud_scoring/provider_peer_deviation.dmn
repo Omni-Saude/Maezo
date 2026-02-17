@@ -1,0 +1,105 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/"
+             xmlns:dc="http://www.omg.org/spec/DMN/20180521/DC/"
+             id="Definitions_ProviderPeerDeviation"
+             name="Provider Peer Deviation Decision"
+             namespace="http://camunda.org/schema/1.0/dmn">
+  <!-- Archetype: CLINICAL_SCORE | Source: provider_peer_deviation_worker.py -->
+
+  <!-- DMN: Provider Peer Deviation Detection
+       Based on: detect_fraud_worker.py lines 450-492
+       Rule: Compare provider coding pattern against peer averages
+  -->
+
+  <decision id="Decision_ProviderPeerDeviation" name="Provider Peer Deviation">
+    <decisionTable id="DecisionTable_ProviderPeerDeviation" hitPolicy="FIRST">
+
+      <!-- === INPUTS === -->
+      <input id="Input_deviationPct" label="Deviation Percentage">
+        <inputExpression id="InputExpr_deviationPct" typeRef="number">
+          <text>deviation_pct</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_providerVolume" label="Provider Volume">
+        <inputExpression id="InputExpr_providerVolume" typeRef="number">
+          <text>provider_volume</text>
+        </inputExpression>
+      </input>
+
+      <!-- === OUTPUTS === -->
+      <output id="Output_resultado" label="Resultado" name="resultado" typeRef="string">
+        <outputValues><text>"PROSSEGUIR","BLOQUEAR","REVISAR"</text></outputValues>
+      </output>
+
+      <output id="Output_acao" label="Acao" name="acao" typeRef="string"/>
+
+      <output id="Output_risco" label="Risco" name="risco" typeRef="string">
+        <outputValues><text>"CRITICO","ALTO","MEDIO","BAIXO"</text></outputValues>
+      </output>
+
+      <!-- === RULES === -->
+
+      <!-- Rule 1: Deviation > 50% with high volume - critical pattern -->
+      <rule id="Rule_HighDeviationHighVolume">
+        <description>Desvio critico: &gt;50% com alto volume</description>
+        <inputEntry id="IE_HighHigh_1"><text>&gt; 50</text></inputEntry>
+        <inputEntry id="IE_HighHigh_2"><text>&gt; 10</text></inputEntry>
+        <outputEntry id="OE_HighHigh_res"><text>"BLOQUEAR"</text></outputEntry>
+        <outputEntry id="OE_HighHigh_acao"><text>"Padrao de codificacao do prestador diverge criticamente dos pares (&gt;50%, alto volume)"</text></outputEntry>
+        <outputEntry id="OE_HighHigh_risco"><text>"CRITICO"</text></outputEntry>
+      </rule>
+
+      <!-- Rule 2: Deviation > 30% - high risk pattern -->
+      <rule id="Rule_MediumDeviation">
+        <description>Desvio alto: &gt;30%</description>
+        <inputEntry id="IE_Medium_1"><text>&gt; 30</text></inputEntry>
+        <inputEntry id="IE_Medium_2"><text>-</text></inputEntry>
+        <outputEntry id="OE_Medium_res"><text>"REVISAR"</text></outputEntry>
+        <outputEntry id="OE_Medium_acao"><text>"Padrao de codificacao do prestador diverge significativamente dos pares (&gt;30%)"</text></outputEntry>
+        <outputEntry id="OE_Medium_risco"><text>"ALTO"</text></outputEntry>
+      </rule>
+
+      <!-- Rule 3: Deviation <= 30% - normal range -->
+      <rule id="Rule_NormalDeviation">
+        <description>Desvio normal: &lt;= 30%</description>
+        <inputEntry id="IE_Normal_1"><text>&lt;= 30</text></inputEntry>
+        <inputEntry id="IE_Normal_2"><text>-</text></inputEntry>
+        <outputEntry id="OE_Normal_res"><text>"PROSSEGUIR"</text></outputEntry>
+        <outputEntry id="OE_Normal_acao"><text>"Padrao de codificacao do prestador dentro da faixa normal"</text></outputEntry>
+        <outputEntry id="OE_Normal_risco"><text>"BAIXO"</text></outputEntry>
+      </rule>
+
+      <!-- Fallback: Unknown deviation - review -->
+      
+      <rule id="Rule_HighRisk">
+        <description>Risco alto detectado - revisao obrigatoria</description>
+        <inputEntry id="IE_HighRisk_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_HighRisk_2"><text>-</text></inputEntry>
+        <outputEntry id="OE_HighRisk_res"><text>"REVISAR"</text></outputEntry>
+        <outputEntry id="OE_HighRisk_acao"><text>"Situacao de risco alto identificada - avaliacao detalhada necessaria"</text></outputEntry>
+        <outputEntry id="OE_HighRisk_risco"><text>"ALTO"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Fallback">
+        <description>Desvio desconhecido - revisao obrigatoria</description>
+        <inputEntry id="IE_fb_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_fb_2"><text>-</text></inputEntry>
+        <outputEntry id="OE_fb_res"><text>"REVISAR"</text></outputEntry>
+        <outputEntry id="OE_fb_acao"><text>"Desvio do prestador requer avaliacao manual"</text></outputEntry>
+        <outputEntry id="OE_fb_risco"><text>"MEDIO"</text></outputEntry>
+      </rule>
+
+    </decisionTable>
+  </decision>
+
+  <dmndi:DMNDI>
+    <dmndi:DMNDiagram id="DMNDiagram_ProviderPeerDeviation">
+      <dmndi:DMNShape id="DMNShape_Decision" dmnElementRef="Decision_ProviderPeerDeviation">
+        <dc:Bounds height="80" width="180" x="160" y="100"/>
+      </dmndi:DMNShape>
+    </dmndi:DMNDiagram>
+  </dmndi:DMNDI>
+
+</definitions>

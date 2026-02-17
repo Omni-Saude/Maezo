@@ -14,7 +14,10 @@ logger = get_logger(__name__)
 
 
 class CalculateDSOWorker:
-    """Calcula DSO (Days Sales Outstanding) - KPI chave do ciclo de receita."""
+    """    Calcula DSO (Days Sales Outstanding) - KPI chave do ciclo de receita.
+    
+        Archetype: FINANCIAL_CALCULATION
+        """
 
     WORKER_TYPE = "calculate_dso"
 

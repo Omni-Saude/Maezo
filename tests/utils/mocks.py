@@ -1,5 +1,7 @@
 """Mock client classes para testes."""
 
+from __future__ import annotations
+
 from typing import Dict, Any, List, Optional
 from unittest.mock import AsyncMock
 from datetime import datetime

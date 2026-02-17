@@ -1,0 +1,140 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/"
+             xmlns:dc="http://www.omg.org/spec/DMN/20180521/DC/"
+             id="Definitions_escalation_adjudication"
+             name="Escalation Adjudication"
+             namespace="http://camunda.org/schema/1.0/dmn">
+
+  <!-- DMN: Escalation Adjudication
+       For: escalate_to_supervisor_worker
+       Archetype: ADMIN_ADJUDICATION
+       Purpose: Determine escalation level based on impact, count, and severity
+  -->
+
+  <decision id="Decision_escalation_adjudication" name="Escalation Adjudication">
+    <decisionTable id="DecisionTable_escalation_adjudication" hitPolicy="FIRST">
+
+      <!-- === INPUTS === -->
+
+      <input id="Input_1" label="Impact Amount">
+        <inputExpression id="InputExpr_1" typeRef="number">
+          <text>impactAmount</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_2" label="Glosa Count">
+        <inputExpression id="InputExpr_2" typeRef="number">
+          <text>glosaCount</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_3" label="Has Total Glosa">
+        <inputExpression id="InputExpr_3" typeRef="boolean">
+          <text>hasTotalGlosa</text>
+        </inputExpression>
+      </input>
+
+      <!-- === OUTPUTS === -->
+
+      <output id="Output_resultado" label="Resultado" name="resultado" typeRef="string">
+        <outputValues><text>"PROSSEGUIR","BLOQUEAR","REVISAR"</text></outputValues>
+      </output>
+
+      <output id="Output_acao" label="Acao" name="acao" typeRef="string"/>
+
+      <output id="Output_risco" label="Risco" name="risco" typeRef="string">
+        <outputValues><text>"CRITICO","ALTO","MEDIO","BAIXO"</text></outputValues>
+      </output>
+
+      <!-- === RULES === -->
+
+      <!-- Rule 1: Glosa total - escalar para Diretoria -->
+      <rule id="Rule_1">
+        <description>Escalar para Diretoria - glosa total</description>
+        <inputEntry id="IE_1_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_1_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_1_3"><text>true</text></inputEntry>
+        <outputEntry id="OE_1_res"><text>"BLOQUEAR"</text></outputEntry>
+        <outputEntry id="OE_1_acao"><text>"Escalar para Diretoria - glosa total"</text></outputEntry>
+        <outputEntry id="OE_1_risco"><text>"CRITICO"</text></outputEntry>
+      </rule>
+
+      <!-- Rule 2: Valor crítico >= 50k -->
+      <rule id="Rule_2">
+        <description>Escalar para Diretoria - valor crítico</description>
+        <inputEntry id="IE_2_1"><text>&gt;= 50000</text></inputEntry>
+        <inputEntry id="IE_2_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_2_3"><text>-</text></inputEntry>
+        <outputEntry id="OE_2_res"><text>"BLOQUEAR"</text></outputEntry>
+        <outputEntry id="OE_2_acao"><text>"Escalar para Diretoria - valor crítico"</text></outputEntry>
+        <outputEntry id="OE_2_risco"><text>"CRITICO"</text></outputEntry>
+      </rule>
+
+      <!-- Rule 3: Valor alto >= 10k -->
+      <rule id="Rule_3">
+        <description>Escalar para Supervisão de Auditoria</description>
+        <inputEntry id="IE_3_1"><text>&gt;= 10000</text></inputEntry>
+        <inputEntry id="IE_3_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_3_3"><text>-</text></inputEntry>
+        <outputEntry id="OE_3_res"><text>"REVISAR"</text></outputEntry>
+        <outputEntry id="OE_3_acao"><text>"Escalar para Supervisão de Auditoria"</text></outputEntry>
+        <outputEntry id="OE_3_risco"><text>"ALTO"</text></outputEntry>
+      </rule>
+
+      <!-- Rule 4: Valor médio >= 5k -->
+      <rule id="Rule_4">
+        <description>Escalar para Coordenação de Glosas</description>
+        <inputEntry id="IE_4_1"><text>&gt;= 5000</text></inputEntry>
+        <inputEntry id="IE_4_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_4_3"><text>-</text></inputEntry>
+        <outputEntry id="OE_4_res"><text>"REVISAR"</text></outputEntry>
+        <outputEntry id="OE_4_acao"><text>"Escalar para Coordenação de Glosas"</text></outputEntry>
+        <outputEntry id="OE_4_risco"><text>"MEDIO"</text></outputEntry>
+      </rule>
+
+      <!-- Rule 5: Volume alto > 10 glosas -->
+      <rule id="Rule_5">
+        <description>Volume alto de glosas</description>
+        <inputEntry id="IE_5_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_5_2"><text>&gt; 10</text></inputEntry>
+        <inputEntry id="IE_5_3"><text>-</text></inputEntry>
+        <outputEntry id="OE_5_res"><text>"REVISAR"</text></outputEntry>
+        <outputEntry id="OE_5_acao"><text>"Volume alto de glosas"</text></outputEntry>
+        <outputEntry id="OE_5_risco"><text>"MEDIO"</text></outputEntry>
+      </rule>
+
+      <!-- Rule 6: Baixo impacto - processo normal -->
+      <rule id="Rule_6">
+        <description>Baixo impacto - processo normal</description>
+        <inputEntry id="IE_6_1"><text>&lt; 5000</text></inputEntry>
+        <inputEntry id="IE_6_2"><text>&lt;= 10</text></inputEntry>
+        <inputEntry id="IE_6_3"><text>false</text></inputEntry>
+        <outputEntry id="OE_6_res"><text>"PROSSEGUIR"</text></outputEntry>
+        <outputEntry id="OE_6_acao"><text>"Baixo impacto - processo normal"</text></outputEntry>
+        <outputEntry id="OE_6_risco"><text>"BAIXO"</text></outputEntry>
+      </rule>
+
+      <!-- Fallback -->
+      <rule id="Rule_fallback">
+        <description>Caso não enquadrado — revisão obrigatória</description>
+        <inputEntry id="IE_fb_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_fb_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_fb_3"><text>-</text></inputEntry>
+        <outputEntry id="OE_fb_res"><text>"REVISAR"</text></outputEntry>
+        <outputEntry id="OE_fb_acao"><text>"Avaliar necessidade de escalação"</text></outputEntry>
+        <outputEntry id="OE_fb_risco"><text>"MEDIO"</text></outputEntry>
+      </rule>
+
+    </decisionTable>
+  </decision>
+
+  <dmndi:DMNDI>
+    <dmndi:DMNDiagram id="DMNDiagram_1">
+      <dmndi:DMNShape id="DMNShape_Decision" dmnElementRef="Decision_escalation_adjudication">
+        <dc:Bounds height="80" width="180" x="160" y="100"/>
+      </dmndi:DMNShape>
+    </dmndi:DMNDiagram>
+  </dmndi:DMNDI>
+
+</definitions>

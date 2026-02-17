@@ -1,4 +1,7 @@
-"""Pre-submission validation of claim data."""
+"""Pre-submission validation of claim data.
+
+Archetype: COMPLIANCE_VALIDATION
+"""
 from __future__ import annotations
 
 from decimal import Decimal

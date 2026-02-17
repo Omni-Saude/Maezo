@@ -14,7 +14,10 @@ logger = get_logger(__name__)
 
 
 class EscalateUnmatchedWorker:
-    """Escalates payments that couldn't be matched after all strategies."""
+    """    Escalates payments that couldn't be matched after all strategies.
+    
+        Archetype: FINANCIAL_CALCULATION
+        """
 
     WORKER_TYPE = "escalate_unmatched"
 

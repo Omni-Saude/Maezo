@@ -363,6 +363,73 @@ npx @claude-flow/cli@latest hive-mind spawn ... &
 - Blocks agent-user dialog during execution
 - No user control over timing
 
+### ❌ ANTI-PATTERN: "Queen-as-Coder"
+
+**Definition**: Agent acting as primary code generator instead of delegating to swarm intelligence.
+
+**Symptoms:**
+```markdown
+# ❌ Agent writes code directly using replace_string_in_file
+Agent: "I'll update the worker file now..."
+[Agent proceeds to edit 50+ files manually using tools]
+
+# ❌ Agent generates code in chat then asks user to copy-paste
+Agent: "Here's the new worker code:"
+```python
+class NewWorker(BaseExternalTaskWorker):
+    # 200 lines of code...
+```
+"Copy this into the file..."
+
+# ❌ Agent performs repetitive manual tasks
+Agent: "I'll create each of the 48 collection workers one by one..."
+[Proceeds to create files sequentially over hours]
+```
+
+**WHY THIS IS WRONG:**
+- **Violates user's role**: User stated "senior software architect and planner... not a developer"
+- **Inefficient**: Manual file edits take 10-20x longer than swarm parallelization
+- **Error-prone**: Manual edits introduce inconsistencies, typos, missed files
+- **No learning**: Patterns not captured in neural system for future reuse
+- **No scalability**: Cannot handle 100+ file operations
+- **Context limit**: Agent runs out of tokens after 20-30 manual edits
+- **User frustration**: User explicitly said "DELEGATE, DO NOT CODE"
+
+**✅ CORRECT APPROACH:**
+```markdown
+Agent: "I'll prepare Swarm J to handle this. It will create 120 DMN tables and modify 83 workers."
+
+[Agent executes pre-task hook]
+[Agent stores scope in memory]
+[Agent displays spawn command for user to copy-paste]
+
+Agent: "Copy the command above to your separate terminal. The swarm will parallelize across 8 workers and complete in 16-20 hours."
+```
+
+**USER'S STATED WORKING STYLE (from conversation):**
+> "use claude-flow memory and all claude-flow tools, always parallelize everything possible, always follows ADR-013 and handoff.yaml"
+> "stop doing manual work, you are architect, planner, not coder"
+> "CONFIRM COMMANDS AND SUGGEST OPTIONS TO PROCEED"
+
+**WHEN MANUAL EDITING IS ACCEPTABLE:**
+- Single file fixes (1-2 files, <50 lines total)
+- Configuration changes (package.json, pyproject.toml)
+- Emergency hotfixes requiring immediate resolution
+- Prototyping/proof-of-concept before swarm execution
+- **ALWAYS ASK FIRST**: "Should I fix this manually or prepare a swarm?"
+
+**DELEGATION THRESHOLD:**
+- **1-2 files**: Agent can edit manually (with permission)
+- **3-10 files**: Suggest swarm, offer manual as fallback
+- **11+ files**: MANDATORY swarm delegation
+- **Pattern replication**: ALWAYS use swarm (even if only 2 files, if pattern repeats)
+
+**AGENT ROLE DEFINITION:**
+- **Architect**: Design solutions, define scope, plan execution
+- **Planner**: Break down tasks, estimate effort, sequence dependencies
+- **Coordinator**: Prepare swarm commands, execute hooks, validate results
+- **NOT Coder**: Do not write production code manually (swarms do this)
+
 ### Command Format Requirements
 
 **COMPLETE COMMAND STRUCTURE:**
@@ -450,6 +517,121 @@ npx @claude-flow/cli@latest neural list
 # Verify hive-mind daemon
 npx @claude-flow/cli@latest hive-mind status
 ```
+
+---
+
+## Session Bootstrap Protocol (Added 2026-02-14)
+
+**RULE:** Every new session MUST execute this initialization sequence before any swarm or task work. These commands are NOT covered in the original ADR sections above and were discovered through production usage.
+
+### Phase A — System Initialization (Required)
+
+```bash
+# 1. Ensure fresh CLI version (purge npx cache)
+rm -rf ~/.npm/_npx/* && npx -y @claude-flow/cli@latest --version
+
+# 2. Config init (skip if .claude-flow/config.yaml exists)
+claude-flow config init
+
+# 3. Start daemon
+claude-flow daemon start
+
+# 4. Register MCP servers (one-time; skip if already registered)
+claude mcp add claude-flow npx @claude-flow/cli@v3alpha mcp start
+
+# 5. System diagnostic
+npx @claude-flow/cli@latest doctor --verbose
+
+# 6. Initialize/reset memory database (CRITICAL after version upgrades)
+npx @claude-flow/cli@latest memory init --force --verbose
+
+# 7. Pre-train hook intelligence (scans repo, extracts patterns)
+npx @claude-flow/cli@latest hooks pretrain --verbose
+
+# 8. Build agent configs from agents/*.yaml
+npx @claude-flow/cli@latest hooks build-agents --verbose
+```
+
+### Phase B — Activate Daemon Workers
+
+```bash
+# Codebase mapping and architecture analysis
+npx @claude-flow/cli@latest hooks worker dispatch --trigger map
+
+# Deep code analysis and examination
+npx @claude-flow/cli@latest hooks worker dispatch --trigger deepdive
+
+# Deep knowledge acquisition and learning
+npx @claude-flow/cli@latest hooks worker dispatch --trigger ultralearn
+```
+
+### Phase C — Neural Training & Verification
+
+```bash
+# Train all 3 model types (MOE, transformer, classifier)
+npx @claude-flow/cli@latest neural train --modelType moe --epochs 10
+npx @claude-flow/cli@latest neural train --modelType transformer --epochs 10
+npx @claude-flow/cli@latest neural train --modelType classifier --epochs 10
+
+# Verify
+npx @claude-flow/cli@latest neural status
+npx @claude-flow/cli@latest hooks intelligence stats
+npx @claude-flow/cli@latest memory search --query "test query"
+```
+
+### Phase D — Initialize Hive-Mind (Before Swarms)
+
+```bash
+npx @claude-flow/cli@latest hive-mind init \
+  --topology hierarchical-mesh \
+  --max-agents 15 \
+  --consensus byzantine
+```
+
+### Known Issue: RuVector Native Modules & npx Isolation
+
+**Problem:** `neural status` reports `RuVector WASM: Not loaded`, `SONA Engine: Not loaded`, `HNSW Index: Not loaded` even after training.
+
+**Root Cause:** `npx` runs CLI from its own cache (`~/.npm/_npx/...`), which cannot resolve `@ruvector/core`, `@ruvector/attention-darwin-arm64`, etc. from the project's `node_modules/`. The native modules are installed in the project but invisible to the npx-executed CLI.
+
+**Impact:** Low. The WASM fallback activates automatically and provides full functionality:
+
+- MicroLoRA (256-dim, <1μs adaptation)
+- ScopedLoRA (17 operators)
+- TrajectoryBuffer, FlashAttention, AdamW Optimizer
+- InfoNCE Loss, SONA (256-dim, rank-4, 624k learn/s)
+- Embedding Model: all-MiniLM-L6-v2 (384-dim ONNX)
+
+**Mitigation:** The WASM path is the stable default. Native modules provide ~2-3x speedup for large-scale training but are not required for normal swarm operations.
+
+### Known Issue: package.json Must Have `name` and `version`
+
+The project's `package.json` is used only for claude-flow native module dependencies. It MUST contain `"name"` and `"version"` fields or `npm install` will fail with `Invalid Version`. Added 2026-02-14:
+
+```json
+{
+  "name": "healthcare-orchest-cib7",
+  "version": "1.0.0",
+  "private": true,
+  "dependencies": { ... }
+}
+```
+
+### System Capabilities After Bootstrap (Verified 2026-02-14)
+
+| Component | Status | Details |
+|-----------|--------|---------|
+| CLI Version | ✅ v3.1.0-alpha.39 | Minimum required: >= 3.1.0 |
+| Daemon | ✅ Running | 5 workers enabled, 2 max concurrent |
+| MCP Servers | ✅ 3 connected | claude-flow, ruv-swarm, flow-nexus |
+| Memory DB | ✅ Operational | .swarm/memory.db, hybrid backend, 10 tables |
+| Embeddings | ✅ ONNX 384-dim | all-MiniLM-L6-v2, semantic search functional |
+| HNSW Index | ✅ Configured | cosine metric, M=16, ef=200/100 |
+| Neural Models | ✅ 3 trained | MOE + transformer + classifier |
+| ReasoningBank | ✅ 4,000 patterns | Growing with each training run |
+| Hive-Mind | ✅ Initialized | hierarchical-mesh, byzantine consensus |
+| Agent Configs | ✅ 5 built | coder, architect, tester, security-architect, reviewer |
+| Pretrained Intelligence | ✅ 84 files → 30 patterns, 16 strategies | hooks pretrain |
 
 ---
 

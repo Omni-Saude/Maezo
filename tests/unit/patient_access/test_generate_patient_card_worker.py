@@ -121,12 +121,12 @@ class TestGeneratePatientCardWorker:
             }
         )
 
-        # Switch to HPA
-        hpa_ctx = TenantContext.from_tenant_code(TenantCode.HPA)
-        set_current_tenant(hpa_ctx)
+        # Switch to HOSPITAL_B
+        hospital_b_ctx = TenantContext.from_tenant_code(TenantCode.HOSPITAL_B)
+        set_current_tenant(hospital_b_ctx)
 
-        # Execute with HPA
-        result_hpa = await worker.execute(
+        # Execute with HOSPITAL_B
+        result_hospital_b = await worker.execute(
             {
                 "patient_id": "patient-hpa",
                 "mrn": "3088572-000001",
@@ -137,7 +137,7 @@ class TestGeneratePatientCardWorker:
         )
 
         # Cards should be independent
-        assert result_austa["card_data"]["card_number"] != result_hpa["card_data"]["card_number"]
+        assert result_austa["card_data"]["card_number"] != result_hospital_b["card_data"]["card_number"]
 
     @pytest.mark.asyncio
     async def test_idempotency(self, worker, tenant_austa):

@@ -57,7 +57,10 @@ TOPIC = "platform.alert_on_anomalies"
 
 
 class AnomalyDetectionException(DomainException):
-    """Exceção de detecção de anomalias."""
+    """    Exceção de detecção de anomalias.
+    
+        Archetype: CLINICAL_ALERT
+        """
 
     def __init__(self, message: str, details: dict[str, Any] | None = None):
         super().__init__(

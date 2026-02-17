@@ -1,4 +1,7 @@
-"""Worker for applying contractual discounts."""
+"""Worker for applying contractual discounts.
+
+Archetype: FINANCIAL_CALCULATION
+"""
 from __future__ import annotations
 
 from decimal import Decimal

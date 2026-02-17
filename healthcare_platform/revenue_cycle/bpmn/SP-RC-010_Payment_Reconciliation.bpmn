@@ -1,0 +1,517 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+                  xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+                  xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+                  xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
+                  xmlns:camunda="http://camunda.org/schema/1.0/bpmn"
+                  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                  id="Definitions_RC010"
+                  targetNamespace="http://cib7.healthcare/revenue-cycle">
+
+  <bpmn:process id="SP_RC_010_Payment_Reconciliation" name="Conciliação de Pagamento" isExecutable="true">
+
+    <bpmn:startEvent id="start_reconciliation" name="Início Conciliação">
+      <bpmn:outgoing>flow_to_classify</bpmn:outgoing>
+    </bpmn:startEvent>
+
+    <!-- Classify Payment Type -->
+    <bpmn:serviceTask id="task_classify_payment_type" name="Classificar Tipo de Pagamento"
+                      camunda:type="external" camunda:topic="collection.classify_payment_type">
+      <bpmn:extensionElements>
+        <camunda:inputOutput>
+          <camunda:inputParameter name="paymentData">${payment}</camunda:inputParameter>
+          <camunda:inputParameter name="paymentSource">${source}</camunda:inputParameter>
+          <camunda:outputParameter name="paymentType">${type}</camunda:outputParameter>
+          <camunda:outputParameter name="paymentMethod">${method}</camunda:outputParameter>
+        </camunda:inputOutput>
+      </bpmn:extensionElements>
+      <bpmn:incoming>flow_to_classify</bpmn:incoming>
+      <bpmn:outgoing>flow_to_parallel_gateway</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Parallel Gateway: Start parallel processing -->
+    <bpmn:parallelGateway id="gateway_parallel_start" name="Processar em Paralelo">
+      <bpmn:incoming>flow_to_parallel_gateway</bpmn:incoming>
+      <bpmn:outgoing>flow_to_detect_duplicate</bpmn:outgoing>
+      <bpmn:outgoing>flow_to_auto_matching</bpmn:outgoing>
+    </bpmn:parallelGateway>
+
+    <!-- Branch 1: Detect Duplicate Payment -->
+    <bpmn:serviceTask id="task_detect_duplicate_payment" name="Detectar Pagamento Duplicado"
+                      camunda:type="external" camunda:topic="collection.detect_duplicate_payment">
+      <bpmn:extensionElements>
+        <camunda:inputOutput>
+          <camunda:inputParameter name="payment">${payment}</camunda:inputParameter>
+          <camunda:inputParameter name="paymentType">${type}</camunda:inputParameter>
+          <camunda:outputParameter name="isDuplicate">${duplicate}</camunda:outputParameter>
+          <camunda:outputParameter name="duplicateIds">${duplicates}</camunda:outputParameter>
+        </camunda:inputOutput>
+      </bpmn:extensionElements>
+      <bpmn:incoming>flow_to_detect_duplicate</bpmn:incoming>
+      <bpmn:outgoing>flow_to_parallel_join</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Error boundary for duplicate payment detection -->
+    <bpmn:boundaryEvent id="error_duplicate_payment" name="Pagamento Duplicado" attachedToRef="task_detect_duplicate_payment">
+      <bpmn:errorEventDefinition errorRef="Error_DuplicatePayment"/>
+      <bpmn:outgoing>flow_to_end_error_duplicate</bpmn:outgoing>
+    </bpmn:boundaryEvent>
+
+    <!-- Branch 2: Auto-Matching -->
+    <bpmn:serviceTask id="task_auto_matching" name="Conciliação Automática"
+                      camunda:type="external" camunda:topic="collection.auto_matching">
+      <bpmn:extensionElements>
+        <camunda:inputOutput>
+          <camunda:inputParameter name="payment">${payment}</camunda:inputParameter>
+          <camunda:inputParameter name="paymentMethod">${method}</camunda:inputParameter>
+          <camunda:outputParameter name="matchedInvoices">${matches}</camunda:outputParameter>
+          <camunda:outputParameter name="matchConfidence">${confidence}</camunda:outputParameter>
+        </camunda:inputOutput>
+      </bpmn:extensionElements>
+      <bpmn:incoming>flow_to_auto_matching</bpmn:incoming>
+      <bpmn:outgoing>flow_to_parallel_join</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Parallel Gateway: Join parallel processing -->
+    <bpmn:parallelGateway id="gateway_parallel_join" name="Aguardar Processos">
+      <bpmn:incoming>flow_to_parallel_join</bpmn:incoming>
+      <bpmn:incoming>flow_to_parallel_join</bpmn:incoming>
+      <bpmn:outgoing>flow_to_matched_gateway</bpmn:outgoing>
+    </bpmn:parallelGateway>
+
+    <!-- Matched Gateway -->
+    <bpmn:exclusiveGateway id="gateway_matched" name="Conciliado?">
+      <bpmn:incoming>flow_to_matched_gateway</bpmn:incoming>
+      <bpmn:outgoing>flow_matched_yes</bpmn:outgoing>
+      <bpmn:outgoing>flow_matched_no</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+
+    <!-- Matched Path: YES -->
+    <bpmn:serviceTask id="task_apply_contractual_adjustments" name="Aplicar Ajustes Contratuais"
+                      camunda:type="external" camunda:topic="collection.apply_contractual_adjustments">
+      <bpmn:extensionElements>
+        <camunda:inputOutput>
+          <camunda:inputParameter name="payment">${payment}</camunda:inputParameter>
+          <camunda:inputParameter name="matches">${matchedInvoices}</camunda:inputParameter>
+          <camunda:outputParameter name="adjustedPayment">${adjusted}</camunda:outputParameter>
+          <camunda:outputParameter name="adjustments">${adjustmentDetails}</camunda:outputParameter>
+        </camunda:inputOutput>
+      </bpmn:extensionElements>
+      <bpmn:incoming>flow_matched_yes</bpmn:incoming>
+      <bpmn:outgoing>flow_to_calculate_net</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <bpmn:serviceTask id="task_calculate_net_payment" name="Calcular Pagamento Líquido"
+                      camunda:type="external" camunda:topic="collection.calculate_net_payment">
+      <bpmn:extensionElements>
+        <camunda:inputOutput>
+          <camunda:inputParameter name="adjustedPayment">${adjusted}</camunda:inputParameter>
+          <camunda:inputParameter name="adjustments">${adjustmentDetails}</camunda:inputParameter>
+          <camunda:outputParameter name="netPayment">${net}</camunda:outputParameter>
+          <camunda:outputParameter name="netAmount">${amount}</camunda:outputParameter>
+        </camunda:inputOutput>
+      </bpmn:extensionElements>
+      <bpmn:incoming>flow_to_calculate_net</bpmn:incoming>
+      <bpmn:outgoing>flow_to_check_overpayment</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Check for Overpayment Gateway -->
+    <bpmn:exclusiveGateway id="gateway_check_overpayment" name="Pagamento Excessivo?">
+      <bpmn:incoming>flow_to_check_overpayment</bpmn:incoming>
+      <bpmn:outgoing>flow_overpayment_yes</bpmn:outgoing>
+      <bpmn:outgoing>flow_overpayment_no</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+
+    <!-- Handle Overpayment -->
+    <bpmn:serviceTask id="task_handle_overpayment" name="Processar Pagamento Excessivo"
+                      camunda:type="external" camunda:topic="collection.handle_overpayment">
+      <bpmn:extensionElements>
+        <camunda:inputOutput>
+          <camunda:inputParameter name="netPayment">${net}</camunda:inputParameter>
+          <camunda:inputParameter name="overpaymentAmount">${overpayment}</camunda:inputParameter>
+          <camunda:outputParameter name="refundId">${refund}</camunda:outputParameter>
+          <camunda:outputParameter name="refundStatus">${status}</camunda:outputParameter>
+        </camunda:inputOutput>
+      </bpmn:extensionElements>
+      <bpmn:incoming>flow_overpayment_yes</bpmn:incoming>
+      <bpmn:outgoing>flow_to_persist_payment</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Error boundary for overpayment detection -->
+    <bpmn:boundaryEvent id="error_overpayment_detected" name="Pagamento Excessivo Detectado" attachedToRef="task_handle_overpayment">
+      <bpmn:errorEventDefinition errorRef="Error_OverpaymentDetected"/>
+      <bpmn:outgoing>flow_to_end_error_overpayment</bpmn:outgoing>
+    </bpmn:boundaryEvent>
+
+    <!-- Persist Payment -->
+    <bpmn:serviceTask id="task_persist_payment" name="Persistir Pagamento"
+                      camunda:type="external" camunda:topic="collection.persist_payment">
+      <bpmn:extensionElements>
+        <camunda:inputOutput>
+          <camunda:inputParameter name="netPayment">${net}</camunda:inputParameter>
+          <camunda:inputParameter name="matches">${matchedInvoices}</camunda:inputParameter>
+          <camunda:outputParameter name="persistedId">${id}</camunda:outputParameter>
+          <camunda:outputParameter name="persistSuccess">${success}</camunda:outputParameter>
+        </camunda:inputOutput>
+      </bpmn:extensionElements>
+      <bpmn:incoming>flow_to_persist_payment</bpmn:incoming>
+      <bpmn:incoming>flow_overpayment_no</bpmn:incoming>
+      <bpmn:outgoing>flow_to_reconcile_monthly</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Reconcile Monthly -->
+    <bpmn:serviceTask id="task_reconcile_monthly" name="Conciliar Mensalmente"
+                      camunda:type="external" camunda:topic="collection.reconcile_monthly">
+      <bpmn:extensionElements>
+        <camunda:inputOutput>
+          <camunda:inputParameter name="persistedId">${id}</camunda:inputParameter>
+          <camunda:inputParameter name="reconciliationMonth">${month}</camunda:inputParameter>
+          <camunda:outputParameter name="monthlyReport">${report}</camunda:outputParameter>
+          <camunda:outputParameter name="reconciledAmount">${total}</camunda:outputParameter>
+        </camunda:inputOutput>
+      </bpmn:extensionElements>
+      <bpmn:incoming>flow_to_reconcile_monthly</bpmn:incoming>
+      <bpmn:outgoing>flow_to_end_success</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Error boundary for reconciliation failure -->
+    <bpmn:boundaryEvent id="error_reconciliation_failed" name="Conciliação Falhou" attachedToRef="task_reconcile_monthly">
+      <bpmn:errorEventDefinition errorRef="Error_ReconciliationFailed"/>
+      <bpmn:outgoing>flow_to_end_error_reconciliation</bpmn:outgoing>
+    </bpmn:boundaryEvent>
+
+    <!-- Matched Path: NO -->
+    <bpmn:serviceTask id="task_flag_discrepancies" name="Sinalizar Discrepâncias"
+                      camunda:type="external" camunda:topic="collection.flag_discrepancies">
+      <bpmn:extensionElements>
+        <camunda:inputOutput>
+          <camunda:inputParameter name="payment">${payment}</camunda:inputParameter>
+          <camunda:inputParameter name="matchConfidence">${confidence}</camunda:inputParameter>
+          <camunda:outputParameter name="discrepancyId">${discrepancy}</camunda:outputParameter>
+          <camunda:outputParameter name="discrepancyType">${type}</camunda:outputParameter>
+        </camunda:inputOutput>
+      </bpmn:extensionElements>
+      <bpmn:incoming>flow_matched_no</bpmn:incoming>
+      <bpmn:outgoing>flow_to_manual_review</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Manual Review -->
+    <bpmn:userTask id="task_manual_review" name="Revisão Manual">
+      <bpmn:incoming>flow_to_manual_review</bpmn:incoming>
+      <bpmn:outgoing>flow_to_timer_review</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <!-- Timer boundary for manual review (24 hours) -->
+    <bpmn:intermediateCatchEvent id="timer_review_24h" name="Aguardar 24h">
+      <bpmn:incoming>flow_to_timer_review</bpmn:incoming>
+      <bpmn:outgoing>flow_to_end_manual_review</bpmn:outgoing>
+      <bpmn:timerEventDefinition>
+        <bpmn:timeDuration xsi:type="bpmn:tFormalExpression">PT24H</bpmn:timeDuration>
+      </bpmn:timerEventDefinition>
+    </bpmn:intermediateCatchEvent>
+
+    <!-- End Events -->
+    <bpmn:endEvent id="end_success" name="Conciliação Concluída">
+      <bpmn:incoming>flow_to_end_success</bpmn:incoming>
+    </bpmn:endEvent>
+
+    <bpmn:endEvent id="end_manual_review" name="Revisão Manual Pendente">
+      <bpmn:incoming>flow_to_end_manual_review</bpmn:incoming>
+    </bpmn:endEvent>
+
+    <bpmn:endEvent id="end_error_duplicate" name="Erro: Pagamento Duplicado">
+      <bpmn:incoming>flow_to_end_error_duplicate</bpmn:incoming>
+      <bpmn:errorEventDefinition errorRef="Error_DuplicatePayment"/>
+    </bpmn:endEvent>
+
+    <bpmn:endEvent id="end_error_overpayment" name="Erro: Pagamento Excessivo">
+      <bpmn:incoming>flow_to_end_error_overpayment</bpmn:incoming>
+      <bpmn:errorEventDefinition errorRef="Error_OverpaymentDetected"/>
+    </bpmn:endEvent>
+
+    <bpmn:endEvent id="end_error_reconciliation" name="Erro: Conciliação Falhou">
+      <bpmn:incoming>flow_to_end_error_reconciliation</bpmn:incoming>
+      <bpmn:errorEventDefinition errorRef="Error_ReconciliationFailed"/>
+    </bpmn:endEvent>
+
+    <!-- Sequence Flows -->
+    <bpmn:sequenceFlow id="flow_to_classify" sourceRef="start_reconciliation" targetRef="task_classify_payment_type"/>
+    <bpmn:sequenceFlow id="flow_to_parallel_gateway" sourceRef="task_classify_payment_type" targetRef="gateway_parallel_start"/>
+
+    <!-- Parallel Branch Flows -->
+    <bpmn:sequenceFlow id="flow_to_detect_duplicate" sourceRef="gateway_parallel_start" targetRef="task_detect_duplicate_payment"/>
+    <bpmn:sequenceFlow id="flow_to_auto_matching" sourceRef="gateway_parallel_start" targetRef="task_auto_matching"/>
+    <bpmn:sequenceFlow id="flow_to_parallel_join" sourceRef="task_detect_duplicate_payment" targetRef="gateway_parallel_join"/>
+    <bpmn:sequenceFlow id="flow_to_parallel_join" sourceRef="task_auto_matching" targetRef="gateway_parallel_join"/>
+
+    <!-- Matched Path -->
+    <bpmn:sequenceFlow id="flow_to_matched_gateway" sourceRef="gateway_parallel_join" targetRef="gateway_matched"/>
+    <bpmn:sequenceFlow id="flow_matched_yes" name="Sim" sourceRef="gateway_matched" targetRef="task_apply_contractual_adjustments">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${matchConfidence >= 0.9}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="flow_matched_no" name="Não" sourceRef="gateway_matched" targetRef="task_flag_discrepancies">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${matchConfidence &lt; 0.9}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+
+    <!-- YES Path Flows -->
+    <bpmn:sequenceFlow id="flow_to_calculate_net" sourceRef="task_apply_contractual_adjustments" targetRef="task_calculate_net_payment"/>
+    <bpmn:sequenceFlow id="flow_to_check_overpayment" sourceRef="task_calculate_net_payment" targetRef="gateway_check_overpayment"/>
+    <bpmn:sequenceFlow id="flow_overpayment_yes" name="Sim" sourceRef="gateway_check_overpayment" targetRef="task_handle_overpayment">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${overpayment > 0}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="flow_overpayment_no" name="Não" sourceRef="gateway_check_overpayment" targetRef="task_persist_payment">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${overpayment == 0}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="flow_to_persist_payment" sourceRef="task_handle_overpayment" targetRef="task_persist_payment"/>
+    <bpmn:sequenceFlow id="flow_to_reconcile_monthly" sourceRef="task_persist_payment" targetRef="task_reconcile_monthly"/>
+    <bpmn:sequenceFlow id="flow_to_end_success" sourceRef="task_reconcile_monthly" targetRef="end_success"/>
+
+    <!-- NO Path Flows -->
+    <bpmn:sequenceFlow id="flow_to_manual_review" sourceRef="task_flag_discrepancies" targetRef="task_manual_review"/>
+    <bpmn:sequenceFlow id="flow_to_timer_review" sourceRef="task_manual_review" targetRef="timer_review_24h"/>
+    <bpmn:sequenceFlow id="flow_to_end_manual_review" sourceRef="timer_review_24h" targetRef="end_manual_review"/>
+
+    <!-- Error Flows -->
+    <bpmn:sequenceFlow id="flow_to_end_error_duplicate" sourceRef="error_duplicate_payment" targetRef="end_error_duplicate"/>
+    <bpmn:sequenceFlow id="flow_to_end_error_overpayment" sourceRef="error_overpayment_detected" targetRef="end_error_overpayment"/>
+    <bpmn:sequenceFlow id="flow_to_end_error_reconciliation" sourceRef="error_reconciliation_failed" targetRef="end_error_reconciliation"/>
+
+  </bpmn:process>
+
+  <!-- Error Definitions -->
+  <bpmn:error id="Error_DuplicatePayment" name="DuplicatePayment" errorCode="ERR_DUPLICATE_001"/>
+  <bpmn:error id="Error_OverpaymentDetected" name="OverpaymentDetected" errorCode="ERR_OVERPAYMENT_001"/>
+  <bpmn:error id="Error_ReconciliationFailed" name="ReconciliationFailed" errorCode="ERR_RECONCILIATION_001"/>
+
+  <bpmndi:BPMNDiagram id="BPMNDiagram_RC010">
+    <bpmndi:BPMNPlane id="BPMNPlane_RC010" bpmnElement="SP_RC_010_Payment_Reconciliation">
+
+      <!-- Start Event -->
+      <bpmndi:BPMNShape id="shape_start_reconciliation" bpmnElement="start_reconciliation">
+        <dc:Bounds x="150" y="300" width="36" height="36"/>
+      </bpmndi:BPMNShape>
+
+      <!-- Classify Payment Type -->
+      <bpmndi:BPMNShape id="shape_task_classify_payment_type" bpmnElement="task_classify_payment_type">
+        <dc:Bounds x="250" y="278" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <!-- Parallel Gateway Start -->
+      <bpmndi:BPMNShape id="shape_gateway_parallel_start" bpmnElement="gateway_parallel_start">
+        <dc:Bounds x="400" y="293" width="50" height="50"/>
+      </bpmndi:BPMNShape>
+
+      <!-- Branch 1: Detect Duplicate Payment -->
+      <bpmndi:BPMNShape id="shape_task_detect_duplicate_payment" bpmnElement="task_detect_duplicate_payment">
+        <dc:Bounds x="500" y="200" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="shape_error_duplicate_payment" bpmnElement="error_duplicate_payment">
+        <dc:Bounds x="532" y="262" width="36" height="36"/>
+      </bpmndi:BPMNShape>
+
+      <!-- Branch 2: Auto-Matching -->
+      <bpmndi:BPMNShape id="shape_task_auto_matching" bpmnElement="task_auto_matching">
+        <dc:Bounds x="500" y="380" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <!-- Parallel Gateway Join -->
+      <bpmndi:BPMNShape id="shape_gateway_parallel_join" bpmnElement="gateway_parallel_join">
+        <dc:Bounds x="650" y="293" width="50" height="50"/>
+      </bpmndi:BPMNShape>
+
+      <!-- Matched Gateway -->
+      <bpmndi:BPMNShape id="shape_gateway_matched" bpmnElement="gateway_matched" isMarkerVisible="true">
+        <dc:Bounds x="750" y="293" width="50" height="50"/>
+      </bpmndi:BPMNShape>
+
+      <!-- YES Path -->
+      <bpmndi:BPMNShape id="shape_task_apply_contractual_adjustments" bpmnElement="task_apply_contractual_adjustments">
+        <dc:Bounds x="850" y="278" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="shape_task_calculate_net_payment" bpmnElement="task_calculate_net_payment">
+        <dc:Bounds x="1000" y="278" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="shape_gateway_check_overpayment" bpmnElement="gateway_check_overpayment" isMarkerVisible="true">
+        <dc:Bounds x="1150" y="293" width="50" height="50"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="shape_task_handle_overpayment" bpmnElement="task_handle_overpayment">
+        <dc:Bounds x="1250" y="178" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="shape_error_overpayment_detected" bpmnElement="error_overpayment_detected">
+        <dc:Bounds x="1282" y="240" width="36" height="36"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="shape_task_persist_payment" bpmnElement="task_persist_payment">
+        <dc:Bounds x="1400" y="278" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="shape_task_reconcile_monthly" bpmnElement="task_reconcile_monthly">
+        <dc:Bounds x="1550" y="278" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="shape_error_reconciliation_failed" bpmnElement="error_reconciliation_failed">
+        <dc:Bounds x="1582" y="340" width="36" height="36"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="shape_end_success" bpmnElement="end_success">
+        <dc:Bounds x="1700" y="300" width="36" height="36"/>
+      </bpmndi:BPMNShape>
+
+      <!-- NO Path -->
+      <bpmndi:BPMNShape id="shape_task_flag_discrepancies" bpmnElement="task_flag_discrepancies">
+        <dc:Bounds x="850" y="430" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="shape_task_manual_review" bpmnElement="task_manual_review">
+        <dc:Bounds x="1000" y="430" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="shape_timer_review_24h" bpmnElement="timer_review_24h">
+        <dc:Bounds x="1150" y="452" width="36" height="36"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="shape_end_manual_review" bpmnElement="end_manual_review">
+        <dc:Bounds x="1236" y="452" width="36" height="36"/>
+      </bpmndi:BPMNShape>
+
+      <!-- Error End Events -->
+      <bpmndi:BPMNShape id="shape_end_error_duplicate" bpmnElement="end_error_duplicate">
+        <dc:Bounds x="532" y="100" width="36" height="36"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="shape_end_error_overpayment" bpmnElement="end_error_overpayment">
+        <dc:Bounds x="1282" y="80" width="36" height="36"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="shape_end_error_reconciliation" bpmnElement="end_error_reconciliation">
+        <dc:Bounds x="1582" y="420" width="36" height="36"/>
+      </bpmndi:BPMNShape>
+
+      <!-- Sequence Flow Edges -->
+      <bpmndi:BPMNEdge id="edge_flow_to_classify" bpmnElement="flow_to_classify">
+        <di:waypoint x="186" y="318"/>
+        <di:waypoint x="250" y="318"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="edge_flow_to_parallel_gateway" bpmnElement="flow_to_parallel_gateway">
+        <di:waypoint x="350" y="318"/>
+        <di:waypoint x="400" y="318"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="edge_flow_to_detect_duplicate" bpmnElement="flow_to_detect_duplicate">
+        <di:waypoint x="425" y="293"/>
+        <di:waypoint x="425" y="240"/>
+        <di:waypoint x="500" y="240"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="edge_flow_to_auto_matching" bpmnElement="flow_to_auto_matching">
+        <di:waypoint x="425" y="343"/>
+        <di:waypoint x="425" y="420"/>
+        <di:waypoint x="500" y="420"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="edge_flow_to_parallel_join_1" bpmnElement="flow_to_parallel_join">
+        <di:waypoint x="600" y="240"/>
+        <di:waypoint x="675" y="240"/>
+        <di:waypoint x="675" y="293"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="edge_flow_to_parallel_join_2" bpmnElement="flow_to_parallel_join">
+        <di:waypoint x="600" y="420"/>
+        <di:waypoint x="675" y="420"/>
+        <di:waypoint x="675" y="343"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="edge_flow_to_matched_gateway" bpmnElement="flow_to_matched_gateway">
+        <di:waypoint x="700" y="318"/>
+        <di:waypoint x="750" y="318"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="edge_flow_matched_yes" bpmnElement="flow_matched_yes">
+        <di:waypoint x="800" y="318"/>
+        <di:waypoint x="850" y="318"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="edge_flow_matched_no" bpmnElement="flow_matched_no">
+        <di:waypoint x="775" y="343"/>
+        <di:waypoint x="775" y="470"/>
+        <di:waypoint x="850" y="470"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="edge_flow_to_calculate_net" bpmnElement="flow_to_calculate_net">
+        <di:waypoint x="950" y="318"/>
+        <di:waypoint x="1000" y="318"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="edge_flow_to_check_overpayment" bpmnElement="flow_to_check_overpayment">
+        <di:waypoint x="1100" y="318"/>
+        <di:waypoint x="1150" y="318"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="edge_flow_overpayment_yes" bpmnElement="flow_overpayment_yes">
+        <di:waypoint x="1175" y="293"/>
+        <di:waypoint x="1175" y="218"/>
+        <di:waypoint x="1250" y="218"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="edge_flow_overpayment_no" bpmnElement="flow_overpayment_no">
+        <di:waypoint x="1200" y="318"/>
+        <di:waypoint x="1400" y="318"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="edge_flow_to_persist_payment" bpmnElement="flow_to_persist_payment">
+        <di:waypoint x="1350" y="218"/>
+        <di:waypoint x="1375" y="218"/>
+        <di:waypoint x="1375" y="318"/>
+        <di:waypoint x="1400" y="318"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="edge_flow_to_reconcile_monthly" bpmnElement="flow_to_reconcile_monthly">
+        <di:waypoint x="1500" y="318"/>
+        <di:waypoint x="1550" y="318"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="edge_flow_to_end_success" bpmnElement="flow_to_end_success">
+        <di:waypoint x="1650" y="318"/>
+        <di:waypoint x="1700" y="318"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="edge_flow_to_manual_review" bpmnElement="flow_to_manual_review">
+        <di:waypoint x="950" y="470"/>
+        <di:waypoint x="1000" y="470"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="edge_flow_to_timer_review" bpmnElement="flow_to_timer_review">
+        <di:waypoint x="1100" y="470"/>
+        <di:waypoint x="1150" y="470"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="edge_flow_to_end_manual_review" bpmnElement="flow_to_end_manual_review">
+        <di:waypoint x="1186" y="470"/>
+        <di:waypoint x="1236" y="470"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="edge_flow_to_end_error_duplicate" bpmnElement="flow_to_end_error_duplicate">
+        <di:waypoint x="550" y="262"/>
+        <di:waypoint x="550" y="136"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="edge_flow_to_end_error_overpayment" bpmnElement="flow_to_end_error_overpayment">
+        <di:waypoint x="1300" y="240"/>
+        <di:waypoint x="1300" y="116"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="edge_flow_to_end_error_reconciliation" bpmnElement="flow_to_end_error_reconciliation">
+        <di:waypoint x="1600" y="376"/>
+        <di:waypoint x="1600" y="420"/>
+      </bpmndi:BPMNEdge>
+
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+
+</bpmn:definitions>

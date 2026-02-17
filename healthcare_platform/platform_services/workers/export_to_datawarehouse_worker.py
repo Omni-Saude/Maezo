@@ -52,7 +52,10 @@ TOPIC = "platform.export_to_datawarehouse"
 
 
 class DataWarehouseExportException(DomainException):
-    """Exceção de exportação para Data Warehouse."""
+    """    Exceção de exportação para Data Warehouse.
+    
+        Archetype: INTEGRATION_BRIDGE
+        """
 
     def __init__(self, message: str, details: dict[str, Any] | None = None):
         super().__init__(

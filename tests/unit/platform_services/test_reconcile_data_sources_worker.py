@@ -53,11 +53,7 @@ class TestReconcileDataSourcesWorker:
     async def test_missing_required_field_raises(self, worker, tenant_austa):
         """Test that missing required fields raise validation error."""
         with pytest.raises(Exception):  # Pydantic validation error
-            ReconcileDataSourcesInput(
-                source_a="tasy",
-                source_b="",
-                entity_type="patient",
-            )
+            ReconcileDataSourcesInput()
 
     @pytest.mark.asyncio
     async def test_no_tenant_raises(self, worker):

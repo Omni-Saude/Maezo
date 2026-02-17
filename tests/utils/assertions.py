@@ -1,5 +1,7 @@
 """Custom assertions para testes de workers e FHIR resources."""
 
+from __future__ import annotations
+
 from typing import Any, Dict
 import pytest
 

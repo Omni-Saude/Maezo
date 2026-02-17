@@ -1,0 +1,109 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<!--
+  ============================================================================
+  PATIENT-FOLLOWUP-REMINDER - Lembrete de Consulta de Retorno ao Paciente
+  ============================================================================
+  Versao: 1.0.0 (2026-02-16)
+  Categoria: DOCTOR-PATIENT
+  Perspectiva: PACIENTE (Operacional)
+  ============================================================================
+-->
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/"
+             xmlns:dc="http://www.omg.org/spec/DMN/20180521/DC/"
+             id="Definitions_PatientFollowupReminder"
+             name="Lembrete de Consulta de Retorno ao Paciente"
+             namespace="http://healthcare.platform/dmn/clinical_operations/doctor_patient">
+
+  <decision id="Decision_PatientFollowupReminder" name="Decisao Followup Reminder">
+    <decisionTable id="DecisionTable_PatientFollowupReminder" hitPolicy="FIRST">
+
+      <input id="Input_daysSinceVisit" label="Dias Desde Ultima Consulta">
+        <inputExpression id="InputExpr_daysSinceVisit" typeRef="number">
+          <text>daysSinceVisit</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_appointmentType" label="Tipo de Consulta">
+        <inputExpression id="InputExpr_appointmentType" typeRef="string">
+          <text>appointmentType</text>
+        </inputExpression>
+        <inputValues><text>"POS_CIRURGIA","CRONICO","PREVENTIVO","AGUDO"</text></inputValues>
+      </input>
+
+      <input id="Input_noShowHistory" label="Historico de Faltas">
+        <inputExpression id="InputExpr_noShowHistory" typeRef="number">
+          <text>noShowHistory</text>
+        </inputExpression>
+      </input>
+
+      <output id="Output_resultado" label="Resultado" name="resultado" typeRef="string">
+        <outputValues><text>"PROSSEGUIR","BLOQUEAR","REVISAR"</text></outputValues>
+      </output>
+      <output id="Output_acao" label="Ação" name="acao" typeRef="string"/>
+      <output id="Output_risco" label="Risco" name="risco" typeRef="string">
+        <outputValues><text>"BAIXO","MEDIO","ALTO"</text></outputValues>
+      </output>
+
+      <rule id="Rule_FollowRem_1">
+        <description>Bloqueio: Pós-cirurgia sem retorno</description>
+        <inputEntry id="InputEntry_FollowRem_1_1"><text>&gt; 14</text></inputEntry>
+        <inputEntry id="InputEntry_FollowRem_1_2"><text>"POS_CIRURGIA"</text></inputEntry>
+        <inputEntry id="InputEntry_FollowRem_1_3"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_FollowRem_1_resultado"><text>"BLOQUEAR"</text></outputEntry>
+        <outputEntry id="OutputEntry_FollowRem_1_acao"><text>"URGENTE: Pós-cirurgia sem retorno há &gt;14 dias. Contatar paciente imediatamente."</text></outputEntry>
+        <outputEntry id="OutputEntry_FollowRem_1_risco"><text>"ALTO"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_FollowRem_2">
+        <description>Alerta: Paciente com histórico de faltas</description>
+        <inputEntry id="InputEntry_FollowRem_2_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_FollowRem_2_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_FollowRem_2_3"><text>&gt; 2</text></inputEntry>
+        <outputEntry id="OutputEntry_FollowRem_2_resultado"><text>"REVISAR"</text></outputEntry>
+        <outputEntry id="OutputEntry_FollowRem_2_acao"><text>"Paciente com histórico de faltas. Enviar múltiplos lembretes (SMS + WhatsApp + ligação)."</text></outputEntry>
+        <outputEntry id="OutputEntry_FollowRem_2_risco"><text>"MEDIO"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_FollowRem_3">
+        <description>Alerta: Crônico atrasado</description>
+        <inputEntry id="InputEntry_FollowRem_3_1"><text>&gt; 90</text></inputEntry>
+        <inputEntry id="InputEntry_FollowRem_3_2"><text>"CRONICO"</text></inputEntry>
+        <inputEntry id="InputEntry_FollowRem_3_3"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_FollowRem_3_resultado"><text>"REVISAR"</text></outputEntry>
+        <outputEntry id="OutputEntry_FollowRem_3_acao"><text>"Paciente crônico sem retorno há &gt;90 dias. Contatar e agendar consulta."</text></outputEntry>
+        <outputEntry id="OutputEntry_FollowRem_3_risco"><text>"MEDIO"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_FollowRem_4">
+        <description>Aprovado: Lembrete de rotina</description>
+        <inputEntry id="InputEntry_FollowRem_4_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_FollowRem_4_2"><text>"PREVENTIVO","AGUDO"</text></inputEntry>
+        <inputEntry id="InputEntry_FollowRem_4_3"><text>&lt;= 1</text></inputEntry>
+        <outputEntry id="OutputEntry_FollowRem_4_resultado"><text>"PROSSEGUIR"</text></outputEntry>
+        <outputEntry id="OutputEntry_FollowRem_4_acao"><text>"Enviar lembrete de retorno por canal preferencial do paciente."</text></outputEntry>
+        <outputEntry id="OutputEntry_FollowRem_4_risco"><text>"BAIXO"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_FollowRem_Fallback">
+        <description>Regra padrão</description>
+        <inputEntry id="InputEntry_FollowRem_F_1"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_FollowRem_F_2"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_FollowRem_F_3"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_FollowRem_F_resultado"><text>"REVISAR"</text></outputEntry>
+        <outputEntry id="OutputEntry_FollowRem_F_acao"><text>"Avaliar necessidade de lembrete de retorno."</text></outputEntry>
+        <outputEntry id="OutputEntry_FollowRem_F_risco"><text>"BAIXO"</text></outputEntry>
+      </rule>
+
+    </decisionTable>
+  </decision>
+
+  <dmndi:DMNDI>
+    <dmndi:DMNDiagram id="DMNDiagram_PatientFollowupReminder">
+      <dmndi:DMNShape id="DMNShape_Decision_PatientFollowupReminder" dmnElementRef="Decision_PatientFollowupReminder">
+        <dc:Bounds height="80" width="180" x="160" y="100" />
+      </dmndi:DMNShape>
+    </dmndi:DMNDiagram>
+  </dmndi:DMNDI>
+
+</definitions>

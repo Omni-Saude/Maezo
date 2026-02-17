@@ -30,6 +30,8 @@ class PersistProductionWorker:
     - Links to Encounter, Patient, Coverage
 
     All data is LGPD compliant (no PII in stored variables).
+
+    Archetype: FINANCIAL_CALCULATION
     """
 
     TOPIC = "production.persist_production"

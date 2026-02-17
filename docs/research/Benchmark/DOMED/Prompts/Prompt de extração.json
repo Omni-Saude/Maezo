@@ -1,0 +1,1896 @@
+{
+  "$schema": "UTI-SESDF-RegraContratual-Extraction-AgentSpec-v4",
+  "meta": {
+    "prompt_name": "UTI-SESDF-RegraContratual-Extraction-AgentSpec",
+    "version": "4.0.0",
+    "language": "pt-BR",
+    "audience": "ai-agent",
+    "do_not_execute_now": true,
+    "context": {
+      "documents": {
+        "DOC_A": "Edital de Credenciamento nº 05/2024 - SES/DF - regras e condições para prestação de serviço de UTI",
+        "DOC_B": "Contrato Administrativo nº 055374/2025 - SES/DF x DOMED - baseado no Edital",
+        "ANNEXES": "Apêndices I a XI contendo: obrigações, glosas, indicadores, materiais padronizados, exames complementares, nutrição, terapia renal, hemoterapia, cirurgias e medicamentos"
+      },
+      "objective": "Identificar, classificar e extrair regras contratuais estruturadas para parametrização em ERP hospitalar (TASY), com rastreabilidade completa, desambiguação multiagente e priorização de regras operacionalizáveis.",
+      "domain": "Contratos públicos de prestação de serviços de terapia intensiva (UTI) no âmbito do Sistema Único de Saúde (SUS) do Distrito Federal"
+    }
+  },
+  
+  "operating_principles": [
+    "PRINCÍPIO DA FIDELIDADE TEXTUAL: Nunca inventar cláusulas, números, prazos, valores, tabelas, códigos (SIGTAP, SES, BR) ou referências legislativas que não estejam explicitamente nos documentos.",
+    "PRINCÍPIO DA RASTREABILIDADE TOTAL: Toda afirmação extraída DEVE ter rastreabilidade precisa: documento_id, clausula_label (ex: '4.3.1.1'), página, e trecho_de_suporte literal (máximo 40 palavras).",
+    "PRINCÍPIO DA SEPARAÇÃO FATO-INTERPRETAÇÃO: Distinguir claramente fatos textuais do documento de interpretações necessárias. Toda interpretação DEVE ser marcada com interpretation_required=true e incluir justificativa técnico-jurídica.",
+    "PRINCÍPIO DA PRECEDÊNCIA DOCUMENTAL: Em caso de divergência entre DOC_A (Edital) e DOC_B (Contrato), priorizar DOC_B por ser o instrumento jurídico vinculante assinado. Registrar o conflito e a reconciliação aplicada.",
+    "PRINCÍPIO DA NORMALIZAÇÃO ESTRUTURAL: Evitar linguagem vaga. Normalizar em campos estruturados: ator (quem), gatilho (quando), condição (se), ação (o quê), parâmetros (quanto/como), evidência (prova), consequência (penalidade).",
+    "PRINCÍPIO DA AUTOMAÇÃO INTELIGÍVEL: Priorizar regras que sejam (1) automatizáveis em ERP, (2) mensuráveis objetivamente, (3) auditáveis com evidências documentais.",
+    "PRINCÍPIO DO CONSENSO BIZANTINO: Usar abordagem multiagente (5 agentes especializados) para resolver ambiguidades. Decisão requer consenso de 3/5 agentes. Quando não alcançado, manter alternativas e marcar como unresolved=true.",
+    "PRINCÍPIO DA ATOMICIDADE: Uma regra = uma obrigação/condição. Cláusulas complexas devem ser decompostas em múltiplas regras atômicas vinculadas por parent_rule_id.",
+    "PRINCÍPIO DA VALIDAÇÃO CONTÍNUA: Aplicar validações de consistência em cada etapa: completude de campos obrigatórios, não-duplicidade, cobertura documental, precisão de referências.",
+    "PRINCÍPIO DA INTEGRAÇÃO ERP: Incluir mapeamento explícito para módulos TASY (Faturamento, Auditoria, Indicadores, Suprimentos) com placeholders quando tabelas exatas não forem conhecidas."
+  ],
+
+  "document_structure_intelligence": {
+    "description": "Inteligência específica sobre estruturas encontradas nos documentos SESDF",
+    "patterns_identified": {
+      "clausula_numeracao": {
+        "pattern": "Hierarquia com até 4 níveis: clausula_primeira, 1.1, 1.1.1, 1.1.1.1",
+        "example": "4.3.7.1.1 dentro de clausula_quarta_da_forma_e_regime_de_execucao",
+        "extraction_rule": "Capturar sempre a numeração completa e o caminho hierárquico (heading_path)"
+      },
+      "citation_markers": {
+        "pattern": "[cite: NNNN] ou [cite: NNNN, NNNN, NNNN]",
+        "description": "Marcadores de citação já presentes nos JSONs que referenciam posições no documento original",
+        "extraction_rule": "Preservar e incluir no campo source.citation_markers para rastreabilidade adicional"
+      },
+      "tabelas_de_codigo": {
+        "sistemas": [
+          "codigo_sigtap: Sistema de Gerenciamento da Tabela de Procedimentos do SUS",
+          "codigo_br: Código BR do sistema Comprasnet",
+          "codigo_ses: Código interno da Secretaria de Saúde do DF",
+          "tabela_amb92: Tabela AMB 92 (procedimentos médicos)"
+        ],
+        "extraction_rule": "Sempre capturar todos os códigos disponíveis em structured_codes array"
+      },
+      "valores_monetarios": {
+        "pattern": "R$ X.XXX,XX ou 'valor_diaria': 'R$ 6.051,45'",
+        "extraction_rule": "Normalizar para formato numérico: {currency: 'BRL', amount: 6051.45} preservando o valor original em display_value"
+      },
+      "prazos_temporais": {
+        "patterns": [
+          "N dias úteis",
+          "N dias corridos", 
+          "N horas",
+          "até DD/MM/AAAA",
+          "prazo máximo de N (unidade)"
+        ],
+        "extraction_rule": "Normalizar para {value: N, unit: 'dias_uteis'|'dias_corridos'|'horas', type: 'deadline'|'duration'}"
+      },
+      "referencias_legislativas": {
+        "tipos": [
+          "Lei nº XXXXX/AAAA",
+          "Decreto nº XXXXX/AAAA",
+          "Portaria SES/DF nº XXX/AAAA",
+          "Resolução CFM nº XXXX/AAAA",
+          "RDC nº XXX/AAAA (ANVISA)",
+          "Nota Técnica Nº X/AAAA-SES/..."
+        ],
+        "extraction_rule": "Capturar em legal_references array com {type, number, year, issuer, description}"
+      },
+      "indicadores_qualidade": {
+        "estrutura": {
+          "nome": "Nome completo do indicador",
+          "calculo": "Fórmula matemática textual",
+          "meta": "Threshold de conformidade com operador (<=, >=, <, >)",
+          "nao_conforme": "Condição de não conformidade",
+          "desconto": "Percentual de penalidade",
+          "aplicavel_a": ["UTI_ADULTO", "UTI_PEDIATRICA", "UTI_NEONATAL"]
+        },
+        "extraction_rule": "Criar regra específica do tipo INDICATOR_QUALITY_METRIC com todos os campos estruturados"
+      },
+      "listas_padronizacao": {
+        "tipos": [
+          "Materiais padronizados SES/DF (Apêndice XI)",
+          "Exames complementares (Apêndice VII)",
+          "Medicamentos padronizados",
+          "Nutrição parenteral/enteral (Apêndices V, VI)",
+          "Procedimentos cirúrgicos",
+          "SADT (Serviços Auxiliares de Diagnóstico e Terapia)"
+        ],
+        "extraction_rule": "Regras do tipo PADRONIZACAO com reference_list apontando para o apêndice específico"
+      }
+    }
+  },
+
+  "inputs": {
+    "required_files": [
+      {
+        "id": "DOC_A",
+        "type": "json",
+        "description": "Edital.json - Edital de Credenciamento nº 05/2024 SES/DF",
+        "expected_structure": "Objeto JSON com hierarquia de seções e cláusulas numeradas"
+      },
+      {
+        "id": "DOC_B",
+        "type": "json",
+        "description": "Contrato_Domed_SESDF.json - Contrato Administrativo nº 055374/2025",
+        "expected_structure": "Objeto JSON com clausulas hierárquicas contendo [cite: NNNN] markers"
+      }
+    ],
+    "optional_files": [
+      {
+        "id": "APENDICE_I_II",
+        "description": "Apêndice I (Obrigações da Contratada) e II (Critérios de Glosa)",
+        "criticality": "HIGH - contém regras operacionais essenciais"
+      },
+      {
+        "id": "APENDICE_III",
+        "description": "Fichas de Indicadores de Qualidade",
+        "criticality": "HIGH - define métricas de performance"
+      },
+      {
+        "id": "APENDICE_V_VI",
+        "description": "Nutrição Parenteral e Enteral",
+        "criticality": "MEDIUM - padronização de insumos"
+      },
+      {
+        "id": "APENDICE_VII",
+        "description": "Exames Complementares Padronizados",
+        "criticality": "MEDIUM - lista de SADT faturáveis"
+      },
+      {
+        "id": "APENDICE_VIII_IX",
+        "description": "Terapia Renal Substitutiva e Hemoterapia",
+        "criticality": "MEDIUM - procedimentos especiais"
+      },
+      {
+        "id": "APENDICE_X",
+        "description": "Procedimentos Cirúrgicos/Invasivos",
+        "criticality": "MEDIUM - escopo de cirurgias permitidas"
+      },
+      {
+        "id": "APENDICE_XI",
+        "description": "Materiais Padronizados SES/DF",
+        "criticality": "HIGH - lista extensa para validação de faturamento"
+      }
+    ]
+  },
+
+  "definitions": {
+    "rule": "Enunciado normativo extraído do contrato contendo: ator (quem executa/recebe), gatilho (evento que ativa), condição (se aplicável), ação (obrigação/permissão/proibição), parâmetros mensuráveis (prazo, quantidade, valor), evidências requeridas, e consequência de descumprimento.",
+    "topic_group": "Agrupamento temático de regras correlatas (ex: Faturamento e Glosas, Indicadores de Qualidade, Admissão e Alta, Auditoria e Fiscalização).",
+    "archetype": "Padrão recorrente de regra contratual com estrutura de campos previsível (ex: SLA_TIME_BOUND, GLOSA_RULE, PENALTY_FINANCIAL, ELIGIBILITY_CRITERIA, INDICATOR_QUALITY_METRIC).",
+    "actor": "Parte contratual responsável pela execução ou destinatária da regra. Valores possíveis: CONTRATADA (DOMED), CONTRATANTE (SES/DF), CRDF (Complexo Regulador), CERIH (Central de Regulação), PACIENTE, TERCEIRO_AUTORIZADO.",
+    "automation_level": "Nível de automatização possível no ERP: FULL_AUTO (regra completamente automatizável), SEMI_AUTO (requer validação humana), MANUAL (requer processo manual), AUDIT_ONLY (apenas para auditoria posterior).",
+    "erp_module_tasy": "Módulos do sistema TASY aplicáveis: FATURAMENTO, AUDITORIA_MEDICA, INDICADORES_QUALIDADE, SUPRIMENTOS, FARMACIA, NUTRICAO, REGULACAO, GESTAO_LEITOS, CONTROLADORIA.",
+    "interpretation_confidence": "Nível de confiança na interpretação: HIGH (0.8-1.0 - texto claro e inequívoco), MEDIUM (0.5-0.79 - requer inferência razoável), LOW (0.0-0.49 - texto ambíguo, requer esclarecimento jurídico)."
+  },
+
+  "deliverables": [
+    {
+      "id": "D1_TOPIC_INVENTORY",
+      "name": "Inventário completo de tópicos contratuais",
+      "goal": "Mapear todos os agrupamentos temáticos de regras presentes nos documentos, com evidências de localização e estimativa de densidade de regras por tópico.",
+      "output_format": "JSON",
+      "schema_ref": "#/schemas/topic_inventory",
+      "quality_targets": {
+        "min_topics": 20,
+        "max_topics": 35,
+        "coverage_pages_doc_a": "100%",
+        "coverage_pages_doc_b": "100%",
+        "evidence_anchors_per_topic": ">= 2"
+      }
+    },
+    {
+      "id": "D2_ARCHETYPES_CATALOG",
+      "name": "Catálogo de arquétipos de regras aplicáveis",
+      "goal": "Identificar e documentar os padrões recorrentes de regras (arquétipos) presentes especificamente neste contrato de UTI SES/DF, com base em benchmarks de contratos similares do SUS.",
+      "output_format": "JSON",
+      "schema_ref": "#/schemas/archetype_catalog",
+      "quality_targets": {
+        "min_archetypes": 12,
+        "max_archetypes": 20,
+        "must_include": [
+          "SLA_TIME_BOUND",
+          "GLOSA_RULE",
+          "INDICATOR_QUALITY_METRIC",
+          "PENALTY_FINANCIAL",
+          "ELIGIBILITY_CRITERIA",
+          "BILLING_SUBMISSION",
+          "AUDIT_RIGHTS",
+          "PADRONIZACAO_INSUMO"
+        ]
+      }
+    },
+    {
+      "id": "D3_EXTRACTION_STANDARD",
+      "name": "Padrão de dados para extração TASY-ready",
+      "goal": "Definir schema de dados completo e validável para extração de regras, otimizado para ingestão em ERP hospitalar brasileiro (TASY) e compatível com práticas de auditoria SUS.",
+      "output_format": "JSON Schema (draft-07)",
+      "schema_ref": "#/schemas/rule_standard",
+      "quality_targets": {
+        "json_schema_valid": true,
+        "required_fields_count": ">= 15",
+        "optional_fields_count": ">= 10",
+        "enum_fields_count": ">= 8"
+      }
+    },
+    {
+      "id": "D4_TEMPLATES_BY_ARCHETYPE",
+      "name": "Templates de extração por arquétipo",
+      "goal": "Fornecer templates preenchíveis para cada arquétipo identificado, já no padrão D3, com exemplos de valores válidos e regras de validação específicas.",
+      "output_format": "JSON",
+      "schema_ref": "#/schemas/archetype_templates",
+      "quality_targets": {
+        "templates_per_archetype": 1,
+        "example_values_per_template": ">= 3",
+        "validation_rules_per_template": ">= 2"
+      }
+    },
+    {
+      "id": "D5_RULE_EXTRACTION",
+      "name": "Extração completa das regras contratuais",
+      "goal": "Extrair todas as regras identificadas nos documentos, aplicando o template adequado por arquétipo, normalizando parâmetros e garantindo rastreabilidade total.",
+      "output_format": "JSONL (1 regra por linha para streaming)",
+      "schema_ref": "#/schemas/rule_instance",
+      "quality_targets": {
+        "min_rules_extracted": 150,
+        "max_rules_extracted": 400,
+        "rastreabilidade_100_pct": true,
+        "regras_com_parent_id": ">= 30%",
+        "regras_automatizaveis": ">= 40%",
+        "duplicate_rate": "< 2%"
+      }
+    },
+    {
+      "id": "D6_CONFLICTS_AND_RESOLUTIONS",
+      "name": "Relatório de conflitos, ambiguidades e resoluções multiagente",
+      "goal": "Documentar todos os conflitos identificados entre DOC_A e DOC_B, ambiguidades textuais, lacunas normativas e subjetividades. Aplicar metodologia de consenso bizantino (5 agentes, threshold 3/5) e registrar decisões com confiança.",
+      "output_format": "JSON",
+      "schema_ref": "#/schemas/conflict_report",
+      "quality_targets": {
+        "min_conflicts_identified": 5,
+        "max_unresolved_conflicts": "< 10%",
+        "byzantine_consensus_rate": ">= 85%",
+        "avg_confidence_resolved": ">= 0.75"
+      }
+    },
+    {
+      "id": "D7_INTEGRATION_MAPPING",
+      "name": "Mapeamento de integração TASY",
+      "goal": "Documento técnico para equipe de TI com mapeamento detalhado de como cada tipo de regra deve ser parametrizado no TASY, incluindo tabelas, campos, triggers e validações sugeridas.",
+      "output_format": "JSON + Markdown",
+      "schema_ref": "#/schemas/tasy_integration_map",
+      "quality_targets": {
+        "modules_covered": ">= 6",
+        "rules_mapped": ">= 80%",
+        "sql_examples_provided": ">= 10"
+      }
+    }
+  ],
+
+  "tasks": [
+    {
+      "step": 1,
+      "name": "Leitura, indexação e construção de grafo documental",
+      "instructions": [
+        "Carregar DOC_A (Edital.json), DOC_B (Contrato_Domed_SESDF.json) e todos os Apêndices disponíveis.",
+        "Construir índice hierárquico navegável: para cada documento, mapear estrutura de objetos JSON incluindo todos os níveis de aninhamento.",
+        "Para cada nó folha textual, criar um 'anchor' (âncora) com: {doc_id, json_path, clause_label, heading_path, citation_markers, text_content, char_count}.",
+        "Identificar e extrair todas as tabelas estruturadas (arrays de objetos) presentes nos documentos, catalogando seus schemas.",
+        "Construir grafo de referências cruzadas: mapear todas as menções a outros documentos, cláusulas, apêndices e legislação externa.",
+        "Normalizar todos os códigos (SIGTAP, BR, SES, AMB92) encontrados e criar índice reverso código -> localização.",
+        "Identificar e catalogar todas as fórmulas matemáticas, percentuais, valores monetários e prazos temporais para normalização posterior."
+      ],
+      "quality_checks": [
+        "COBERTURA: 100% dos nós textuais devem ter anchors correspondentes.",
+        "CONSISTÊNCIA: Nenhum overlap entre text_spans de diferentes anchors.",
+        "INTEGRIDADE: Todos os [cite: NNNN] devem ser preservados nos anchors.",
+        "COMPLETUDE: Todas as tabelas estruturadas devem estar catalogadas com schema inferido."
+      ],
+      "output_artifacts": [
+        "document_index.json - índice navegável hierárquico",
+        "anchor_catalog.jsonl - catálogo de âncoras textuais",
+        "table_schemas.json - schemas de todas as tabelas encontradas",
+        "cross_reference_graph.json - grafo de referências documentais",
+        "code_index.json - índice reverso de códigos"
+      ]
+    },
+    {
+      "step": 2,
+      "name": "Identificação de tópicos contratuais (sem extração de regras)",
+      "instructions": [
+        "Análise top-down: começar pelos títulos de seções principais (cláusulas) e identificar domínios temáticos.",
+        "Análise bottom-up: agrupar anchors textuais similares usando keywords e padrões linguísticos.",
+        "Para cada tópico candidato: (a) definir scope preciso, (b) listar keywords primárias e secundárias, (c) coletar evidências (anchors), (d) estimar densidade de regras.",
+        "Validar tópicos contra seed recomendado (ver recommended_topic_groups_seed), mas permitir emergência de novos tópicos se justificados.",
+        "Organizar tópicos em hierarquia de 2 níveis: tópico pai -> subtópicos.",
+        "Para cada tópico, identificar inter-relações com outros tópicos (dependencies, conflicts, cross-references)."
+      ],
+      "quality_checks": [
+        "COBERTURA: Cada anchor textual deve ser atribuído a pelo menos 1 tópico (allow multi-classification).",
+        "GRANULARIDADE: Tópicos não devem ser nem excessivamente amplos (> 50 regras) nem fragmentados (< 5 regras).",
+        "EVIDÊNCIA: Cada tópico deve ter >= 2 anchors como evidência.",
+        "CLAREZA: Definição de cada tópico deve ser < 100 palavras e sem ambiguidade."
+      ],
+      "output": "D1_TOPIC_INVENTORY",
+      "estimated_duration": "45 minutos"
+    },
+    {
+      "step": 3,
+      "name": "Identificação e catalogação de arquétipos de regras",
+      "instructions": [
+        "Começar com seed de arquétipos recomendados (ver recommended_archetypes_seed) e validar presença nos documentos.",
+        "Para cada arquétipo presente: (a) coletar 3-5 exemplos textuais do contrato, (b) refinar definição, (c) listar campos essenciais, (d) documentar sinais de detecção (keywords, estruturas sintáticas).",
+        "Identificar novos arquétipos emergentes não cobertos pelo seed (ex: se houver padrões recorrentes específicos de UTI).",
+        "Para cada arquétipo, especificar: {archetype_id, name, description, key_fields, detection_signals, typical_topics, automation_potential}.",
+        "Criar matriz de compatibilidade: quais arquétipos podem coexistir numa mesma cláusula (ex: GLOSA_RULE + AUDIT_RIGHTS).",
+        "Priorizar arquétipos por criticalidade operacional: HIGH (afeta faturamento/pagamento), MEDIUM (afeta qualidade/SLA), LOW (administrativo)."
+      ],
+      "quality_checks": [
+        "COBERTURA: Arquétipos identificados devem cobrir >= 85% das regras esperadas.",
+        "DISTINÇÃO: Cada arquétipo deve ter diferencial claro (overlap < 20% nos campos).",
+        "EXEMPLIFICAÇÃO: Cada arquétipo deve ter >= 3 exemplos textuais reais do contrato.",
+        "AUTOMAÇÃO: Pelo menos 50% dos arquétipos devem ter automation_potential >= SEMI_AUTO."
+      ],
+      "output": "D2_ARCHETYPES_CATALOG",
+      "estimated_duration": "60 minutos"
+    },
+    {
+      "step": 4,
+      "name": "Definição do padrão de extração TASY-ready",
+      "instructions": [
+        "Desenhar schema JSON (draft-07) para rule_instance com base nos arquétipos e na estrutura do TASY.",
+        "Campos OBRIGATÓRIOS mínimos: rule_id, topic_id, archetype_id, normative_type, actor, trigger, action, source (com rastreabilidade completa), automation_level.",
+        "Campos OPCIONAIS mas recomendados: condition, parameters (estruturado), evidence, penalties, erp_mapping, interpretation.",
+        "Para cada campo numérico/enum, definir: tipo, range válido, valores default, validações.",
+        "Incluir campos específicos para integração TASY: {tasy_module, tasy_table_hint, tasy_field_hint, tasy_trigger_logic, integration_complexity}.",
+        "Definir enumerations completas para: normative_type, actor, automation_level, tasy_module, penalty_type, time_unit.",
+        "Criar sub-schemas para objetos complexos: ActorInfo, TriggerCondition, ParameterSet, EvidenceRequirement, PenaltySpec, TASYMapping.",
+        "Documentar regras de validação cross-field (ex: se normative_type=PENALIDADE, então penalties.amount deve estar presente)."
+      ],
+      "quality_checks": [
+        "VALIDADE: Schema deve passar validação JSON Schema draft-07.",
+        "COMPLETUDE: Todos os campos mencionados em D2_ARCHETYPES devem ter correspondente no schema.",
+        "INTEGRAÇÃO: Campos de mapeamento TASY devem ser específicos o suficiente para orientar desenvolvedores.",
+        "DOCUMENTAÇÃO: Cada campo deve ter description clara e examples quando aplicável."
+      ],
+      "output": "D3_EXTRACTION_STANDARD",
+      "estimated_duration": "90 minutos"
+    },
+    {
+      "step": 5,
+      "name": "Criação de templates por arquétipo",
+      "instructions": [
+        "Para cada arquétipo em D2: criar um template JSON que seja uma instância válida do schema D3.",
+        "Popular template com: (a) valores de exemplo baseados em regras reais do contrato, (b) placeholders para campos variáveis, (c) comentários inline explicativos.",
+        "Incluir no template: validation_rules (lista de asserções que uma regra deste arquétipo deve satisfazer).",
+        "Criar variantes do template quando um arquétipo tiver subtipos significativos (ex: GLOSA_RULE pode ter variante documental vs variante técnica).",
+        "Para cada template, incluir: example_instances (3-5 regras reais preenchidas), common_mistakes (armadilhas na extração), automation_notes.",
+        "Testar cada template: instanciar com 2-3 regras reais e validar contra schema D3."
+      ],
+      "quality_checks": [
+        "CONFORMIDADE: 100% dos templates devem validar contra schema D3.",
+        "COMPLETUDE: Cada template deve popular >= 80% dos campos disponíveis no schema.",
+        "UTILIDADE: Exemplos devem ser realistas e representativos do contrato.",
+        "VALIDAÇÃO: Regras de validação devem ser executáveis e testáveis."
+      ],
+      "output": "D4_TEMPLATES_BY_ARCHETYPE",
+      "estimated_duration": "75 minutos"
+    },
+    {
+      "step": 6,
+      "name": "Extração completa das regras contratuais",
+      "instructions": [
+        "ESTRATÉGIA DE VARREDURA: Percorrer DOC_B (Contrato) primeiro, depois DOC_A (Edital) para detectar eventuais diferenças, e finalmente Apêndices.",
+        "Para cada anchor textual normativo (contém obrigação/direito/proibição): (1) Classificar por tópico, (2) Identificar arquétipo aplicável, (3) Aplicar template correspondente.",
+        "ATOMICIDADE: Se uma cláusula contiver múltiplas obrigações distintas, criar regras separadas vinculadas por parent_rule_id.",
+        "NORMALIZAÇÃO DE PARÂMETROS:",
+        "  - Prazos: converter para formato estruturado {value, unit, type, start_event, end_event}",
+        "  - Valores: normalizar R$ para {currency: 'BRL', amount: float, display_value: 'R$ X.XXX,XX'}",
+        "  - Percentuais: extrair número e contexto {value: 0.1, display: '0,1%', applies_to: 'nota_fiscal_mensal'}",
+        "  - Códigos: sempre capturar TODOS os códigos disponíveis (SIGTAP, BR, SES) em array estruturado",
+        "  - Fórmulas matemáticas: preservar textualmente E tentar estruturar com {formula_text, variables, calculation_method}",
+        "RASTREABILIDADE: Para cada regra, incluir:",
+        "  - source.doc_id, source.json_path, source.clause_label, source.heading_path",
+        "  - source.citation_markers (array de [cite: NNNN])",
+        "  - evidence.support_excerpt (20-40 palavras literais do documento)",
+        "INTERPRETAÇÃO: Se for necessário inferir algo não explícito:",
+        "  - Marcar interpretation.interpretation_required = true",
+        "  - Documentar em interpretation.interpretation_text a lógica da inferência",
+        "  - Atribuir interpretation.confidence (0.0-1.0)",
+        "  - Se confidence < 0.7, marcar para revisão multiagente",
+        "MAPEAMENTO ERP: Para cada regra, sugerir:",
+        "  - erp_mapping.tasy_module (ex: FATURAMENTO, AUDITORIA_MEDICA)",
+        "  - erp_mapping.integration_complexity (LOW/MEDIUM/HIGH)",
+        "  - erp_mapping.suggested_automation (descrição textual do que automatizar)",
+        "AUTOMAÇÃO: Classificar automation_level:",
+        "  - FULL_AUTO: regra com parâmetros objetivos, sem exceções, verificável automaticamente",
+        "  - SEMI_AUTO: regra que pode ser verificada automaticamente mas requer aprovação humana",
+        "  - MANUAL: regra que depende de julgamento subjetivo ou processos manuais",
+        "  - AUDIT_ONLY: regra verificável apenas em auditoria posterior",
+        "FORMATOS DE SAÍDA:",
+        "  - Gerar arquivo JSONL (1 regra por linha) para facilitar streaming e ingestão incremental",
+        "  - Incluir metadata header: {extraction_date, doc_versions, agent_version, total_rules}",
+        "  - Implementar deduplicação: regras idênticas devem ser consolidadas com source.anchors array contendo todas as localizações"
+      ],
+      "quality_checks": [
+        "RASTREABILIDADE: 100% das regras DEVEM ter source.doc_id + source.json_path + source.clause_label.",
+        "NÃO-DUPLICIDADE: Taxa de duplicação < 2% (detectar via hash de campos core).",
+        "COBERTURA: Toda cláusula normativa identificada na etapa 2 deve gerar >= 1 regra OU ter justificativa de exclusão.",
+        "NORMALIZAÇÃO: 100% dos valores monetários/prazos/percentuais devem estar em formato estruturado.",
+        "ATOMICIDADE: Regras compostas devem estar corretamente decompostas e vinculadas via parent_rule_id.",
+        "INTEGRIDADE REFERENCIAL: Todos os topic_id e archetype_id devem existir em D1 e D2.",
+        "COMPLETUDE: Campos obrigatórios do schema D3 devem estar 100% preenchidos.",
+        "CONSISTÊNCIA: Enums devem usar apenas valores definidos no schema.",
+        "EVIDÊNCIA: 100% das regras devem ter evidence.support_excerpt não vazio e < 350 caracteres."
+      ],
+      "output": "D5_RULE_EXTRACTION",
+      "estimated_duration": "180-240 minutos (depende do volume de regras)",
+      "checkpoints": [
+        "Após 50 regras extraídas: validar amostra contra schema e templates",
+        "Após 100 regras: rodar análise de duplicação e cobertura de tópicos",
+        "Após 150 regras: revisar regras com baixa confidence (<0.7) para identificar padrões de ambiguidade",
+        "Ao finalizar: executar todas as quality_checks e gerar relatório de qualidade"
+      ]
+    },
+    {
+      "step": 7,
+      "name": "Resolução de ambiguidades e conflitos via consenso bizantino multiagente",
+      "instructions": [
+        "IDENTIFICAÇÃO DE PROBLEMAS: Analisar regras extraídas e documentos para detectar:",
+        "  1. CONFLITOS DOC_A vs DOC_B: cláusulas que divergem entre Edital e Contrato",
+        "  2. AMBIGUIDADES TEXTUAIS: termos vagos (ex: 'razoável', 'adequado', 'breve'), condições implícitas, exceções não explicitadas",
+        "  3. LACUNAS NORMATIVAS: situações previstas mas sem regra definida, parâmetros faltantes (ex: prazo mencionado mas não especificado)",
+        "  4. SUBJETIVIDADES: critérios que dependem de julgamento (ex: 'qualidade adequada', 'justificativa plausível')",
+        "  5. INCONSISTÊNCIAS INTERNAS: regras que se contradizem dentro do mesmo documento",
+        "  6. REFERÊNCIAS QUEBRADAS: menções a cláusulas, apêndices ou legislação inexistentes",
+        "CONFIGURAÇÃO DOS AGENTES: Simular 5 agentes especializados com perspectivas distintas:",
+        "  - AGENTE_A_JURIDICO: foco em conformidade legal, interpretação estrita de contratos públicos, Lei 14.133/2021",
+        "  - AGENTE_B_FATURAMENTO: foco em viabilidade de cobrança, clareza de itens faturáveis, prevenção de glosas",
+        "  - AGENTE_C_OPERACAO_UTI: foco em exequibilidade clínica, protocolos médicos, Resolução CFM 2.156/2016",
+        "  - AGENTE_D_COMPLIANCE: foco em auditoria SUS, ANVISA, rastreabilidade, evidências documentais",
+        "  - AGENTE_E_ERP_TECH: foco em automação, integrabilidade TASY, mensuração objetiva",
+        "PROCESSO DE CONSENSO para cada conflito/ambiguidade:",
+        "  1. Apresentar o problema aos 5 agentes com contexto completo (texto original, regras afetadas, implicações)",
+        "  2. Cada agente propõe UMA interpretação/resolução com rationale curto (max 100 palavras)",
+        "  3. Identificar agrupamentos: se 3+ agentes convergirem numa posição, essa é a resolução aceita",
+        "  4. Calcular confidence = (num_agentes_concordantes / 5) * peso_qualidade_argumentos",
+        "  5. Se threshold bizantino alcançado (>= 3/5): adotar resolução, atualizar regras afetadas, marcar como RESOLVED",
+        "  6. Se threshold NÃO alcançado: manter 2-3 interpretações alternativas, marcar unresolved=true, gerar pergunta objetiva para time jurídico",
+        "DOCUMENTAÇÃO DE DECISÕES:",
+        "  - Para cada conflito: {conflict_id, type, description, affected_rule_ids, sources, agent_votes, resolution}",
+        "  - agent_votes: [{agent, position, rationale_short, supporting_evidence}]",
+        "  - resolution: {decision, confidence, meets_byzantine_threshold, unresolved, followup_question_if_unresolved}",
+        "ATUALIZAÇÃO DAS REGRAS: Quando uma interpretação for decidida:",
+        "  - Atualizar interpretation.interpretation_text nas regras afetadas",
+        "  - Atualizar interpretation.confidence com o valor calculado",
+        "  - Adicionar entrada em interpretation.revision_history: {date, change_description, consensus_agents}",
+        "  - Se conflict foi DOC_A vs DOC_B: documentar em source.doc_conflict_resolved",
+        "QUESTÕES PARA ESCALAÇÃO: Para conflitos unresolved:",
+        "  - Formular pergunta objetiva e específica (não genérica)",
+        "  - Incluir contexto mínimo necessário para resposta",
+        "  - Sugerir alternativas de resposta quando possível",
+        "  - Indicar impacto operacional (HIGH/MEDIUM/LOW) e urgência"
+      ],
+      "quality_checks": [
+        "COBERTURA: Todas as regras com interpretation.confidence < 0.7 devem passar por análise multiagente.",
+        "DOCUMENTAÇÃO: 100% dos conflitos devem ter agent_votes de todos os 5 agentes.",
+        "CONSENSO: Taxa de resolução via consenso bizantino >= 85%.",
+        "RASTREABILIDADE: Todas as decisões devem referenciar regras afetadas (affected_rule_ids).",
+        "CLAREZA: Perguntas de escalação devem ser respondíveis objetivamente (yes/no ou escolha entre alternativas).",
+        "CONFIANÇA MÉDIA: Para conflitos resolvidos, avg(confidence) >= 0.75."
+      ],
+      "output": "D6_CONFLICTS_AND_RESOLUTIONS",
+      "estimated_duration": "90-120 minutos",
+      "agent_simulation_notes": "Usar chain-of-thought para cada agente. Garantir que argumentos sejam fundamentados em texto contratual ou conhecimento técnico específico (não opiniões genéricas)."
+    },
+    {
+      "step": 8,
+      "name": "Geração de mapeamento de integração TASY",
+      "instructions": [
+        "ANÁLISE DE REGRAS POR MÓDULO: Agrupar regras extraídas (D5) por erp_mapping.tasy_module e analisar padrões.",
+        "PARA CADA MÓDULO TASY:",
+        "  - Listar regras aplicáveis",
+        "  - Identificar tabelas TASY potencialmente envolvidas (usar placeholders: TASY_FATURAMENTO_CONTA, TASY_AUDITORIA_GLOSA, etc.)",
+        "  - Especificar campos a serem parametrizados",
+        "  - Documentar triggers/validations necessários",
+        "  - Sugerir workflows de integração",
+        "CATEGORIAS DE INTEGRAÇÃO:",
+        "  1. PARAMETRIZAÇÃO: Regras que viram parâmetros de configuração (ex: valores de tabela, prazos de SLA)",
+        "  2. VALIDAÇÃO: Regras que viram validações em tempo real (ex: glosa de material não padronizado)",
+        "  3. INDICADORES: Regras que alimentam dashboards/relatórios (ex: indicadores de qualidade)",
+        "  4. WORKFLOW: Regras que definem fluxos de processos (ex: aprovação de contas, recurso de glosa)",
+        "  5. AUDITORIA: Regras verificáveis apenas ex-post (ex: conformidade documental)",
+        "ESPECIFICAÇÕES TÉCNICAS:",
+        "  - Para regras automatizáveis: sugerir pseudocódigo ou lógica SQL",
+        "  - Para validações: especificar condições de rejeição e mensagens de erro",
+        "  - Para indicadores: definir queries de cálculo e frequência de atualização",
+        "  - Para workflows: desenhar diagrama textual (estados, transições, atores)",
+        "PRIORIZAÇÃO:",
+        "  - HIGH: Regras que afetam faturamento/pagamento (impacto financeiro direto)",
+        "  - MEDIUM: Regras que afetam qualidade/compliance (impacto reputacional/legal)",
+        "  - LOW: Regras administrativas/reporting",
+        "DOCUMENTAÇÃO TÉCNICA:",
+        "  - Criar seção por módulo em formato Markdown",
+        "  - Incluir exemplos SQL/pseudocódigo para casos comuns",
+        "  - Documentar dependencies entre módulos",
+        "  - Listar assumptions e limitations",
+        "ENTREGÁVEIS:",
+        "  - tasy_integration_map.json: estrutura navegável com mapeamentos",
+        "  - tasy_integration_guide.md: guia técnico em Markdown para equipe de TI",
+        "  - example_sql_queries.sql: exemplos de queries para parametrização comum"
+      ],
+      "quality_checks": [
+        "COBERTURA: >= 80% das regras extraídas devem ter mapeamento TASY sugerido.",
+        "MODULARIDADE: Cada módulo TASY deve ter >= 5 regras mapeadas.",
+        "EXECUTABILIDADE: Exemplos SQL devem ser sintaticamente válidos (mesmo com placeholders).",
+        "PRIORIZAÇÃO: 100% das regras devem ter prioridade atribuída (HIGH/MEDIUM/LOW).",
+        "CLAREZA: Documentação técnica deve ser compreensível para desenvolvedor TASY sênior."
+      ],
+      "output": "D7_INTEGRATION_MAPPING",
+      "estimated_duration": "60-90 minutos"
+    }
+  ],
+
+  "schemas": {
+    "topic_inventory": {
+      "type": "object",
+      "required": ["metadata", "topic_groups", "topic_hierarchy", "statistics"],
+      "properties": {
+        "metadata": {
+          "type": "object",
+          "required": ["extraction_date", "doc_versions", "agent_version"],
+          "properties": {
+            "extraction_date": { "type": "string", "format": "date-time" },
+            "doc_versions": {
+              "type": "object",
+              "properties": {
+                "DOC_A": { "type": "string" },
+                "DOC_B": { "type": "string" }
+              }
+            },
+            "agent_version": { "type": "string", "example": "4.0.0" }
+          }
+        },
+        "topic_groups": {
+          "type": "array",
+          "minItems": 20,
+          "maxItems": 35,
+          "items": {
+            "type": "object",
+            "required": ["topic_id", "name", "definition", "scope", "keywords", "evidence_anchors", "estimated_rule_count", "criticality"],
+            "properties": {
+              "topic_id": {
+                "type": "string",
+                "pattern": "^TOPIC_[A-Z0-9_]+$",
+                "example": "TOPIC_BILLING_GLOSAS"
+              },
+              "name": {
+                "type": "string",
+                "maxLength": 100,
+                "example": "Faturamento, Glosas e Recursos"
+              },
+              "definition": {
+                "type": "string",
+                "maxLength": 300,
+                "description": "Definição clara e não ambígua do escopo do tópico"
+              },
+              "scope": {
+                "type": "object",
+                "required": ["included", "excluded"],
+                "properties": {
+                  "included": {
+                    "type": "array",
+                    "items": { "type": "string" },
+                    "example": ["Regras de apresentação de contas", "Motivos de glosa", "Processos de recurso"]
+                  },
+                  "excluded": {
+                    "type": "array",
+                    "items": { "type": "string" },
+                    "example": ["Reajuste de valores (ver TOPIC_PRICING)"]
+                  }
+                }
+              },
+              "keywords": {
+                "type": "object",
+                "required": ["primary", "secondary"],
+                "properties": {
+                  "primary": {
+                    "type": "array",
+                    "items": { "type": "string" },
+                    "example": ["faturamento", "glosa", "conta hospitalar"]
+                  },
+                  "secondary": {
+                    "type": "array",
+                    "items": { "type": "string" },
+                    "example": ["AIH", "apresentação", "auditoria de contas", "recurso"]
+                  }
+                }
+              },
+              "evidence_anchors": {
+                "type": "array",
+                "minItems": 2,
+                "items": {
+                  "type": "object",
+                  "required": ["doc_id", "json_path", "clause_label"],
+                  "properties": {
+                    "doc_id": {
+                      "type": "string",
+                      "enum": ["DOC_A", "DOC_B", "APENDICE_I_II", "APENDICE_III", "APENDICE_V_VI", "APENDICE_VII", "APENDICE_VIII_IX", "APENDICE_X", "APENDICE_XI"]
+                    },
+                    "json_path": {
+                      "type": "string",
+                      "example": "$.clausulas.clausula_setima_criterios_medicao_pagamento.7_1_imr.7_1_3_1"
+                    },
+                    "clause_label": {
+                      "type": "string",
+                      "example": "7.1.3.1"
+                    },
+                    "heading_path": {
+                      "type": "string",
+                      "example": "Cláusula Sétima > 7.1 IMR > 7.1.3 Análise de Contas e Indicadores > 7.1.3.1 Glosas"
+                    },
+                    "citation_markers": {
+                      "type": "array",
+                      "items": { "type": "integer" },
+                      "example": [2325, 2326, 2327]
+                    }
+                  }
+                }
+              },
+              "estimated_rule_count": {
+                "type": "integer",
+                "minimum": 1,
+                "description": "Estimativa de quantas regras atômicas este tópico deve gerar"
+              },
+              "criticality": {
+                "type": "string",
+                "enum": ["HIGH", "MEDIUM", "LOW"],
+                "description": "HIGH: impacto financeiro/legal direto, MEDIUM: qualidade/compliance, LOW: administrativo"
+              },
+              "related_topics": {
+                "type": "array",
+                "items": { "type": "string" },
+                "description": "IDs de tópicos relacionados ou dependentes",
+                "example": ["TOPIC_AUDIT_RIGHTS", "TOPIC_PAYMENT_TERMS"]
+              }
+            }
+          }
+        },
+        "topic_hierarchy": {
+          "type": "object",
+          "description": "Organização hierárquica de tópicos (pai -> filhos)",
+          "additionalProperties": {
+            "type": "array",
+            "items": { "type": "string" }
+          }
+        },
+        "statistics": {
+          "type": "object",
+          "required": ["total_topics", "total_anchors", "coverage"],
+          "properties": {
+            "total_topics": { "type": "integer" },
+            "total_anchors": { "type": "integer" },
+            "coverage": {
+              "type": "object",
+              "properties": {
+                "DOC_A_pages_covered": { "type": "number", "minimum": 0, "maximum": 1 },
+                "DOC_B_pages_covered": { "type": "number", "minimum": 0, "maximum": 1 },
+                "appendices_covered": { "type": "integer" }
+              }
+            }
+          }
+        }
+      }
+    },
+
+    "archetype_catalog": {
+      "type": "object",
+      "required": ["metadata", "archetypes", "archetype_matrix"],
+      "properties": {
+        "metadata": {
+          "type": "object",
+          "required": ["catalog_version", "base_contract_type"],
+          "properties": {
+            "catalog_version": { "type": "string" },
+            "base_contract_type": { "type": "string", "example": "Prestação de Serviços UTI - SUS/DF" }
+          }
+        },
+        "archetypes": {
+          "type": "array",
+          "minItems": 12,
+          "maxItems": 20,
+          "items": {
+            "type": "object",
+            "required": ["archetype_id", "name", "description", "key_fields", "detection_signals", "typical_topics", "examples_from_contract", "automation_potential"],
+            "properties": {
+              "archetype_id": {
+                "type": "string",
+                "pattern": "^ARCH_[A-Z0-9_]+$",
+                "example": "ARCH_INDICATOR_QUALITY_METRIC"
+              },
+              "name": {
+                "type": "string",
+                "example": "Indicador de Qualidade com Meta e Penalidade"
+              },
+              "description": {
+                "type": "string",
+                "maxLength": 300
+              },
+              "key_fields": {
+                "type": "array",
+                "items": { "type": "string" },
+                "example": ["indicator_name", "calculation_formula", "target_meta", "non_compliance_threshold", "penalty_percentage", "applicable_uti_types"]
+              },
+              "detection_signals": {
+                "type": "object",
+                "required": ["keywords", "structural_patterns"],
+                "properties": {
+                  "keywords": {
+                    "type": "array",
+                    "items": { "type": "string" },
+                    "example": ["indicador", "meta", "conforme", "não conforme", "desconto", "densidade de incidência"]
+                  },
+                  "structural_patterns": {
+                    "type": "array",
+                    "items": { "type": "string" },
+                    "example": ["Presença de fórmula matemática", "Tabela com colunas: indicador, cálculo, meta, desconto"]
+                  }
+                }
+              },
+              "typical_topics": {
+                "type": "array",
+                "items": { "type": "string" },
+                "example": ["TOPIC_QUALITY_INDICATORS", "TOPIC_PENALTIES"]
+              },
+              "examples_from_contract": {
+                "type": "array",
+                "minItems": 3,
+                "items": {
+                  "type": "object",
+                  "required": ["doc_id", "clause_label", "excerpt"],
+                  "properties": {
+                    "doc_id": { "type": "string" },
+                    "clause_label": { "type": "string" },
+                    "excerpt": {
+                      "type": "string",
+                      "maxLength": 200,
+                      "description": "Trecho literal do contrato que exemplifica este arquétipo"
+                    }
+                  }
+                }
+              },
+              "automation_potential": {
+                "type": "string",
+                "enum": ["FULL_AUTO", "SEMI_AUTO", "MANUAL", "AUDIT_ONLY"],
+                "description": "Potencial de automatização deste tipo de regra em ERP"
+              },
+              "compatibility_matrix": {
+                "type": "array",
+                "items": { "type": "string" },
+                "description": "IDs de arquétipos que podem coexistir numa mesma cláusula"
+              }
+            }
+          }
+        },
+        "archetype_matrix": {
+          "type": "object",
+          "description": "Matriz de compatibilidade entre arquétipos (archetype_id -> [compatible_archetype_ids])",
+          "additionalProperties": {
+            "type": "array",
+            "items": { "type": "string" }
+          }
+        }
+      }
+    },
+
+    "rule_standard": {
+      "type": "object",
+      "description": "JSON Schema (draft-07) que define a estrutura de dados para rule_instance",
+      "required": ["$schema", "rule_schema_version", "definitions", "field_definitions", "validations"],
+      "properties": {
+        "$schema": {
+          "type": "string",
+          "const": "http://json-schema.org/draft-07/schema#"
+        },
+        "rule_schema_version": {
+          "type": "string",
+          "example": "1.0.0"
+        },
+        "definitions": {
+          "type": "object",
+          "description": "Sub-schemas reutilizáveis para objetos complexos",
+          "properties": {
+            "ActorInfo": { "type": "object" },
+            "TriggerCondition": { "type": "object" },
+            "ParameterSet": { "type": "object" },
+            "EvidenceRequirement": { "type": "object" },
+            "PenaltySpec": { "type": "object" },
+            "TASYMapping": { "type": "object" },
+            "SourceReference": { "type": "object" }
+          }
+        },
+        "field_definitions": {
+          "type": "array",
+          "description": "Lista detalhada de todos os campos do schema com metadados",
+          "items": {
+            "type": "object",
+            "required": ["field_name", "field_type", "required", "description"],
+            "properties": {
+              "field_name": { "type": "string" },
+              "field_type": { "type": "string" },
+              "required": { "type": "boolean" },
+              "description": { "type": "string" },
+              "enum_values": { "type": "array", "items": { "type": "string" } },
+              "validation_rules": { "type": "array", "items": { "type": "string" } },
+              "examples": { "type": "array" }
+            }
+          }
+        },
+        "validations": {
+          "type": "object",
+          "description": "Regras de validação cross-field e constraints globais",
+          "properties": {
+            "cross_field_rules": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": ["rule_name", "condition", "error_message"],
+                "properties": {
+                  "rule_name": { "type": "string", "example": "penalty_requires_amount" },
+                  "condition": { "type": "string", "example": "if normative_type == 'PENALIDADE' then penalties.amount must be present" },
+                  "error_message": { "type": "string" }
+                }
+              }
+            },
+            "global_constraints": {
+              "type": "object",
+              "example": {
+                "max_support_excerpt_length": 350,
+                "required_source_fields": ["doc_id", "json_path", "clause_label"]
+              }
+            }
+          }
+        }
+      }
+    },
+
+    "archetype_templates": {
+      "type": "object",
+      "required": ["metadata", "templates"],
+      "properties": {
+        "metadata": {
+          "type": "object",
+          "properties": {
+            "template_version": { "type": "string" },
+            "schema_reference": { "type": "string", "example": "rule_standard v1.0.0" }
+          }
+        },
+        "templates": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["archetype_id", "template", "validation_rules", "example_instances", "automation_notes"],
+            "properties": {
+              "archetype_id": { "type": "string" },
+              "template": {
+                "type": "object",
+                "description": "Template JSON preenchível que é uma instância válida do rule_standard"
+              },
+              "validation_rules": {
+                "type": "array",
+                "items": { "type": "string" },
+                "description": "Asserções específicas deste arquétipo (além das do schema geral)",
+                "example": [
+                  "parameters.time_limit must be present and structured",
+                  "automation_level must be at least SEMI_AUTO"
+                ]
+              },
+              "example_instances": {
+                "type": "array",
+                "minItems": 3,
+                "maxItems": 5,
+                "items": {
+                  "type": "object",
+                  "description": "Instâncias reais de regras deste arquétipo extraídas do contrato"
+                }
+              },
+              "common_mistakes": {
+                "type": "array",
+                "items": { "type": "string" },
+                "description": "Armadilhas comuns ao extrair regras deste tipo",
+                "example": [
+                  "Não confundir prazo de envio com prazo de aprovação",
+                  "Lembrar de capturar exceções mencionadas em outro parágrafo"
+                ]
+              },
+              "automation_notes": {
+                "type": "string",
+                "description": "Notas técnicas sobre como automatizar regras deste arquétipo no TASY"
+              }
+            }
+          }
+        }
+      }
+    },
+
+    "rule_instance": {
+      "type": "object",
+      "required": [
+        "rule_id",
+        "topic_id",
+        "archetype_id",
+        "normative_type",
+        "actor",
+        "trigger",
+        "action",
+        "source",
+        "evidence",
+        "automation",
+        "interpretation",
+        "erp_mapping"
+      ],
+      "properties": {
+        "rule_id": {
+          "type": "string",
+          "pattern": "^R-[0-9]{6}$",
+          "example": "R-000123"
+        },
+        "parent_rule_id": {
+          "type": "string",
+          "pattern": "^R-[0-9]{6}$",
+          "description": "Se esta regra é uma decomposição de outra regra complexa"
+        },
+        "topic_id": {
+          "type": "string",
+          "pattern": "^TOPIC_[A-Z0-9_]+$"
+        },
+        "archetype_id": {
+          "type": "string",
+          "pattern": "^ARCH_[A-Z0-9_]+$"
+        },
+        "normative_type": {
+          "type": "string",
+          "enum": [
+            "OBRIGACAO",
+            "PROIBICAO",
+            "PERMISSAO",
+            "CONDICAO_DE_PAGAMENTO",
+            "PENALIDADE",
+            "SLA_TEMPO",
+            "INDICADOR_QUALIDADE",
+            "PADRONIZACAO",
+            "ELEGIBILIDADE",
+            "DIREITO_AUDITORIA"
+          ]
+        },
+        "actor": {
+          "type": "object",
+          "required": ["primary", "counterparty"],
+          "properties": {
+            "primary": {
+              "type": "string",
+              "enum": ["CONTRATADA_DOMED", "CONTRATANTE_SESDF", "CRDF", "CERIH", "PACIENTE", "TERCEIRO_AUTORIZADO"],
+              "description": "Ator primário responsável pela execução da regra"
+            },
+            "counterparty": {
+              "type": "string",
+              "enum": ["CONTRATADA_DOMED", "CONTRATANTE_SESDF", "CRDF", "CERIH", "PACIENTE", "TERCEIRO_AUTORIZADO"],
+              "description": "Ator destinatário ou beneficiário da regra"
+            },
+            "responsible_role": {
+              "type": "string",
+              "example": "Fiscal do contrato",
+              "description": "Papel/função específica responsável (quando aplicável)"
+            },
+            "delegation_allowed": {
+              "type": "boolean",
+              "description": "Se a execução pode ser delegada a terceiros"
+            }
+          }
+        },
+        "trigger": {
+          "type": "string",
+          "maxLength": 200,
+          "example": "Solicitação de admissão em leito de UTI pela CERIH",
+          "description": "Evento ou condição que ativa a regra"
+        },
+        "condition": {
+          "type": "string",
+          "maxLength": 300,
+          "example": "Se paciente elegível conforme Resolução CFM 2.156/2016 e leito disponível",
+          "description": "Condições adicionais que devem ser satisfeitas (pode ser null para regras incondicionais)"
+        },
+        "action": {
+          "type": "string",
+          "maxLength": 300,
+          "example": "Disponibilizar leito de UTI e iniciar atendimento imediatamente",
+          "description": "Ação ou resultado normativo exigido"
+        },
+        "parameters": {
+          "type": "object",
+          "description": "Parâmetros estruturados e mensuráveis da regra",
+          "properties": {
+            "time_limit": {
+              "type": "object",
+              "properties": {
+                "value": { "type": "integer" },
+                "unit": { "type": "string", "enum": ["minutos", "horas", "dias_corridos", "dias_uteis", "meses", "anos"] },
+                "type": { "type": "string", "enum": ["deadline", "duration", "frequency"] },
+                "start_event": { "type": "string", "example": "Recebimento da solicitação" },
+                "end_event": { "type": "string", "example": "Disponibilização do leito" }
+              }
+            },
+            "threshold": {
+              "type": "object",
+              "properties": {
+                "operator": { "type": "string", "enum": ["<", "<=", "=", ">=", ">", "!="] },
+                "value": { "type": "number" },
+                "unit": { "type": "string", "example": "%" },
+                "display": { "type": "string", "example": ">= 90%" }
+              }
+            },
+            "financial": {
+              "type": "object",
+              "properties": {
+                "amount": { "type": "number" },
+                "currency": { "type": "string", "enum": ["BRL"] },
+                "display_value": { "type": "string", "example": "R$ 6.051,45" },
+                "calculation_base": { "type": "string", "example": "valor total da nota fiscal mensal" },
+                "applies_to": { "type": "string" }
+              }
+            },
+            "percentage": {
+              "type": "object",
+              "properties": {
+                "value": { "type": "number", "minimum": 0, "maximum": 1 },
+                "display": { "type": "string", "example": "0,1%" },
+                "applies_to": { "type": "string" },
+                "cumulative": { "type": "boolean" },
+                "cap": { "type": "number", "description": "Valor máximo acumulado" }
+              }
+            },
+            "structured_codes": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "code_system": { "type": "string", "enum": ["SIGTAP", "BR_COMPRASNET", "SES_DF", "AMB92", "TUSS"] },
+                  "code": { "type": "string" },
+                  "description": { "type": "string" }
+                }
+              }
+            },
+            "formula": {
+              "type": "object",
+              "description": "Para indicadores e cálculos matemáticos",
+              "properties": {
+                "formula_text": { "type": "string", "example": "(Nº Observado de mortes / Nº Esperado de mortes)" },
+                "variables": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "variable_name": { "type": "string" },
+                      "description": { "type": "string" },
+                      "data_source": { "type": "string" }
+                    }
+                  }
+                },
+                "calculation_method": { "type": "string" }
+              }
+            },
+            "documents_required": {
+              "type": "array",
+              "items": { "type": "string" },
+              "example": ["Relatório médico de alta", "Ficha de atendimento", "AIH preenchida"]
+            },
+            "exceptions": {
+              "type": "array",
+              "items": { "type": "string" },
+              "example": ["Não se aplica em caso de força maior devidamente comprovada"]
+            },
+            "reference_lists": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "list_name": { "type": "string", "example": "Materiais Padronizados SES/DF" },
+                  "appendix_reference": { "type": "string", "example": "APENDICE_XI" },
+                  "validation_type": { "type": "string", "enum": ["WHITELIST", "BLACKLIST", "REFERENCE_ONLY"] }
+                }
+              }
+            }
+          }
+        },
+        "evidence": {
+          "type": "object",
+          "required": ["support_excerpt", "proof_required"],
+          "properties": {
+            "support_excerpt": {
+              "type": "string",
+              "minLength": 20,
+              "maxLength": 350,
+              "description": "Trecho literal do documento que suporta esta regra (20-350 caracteres)"
+            },
+            "proof_required": {
+              "type": "array",
+              "items": { "type": "string" },
+              "description": "Lista de evidências/documentos necessários para comprovar cumprimento",
+              "example": ["Relatório mensal de indicadores com memória de cálculo", "Planilha Excel assinada digitalmente"]
+            },
+            "verification_method": {
+              "type": "string",
+              "enum": ["AUTOMATED", "MANUAL_AUDIT", "DOCUMENT_REVIEW", "ON_SITE_INSPECTION", "SELF_DECLARATION"],
+              "description": "Método de verificação do cumprimento"
+            }
+          }
+        },
+        "penalties": {
+          "type": "object",
+          "description": "Consequências de descumprimento (obrigatório se normative_type = PENALIDADE)",
+          "properties": {
+            "penalty_type": {
+              "type": "string",
+              "enum": ["MULTA_FINANCEIRA", "DESCONTO_NOTA_FISCAL", "ADVERTENCIA", "SUSPENSAO", "RETENCAO_PAGAMENTO", "RESCISAO_CONTRATUAL"]
+            },
+            "calculation": {
+              "type": "object",
+              "properties": {
+                "base": { "type": "string", "example": "valor total da nota fiscal do mês" },
+                "percentage": { "type": "number" },
+                "fixed_amount": { "type": "number" },
+                "progressive": { "type": "boolean" },
+                "cap_min": { "type": "number" },
+                "cap_max": { "type": "number" }
+              }
+            },
+            "due_date": {
+              "type": "object",
+              "properties": {
+                "timing": { "type": "string", "example": "No mesmo mês da infração" },
+                "payment_method": { "type": "string", "example": "Desconto em nota fiscal" }
+              }
+            },
+            "escalation": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "occurrence_count": { "type": "integer" },
+                  "timeframe": { "type": "string" },
+                  "enhanced_penalty": { "type": "string" }
+                }
+              },
+              "example": [
+                {
+                  "occurrence_count": 3,
+                  "timeframe": "consecutivos ou não",
+                  "enhanced_penalty": "Multa conforme previsto em contrato + notificação formal"
+                }
+              ]
+            }
+          }
+        },
+        "source": {
+          "type": "object",
+          "required": ["doc_id", "json_path", "clause_label", "heading_path"],
+          "properties": {
+            "doc_id": {
+              "type": "string",
+              "enum": ["DOC_A", "DOC_B", "APENDICE_I_II", "APENDICE_III", "APENDICE_V_VI", "APENDICE_VII", "APENDICE_VIII_IX", "APENDICE_X", "APENDICE_XI"]
+            },
+            "json_path": {
+              "type": "string",
+              "description": "Caminho JSONPath até o nó textual no documento JSON",
+              "example": "$.clausulas.clausula_quarta_da_forma_e_regime_de_execucao.4_3_5_admissao_direcionamento_alta.4_3_5_1"
+            },
+            "clause_label": {
+              "type": "string",
+              "example": "4.3.5.1"
+            },
+            "heading_path": {
+              "type": "string",
+              "example": "Cláusula Quarta > 4.3 Modelo de Execução > 4.3.5 Admissão e Alta > 4.3.5.1"
+            },
+            "citation_markers": {
+              "type": "array",
+              "items": { "type": "integer" },
+              "description": "Array de números [cite: NNNN] encontrados no texto original",
+              "example": [2060, 2061]
+            },
+            "doc_conflict_resolved": {
+              "type": "object",
+              "description": "Se houve conflito entre DOC_A e DOC_B",
+              "properties": {
+                "conflict_detected": { "type": "boolean" },
+                "resolution": { "type": "string", "example": "Priorizou-se DOC_B (contrato assinado) sobre DOC_A (edital)" },
+                "divergence_description": { "type": "string" }
+              }
+            },
+            "legal_references": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "reference_type": {
+                    "type": "string",
+                    "enum": ["LEI_FEDERAL", "DECRETO", "PORTARIA_SESDF", "RESOLUCAO_CFM", "RDC_ANVISA", "NOTA_TECNICA", "OUTRO"]
+                  },
+                  "number": { "type": "string", "example": "2.156" },
+                  "year": { "type": "integer", "example": 2016 },
+                  "issuer": { "type": "string", "example": "CFM" },
+                  "description": { "type": "string", "example": "Critérios de admissão e alta em UTI" },
+                  "url": { "type": "string", "format": "uri" }
+                }
+              }
+            }
+          }
+        },
+        "erp_mapping": {
+          "type": "object",
+          "required": ["tasy_module", "integration_complexity", "suggested_automation"],
+          "properties": {
+            "tasy_module": {
+              "type": "string",
+              "enum": [
+                "FATURAMENTO",
+                "AUDITORIA_MEDICA",
+                "INDICADORES_QUALIDADE",
+                "SUPRIMENTOS",
+                "FARMACIA",
+                "NUTRICAO",
+                "REGULACAO",
+                "GESTAO_LEITOS",
+                "CONTROLADORIA",
+                "RECURSOS_HUMANOS"
+              ]
+            },
+            "tasy_table_hint": {
+              "type": "string",
+              "description": "Placeholder para tabela TASY estimada (sem acesso ao schema real)",
+              "example": "TASY_FATURAMENTO_CONTA_HOSPITALAR"
+            },
+            "tasy_field_hint": {
+              "type": "string",
+              "example": "TASY_REGRA_GLOSA_MOTIVO"
+            },
+            "tasy_trigger_logic": {
+              "type": "string",
+              "description": "Descrição textual da lógica de trigger/validação no TASY",
+              "example": "Validar na pré-fatura se item de material faturado consta na lista de Materiais Padronizados (Apêndice XI)"
+            },
+            "integration_complexity": {
+              "type": "string",
+              "enum": ["LOW", "MEDIUM", "HIGH"],
+              "description": "LOW: configuração simples; MEDIUM: requer customização; HIGH: requer desenvolvimento específico"
+            },
+            "suggested_automation": {
+              "type": "string",
+              "maxLength": 500,
+              "description": "Descrição técnica de como automatizar esta regra no TASY"
+            },
+            "data_sources": {
+              "type": "array",
+              "items": { "type": "string" },
+              "description": "Fontes de dados necessárias no TASY",
+              "example": ["Cadastro de Pacientes", "Controle de Leitos", "Prontuário Eletrônico"]
+            },
+            "dependencies": {
+              "type": "array",
+              "items": { "type": "string" },
+              "description": "Outras regras ou processos que esta regra depende",
+              "example": ["R-000045 - Validação de elegibilidade de paciente"]
+            }
+          }
+        },
+        "automation": {
+          "type": "object",
+          "required": ["automation_level", "recommended_control"],
+          "properties": {
+            "automation_level": {
+              "type": "string",
+              "enum": ["FULL_AUTO", "SEMI_AUTO", "MANUAL", "AUDIT_ONLY"],
+              "description": "FULL_AUTO: 100% automatizável; SEMI_AUTO: automação + aprovação humana; MANUAL: processo humano; AUDIT_ONLY: só auditoria ex-post"
+            },
+            "recommended_control": {
+              "type": "string",
+              "example": "Validação automática na pré-fatura + checklist documental manual"
+            },
+            "automation_barriers": {
+              "type": "array",
+              "items": { "type": "string" },
+              "description": "Impedimentos ou desafios para automatização completa",
+              "example": ["Requer julgamento clínico subjetivo", "Dados não estruturados no TASY"]
+            },
+            "workaround": {
+              "type": "string",
+              "description": "Solução alternativa enquanto automação completa não é viável"
+            }
+          }
+        },
+        "interpretation": {
+          "type": "object",
+          "required": ["interpretation_required", "confidence", "unresolved"],
+          "properties": {
+            "interpretation_required": {
+              "type": "boolean",
+              "description": "Se foi necessário interpretar/inferir algo não explícito no texto"
+            },
+            "interpretation_text": {
+              "type": "string",
+              "maxLength": 500,
+              "description": "Explicação da interpretação aplicada e sua fundamentação"
+            },
+            "confidence": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1,
+              "description": "Confiança na interpretação: HIGH (0.8-1.0), MEDIUM (0.5-0.79), LOW (0.0-0.49)"
+            },
+            "unresolved": {
+              "type": "boolean",
+              "description": "Se a ambiguidade não foi resolvida (requer escalação para time jurídico)"
+            },
+            "alternatives": {
+              "type": "array",
+              "items": { "type": "string" },
+              "description": "Interpretações alternativas consideradas (se aplicável)"
+            },
+            "consensus_agents": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "enum": ["A_JURIDICO", "B_FATURAMENTO", "C_OPERACAO_UTI", "D_COMPLIANCE", "E_ERP_TECH"]
+              },
+              "description": "Agentes que concordaram com esta interpretação (consenso bizantino)"
+            },
+            "revision_history": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "date": { "type": "string", "format": "date-time" },
+                  "change_description": { "type": "string" },
+                  "changed_by": { "type": "string" },
+                  "consensus_achieved": { "type": "boolean" }
+                }
+              }
+            }
+          }
+        },
+        "metadata": {
+          "type": "object",
+          "properties": {
+            "extraction_date": { "type": "string", "format": "date-time" },
+            "extracted_by": { "type": "string", "example": "AgentSpec v4.0.0" },
+            "last_updated": { "type": "string", "format": "date-time" },
+            "review_status": {
+              "type": "string",
+              "enum": ["DRAFT", "REVIEWED", "APPROVED", "REQUIRES_LEGAL_REVIEW"]
+            },
+            "priority": {
+              "type": "string",
+              "enum": ["CRITICAL", "HIGH", "MEDIUM", "LOW"],
+              "description": "Prioridade de implementação no ERP"
+            },
+            "tags": {
+              "type": "array",
+              "items": { "type": "string" },
+              "example": ["faturamento", "glosa", "material_padronizado", "automacao_alta"]
+            }
+          }
+        }
+      }
+    },
+
+    "conflict_report": {
+      "type": "object",
+      "required": ["metadata", "summary", "conflicts", "recommendations"],
+      "properties": {
+        "metadata": {
+          "type": "object",
+          "required": ["report_date", "agent_version", "documents_analyzed"],
+          "properties": {
+            "report_date": { "type": "string", "format": "date-time" },
+            "agent_version": { "type": "string" },
+            "documents_analyzed": {
+              "type": "array",
+              "items": { "type": "string" }
+            }
+          }
+        },
+        "summary": {
+          "type": "object",
+          "required": ["total_conflicts", "resolved", "unresolved", "avg_confidence"],
+          "properties": {
+            "total_conflicts": { "type": "integer" },
+            "resolved": { "type": "integer" },
+            "unresolved": { "type": "integer" },
+            "avg_confidence": { "type": "number", "minimum": 0, "maximum": 1 },
+            "by_type": {
+              "type": "object",
+              "properties": {
+                "DOC_MISMATCH": { "type": "integer" },
+                "AMBIGUITY": { "type": "integer" },
+                "MISSING_PARAMETER": { "type": "integer" },
+                "SUBJECTIVE_TERM": { "type": "integer" },
+                "INTERNAL_INCONSISTENCY": { "type": "integer" },
+                "BROKEN_REFERENCE": { "type": "integer" }
+              }
+            }
+          }
+        },
+        "conflicts": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["conflict_id", "type", "severity", "description", "affected_rule_ids", "sources", "agent_analysis", "resolution"],
+            "properties": {
+              "conflict_id": {
+                "type": "string",
+                "pattern": "^C-[0-9]{4}$",
+                "example": "C-0007"
+              },
+              "type": {
+                "type": "string",
+                "enum": ["DOC_MISMATCH", "AMBIGUITY", "MISSING_PARAMETER", "SUBJECTIVE_TERM", "INTERNAL_INCONSISTENCY", "BROKEN_REFERENCE"]
+              },
+              "severity": {
+                "type": "string",
+                "enum": ["CRITICAL", "HIGH", "MEDIUM", "LOW"],
+                "description": "CRITICAL: afeta faturamento/legalidade; HIGH: afeta operação; MEDIUM: afeta qualidade; LOW: cosmético"
+              },
+              "description": {
+                "type": "string",
+                "maxLength": 500,
+                "description": "Descrição clara e específica do conflito/ambiguidade"
+              },
+              "affected_rule_ids": {
+                "type": "array",
+                "items": { "type": "string" },
+                "description": "IDs das regras afetadas por este conflito"
+              },
+              "sources": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "doc_id": { "type": "string" },
+                    "clause_label": { "type": "string" },
+                    "excerpt": { "type": "string", "maxLength": 200 }
+                  }
+                }
+              },
+              "agent_analysis": {
+                "type": "object",
+                "description": "Análise multiagente (consenso bizantino)",
+                "required": ["agent_votes", "consensus_reached"],
+                "properties": {
+                  "agent_votes": {
+                    "type": "array",
+                    "minItems": 5,
+                    "maxItems": 5,
+                    "items": {
+                      "type": "object",
+                      "required": ["agent", "position", "rationale_short", "confidence"],
+                      "properties": {
+                        "agent": {
+                          "type": "string",
+                          "enum": ["A_JURIDICO", "B_FATURAMENTO", "C_OPERACAO_UTI", "D_COMPLIANCE", "E_ERP_TECH"]
+                        },
+                        "position": {
+                          "type": "string",
+                          "maxLength": 300,
+                          "description": "Interpretação/resolução proposta por este agente"
+                        },
+                        "rationale_short": {
+                          "type": "string",
+                          "maxLength": 200,
+                          "description": "Fundamentação sucinta (max 100 palavras)"
+                        },
+                        "confidence": {
+                          "type": "number",
+                          "minimum": 0,
+                          "maximum": 1,
+                          "description": "Confiança deste agente na sua própria interpretação"
+                        },
+                        "supporting_evidence": {
+                          "type": "array",
+                          "items": { "type": "string" },
+                          "description": "Referências documentais ou técnicas que suportam esta posição"
+                        }
+                      }
+                    }
+                  },
+                  "consensus_reached": {
+                    "type": "boolean",
+                    "description": "Se >= 3/5 agentes concordaram numa mesma posição"
+                  },
+                  "vote_distribution": {
+                    "type": "object",
+                    "description": "Distribuição de votos por posição",
+                    "example": {
+                      "Posição A": ["A_JURIDICO", "D_COMPLIANCE", "E_ERP_TECH"],
+                      "Posição B": ["B_FATURAMENTO", "C_OPERACAO_UTI"]
+                    }
+                  }
+                }
+              },
+              "resolution": {
+                "type": "object",
+                "required": ["status", "decision", "confidence", "meets_byzantine_threshold"],
+                "properties": {
+                  "status": {
+                    "type": "string",
+                    "enum": ["RESOLVED", "UNRESOLVED", "PENDING_LEGAL_REVIEW"]
+                  },
+                  "decision": {
+                    "type": "string",
+                    "description": "Decisão final adotada (ou null se unresolved)"
+                  },
+                  "confidence": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 1,
+                    "description": "Confiança agregada na decisão = (num_concordantes / 5) * avg_confidence_concordantes"
+                  },
+                  "meets_byzantine_threshold": {
+                    "type": "boolean",
+                    "description": "Se alcançou threshold de 3/5 agentes concordando"
+                  },
+                  "unresolved": {
+                    "type": "boolean"
+                  },
+                  "followup_question_if_unresolved": {
+                    "type": "string",
+                    "description": "Pergunta objetiva para o time jurídico (se unresolved=true)"
+                  },
+                  "alternative_interpretations": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "interpretation": { "type": "string" },
+                        "supporting_agents": {
+                          "type": "array",
+                          "items": { "type": "string" }
+                        },
+                        "implications": { "type": "string" }
+                      }
+                    }
+                  },
+                  "recommended_action": {
+                    "type": "string",
+                    "description": "Ação recomendada para resolução definitiva",
+                    "example": "Solicitar esclarecimento formal à SES/DF via ofício"
+                  }
+                }
+              },
+              "impact_assessment": {
+                "type": "object",
+                "properties": {
+                  "operational_impact": { "type": "string" },
+                  "financial_impact": { "type": "string" },
+                  "legal_risk": { "type": "string", "enum": ["HIGH", "MEDIUM", "LOW", "NONE"] },
+                  "urgency": { "type": "string", "enum": ["IMMEDIATE", "HIGH", "MEDIUM", "LOW"] }
+                }
+              }
+            }
+          }
+        },
+        "recommendations": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "recommendation_id": { "type": "string" },
+              "priority": { "type": "string", "enum": ["CRITICAL", "HIGH", "MEDIUM", "LOW"] },
+              "recommendation_text": { "type": "string" },
+              "target_stakeholder": {
+                "type": "string",
+                "enum": ["JURIDICO", "GESTAO_CONTRATO", "TI_ERP", "DIRETORIA", "SES_DF"]
+              },
+              "timeline": { "type": "string", "example": "Resolver antes da implementação no TASY" }
+            }
+          }
+        }
+      }
+    },
+
+    "tasy_integration_map": {
+      "type": "object",
+      "required": ["metadata", "module_mappings", "integration_dependencies", "implementation_roadmap"],
+      "properties": {
+        "metadata": {
+          "type": "object",
+          "properties": {
+            "map_version": { "type": "string" },
+            "tasy_version_target": { "type": "string", "example": "TASY 4.40.x" },
+            "creation_date": { "type": "string", "format": "date-time" }
+          }
+        },
+        "module_mappings": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "tasy_module": { "type": "string" },
+              "rules_count": { "type": "integer" },
+              "rule_ids": { "type": "array", "items": { "type": "string" } },
+              "integration_approach": { "type": "string" },
+              "estimated_effort_hours": { "type": "integer" },
+              "complexity": { "type": "string", "enum": ["LOW", "MEDIUM", "HIGH"] },
+              "tables_involved": {
+                "type": "array",
+                "items": { "type": "string" },
+                "description": "Placeholders de tabelas TASY estimadas"
+              },
+              "key_workflows": {
+                "type": "array",
+                "items": { "type": "string" }
+              },
+              "sql_examples": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "description": { "type": "string" },
+                    "sql_code": { "type": "string" }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "integration_dependencies": {
+          "type": "object",
+          "description": "Grafo de dependências entre módulos/regras",
+          "additionalProperties": {
+            "type": "array",
+            "items": { "type": "string" }
+          }
+        },
+        "implementation_roadmap": {
+          "type": "array",
+          "description": "Fases sugeridas de implementação",
+          "items": {
+            "type": "object",
+            "properties": {
+              "phase": { "type": "integer" },
+              "phase_name": { "type": "string" },
+              "modules": { "type": "array", "items": { "type": "string" } },
+              "estimated_duration_weeks": { "type": "integer" },
+              "prerequisites": { "type": "array", "items": { "type": "string" } },
+              "deliverables": { "type": "array", "items": { "type": "string" } }
+            }
+          }
+        }
+      }
+    }
+  },
+
+  "recommended_topic_groups_seed": [
+    "Objeto do contrato e escopo dos serviços de UTI",
+    "Elegibilidade de pacientes, admissão, regulação e transferências",
+    "Capacidade instalada, disponibilidade de leitos e contingência",
+    "Equipe mínima, qualificação, escalas de plantões e responsabilidades técnicas",
+    "Protocolos clínicos assistenciais, segurança do paciente e obrigações técnico-médicas",
+    "Documentação clínica e administrativa obrigatória (prontuários, relatórios, registros)",
+    "Autorização, comunicação e fluxos operacionais com CRDF/CERIH/SES-DF",
+    "Faturamento: apresentação de contas, codificação, prazos e ciclos",
+    "Glosas, recusas, impugnações e processos de recurso/contestação",
+    "Preços, tabelas de valores, composição de diárias, itens faturáveis e não faturáveis",
+    "Reajuste, repactuação de preços e gatilhos econômicos",
+    "Indicadores de qualidade, metas, SLAs e consequências de descumprimento",
+    "Auditoria, fiscalização, inspeções e acesso a documentos/sistemas",
+    "Penalidades, multas, sanções administrativas e descontos em nota fiscal",
+    "Pagamentos, prazos, juros, correções monetárias e retenções",
+    "Vigência, prorrogação, rescisão e obrigações de transição/continuidade",
+    "Governança contratual: gestor/fiscal, reuniões, relatórios e prestação de contas",
+    "Subcontratação, cessão, terceirização e responsabilidades solidárias",
+    "Confidencialidade, proteção de dados (LGPD) e segurança da informação",
+    "Conformidade legal, regulatória e anticorrupção (compliance)",
+    "Gestão de mudanças contratuais, aditivos e precedência documental",
+    "Eventos extraordinários, força maior e suspensão de obrigações",
+    "Resolução de controvérsias, mediação, arbitragem e foro competente",
+    "Padronização de insumos: materiais, medicamentos, SADT, nutrição (referência a Apêndices)"
+  ],
+
+  "recommended_archetypes_seed": [
+    {
+      "archetype_id": "ARCH_SCOPE_INCLUSION_EXCLUSION",
+      "name": "Escopo - Inclusão e Exclusão de Serviços/Itens",
+      "description": "Define explicitamente o que está incluído ou excluído do objeto contratual, geralmente com referências a tabelas de procedimentos (SIGTAP, BR).",
+      "key_fields": ["scope_item", "included", "excluded", "dependencies", "exceptions", "structured_codes"],
+      "detection_signals": ["inclui", "exclui", "compreende", "não contempla", "exceto", "fora do escopo", "código"],
+      "typical_topics": ["Objeto do contrato e escopo dos serviços de UTI"],
+      "automation_potential": "SEMI_AUTO"
+    },
+    {
+      "archetype_id": "ARCH_ELIGIBILITY_CRITERIA",
+      "name": "Critérios de Elegibilidade e Admissão",
+      "description": "Estabelece condições para atendimento, admissão, permanência ou transferência de pacientes, com referências a normativas técnicas.",
+      "key_fields": ["trigger", "condition", "required_documentation", "exceptions", "legal_references"],
+      "detection_signals": ["elegível", "critério", "admissão", "transferência", "regulação", "perfil do paciente", "faixa etária"],
+      "typical_topics": ["Elegibilidade de pacientes, admissão, regulação e transferências"],
+      "automation_potential": "SEMI_AUTO"
+    },
+    {
+      "archetype_id": "ARCH_SLA_TIME_BOUND",
+      "name": "SLA - Prazo e Tempo Máximo de Resposta/Atendimento",
+      "description": "Estabelece tempo limite para resposta, atendimento, envio de documentos ou execução de etapas operacionais.",
+      "key_fields": ["time_limit", "start_event", "end_event", "measurement_method", "penalty_for_breach"],
+      "detection_signals": ["prazo", "em até", "horas", "dias úteis", "dias corridos", "tempo máximo", "imediatamente"],
+      "typical_topics": ["Autorização, comunicação e fluxos operacionais com CRDF/CERIH/SES-DF"],
+      "automation_potential": "FULL_AUTO"
+    },
+    {
+      "archetype_id": "ARCH_BILLING_SUBMISSION",
+      "name": "Faturamento - Submissão de Contas e Documentação",
+      "description": "Define regras para apresentação de contas hospitalares, prazos de envio, formatos exigidos e documentação obrigatória.",
+      "key_fields": ["billing_cycle", "submission_deadline", "required_documents", "format", "rejection_conditions"],
+      "detection_signals": ["faturamento", "apresentação de contas", "nota fiscal", "AIH", "documentos obrigatórios", "prazo de envio"],
+      "typical_topics": ["Faturamento: apresentação de contas, codificação, prazos e ciclos"],
+      "automation_potential": "SEMI_AUTO"
+    },
+    {
+      "archetype_id": "ARCH_GLOSA_RULE",
+      "name": "Glosa - Motivo, Evidência e Recurso",
+      "description": "Define quando e por que um item pode ser glosado, como comprovar sua adequação, e como contestar a glosa.",
+      "key_fields": ["glosa_reason", "proof_required", "appeal_deadline", "appeal_process", "final_decision_authority"],
+      "detection_signals": ["glosa", "recusa", "indeferimento", "contestação", "recurso", "evidência de uso", "desacordo com quadro clínico"],
+      "typical_topics": ["Glosas, recusas, impugnações e processos de recurso/contestação"],
+      "automation_potential": "SEMI_AUTO"
+    },
+    {
+      "archetype_id": "ARCH_INDICATOR_QUALITY_METRIC",
+      "name": "Indicador de Qualidade com Meta e Penalidade",
+      "description": "Define indicadores de performance clínica ou operacional, com fórmula de cálculo, meta de conformidade e penalidade por descumprimento.",
+      "key_fields": ["indicator_name", "calculation_formula", "target_meta", "non_compliance_threshold", "penalty_percentage", "applicable_uti_types", "reporting_frequency"],
+      "detection_signals": ["indicador", "meta", "conforme", "não conforme", "desconto", "densidade de incidência", "razão de mortalidade", "avaliação mensal"],
+      "typical_topics": ["Indicadores de qualidade, metas, SLAs e consequências de descumprimento"],
+      "automation_potential": "SEMI_AUTO"
+    },
+    {
+      "archetype_id": "ARCH_PENALTY_FINANCIAL",
+      "name": "Penalidade Financeira - Multa, Desconto ou Retenção",
+      "description": "Estabelece penalidade pecuniária por descumprimento, com base de cálculo, percentual/valor e prazo de aplicação.",
+      "key_fields": ["violation", "penalty_type", "calculation_base", "percentage_or_amount", "cap", "due_date", "escalation"],
+      "detection_signals": ["multa", "penalidade", "sanção", "desconto", "retenção", "advertência", "percentual sobre"],
+      "typical_topics": ["Penalidades, multas, sanções administrativas e descontos em nota fiscal"],
+      "automation_potential": "FULL_AUTO"
+    },
+    {
+      "archetype_id": "ARCH_AUDIT_RIGHTS",
+      "name": "Auditoria e Fiscalização - Direitos e Obrigações",
+      "description": "Define direito de auditoria da Contratante, acesso a registros, periodicidade de inspeções e dever de cooperação da Contratada.",
+      "key_fields": ["auditor_authority", "access_scope", "notice_period", "frequency", "provider_obligations", "report_deadline"],
+      "detection_signals": ["auditoria", "fiscalização", "inspeção", "acesso", "registros", "documentação", "comissão de fiscalização"],
+      "typical_topics": ["Auditoria, fiscalização, inspeções e acesso a documentos/sistemas"],
+      "automation_potential": "MANUAL"
+    },
+    {
+      "archetype_id": "ARCH_PRICE_REAJUSTE",
+      "name": "Preço, Reajuste e Repactuação",
+      "description": "Define valores contratuais, tabelas aplicáveis, índices de reajuste e condições para repactuação de preços.",
+      "key_fields": ["price_table_ref", "base_value", "index", "frequency", "trigger", "approval_process"],
+      "detection_signals": ["preço", "tabela", "reajuste", "repactuação", "índice", "apostilamento", "atualização de valores"],
+      "typical_topics": ["Preços, tabelas de valores, composição de diárias, itens faturáveis e não faturáveis", "Reajuste, repactuação de preços e gatilhos econômicos"],
+      "automation_potential": "SEMI_AUTO"
+    },
+    {
+      "archetype_id": "ARCH_TERM_TERMINATION",
+      "name": "Vigência, Prorrogação e Rescisão",
+      "description": "Define prazos contratuais, condições de renovação automática ou mediante aditivo, hipóteses de rescisão e obrigações de transição.",
+      "key_fields": ["term_start", "term_end", "renewal_conditions", "termination_causes", "notice_period", "transition_obligations"],
+      "detection_signals": ["vigência", "prorrogação", "rescisão", "denúncia", "transição", "continuidade", "prazo contratual"],
+      "typical_topics": ["Vigência, prorrogação, rescisão e obrigações de transição/continuidade"],
+      "automation_potential": "MANUAL"
+    },
+    {
+      "archetype_id": "ARCH_DATA_PRIVACY_SECURITY",
+      "name": "Proteção de Dados, Confidencialidade e Segurança",
+      "description": "Define tratamento de dados pessoais (LGPD), confidencialidade de informações, controles de segurança e notificação de incidentes.",
+      "key_fields": ["data_types", "access_roles", "security_controls", "incident_notice_period", "retention_period", "lgpd_compliance"],
+      "detection_signals": ["confidencialidade", "dados pessoais", "LGPD", "segurança da informação", "sigilo", "incidente", "proteção de dados"],
+      "typical_topics": ["Confidencialidade, proteção de dados (LGPD) e segurança da informação"],
+      "automation_potential": "SEMI_AUTO"
+    },
+    {
+      "archetype_id": "ARCH_PADRONIZACAO_INSUMO",
+      "name": "Padronização de Insumos e Materiais",
+      "description": "Referência a listas padronizadas de materiais, medicamentos, exames ou procedimentos, com regras de validação para faturamento.",
+      "key_fields": ["insumo_type", "reference_list", "appendix_reference", "validation_type", "exception_approval_process"],
+      "detection_signals": ["padronizado", "lista de", "apêndice", "não padronizado", "validação pela SES-DF", "material", "medicamento", "exame"],
+      "typical_topics": ["Padronização de insumos: materiais, medicamentos, SADT, nutrição"],
+      "automation_potential": "FULL_AUTO"
+    }
+  ],
+
+  "output_packaging": {
+    "file_naming_convention": {
+      "D1": "D1_topic_inventory_[DATE].json",
+      "D2": "D2_archetypes_catalog_[DATE].json",
+      "D3": "D3_rule_standard_schema_[DATE].json",
+      "D4": "D4_archetype_templates_[DATE].json",
+      "D5": "D5_rules_extracted_[DATE].jsonl",
+      "D6": "D6_conflicts_resolutions_[DATE].json",
+      "D7_json": "D7_tasy_integration_map_[DATE].json",
+      "D7_md": "D7_tasy_integration_guide_[DATE].md",
+      "D7_sql": "D7_example_sql_queries_[DATE].sql"
+    },
+    "encoding": "UTF-8",
+    "json_strict": true,
+    "compression": {
+      "allowed": true,
+      "format": "gzip",
+      "extension": ".gz"
+    },
+    "metadata_header": {
+      "include_in_all_outputs": true,
+      "fields": [
+        "extraction_timestamp",
+        "agent_version",
+        "doc_versions_processed",
+        "total_processing_time_minutes"
+      ]
+    }
+  },
+
+  "quality_assurance_final": {
+    "mandatory_validations": [
+      "JSON Schema validation for all deliverables",
+      "Cross-reference integrity check (all IDs referenced exist)",
+      "Rastreabilidade 100%: todas as regras com source completo",
+      "Duplicate detection: duplicate_rate < 2%",
+      "Coverage check: todos os tópicos têm regras extraídas",
+      "Confidence distribution: avg_confidence >= 0.75 para regras resolvidas",
+      "Automation classification: 100% das regras têm automation_level definido",
+      "ERP mapping: >= 80% das regras têm erp_mapping.tasy_module"
+    ],
+    "quality_metrics": {
+      "rule_extraction_completeness": "target >= 95%",
+      "interpretation_confidence_avg": "target >= 0.75",
+      "byzantine_consensus_rate": "target >= 85%",
+      "automation_readiness": "target >= 40% FULL_AUTO ou SEMI_AUTO",
+      "tasy_mapping_coverage": "target >= 80%"
+    },
+    "final_report": {
+      "include": true,
+      "format": "JSON + Markdown summary",
+      "sections": [
+        "Executive Summary",
+        "Extraction Statistics",
+        "Quality Metrics Achieved",
+        "Conflict Resolution Summary",
+        "High-Priority Unresolved Issues",
+        "TASY Implementation Recommendations",
+        "Next Steps and Escalations"
+      ]
+    }
+  },
+
+  "execution_notes": {
+    "estimated_total_duration": "8-10 hours (para conjunto completo de documentos)",
+    "recommended_execution_mode": "Iterativo com checkpoints, permitindo validação progressiva",
+    "critical_success_factors": [
+      "Ler e aplicar os Skills (SKILL.md) apropriados antes de cada etapa",
+      "Manter rastreabilidade rigorosa em todas as etapas",
+      "Aplicar consenso bizantino genuíno (não apenas simular votos)",
+      "Normalizar parâmetros (prazos, valores, percentuais) de forma estruturada",
+      "Focar em regras operacionalizáveis e automatizáveis",
+      "Validar outputs contra schemas progressivamente"
+    ],
+    "common_pitfalls_to_avoid": [
+      "Inventar informações não presentes nos documentos",
+      "Confundir referências a apêndices ou cláusulas",
+      "Ignorar exceções ou condições especiais",
+      "Não decompor regras complexas em regras atômicas",
+      "Esquecer de incluir citation_markers nos sources",
+      "Classificar incorretamente automation_level (ser conservador)",
+      "Não registrar interpretações aplicadas"
+    ]
+  }
+}

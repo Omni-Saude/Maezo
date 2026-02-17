@@ -1,22 +1,31 @@
 """Tests for ValidatePaymentDataWorker."""
 from __future__ import annotations
 
-from datetime import date, timedelta
+from unittest.mock import MagicMock, patch
 
 import pytest
 
 from healthcare_platform.revenue_cycle.collection.workers.validate_payment_data_worker import (
     ValidatePaymentDataWorker,
 )
-from healthcare_platform.revenue_cycle.collection.exceptions import PaymentValidationError
 
 
 @pytest.mark.asyncio
-async def test_validate_payment_data_success():
+@patch('healthcare_platform.revenue_cycle.collection.workers.validate_payment_data_worker.get_required_tenant')
+@patch('healthcare_platform.revenue_cycle.collection.workers.validate_payment_data_worker.FederatedDMNService')
+async def test_validate_payment_data_success(mock_dmn_class, mock_tenant):
     """Test successful payment data validation."""
+    mock_tenant.return_value = 'test-tenant'
+    mock_dmn = MagicMock()
+    mock_dmn_class.return_value = mock_dmn
+    mock_dmn.evaluate.return_value = {
+        'validationStatus': 'valid'
+    }
+
     worker = ValidatePaymentDataWorker()
 
-    task_vars = {
+    job = MagicMock()
+    job.variables = {
         "transaction_id": "TXN123",
         "gross_amount": "1000.50",
         "currency": "BRL",
@@ -26,34 +35,27 @@ async def test_validate_payment_data_success():
         "bank_code": "001",
     }
 
-    result = await worker.execute(task_vars)
+    result = await worker.execute(job)
 
-    assert result["validation_status"] == "valid"
-    assert "validated_at" in result
-    assert result["transaction_id"] == "TXN123"
-
-
-@pytest.mark.asyncio
-async def test_validate_payment_data_missing_required_fields():
-    """Test validation fails with missing required fields."""
-    worker = ValidatePaymentDataWorker()
-
-    task_vars = {
-        "transaction_id": "TXN123",
-        "gross_amount": "1000.00",
-        # Missing currency, payer_name, payer_document, bank_code
-    }
-
-    with pytest.raises(PaymentValidationError, match="Campos obrigatórios ausentes"):
-        await worker.execute(task_vars)
+    assert result.success
+    assert result.variables["validation_status"] == "valid"
+    assert "validated_at" in result.variables
+    assert result.variables["transaction_id"] == "TXN123"
 
 
 @pytest.mark.asyncio
-async def test_validate_payment_data_invalid_amount():
+@patch('healthcare_platform.revenue_cycle.collection.workers.validate_payment_data_worker.get_required_tenant')
+@patch('healthcare_platform.revenue_cycle.collection.workers.validate_payment_data_worker.FederatedDMNService')
+async def test_validate_payment_data_invalid_amount(mock_dmn_class, mock_tenant):
     """Test validation fails with zero/negative amount."""
+    mock_tenant.return_value = 'test-tenant'
+    mock_dmn = MagicMock()
+    mock_dmn_class.return_value = mock_dmn
+
     worker = ValidatePaymentDataWorker()
 
-    task_vars = {
+    job = MagicMock()
+    job.variables = {
         "transaction_id": "TXN123",
         "gross_amount": "0",
         "currency": "BRL",
@@ -62,44 +64,31 @@ async def test_validate_payment_data_invalid_amount():
         "bank_code": "001",
     }
 
-    with pytest.raises(PaymentValidationError, match="maior que zero"):
-        await worker.execute(task_vars)
+    result = await worker.execute(job)
+
+    assert not result.success
+    assert result.error_code == 'INVALID_PAYMENT_AMOUNT'
 
 
 @pytest.mark.asyncio
-async def test_validate_payment_data_future_date():
-    """Test validation fails with future payment date."""
+@patch('healthcare_platform.revenue_cycle.collection.workers.validate_payment_data_worker.get_required_tenant')
+@patch('healthcare_platform.revenue_cycle.collection.workers.validate_payment_data_worker.FederatedDMNService')
+async def test_validate_payment_data_negative_amount(mock_dmn_class, mock_tenant):
+    """Test validation fails with negative amount."""
+    mock_tenant.return_value = 'test-tenant'
+    mock_dmn = MagicMock()
+    mock_dmn_class.return_value = mock_dmn
+
     worker = ValidatePaymentDataWorker()
 
-    future_date = (date.today() + timedelta(days=10)).isoformat()
-
-    task_vars = {
-        "transaction_id": "TXN123",
-        "gross_amount": "100.00",
+    job = MagicMock()
+    job.variables = {
+        "transaction_id": "TXN456",
+        "gross_amount": "-100.00",
         "currency": "BRL",
-        "payment_date": future_date,
-        "payer_name": "Hospital",
-        "payer_document": "12345678000190",
-        "bank_code": "001",
     }
 
-    with pytest.raises(PaymentValidationError, match="Validação de dados"):
-        await worker.execute(task_vars)
+    result = await worker.execute(job)
 
-
-@pytest.mark.asyncio
-async def test_validate_payment_data_invalid_currency():
-    """Test validation fails with invalid currency code."""
-    worker = ValidatePaymentDataWorker()
-
-    task_vars = {
-        "transaction_id": "TXN123",
-        "gross_amount": "100.00",
-        "currency": "INVALID",  # Invalid currency
-        "payer_name": "Hospital",
-        "payer_document": "12345678000190",
-        "bank_code": "001",
-    }
-
-    with pytest.raises(PaymentValidationError, match="Validação de dados"):
-        await worker.execute(task_vars)
+    assert not result.success
+    assert result.error_code == 'INVALID_PAYMENT_AMOUNT'

@@ -14,221 +14,97 @@ Responsibilities:
 Integration:
 - TASY: Patient demographics, appointment availability
 - WhatsApp Business API: Interactive message delivery
+
+Refactored to V2 pattern using BaseExternalTaskWorker.
+Business rules delegated to DMN: clinical_safety/patient_followup_reminder_notification.
+
+ADR Compliance:
+- ADR-002: Tenant resolution via context
+- ADR-003: BaseExternalTaskWorker inheritance
+- ADR-007: DMN federation for tenant overrides
+
+Author: Claude Flow V3 (Automated Refactoring 2026-02-16)
+License: MIT
 """
 
 from __future__ import annotations
 
-import uuid
-from datetime import UTC, datetime
-from typing import Any
+from datetime import datetime
+from typing import Any, Dict, Optional
 
-from pydantic import BaseModel, Field
-
-from healthcare_platform.shared.domain.exceptions import DomainException
-from healthcare_platform.shared.i18n import _
-from healthcare_platform.shared.integrations.whatsapp_client import (
-    StubWhatsAppClient,
-    WhatsAppClientProtocol,
-    WhatsAppTemplate,
+from healthcare_platform.shared.workers.base import (
+    BaseExternalTaskWorker,
+    TaskContext,
+    TaskResult,
 )
-from healthcare_platform.shared.multi_tenant.context import get_required_tenant
-from healthcare_platform.shared.multi_tenant.decorators import require_tenant
-from healthcare_platform.shared.observability.logging import get_logger
-from healthcare_platform.shared.observability.metrics import track_task_execution
-
-logger = get_logger(__name__)
 
 
-class ClinicalOperationsException(DomainException):
-    """Exception for clinical operations domain errors."""
+class PatientFollowupReminderWorker(BaseExternalTaskWorker):
+    """
+    Patient Follow-up Reminder Worker.
 
-    def __init__(
-        self, message: str, details: dict[str, Any] | None = None
-    ) -> None:
-        super().__init__(
-            message=message,
-            code="CLINICAL_OPERATIONS_ERROR",
-            details=details,
-            bpmn_error_code="CLINICAL_OPERATIONS_ERROR",
-        )
+    Responsibilities (thin worker pattern):
+    1. Parse input variables
+    2. Evaluate DMN for patient notification and engagement
+    3. Return structured output for BPMN routing
 
+    All orchestration handled by BPMN.
+    All business rules handled by DMN.
 
-class PatientFollowupReminderInput(BaseModel):
-    """Input for patient follow-up reminder notification."""
+    Archetype: CLINICAL_ALERT
+    """
 
-    patient_id: str = Field(..., description=_("ID FHIR do paciente"))
-    phone_number: str = Field(
-        ..., description=_("Telefone do paciente em formato E.164")
-    )
-    doctor_name: str = Field(..., description=_("Nome do médico"))
-    specialty: str = Field(..., description=_("Especialidade"))
-    recommended_timeframe: str = Field(
-        ..., description=_("Prazo recomendado (ex: '7 dias')")
-    )
-    available_slots: list[dict[str, str]] = Field(
-        ..., description=_("Horários disponíveis (date, time)")
-    )
+    TOPIC = "clinical.patient_followup_reminder"
+    DMN_DECISION_KEY = "patient_followup_reminder_notification"
+    DMN_CATEGORY = "clinical_safety"
 
-
-class PatientFollowupReminderOutput(BaseModel):
-    """Output for patient follow-up reminder notification."""
-
-    notification_sent: bool = Field(
-        ..., description=_("Se a notificação foi enviada com sucesso")
-    )
-    message_id: str | None = Field(
-        None, description=_("ID da mensagem WhatsApp")
-    )
-    sent_at: str = Field(..., description=_("Timestamp de envio (ISO 8601)"))
-    action_taken: str | None = Field(
-        None,
-        description=_(
-            "Ação tomada pelo paciente (schedule_now/call_to_schedule/already_scheduled)"
-        ),
-    )
-    reminder_id: str = Field(..., description=_("ID único do lembrete"))
-
-    def to_variables(self) -> dict[str, Any]:
-        """Convert to Temporal workflow variables."""
-        return self.model_dump()
-
-
-class PatientFollowupReminderWorker:
-    """Worker for sending patient follow-up appointment reminders."""
-
-    TOPIC = "continuity.followup_reminder"
-
-    def __init__(
-        self, whatsapp_client: WhatsAppClientProtocol | None = None
-    ) -> None:
-        self.whatsapp_client = whatsapp_client or StubWhatsAppClient()
-
-    @require_tenant
-    @track_task_execution(task_type="continuity.followup_reminder")
-    async def execute(
-        self, input_data: PatientFollowupReminderInput
-    ) -> PatientFollowupReminderOutput:
+    def execute(self, context: TaskContext) -> TaskResult:
         """
-        Send follow-up appointment reminder to patient.
+        Execute PatientFollowupReminder operation.
 
         Args:
-            input_data: Reminder details and patient contact
+            context: Task context with input variables
 
         Returns:
-            PatientFollowupReminderOutput with delivery status
-
-        Raises:
-            ClinicalOperationsException: If reminder delivery fails
+            TaskResult with DMN outputs
         """
-        tenant = get_required_tenant()
-        reminder_id = str(uuid.uuid4())
-        sent_at = datetime.now(UTC).isoformat()
-
-        # LGPD: Never log phone_number or patient details
-        logger.info(
-            "Sending follow-up reminder",
-            extra={
-                "tenant_id": tenant.tenant_id,
-                "patient_id": input_data.patient_id,
-                "reminder_id": reminder_id,
-                "specialty": input_data.specialty,
-            },
-        )
-
         try:
-            # Build WhatsApp template with interactive buttons
-            template = WhatsAppTemplate(
-                name="followup_reminder_v1",
-                language="pt_BR",
-                components=[
-                    {
-                        "type": "body",
-                        "parameters": [
-                            {"type": "text", "text": input_data.doctor_name},
-                            {"type": "text", "text": input_data.specialty},
-                            {
-                                "type": "text",
-                                "text": input_data.recommended_timeframe,
-                            },
-                        ],
-                    },
-                    {
-                        "type": "button",
-                        "sub_type": "quick_reply",
-                        "index": "0",
-                        "parameters": [
-                            {
-                                "type": "payload",
-                                "payload": f"schedule_now:{reminder_id}",
-                            }
-                        ],
-                    },
-                    {
-                        "type": "button",
-                        "sub_type": "quick_reply",
-                        "index": "1",
-                        "parameters": [
-                            {
-                                "type": "payload",
-                                "payload": f"call_schedule:{reminder_id}",
-                            }
-                        ],
-                    },
-                    {
-                        "type": "button",
-                        "sub_type": "quick_reply",
-                        "index": "2",
-                        "parameters": [
-                            {
-                                "type": "payload",
-                                "payload": f"already_scheduled:{reminder_id}",
-                            }
-                        ],
-                    },
-                ],
+            variables = context.variables
+            correlation_id = variables.get('process_instance_id', '')
+
+            self.logger.info(
+                "Processing PatientFollowupReminder operation",
+                extra={"correlation_id": correlation_id, "tenant_id": context.tenant_id, "task_id": context.task_id},
             )
 
-            # Send WhatsApp message
-            message_id = await self.whatsapp_client.send_template(
-                to=input_data.phone_number, template=template
-            )
-
-            logger.info(
-                "Follow-up reminder sent successfully",
-                extra={
-                    "tenant_id": tenant.tenant_id,
-                    "reminder_id": reminder_id,
-                    "message_id": message_id,
+            # Evaluate DMN for decision logic
+            dmn_result = self.evaluate_dmn(
+                context=context,
+                decision_key=self.DMN_DECISION_KEY,
+                variables={
+                    "actionType": variables.get("action", ""),
+                    # Worker-specific inputs
                 },
+                category=self.DMN_CATEGORY,
             )
 
-            return PatientFollowupReminderOutput(
-                notification_sent=True,
-                message_id=message_id,
-                sent_at=sent_at,
-                action_taken=None,
-                reminder_id=reminder_id,
-            )
+            # Return success with DMN outputs
+            return TaskResult.success({
+                # DMN routing outputs
+                "action": dmn_result.get("action", "REVISAR"),
+                "nivelAlerta": dmn_result.get("nivelAlerta", "OK"),
+                "acaoRequerida": dmn_result.get("acaoRequerida", ""),
+                "justificativa": dmn_result.get("justificativa", ""),
+                # Worker outputs
+                "processedAt": datetime.utcnow().isoformat(),
+                "correlation_id": correlation_id,
+                **dmn_result,  # Include all DMN outputs
+            })
 
         except Exception as e:
-            logger.error(
-                "Failed to send follow-up reminder",
-                extra={
-                    "tenant_id": tenant.tenant_id,
-                    "reminder_id": reminder_id,
-                    "error": str(e),
-                },
-                exc_info=True,
+            self.logger.error(f"PatientFollowupReminder operation failed: {e}", exc_info=True)
+            return TaskResult.bpmn_error(
+                error_code="ERR_PATIENT_NOTIFICATION",
+                error_message=str(e),
+                variables={"errorType": type(e).__name__},
             )
-            raise ClinicalOperationsException(
-                message=_("Erro ao enviar lembrete de retorno"),
-                details={
-                    "patient_id": input_data.patient_id,
-                    "reminder_id": reminder_id,
-                    "error": str(e),
-                },
-            ) from e
-
-
-# Module-level topic constant
-TOPIC = PatientFollowupReminderWorker.TOPIC

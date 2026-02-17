@@ -1,0 +1,125 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  ============================================================================
+  ARCHIVE-POLICY - Politica de Retencao e Arquivamento
+  ============================================================================
+  Versao: 1.0.0 (2026-02-14)
+  Categoria: COLLECTION_OPERATIONS
+  Archetype: OPERATIONAL_ROUTING | Source: archive_reconciliation_worker.py
+  ============================================================================
+-->
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/"
+             xmlns:dc="http://www.omg.org/spec/DMN/20180521/DC/"
+             id="Definitions_ARCHIVE_POLICY"
+             name="Politica de Retencao e Arquivamento"
+             targetNamespace="http://camunda.org/schema/1.0/dmn">
+
+  <decision id="Decision_ARCHIVE_POLICY" name="Politica de Retencao e Arquivamento">
+    <decisionTable id="DecisionTable_ARCHIVE_POLICY" hitPolicy="FIRST">
+
+      <input id="Input_1" label="Tipo Reconciliacao">
+        <inputExpression id="InputExpression_1" typeRef="string">
+          <text>reconciliationType</text>
+        </inputExpression>
+        <inputValues id="InputValues_1">
+          <text>"daily","weekly","monthly"</text>
+        </inputValues>
+      </input>
+
+      <input id="Input_2" label="Status">
+        <inputExpression id="InputExpression_2" typeRef="string">
+          <text>status</text>
+        </inputExpression>
+        <inputValues id="InputValues_2">
+          <text>"CLOSED","OPEN","PENDING"</text>
+        </inputValues>
+      </input>
+
+      <input id="Input_3" label="Dias desde Fechamento">
+        <inputExpression id="InputExpression_3" typeRef="number">
+          <text>daysSinceClosed</text>
+        </inputExpression>
+      </input>
+
+      <!-- ========== OUTPUTS ========== -->
+      <output id="Output_resultado" label="Resultado" name="resultado" typeRef="string">
+        <outputValues><text>"PROSSEGUIR","BLOQUEAR","REVISAR"</text></outputValues>
+      </output>
+      <output id="Output_acao" label="Acao" name="acao" typeRef="string"/>
+      <output id="Output_risco" label="Risco" name="risco" typeRef="string">
+        <outputValues><text>"CRITICO","ALTO","MEDIO","BAIXO"</text></outputValues>
+      </output>
+
+      <rule id="Rule_1">
+        <description>Reconciliacao aberta nao pode ser arquivada</description>
+        <inputEntry id="IE_1_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_1_2"><text>"OPEN","PENDING"</text></inputEntry>
+        <inputEntry id="IE_1_3"><text>-</text></inputEntry>
+        <outputEntry id="OE_1_1"><text>"BLOQUEAR"</text></outputEntry>
+        <outputEntry id="OE_1_2"><text>"Reconciliacao ainda aberta - fechar antes de arquivar"</text></outputEntry>
+        <outputEntry id="OE_1_3"><text>"CRITICO"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_2">
+        <description>Mensal fechada recentemente - manter ativa</description>
+        <inputEntry id="IE_2_1"><text>"monthly"</text></inputEntry>
+        <inputEntry id="IE_2_2"><text>"CLOSED"</text></inputEntry>
+        <inputEntry id="IE_2_3"><text>&lt; 730</text></inputEntry>
+        <outputEntry id="OE_2_1"><text>"BLOQUEAR"</text></outputEntry>
+        <outputEntry id="OE_2_2"><text>"Reconciliacao mensal requer retencao minima de 2 anos"</text></outputEntry>
+        <outputEntry id="OE_2_3"><text>"ALTO"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_3">
+        <description>Diaria antiga - pode arquivar</description>
+        <inputEntry id="IE_3_1"><text>"daily"</text></inputEntry>
+        <inputEntry id="IE_3_2"><text>"CLOSED"</text></inputEntry>
+        <inputEntry id="IE_3_3"><text>&gt;= 365</text></inputEntry>
+        <outputEntry id="OE_3_1"><text>"PROSSEGUIR"</text></outputEntry>
+        <outputEntry id="OE_3_2"><text>"Reconciliacao diaria com mais de 1 ano - elegivel para arquivamento"</text></outputEntry>
+        <outputEntry id="OE_3_3"><text>"BAIXO"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_4">
+        <description>Semanal antiga - pode arquivar</description>
+        <inputEntry id="IE_4_1"><text>"weekly"</text></inputEntry>
+        <inputEntry id="IE_4_2"><text>"CLOSED"</text></inputEntry>
+        <inputEntry id="IE_4_3"><text>&gt;= 365</text></inputEntry>
+        <outputEntry id="OE_4_1"><text>"PROSSEGUIR"</text></outputEntry>
+        <outputEntry id="OE_4_2"><text>"Reconciliacao semanal com mais de 1 ano - elegivel para arquivamento"</text></outputEntry>
+        <outputEntry id="OE_4_3"><text>"BAIXO"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_5">
+        <description>Mensal antiga - pode arquivar</description>
+        <inputEntry id="IE_5_1"><text>"monthly"</text></inputEntry>
+        <inputEntry id="IE_5_2"><text>"CLOSED"</text></inputEntry>
+        <inputEntry id="IE_5_3"><text>&gt;= 730</text></inputEntry>
+        <outputEntry id="OE_5_1"><text>"PROSSEGUIR"</text></outputEntry>
+        <outputEntry id="OE_5_2"><text>"Reconciliacao mensal com mais de 2 anos - elegivel para arquivamento"</text></outputEntry>
+        <outputEntry id="OE_5_3"><text>"BAIXO"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Fallback">
+        <description>Fallback</description>
+        <inputEntry id="IE_F_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_F_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_F_3"><text>-</text></inputEntry>
+        <outputEntry id="OE_F_1"><text>"REVISAR"</text></outputEntry>
+        <outputEntry id="OE_F_2"><text>"Avaliar politica de retencao manualmente"</text></outputEntry>
+        <outputEntry id="OE_F_3"><text>"MEDIO"</text></outputEntry>
+      </rule>
+
+    </decisionTable>
+  </decision>
+
+  <dmndi:DMNDI>
+    <dmndi:DMNDiagram id="DMNDiagram_ARCHIVE_POLICY">
+      <dmndi:DMNShape id="DMNShape_Decision" dmnElementRef="Decision_ARCHIVE_POLICY">
+        <dc:Bounds height="80" width="180" x="160" y="100"/>
+      </dmndi:DMNShape>
+    </dmndi:DMNDiagram>
+  </dmndi:DMNDI>
+
+</definitions>

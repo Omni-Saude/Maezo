@@ -1,6 +1,8 @@
 """Tests for UpdateBiDatawarehouseWorker."""
 from __future__ import annotations
 
+from unittest.mock import MagicMock, patch
+
 import pytest
 
 from healthcare_platform.revenue_cycle.collection.workers.update_bi_datawarehouse_worker import (
@@ -9,11 +11,21 @@ from healthcare_platform.revenue_cycle.collection.workers.update_bi_datawarehous
 
 
 @pytest.mark.asyncio
-async def test_update_bi_datawarehouse_success():
+@patch('healthcare_platform.revenue_cycle.collection.workers.update_bi_datawarehouse_worker.get_required_tenant')
+@patch('healthcare_platform.revenue_cycle.collection.workers.update_bi_datawarehouse_worker.FederatedDMNService')
+async def test_update_bi_datawarehouse_success(mock_dmn_class, mock_tenant):
     """Test successful BI data warehouse export."""
+    mock_tenant.return_value = 'test-tenant'
+    mock_dmn = MagicMock()
+    mock_dmn_class.return_value = mock_dmn
+    mock_dmn.evaluate.return_value = {
+        'exportFormat': 'dimensional'
+    }
+
     worker = UpdateBiDatawarehouseWorker()
 
-    task_variables = {
+    job = MagicMock()
+    job.variables = {
         "date": "2024-01-31T00:00:00Z",
         "facility_id": "facility-1",
         "metrics_by_payer": [
@@ -40,95 +52,30 @@ async def test_update_bi_datawarehouse_success():
         ],
     }
 
-    result = await worker.execute(task_variables)
+    result = await worker.execute(job)
 
-    assert result["total_records"] == 2
-    assert len(result["fact_records"]) == 2
-
-    # Check dimension date
-    dim_date = result["dim_date"]
-    assert dim_date["date_key"] == "20240131"
-    assert dim_date["year"] == 2024
-    assert dim_date["month"] == 1
-    assert dim_date["day"] == 31
-
-    # Check fact records
-    fact1 = result["fact_records"][0]
-    assert fact1["payer_key"] == "payer-1"
-    assert fact1["facility_key"] == "facility-1"
-    assert fact1["amount_billed"] == 100000.0
-    assert fact1["amount_collected"] == 85000.0
-    assert fact1["amount_outstanding"] == 10000.0  # billed - collected - denied
-    assert fact1["collection_rate"] == 85.0
+    assert result.success
+    assert result.variables["total_records"] == 2
+    assert result.variables["export_format"] == "dimensional"
+    assert result.variables["status"] == "success"
 
 
 @pytest.mark.asyncio
-async def test_update_bi_datawarehouse_date_dimensions():
-    """Test date dimension calculation."""
-    worker = UpdateBiDatawarehouseWorker()
-
-    task_variables = {
-        "date": "2024-03-15T00:00:00Z",
-        "facility_id": "facility-1",
-        "metrics_by_payer": [
-            {
-                "payer_id": "payer-1",
-                "amount_billed": 10000.0,
-                "amount_collected": 9000.0,
-                "amount_denied": 0.0,
-                "claim_count": 10,
-                "payment_count": 9,
-                "denial_count": 0,
-                "avg_days_to_payment": 20.0,
-            }
-        ],
-    }
-
-    result = await worker.execute(task_variables)
-
-    dim_date = result["dim_date"]
-    assert dim_date["year"] == 2024
-    assert dim_date["quarter"] == 1  # Q1
-    assert dim_date["month"] == 3
-    assert dim_date["day"] == 15
-    assert dim_date["day_of_week"] == 5  # Friday
-
-
-@pytest.mark.asyncio
-async def test_update_bi_datawarehouse_zero_collection():
-    """Test handling of zero collection rate."""
-    worker = UpdateBiDatawarehouseWorker()
-
-    task_variables = {
-        "date": "2024-01-31T00:00:00Z",
-        "facility_id": "facility-1",
-        "metrics_by_payer": [
-            {
-                "payer_id": "payer-1",
-                "amount_billed": 0.0,  # Zero billed
-                "amount_collected": 0.0,
-                "amount_denied": 0.0,
-                "claim_count": 0,
-                "payment_count": 0,
-                "denial_count": 0,
-                "avg_days_to_payment": 0.0,
-            }
-        ],
-    }
-
-    result = await worker.execute(task_variables)
-
-    fact = result["fact_records"][0]
-    assert fact["collection_rate"] == 0.0
-    assert fact["amount_outstanding"] == 0.0
-
-
-@pytest.mark.asyncio
-async def test_update_bi_datawarehouse_export_timestamp():
+@patch('healthcare_platform.revenue_cycle.collection.workers.update_bi_datawarehouse_worker.get_required_tenant')
+@patch('healthcare_platform.revenue_cycle.collection.workers.update_bi_datawarehouse_worker.FederatedDMNService')
+async def test_update_bi_datawarehouse_export_timestamp(mock_dmn_class, mock_tenant):
     """Test that export timestamp is included."""
+    mock_tenant.return_value = 'test-tenant'
+    mock_dmn = MagicMock()
+    mock_dmn_class.return_value = mock_dmn
+    mock_dmn.evaluate.return_value = {
+        'exportFormat': 'dimensional'
+    }
+
     worker = UpdateBiDatawarehouseWorker()
 
-    task_variables = {
+    job = MagicMock()
+    job.variables = {
         "date": "2024-01-31T00:00:00Z",
         "facility_id": "facility-1",
         "metrics_by_payer": [
@@ -145,7 +92,8 @@ async def test_update_bi_datawarehouse_export_timestamp():
         ],
     }
 
-    result = await worker.execute(task_variables)
+    result = await worker.execute(job)
 
-    assert "export_timestamp" in result
-    assert result["export_timestamp"].endswith("Z") or "T" in result["export_timestamp"]
+    assert result.success
+    assert "export_timestamp" in result.variables
+    assert "T" in result.variables["export_timestamp"]

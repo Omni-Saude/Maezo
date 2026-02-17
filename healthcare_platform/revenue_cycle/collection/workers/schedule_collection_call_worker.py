@@ -12,7 +12,10 @@ logger = get_logger(__name__)
 
 
 class ScheduleCollectionCallWorker:
-    """Agenda ligação de cobrança como human task no CIB7."""
+    """    Agenda ligação de cobrança como human task no CIB7.
+    
+        Archetype: FINANCIAL_CALCULATION
+        """
 
     WORKER_TYPE = "schedule_collection_call"
 

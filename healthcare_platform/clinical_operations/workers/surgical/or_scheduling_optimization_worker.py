@@ -1,365 +1,142 @@
-"""
-OR Scheduling Optimization Worker - Operating room utilization optimization.
+"""OR Scheduling Optimization Worker V2 - DMN-based utilization optimization.
 
-CIB7 External Task Topic: surgical.or_optimization
-BPMN Error Code: SURGICAL_OPERATIONS_ERROR
-
-Optimizes operating room scheduling for maximum utilization.
-Considers procedure duration, turnover time, and resource availability.
+TOPIC: surgical.or_optimization | BPMN Error: SURGICAL_OPERATIONS_ERROR
+DMN: surgical/or_utilization_001, surgical/procedure_priority_001, surgical/or_capacity_001
+ADR: 002, 003, 007, 013 | Refactored 368 -> ~140 LOC
+Archetype: OPERATIONAL_ROUTING
 """
+
 from __future__ import annotations
 
-import uuid
-from datetime import datetime, timezone, timedelta
-from typing import Any, List, Optional
+from datetime import datetime
+from typing import Any
 
-from pydantic import BaseModel, Field, field_validator
-
-from healthcare_platform.shared.domain.exceptions import DomainException
-from healthcare_platform.shared.i18n import _
-from healthcare_platform.shared.integrations.tasy_adapters.surgical_adapter import TasySurgicalAdapter
-from healthcare_platform.shared.multi_tenant.context import get_required_tenant
-from healthcare_platform.shared.multi_tenant.decorators import require_tenant
-from healthcare_platform.shared.observability.logging import get_logger
-from healthcare_platform.shared.observability.metrics import track_task_execution
-
-logger = get_logger(__name__, worker="surgical.or_optimization")
-
-TOPIC = "surgical.or_optimization"
+from healthcare_platform.shared.workers.base import (
+    BaseExternalTaskWorker,
+    TaskContext,
+    TaskResult,
+)
 
 
-class SurgicalOperationsException(DomainException):
-    """Surgical operations domain exception."""
+class ORSchedulingOptimizationWorker(BaseExternalTaskWorker):
+    """V2 OR scheduling optimization worker (thin worker pattern).
 
-    bpmn_error_code = "SURGICAL_OPERATIONS_ERROR"
+    Responsibilities:
+    1. Parse OR scheduling parameters
+    2. Evaluate DMN for procedure prioritization
+    3. Determine OR capacity via DMN
+    4. Calculate utilization metrics via DMN
+    5. Return structured output for BPMN routing
 
-    def __init__(
-        self,
-        message: str,
-        details: Optional[dict[str, Any]] = None,
-        cause: Optional[Exception] = None
-    ):
-        super().__init__(message=message, details=details, cause=cause)
+    All orchestration handled by BPMN.
+    All business rules handled by DMN.
+    """
 
+    TOPIC = "surgical.or_optimization"
+    DMN_PRIORITY_KEY = "procedure_priority_001"
+    DMN_CAPACITY_KEY = "or_capacity_calculation_001"
+    DMN_UTILIZATION_KEY = "or_utilization_metrics_001"
+    DMN_CATEGORY = "surgical"
 
-class ScheduledProcedure(BaseModel):
-    """Scheduled surgical procedure model."""
-
-    procedure_id: str = Field(..., description="Unique procedure identifier")
-    procedure_code: str = Field(..., description="Procedure code (CPT/ICD)")
-    estimated_duration_minutes: int = Field(
-        ...,
-        gt=0,
-        description="Estimated procedure duration in minutes"
-    )
-    priority: str = Field(
-        ...,
-        description="Procedure priority (elective/urgent/emergency)"
-    )
-    surgeon_id: str = Field(..., description="Surgeon identifier")
-    required_equipment: List[str] = Field(
-        default_factory=list,
-        description="List of required equipment"
-    )
-
-    @field_validator("priority")
-    @classmethod
-    def validate_priority(cls, v: str) -> str:
-        """Validate priority is one of the allowed values."""
-        allowed = {"elective", "urgent", "emergency"}
-        if v.lower() not in allowed:
-            raise ValueError(
-                f"Priority must be one of {allowed}, got '{v}'"
-            )
-        return v.lower()
-
-
-class ORSchedulingInput(BaseModel):
-    """Input model for OR scheduling optimization."""
-
-    operating_room_id: str = Field(..., description="Operating room identifier")
-    date: datetime = Field(..., description="Date for scheduling")
-    available_start: datetime = Field(..., description="OR available start time")
-    available_end: datetime = Field(..., description="OR available end time")
-    procedures: List[ScheduledProcedure] = Field(
-        default_factory=list,
-        description="List of procedures to schedule"
-    )
-    turnover_time_minutes: int = Field(
-        default=30,
-        ge=0,
-        description="Turnover time between procedures in minutes"
-    )
-    cleaning_time_minutes: int = Field(
-        default=15,
-        ge=0,
-        description="Deep cleaning time in minutes"
-    )
-
-    @field_validator("available_end")
-    @classmethod
-    def validate_time_range(cls, v: datetime, info) -> datetime:
-        """Validate end time is after start time."""
-        if "available_start" in info.data and v <= info.data["available_start"]:
-            raise ValueError("available_end must be after available_start")
-        return v
-
-
-class ORSchedulingOutput(BaseModel):
-    """Output model for OR scheduling optimization."""
-
-    optimization_id: str = Field(
-        default_factory=lambda: str(uuid.uuid4()),
-        description="Unique optimization run identifier"
-    )
-    operating_room_id: str = Field(..., description="Operating room identifier")
-    date: datetime = Field(..., description="Scheduled date")
-    scheduled_slots: List[dict] = Field(
-        default_factory=list,
-        description="List of scheduled procedure slots"
-    )
-    utilization_percentage: float = Field(
-        ...,
-        ge=0.0,
-        le=100.0,
-        description="OR utilization percentage"
-    )
-    unscheduled_procedures: List[str] = Field(
-        default_factory=list,
-        description="List of procedure IDs that didn't fit"
-    )
-    total_or_minutes: int = Field(
-        ...,
-        ge=0,
-        description="Total available OR minutes"
-    )
-    idle_minutes: int = Field(
-        ...,
-        ge=0,
-        description="Total idle minutes"
-    )
-    optimization_timestamp: datetime = Field(
-        default_factory=lambda: datetime.now(timezone.utc),
-        description="When optimization was performed"
-    )
-
-
-class ORSchedulingOptimizationWorker:
-    """Worker for optimizing OR scheduling and utilization."""
-
-    def __init__(self, tasy_adapter: Optional[TasySurgicalAdapter] = None):
-        """Initialize the OR scheduling optimization worker.
-
-        Args:
-            tasy_adapter: Optional TASY surgical adapter for integration
-        """
-        self.tasy_adapter = tasy_adapter or TasySurgicalAdapter()
-        logger.info("Initialized ORSchedulingOptimizationWorker")
-
-    @require_tenant
-    @track_task_execution(task_type="surgical.or_optimization")
-    async def execute(self, variables: dict[str, Any]) -> dict[str, Any]:
-        """Execute OR scheduling optimization.
-
-        Args:
-            variables: Task variables containing scheduling parameters
-
-        Returns:
-            Dictionary containing optimization results
-
-        Raises:
-            SurgicalOperationsException: If optimization fails
-        """
-        tenant_id = get_required_tenant()
-
+    def execute(self, context: TaskContext) -> TaskResult:
+        """Execute OR scheduling optimization with DMN-based routing."""
         try:
-            # Parse input
-            input_data = ORSchedulingInput(**variables)
+            variables = context.variables
+            correlation_id = variables.get('process_instance_id', '')
+            operating_room_id = variables.get("operating_room_id", "")
+            date = variables.get("date", "")
+            available_minutes = variables.get("available_minutes", 480)  # 8 hours default
+            procedures = variables.get("procedures", [])
+            turnover_time_minutes = variables.get("turnover_time_minutes", 30)
 
-            logger.info(
-                "Starting OR scheduling optimization",
-                extra={
-                    "tenant_id": tenant_id,
-                    "operating_room_id": input_data.operating_room_id,
-                    "date": input_data.date.isoformat(),
-                    "procedure_count": len(input_data.procedures),
-                }
+            self.logger.info(
+                "Processing OR scheduling optimization",
+                extra={"correlation_id": correlation_id, "tenant_id": context.tenant_id,
+                       "or_id": operating_room_id, "procedure_count": len(procedures)},
             )
 
-            # Sort procedures by priority
-            sorted_procedures = self._sort_procedures_by_priority(
-                input_data.procedures
+            scheduled_slots = []
+            unscheduled = []
+            used_minutes = 0
+
+            # 1. Prioritize procedures via DMN
+            for procedure in procedures:
+                priority_result = self.evaluate_dmn(
+                    context=context,
+                    decision_key=self.DMN_PRIORITY_KEY,
+                    variables={
+                        "procedureType": procedure.get("procedure_code", ""),
+                        "priority": procedure.get("priority", "elective"),
+                        "estimatedDuration": procedure.get("estimated_duration_minutes", 60),
+                    },
+                    category=self.DMN_CATEGORY,
+                )
+                procedure["priority_score"] = priority_result.get("priorityScore", 0)
+
+            # Sort by priority score (descending)
+            procedures.sort(key=lambda p: p.get("priority_score", 0), reverse=True)
+
+            # 2. Check capacity for each procedure via DMN
+            for procedure in procedures:
+                duration = procedure.get("estimated_duration_minutes", 60)
+                capacity_result = self.evaluate_dmn(
+                    context=context,
+                    decision_key=self.DMN_CAPACITY_KEY,
+                    variables={
+                        "usedMinutes": used_minutes,
+                        "availableMinutes": available_minutes,
+                        "procedureDuration": duration,
+                        "turnoverTime": turnover_time_minutes,
+                    },
+                    category=self.DMN_CATEGORY,
+                )
+
+                if capacity_result.get("canSchedule", False):
+                    # Schedule the procedure
+                    scheduled_slots.append({
+                        "procedure_id": procedure.get("procedure_id", ""),
+                        "procedure_code": procedure.get("procedure_code", ""),
+                        "duration_minutes": duration,
+                        "priority": procedure.get("priority", "elective"),
+                        "turnover_after": turnover_time_minutes,
+                    })
+                    used_minutes += duration + turnover_time_minutes
+                else:
+                    unscheduled.append(procedure.get("procedure_id", ""))
+
+            # 3. Calculate utilization metrics via DMN
+            utilization_result = self.evaluate_dmn(
+                context=context,
+                decision_key=self.DMN_UTILIZATION_KEY,
+                variables={
+                    "totalMinutes": available_minutes,
+                    "usedMinutes": used_minutes,
+                    "scheduledCount": len(scheduled_slots),
+                    "unscheduledCount": len(unscheduled),
+                },
+                category=self.DMN_CATEGORY,
             )
 
-            logger.debug(
-                "Sorted procedures by priority",
-                extra={
-                    "procedure_order": [p.procedure_id for p in sorted_procedures],
-                }
-            )
+            utilization_percentage = utilization_result.get("utilizationPercentage", 0.0)
+            idle_minutes = available_minutes - used_minutes
 
-            # Schedule procedures greedily
-            scheduled_slots, unscheduled = self._schedule_procedures(
-                procedures=sorted_procedures,
-                available_start=input_data.available_start,
-                available_end=input_data.available_end,
-                turnover_time_minutes=input_data.turnover_time_minutes,
-            )
+            return TaskResult.success({
+                "optimization_id": f"OPT-{operating_room_id}-{datetime.utcnow().strftime('%Y%m%d%H%M%S')}",
+                "operating_room_id": operating_room_id,
+                "date": date,
+                "scheduled_slots": scheduled_slots,
+                "utilization_percentage": round(utilization_percentage, 2),
+                "unscheduled_procedures": unscheduled,
+                "total_or_minutes": available_minutes,
+                "idle_minutes": idle_minutes,
+                "optimization_timestamp": datetime.utcnow().isoformat(),
+                "correlation_id": correlation_id,
+            })
 
-            # Calculate utilization metrics
-            total_minutes = int(
-                (input_data.available_end - input_data.available_start).total_seconds() / 60
-            )
-
-            used_minutes = sum(
-                slot["duration_minutes"] + slot["turnover_after"]
-                for slot in scheduled_slots
-            )
-
-            idle_minutes = total_minutes - used_minutes
-            utilization_percentage = (
-                (used_minutes / total_minutes * 100.0) if total_minutes > 0 else 0.0
-            )
-
-            # Create output
-            output = ORSchedulingOutput(
-                operating_room_id=input_data.operating_room_id,
-                date=input_data.date,
-                scheduled_slots=scheduled_slots,
-                utilization_percentage=round(utilization_percentage, 2),
-                unscheduled_procedures=unscheduled,
-                total_or_minutes=total_minutes,
-                idle_minutes=idle_minutes,
-            )
-
-            logger.info(
-                "OR scheduling optimization completed",
-                extra={
-                    "tenant_id": tenant_id,
-                    "optimization_id": output.optimization_id,
-                    "scheduled_count": len(scheduled_slots),
-                    "unscheduled_count": len(unscheduled),
-                    "utilization_percentage": output.utilization_percentage,
-                }
-            )
-
-            return output.model_dump(mode="json")
-
-        except ValueError as e:
-            logger.error(
-                "Invalid input for OR scheduling optimization",
-                extra={"tenant_id": tenant_id, "error": str(e)},
-                exc_info=True,
-            )
-            raise SurgicalOperationsException(
-                message=_("Invalid OR scheduling parameters: {error}").format(
-                    error=str(e)
-                ),
-                details={"validation_error": str(e)},
-                cause=e,
-            )
         except Exception as e:
-            logger.error(
-                "OR scheduling optimization failed",
-                extra={"tenant_id": tenant_id, "error": str(e)},
-                exc_info=True,
+            self.logger.error(f"OR scheduling optimization failed: {e}", exc_info=True)
+            return TaskResult.bpmn_error(
+                error_code="SURGICAL_OPERATIONS_ERROR",
+                error_message=str(e),
+                variables={"errorType": type(e).__name__},
             )
-            raise SurgicalOperationsException(
-                message=_("Failed to optimize OR scheduling: {error}").format(
-                    error=str(e)
-                ),
-                details={"error": str(e)},
-                cause=e,
-            )
-
-    def _sort_procedures_by_priority(
-        self,
-        procedures: List[ScheduledProcedure]
-    ) -> List[ScheduledProcedure]:
-        """Sort procedures by priority (emergency > urgent > elective).
-
-        Args:
-            procedures: List of procedures to sort
-
-        Returns:
-            Sorted list of procedures
-        """
-        priority_order = {"emergency": 0, "urgent": 1, "elective": 2}
-
-        return sorted(
-            procedures,
-            key=lambda p: priority_order.get(p.priority.lower(), 3)
-        )
-
-    def _schedule_procedures(
-        self,
-        procedures: List[ScheduledProcedure],
-        available_start: datetime,
-        available_end: datetime,
-        turnover_time_minutes: int,
-    ) -> tuple[List[dict], List[str]]:
-        """Schedule procedures greedily into available time slots.
-
-        Args:
-            procedures: List of procedures to schedule (priority-sorted)
-            available_start: OR available start time
-            available_end: OR available end time
-            turnover_time_minutes: Turnover time between procedures
-
-        Returns:
-            Tuple of (scheduled_slots, unscheduled_procedure_ids)
-        """
-        scheduled_slots: List[dict] = []
-        unscheduled: List[str] = []
-
-        current_time = available_start
-
-        for procedure in procedures:
-            # Calculate end time for this procedure
-            procedure_duration = timedelta(
-                minutes=procedure.estimated_duration_minutes
-            )
-            procedure_end = current_time + procedure_duration
-
-            # Check if procedure fits
-            if procedure_end <= available_end:
-                # Schedule the procedure
-                slot = {
-                    "procedure_id": procedure.procedure_id,
-                    "procedure_code": procedure.procedure_code,
-                    "start": current_time.isoformat(),
-                    "end": procedure_end.isoformat(),
-                    "duration_minutes": procedure.estimated_duration_minutes,
-                    "priority": procedure.priority,
-                    "surgeon_id": procedure.surgeon_id,
-                    "turnover_after": turnover_time_minutes,
-                }
-                scheduled_slots.append(slot)
-
-                # Move current time forward (procedure + turnover)
-                current_time = procedure_end + timedelta(
-                    minutes=turnover_time_minutes
-                )
-
-                logger.debug(
-                    "Scheduled procedure",
-                    extra={
-                        "procedure_id": procedure.procedure_id,
-                        "start": slot["start"],
-                        "end": slot["end"],
-                    }
-                )
-            else:
-                # Procedure doesn't fit
-                unscheduled.append(procedure.procedure_id)
-
-                logger.debug(
-                    "Procedure doesn't fit in available time",
-                    extra={
-                        "procedure_id": procedure.procedure_id,
-                        "required_end": procedure_end.isoformat(),
-                        "available_end": available_end.isoformat(),
-                    }
-                )
-
-        return scheduled_slots, unscheduled

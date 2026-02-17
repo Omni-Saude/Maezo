@@ -108,12 +108,12 @@ class TestCheckAuthorizationRequirementsWorker:
             }
         )
 
-        # Switch to HPA
-        hpa_ctx = TenantContext.from_tenant_code(TenantCode.HPA)
-        set_current_tenant(hpa_ctx)
+        # Switch to HOSPITAL_B
+        hospital_b_ctx = TenantContext.from_tenant_code(TenantCode.HOSPITAL_B)
+        set_current_tenant(hospital_b_ctx)
 
-        # Execute with HPA
-        result_hpa = await worker.execute(
+        # Execute with HOSPITAL_B
+        result_hospital_b = await worker.execute(
             {
                 "procedure_code": "40101010",
                 "service_type": "cirurgia",
@@ -123,7 +123,7 @@ class TestCheckAuthorizationRequirementsWorker:
         )
 
         # Authorization rules should be consistent
-        assert result_austa["requires_authorization"] == result_hpa["requires_authorization"]
+        assert result_austa["requires_authorization"] == result_hospital_b["requires_authorization"]
 
     @pytest.mark.asyncio
     async def test_idempotency(self, worker, tenant_austa):

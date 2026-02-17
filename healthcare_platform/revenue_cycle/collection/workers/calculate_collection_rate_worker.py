@@ -14,7 +14,10 @@ logger = get_logger(__name__)
 
 
 class CalculateCollectionRateWorker:
-    """Calcula a taxa de cobrança (collection rate) para um período."""
+    """    Calcula a taxa de cobrança (collection rate) para um período.
+    
+        Archetype: FINANCIAL_CALCULATION
+        """
 
     WORKER_TYPE = "calculate_collection_rate"
 

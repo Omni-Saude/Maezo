@@ -1,9 +1,11 @@
 """Tests for apply_coding_rules_worker - Phase 2.2 Coding & Audit."""
 
+from __future__ import annotations
+
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 
-from healthcare_platform.revenue_cycle.coding.workers.apply_coding_rules_worker import (
+from healthcare_platform.revenue_cycle.coding.workers import (
     ApplyCodingRulesWorker,
     ApplyCodingRulesInput,
     ApplyCodingRulesOutput,
@@ -26,8 +28,8 @@ class TestApplyCodingRulesWorker:
         return engine
 
     @pytest.fixture
-    def worker(self, mock_rules_engine):
-        return ApplyCodingRulesWorker(rules_engine=mock_rules_engine)
+    def worker(self, mock_rules_engine, mock_dmn_service):
+        return ApplyCodingRulesWorker(rules_engine=mock_rules_engine, dmn_service=mock_dmn_service)
 
     @pytest.mark.asyncio
     async def test_all_rules_pass(self, worker, mock_task):

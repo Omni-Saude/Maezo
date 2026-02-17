@@ -1,4 +1,6 @@
 """
+from __future__ import annotations
+
 Tests for Escalate to Supervisor Worker
 
 Tests human task escalation package creation with priority assignment,
@@ -7,16 +9,14 @@ team routing, and systemic issue detection.
 
 import pytest
 
-from healthcare_platform.revenue_cycle.glosa.workers.escalate_to_supervisor_worker import (
-    EscalateToSupervisorWorker,
-)
+from healthcare_platform.revenue_cycle.glosa.workers import EscalateToSupervisorWorker
 from healthcare_platform.shared.domain.enums import GlosaReasonCode, GlosaType
 
 
 @pytest.fixture
-def worker():
-    """Create worker instance."""
-    return EscalateToSupervisorWorker()
+def worker(mock_dmn_service):
+    """Create worker instance with mocked DMN service."""
+    return EscalateToSupervisorWorker(dmn_service=mock_dmn_service)
 
 
 @pytest.fixture

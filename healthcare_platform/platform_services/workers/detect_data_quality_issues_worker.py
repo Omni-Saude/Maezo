@@ -51,7 +51,10 @@ quality_issues_gauge = Gauge(
 
 
 class DataQualityException(DomainException):
-    """Exceção lançada quando ocorrem erros na detecção de qualidade."""
+    """    Exceção lançada quando ocorrem erros na detecção de qualidade.
+    
+        Archetype: DATA_ENRICHMENT
+        """
 
     def __init__(self, message: str, details: dict[str, Any] | None = None):
         super().__init__(

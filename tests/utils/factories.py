@@ -1,5 +1,7 @@
 """Factory classes para criação de test data."""
 
+from __future__ import annotations
+
 from typing import Dict, Any, Optional, List
 from datetime import datetime, timedelta
 from decimal import Decimal

@@ -33,7 +33,10 @@ logger = get_logger(__name__)
 
 
 class RevenueCycleException(DomainException):
-    """Exception raised for revenue cycle errors."""
+    """Exception raised for revenue cycle errors.
+
+        Archetype: FINANCIAL_CALCULATION
+    """
 
     def __init__(
         self, message: str, details: dict[str, Any] | None = None

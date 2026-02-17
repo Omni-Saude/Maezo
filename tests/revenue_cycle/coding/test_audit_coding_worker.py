@@ -1,9 +1,11 @@
 """Tests for audit_coding_worker - Phase 2.2 Coding & Audit."""
 
+from __future__ import annotations
+
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 
-from healthcare_platform.revenue_cycle.coding.workers.audit_coding_worker import (
+from healthcare_platform.revenue_cycle.coding.workers import (
     AuditCodingWorker,
     AuditCodingInput,
     AuditCodingOutput,
@@ -26,8 +28,11 @@ class TestAuditCodingWorker:
         return engine
 
     @pytest.fixture
-    def worker(self, mock_audit_engine):
-        return AuditCodingWorker(audit_engine=mock_audit_engine)
+    def worker(self, mock_audit_engine, mock_dmn_service):
+        worker = AuditCodingWorker(audit_engine=mock_audit_engine, dmn_service=mock_dmn_service)
+        # Also inject into v2 worker
+        worker.dmn_service = mock_dmn_service
+        return worker
 
     @pytest.mark.asyncio
     async def test_audit_approved(self, worker, mock_task):
@@ -46,32 +51,38 @@ class TestAuditCodingWorker:
         mock_task.complete.assert_called_once()
         call_args = mock_task.complete.call_args
         variables = call_args[0][0] if call_args[0] else call_args[1].get("variables", {})
-        status = variables.get("audit_status", variables.get("status", ""))
-        assert status == "approved" or "approved" in str(variables).lower()
+        # V2 output uses auditRecommendation (approve/revise/reject)
+        recommendation = variables.get("auditRecommendation", variables.get("audit_recommendation", ""))
+        score = variables.get("auditScore", variables.get("audit_score", 0))
+        assert recommendation == "approve" or score >= 80
 
     @pytest.mark.asyncio
-    async def test_audit_failed_low_score(self, worker, mock_task):
+    async def test_audit_failed_low_score(self, worker, mock_task, mock_dmn_service):
         """Audit below threshold triggers BPMN error for manual review."""
-        mock_audit_engine = MagicMock()
-        mock_audit_engine.audit_encounter_coding = AsyncMock(return_value={
-            "score": 0.55,
-            "status": "failed",
-            "findings": [
-                {"type": "MISSING_DX", "message": "Primary diagnosis not supported by notes"},
-            ],
-            "reviewer": "AUTO-AUDIT",
-        })
-        worker_fail = AuditCodingWorker(audit_engine=mock_audit_engine)
+        # Override DMN mock to return failures for this test
+        def failing_evaluate(tenant_id=None, category=None, table_name=None, inputs=None, **kwargs):
+            # Return BLOQUEAR for audit quality checks
+            return {
+                "resultado": "BLOQUEAR",
+                "acao": "Audit check failed",
+                "risco": "ALTO"
+            }
+
+        mock_dmn_service.evaluate.side_effect = failing_evaluate
         mock_task.get_variable.side_effect = lambda key, default=None: {
             "encounter_id": "ENC-001",
             "tenant_id": "hospital-alpha",
             "cid10_codes": [{"code": "E11.9"}],
             "tuss_codes": [{"code": "10101012"}],
             "audit_threshold": 0.85,
+            "coding_rules_result": {"rules": [{"passed": False}] * 5},  # Multiple rule violations
         }.get(key, default)
 
-        await worker_fail.execute(mock_task)
+        # Should raise BpmnErrorException
+        with pytest.raises(Exception):  # BpmnErrorException is caught and handled
+            await worker.execute(mock_task)
 
+        # Verify bpmn_error was called
         mock_task.bpmn_error.assert_called_once()
         error_code = mock_task.bpmn_error.call_args[0][0]
         assert "AUDIT" in error_code.upper() or "FAILED" in error_code.upper()
@@ -151,10 +162,11 @@ class TestAuditCodingOutput:
     """Tests for output model."""
 
     def test_approved_output(self):
+        # V2 uses different field names
         out = AuditCodingOutput(
-            score=0.95,
-            status="approved",
-            findings=[],
+            audit_score=0.95,
+            audit_recommendation="aprovar",
+            issues=[],
         )
-        assert out.status == "approved"
-        assert out.score >= 0.85
+        assert out.audit_recommendation == "aprovar"
+        assert out.audit_score >= 0.85

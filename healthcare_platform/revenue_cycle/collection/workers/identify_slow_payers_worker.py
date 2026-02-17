@@ -13,7 +13,10 @@ logger = get_logger(__name__)
 
 
 class IdentifySlowPayersWorker:
-    """Identifica operadoras com padrões consistentemente lentos de pagamento."""
+    """    Identifica operadoras com padrões consistentemente lentos de pagamento.
+    
+        Archetype: FINANCIAL_CALCULATION
+        """
 
     WORKER_TYPE = "identify_slow_payers"
 

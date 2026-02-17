@@ -94,7 +94,7 @@ class TestExportToERPWorkerIntegration:
         from healthcare_platform.revenue_cycle.collection.workers.export_to_erp_worker import ExportToERPWorker
         worker = ExportToERPWorker(tasy_api_client=mock_client)
 
-        result = await worker._sync_to_tasy(
+        result = await worker.service._sync_to_tasy(
             entity_type="payment",
             entity_data={"account_id": "CONTA-123", "amount": 1000},
             operation="insert",
@@ -112,7 +112,7 @@ class TestExportToERPWorkerIntegration:
         worker = ExportToERPWorker(tasy_api_client=None)
 
         with pytest.raises(ERPSyncError):
-            await worker._sync_to_tasy("payment", {"account_id": "X"}, "insert")
+            await worker.service._sync_to_tasy("payment", {"account_id": "X"}, "insert")
 
 
 class TestReconcileDailyWorkerIntegration:

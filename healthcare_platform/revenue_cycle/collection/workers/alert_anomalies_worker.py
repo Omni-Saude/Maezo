@@ -16,7 +16,10 @@ logger = get_logger(__name__)
 
 
 class RevenueAnomaly(BaseModel):
-    """Anomalia detectada nas receitas."""
+    """    Anomalia detectada nas receitas.
+    
+        Archetype: FINANCIAL_CALCULATION
+        """
 
     category: str
     description: str

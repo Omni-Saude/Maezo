@@ -61,7 +61,10 @@ sync_records_gauge = Gauge(
 
 
 class ERPSyncException(DomainException):
-    """Exceção lançada quando ocorrem erros na sincronização ERP."""
+    """    Exceção lançada quando ocorrem erros na sincronização ERP.
+    
+        Archetype: DATA_ENRICHMENT
+        """
 
     def __init__(self, message: str, details: dict[str, Any] | None = None):
         super().__init__(

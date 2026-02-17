@@ -76,6 +76,8 @@ class PatientPaymentConfirmationWorker:
     Worker to send payment confirmation via WhatsApp.
 
     Sends both a template message confirming payment and a PDF receipt document.
+
+    Archetype: FINANCIAL_CALCULATION
     """
 
     TOPIC = "financial.payment_confirmed"

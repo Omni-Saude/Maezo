@@ -13,7 +13,10 @@ logger = get_logger(__name__)
 
 
 class ArchiveReconciliationWorker:
-    """Arquiva registros de reconciliação fechados após período de retenção configurável."""
+    """    Arquiva registros de reconciliação fechados após período de retenção configurável.
+    
+        Archetype: FINANCIAL_CALCULATION
+        """
 
     WORKER_TYPE = "archive_reconciliation"
 

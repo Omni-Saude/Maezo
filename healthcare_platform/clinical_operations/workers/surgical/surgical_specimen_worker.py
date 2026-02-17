@@ -51,7 +51,10 @@ VALID_PRIORITIES = [
 
 
 class SurgicalOperationsException(DomainException):
-    """Exception for surgical operations errors."""
+    """    Exception for surgical operations errors.
+    
+        Archetype: COMPLIANCE_VALIDATION
+        """
 
     def __init__(self, message: str, details: Optional[dict[str, Any]] = None):
         super().__init__(

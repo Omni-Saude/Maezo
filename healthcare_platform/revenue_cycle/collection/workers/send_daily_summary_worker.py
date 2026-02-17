@@ -14,7 +14,10 @@ logger = get_logger(__name__)
 
 
 class SendDailySummaryWorker:
-    """Envia resumo diário de cobrança via email e WhatsApp."""
+    """    Envia resumo diário de cobrança via email e WhatsApp.
+    
+        Archetype: FINANCIAL_CALCULATION
+        """
 
     WORKER_TYPE = "send_daily_summary"
 

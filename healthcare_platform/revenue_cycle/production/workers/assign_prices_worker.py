@@ -49,6 +49,8 @@ class AssignPricesWorker:
 
     Looks up prices from tenant-specific contract/price tables.
     Supports TUSS reference table and custom contract prices.
+
+    Archetype: OPERATIONAL_ROUTING
     """
 
     TOPIC = "production.assign_prices"

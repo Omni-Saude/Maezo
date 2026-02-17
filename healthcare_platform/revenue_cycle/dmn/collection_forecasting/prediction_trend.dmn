@@ -1,0 +1,119 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  ============================================================================
+  PREDICTION-TREND - Analise de Tendencia de Cobranca
+  ============================================================================
+  Versao: 1.0.0 (2026-02-14)
+  Categoria: COLLECTION_FORECASTING
+  Archetype: CLINICAL_SCORE | Source: predict_collection_date_worker.py
+  ============================================================================
+-->
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/"
+             xmlns:dc="http://www.omg.org/spec/DMN/20180521/DC/"
+             id="Definitions_PRED_TREND"
+             name="Analise de Tendencia de Cobranca"
+             targetNamespace="http://camunda.org/schema/1.0/dmn">
+
+  <decision id="Decision_PRED_TREND" name="Analise de Tendencia de Cobranca">
+    <decisionTable id="DecisionTable_PRED_TREND" hitPolicy="FIRST">
+
+      <input id="Input_1" label="Coeficiente Tendencia">
+        <inputExpression id="InputExpression_1" typeRef="number">
+          <text>trendCoefficient</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_2" label="Variancia Residual">
+        <inputExpression id="InputExpression_2" typeRef="number">
+          <text>residualVariance</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_3" label="Periodos Analisados">
+        <inputExpression id="InputExpression_3" typeRef="number">
+          <text>periodsAnalyzed</text>
+        </inputExpression>
+      </input>
+
+      <!-- ========== OUTPUTS ========== -->
+      <output id="Output_resultado" label="Resultado" name="resultado" typeRef="string">
+        <outputValues><text>"PROSSEGUIR","BLOQUEAR","REVISAR"</text></outputValues>
+      </output>
+      <output id="Output_acao" label="Acao" name="acao" typeRef="string"/>
+      <output id="Output_risco" label="Risco" name="risco" typeRef="string">
+        <outputValues><text>"CRITICO","ALTO","MEDIO","BAIXO"</text></outputValues>
+      </output>
+
+      <rule id="Rule_1">
+        <description>Tendencia fortemente negativa - queda na arrecadacao</description>
+        <inputEntry id="IE_1_1"><text>&lt; -0.3</text></inputEntry>
+        <inputEntry id="IE_1_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_1_3"><text>&gt;= 6</text></inputEntry>
+        <outputEntry id="OE_1_1"><text>"BLOQUEAR"</text></outputEntry>
+        <outputEntry id="OE_1_2"><text>"Tendencia de queda significativa - acionar plano de recuperacao"</text></outputEntry>
+        <outputEntry id="OE_1_3"><text>"CRITICO"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_2">
+        <description>Tendencia negativa moderada com alta variancia</description>
+        <inputEntry id="IE_2_1"><text>[-0.3..0]</text></inputEntry>
+        <inputEntry id="IE_2_2"><text>&gt; 0.5</text></inputEntry>
+        <inputEntry id="IE_2_3"><text>-</text></inputEntry>
+        <outputEntry id="OE_2_1"><text>"REVISAR"</text></outputEntry>
+        <outputEntry id="OE_2_2"><text>"Tendencia instavel - investigar causas da variabilidade"</text></outputEntry>
+        <outputEntry id="OE_2_3"><text>"ALTO"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_3">
+        <description>Tendencia estavel com baixa variancia</description>
+        <inputEntry id="IE_3_1"><text>[-0.1..0.1]</text></inputEntry>
+        <inputEntry id="IE_3_2"><text>&lt;= 0.2</text></inputEntry>
+        <inputEntry id="IE_3_3"><text>&gt;= 3</text></inputEntry>
+        <outputEntry id="OE_3_1"><text>"PROSSEGUIR"</text></outputEntry>
+        <outputEntry id="OE_3_2"><text>"Tendencia estavel - previsoes confiaveis"</text></outputEntry>
+        <outputEntry id="OE_3_3"><text>"BAIXO"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_4">
+        <description>Tendencia positiva - melhoria na arrecadacao</description>
+        <inputEntry id="IE_4_1"><text>&gt; 0.1</text></inputEntry>
+        <inputEntry id="IE_4_2"><text>&lt;= 0.3</text></inputEntry>
+        <inputEntry id="IE_4_3"><text>&gt;= 4</text></inputEntry>
+        <outputEntry id="OE_4_1"><text>"PROSSEGUIR"</text></outputEntry>
+        <outputEntry id="OE_4_2"><text>"Tendencia positiva consistente - manter estrategia atual"</text></outputEntry>
+        <outputEntry id="OE_4_3"><text>"BAIXO"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_5">
+        <description>Poucos periodos para analise confiavel</description>
+        <inputEntry id="IE_5_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_5_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_5_3"><text>&lt; 3</text></inputEntry>
+        <outputEntry id="OE_5_1"><text>"REVISAR"</text></outputEntry>
+        <outputEntry id="OE_5_2"><text>"Dados insuficientes para tendencia - aguardar mais periodos"</text></outputEntry>
+        <outputEntry id="OE_5_3"><text>"MEDIO"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Fallback">
+        <description>Fallback</description>
+        <inputEntry id="IE_F_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_F_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_F_3"><text>-</text></inputEntry>
+        <outputEntry id="OE_F_1"><text>"REVISAR"</text></outputEntry>
+        <outputEntry id="OE_F_2"><text>"Avaliar tendencia manualmente"</text></outputEntry>
+        <outputEntry id="OE_F_3"><text>"MEDIO"</text></outputEntry>
+      </rule>
+
+    </decisionTable>
+  </decision>
+
+  <dmndi:DMNDI>
+    <dmndi:DMNDiagram id="DMNDiagram_PRED_TREND">
+      <dmndi:DMNShape id="DMNShape_Decision" dmnElementRef="Decision_PRED_TREND">
+        <dc:Bounds height="80" width="180" x="160" y="100"/>
+      </dmndi:DMNShape>
+    </dmndi:DMNDiagram>
+  </dmndi:DMNDI>
+
+</definitions>

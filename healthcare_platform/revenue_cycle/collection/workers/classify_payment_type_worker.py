@@ -13,7 +13,10 @@ logger = get_logger(__name__)
 
 
 class ClassifyPaymentTypeWorker:
-    """Classifies payment as full/partial/advance based on expected amounts."""
+    """    Classifies payment as full/partial/advance based on expected amounts.
+    
+        Archetype: FINANCIAL_CALCULATION
+        """
 
     WORKER_TYPE = "classify_payment_type"
 

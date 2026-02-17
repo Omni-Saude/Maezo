@@ -13,7 +13,10 @@ logger = get_logger(__name__)
 
 
 class GenerateCollectionLetterWorker:
-    """Gera cartas de cobrança em português baseadas no bucket de aging."""
+    """    Gera cartas de cobrança em português baseadas no bucket de aging.
+    
+        Archetype: FINANCIAL_CALCULATION
+        """
 
     WORKER_TYPE = "generate_collection_letter"
 

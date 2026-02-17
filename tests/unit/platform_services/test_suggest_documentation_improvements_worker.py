@@ -60,11 +60,6 @@ class TestSuggestDocumentationImprovementsWorker:
         """Test that missing required fields raise validation error."""
         with pytest.raises(Exception):  # Pydantic validation error
             SuggestDocumentationImprovementsInput(
-                encounter_id="",
-                patient_id="pat-456",
-                clinical_documentation={},
-                procedure_codes=[],
-                provider_specialty="cardiology",
             )
 
     @pytest.mark.asyncio

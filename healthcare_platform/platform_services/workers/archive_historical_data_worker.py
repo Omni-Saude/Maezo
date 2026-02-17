@@ -55,7 +55,10 @@ TOPIC = "platform.archive_historical_data"
 
 
 class ArchivalException(DomainException):
-    """Exceção de arquivamento de dados."""
+    """    Exceção de arquivamento de dados.
+    
+        Archetype: CLINICAL_ALERT
+        """
 
     def __init__(self, message: str, details: dict[str, Any] | None = None):
         super().__init__(

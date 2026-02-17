@@ -3,6 +3,8 @@ Generate Optimization Report Worker.
 
 Creates comprehensive monthly optimization reports aggregating all revenue
 optimization findings with implementation progress tracking and executive summaries.
+
+Archetype: DATA_ENRICHMENT
 """
 
 from __future__ import annotations

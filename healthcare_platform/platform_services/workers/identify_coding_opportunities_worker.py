@@ -47,7 +47,10 @@ opportunities_found_gauge = Gauge(
 
 
 class CodingOpportunityAnalysisError(DomainException):
-    """Exceção para erros na análise de oportunidades de codificação."""
+    """    Exceção para erros na análise de oportunidades de codificação.
+    
+        Archetype: COMPLIANCE_VALIDATION
+        """
 
     def __init__(self, message: str, details: dict[str, Any] | None = None):
         super().__init__(

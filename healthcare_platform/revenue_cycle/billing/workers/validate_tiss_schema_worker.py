@@ -27,7 +27,9 @@ class ValidateTISSSchemaWorker(BaseWorker):
     Output variables:
         - schema_valid (bool): True if schema validation passes
         - schema_errors (list[str]): List of schema validation errors
-    """
+    
+
+    Archetype: FINANCIAL_CALCULATION"""
 
     def __init__(self, tiss_client: TISSClientProtocol) -> None:
         """

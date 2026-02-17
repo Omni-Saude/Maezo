@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from typing import Any
-from unittest.mock import AsyncMock
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -32,12 +32,19 @@ class MockPaymentRepository:
 
 
 @pytest.mark.asyncio
-async def test_detect_duplicate_no_duplicates():
+@patch("healthcare_platform.revenue_cycle.collection.workers.detect_duplicate_payment_worker.get_required_tenant")
+@patch("healthcare_platform.revenue_cycle.collection.workers.detect_duplicate_payment_worker.FederatedDMNService")
+async def test_detect_duplicate_no_duplicates(mock_dmn_service_cls, mock_tenant):
     """Test duplicate check passes when no duplicates found."""
+    mock_tenant.return_value = "tenant-1"
+    mock_dmn = MagicMock()
+    mock_dmn.evaluate.return_value = {}
+    mock_dmn_service_cls.return_value = mock_dmn
+
     repo = MockPaymentRepository()
     worker = DetectDuplicatePaymentWorker(repository=repo)
-
-    task_vars = {
+    job = MagicMock()
+    job.variables = {
         "transaction_id": "TXN123",
         "nosso_numero": "NN456",
         "gross_amount": "100.00",
@@ -45,35 +52,53 @@ async def test_detect_duplicate_no_duplicates():
         "payer_document": "12345678000190",
     }
 
-    result = await worker.execute(task_vars)
+    result = await worker.execute(job)
 
-    assert result["duplicate_check_passed"] is True
+    assert result.success
+    assert result.variables["duplicate_check_passed"] is True
 
 
 @pytest.mark.asyncio
-async def test_detect_duplicate_by_transaction_id():
+@patch("healthcare_platform.revenue_cycle.collection.workers.detect_duplicate_payment_worker.get_required_tenant")
+@patch("healthcare_platform.revenue_cycle.collection.workers.detect_duplicate_payment_worker.FederatedDMNService")
+async def test_detect_duplicate_by_transaction_id(mock_dmn_service_cls, mock_tenant):
     """Test duplicate detection by transaction_id."""
+    mock_tenant.return_value = "tenant-1"
+    mock_dmn = MagicMock()
+    mock_dmn.evaluate.return_value = {}
+    mock_dmn_service_cls.return_value = mock_dmn
+
     repo = MockPaymentRepository(existing_payments={"txn_TXN123": {"id": "existing"}})
     worker = DetectDuplicatePaymentWorker(repository=repo)
-
-    task_vars = {
+    job = MagicMock()
+    job.variables = {
         "transaction_id": "TXN123",
         "gross_amount": "100.00",
         "payment_date": "2024-01-15",
         "payer_document": "12345678000190",
     }
 
-    with pytest.raises(DuplicatePaymentError, match="transaction_id"):
-        await worker.execute(task_vars)
+    result = await worker.execute(job)
+
+    assert result.success is False
+    assert result.error_code == "DUPLICATE_PAYMENT"
+    assert "transaction_id" in result.error_message
 
 
 @pytest.mark.asyncio
-async def test_detect_duplicate_by_nosso_numero():
+@patch("healthcare_platform.revenue_cycle.collection.workers.detect_duplicate_payment_worker.get_required_tenant")
+@patch("healthcare_platform.revenue_cycle.collection.workers.detect_duplicate_payment_worker.FederatedDMNService")
+async def test_detect_duplicate_by_nosso_numero(mock_dmn_service_cls, mock_tenant):
     """Test duplicate detection by nosso_numero."""
+    mock_tenant.return_value = "tenant-1"
+    mock_dmn = MagicMock()
+    mock_dmn.evaluate.return_value = {}
+    mock_dmn_service_cls.return_value = mock_dmn
+
     repo = MockPaymentRepository(existing_payments={"nosso_NN456": {"id": "existing"}})
     worker = DetectDuplicatePaymentWorker(repository=repo)
-
-    task_vars = {
+    job = MagicMock()
+    job.variables = {
         "transaction_id": "TXN789",
         "nosso_numero": "NN456",
         "gross_amount": "100.00",
@@ -81,37 +106,53 @@ async def test_detect_duplicate_by_nosso_numero():
         "payer_document": "12345678000190",
     }
 
-    with pytest.raises(DuplicatePaymentError, match="nosso_numero"):
-        await worker.execute(task_vars)
+    result = await worker.execute(job)
+
+    assert result.success is False
+    assert result.error_code == "DUPLICATE_PAYMENT"
+    assert "nosso_numero" in result.error_message
 
 
 @pytest.mark.asyncio
-async def test_detect_duplicate_by_composite_key():
+@patch("healthcare_platform.revenue_cycle.collection.workers.detect_duplicate_payment_worker.get_required_tenant")
+@patch("healthcare_platform.revenue_cycle.collection.workers.detect_duplicate_payment_worker.FederatedDMNService")
+async def test_detect_duplicate_by_composite_key(mock_dmn_service_cls, mock_tenant):
     """Test duplicate detection by composite key (amount+date+payer)."""
+    mock_tenant.return_value = "tenant-1"
+    mock_dmn = MagicMock()
+    mock_dmn.evaluate.return_value = {}
+    mock_dmn_service_cls.return_value = mock_dmn
+
     composite_key = "composite_100.00_2024-01-15_12345678000190"
     repo = MockPaymentRepository(existing_payments={composite_key: {"id": "existing"}})
     worker = DetectDuplicatePaymentWorker(repository=repo)
-
-    task_vars = {
+    job = MagicMock()
+    job.variables = {
         "transaction_id": "TXN999",
         "gross_amount": "100.00",
         "payment_date": "2024-01-15",
         "payer_document": "12345678000190",
     }
 
-    with pytest.raises(DuplicatePaymentError, match="valor\\+data\\+pagador"):
-        await worker.execute(task_vars)
+    result = await worker.execute(job)
+
+    assert result.success is False
+    assert result.error_code == "DUPLICATE_PAYMENT"
 
 
 @pytest.mark.asyncio
-async def test_detect_duplicate_no_repository_skips_check():
+@patch("healthcare_platform.revenue_cycle.collection.workers.detect_duplicate_payment_worker.get_required_tenant")
+async def test_detect_duplicate_no_repository_skips_check(mock_tenant):
     """Test duplicate check skipped when no repository configured."""
-    worker = DetectDuplicatePaymentWorker(repository=None)
+    mock_tenant.return_value = "tenant-1"
 
-    task_vars = {
+    worker = DetectDuplicatePaymentWorker(repository=None)
+    job = MagicMock()
+    job.variables = {
         "transaction_id": "TXN123",
     }
 
-    result = await worker.execute(task_vars)
+    result = await worker.execute(job)
 
-    assert result["duplicate_check_passed"] is True
+    assert result.success
+    assert result.variables["duplicate_check_passed"] is True

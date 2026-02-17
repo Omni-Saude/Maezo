@@ -87,7 +87,9 @@ _BASELINE_PROCEDURE_COUNTS: dict[str, tuple[float, float]] = {
 # ---------------------------------------------------------------------------
 
 class FraudType(str, Enum):
-    """Types of coding fraud detected."""
+    """Types of coding fraud detected.
+
+    Archetype: FINANCIAL_CALCULATION"""
 
     UPCODING = "UPCODING"
     UNBUNDLING = "UNBUNDLING"

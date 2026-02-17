@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from unittest.mock import MagicMock, patch
+
 import pytest
 
 from healthcare_platform.revenue_cycle.collection.enums import AgingBucket
@@ -33,44 +35,71 @@ class TestCalculateAgingBucketWorker:
             (365, AgingBucket.DAYS_180_PLUS),
         ],
     )
-    async def test_aging_bucket_calculation(self, days_overdue: int, expected_bucket: AgingBucket):
+    @patch('healthcare_platform.revenue_cycle.collection.workers.calculate_aging_bucket_worker.get_required_tenant', return_value='test-tenant')
+    @patch('healthcare_platform.revenue_cycle.collection.workers.calculate_aging_bucket_worker.FederatedDMNService')
+    async def test_aging_bucket_calculation(self, MockDMNService, mock_tenant, days_overdue: int, expected_bucket: AgingBucket):
         """Testa cálculo correto de bucket de aging para diferentes períodos."""
-        worker = CalculateAgingBucketWorker()
+        mock_dmn = MockDMNService.return_value
+        mock_dmn.evaluate.return_value = {
+            'agingBucket': expected_bucket.value,
+            'bucketDescription': f'{expected_bucket.value} dias'
+        }
 
-        task_vars = {
+        worker = CalculateAgingBucketWorker()
+        job = MagicMock()
+        job.variables = {
             "collection_case_id": "CC-12345",
             "days_overdue": days_overdue,
         }
 
-        result = await worker.execute(task_vars)
+        result = await worker.execute(job)
 
-        assert result["aging_bucket"] == expected_bucket.value
-        assert result["days_overdue"] == days_overdue
-        assert result["collection_case_id"] == "CC-12345"
-        assert "bucket_description" in result
+        assert result.success
+        assert result.variables["aging_bucket"] == expected_bucket.value
+        assert result.variables["days_overdue"] == days_overdue
+        assert result.variables["collection_case_id"] == "CC-12345"
+        assert "bucket_description" in result.variables
 
-    async def test_bucket_description_in_portuguese(self):
+    @patch('healthcare_platform.revenue_cycle.collection.workers.calculate_aging_bucket_worker.get_required_tenant', return_value='test-tenant')
+    @patch('healthcare_platform.revenue_cycle.collection.workers.calculate_aging_bucket_worker.FederatedDMNService')
+    async def test_bucket_description_in_portuguese(self, MockDMNService, mock_tenant):
         """Testa que descrição do bucket está em português."""
-        worker = CalculateAgingBucketWorker()
+        mock_dmn = MockDMNService.return_value
+        mock_dmn.evaluate.return_value = {
+            'agingBucket': 'DAYS_31_60',
+            'bucketDescription': '31-60 dias'
+        }
 
-        task_vars = {
+        worker = CalculateAgingBucketWorker()
+        job = MagicMock()
+        job.variables = {
             "collection_case_id": "CC-12345",
             "days_overdue": 45,
         }
 
-        result = await worker.execute(task_vars)
+        result = await worker.execute(job)
 
-        assert "dias" in result["bucket_description"]
+        assert result.success
+        assert "dias" in result.variables["bucket_description"]
 
-    async def test_edge_case_zero_days(self):
+    @patch('healthcare_platform.revenue_cycle.collection.workers.calculate_aging_bucket_worker.get_required_tenant', return_value='test-tenant')
+    @patch('healthcare_platform.revenue_cycle.collection.workers.calculate_aging_bucket_worker.FederatedDMNService')
+    async def test_edge_case_zero_days(self, MockDMNService, mock_tenant):
         """Testa caso limite de zero dias vencidos."""
-        worker = CalculateAgingBucketWorker()
+        mock_dmn = MockDMNService.return_value
+        mock_dmn.evaluate.return_value = {
+            'agingBucket': AgingBucket.DAYS_0_30.value,
+            'bucketDescription': '0-30 dias'
+        }
 
-        task_vars = {
+        worker = CalculateAgingBucketWorker()
+        job = MagicMock()
+        job.variables = {
             "collection_case_id": "CC-12345",
             "days_overdue": 0,
         }
 
-        result = await worker.execute(task_vars)
+        result = await worker.execute(job)
 
-        assert result["aging_bucket"] == AgingBucket.DAYS_0_30.value
+        assert result.success
+        assert result.variables["aging_bucket"] == AgingBucket.DAYS_0_30.value

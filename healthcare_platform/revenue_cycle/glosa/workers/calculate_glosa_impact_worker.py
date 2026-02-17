@@ -18,7 +18,10 @@ logger = get_logger(__name__)
 
 @worker(topic="calculate-glosa-impact", max_jobs=5, lock_duration=60000)
 class CalculateGlosaImpactWorker(BaseWorker, GlosaWorkerMixin):
-    """Calculate total financial impact and recovery potential of glosas."""
+    """Calculate total financial impact and recovery potential of glosas.
+
+        Archetype: CLINICAL_SCORE
+    """
 
     def __init__(self) -> None:
         super().__init__()

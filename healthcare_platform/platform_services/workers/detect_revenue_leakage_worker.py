@@ -46,7 +46,10 @@ leakage_amount_gauge = Gauge(
 
 
 class RevenueLeakageDetectionError(DomainException):
-    """Exception raised when revenue leakage detection fails."""
+    """    Exception raised when revenue leakage detection fails.
+    
+        Archetype: FINANCIAL_CALCULATION
+        """
 
     def __init__(self, message: str, details: dict[str, Any] | None = None) -> None:
         super().__init__(

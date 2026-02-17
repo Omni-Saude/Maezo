@@ -6,7 +6,7 @@ Tests health milestone celebration notifications with interactive sharing.
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from typing import Any
 from unittest.mock import AsyncMock
 
@@ -208,7 +208,7 @@ class TestPatientHealthAnniversaryWorker:
         output_data = {
             "notification_sent": True,
             "message_id": "msg-789",
-            "sent_at": datetime.now(UTC).isoformat(),
+            "sent_at": datetime.now(timezone.utc).isoformat(),
             "feedback_received": False,
         }
         output_model = PatientHealthAnniversaryOutput(**output_data)

@@ -1,0 +1,94 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/"
+             xmlns:dc="http://www.omg.org/spec/DMN/20180521/DC/"
+             id="Definitions_PhantomSuspiciousPrefix"
+             name="Phantom Billing Suspicious Prefix Decision"
+             namespace="http://camunda.org/schema/1.0/dmn">
+  <!-- Archetype: CLINICAL_SCORE | Source: phantom_suspicious_prefix_worker.py -->
+
+  <!-- DMN: Phantom Billing - Suspicious Prefix Detection
+       Based on: detect_fraud_worker.py lines 392-406
+       Rule: Flag codes with suspicious prefixes commonly used in phantom billing
+  -->
+
+  <decision id="Decision_PhantomSuspiciousPrefix" name="Phantom Billing Suspicious Prefix">
+    <decisionTable id="DecisionTable_PhantomSuspiciousPrefix" hitPolicy="FIRST">
+
+      <!-- === INPUTS === -->
+      <input id="Input_tussPrefix" label="TUSS Code Prefix">
+        <inputExpression id="InputExpr_tussPrefix" typeRef="string">
+          <text>tuss_prefix</text>
+        </inputExpression>
+      </input>
+
+      <!-- === OUTPUTS === -->
+      <output id="Output_resultado" label="Resultado" name="resultado" typeRef="string">
+        <outputValues><text>"PROSSEGUIR","BLOQUEAR","REVISAR"</text></outputValues>
+      </output>
+
+      <output id="Output_acao" label="Acao" name="acao" typeRef="string"/>
+
+      <output id="Output_risco" label="Risco" name="risco" typeRef="string">
+        <outputValues><text>"CRITICO","ALTO","MEDIO","BAIXO"</text></outputValues>
+      </output>
+
+      <!-- === RULES === -->
+
+      <!-- Rule 1: Suspicious prefix '99' - high risk phantom billing -->
+      <rule id="Rule_SuspiciousPrefix">
+        <description>Codigos com prefixo suspeito identificados</description>
+        <inputEntry id="IE_Suspicious_1"><text>starts with(tuss_prefix, "99")</text></inputEntry>
+        <outputEntry id="OE_Suspicious_res"><text>"BLOQUEAR"</text></outputEntry>
+        <outputEntry id="OE_Suspicious_acao"><text>"Codigos com prefixo suspeito '99' identificados"</text></outputEntry>
+        <outputEntry id="OE_Suspicious_risco"><text>"ALTO"</text></outputEntry>
+      </rule>
+
+      <!-- Rule 2: Normal prefix - proceed -->
+      <rule id="Rule_NormalPrefix">
+        <description>Prefixo de codigo normal</description>
+        <inputEntry id="IE_Normal_1"><text>not(starts with(tuss_prefix, "99"))</text></inputEntry>
+        <outputEntry id="OE_Normal_res"><text>"PROSSEGUIR"</text></outputEntry>
+        <outputEntry id="OE_Normal_acao"><text>"Prefixo de codigo dentro do padrao normal"</text></outputEntry>
+        <outputEntry id="OE_Normal_risco"><text>"BAIXO"</text></outputEntry>
+      </rule>
+
+      <!-- Fallback: Unknown prefix - review -->
+      
+      <rule id="Rule_HighRiskPrefix">
+        <description>Prefixo com alto risco de faturamento fantasma</description>
+        <inputEntry id="IE_HighRiskPrefix_1"><text>starts with(tuss_prefix, "98")</text></inputEntry>
+        <outputEntry id="OE_HighRiskPrefix_res"><text>"REVISAR"</text></outputEntry>
+        <outputEntry id="OE_HighRiskPrefix_acao"><text>"Prefixo '98' requer verificacao - risco moderado de faturamento fantasma"</text></outputEntry>
+        <outputEntry id="OE_HighRiskPrefix_risco"><text>"MEDIO"</text></outputEntry>
+      </rule>
+
+
+      <rule id="Rule_WatchlistPrefix">
+        <description>Prefixo em lista de monitoramento</description>
+        <inputEntry id="IE_WatchlistPrefix_1"><text>starts with(tuss_prefix, "00")</text></inputEntry>
+        <outputEntry id="OE_WatchlistPrefix_res"><text>"REVISAR"</text></outputEntry>
+        <outputEntry id="OE_WatchlistPrefix_acao"><text>"Prefixo '00' em lista de monitoramento - verificar validade do codigo"</text></outputEntry>
+        <outputEntry id="OE_WatchlistPrefix_risco"><text>"MEDIO"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Fallback">
+        <description>Prefixo desconhecido - revisao obrigatoria</description>
+        <inputEntry id="IE_fb_1"><text>-</text></inputEntry>
+        <outputEntry id="OE_fb_res"><text>"REVISAR"</text></outputEntry>
+        <outputEntry id="OE_fb_acao"><text>"Prefixo requer avaliacao manual"</text></outputEntry>
+        <outputEntry id="OE_fb_risco"><text>"MEDIO"</text></outputEntry>
+      </rule>
+
+    </decisionTable>
+  </decision>
+
+  <dmndi:DMNDI>
+    <dmndi:DMNDiagram id="DMNDiagram_PhantomSuspiciousPrefix">
+      <dmndi:DMNShape id="DMNShape_Decision" dmnElementRef="Decision_PhantomSuspiciousPrefix">
+        <dc:Bounds height="80" width="180" x="160" y="100"/>
+      </dmndi:DMNShape>
+    </dmndi:DMNDiagram>
+  </dmndi:DMNDI>
+
+</definitions>

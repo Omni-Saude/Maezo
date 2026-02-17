@@ -15,7 +15,10 @@ logger = get_logger(__name__)
 
 
 class ApplyContractualAdjustmentsWorker:
-    """Applies contractual adjustments between expected and contracted rates."""
+    """    Applies contractual adjustments between expected and contracted rates.
+    
+        Archetype: FINANCIAL_CALCULATION
+        """
 
     WORKER_TYPE = "apply_contractual_adjustments"
 

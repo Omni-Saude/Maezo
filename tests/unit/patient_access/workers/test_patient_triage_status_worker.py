@@ -6,7 +6,7 @@ Tests notification of triage classification results to patients.
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from typing import Any
 from unittest.mock import AsyncMock
 
@@ -14,11 +14,11 @@ import pytest
 from pydantic import ValidationError
 
 from healthcare_platform.patient_access.workers.patient_triage_status_worker import (
+    PatientAccessException,
     PatientTriageStatusWorker,
     TriageStatusInput,
     TriageStatusOutput,
 )
-from healthcare_platform.shared.domain.exceptions import PatientAccessException
 from healthcare_platform.shared.integrations.whatsapp_client import (
     StubWhatsAppClient,
     WhatsAppTemplate,
@@ -270,7 +270,7 @@ class TestPatientTriageStatusWorker:
         output_data = {
             "notification_sent": True,
             "message_id": "msg-789",
-            "sent_at": datetime.now(UTC).isoformat(),
+            "sent_at": datetime.now(timezone.utc).isoformat(),
         }
         output_model = TriageStatusOutput(**output_data)
         assert output_model.notification_sent is True

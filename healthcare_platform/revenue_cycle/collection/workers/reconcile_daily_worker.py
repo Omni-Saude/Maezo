@@ -19,7 +19,10 @@ logger = get_logger(__name__)
 
 
 class ReconcileDailyWorker:
-    """Executa reconciliação diária de pagamentos recebidos."""
+    """    Executa reconciliação diária de pagamentos recebidos.
+    
+        Archetype: FINANCIAL_CALCULATION
+        """
 
     WORKER_TYPE = "reconcile_daily"
 

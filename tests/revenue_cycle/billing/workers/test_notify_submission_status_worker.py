@@ -5,8 +5,23 @@ import types
 
 import pytest
 
-from healthcare_platform.revenue_cycle.billing.workers.notify_submission_status_worker import NotifySubmissionStatusWorker
+from healthcare_platform.revenue_cycle.billing.workers.notify_submission_status_worker_v2 import NotifySubmissionStatusWorker
 from healthcare_platform.shared.integrations.whatsapp_client import StubWhatsAppClient
+
+from unittest.mock import Mock
+
+
+@pytest.fixture
+def mock_dmn_service():
+    """Create mock DMN service."""
+    dmn_service = Mock()
+    # Default DMN response: PROSSEGUIR (allow processing)
+    dmn_service.evaluate.return_value = {
+        "resultado": "PROSSEGUIR",
+        "acao": "Processar com sucesso",
+        "risco": "BAIXO"
+    }
+    return dmn_service
 
 
 @pytest.fixture
@@ -16,9 +31,12 @@ def whatsapp_client():
 
 
 @pytest.fixture
-def worker(whatsapp_client):
+def worker(whatsapp_client, mock_dmn_service):
     """Create worker instance."""
-    return NotifySubmissionStatusWorker(whatsapp_client=whatsapp_client)
+    return NotifySubmissionStatusWorker(
+        whatsapp_client=whatsapp_client,
+        dmn_service=mock_dmn_service
+    )
 
 
 @pytest.fixture

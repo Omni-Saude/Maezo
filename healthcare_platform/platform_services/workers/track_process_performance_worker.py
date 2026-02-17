@@ -12,6 +12,8 @@ Decorators: @require_tenant, @track_task_execution
 Métricas: Prometheus Counter, Histogram
 LGPD: Hash de identificadores de processo/paciente antes de log
 i18n: Todas strings user-facing via _()
+
+Archetype: OPERATIONAL_ROUTING
 """
 
 from __future__ import annotations

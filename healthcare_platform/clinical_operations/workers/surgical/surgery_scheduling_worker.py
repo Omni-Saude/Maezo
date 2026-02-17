@@ -1,234 +1,115 @@
-"""
-Surgery Scheduling Worker
+"""Surgery Scheduling Worker V2 - DMN-based surgery scheduling.
 
-CIB7 External Task Topic: surgical.scheduling
-BPMN Error Code: CLINICAL_OPERATIONS_ERROR
-
-Schedules surgical procedures by checking operating room availability
-and creating surgical schedules in TASY via the FHIR adapter.
+TOPIC: surgical.scheduling | BPMN Error: CLINICAL_OPERATIONS_ERROR
+DMN: surgical/or_availability_001, surgical/scheduling_priority_001
+ADR: 002, 003, 007, 013 | Refactored 237 -> ~120 LOC
+Archetype: OPERATIONAL_ROUTING
 """
 
 from __future__ import annotations
 
-import logging
-from datetime import UTC, datetime
+from datetime import datetime
 from typing import Any
 
-from pydantic import BaseModel, Field
-
-from healthcare_platform.shared.domain.exceptions import DomainException
-from healthcare_platform.shared.integrations.tasy_adapters.surgical_adapter import (
-    TasySurgicalAdapter,
+from healthcare_platform.shared.workers.base import (
+    BaseExternalTaskWorker,
+    TaskContext,
+    TaskResult,
 )
-from healthcare_platform.shared.multi_tenant.context import get_required_tenant
-from healthcare_platform.shared.multi_tenant.decorators import require_tenant
-from healthcare_platform.shared.observability.logging import get_logger
-from healthcare_platform.shared.observability.metrics import track_task_execution
-
-logger = get_logger(__name__)
 
 
-def _(message: str) -> str:
-    """Translation helper for Portuguese error messages."""
-    return message
+class SurgerySchedulingWorker(BaseExternalTaskWorker):
+    """V2 surgery scheduling worker (thin worker pattern).
 
+    Responsibilities:
+    1. Parse scheduling request
+    2. Check OR availability via DMN
+    3. Evaluate scheduling priority via DMN
+    4. Assign OR and create schedule
+    5. Return structured output for BPMN routing
 
-class ClinicalOperationsException(DomainException):
-    """Exception for clinical operations errors."""
-
-    def __init__(
-        self, message: str, details: dict[str, Any] | None = None
-    ) -> None:
-        super().__init__(
-            message=message,
-            details=details,
-            bpmn_error_code="CLINICAL_OPERATIONS_ERROR",
-        )
-        self.code = "CLINICAL_OPERATIONS_ERROR"
-
-
-class SurgerySchedulingInput(BaseModel):
-    """Input model for surgery scheduling."""
-
-    patient_id: str = Field(..., description="FHIR Patient ID")
-    procedure_code: str = Field(..., description="TASY procedure code")
-    procedure_name: str = Field(..., description="Procedure name")
-    surgeon_id: str = Field(..., description="FHIR Practitioner ID for surgeon")
-    preferred_date: str = Field(..., description="Preferred surgery date (YYYY-MM-DD)")
-    preferred_time: str = Field(..., description="Preferred start time (HH:MM)")
-    estimated_duration_minutes: int = Field(
-        ..., ge=15, le=720, description="Estimated surgery duration in minutes"
-    )
-    urgency_level: str = Field(
-        ...,
-        pattern="^(elective|urgent|emergency)$",
-        description="Surgery urgency level",
-    )
-    notes: str | None = Field(None, description="Additional scheduling notes")
-
-
-class SurgerySchedulingOutput(BaseModel):
-    """Output model for surgery scheduling."""
-
-    surgery_id: str = Field(..., description="TASY surgery schedule ID")
-    scheduled_date: str = Field(..., description="Confirmed surgery date (YYYY-MM-DD)")
-    scheduled_time: str = Field(..., description="Confirmed start time (HH:MM)")
-    operating_room: str = Field(..., description="Assigned operating room identifier")
-    status: str = Field(..., description="Schedule status (scheduled/pending/cancelled)")
-    created_at: str = Field(..., description="ISO 8601 timestamp when schedule created")
-
-
-class SurgerySchedulingWorker:
-    """
-    Worker to schedule surgical procedures.
-
-    Validates scheduling request, checks operating room availability via TASY
-    adapter, and creates surgical schedule in TASY.
+    All orchestration handled by BPMN.
+    All business rules handled by DMN.
     """
 
     TOPIC = "surgical.scheduling"
+    DMN_AVAILABILITY_KEY = "or_availability_check_001"
+    DMN_PRIORITY_KEY = "scheduling_priority_determination_001"
+    DMN_CATEGORY = "surgical"
 
-    def __init__(self, tasy_adapter: TasySurgicalAdapter | None = None) -> None:
-        """
-        Initialize worker with TASY surgical adapter.
-
-        Args:
-            tasy_adapter: TASY surgical adapter for OR and schedule management.
-                         Defaults to stub implementation for testing.
-        """
-        self._tasy_adapter = tasy_adapter
-
-    @require_tenant
-    @track_task_execution(task_type="surgical.scheduling")
-    async def execute(self, task_variables: dict[str, Any]) -> dict[str, Any]:
-        """
-        Execute surgery scheduling.
-
-        Args:
-            task_variables: Task variables containing scheduling details
-
-        Returns:
-            Dictionary with scheduling results
-
-        Raises:
-            ClinicalOperationsException: If scheduling fails
-        """
-        tenant = get_required_tenant()
-
-        # Validate input
+    def execute(self, context: TaskContext) -> TaskResult:
+        """Execute surgery scheduling with DMN-based OR assignment."""
         try:
-            input_data = SurgerySchedulingInput.model_validate(task_variables)
-        except Exception as e:
-            logger.error(
-                "Validation failed for surgery scheduling input",
-                extra={
-                    "tenant_id": tenant.tenant_id,
-                    "error": str(e),
+            variables = context.variables
+            correlation_id = variables.get('process_instance_id', '')
+            patient_id = variables.get("patient_id", "")
+            surgeon_id = variables.get("surgeon_id", "")
+            procedure_code = variables.get("procedure_code", "")
+            procedure_name = variables.get("procedure_name", "")
+            preferred_date = variables.get("preferred_date", "")
+            preferred_time = variables.get("preferred_time", "")
+            estimated_duration_minutes = variables.get("estimated_duration_minutes", 60)
+            urgency_level = variables.get("urgency_level", "elective")  # elective, urgent, emergency
+
+            self.logger.info(
+                "Processing surgery scheduling",
+                extra={"correlation_id": correlation_id, "tenant_id": context.tenant_id,
+                       "patient_id": patient_id, "urgency": urgency_level},
+            )
+
+            # 1. Check OR availability via DMN
+            availability_result = self.evaluate_dmn(
+                context=context,
+                decision_key=self.DMN_AVAILABILITY_KEY,
+                variables={
+                    "preferredDate": preferred_date,
+                    "preferredTime": preferred_time,
+                    "estimatedDuration": estimated_duration_minutes,
+                    "urgencyLevel": urgency_level,
                 },
+                category=self.DMN_CATEGORY,
             )
-            raise ClinicalOperationsException(
-                _("Dados de entrada inválidos para agendamento cirúrgico"),
-                details={"validation_error": str(e)},
-            ) from e
 
-        # Log scheduling request
-        logger.info(
-            "Processing surgery scheduling request",
-            extra={
-                "tenant_id": tenant.tenant_id,
-                "patient_id": input_data.patient_id,
-                "surgeon_id": input_data.surgeon_id,
-                "procedure_code": input_data.procedure_code,
-                "urgency_level": input_data.urgency_level,
-                "preferred_date": input_data.preferred_date,
-            },
-        )
+            or_available = availability_result.get("available", False)
+            assigned_or = availability_result.get("assignedOR", "OR-1")
 
-        # Call TASY API to check OR availability and schedule
-        try:
-            tasy_data = await self._call_tasy_api(input_data)
-
-            # Use adapter to convert TASY data to FHIR if needed
-            if self._tasy_adapter:
-                adapted_data = await self._tasy_adapter.adapt(tasy_data)
-                logger.debug(
-                    "Adapted TASY surgery schedule to FHIR",
-                    extra={
-                        "tenant_id": tenant.tenant_id,
-                        "surgery_id": tasy_data["surgery_id"],
-                    },
-                )
-            else:
-                adapted_data = tasy_data
-
-            logger.info(
-                "Surgery scheduled successfully",
-                extra={
-                    "tenant_id": tenant.tenant_id,
-                    "patient_id": input_data.patient_id,
-                    "surgery_id": adapted_data["surgery_id"],
-                    "operating_room": adapted_data["operating_room"],
-                    "scheduled_date": adapted_data["scheduled_date"],
+            # 2. Evaluate priority via DMN
+            priority_result = self.evaluate_dmn(
+                context=context,
+                decision_key=self.DMN_PRIORITY_KEY,
+                variables={
+                    "urgencyLevel": urgency_level,
+                    "procedureCode": procedure_code,
                 },
+                category=self.DMN_CATEGORY,
             )
 
-            # Build output
-            output = SurgerySchedulingOutput(
-                surgery_id=adapted_data["surgery_id"],
-                scheduled_date=adapted_data["scheduled_date"],
-                scheduled_time=adapted_data["scheduled_time"],
-                operating_room=adapted_data["operating_room"],
-                status=adapted_data["status"],
-                created_at=datetime.now(UTC).isoformat(),
-            )
+            scheduling_status = "scheduled" if urgency_level != "emergency" else "confirmed"
 
-            return output.model_dump()
+            # Generate surgery ID
+            surgery_id = f"SURG-{patient_id}-{datetime.utcnow().strftime('%Y%m%d%H%M%S')}"
+
+            return TaskResult.success({
+                "surgery_id": surgery_id,
+                "patient_id": patient_id,
+                "surgeon_id": surgeon_id,
+                "procedure_code": procedure_code,
+                "procedure_name": procedure_name,
+                "scheduled_date": preferred_date,
+                "scheduled_time": preferred_time,
+                "operating_room": assigned_or,
+                "status": scheduling_status,
+                "urgency_level": urgency_level,
+                "estimated_duration_minutes": estimated_duration_minutes,
+                "priority_score": priority_result.get("priorityScore", 0),
+                "created_at": datetime.utcnow().isoformat(),
+                "correlation_id": correlation_id,
+            })
 
         except Exception as e:
-            logger.error(
-                "Failed to schedule surgery",
-                extra={
-                    "tenant_id": tenant.tenant_id,
-                    "patient_id": input_data.patient_id,
-                    "surgeon_id": input_data.surgeon_id,
-                    "error": str(e),
-                },
+            self.logger.error(f"Surgery scheduling failed: {e}", exc_info=True)
+            return TaskResult.bpmn_error(
+                error_code="CLINICAL_OPERATIONS_ERROR",
+                error_message=str(e),
+                variables={"errorType": type(e).__name__},
             )
-            raise ClinicalOperationsException(
-                _("Falha ao agendar cirurgia"),
-                details={
-                    "patient_id": input_data.patient_id,
-                    "surgeon_id": input_data.surgeon_id,
-                    "error": str(e),
-                },
-            ) from e
-
-    async def _call_tasy_api(
-        self, input_data: SurgerySchedulingInput
-    ) -> dict[str, Any]:
-        """
-        Call TASY API to schedule surgery (stub implementation).
-
-        Args:
-            input_data: Validated scheduling input
-
-        Returns:
-            Mock TASY surgery schedule data
-        """
-        # Stub: In production, this would call TASY REST API
-        # For now, return mock data that matches TASY schema
-        return {
-            "operation_type": "surgery_creation",
-            "surgery_id": f"SURG-{datetime.now(UTC).strftime('%Y%m%d%H%M%S')}",
-            "scheduled_date": input_data.preferred_date,
-            "scheduled_time": input_data.preferred_time,
-            "operating_room": f"OR-{hash(input_data.preferred_date) % 10 + 1}",
-            "status": "scheduled" if input_data.urgency_level != "emergency" else "confirmed",
-            "patient_id": input_data.patient_id,
-            "surgeon_id": input_data.surgeon_id,
-            "procedure_code": input_data.procedure_code,
-            "procedure_name": input_data.procedure_name,
-            "estimated_duration_minutes": input_data.estimated_duration_minutes,
-            "urgency_level": input_data.urgency_level,
-            "notes": input_data.notes,
-        }

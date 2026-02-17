@@ -1,0 +1,275 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+                  xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+                  xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+                  xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
+                  xmlns:camunda="http://camunda.org/schema/1.0/bpmn"
+                  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                  id="Definitions_SP_PX_001"
+                  targetNamespace="http://cib7.healthcare/patient-access/followup"
+                  exporter="CIB Seven 2.1.3"
+                  exporterVersion="2.1.3">
+
+  <bpmn:error id="Error_FollowupFailed" name="FOLLOWUP_FAILED_ERROR" errorCode="FOLLOWUP_FAILED_ERROR"/>
+
+  <bpmn:message id="Message_DischargeCompleted" name="msg_discharge_completed"/>
+
+  <bpmn:process id="SP_PX_001_Post_Discharge_Followup" name="Acompanhamento Pós-Alta" isExecutable="true">
+
+    <!-- Start Event: Discharge Completed -->
+    <bpmn:startEvent id="Start_DischargeCompleted" name="Alta Concluída">
+      <bpmn:outgoing>Flow_ToScheduleContact</bpmn:outgoing>
+      <bpmn:messageEventDefinition messageRef="Message_DischargeCompleted"/>
+    </bpmn:startEvent>
+
+    <!-- Task 1: Schedule Initial Contact (24h) -->
+    <bpmn:serviceTask id="Task_ScheduleContact" name="Agendar Contato Inicial"
+                      camunda:type="external" camunda:topic="followup.schedule_contact">
+      <bpmn:incoming>Flow_ToScheduleContact</bpmn:incoming>
+      <bpmn:outgoing>Flow_ToTimer24h</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Timer: Wait 24h for first contact -->
+    <bpmn:intermediateCatchEvent id="Timer_24h" name="Aguardar 24h">
+      <bpmn:incoming>Flow_ToTimer24h</bpmn:incoming>
+      <bpmn:outgoing>Flow_ToAssessRecovery</bpmn:outgoing>
+      <bpmn:timerEventDefinition>
+        <bpmn:timeDuration xsi:type="bpmn:tFormalExpression">PT24H</bpmn:timeDuration>
+      </bpmn:timerEventDefinition>
+    </bpmn:intermediateCatchEvent>
+
+    <!-- Task 2: Assess Recovery -->
+    <bpmn:serviceTask id="Task_AssessRecovery" name="Avaliar Recuperação"
+                      camunda:type="external" camunda:topic="followup.assess_recovery">
+      <bpmn:incoming>Flow_ToAssessRecovery</bpmn:incoming>
+      <bpmn:outgoing>Flow_ToCheckMedication</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Task 3: Check Medication Adherence -->
+    <bpmn:serviceTask id="Task_CheckMedicationAdherence" name="Verificar Adesão Medicamentosa"
+                      camunda:type="external" camunda:topic="followup.check_medication_adherence">
+      <bpmn:incoming>Flow_ToCheckMedication</bpmn:incoming>
+      <bpmn:outgoing>Flow_ToDetectReadmission</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Task 4: Detect Readmission Risk -->
+    <bpmn:serviceTask id="Task_DetectReadmissionRisk" name="Detectar Risco de Readmissão"
+                      camunda:type="external" camunda:topic="followup.detect_readmission_risk">
+      <bpmn:incoming>Flow_ToDetectReadmission</bpmn:incoming>
+      <bpmn:outgoing>Flow_ToRiskGateway</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Gateway: Readmission Risk? -->
+    <bpmn:exclusiveGateway id="Gateway_ReadmissionRisk" name="Risco de Readmissão?" default="Flow_RiskLow">
+      <bpmn:incoming>Flow_ToRiskGateway</bpmn:incoming>
+      <bpmn:outgoing>Flow_RiskHigh</bpmn:outgoing>
+      <bpmn:outgoing>Flow_RiskLow</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+
+    <!-- Task 5: Escalate Concern -->
+    <bpmn:serviceTask id="Task_EscalateConcern" name="Escalar Preocupação"
+                      camunda:type="external" camunda:topic="followup.escalate_concern">
+      <bpmn:incoming>Flow_RiskHigh</bpmn:incoming>
+      <bpmn:outgoing>Flow_EscalateToWhatsApp</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Task 6: Send WhatsApp (after escalation) -->
+    <bpmn:serviceTask id="Task_SendWhatsAppEscalate" name="Notificar Equipe via WhatsApp"
+                      camunda:type="external" camunda:topic="platform.send_whatsapp">
+      <bpmn:incoming>Flow_EscalateToWhatsApp</bpmn:incoming>
+      <bpmn:outgoing>Flow_EscalateToMerge</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Task 7: Send WhatsApp (routine follow-up) -->
+    <bpmn:serviceTask id="Task_SendWhatsAppRoutine" name="Enviar Resumo via WhatsApp"
+                      camunda:type="external" camunda:topic="platform.send_whatsapp">
+      <bpmn:incoming>Flow_RiskLow</bpmn:incoming>
+      <bpmn:outgoing>Flow_RoutineToMerge</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Merge Gateway -->
+    <bpmn:exclusiveGateway id="Gateway_Merge" name="Merge">
+      <bpmn:incoming>Flow_EscalateToMerge</bpmn:incoming>
+      <bpmn:incoming>Flow_RoutineToMerge</bpmn:incoming>
+      <bpmn:outgoing>Flow_ToTimerCycle</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+
+    <!-- Timer Cycle: Repeat at 72h, 7d, 30d -->
+    <bpmn:intermediateCatchEvent id="Timer_Cycle" name="Próximo Ciclo (72h/7d/30d)">
+      <bpmn:incoming>Flow_ToTimerCycle</bpmn:incoming>
+      <bpmn:outgoing>Flow_ToEnd</bpmn:outgoing>
+      <bpmn:timerEventDefinition>
+        <bpmn:timeCycle xsi:type="bpmn:tFormalExpression">R3/PT72H</bpmn:timeCycle>
+      </bpmn:timerEventDefinition>
+    </bpmn:intermediateCatchEvent>
+
+    <!-- End Event -->
+    <bpmn:endEvent id="End_FollowupComplete" name="Acompanhamento Concluído">
+      <bpmn:incoming>Flow_ToEnd</bpmn:incoming>
+    </bpmn:endEvent>
+
+    <!-- Sequence Flows -->
+    <bpmn:sequenceFlow id="Flow_ToScheduleContact" sourceRef="Start_DischargeCompleted" targetRef="Task_ScheduleContact"/>
+    <bpmn:sequenceFlow id="Flow_ToTimer24h" sourceRef="Task_ScheduleContact" targetRef="Timer_24h"/>
+    <bpmn:sequenceFlow id="Flow_ToAssessRecovery" sourceRef="Timer_24h" targetRef="Task_AssessRecovery"/>
+    <bpmn:sequenceFlow id="Flow_ToCheckMedication" sourceRef="Task_AssessRecovery" targetRef="Task_CheckMedicationAdherence"/>
+    <bpmn:sequenceFlow id="Flow_ToDetectReadmission" sourceRef="Task_CheckMedicationAdherence" targetRef="Task_DetectReadmissionRisk"/>
+    <bpmn:sequenceFlow id="Flow_ToRiskGateway" sourceRef="Task_DetectReadmissionRisk" targetRef="Gateway_ReadmissionRisk"/>
+    <bpmn:sequenceFlow id="Flow_RiskHigh" sourceRef="Gateway_ReadmissionRisk" targetRef="Task_EscalateConcern">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${readmission_risk == 'HIGH'}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_RiskLow" sourceRef="Gateway_ReadmissionRisk" targetRef="Task_SendWhatsAppRoutine"/>
+    <bpmn:sequenceFlow id="Flow_EscalateToWhatsApp" sourceRef="Task_EscalateConcern" targetRef="Task_SendWhatsAppEscalate"/>
+    <bpmn:sequenceFlow id="Flow_EscalateToMerge" sourceRef="Task_SendWhatsAppEscalate" targetRef="Gateway_Merge"/>
+    <bpmn:sequenceFlow id="Flow_RoutineToMerge" sourceRef="Task_SendWhatsAppRoutine" targetRef="Gateway_Merge"/>
+    <bpmn:sequenceFlow id="Flow_ToTimerCycle" sourceRef="Gateway_Merge" targetRef="Timer_Cycle"/>
+    <bpmn:sequenceFlow id="Flow_ToEnd" sourceRef="Timer_Cycle" targetRef="End_FollowupComplete"/>
+
+  </bpmn:process>
+
+  <!-- Diagram Interchange -->
+  <bpmndi:BPMNDiagram id="BPMNDiagram_SP_PX_001">
+    <bpmndi:BPMNPlane id="BPMNPlane_SP_PX_001" bpmnElement="SP_PX_001_Post_Discharge_Followup">
+
+      <bpmndi:BPMNShape id="Shape_Start_DischargeCompleted" bpmnElement="Start_DischargeCompleted">
+        <dc:Bounds x="152" y="102" width="36" height="36"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="131" y="145" width="78" height="27"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Shape_Task_ScheduleContact" bpmnElement="Task_ScheduleContact">
+        <dc:Bounds x="240" y="80" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Shape_Timer_24h" bpmnElement="Timer_24h">
+        <dc:Bounds x="392" y="102" width="36" height="36"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="378" y="145" width="64" height="14"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Shape_Task_AssessRecovery" bpmnElement="Task_AssessRecovery">
+        <dc:Bounds x="480" y="80" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Shape_Task_CheckMedicationAdherence" bpmnElement="Task_CheckMedicationAdherence">
+        <dc:Bounds x="630" y="80" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Shape_Task_DetectReadmissionRisk" bpmnElement="Task_DetectReadmissionRisk">
+        <dc:Bounds x="780" y="80" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Shape_Gateway_ReadmissionRisk" bpmnElement="Gateway_ReadmissionRisk" isMarkerVisible="true">
+        <dc:Bounds x="935" y="95" width="50" height="50"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="920" y="65" width="80" height="14"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Shape_Task_EscalateConcern" bpmnElement="Task_EscalateConcern">
+        <dc:Bounds x="1040" y="80" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Shape_Task_SendWhatsAppEscalate" bpmnElement="Task_SendWhatsAppEscalate">
+        <dc:Bounds x="1190" y="80" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Shape_Task_SendWhatsAppRoutine" bpmnElement="Task_SendWhatsAppRoutine">
+        <dc:Bounds x="1040" y="240" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Shape_Gateway_Merge" bpmnElement="Gateway_Merge" isMarkerVisible="true">
+        <dc:Bounds x="1345" y="95" width="50" height="50"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1355" y="65" width="30" height="14"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Shape_Timer_Cycle" bpmnElement="Timer_Cycle">
+        <dc:Bounds x="1452" y="102" width="36" height="36"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1430" y="145" width="80" height="14"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Shape_End_FollowupComplete" bpmnElement="End_FollowupComplete">
+        <dc:Bounds x="1542" y="102" width="36" height="36"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1520" y="145" width="80" height="27"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+
+      <!-- Edges -->
+      <bpmndi:BPMNEdge id="Edge_Flow_ToScheduleContact" bpmnElement="Flow_ToScheduleContact">
+        <di:waypoint x="188" y="120"/>
+        <di:waypoint x="240" y="120"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_Flow_ToTimer24h" bpmnElement="Flow_ToTimer24h">
+        <di:waypoint x="340" y="120"/>
+        <di:waypoint x="392" y="120"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_Flow_ToAssessRecovery" bpmnElement="Flow_ToAssessRecovery">
+        <di:waypoint x="428" y="120"/>
+        <di:waypoint x="480" y="120"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_Flow_ToCheckMedication" bpmnElement="Flow_ToCheckMedication">
+        <di:waypoint x="580" y="120"/>
+        <di:waypoint x="630" y="120"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_Flow_ToDetectReadmission" bpmnElement="Flow_ToDetectReadmission">
+        <di:waypoint x="730" y="120"/>
+        <di:waypoint x="780" y="120"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_Flow_ToRiskGateway" bpmnElement="Flow_ToRiskGateway">
+        <di:waypoint x="880" y="120"/>
+        <di:waypoint x="935" y="120"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_Flow_RiskHigh" bpmnElement="Flow_RiskHigh">
+        <di:waypoint x="985" y="120"/>
+        <di:waypoint x="1040" y="120"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_Flow_RiskLow" bpmnElement="Flow_RiskLow">
+        <di:waypoint x="960" y="145"/>
+        <di:waypoint x="960" y="280"/>
+        <di:waypoint x="1040" y="280"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_Flow_EscalateToWhatsApp" bpmnElement="Flow_EscalateToWhatsApp">
+        <di:waypoint x="1140" y="120"/>
+        <di:waypoint x="1190" y="120"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_Flow_EscalateToMerge" bpmnElement="Flow_EscalateToMerge">
+        <di:waypoint x="1290" y="120"/>
+        <di:waypoint x="1345" y="120"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_Flow_RoutineToMerge" bpmnElement="Flow_RoutineToMerge">
+        <di:waypoint x="1140" y="280"/>
+        <di:waypoint x="1370" y="280"/>
+        <di:waypoint x="1370" y="145"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_Flow_ToTimerCycle" bpmnElement="Flow_ToTimerCycle">
+        <di:waypoint x="1395" y="120"/>
+        <di:waypoint x="1452" y="120"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_Flow_ToEnd" bpmnElement="Flow_ToEnd">
+        <di:waypoint x="1488" y="120"/>
+        <di:waypoint x="1542" y="120"/>
+      </bpmndi:BPMNEdge>
+
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+
+</bpmn:definitions>

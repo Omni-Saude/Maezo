@@ -15,7 +15,10 @@ logger = get_logger(__name__)
 
 
 class IdentifyOverdueWorker:
-    """Identifica cobranças vencidas e cria casos de cobrança."""
+    """    Identifica cobranças vencidas e cria casos de cobrança.
+    
+        Archetype: FINANCIAL_CALCULATION
+        """
 
     WORKER_TYPE = "identify_overdue"
 

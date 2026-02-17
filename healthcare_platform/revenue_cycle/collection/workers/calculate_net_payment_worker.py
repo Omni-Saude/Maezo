@@ -14,7 +14,10 @@ logger = get_logger(__name__)
 
 
 class CalculateNetPaymentWorker:
-    """Calculates net payment = gross - bank_fees - tax_withholding."""
+    """    Calculates net payment = gross - bank_fees - tax_withholding.
+    
+        Archetype: FINANCIAL_CALCULATION
+        """
 
     WORKER_TYPE = "calculate_net_payment"
 

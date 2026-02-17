@@ -54,7 +54,10 @@ TOPIC = "platform.monitor_system_health"
 
 
 class SystemHealthException(DomainException):
-    """Exceção de monitoramento de saúde do sistema."""
+    """    Exceção de monitoramento de saúde do sistema.
+    
+        Archetype: CLINICAL_ALERT
+        """
 
     def __init__(self, message: str, details: dict[str, Any] | None = None):
         super().__init__(

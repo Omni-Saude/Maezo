@@ -1,6 +1,8 @@
 """Tests for AnalyzePayerPerformanceWorker."""
 from __future__ import annotations
 
+from unittest.mock import MagicMock, patch
+
 import pytest
 
 from healthcare_platform.revenue_cycle.collection.workers.analyze_payer_performance_worker import (
@@ -9,11 +11,35 @@ from healthcare_platform.revenue_cycle.collection.workers.analyze_payer_performa
 
 
 @pytest.mark.asyncio
-async def test_analyze_payer_performance_success():
+@patch('healthcare_platform.revenue_cycle.collection.workers.analyze_payer_performance_worker.get_required_tenant', return_value='test-tenant')
+@patch('healthcare_platform.revenue_cycle.collection.workers.analyze_payer_performance_worker.FederatedDMNService')
+async def test_analyze_payer_performance_success(MockDMNService, mock_tenant):
     """Test successful payer performance analysis."""
-    worker = AnalyzePayerPerformanceWorker()
+    mock_dmn = MockDMNService.return_value
+    mock_dmn.evaluate.return_value = {
+        'payerMetrics': [
+            {
+                "payer_id": "payer-1",
+                "payer_name": "Bradesco Saúde",
+                "denial_rate": 5.0,
+                "collection_rate": 95.0,
+                "performance_score": 92.0
+            },
+            {
+                "payer_id": "payer-2",
+                "payer_name": "Amil",
+                "denial_rate": 15.0,
+                "collection_rate": 85.0,
+                "performance_score": 75.0
+            }
+        ],
+        'bestPerformer': {"payer_id": "payer-1", "performance_score": 92.0},
+        'worstPerformer': {"payer_id": "payer-2", "performance_score": 75.0}
+    }
 
-    task_variables = {
+    worker = AnalyzePayerPerformanceWorker()
+    job = MagicMock()
+    job.variables = {
         "payers": [
             {
                 "payer_id": "payer-1",
@@ -38,43 +64,63 @@ async def test_analyze_payer_performance_success():
         ]
     }
 
-    result = await worker.execute(task_variables)
+    result = await worker.execute(job)
 
-    assert len(result["payers"]) == 2
-    assert result["total_payers_analyzed"] == 2
+    assert result.success
+    assert len(result.variables["payers"]) == 2
+    assert result.variables["total_payers_analyzed"] == 2
 
     # Best performer should be payer-1 (better metrics)
-    best = result["best_performer"]
+    best = result.variables["best_performer"]
     assert best["payer_id"] == "payer-1"
-    assert best["performance_score"] > result["worst_performer"]["performance_score"]
+    assert best["performance_score"] > result.variables["worst_performer"]["performance_score"]
 
     # Check calculated metrics
-    payer1 = result["payers"][0]
+    payer1 = result.variables["payers"][0]
     assert payer1["denial_rate"] == 5.0
     assert payer1["collection_rate"] == 95.0
 
 
 @pytest.mark.asyncio
-async def test_analyze_payer_performance_empty():
+@patch('healthcare_platform.revenue_cycle.collection.workers.analyze_payer_performance_worker.get_required_tenant', return_value='test-tenant')
+async def test_analyze_payer_performance_empty(mock_tenant):
     """Test handling of empty payers list."""
     worker = AnalyzePayerPerformanceWorker()
+    job = MagicMock()
+    job.variables = {"payers": []}
 
-    task_variables = {"payers": []}
+    result = await worker.execute(job)
 
-    result = await worker.execute(task_variables)
-
-    assert result["payers"] == []
-    assert result["best_performer"] is None
-    assert result["worst_performer"] is None
-    assert result["total_payers_analyzed"] == 0
+    assert result.success
+    assert result.variables["payers"] == []
+    assert result.variables["best_performer"] is None
+    assert result.variables["worst_performer"] is None
+    assert result.variables["total_payers_analyzed"] == 0
 
 
 @pytest.mark.asyncio
-async def test_analyze_payer_performance_zero_division():
+@patch('healthcare_platform.revenue_cycle.collection.workers.analyze_payer_performance_worker.get_required_tenant', return_value='test-tenant')
+@patch('healthcare_platform.revenue_cycle.collection.workers.analyze_payer_performance_worker.FederatedDMNService')
+async def test_analyze_payer_performance_zero_division(MockDMNService, mock_tenant):
     """Test handling of zero values."""
-    worker = AnalyzePayerPerformanceWorker()
+    mock_dmn = MockDMNService.return_value
+    mock_dmn.evaluate.return_value = {
+        'payerMetrics': [
+            {
+                "payer_id": "payer-1",
+                "payer_name": "Test Payer",
+                "denial_rate": 0.0,
+                "collection_rate": 0.0,
+                "performance_score": 0.0
+            }
+        ],
+        'bestPerformer': {"payer_id": "payer-1", "performance_score": 0.0},
+        'worstPerformer': {"payer_id": "payer-1", "performance_score": 0.0}
+    }
 
-    task_variables = {
+    worker = AnalyzePayerPerformanceWorker()
+    job = MagicMock()
+    job.variables = {
         "payers": [
             {
                 "payer_id": "payer-1",
@@ -89,8 +135,9 @@ async def test_analyze_payer_performance_zero_division():
         ]
     }
 
-    result = await worker.execute(task_variables)
+    result = await worker.execute(job)
 
-    payer = result["payers"][0]
+    assert result.success
+    payer = result.variables["payers"][0]
     assert payer["denial_rate"] == 0.0
     assert payer["collection_rate"] == 0.0

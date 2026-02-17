@@ -27,7 +27,9 @@ CID10_PATTERN = re.compile(r"^[A-Z]\d{2}(\.\d{1,2})?$")
 
 
 class CID10Suggestion(BaseModel):
-    """A suggested CID-10 code with confidence score."""
+    """A suggested CID-10 code with confidence score.
+
+    Archetype: FINANCIAL_CALCULATION"""
 
     code: str = Field(..., description="CID-10 code (e.g., J18.9)")
     description: str = Field(..., description="Diagnosis description in Portuguese")

@@ -45,7 +45,10 @@ patterns_detected_gauge = Gauge(
 
 
 class DenialPatternAnalysisError(DomainException):
-    """Exceção para erros na análise de padrões de glosa."""
+    """    Exceção para erros na análise de padrões de glosa.
+    
+        Archetype: COMPLIANCE_VALIDATION
+        """
 
     def __init__(self, message: str, details: dict[str, Any] | None = None):
         super().__init__(

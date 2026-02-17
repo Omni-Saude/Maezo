@@ -3,6 +3,8 @@ Track Optimization ROI Worker.
 
 Measures actual revenue impact of implemented optimizations, calculates payback
 periods, and performs trend analysis for continuous improvement tracking.
+
+Archetype: FINANCIAL_CALCULATION
 """
 
 from __future__ import annotations

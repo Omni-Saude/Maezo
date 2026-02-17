@@ -16,7 +16,10 @@ logger = get_logger(__name__)
 
 
 class NegotiatePaymentPlanWorker:
-    """Negocia plano de pagamento parcelado (max 12x, mínimo R$100/parcela)."""
+    """    Negocia plano de pagamento parcelado (max 12x, mínimo R$100/parcela).
+    
+        Archetype: FINANCIAL_CALCULATION
+        """
 
     WORKER_TYPE = "negotiate_payment_plan"
 

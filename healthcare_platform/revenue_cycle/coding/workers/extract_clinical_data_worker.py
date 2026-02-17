@@ -58,6 +58,8 @@ class ExtractClinicalDataWorker:
     Fetches the encounter resource and related Condition, Procedure,
     DocumentReference, and MedicationRequest resources to build
     a complete clinical picture for CID-10 and TUSS coding.
+
+    Archetype: FINANCIAL_CALCULATION
     """
 
     TOPIC = "coding.extract_clinical_data"

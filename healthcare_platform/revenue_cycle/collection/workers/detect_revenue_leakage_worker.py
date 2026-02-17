@@ -17,7 +17,10 @@ logger = get_logger(__name__)
 
 
 class RevenueLeakage(BaseModel):
-    """Oportunidade de recuperação de receita."""
+    """    Oportunidade de recuperação de receita.
+    
+        Archetype: FINANCIAL_CALCULATION
+        """
 
     category: str
     description: str

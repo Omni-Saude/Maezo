@@ -39,6 +39,8 @@ class CalculateQuantityWorker:
     - Duration-based (anesthesia, ICU, ventilator)
     - Frequency limits per procedure type
     - Multi-unit procedures
+
+    Archetype: CLINICAL_SCORE
     """
 
     TOPIC = "production.calculate_quantity"

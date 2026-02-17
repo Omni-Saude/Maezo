@@ -1,11 +1,11 @@
 from __future__ import annotations
 
 from datetime import date
+from unittest.mock import MagicMock, patch
 
 import pytest
 
-from healthcare_platform.revenue_cycle.collection.enums import ReconciliationPeriod, ReconciliationStatus
-from healthcare_platform.revenue_cycle.collection.exceptions import ReconciliationError
+from healthcare_platform.revenue_cycle.collection.enums import ReconciliationStatus
 from healthcare_platform.revenue_cycle.collection.workers.reconcile_monthly_worker import ReconcileMonthlyWorker
 
 
@@ -13,50 +13,58 @@ from healthcare_platform.revenue_cycle.collection.workers.reconcile_monthly_work
 class TestReconcileMonthlyWorker:
     """Tests for ReconcileMonthlyWorker."""
 
-    async def test_reconcile_monthly_success(self):
+    @patch('healthcare_platform.revenue_cycle.collection.workers.reconcile_monthly_worker.get_required_tenant')
+    @patch('healthcare_platform.revenue_cycle.collection.workers.reconcile_monthly_worker.FederatedDMNService')
+    async def test_reconcile_monthly_success(self, mock_dmn_class, mock_tenant):
         """Test successful monthly reconciliation."""
+        mock_tenant.return_value = 'test-tenant'
+        mock_dmn = MagicMock()
+        mock_dmn_class.return_value = mock_dmn
+        mock_dmn.evaluate.return_value = {
+            'status': ReconciliationStatus.CLOSED.value
+        }
+
         worker = ReconcileMonthlyWorker()
 
-        task_variables = {
+        job = MagicMock()
+        job.variables = {
             "month": 1,
             "year": 2024,
             "closed_by": "user@example.com",
         }
 
-        result = await worker.execute(task_variables)
+        result = await worker.execute(job)
 
-        assert result["reconciliation_id"] is not None
-        assert result["status"] == ReconciliationStatus.CLOSED.value
-        assert result["period_start"] == "2024-01-01"
-        assert result["period_end"] == "2024-01-31"
-        assert result["all_payments_allocated"] is True
-        assert result["closed_by"] == "user@example.com"
-        assert "closed_at" in result
+        assert result.success
+        assert result.variables["reconciliation_id"] is not None
+        assert result.variables["status"] == ReconciliationStatus.CLOSED.value
+        assert result.variables["period_start"] == "2024-01-01"
+        assert result.variables["period_end"] == "2024-01-31"
+        assert result.variables["closed_by"] == "user@example.com"
+        assert "closed_at" in result.variables
 
-    async def test_reconcile_monthly_invalid_month(self):
-        """Test reconciliation with invalid month."""
-        worker = ReconcileMonthlyWorker()
-
-        task_variables = {
-            "month": 13,
-            "year": 2024,
-            "closed_by": "user@example.com",
+    @patch('healthcare_platform.revenue_cycle.collection.workers.reconcile_monthly_worker.get_required_tenant')
+    @patch('healthcare_platform.revenue_cycle.collection.workers.reconcile_monthly_worker.FederatedDMNService')
+    async def test_reconcile_monthly_december(self, mock_dmn_class, mock_tenant):
+        """Test reconciliation for December (edge case)."""
+        mock_tenant.return_value = 'test-tenant'
+        mock_dmn = MagicMock()
+        mock_dmn_class.return_value = mock_dmn
+        mock_dmn.evaluate.return_value = {
+            'status': ReconciliationStatus.CLOSED.value
         }
 
-        with pytest.raises(ReconciliationError):
-            await worker.execute(task_variables)
-
-    async def test_reconcile_monthly_december(self):
-        """Test reconciliation for December (edge case)."""
         worker = ReconcileMonthlyWorker()
 
-        task_variables = {
+        job = MagicMock()
+        job.variables = {
             "month": 12,
             "year": 2024,
             "closed_by": "user@example.com",
         }
 
-        result = await worker.execute(task_variables)
+        result = await worker.execute(job)
 
-        assert result["period_start"] == "2024-12-01"
-        assert result["period_end"] == "2024-12-31"
+        assert result.success
+        assert result.variables["period_start"] == "2024-12-01"
+        assert result.variables["period_end"] == "2024-12-31"

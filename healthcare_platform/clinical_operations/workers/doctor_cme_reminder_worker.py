@@ -5,241 +5,97 @@ CIB7 External Task Topic: relationship.cme_reminder
 BPMN Error Code: CLINICAL_OPERATIONS_ERROR
 
 Sends continuing medical education credit reminders with urgency levels.
+
+Refactored to V2 pattern using BaseExternalTaskWorker.
+Business rules delegated to DMN: clinical_safety/doctor_cme_reminder_scoring.
+
+ADR Compliance:
+- ADR-002: Tenant resolution via context
+- ADR-003: BaseExternalTaskWorker inheritance
+- ADR-007: DMN federation for tenant overrides
+
+Author: Claude Flow V3 (Automated Refactoring 2026-02-16)
+License: MIT
 """
+
 from __future__ import annotations
 
-from datetime import datetime, timezone
-from typing import Any
+from datetime import datetime
+from typing import Any, Dict, Optional
 
-from pydantic import BaseModel, Field, ValidationError
-
-from healthcare_platform.shared.domain.exceptions import DomainException
-from healthcare_platform.shared.i18n import _
-from healthcare_platform.shared.integrations.whatsapp_client import (
-    WhatsAppClientProtocol,
-    WhatsAppTemplate,
-    StubWhatsAppClient,
+from healthcare_platform.shared.workers.base import (
+    BaseExternalTaskWorker,
+    TaskContext,
+    TaskResult,
 )
-from healthcare_platform.shared.multi_tenant.context import get_required_tenant
-from healthcare_platform.shared.multi_tenant.decorators import require_tenant
-from healthcare_platform.shared.observability.logging import get_logger
-from healthcare_platform.shared.observability.metrics import track_task_execution
-
-logger = get_logger(__name__, worker="relationship.cme_reminder")
 
 
-class ClinicalOperationsException(DomainException):
-    """Clinical operations domain exception."""
+class DoctorCmeReminderWorker(BaseExternalTaskWorker):
+    """
+    Doctor CME Reminder Worker
 
-    bpmn_error_code: str = "CLINICAL_OPERATIONS_ERROR"
+    Responsibilities (thin worker pattern):
+    1. Parse input variables
+    2. Evaluate DMN for clinical scoring and alerts
+    3. Return structured output for BPMN routing
 
+    All orchestration handled by BPMN.
+    All business rules handled by DMN.
 
-class DoctorCmeReminderInput(BaseModel):
-    """Input model for doctor CME reminder worker."""
+    Archetype: CLINICAL_ALERT
+    """
 
-    doctor_id: str = Field(..., description=_("FHIR Practitioner ID"))
-    phone_number: str = Field(..., description=_("Doctor phone E.164"))
-    credits_required: int = Field(
-        ..., ge=0, description=_("Total credits required")
-    )
-    credits_completed: int = Field(
-        ..., ge=0, description=_("Credits completed so far")
-    )
-    expiration_date: str = Field(
-        ..., description=_("Credential expiration ISO date")
-    )
-    days_until_expiration: int = Field(
-        ..., description=_("Days until credential expiration")
-    )
-    recommended_courses: list[str] = Field(
-        default=[], description=_("List of recommended course names")
-    )
+    TOPIC = "clinical.doctor_cme_reminder"
+    DMN_DECISION_KEY = "doctor_cme_reminder_scoring"
+    DMN_CATEGORY = "clinical_safety"
 
-    def to_variables(self) -> dict[str, Any]:
-        """Convert to Camunda process variables."""
-        return {
-            "doctor_id": self.doctor_id,
-            "phone_number": self.phone_number,
-            "credits_required": self.credits_required,
-            "credits_completed": self.credits_completed,
-            "expiration_date": self.expiration_date,
-            "days_until_expiration": self.days_until_expiration,
-            "recommended_courses": self.recommended_courses,
-        }
-
-
-class DoctorCmeReminderOutput(BaseModel):
-    """Output model for doctor CME reminder worker."""
-
-    notification_sent: bool = Field(
-        ..., description=_("Whether notification was sent successfully")
-    )
-    message_id: str | None = Field(
-        None, description=_("WhatsApp message ID for tracking")
-    )
-    sent_at: str = Field(..., description=_("ISO timestamp of sending"))
-
-    def to_variables(self) -> dict[str, Any]:
-        """Convert to Camunda process variables."""
-        return {
-            "notification_sent": self.notification_sent,
-            "message_id": self.message_id,
-            "sent_at": self.sent_at,
-        }
-
-
-class DoctorCmeReminderWorker:
-    """Worker for sending CME credit reminders via WhatsApp."""
-
-    TOPIC = "relationship.cme_reminder"
-
-    def __init__(
-        self, whatsapp_client: WhatsAppClientProtocol | None = None
-    ) -> None:
-        """Initialize with WhatsApp client dependency."""
-        self._whatsapp_client = whatsapp_client or StubWhatsAppClient()
-
-    def _get_urgency_level(self, days_until: int) -> str:
+    def execute(self, context: TaskContext) -> TaskResult:
         """
-        Determine urgency level based on days until expiration.
+        Execute DoctorCmeReminder operation.
 
         Args:
-            days_until: Days remaining until credential expiration.
+            context: Task context with input variables
 
         Returns:
-            Urgency level string: critical, high, medium, or low.
+            TaskResult with DMN outputs
         """
-        if days_until <= 7:
-            return "critical"
-        if days_until <= 30:
-            return "high"
-        if days_until <= 60:
-            return "medium"
-        return "low"
+        try:
+            variables = context.variables
+            correlation_id = variables.get('process_instance_id', '')
 
-    def _build_template(
-        self, input_data: DoctorCmeReminderInput
-    ) -> WhatsAppTemplate:
-        """Build WhatsApp template for CME reminder."""
-        body_component = {
-            "type": "body",
-            "parameters": [
-                {"type": "text", "text": str(input_data.credits_completed)},
-                {"type": "text", "text": str(input_data.credits_required)},
-                {"type": "text", "text": input_data.expiration_date},
-                {
-                    "type": "text",
-                    "text": str(input_data.days_until_expiration),
+            self.logger.info(
+                "Processing DoctorCmeReminder operation",
+                extra={"correlation_id": correlation_id, "tenant_id": context.tenant_id, "task_id": context.task_id},
+            )
+
+            # Evaluate DMN for decision logic
+            dmn_result = self.evaluate_dmn(
+                context=context,
+                decision_key=self.DMN_DECISION_KEY,
+                variables={
+                    "actionType": variables.get("action", ""),
+                    # Worker-specific inputs
                 },
-            ],
-        }
-
-        button_view_courses = {
-            "type": "button",
-            "sub_type": "quick_reply",
-            "index": "0",
-            "parameters": [{"type": "text", "text": "Ver Cursos"}],
-        }
-
-        button_check_status = {
-            "type": "button",
-            "sub_type": "quick_reply",
-            "index": "1",
-            "parameters": [{"type": "text", "text": "Verificar Status"}],
-        }
-
-        return WhatsAppTemplate(
-            name="cme_reminder_v1",
-            language="pt_BR",
-            components=[body_component, button_view_courses, button_check_status],
-        )
-
-    @require_tenant
-    @track_task_execution(task_type="relationship.cme_reminder")
-    async def execute(self, task_variables: dict[str, Any]) -> dict[str, Any]:
-        """
-        Execute CME reminder worker.
-
-        Args:
-            task_variables: Camunda task variables
-
-        Returns:
-            Dictionary with notification results
-
-        Raises:
-            ClinicalOperationsException: If validation or sending fails
-        """
-        tenant_id = get_required_tenant().tenant_id
-
-        logger.info(
-            _("Iniciando worker de CME reminder tenant=%s"),
-            tenant_id,
-        )
-
-        # Parse and validate input
-        try:
-            input_data = DoctorCmeReminderInput(**task_variables)
-        except ValidationError as e:
-            logger.error(
-                _("Erro ao validar entrada: %s"),
-                str(e),
-                exc_info=True,
-            )
-            raise ClinicalOperationsException(
-                _("Dados de entrada inválidos: {error}").format(error=str(e))
-            ) from e
-
-        urgency = self._get_urgency_level(input_data.days_until_expiration)
-
-        # LGPD: NEVER log phone_number
-        logger.info(
-            _(
-                "CME reminder: doctor=%s credits=%d/%d days=%d urgency=%s"
-            ),
-            input_data.doctor_id[:8],
-            input_data.credits_completed,
-            input_data.credits_required,
-            input_data.days_until_expiration,
-            urgency,
-        )
-
-        try:
-            template = self._build_template(input_data)
-
-            message_id = await self._whatsapp_client.send_template_message(
-                phone=input_data.phone_number, template=template
+                category=self.DMN_CATEGORY,
             )
 
-            sent_at = datetime.now(timezone.utc).isoformat()
-
-            logger.info(
-                _("CME reminder enviado: doctor=%s urgency=%s message_id=%s"),
-                input_data.doctor_id[:8],
-                urgency,
-                message_id,
-            )
-
-            output = DoctorCmeReminderOutput(
-                notification_sent=True,
-                message_id=message_id,
-                sent_at=sent_at,
-            )
-
-            return output.to_variables()
+            # Return success with DMN outputs
+            return TaskResult.success({
+                # DMN routing outputs
+                "action": dmn_result.get("action", "REVISAR"),
+                "nivelAlerta": dmn_result.get("nivelAlerta", "OK"),
+                "acaoRequerida": dmn_result.get("acaoRequerida", ""),
+                "justificativa": dmn_result.get("justificativa", ""),
+                # Worker outputs
+                "processedAt": datetime.utcnow().isoformat(),
+                "correlation_id": correlation_id,
+                **dmn_result,  # Include all DMN outputs
+            })
 
         except Exception as e:
-            logger.error(
-                _("Erro ao enviar CME reminder doctor=%s: %s"),
-                input_data.doctor_id[:8],
-                str(e),
-                exc_info=True,
+            self.logger.error(f"DoctorCmeReminder operation failed: {e}", exc_info=True)
+            return TaskResult.bpmn_error(
+                error_code="ERR_DOCTOR_NOTIFICATION",
+                error_message=str(e),
+                variables={"errorType": type(e).__name__},
             )
-            raise ClinicalOperationsException(
-                _("Falha ao enviar CME reminder: {error}").format(
-                    error=str(e)
-                )
-            ) from e
-
-
-# Worker configuration
-TOPIC = "relationship.cme_reminder"

@@ -9,6 +9,8 @@ Padrões:
 - Modelos Pydantic com i18n
 - Decoradores @require_tenant e @track_task_execution
 - Conformidade LGPD
+
+Archetype: OPERATIONAL_ROUTING
 """
 
 from __future__ import annotations

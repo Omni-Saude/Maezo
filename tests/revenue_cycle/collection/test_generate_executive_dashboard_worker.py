@@ -1,6 +1,8 @@
 """Tests for GenerateExecutiveDashboardWorker."""
 from __future__ import annotations
 
+from unittest.mock import MagicMock, patch
+
 import pytest
 
 from healthcare_platform.revenue_cycle.collection.workers.generate_executive_dashboard_worker import (
@@ -9,11 +11,18 @@ from healthcare_platform.revenue_cycle.collection.workers.generate_executive_das
 
 
 @pytest.mark.asyncio
-async def test_generate_executive_dashboard_success():
+@patch("healthcare_platform.revenue_cycle.collection.workers.generate_executive_dashboard_worker.get_required_tenant")
+@patch("healthcare_platform.revenue_cycle.collection.workers.generate_executive_dashboard_worker.FederatedDMNService")
+async def test_generate_executive_dashboard_success(mock_dmn_service_cls, mock_tenant):
     """Test successful dashboard generation."""
-    worker = GenerateExecutiveDashboardWorker()
+    mock_tenant.return_value = "tenant-1"
+    mock_dmn = MagicMock()
+    mock_dmn.evaluate.return_value = {}
+    mock_dmn_service_cls.return_value = mock_dmn
 
-    task_variables = {
+    worker = GenerateExecutiveDashboardWorker()
+    job = MagicMock()
+    job.variables = {
         "collection_rate": 85.5,
         "dso": 45.2,
         "aging_buckets": [
@@ -46,32 +55,40 @@ async def test_generate_executive_dashboard_success():
         "historical_collections": [240000.0, 245000.0, 250000.0],
     }
 
-    result = await worker.execute(task_variables)
+    result = await worker.execute(job)
 
-    assert result["collection_rate"] == 85.5
-    assert result["dso"] == 45.2
-    assert result["total_ar"] == 500000.0
-    assert result["current_month_collected"] == 250000.0
+    assert result.success
+    assert result.variables["collection_rate"] == 85.5
+    assert result.variables["dso"] == 45.2
+    assert result.variables["total_ar"] == 500000.0
+    assert result.variables["current_month_collected"] == 250000.0
 
     # Check aging distribution
-    assert len(result["aging_distribution"]) == 3
-    aging_total = sum(a["percentage"] for a in result["aging_distribution"])
+    assert len(result.variables["aging_distribution"]) == 3
+    aging_total = sum(a["percentage"] for a in result.variables["aging_distribution"])
     assert pytest.approx(aging_total, 0.1) == 100.0
 
     # Check top payers (should have 3)
-    assert len(result["top_payers"]) == 3
-    assert result["top_payers"][0]["payer_name"] == "Bradesco"  # Highest collected
+    assert len(result.variables["top_payers"]) == 3
+    assert result.variables["top_payers"][0]["payer_name"] == "Bradesco"  # Highest collected
 
     # Check revenue forecast
-    assert result["revenue_forecast"] > 0
+    assert result.variables["revenue_forecast"] > 0
 
 
 @pytest.mark.asyncio
-async def test_generate_executive_dashboard_minimal():
+@patch("healthcare_platform.revenue_cycle.collection.workers.generate_executive_dashboard_worker.get_required_tenant")
+@patch("healthcare_platform.revenue_cycle.collection.workers.generate_executive_dashboard_worker.FederatedDMNService")
+async def test_generate_executive_dashboard_minimal(mock_dmn_service_cls, mock_tenant):
     """Test dashboard generation with minimal data."""
-    worker = GenerateExecutiveDashboardWorker()
+    mock_tenant.return_value = "tenant-1"
+    mock_dmn = MagicMock()
+    mock_dmn.evaluate.return_value = {}
+    mock_dmn_service_cls.return_value = mock_dmn
 
-    task_variables = {
+    worker = GenerateExecutiveDashboardWorker()
+    job = MagicMock()
+    job.variables = {
         "collection_rate": 80.0,
         "dso": 40.0,
         "aging_buckets": [
@@ -90,20 +107,28 @@ async def test_generate_executive_dashboard_minimal():
         "historical_collections": [],  # No history
     }
 
-    result = await worker.execute(task_variables)
+    result = await worker.execute(job)
 
-    assert result["collection_rate"] == 80.0
-    assert len(result["top_payers"]) == 1
+    assert result.success
+    assert result.variables["collection_rate"] == 80.0
+    assert len(result.variables["top_payers"]) == 1
     # Forecast should be based on current month + 5%
-    assert result["revenue_forecast"] == pytest.approx(5250.0, 0.1)
+    assert result.variables["revenue_forecast"] == pytest.approx(5250.0, 0.1)
 
 
 @pytest.mark.asyncio
-async def test_generate_executive_dashboard_zero_aging():
+@patch("healthcare_platform.revenue_cycle.collection.workers.generate_executive_dashboard_worker.get_required_tenant")
+@patch("healthcare_platform.revenue_cycle.collection.workers.generate_executive_dashboard_worker.FederatedDMNService")
+async def test_generate_executive_dashboard_zero_aging(mock_dmn_service_cls, mock_tenant):
     """Test handling of zero aging amounts."""
-    worker = GenerateExecutiveDashboardWorker()
+    mock_tenant.return_value = "tenant-1"
+    mock_dmn = MagicMock()
+    mock_dmn.evaluate.return_value = {}
+    mock_dmn_service_cls.return_value = mock_dmn
 
-    task_variables = {
+    worker = GenerateExecutiveDashboardWorker()
+    job = MagicMock()
+    job.variables = {
         "collection_rate": 90.0,
         "dso": 30.0,
         "aging_buckets": [],  # Empty aging
@@ -113,8 +138,9 @@ async def test_generate_executive_dashboard_zero_aging():
         "historical_collections": [1000.0, 2000.0, 3000.0],
     }
 
-    result = await worker.execute(task_variables)
+    result = await worker.execute(job)
 
-    assert result["aging_distribution"] == []
-    assert result["top_payers"] == []
-    assert result["revenue_forecast"] > 0
+    assert result.success
+    assert result.variables["aging_distribution"] == []
+    assert result.variables["top_payers"] == []
+    assert result.variables["revenue_forecast"] > 0

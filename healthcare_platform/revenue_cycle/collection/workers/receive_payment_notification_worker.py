@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import hashlib
 import hmac
+import os
 from datetime import datetime
 from decimal import Decimal
 
@@ -19,7 +20,10 @@ logger = get_logger(__name__)
 
 
 class WebhookPayload(BaseModel):
-    """Bank webhook payment notification payload."""
+    """    Bank webhook payment notification payload.
+    
+        Archetype: FINANCIAL_CALCULATION
+        """
 
     transaction_id: str = Field(..., min_length=1)
     bank_code: str
@@ -43,9 +47,25 @@ class ReceivePaymentNotificationWorker:
         """Initialize worker with webhook secret for signature validation.
 
         Args:
-            webhook_secret: Shared secret for HMAC validation.
+            webhook_secret: Shared secret for HMAC validation. If not provided,
+                          loads from WEBHOOK_SECRET or PAYMENT_WEBHOOK_SECRET
+                          environment variable.
+
+        Raises:
+            ValueError: If webhook secret is not configured via parameter or
+                       environment variable.
         """
-        self.webhook_secret = webhook_secret or "default_secret_replace_in_prod"
+        # Use provided secret, fallback to environment variables
+        self.webhook_secret = webhook_secret or os.getenv(
+            "WEBHOOK_SECRET"
+        ) or os.getenv("PAYMENT_WEBHOOK_SECRET")
+
+        if not self.webhook_secret:
+            raise ValueError(
+                "Webhook secret must be provided via constructor parameter "
+                "or WEBHOOK_SECRET/PAYMENT_WEBHOOK_SECRET environment variable"
+            )
+
         self.dmn_service = FederatedDMNService()
         self._logger = get_logger(__name__)
 

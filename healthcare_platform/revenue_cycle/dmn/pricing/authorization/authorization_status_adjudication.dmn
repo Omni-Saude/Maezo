@@ -1,0 +1,122 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/"
+             xmlns:dc="http://www.omg.org/spec/DMN/20180521/DC/"
+             id="Definitions_AuthorizationStatusAdjudication"
+             name="Authorization Status Adjudication"
+             namespace="http://camunda.org/schema/1.0/dmn">
+  <!-- Archetype: ADMIN_ADJUDICATION | Source: authorization_status_adjudication_worker.py -->
+
+  <!-- Source: check_authorization_worker.py
+       Rules extracted from authorization status checks and missing auth validation.
+  -->
+
+  <decision id="Decision_AuthStatusAdj" name="Authorization Status Adjudication">
+    <decisionTable id="DecisionTable_AuthStatusAdj" hitPolicy="FIRST">
+
+      <input id="Input_authorizationStatus" label="Authorization Status">
+        <inputExpression id="InputExpr_authorizationStatus" typeRef="string">
+          <text>authorizationStatus</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_authorizationNumber" label="Authorization Number">
+        <inputExpression id="InputExpr_authorizationNumber" typeRef="string">
+          <text>authorizationNumber</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_requiresAuth" label="Requires Authorization">
+        <inputExpression id="InputExpr_requiresAuth" typeRef="boolean">
+          <text>requiresAuth</text>
+        </inputExpression>
+      </input>
+
+      <output id="Output_resultado" label="Resultado" name="resultado" typeRef="string">
+        <outputValues><text>"PROSSEGUIR","BLOQUEAR","REVISAR"</text></outputValues>
+      </output>
+
+      <output id="Output_acao" label="Acao" name="acao" typeRef="string"/>
+
+      <output id="Output_risco" label="Risco" name="risco" typeRef="string">
+        <outputValues><text>"CRITICO","ALTO","MEDIO","BAIXO"</text></outputValues>
+      </output>
+
+      <!-- R1: Cancelled -->
+      <rule id="Rule_cancelled">
+        <description>Authorization cancelled — hard block</description>
+        <inputEntry id="IE_canc_1"><text>"cancelled"</text></inputEntry>
+        <inputEntry id="IE_canc_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_canc_3"><text>-</text></inputEntry>
+        <outputEntry id="OE_canc_res"><text>"BLOQUEAR"</text></outputEntry>
+        <outputEntry id="OE_canc_acao"><text>"Authorization cancelled"</text></outputEntry>
+        <outputEntry id="OE_canc_risco"><text>"CRITICO"</text></outputEntry>
+      </rule>
+
+      <!-- R2: Denied -->
+      <rule id="Rule_denied">
+        <description>Authorization denied — hard block</description>
+        <inputEntry id="IE_den_1"><text>"denied"</text></inputEntry>
+        <inputEntry id="IE_den_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_den_3"><text>-</text></inputEntry>
+        <outputEntry id="OE_den_res"><text>"BLOQUEAR"</text></outputEntry>
+        <outputEntry id="OE_den_acao"><text>"Authorization denied"</text></outputEntry>
+        <outputEntry id="OE_den_risco"><text>"CRITICO"</text></outputEntry>
+      </rule>
+
+      <!-- R3: Missing auth number when required -->
+      <rule id="Rule_missing">
+        <description>Missing authorization number when required</description>
+        <inputEntry id="IE_miss_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_miss_2"><text>""</text></inputEntry>
+        <inputEntry id="IE_miss_3"><text>true</text></inputEntry>
+        <outputEntry id="OE_miss_res"><text>"BLOQUEAR"</text></outputEntry>
+        <outputEntry id="OE_miss_acao"><text>"Missing authorization"</text></outputEntry>
+        <outputEntry id="OE_miss_risco"><text>"ALTO"</text></outputEntry>
+      </rule>
+
+      <!-- R4: Pending -->
+      <rule id="Rule_pending">
+        <description>Authorization pending — needs review</description>
+        <inputEntry id="IE_pend_1"><text>"pending"</text></inputEntry>
+        <inputEntry id="IE_pend_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_pend_3"><text>-</text></inputEntry>
+        <outputEntry id="OE_pend_res"><text>"REVISAR"</text></outputEntry>
+        <outputEntry id="OE_pend_acao"><text>"Awaiting authorization approval"</text></outputEntry>
+        <outputEntry id="OE_pend_risco"><text>"MEDIO"</text></outputEntry>
+      </rule>
+
+      <!-- R5: Approved -->
+      <rule id="Rule_approved">
+        <description>Authorization approved — proceed</description>
+        <inputEntry id="IE_app_1"><text>"approved"</text></inputEntry>
+        <inputEntry id="IE_app_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_app_3"><text>-</text></inputEntry>
+        <outputEntry id="OE_app_res"><text>"PROSSEGUIR"</text></outputEntry>
+        <outputEntry id="OE_app_acao"><text>"Authorization valid"</text></outputEntry>
+        <outputEntry id="OE_app_risco"><text>"BAIXO"</text></outputEntry>
+      </rule>
+
+      <!-- Fallback -->
+      <rule id="Rule_fallback">
+        <description>Unknown status — force review</description>
+        <inputEntry id="IE_fb_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_fb_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_fb_3"><text>-</text></inputEntry>
+        <outputEntry id="OE_fb_res"><text>"REVISAR"</text></outputEntry>
+        <outputEntry id="OE_fb_acao"><text>"Caso requer avaliacao manual"</text></outputEntry>
+        <outputEntry id="OE_fb_risco"><text>"MEDIO"</text></outputEntry>
+      </rule>
+
+    </decisionTable>
+  </decision>
+
+  <dmndi:DMNDI>
+    <dmndi:DMNDiagram id="DMNDiagram_1">
+      <dmndi:DMNShape id="DMNShape_Decision" dmnElementRef="Decision_AuthStatusAdj">
+        <dc:Bounds height="80" width="180" x="160" y="100"/>
+      </dmndi:DMNShape>
+    </dmndi:DMNDiagram>
+  </dmndi:DMNDI>
+
+</definitions>

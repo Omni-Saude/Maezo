@@ -1,4 +1,7 @@
-"""Submit TISS guide to payer worker."""
+"""Submit TISS guide to payer worker.
+
+Archetype: INTEGRATION_BRIDGE
+"""
 from __future__ import annotations
 
 from typing import Any

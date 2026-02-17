@@ -25,7 +25,10 @@ logger = get_logger(__name__)
 
 
 class PaymentRepository(Protocol):
-    """Protocol for payment repository (dependency injection)."""
+    """    Protocol for payment repository (dependency injection).
+    
+        Archetype: FINANCIAL_CALCULATION
+        """
 
     async def save(self, payment: Payment) -> UUID:
         """Save payment and return UUID."""

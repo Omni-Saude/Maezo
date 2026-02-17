@@ -1,0 +1,132 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+                  xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+                  xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+                  xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
+                  xmlns:camunda="http://camunda.org/schema/1.0/bpmn"
+                  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                  id="Definitions_MedicationManagement"
+                  targetNamespace="http://cib7.health/clinical/medication"
+                  exporter="Claude Code"
+                  exporterVersion="1.0">
+
+  <bpmn:process id="SP_CO_006_Medication_Management" name="SP-CO-006 Medication Management" isExecutable="true">
+
+    <bpmn:startEvent id="Start_Medication" name="Medication Order Received">
+      <bpmn:outgoing>Flow_ToProcess</bpmn:outgoing>
+    </bpmn:startEvent>
+
+    <!-- Process medication order -->
+    <bpmn:serviceTask id="Task_ProcessMedication" name="Process Medication Order"
+                      camunda:type="external" camunda:topic="clinical.medication">
+      <bpmn:incoming>Flow_ToProcess</bpmn:incoming>
+      <bpmn:outgoing>Flow_ToInpatientGateway</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Inpatient decision gateway -->
+    <bpmn:exclusiveGateway id="Gateway_Inpatient" name="Inpatient?">
+      <bpmn:incoming>Flow_ToInpatientGateway</bpmn:incoming>
+      <bpmn:outgoing>Flow_InpatientYes</bpmn:outgoing>
+      <bpmn:outgoing>Flow_InpatientNo</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+
+    <!-- Set medication reminder -->
+    <bpmn:serviceTask id="Task_SetReminder" name="Set Medication Reminder"
+                      camunda:type="external" camunda:topic="inpatient.medication_reminder">
+      <bpmn:incoming>Flow_InpatientYes</bpmn:incoming>
+      <bpmn:outgoing>Flow_ToEnd</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <bpmn:endEvent id="End_Medication" name="Medication Process Complete">
+      <bpmn:incoming>Flow_ToEnd</bpmn:incoming>
+      <bpmn:incoming>Flow_InpatientNo</bpmn:incoming>
+    </bpmn:endEvent>
+
+    <!-- Sequence Flows -->
+    <bpmn:sequenceFlow id="Flow_ToProcess" sourceRef="Start_Medication" targetRef="Task_ProcessMedication"/>
+    <bpmn:sequenceFlow id="Flow_ToInpatientGateway" sourceRef="Task_ProcessMedication" targetRef="Gateway_Inpatient"/>
+    <bpmn:sequenceFlow id="Flow_InpatientYes" sourceRef="Gateway_Inpatient" targetRef="Task_SetReminder">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${is_inpatient == true}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_InpatientNo" sourceRef="Gateway_Inpatient" targetRef="End_Medication"/>
+    <bpmn:sequenceFlow id="Flow_ToEnd" sourceRef="Task_SetReminder" targetRef="End_Medication"/>
+
+  </bpmn:process>
+
+  <!-- Diagram Interchange -->
+  <bpmndi:BPMNDiagram id="BPMNDiagram_MedicationManagement">
+    <bpmndi:BPMNPlane id="BPMNPlane_MedicationManagement" bpmnElement="SP_CO_006_Medication_Management">
+
+      <!-- Start Event -->
+      <bpmndi:BPMNShape id="Shape_Start_Medication" bpmnElement="Start_Medication">
+        <dc:Bounds x="152" y="102" width="36" height="36"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="131" y="145" width="78" height="27"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+
+      <!-- Process Medication -->
+      <bpmndi:BPMNShape id="Shape_Task_ProcessMedication" bpmnElement="Task_ProcessMedication">
+        <dc:Bounds x="240" y="80" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <!-- Inpatient Gateway -->
+      <bpmndi:BPMNShape id="Shape_Gateway_Inpatient" bpmnElement="Gateway_Inpatient" isMarkerVisible="true">
+        <dc:Bounds x="395" y="95" width="50" height="50"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="388" y="65" width="64" height="14"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+
+      <!-- Set Reminder -->
+      <bpmndi:BPMNShape id="Shape_Task_SetReminder" bpmnElement="Task_SetReminder">
+        <dc:Bounds x="500" y="80" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <!-- End Event -->
+      <bpmndi:BPMNShape id="Shape_End_Medication" bpmnElement="End_Medication">
+        <dc:Bounds x="532" y="262" width="36" height="36"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="523" y="305" width="54" height="27"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+
+      <!-- Sequence Flow Edges -->
+      <bpmndi:BPMNEdge id="Edge_Flow_ToProcess" bpmnElement="Flow_ToProcess">
+        <di:waypoint x="188" y="120"/>
+        <di:waypoint x="240" y="120"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_Flow_ToInpatientGateway" bpmnElement="Flow_ToInpatientGateway">
+        <di:waypoint x="340" y="120"/>
+        <di:waypoint x="395" y="120"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_Flow_InpatientYes" bpmnElement="Flow_InpatientYes">
+        <di:waypoint x="445" y="120"/>
+        <di:waypoint x="500" y="120"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="450" y="102" width="45" height="14"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_Flow_InpatientNo" bpmnElement="Flow_InpatientNo">
+        <di:waypoint x="420" y="145"/>
+        <di:waypoint x="420" y="280"/>
+        <di:waypoint x="532" y="280"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="430" y="263" width="51" height="14"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_Flow_ToEnd" bpmnElement="Flow_ToEnd">
+        <di:waypoint x="600" y="120"/>
+        <di:waypoint x="650" y="120"/>
+        <di:waypoint x="650" y="280"/>
+        <di:waypoint x="568" y="280"/>
+      </bpmndi:BPMNEdge>
+
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+
+</bpmn:definitions>

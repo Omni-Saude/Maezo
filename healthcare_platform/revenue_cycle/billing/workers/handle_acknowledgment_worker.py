@@ -14,7 +14,10 @@ logger = get_logger(__name__)
 
 @worker(topic="billing-handle-acknowledgment")
 class HandleAcknowledgmentWorker(BaseWorker):
-    """Worker to process ACK/NACK responses from payer."""
+    """Worker to process ACK/NACK responses from payer.
+
+    Archetype: FINANCIAL_CALCULATION
+    """
 
     def __init__(self) -> None:
         super().__init__()

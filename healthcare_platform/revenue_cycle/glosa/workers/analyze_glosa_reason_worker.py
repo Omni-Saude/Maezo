@@ -17,7 +17,10 @@ logger = get_logger(__name__)
 
 @worker(topic="analyze-glosa-reason", max_jobs=5, lock_duration=90000)
 class AnalyzeGlosaReasonWorker(BaseWorker, GlosaWorkerMixin):
-    """Analyze glosa reasons and identify systemic patterns."""
+    """Analyze glosa reasons and identify systemic patterns.
+
+        Archetype: FINANCIAL_CALCULATION
+    """
 
     # Pattern detection thresholds
     PATTERN_THRESHOLD = 3  # Minimum occurrences to flag a pattern

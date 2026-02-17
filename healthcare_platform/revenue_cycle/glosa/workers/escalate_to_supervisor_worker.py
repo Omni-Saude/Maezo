@@ -47,6 +47,8 @@ class EscalateToSupervisorWorker(GlosaWorkerMixin):
     - HIGH: > R$ 10,000
     - MEDIUM: > R$ 5,000
     - LOW: < R$ 5,000
+
+        Archetype: FINANCIAL_CALCULATION
     """
 
     def __init__(self) -> None:

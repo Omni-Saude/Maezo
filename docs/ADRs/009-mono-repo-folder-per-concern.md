@@ -260,3 +260,76 @@ This variant is **only acceptable** for domains with 50+ workers. Other domains 
 | clinical_operations | 20 | Flat `workers/` |
 | platform_services | 29 | Flat `workers/` |
 | **revenue_cycle** | **89** | **Subdomain folders** (exception) |
+
+---
+
+## Atomic Unit Definition (Amendment — 2026-02-16)
+
+### The Atomic Unit: BPMN ↔ Workers ↔ DMN Triad
+
+The **atomic unit** of the platform is the triad:
+
+```text
+1 BPMN subprocess ↔ N workers ↔ M DMN tables
+```
+
+Each subprocess folder must contain:
+
+```text
+{domain}/{subprocess}/
+├── bpmn/          # BPMN subprocess definition(s)
+├── workers/       # Python external task workers
+│   ├── __init__.py
+│   ├── base.py    # Optional subprocess-specific base
+│   └── {action}_worker_v2.py
+├── dmn/           # DMN tables consumed by these workers
+│   ├── {category}/
+│   │   └── {prefix}_{category}_{NNN}.dmn
+│   └── federated/
+│       └── fed_{prefix}_{NNN}.dmn
+└── tests/         # Unit tests mirroring workers
+```
+
+### Current Domains Following This Structure
+
+- `revenue_cycle/billing/` (13 workers, 80+ DMN)
+- `revenue_cycle/coding/` (10 workers, 30+ DMN)
+- `revenue_cycle/glosa/` (10 workers, 70+ DMN)
+- `revenue_cycle/collection/` (50 workers, 60+ DMN)
+- `revenue_cycle/production/` (8 workers, 20+ DMN)
+
+### Colocation Rule
+
+**Workers and DMN tables must be colocated within their subprocess folder.** Cross-subprocess DMN references must go through `FederatedDMNService`.
+
+### Rationale
+
+1. **Semantic Cohesion**: A BPMN subprocess, its workers, and its decision tables form a logical unit. Separating them breaks this cohesion.
+
+2. **Change Atomicity**: Changes to a subprocess — new decision rules, worker logic updates, process flow modifications — can be committed atomically. Splitting across folders increases the risk of missed synchronization.
+
+3. **Tenant Override Alignment**: ADR-007 specifies that tenant overrides follow domain/subprocess structure. Colocation ensures the override path mirrors the base structure exactly.
+
+4. **Developer Workflow**: A developer implementing a new business rule navigates to one folder (`revenue_cycle/glosa/`), not scattered across `dmn/glosa_prevention/` and `workers/` at different levels.
+
+5. **Federation Service Predictability**: `FederatedDMNService` resolves paths deterministically. Consistent colocation eliminates ambiguity.
+
+### Structural Violation Detection
+
+Flag these patterns as structural violations:
+
+| Pattern | Violation | Fix |
+|---------|-----------|-----|
+| Worker in `revenue_cycle/workers/` but DMN in `revenue_cycle/dmn/glosa/` | Scattered structure | Move worker to `revenue_cycle/glosa/workers/` |
+| DMN in `dmn/global/` referenced by single subprocess only | Over-generalization | Move DMN to subprocess folder |
+| Worker directly imports another domain's DMN | Cross-domain coupling | Use `FederatedDMNService` + tenant overrides |
+| Subprocess has no `dmn/` folder | Incomplete atom | Create `dmn/` and define decision tables |
+
+### Migration Path for Existing Violations
+
+Existing violations pre-Amendment should be refactored during the next maintenance cycle:
+
+1. Audit all workers for direct DMN imports (should only use `FederatedDMNService`)
+2. Move misplaced DMN tables to their subprocess homes
+3. Update import paths and federation service calls
+4. Verify tests pass after movement

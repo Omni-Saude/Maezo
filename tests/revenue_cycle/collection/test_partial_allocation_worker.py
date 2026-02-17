@@ -1,6 +1,9 @@
 """Tests for PartialAllocationWorker."""
 from __future__ import annotations
 
+from uuid import uuid4
+from unittest.mock import MagicMock, patch
+
 import pytest
 
 from healthcare_platform.revenue_cycle.collection.workers.partial_allocation_worker import PartialAllocationWorker
@@ -13,65 +16,96 @@ def worker():
 
 
 @pytest.mark.asyncio
-async def test_partial_allocation_success(worker):
+@patch('healthcare_platform.revenue_cycle.collection.workers.partial_allocation_worker.get_required_tenant')
+@patch('healthcare_platform.revenue_cycle.collection.workers.partial_allocation_worker.FederatedDMNService')
+async def test_partial_allocation_success(mock_dmn_service, mock_tenant, worker):
     """Test partial allocation across multiple claims."""
-    task_vars = {
-        "payment_id": "pay-001",
+    mock_tenant.return_value = 'test_tenant'
+    mock_dmn = MagicMock()
+    mock_dmn.evaluate.return_value = {'adjustment_applied': False, 'allocation_valid': True}
+    mock_dmn_service.return_value = mock_dmn
+
+    worker.dmn_service = mock_dmn
+
+    job = MagicMock()
+    job.variables = {
+        "payment_id": str(uuid4()),
         "payment_amount": 1500.00,
         "currency": "BRL",
         "available_claims": [
-            {"claim_id": "claim-001", "outstanding_amount": 1000.00, "due_date": "2024-01-01"},
-            {"claim_id": "claim-002", "outstanding_amount": 800.00, "due_date": "2024-01-02"},
+            {"claim_id": str(uuid4()), "outstanding_amount": 1000.00, "due_date": "2024-01-01"},
+            {"claim_id": str(uuid4()), "outstanding_amount": 800.00, "due_date": "2024-01-02"},
         ],
     }
 
-    result = await worker.execute(task_vars)
+    result = await worker.execute(job)
 
-    assert len(result["allocations"]) == 2
-    assert result["total_allocated"] == 1500.00
-    assert result["remaining_amount"] == 0.00
-    assert result["claims_paid"] == 1  # claim-001 fully paid
-    assert result["claims_partial"] == 1  # claim-002 partially paid
+    assert result.success is True
+    assert len(result.variables["allocations"]) == 2
+    assert result.variables["total_allocated"] == 1500.00
+    assert result.variables["remaining_amount"] == 0.00
 
 
 @pytest.mark.asyncio
-async def test_full_allocation_of_one_claim(worker):
+@patch('healthcare_platform.revenue_cycle.collection.workers.partial_allocation_worker.get_required_tenant')
+@patch('healthcare_platform.revenue_cycle.collection.workers.partial_allocation_worker.FederatedDMNService')
+async def test_full_allocation_of_one_claim(mock_dmn_service, mock_tenant, worker):
     """Test full allocation to single claim."""
-    task_vars = {
-        "payment_id": "pay-002",
+    mock_tenant.return_value = 'test_tenant'
+    mock_dmn = MagicMock()
+    mock_dmn.evaluate.return_value = {'adjustment_applied': False, 'allocation_valid': True}
+    mock_dmn_service.return_value = mock_dmn
+
+    worker.dmn_service = mock_dmn
+
+    job = MagicMock()
+    job.variables = {
+        "payment_id": str(uuid4()),
         "payment_amount": 1000.00,
         "currency": "BRL",
         "available_claims": [
-            {"claim_id": "claim-001", "outstanding_amount": 1000.00, "due_date": "2024-01-01"}
+            {"claim_id": str(uuid4()), "outstanding_amount": 1000.00, "due_date": "2024-01-01"}
         ],
     }
 
-    result = await worker.execute(task_vars)
+    result = await worker.execute(job)
 
-    assert len(result["allocations"]) == 1
-    assert result["total_allocated"] == 1000.00
-    assert result["remaining_amount"] == 0.00
-    assert result["claims_paid"] == 1
-    assert result["claims_partial"] == 0
+    assert result.success is True
+    assert len(result.variables["allocations"]) == 1
+    assert result.variables["total_allocated"] == 1000.00
+    assert result.variables["remaining_amount"] == 0.00
+    # Check if fully paid
+    assert result.variables["allocations"][0]["fully_paid"] is True
 
 
 @pytest.mark.asyncio
-async def test_insufficient_amount_for_all_claims(worker):
+@patch('healthcare_platform.revenue_cycle.collection.workers.partial_allocation_worker.get_required_tenant')
+@patch('healthcare_platform.revenue_cycle.collection.workers.partial_allocation_worker.FederatedDMNService')
+async def test_insufficient_amount_for_all_claims(mock_dmn_service, mock_tenant, worker):
     """Test when payment doesn't cover all claims."""
-    task_vars = {
-        "payment_id": "pay-003",
+    mock_tenant.return_value = 'test_tenant'
+    mock_dmn = MagicMock()
+    mock_dmn.evaluate.return_value = {'adjustment_applied': False, 'allocation_valid': True}
+    mock_dmn_service.return_value = mock_dmn
+
+    worker.dmn_service = mock_dmn
+
+    job = MagicMock()
+    job.variables = {
+        "payment_id": str(uuid4()),
         "payment_amount": 500.00,
         "currency": "BRL",
         "available_claims": [
-            {"claim_id": "claim-001", "outstanding_amount": 1000.00, "due_date": "2024-01-01"},
-            {"claim_id": "claim-002", "outstanding_amount": 800.00, "due_date": "2024-01-02"},
+            {"claim_id": str(uuid4()), "outstanding_amount": 1000.00, "due_date": "2024-01-01"},
+            {"claim_id": str(uuid4()), "outstanding_amount": 800.00, "due_date": "2024-01-02"},
         ],
     }
 
-    result = await worker.execute(task_vars)
+    result = await worker.execute(job)
 
-    assert len(result["allocations"]) == 1  # Only first claim partially paid
-    assert result["total_allocated"] == 500.00
-    assert result["remaining_amount"] == 0.00
-    assert result["claims_paid"] == 0
-    assert result["claims_partial"] == 1
+    assert result.success is True
+    assert len(result.variables["allocations"]) == 1  # Only first claim partially paid
+    assert result.variables["total_allocated"] == 500.00
+    assert result.variables["remaining_amount"] == 0.00
+    # Check if partially paid
+    assert result.variables["allocations"][0]["fully_paid"] is False

@@ -1,260 +1,130 @@
-"""
-Surgical Equipment Worker - Equipment availability and sterilization check.
+"""Surgical Equipment Worker V2 - DMN-based equipment validation.
 
-CIB7 External Task Topic: surgical.equipment_check
-BPMN Error Code: SURGICAL_OPERATIONS_ERROR
-
-Verifies surgical equipment availability and sterilization status.
-Integrates with WHO Safe Surgery Checklist Time Out phase.
+TOPIC: surgical.equipment_check | BPMN Error: SURGICAL_OPERATIONS_ERROR
+DMN: surgical/equipment_availability_001, surgical/sterilization_validation_001
+ADR: 002, 003, 007, 013 | Refactored 263 -> ~135 LOC
+Archetype: COMPLIANCE_VALIDATION
 """
+
 from __future__ import annotations
 
-import uuid
-from datetime import datetime, timezone
-from typing import Any, List, Optional
+from datetime import datetime
+from typing import Any, List
 
-from pydantic import BaseModel, Field
-
-from healthcare_platform.shared.domain.exceptions import DomainException
-from healthcare_platform.shared.i18n import _
-from healthcare_platform.shared.integrations.tasy_adapters.surgical_adapter import TasySurgicalAdapter
-from healthcare_platform.shared.multi_tenant.context import get_required_tenant
-from healthcare_platform.shared.multi_tenant.decorators import require_tenant
-from healthcare_platform.shared.observability.logging import get_logger
-from healthcare_platform.shared.observability.metrics import track_task_execution
-
-logger = get_logger(__name__, worker="surgical.equipment_check")
+from healthcare_platform.shared.workers.base import (
+    BaseExternalTaskWorker,
+    TaskContext,
+    TaskResult,
+)
 
 
-TOPIC = "surgical.equipment_check"
+class SurgicalEquipmentWorker(BaseExternalTaskWorker):
+    """V2 surgical equipment worker (thin worker pattern).
 
+    Responsibilities:
+    1. Parse required equipment list
+    2. Check availability via DMN
+    3. Validate sterilization status via DMN
+    4. Determine equipment readiness
+    5. Return structured output for BPMN routing
 
-class SurgicalOperationsException(DomainException):
-    """Exception for surgical operations errors."""
+    All orchestration handled by BPMN.
+    All business rules handled by DMN.
+    """
 
-    bpmn_error_code = "SURGICAL_OPERATIONS_ERROR"
+    TOPIC = "surgical.equipment_check"
+    DMN_AVAILABILITY_KEY = "equipment_availability_check_001"
+    DMN_STERILIZATION_KEY = "sterilization_status_validation_001"
+    DMN_CATEGORY = "surgical"
 
-
-class EquipmentItem(BaseModel):
-    """Equipment item for surgical procedure."""
-
-    equipment_id: str = Field(..., description="Unique identifier for the equipment")
-    name: str = Field(..., description="Name of the equipment")
-    category: str = Field(
-        ...,
-        description="Equipment category: instrument, implant, disposable, device"
-    )
-    sterilization_status: str = Field(
-        ...,
-        description="Sterilization status: sterile, pending, expired, not_required"
-    )
-    sterilization_date: Optional[datetime] = Field(
-        None, description="Date when equipment was sterilized"
-    )
-    expiration_date: Optional[datetime] = Field(
-        None, description="Expiration date for sterilization"
-    )
-    available: bool = Field(..., description="Whether equipment is available")
-
-
-class SurgicalEquipmentInput(BaseModel):
-    """Input for surgical equipment check."""
-
-    surgery_id: str = Field(..., description="Unique identifier for the surgery")
-    operating_room_id: str = Field(..., description="Operating room identifier")
-    procedure_code: str = Field(..., description="Surgical procedure code")
-    required_equipment: List[EquipmentItem] = Field(
-        ..., description="List of required equipment items"
-    )
-    who_checklist_phase: str = Field(
-        default="time_out",
-        description="WHO Safe Surgery Checklist phase"
-    )
-    checked_by_practitioner_id: str = Field(
-        ..., description="ID of practitioner performing the check"
-    )
-
-
-class SurgicalEquipmentOutput(BaseModel):
-    """Output from surgical equipment check."""
-
-    check_id: str = Field(..., description="Unique identifier for this check")
-    surgery_id: str = Field(..., description="Surgery identifier")
-    all_equipment_available: bool = Field(
-        ..., description="Whether all equipment is available"
-    )
-    all_sterilization_valid: bool = Field(
-        ..., description="Whether all sterilization is valid"
-    )
-    equipment_ready: bool = Field(
-        ...,
-        description="Overall readiness: both availability and sterilization valid"
-    )
-    missing_equipment: List[str] = Field(
-        default_factory=list, description="List of missing equipment names"
-    )
-    expired_sterilization: List[str] = Field(
-        default_factory=list, description="List of equipment with expired sterilization"
-    )
-    check_timestamp: datetime = Field(
-        ..., description="Timestamp when check was performed"
-    )
-    who_timeout_equipment_confirmed: bool = Field(
-        ..., description="WHO Time Out equipment confirmation status"
-    )
-
-
-class SurgicalEquipmentWorker:
-    """Worker for checking surgical equipment availability and sterilization."""
-
-    def __init__(self, tasy_adapter: Optional[TasySurgicalAdapter] = None):
-        """
-        Initialize the surgical equipment worker.
-
-        Args:
-            tasy_adapter: Optional TASY surgical adapter for integration
-        """
-        self.tasy_adapter = tasy_adapter or TasySurgicalAdapter()
-        self.topic = TOPIC
-
-    @require_tenant
-    @track_task_execution(TOPIC)
-    async def execute(self, variables: dict[str, Any]) -> dict[str, Any]:
-        """
-        Execute surgical equipment availability and sterilization check.
-
-        Args:
-            variables: Task variables containing equipment check input
-
-        Returns:
-            Dictionary containing equipment check results
-
-        Raises:
-            SurgicalOperationsException: If required fields are missing or validation fails
-        """
-        tenant_id = get_required_tenant()
-        logger.info(
-            "Starting surgical equipment check",
-            tenant_id=tenant_id,
-            surgery_id=variables.get("surgery_id"),
-        )
-
+    def execute(self, context: TaskContext) -> TaskResult:
+        """Execute equipment check with DMN-based validation."""
         try:
-            # Parse input
-            input_data = SurgicalEquipmentInput(**variables)
-        except Exception as e:
-            logger.error(
-                "Failed to parse surgical equipment input",
-                error=str(e),
-                tenant_id=tenant_id,
+            variables = context.variables
+            correlation_id = variables.get('process_instance_id', '')
+            surgery_id = variables.get("surgery_id", "")
+            operating_room_id = variables.get("operating_room_id", "")
+            required_equipment = variables.get("required_equipment", [])
+
+            self.logger.info(
+                "Processing surgical equipment check",
+                extra={"correlation_id": correlation_id, "tenant_id": context.tenant_id,
+                       "surgery_id": surgery_id, "equipment_count": len(required_equipment)},
             )
-            raise SurgicalOperationsException(
-                message=_("Invalid surgical equipment input: {error}").format(error=str(e)),
-                details={"error": str(e), "variables": variables},
-            ) from e
 
-        # Generate check ID
-        check_id = str(uuid.uuid4())
-        check_timestamp = datetime.now(timezone.utc)
+            all_equipment_available = True
+            all_sterilization_valid = True
+            missing_equipment: List[str] = []
+            expired_sterilization: List[str] = []
 
-        # Initialize tracking lists
-        missing_equipment: List[str] = []
-        expired_sterilization: List[str] = []
+            for equipment in required_equipment:
+                equipment_id = equipment.get("equipment_id", "")
+                equipment_name = equipment.get("name", "")
+                sterilization_status = equipment.get("sterilization_status", "")
+                expiration_date = equipment.get("expiration_date", "")
 
-        # Check each equipment item
-        all_equipment_available = True
-        all_sterilization_valid = True
-
-        for equipment in input_data.required_equipment:
-            # Check availability
-            if not equipment.available:
-                all_equipment_available = False
-                missing_equipment.append(equipment.name)
-                logger.warning(
-                    "Equipment not available",
-                    equipment_id=equipment.equipment_id,
-                    equipment_name=equipment.name,
-                    surgery_id=input_data.surgery_id,
-                    tenant_id=tenant_id,
+                # 1. Check availability via DMN
+                availability_result = self.evaluate_dmn(
+                    context=context,
+                    decision_key=self.DMN_AVAILABILITY_KEY,
+                    variables={
+                        "equipmentId": equipment_id,
+                        "equipmentName": equipment_name,
+                        "available": equipment.get("available", False),
+                    },
+                    category=self.DMN_CATEGORY,
                 )
 
-            # Check sterilization status
-            if equipment.sterilization_status == "not_required":
-                # No sterilization check needed for this equipment
-                logger.debug(
-                    "Equipment does not require sterilization",
-                    equipment_id=equipment.equipment_id,
-                    equipment_name=equipment.name,
-                )
-            elif equipment.sterilization_status == "sterile":
-                # Check expiration if provided
-                if equipment.expiration_date:
-                    if equipment.expiration_date < check_timestamp:
-                        all_sterilization_valid = False
-                        expired_sterilization.append(equipment.name)
-                        logger.warning(
-                            "Equipment sterilization expired",
-                            equipment_id=equipment.equipment_id,
-                            equipment_name=equipment.name,
-                            expiration_date=equipment.expiration_date.isoformat(),
-                            surgery_id=input_data.surgery_id,
-                            tenant_id=tenant_id,
-                        )
-            elif equipment.sterilization_status in ["pending", "expired"]:
-                all_sterilization_valid = False
-                if equipment.sterilization_status == "expired":
-                    expired_sterilization.append(equipment.name)
-                logger.warning(
-                    "Equipment sterilization not valid",
-                    equipment_id=equipment.equipment_id,
-                    equipment_name=equipment.name,
-                    sterilization_status=equipment.sterilization_status,
-                    surgery_id=input_data.surgery_id,
-                    tenant_id=tenant_id,
-                )
-            else:
-                # Unknown sterilization status
-                all_sterilization_valid = False
-                logger.warning(
-                    "Unknown sterilization status",
-                    equipment_id=equipment.equipment_id,
-                    equipment_name=equipment.name,
-                    sterilization_status=equipment.sterilization_status,
-                    surgery_id=input_data.surgery_id,
-                    tenant_id=tenant_id,
+                if not availability_result.get("isAvailable", False):
+                    all_equipment_available = False
+                    missing_equipment.append(equipment_name)
+
+                # 2. Validate sterilization via DMN
+                sterilization_result = self.evaluate_dmn(
+                    context=context,
+                    decision_key=self.DMN_STERILIZATION_KEY,
+                    variables={
+                        "sterilizationStatus": sterilization_status,
+                        "expirationDate": expiration_date,
+                        "currentDate": datetime.utcnow().isoformat(),
+                    },
+                    category=self.DMN_CATEGORY,
                 )
 
-        # Overall equipment readiness
-        equipment_ready = all_equipment_available and all_sterilization_valid
+                if not sterilization_result.get("isValid", False):
+                    all_sterilization_valid = False
+                    if sterilization_result.get("isExpired", False):
+                        expired_sterilization.append(equipment_name)
 
-        # WHO checklist confirmation (Time Out phase)
-        who_timeout_equipment_confirmed = (
-            equipment_ready and input_data.who_checklist_phase == "time_out"
-        )
+            # Overall readiness
+            equipment_ready = all_equipment_available and all_sterilization_valid
 
-        # Create output
-        output = SurgicalEquipmentOutput(
-            check_id=check_id,
-            surgery_id=input_data.surgery_id,
-            all_equipment_available=all_equipment_available,
-            all_sterilization_valid=all_sterilization_valid,
-            equipment_ready=equipment_ready,
-            missing_equipment=missing_equipment,
-            expired_sterilization=expired_sterilization,
-            check_timestamp=check_timestamp,
-            who_timeout_equipment_confirmed=who_timeout_equipment_confirmed,
-        )
+            # WHO Time Out equipment confirmation
+            who_timeout_equipment_confirmed = (
+                equipment_ready and variables.get("who_checklist_phase") == "time_out"
+            )
 
-        logger.info(
-            "Surgical equipment check completed",
-            check_id=check_id,
-            surgery_id=input_data.surgery_id,
-            equipment_ready=equipment_ready,
-            all_equipment_available=all_equipment_available,
-            all_sterilization_valid=all_sterilization_valid,
-            missing_count=len(missing_equipment),
-            expired_count=len(expired_sterilization),
-            tenant_id=tenant_id,
-        )
+            # Generate check ID
+            check_id = f"EQP-{surgery_id}-{datetime.utcnow().strftime('%Y%m%d%H%M%S')}"
 
-        return output.model_dump(mode="json")
+            return TaskResult.success({
+                "check_id": check_id,
+                "surgery_id": surgery_id,
+                "operating_room_id": operating_room_id,
+                "all_equipment_available": all_equipment_available,
+                "all_sterilization_valid": all_sterilization_valid,
+                "equipment_ready": equipment_ready,
+                "missing_equipment": missing_equipment,
+                "expired_sterilization": expired_sterilization,
+                "who_timeout_equipment_confirmed": who_timeout_equipment_confirmed,
+                "check_timestamp": datetime.utcnow().isoformat(),
+                "correlation_id": correlation_id,
+            })
+
+        except Exception as e:
+            self.logger.error(f"Equipment check failed: {e}", exc_info=True)
+            return TaskResult.bpmn_error(
+                error_code="SURGICAL_OPERATIONS_ERROR",
+                error_message=str(e),
+                variables={"errorType": type(e).__name__},
+            )

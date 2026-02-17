@@ -1,5 +1,7 @@
 """Helper functions para testes."""
 
+from __future__ import annotations
+
 from typing import Dict, Any, Optional
 from unittest.mock import AsyncMock
 import xml.etree.ElementTree as ET

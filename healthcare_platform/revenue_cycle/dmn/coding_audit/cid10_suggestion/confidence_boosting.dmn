@@ -1,0 +1,105 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/"
+             xmlns:dc="http://www.omg.org/spec/DMN/20180521/DC/"
+             id="Definitions_CID10_ConfidenceBoosting"
+             name="CID-10 Confidence Boosting Decision"
+             namespace="http://camunda.org/schema/1.0/dmn">
+  <!-- Archetype: ADMIN_ADJUDICATION | Source: confidence_boosting_worker.py -->
+
+  <!-- DMN: CID-10 Confidence Boosting
+       Based on: suggest_cid10_worker.py lines 260-273
+       Rule: Boost confidence score based on keyword occurrences in clinical notes
+  -->
+
+  <decision id="Decision_CID10_ConfidenceBoosting" name="CID-10 Confidence Boosting">
+    <decisionTable id="DecisionTable_CID10_ConfidenceBoosting" hitPolicy="FIRST">
+
+      <!-- === INPUTS === -->
+      <input id="Input_keywordOccurrences" label="Keyword Occurrences">
+        <inputExpression id="InputExpr_keywordOccurrences" typeRef="number">
+          <text>keyword_occurrences</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_baseConfidence" label="Base Confidence">
+        <inputExpression id="InputExpr_baseConfidence" typeRef="number">
+          <text>base_confidence</text>
+        </inputExpression>
+      </input>
+
+      <!-- === OUTPUTS === -->
+      <output id="Output_resultado" label="Resultado" name="resultado" typeRef="string">
+        <outputValues><text>"PROSSEGUIR","BLOQUEAR","REVISAR"</text></outputValues>
+      </output>
+
+      <output id="Output_acao" label="Acao" name="acao" typeRef="string"/>
+
+      <output id="Output_risco" label="Risco" name="risco" typeRef="string">
+        <outputValues><text>"CRITICO","ALTO","MEDIO","BAIXO"</text></outputValues>
+      </output>
+
+      <!-- === RULES === -->
+
+      <!-- Rule 1: 3+ occurrences → boost 0.10 -->
+      <rule id="Rule_Boost_High">
+        <description>3 ou mais ocorrencias: boost +0.10</description>
+        <inputEntry id="IE_BH_1"><text>&gt;= 3</text></inputEntry>
+        <inputEntry id="IE_BH_2"><text>-</text></inputEntry>
+        <outputEntry id="OE_BH_res"><text>"PROSSEGUIR"</text></outputEntry>
+        <outputEntry id="OE_BH_acao"><text>"Aplicar boost de confianca +0.10 (multiplas ocorrencias)"</text></outputEntry>
+        <outputEntry id="OE_BH_risco"><text>"BAIXO"</text></outputEntry>
+      </rule>
+
+      <!-- Rule 2: 2 occurrences → boost 0.05 -->
+      <rule id="Rule_Boost_Medium">
+        <description>2 ocorrencias: boost +0.05</description>
+        <inputEntry id="IE_BM_1"><text>2</text></inputEntry>
+        <inputEntry id="IE_BM_2"><text>-</text></inputEntry>
+        <outputEntry id="OE_BM_res"><text>"PROSSEGUIR"</text></outputEntry>
+        <outputEntry id="OE_BM_acao"><text>"Aplicar boost de confianca +0.05 (ocorrencia dupla)"</text></outputEntry>
+        <outputEntry id="OE_BM_risco"><text>"BAIXO"</text></outputEntry>
+      </rule>
+
+      <!-- Rule 3: 1 occurrence → no boost -->
+      <rule id="Rule_No_Boost">
+        <description>1 ocorrencia: sem boost</description>
+        <inputEntry id="IE_NB_1"><text>1</text></inputEntry>
+        <inputEntry id="IE_NB_2"><text>-</text></inputEntry>
+        <outputEntry id="OE_NB_res"><text>"PROSSEGUIR"</text></outputEntry>
+        <outputEntry id="OE_NB_acao"><text>"Manter confianca original (ocorrencia unica)"</text></outputEntry>
+        <outputEntry id="OE_NB_risco"><text>"BAIXO"</text></outputEntry>
+      </rule>
+
+      <!-- Fallback: 0 occurrences or invalid -->
+      
+      <rule id="Rule_HighRisk">
+        <description>Risco alto detectado - revisao obrigatoria</description>
+        <inputEntry id="IE_HighRisk_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_HighRisk_2"><text>-</text></inputEntry>
+        <outputEntry id="OE_HighRisk_res"><text>"REVISAR"</text></outputEntry>
+        <outputEntry id="OE_HighRisk_acao"><text>"Situacao de risco alto identificada - avaliacao detalhada necessaria"</text></outputEntry>
+        <outputEntry id="OE_HighRisk_risco"><text>"ALTO"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Fallback">
+        <description>Zero ocorrencias ou valor invalido</description>
+        <inputEntry id="IE_FB_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_FB_2"><text>-</text></inputEntry>
+        <outputEntry id="OE_FB_res"><text>"REVISAR"</text></outputEntry>
+        <outputEntry id="OE_FB_acao"><text>"Keyword nao encontrado nas notas clinicas - revisar sugestao"</text></outputEntry>
+        <outputEntry id="OE_FB_risco"><text>"MEDIO"</text></outputEntry>
+      </rule>
+
+    </decisionTable>
+  </decision>
+
+  <dmndi:DMNDI>
+    <dmndi:DMNDiagram id="DMNDiagram_CID10_ConfidenceBoosting">
+      <dmndi:DMNShape id="DMNShape_Decision" dmnElementRef="Decision_CID10_ConfidenceBoosting">
+        <dc:Bounds height="80" width="180" x="160" y="100"/>
+      </dmndi:DMNShape>
+    </dmndi:DMNDiagram>
+  </dmndi:DMNDI>
+
+</definitions>

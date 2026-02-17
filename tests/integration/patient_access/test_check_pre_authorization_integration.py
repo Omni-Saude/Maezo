@@ -1,4 +1,6 @@
 """Integration tests for Check Pre-Authorization Worker with CIB7 engine."""
+from __future__ import annotations
+
 import pytest
 from unittest.mock import AsyncMock
 

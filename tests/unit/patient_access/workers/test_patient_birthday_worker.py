@@ -6,7 +6,7 @@ Tests birthday greeting notification with age-appropriate wellness tips.
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from typing import Any
 from unittest.mock import AsyncMock
 
@@ -208,7 +208,7 @@ class TestPatientBirthdayWorker:
         output_data = {
             "notification_sent": True,
             "message_id": "msg-789",
-            "sent_at": datetime.now(UTC).isoformat(),
+            "sent_at": datetime.now(timezone.utc).isoformat(),
         }
         output_model = PatientBirthdayOutput(**output_data)
         assert output_model.notification_sent is True

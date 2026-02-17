@@ -1,0 +1,154 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/"
+             xmlns:dc="http://www.omg.org/spec/DMN/20180521/DC/"
+             id="Definitions_ACKNOWLEDGMENT_PROCESSING"
+             name="Acknowledgment Processing Rules"
+             namespace="http://camunda.org/schema/1.0/dmn">
+
+  <!-- DMN: Acknowledgment Processing Rules
+       Archetype: ADMIN_ADJUDICATION
+       Outputs: resultado, acao, risco
+       Hit Policy: FIRST
+       Worker: handle_acknowledgment_worker.py
+  -->
+
+  <decision id="Decision_ACKNOWLEDGMENT_PROCESSING" name="Acknowledgment Processing Rules">
+    <decisionTable id="DecisionTable_ACKNOWLEDGMENT_PROCESSING" hitPolicy="FIRST">
+
+      <!-- === INPUTS === -->
+
+      <input id="Input_PROTOCOL_NUMBER" label="Protocol Number">
+        <inputExpression id="InputExpr_PROTOCOL_NUMBER" typeRef="string">
+          <text>protocolNumber</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_CLAIM_ID" label="Claim ID">
+        <inputExpression id="InputExpr_CLAIM_ID" typeRef="string">
+          <text>claimId</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_ACK_TYPE" label="Acknowledgment Type">
+        <inputExpression id="InputExpr_ACK_TYPE" typeRef="string">
+          <text>acknowledgmentType</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_RESPONSE_CODE" label="Response Code">
+        <inputExpression id="InputExpr_RESPONSE_CODE" typeRef="string">
+          <text>responseCode</text>
+        </inputExpression>
+      </input>
+
+      <!-- === OUTPUTS === -->
+
+      <output id="Output_resultado" label="Resultado" name="resultado" typeRef="string">
+        <outputValues><text>"PROSSEGUIR","BLOQUEAR","REVISAR"</text></outputValues>
+      </output>
+
+      <output id="Output_acao" label="Acao" name="acao" typeRef="string"/>
+
+      <output id="Output_risco" label="Risco" name="risco" typeRef="string">
+        <outputValues><text>"CRITICO","ALTO","MEDIO","BAIXO"</text></outputValues>
+      </output>
+
+      <!-- === RULES === -->
+
+      <!-- Rule 1: Missing protocol number -->
+      <rule id="Rule_PROTOCOL_MISSING">
+        <description>Rejeitar protocolo ausente</description>
+        <inputEntry id="IE_PROTOCOL_MISSING_1"><text>null,"","-"</text></inputEntry>
+        <inputEntry id="IE_PROTOCOL_MISSING_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_PROTOCOL_MISSING_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_PROTOCOL_MISSING_4"><text>-</text></inputEntry>
+        <outputEntry id="OE_PROTOCOL_MISSING_res"><text>"BLOQUEAR"</text></outputEntry>
+        <outputEntry id="OE_PROTOCOL_MISSING_acao"><text>"Rejeitar protocolo ausente"</text></outputEntry>
+        <outputEntry id="OE_PROTOCOL_MISSING_risco"><text>"CRITICO"</text></outputEntry>
+      </rule>
+
+      <!-- Rule 2: Missing claim ID -->
+      <rule id="Rule_CLAIM_MISSING">
+        <description>Rejeitar conta ausente</description>
+        <inputEntry id="IE_CLAIM_MISSING_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_CLAIM_MISSING_2"><text>null,"","-"</text></inputEntry>
+        <inputEntry id="IE_CLAIM_MISSING_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_CLAIM_MISSING_4"><text>-</text></inputEntry>
+        <outputEntry id="OE_CLAIM_MISSING_res"><text>"BLOQUEAR"</text></outputEntry>
+        <outputEntry id="OE_CLAIM_MISSING_acao"><text>"Rejeitar conta ausente"</text></outputEntry>
+        <outputEntry id="OE_CLAIM_MISSING_risco"><text>"CRITICO"</text></outputEntry>
+      </rule>
+
+      <!-- Rule 3: Invalid acknowledgment type -->
+      <rule id="Rule_ACK_TYPE_INVALID">
+        <description>Rejeitar tipo de confirmacao invalido</description>
+        <inputEntry id="IE_ACK_TYPE_INVALID_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_ACK_TYPE_INVALID_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_ACK_TYPE_INVALID_3"><text>not("ACK","NACK")</text></inputEntry>
+        <inputEntry id="IE_ACK_TYPE_INVALID_4"><text>-</text></inputEntry>
+        <outputEntry id="OE_ACK_TYPE_INVALID_res"><text>"BLOQUEAR"</text></outputEntry>
+        <outputEntry id="OE_ACK_TYPE_INVALID_acao"><text>"Rejeitar tipo de confirmacao invalido"</text></outputEntry>
+        <outputEntry id="OE_ACK_TYPE_INVALID_risco"><text>"CRITICO"</text></outputEntry>
+      </rule>
+
+      <!-- Rule 4: ACK - set status to ACKNOWLEDGED -->
+      <rule id="Rule_ACK_SUCCESS">
+        <description>Definir status ACKNOWLEDGED</description>
+        <inputEntry id="IE_ACK_SUCCESS_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_ACK_SUCCESS_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_ACK_SUCCESS_3"><text>"ACK"</text></inputEntry>
+        <inputEntry id="IE_ACK_SUCCESS_4"><text>-</text></inputEntry>
+        <outputEntry id="OE_ACK_SUCCESS_res"><text>"PROSSEGUIR"</text></outputEntry>
+        <outputEntry id="OE_ACK_SUCCESS_acao"><text>"Definir status ACKNOWLEDGED"</text></outputEntry>
+        <outputEntry id="OE_ACK_SUCCESS_risco"><text>"BAIXO"</text></outputEntry>
+      </rule>
+
+      <!-- Rule 5: NACK with retryable error - set to SUBMITTED for resubmission -->
+      <rule id="Rule_NACK_RETRYABLE">
+        <description>Definir status SUBMITTED para reenvio</description>
+        <inputEntry id="IE_NACK_RETRYABLE_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_NACK_RETRYABLE_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_NACK_RETRYABLE_3"><text>"NACK"</text></inputEntry>
+        <inputEntry id="IE_NACK_RETRYABLE_4"><text>"TIMEOUT","SERVICE_UNAVAILABLE","RATE_LIMIT"</text></inputEntry>
+        <outputEntry id="OE_NACK_RETRYABLE_res"><text>"REVISAR"</text></outputEntry>
+        <outputEntry id="OE_NACK_RETRYABLE_acao"><text>"Definir status SUBMITTED para reenvio"</text></outputEntry>
+        <outputEntry id="OE_NACK_RETRYABLE_risco"><text>"MEDIO"</text></outputEntry>
+      </rule>
+
+      <!-- Rule 6: NACK - permanent rejection -->
+      <rule id="Rule_NACK_PERMANENT">
+        <description>Definir status DENIED - rejeicao definitiva</description>
+        <inputEntry id="IE_NACK_PERMANENT_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_NACK_PERMANENT_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_NACK_PERMANENT_3"><text>"NACK"</text></inputEntry>
+        <inputEntry id="IE_NACK_PERMANENT_4"><text>-</text></inputEntry>
+        <outputEntry id="OE_NACK_PERMANENT_res"><text>"BLOQUEAR"</text></outputEntry>
+        <outputEntry id="OE_NACK_PERMANENT_acao"><text>"Definir status DENIED - rejeicao definitiva"</text></outputEntry>
+        <outputEntry id="OE_NACK_PERMANENT_risco"><text>"ALTO"</text></outputEntry>
+      </rule>
+
+      <!-- Rule 7: Fallback - requires manual review -->
+      <rule id="Rule_FALLBACK">
+        <description>Caso requer avaliacao manual</description>
+        <inputEntry id="IE_FALLBACK_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_FALLBACK_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_FALLBACK_3"><text>-</text></inputEntry>
+        <inputEntry id="IE_FALLBACK_4"><text>-</text></inputEntry>
+        <outputEntry id="OE_FALLBACK_res"><text>"REVISAR"</text></outputEntry>
+        <outputEntry id="OE_FALLBACK_acao"><text>"Caso requer avaliacao manual"</text></outputEntry>
+        <outputEntry id="OE_FALLBACK_risco"><text>"MEDIO"</text></outputEntry>
+      </rule>
+
+    </decisionTable>
+  </decision>
+
+  <dmndi:DMNDI>
+    <dmndi:DMNDiagram id="DMNDiagram_ACKNOWLEDGMENT_PROCESSING">
+      <dmndi:DMNShape id="DMNShape_Decision_ACKNOWLEDGMENT_PROCESSING" dmnElementRef="Decision_ACKNOWLEDGMENT_PROCESSING">
+        <dc:Bounds height="80" width="180" x="160" y="100"/>
+      </dmndi:DMNShape>
+    </dmndi:DMNDiagram>
+  </dmndi:DMNDI>
+
+</definitions>

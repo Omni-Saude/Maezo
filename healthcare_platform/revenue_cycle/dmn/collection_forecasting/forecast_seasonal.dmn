@@ -1,0 +1,119 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  ============================================================================
+  FORECAST-SEASONAL - Ajuste Sazonal de Previsao
+  ============================================================================
+  Versao: 1.0.0 (2026-02-14)
+  Categoria: COLLECTION_FORECASTING
+  Archetype: CLINICAL_SCORE | Source: update_forecasts_worker.py
+  ============================================================================
+-->
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/"
+             xmlns:dc="http://www.omg.org/spec/DMN/20180521/DC/"
+             id="Definitions_FORECAST_SEASONAL"
+             name="Ajuste Sazonal de Previsao"
+             targetNamespace="http://camunda.org/schema/1.0/dmn">
+
+  <decision id="Decision_FORECAST_SEASONAL" name="Ajuste Sazonal de Previsao">
+    <decisionTable id="DecisionTable_FORECAST_SEASONAL" hitPolicy="FIRST">
+
+      <input id="Input_1" label="Mes Referencia">
+        <inputExpression id="InputExpression_1" typeRef="number">
+          <text>referenceMonth</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_2" label="Tipo Pagador">
+        <inputExpression id="InputExpression_2" typeRef="string">
+          <text>payerType</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_3" label="Indice Sazonalidade">
+        <inputExpression id="InputExpression_3" typeRef="number">
+          <text>seasonalityIndex</text>
+        </inputExpression>
+      </input>
+
+      <!-- ========== OUTPUTS ========== -->
+      <output id="Output_resultado" label="Resultado" name="resultado" typeRef="string">
+        <outputValues><text>"PROSSEGUIR","BLOQUEAR","REVISAR"</text></outputValues>
+      </output>
+      <output id="Output_acao" label="Acao" name="acao" typeRef="string"/>
+      <output id="Output_risco" label="Risco" name="risco" typeRef="string">
+        <outputValues><text>"CRITICO","ALTO","MEDIO","BAIXO"</text></outputValues>
+      </output>
+
+      <rule id="Rule_1">
+        <description>Dezembro/Janeiro - alta sazonalidade SUS</description>
+        <inputEntry id="IE_1_1"><text>1,12</text></inputEntry>
+        <inputEntry id="IE_1_2"><text>"SUS"</text></inputEntry>
+        <inputEntry id="IE_1_3"><text>-</text></inputEntry>
+        <outputEntry id="OE_1_1"><text>"REVISAR"</text></outputEntry>
+        <outputEntry id="OE_1_2"><text>"Periodo de alta sazonalidade SUS - ajustar previsao com fator 0.7"</text></outputEntry>
+        <outputEntry id="OE_1_3"><text>"ALTO"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_2">
+        <description>Indice sazonalidade extremo - desvio significativo</description>
+        <inputEntry id="IE_2_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_2_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_2_3"><text>&gt; 1.5</text></inputEntry>
+        <outputEntry id="OE_2_1"><text>"REVISAR"</text></outputEntry>
+        <outputEntry id="OE_2_2"><text>"Sazonalidade extrema - aplicar cap de ajuste em 1.5x"</text></outputEntry>
+        <outputEntry id="OE_2_3"><text>"ALTO"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_3">
+        <description>Sazonalidade muito baixa - risco de subprevisao</description>
+        <inputEntry id="IE_3_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_3_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_3_3"><text>&lt; 0.5</text></inputEntry>
+        <outputEntry id="OE_3_1"><text>"BLOQUEAR"</text></outputEntry>
+        <outputEntry id="OE_3_2"><text>"Indice sazonal anomalo - verificar dados de entrada"</text></outputEntry>
+        <outputEntry id="OE_3_3"><text>"CRITICO"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_4">
+        <description>Operadora privada - sazonalidade moderada</description>
+        <inputEntry id="IE_4_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_4_2"><text>"OPERADORA"</text></inputEntry>
+        <inputEntry id="IE_4_3"><text>[0.8..1.2]</text></inputEntry>
+        <outputEntry id="OE_4_1"><text>"PROSSEGUIR"</text></outputEntry>
+        <outputEntry id="OE_4_2"><text>"Sazonalidade dentro do esperado para operadoras"</text></outputEntry>
+        <outputEntry id="OE_4_3"><text>"BAIXO"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_5">
+        <description>Particular - sem ajuste sazonal significativo</description>
+        <inputEntry id="IE_5_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_5_2"><text>"PARTICULAR"</text></inputEntry>
+        <inputEntry id="IE_5_3"><text>[0.7..1.3]</text></inputEntry>
+        <outputEntry id="OE_5_1"><text>"PROSSEGUIR"</text></outputEntry>
+        <outputEntry id="OE_5_2"><text>"Particular com sazonalidade aceitavel"</text></outputEntry>
+        <outputEntry id="OE_5_3"><text>"BAIXO"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Fallback">
+        <description>Fallback</description>
+        <inputEntry id="IE_F_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_F_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_F_3"><text>-</text></inputEntry>
+        <outputEntry id="OE_F_1"><text>"REVISAR"</text></outputEntry>
+        <outputEntry id="OE_F_2"><text>"Avaliar ajuste sazonal manualmente"</text></outputEntry>
+        <outputEntry id="OE_F_3"><text>"MEDIO"</text></outputEntry>
+      </rule>
+
+    </decisionTable>
+  </decision>
+
+  <dmndi:DMNDI>
+    <dmndi:DMNDiagram id="DMNDiagram_FORECAST_SEASONAL">
+      <dmndi:DMNShape id="DMNShape_Decision" dmnElementRef="Decision_FORECAST_SEASONAL">
+        <dc:Bounds height="80" width="180" x="160" y="100"/>
+      </dmndi:DMNShape>
+    </dmndi:DMNDiagram>
+  </dmndi:DMNDI>
+
+</definitions>

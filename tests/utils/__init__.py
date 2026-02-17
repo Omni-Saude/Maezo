@@ -1,5 +1,7 @@
 """Test utilities for Healthcare-Orchest-CIB7."""
 
+from __future__ import annotations
+
 from .assertions import (
     assert_worker_success,
     assert_bpmn_error,

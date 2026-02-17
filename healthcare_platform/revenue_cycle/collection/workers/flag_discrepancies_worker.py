@@ -13,7 +13,10 @@ logger = get_logger(__name__)
 
 
 class FlagDiscrepanciesWorker:
-    """Flags payment discrepancies by type for human review."""
+    """    Flags payment discrepancies by type for human review.
+    
+        Archetype: FINANCIAL_CALCULATION
+        """
 
     WORKER_TYPE = "flag_discrepancies"
 

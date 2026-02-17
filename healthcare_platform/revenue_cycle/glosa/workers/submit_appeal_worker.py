@@ -33,6 +33,8 @@ class SubmitAppealWorker(BaseWorker, GlosaWorkerMixin):
 
     Builds TISS-compliant appeal submission, submits to payer,
     and handles errors with retry logic.
+
+        Archetype: ADMIN_ADJUDICATION
     """
 
     def __init__(

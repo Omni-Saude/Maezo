@@ -53,7 +53,10 @@ imaging_studies_gauge = Gauge(
 
 
 class ImagingIntegrationException(DomainException):
-    """Exceção lançada quando ocorrem erros na integração de imagens."""
+    """    Exceção lançada quando ocorrem erros na integração de imagens.
+    
+        Archetype: FINANCIAL_CALCULATION
+        """
 
     def __init__(self, message: str, details: dict[str, Any] | None = None):
         super().__init__(

@@ -1,4 +1,6 @@
 """
+from __future__ import annotations
+
 Tests for Generate Appeal Documentation Worker
 
 Tests appeal documentation generation including Portuguese letter templates,
@@ -7,16 +9,14 @@ evidence checklists, and regulatory references.
 
 import pytest
 
-from healthcare_platform.revenue_cycle.glosa.workers.generate_appeal_documentation_worker import (
-    GenerateAppealDocumentationWorker,
-)
+from healthcare_platform.revenue_cycle.glosa.workers import GenerateAppealDocumentationWorker
 from healthcare_platform.shared.domain.enums import GlosaReasonCode, GlosaType
 
 
 @pytest.fixture
-def worker():
-    """Create worker instance."""
-    return GenerateAppealDocumentationWorker()
+def worker(mock_dmn_service):
+    """Create worker instance with mocked DMN service."""
+    return GenerateAppealDocumentationWorker(dmn_service=mock_dmn_service)
 
 
 @pytest.fixture

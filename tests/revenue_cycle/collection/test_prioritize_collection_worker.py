@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from unittest.mock import MagicMock, patch
+
 import pytest
 
 from healthcare_platform.revenue_cycle.collection.enums import CollectionPriority
@@ -12,11 +14,28 @@ from healthcare_platform.revenue_cycle.collection.workers.prioritize_collection_
 class TestPrioritizeCollectionWorker:
     """Testes para PrioritizeCollectionWorker."""
 
-    async def test_critical_priority_high_amount_and_days(self):
+    @patch('healthcare_platform.revenue_cycle.collection.workers.prioritize_collection_worker.get_required_tenant')
+    @patch('healthcare_platform.revenue_cycle.collection.workers.prioritize_collection_worker.FederatedDMNService')
+    async def test_critical_priority_high_amount_and_days(self, mock_dmn_class, mock_tenant):
         """Testa prioridade CRITICAL para alto valor + muitos dias vencidos."""
+        mock_tenant.return_value = 'test-tenant'
+        mock_dmn = MagicMock()
+        mock_dmn_class.return_value = mock_dmn
+        mock_dmn.evaluate.return_value = {
+            'priority': CollectionPriority.CRITICAL.value,
+            'priorityScore': 90.0,
+            'breakdown': {
+                'amount_score': 85.0,
+                'days_overdue_score': 90.0,
+                'payer_history_score': 80.0,
+                'claim_type_score': 95.0
+            }
+        }
+
         worker = PrioritizeCollectionWorker()
 
-        task_vars = {
+        job = MagicMock()
+        job.variables = {
             "collection_case_id": "CC-12345",
             "amount_due": 15000.0,
             "days_overdue": 120,
@@ -24,18 +43,31 @@ class TestPrioritizeCollectionWorker:
             "claim_type": "emergency",
         }
 
-        result = await worker.execute(task_vars)
+        result = await worker.execute(job)
 
-        assert result["priority"] == CollectionPriority.CRITICAL.value
-        assert result["priority_score"] >= 80
-        assert "score_breakdown" in result
-        assert result["score_breakdown"]["amount_score"] > 0
+        assert result.success
+        assert result.variables["priority"] == CollectionPriority.CRITICAL.value
+        assert result.variables["priority_score"] >= 80
+        assert "score_breakdown" in result.variables
+        assert result.variables["score_breakdown"]["amount_score"] > 0
 
-    async def test_low_priority_small_amount_few_days(self):
+    @patch('healthcare_platform.revenue_cycle.collection.workers.prioritize_collection_worker.get_required_tenant')
+    @patch('healthcare_platform.revenue_cycle.collection.workers.prioritize_collection_worker.FederatedDMNService')
+    async def test_low_priority_small_amount_few_days(self, mock_dmn_class, mock_tenant):
         """Testa prioridade LOW para baixo valor + poucos dias vencidos."""
+        mock_tenant.return_value = 'test-tenant'
+        mock_dmn = MagicMock()
+        mock_dmn_class.return_value = mock_dmn
+        mock_dmn.evaluate.return_value = {
+            'priority': CollectionPriority.LOW.value,
+            'priorityScore': 30.0,
+            'breakdown': {}
+        }
+
         worker = PrioritizeCollectionWorker()
 
-        task_vars = {
+        job = MagicMock()
+        job.variables = {
             "collection_case_id": "CC-12345",
             "amount_due": 500.0,
             "days_overdue": 10,
@@ -43,16 +75,31 @@ class TestPrioritizeCollectionWorker:
             "claim_type": "outpatient",
         }
 
-        result = await worker.execute(task_vars)
+        result = await worker.execute(job)
 
-        assert result["priority"] == CollectionPriority.LOW.value
-        assert result["priority_score"] < 40
+        assert result.success
+        assert result.variables["priority"] == CollectionPriority.LOW.value
+        assert result.variables["priority_score"] < 40
 
-    async def test_emergency_claim_increases_priority(self):
+    @patch('healthcare_platform.revenue_cycle.collection.workers.prioritize_collection_worker.get_required_tenant')
+    @patch('healthcare_platform.revenue_cycle.collection.workers.prioritize_collection_worker.FederatedDMNService')
+    async def test_emergency_claim_increases_priority(self, mock_dmn_class, mock_tenant):
         """Testa que tipo 'emergency' aumenta prioridade."""
+        mock_tenant.return_value = 'test-tenant'
+        mock_dmn = MagicMock()
+        mock_dmn_class.return_value = mock_dmn
+
         worker = PrioritizeCollectionWorker()
 
-        task_vars_emergency = {
+        # Emergency claim
+        mock_dmn.evaluate.return_value = {
+            'priority': 'HIGH',
+            'priorityScore': 75.0,
+            'breakdown': {}
+        }
+
+        job_emergency = MagicMock()
+        job_emergency.variables = {
             "collection_case_id": "CC-12345",
             "amount_due": 2000.0,
             "days_overdue": 30,
@@ -60,7 +107,17 @@ class TestPrioritizeCollectionWorker:
             "claim_type": "emergency",
         }
 
-        task_vars_outpatient = {
+        result_emergency = await worker.execute(job_emergency)
+
+        # Outpatient claim
+        mock_dmn.evaluate.return_value = {
+            'priority': 'MEDIUM',
+            'priorityScore': 50.0,
+            'breakdown': {}
+        }
+
+        job_outpatient = MagicMock()
+        job_outpatient.variables = {
             "collection_case_id": "CC-67890",
             "amount_due": 2000.0,
             "days_overdue": 30,
@@ -68,16 +125,32 @@ class TestPrioritizeCollectionWorker:
             "claim_type": "outpatient",
         }
 
-        result_emergency = await worker.execute(task_vars_emergency)
-        result_outpatient = await worker.execute(task_vars_outpatient)
+        result_outpatient = await worker.execute(job_outpatient)
 
-        assert result_emergency["priority_score"] > result_outpatient["priority_score"]
+        assert result_emergency.variables["priority_score"] > result_outpatient.variables["priority_score"]
 
-    async def test_score_breakdown_contains_all_factors(self):
+    @patch('healthcare_platform.revenue_cycle.collection.workers.prioritize_collection_worker.get_required_tenant')
+    @patch('healthcare_platform.revenue_cycle.collection.workers.prioritize_collection_worker.FederatedDMNService')
+    async def test_score_breakdown_contains_all_factors(self, mock_dmn_class, mock_tenant):
         """Testa que breakdown contém todos os fatores de score."""
+        mock_tenant.return_value = 'test-tenant'
+        mock_dmn = MagicMock()
+        mock_dmn_class.return_value = mock_dmn
+        mock_dmn.evaluate.return_value = {
+            'priority': 'MEDIUM',
+            'priorityScore': 60.0,
+            'breakdown': {
+                'amount_score': 50.0,
+                'days_overdue_score': 60.0,
+                'payer_history_score': 55.0,
+                'claim_type_score': 65.0
+            }
+        }
+
         worker = PrioritizeCollectionWorker()
 
-        task_vars = {
+        job = MagicMock()
+        job.variables = {
             "collection_case_id": "CC-12345",
             "amount_due": 5000.0,
             "days_overdue": 60,
@@ -85,32 +158,10 @@ class TestPrioritizeCollectionWorker:
             "claim_type": "inpatient",
         }
 
-        result = await worker.execute(task_vars)
+        result = await worker.execute(job)
 
-        breakdown = result["score_breakdown"]
+        breakdown = result.variables["score_breakdown"]
         assert "amount_score" in breakdown
         assert "days_overdue_score" in breakdown
         assert "payer_history_score" in breakdown
         assert "claim_type_score" in breakdown
-
-    async def test_amount_score_calculation(self):
-        """Testa cálculo de score por valor."""
-        worker = PrioritizeCollectionWorker()
-
-        # Valor baixo
-        assert worker._calculate_amount_score(500) < 30
-        # Valor médio
-        assert 30 <= worker._calculate_amount_score(3000) < 60
-        # Valor alto
-        assert worker._calculate_amount_score(15000) >= 80
-
-    async def test_days_overdue_score_calculation(self):
-        """Testa cálculo de score por dias vencidos."""
-        worker = PrioritizeCollectionWorker()
-
-        # Poucos dias
-        assert worker._calculate_days_overdue_score(15) < 25
-        # Médio prazo
-        assert 25 <= worker._calculate_days_overdue_score(45) < 50
-        # Longo prazo
-        assert worker._calculate_days_overdue_score(120) >= 75

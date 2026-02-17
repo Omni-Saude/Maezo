@@ -15,7 +15,10 @@ logger = get_logger(__name__)
 
 
 class AgingDistribution(BaseModel):
-    """Distribuição por faixa de aging."""
+    """    Distribuição por faixa de aging.
+    
+        Archetype: FINANCIAL_CALCULATION
+        """
 
     bucket: str
     amount: float

@@ -3,6 +3,8 @@ Optimize Resource Utilization Worker.
 
 Analyzes OR utilization, bed turnover, staff productivity, and equipment usage
 to identify optimization opportunities.
+
+Archetype: DATA_ENRICHMENT
 """
 
 from __future__ import annotations

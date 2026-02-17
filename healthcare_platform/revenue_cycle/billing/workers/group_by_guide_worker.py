@@ -34,6 +34,9 @@ class GroupByGuideWorker(BaseWorker):
         grouped_guides: Dict[str, List[Dict]] - Procedures grouped by TISS guide type
         guide_count: int - Number of different guide types needed
         total_procedures: int - Total number of procedures
+    
+
+    Archetype: FINANCIAL_CALCULATION
     """
 
     # Mapping of procedure types to TISS guide types

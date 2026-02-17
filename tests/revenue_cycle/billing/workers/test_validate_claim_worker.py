@@ -6,13 +6,29 @@ from uuid import uuid4
 
 import pytest
 
-from healthcare_platform.revenue_cycle.billing.workers.validate_claim_worker import ValidateClaimWorker
+from healthcare_platform.revenue_cycle.billing.workers.validate_claim_worker_v2 import ValidateClaimWorker
+from healthcare_platform.shared.workers.base import TaskStatus
+
+from unittest.mock import Mock
 
 
 @pytest.fixture
-def worker():
+def mock_dmn_service():
+    """Create mock DMN service."""
+    dmn_service = Mock()
+    # Default DMN response: PROSSEGUIR (allow processing)
+    dmn_service.evaluate.return_value = {
+        "resultado": "PROSSEGUIR",
+        "acao": "Processar com sucesso",
+        "risco": "BAIXO"
+    }
+    return dmn_service
+
+
+@pytest.fixture
+def worker(mock_dmn_service):
     """Create worker instance."""
-    return ValidateClaimWorker()
+    return ValidateClaimWorker(dmn_service=mock_dmn_service)
 
 
 @pytest.fixture

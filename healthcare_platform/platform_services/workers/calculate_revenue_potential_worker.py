@@ -39,7 +39,10 @@ potential_duration_seconds = Histogram(
 
 
 class RevenuePotentialCalculationError(DomainException):
-    """Exceção para erros no cálculo de potencial de receita."""
+    """    Exceção para erros no cálculo de potencial de receita.
+    
+        Archetype: FINANCIAL_CALCULATION
+        """
 
     def __init__(self, message: str, details: dict[str, Any] | None = None):
         super().__init__(

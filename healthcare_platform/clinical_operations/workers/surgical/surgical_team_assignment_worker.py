@@ -34,7 +34,10 @@ def _(message: str) -> str:
 
 
 class ClinicalOperationsException(DomainException):
-    """Exception for clinical operations errors."""
+    """    Exception for clinical operations errors.
+    
+        Archetype: OPERATIONAL_ROUTING
+        """
 
     def __init__(
         self, message: str, details: dict[str, Any] | None = None

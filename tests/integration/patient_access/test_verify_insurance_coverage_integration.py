@@ -1,4 +1,6 @@
 """Integration tests for Verify Insurance Coverage Worker with CIB7 engine."""
+from __future__ import annotations
+
 import pytest
 from unittest.mock import AsyncMock, MagicMock
 
@@ -25,8 +27,8 @@ class TestVerifyInsuranceCoverageIntegration:
         return StubInsuranceCoverageVerifier()
 
     @pytest.fixture
-    def worker(self, mock_fhir_client, mock_verifier):
-        """Create worker instance with mocked dependencies."""
+    def worker(self, mock_fhir_client, mock_verifier, current_tenant):
+        """Create worker instance with mocked dependencies and tenant context."""
         return VerifyInsuranceCoverageWorker(
             fhir_client=mock_fhir_client,
             verifier=mock_verifier
@@ -117,7 +119,11 @@ class TestVerifyInsuranceCoverageIntegration:
         result = await worker.execute(task_variables)
 
         # Then: FHIR create was called with Coverage resource
-        mock_fhir_client.create.assert_called_once_with("Coverage", pytest.approx(dict, rel=1))
+        assert mock_fhir_client.create.call_count == 1
+        call_args = mock_fhir_client.create.call_args
+        assert call_args[0][0] == "Coverage"
+        assert isinstance(call_args[0][1], dict)
+        assert call_args[0][1]["resourceType"] == "Coverage"
         assert result["coverage_reference"] == "Coverage/coverage-123"
 
     @pytest.mark.asyncio

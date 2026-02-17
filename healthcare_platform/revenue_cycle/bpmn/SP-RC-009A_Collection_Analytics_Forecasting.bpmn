@@ -1,0 +1,458 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" xmlns:camunda="http://camunda.org/schema/1.0/bpmn" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" id="Definitions_RC009A" targetNamespace="http://cib7.healthcare/revenue-cycle" exporter="Camunda Modeler" exporterVersion="5.0.0">
+  <bpmn:process id="SP_RC_009A_Collection_Analytics_Forecasting" name="Análise e Previsão de Cobrança" isExecutable="true">
+    <bpmn:startEvent id="StartEvent_CollectionAnalytics" name="Iniciar Análise">
+      <bpmn:outgoing>Flow_ToParallelSplit</bpmn:outgoing>
+    </bpmn:startEvent>
+    <bpmn:parallelGateway id="Gateway_AnalyticsSplit" name="Dividir Análises">
+      <bpmn:incoming>Flow_ToParallelSplit</bpmn:incoming>
+      <bpmn:outgoing>Flow_ToDSO</bpmn:outgoing>
+      <bpmn:outgoing>Flow_ToCollectionRate</bpmn:outgoing>
+      <bpmn:outgoing>Flow_ToVariance</bpmn:outgoing>
+      <bpmn:outgoing>Flow_ToRevenueCycleTime</bpmn:outgoing>
+      <bpmn:outgoing>Flow_ToPayerPerformance</bpmn:outgoing>
+      <bpmn:outgoing>Flow_ToRevenueLeakage</bpmn:outgoing>
+    </bpmn:parallelGateway>
+    <bpmn:serviceTask id="Task_CalculateDSO" name="Calcular DSO" camunda:type="external" camunda:topic="collection.calculate_dso">
+      <bpmn:extensionElements>
+        <camunda:inputOutput>
+          <camunda:inputParameter name="periodStart">${periodStart}</camunda:inputParameter>
+          <camunda:inputParameter name="periodEnd">${periodEnd}</camunda:inputParameter>
+          <camunda:inputParameter name="tenantId">${tenantId}</camunda:inputParameter>
+          <camunda:outputParameter name="dsoValue">${dsoValue}</camunda:outputParameter>
+          <camunda:outputParameter name="dsoTrend">${dsoTrend}</camunda:outputParameter>
+        </camunda:inputOutput>
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_ToDSO</bpmn:incoming>
+      <bpmn:outgoing>Flow_FromDSO</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:serviceTask id="Task_CalculateCollectionRate" name="Calcular Taxa de Cobrança" camunda:type="external" camunda:topic="collection.calculate_collection_rate">
+      <bpmn:extensionElements>
+        <camunda:inputOutput>
+          <camunda:inputParameter name="periodStart">${periodStart}</camunda:inputParameter>
+          <camunda:inputParameter name="periodEnd">${periodEnd}</camunda:inputParameter>
+          <camunda:inputParameter name="tenantId">${tenantId}</camunda:inputParameter>
+          <camunda:outputParameter name="collectionRate">${collectionRate}</camunda:outputParameter>
+          <camunda:outputParameter name="collectionTrend">${collectionTrend}</camunda:outputParameter>
+        </camunda:inputOutput>
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_ToCollectionRate</bpmn:incoming>
+      <bpmn:outgoing>Flow_FromCollectionRate</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:serviceTask id="Task_CalculateVariance" name="Calcular Variância" camunda:type="external" camunda:topic="collection.calculate_variance">
+      <bpmn:extensionElements>
+        <camunda:inputOutput>
+          <camunda:inputParameter name="periodStart">${periodStart}</camunda:inputParameter>
+          <camunda:inputParameter name="periodEnd">${periodEnd}</camunda:inputParameter>
+          <camunda:inputParameter name="tenantId">${tenantId}</camunda:inputParameter>
+          <camunda:outputParameter name="varianceAmount">${varianceAmount}</camunda:outputParameter>
+          <camunda:outputParameter name="variancePercentage">${variancePercentage}</camunda:outputParameter>
+        </camunda:inputOutput>
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_ToVariance</bpmn:incoming>
+      <bpmn:outgoing>Flow_FromVariance</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:serviceTask id="Task_CalculateRevenueCycleTime" name="Calcular Tempo do Ciclo de Receita" camunda:type="external" camunda:topic="collection.calculate_revenue_cycle_time">
+      <bpmn:extensionElements>
+        <camunda:inputOutput>
+          <camunda:inputParameter name="periodStart">${periodStart}</camunda:inputParameter>
+          <camunda:inputParameter name="periodEnd">${periodEnd}</camunda:inputParameter>
+          <camunda:inputParameter name="tenantId">${tenantId}</camunda:inputParameter>
+          <camunda:outputParameter name="avgCycleTimeDays">${avgCycleTimeDays}</camunda:outputParameter>
+          <camunda:outputParameter name="cycleTimeByStage">${cycleTimeByStage}</camunda:outputParameter>
+        </camunda:inputOutput>
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_ToRevenueCycleTime</bpmn:incoming>
+      <bpmn:outgoing>Flow_FromRevenueCycleTime</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:serviceTask id="Task_AnalyzePayerPerformance" name="Analisar Desempenho de Operadoras" camunda:type="external" camunda:topic="collection.analyze_payer_performance">
+      <bpmn:extensionElements>
+        <camunda:inputOutput>
+          <camunda:inputParameter name="periodStart">${periodStart}</camunda:inputParameter>
+          <camunda:inputParameter name="periodEnd">${periodEnd}</camunda:inputParameter>
+          <camunda:inputParameter name="tenantId">${tenantId}</camunda:inputParameter>
+          <camunda:outputParameter name="payerMetrics">${payerMetrics}</camunda:outputParameter>
+          <camunda:outputParameter name="slowPayersList">${slowPayersList}</camunda:outputParameter>
+        </camunda:inputOutput>
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_ToPayerPerformance</bpmn:incoming>
+      <bpmn:outgoing>Flow_FromPayerPerformance</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:serviceTask id="Task_DetectRevenueLeakage" name="Detectar Vazamento de Receita" camunda:type="external" camunda:topic="collection.detect_revenue_leakage">
+      <bpmn:extensionElements>
+        <camunda:inputOutput>
+          <camunda:inputParameter name="periodStart">${periodStart}</camunda:inputParameter>
+          <camunda:inputParameter name="periodEnd">${periodEnd}</camunda:inputParameter>
+          <camunda:inputParameter name="tenantId">${tenantId}</camunda:inputParameter>
+          <camunda:outputParameter name="leakageAmount">${leakageAmount}</camunda:outputParameter>
+          <camunda:outputParameter name="leakageSources">${leakageSources}</camunda:outputParameter>
+        </camunda:inputOutput>
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_ToRevenueLeakage</bpmn:incoming>
+      <bpmn:outgoing>Flow_FromRevenueLeakage</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:parallelGateway id="Gateway_AnalyticsJoin" name="Sincronização">
+      <bpmn:incoming>Flow_FromDSO</bpmn:incoming>
+      <bpmn:incoming>Flow_FromCollectionRate</bpmn:incoming>
+      <bpmn:incoming>Flow_FromVariance</bpmn:incoming>
+      <bpmn:incoming>Flow_FromRevenueCycleTime</bpmn:incoming>
+      <bpmn:incoming>Flow_FromPayerPerformance</bpmn:incoming>
+      <bpmn:incoming>Flow_FromRevenueLeakage</bpmn:incoming>
+      <bpmn:outgoing>Flow_ToDashboard</bpmn:outgoing>
+    </bpmn:parallelGateway>
+    <bpmn:serviceTask id="Task_GenerateExecutiveDashboard" name="Gerar Dashboard Executivo" camunda:type="external" camunda:topic="collection.generate_executive_dashboard">
+      <bpmn:extensionElements>
+        <camunda:inputOutput>
+          <camunda:inputParameter name="dsoValue">${dsoValue}</camunda:inputParameter>
+          <camunda:inputParameter name="collectionRate">${collectionRate}</camunda:inputParameter>
+          <camunda:inputParameter name="varianceAmount">${varianceAmount}</camunda:inputParameter>
+          <camunda:inputParameter name="avgCycleTimeDays">${avgCycleTimeDays}</camunda:inputParameter>
+          <camunda:inputParameter name="payerMetrics">${payerMetrics}</camunda:inputParameter>
+          <camunda:inputParameter name="leakageAmount">${leakageAmount}</camunda:inputParameter>
+          <camunda:inputParameter name="tenantId">${tenantId}</camunda:inputParameter>
+          <camunda:outputParameter name="dashboardUrl">${dashboardUrl}</camunda:outputParameter>
+          <camunda:outputParameter name="reportGenerated">${reportGenerated}</camunda:outputParameter>
+        </camunda:inputOutput>
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_ToDashboard</bpmn:incoming>
+      <bpmn:outgoing>Flow_ToForecast</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:serviceTask id="Task_PredictCollectionDate" name="Prever Data de Cobrança" camunda:type="external" camunda:topic="collection.predict_collection_date">
+      <bpmn:extensionElements>
+        <camunda:inputOutput>
+          <camunda:inputParameter name="accounts">${accounts}</camunda:inputParameter>
+          <camunda:inputParameter name="payerMetrics">${payerMetrics}</camunda:inputParameter>
+          <camunda:inputParameter name="tenantId">${tenantId}</camunda:inputParameter>
+          <camunda:outputParameter name="predictedDates">${predictedDates}</camunda:outputParameter>
+          <camunda:outputParameter name="confidenceScores">${confidenceScores}</camunda:outputParameter>
+        </camunda:inputOutput>
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_ToForecast</bpmn:incoming>
+      <bpmn:outgoing>Flow_ToSlowPayers</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:serviceTask id="Task_IdentifySlowPayers" name="Identificar Pagadores Lentos" camunda:type="external" camunda:topic="collection.identify_slow_payers">
+      <bpmn:extensionElements>
+        <camunda:inputOutput>
+          <camunda:inputParameter name="accounts">${accounts}</camunda:inputParameter>
+          <camunda:inputParameter name="predictedDates">${predictedDates}</camunda:inputParameter>
+          <camunda:inputParameter name="slowPayerThresholdDays">60</camunda:inputParameter>
+          <camunda:inputParameter name="tenantId">${tenantId}</camunda:inputParameter>
+          <camunda:outputParameter name="slowPayersDetected">${slowPayersDetected}</camunda:outputParameter>
+          <camunda:outputParameter name="slowPayerAccounts">${slowPayerAccounts}</camunda:outputParameter>
+        </camunda:inputOutput>
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_ToSlowPayers</bpmn:incoming>
+      <bpmn:outgoing>Flow_ToSlowPayerGateway</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:exclusiveGateway id="Gateway_SlowPayerCheck" name="Pagador Lento?" default="Flow_NoSlowPayer">
+      <bpmn:incoming>Flow_ToSlowPayerGateway</bpmn:incoming>
+      <bpmn:outgoing>Flow_YesSlowPayer</bpmn:outgoing>
+      <bpmn:outgoing>Flow_NoSlowPayer</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:serviceTask id="Task_NegotiatePaymentPlan" name="Negociar Plano de Pagamento" camunda:type="external" camunda:topic="collection.negotiate_payment_plan">
+      <bpmn:extensionElements>
+        <camunda:inputOutput>
+          <camunda:inputParameter name="slowPayerAccounts">${slowPayerAccounts}</camunda:inputParameter>
+          <camunda:inputParameter name="tenantId">${tenantId}</camunda:inputParameter>
+          <camunda:outputParameter name="paymentPlansCreated">${paymentPlansCreated}</camunda:outputParameter>
+          <camunda:outputParameter name="negotiationResults">${negotiationResults}</camunda:outputParameter>
+        </camunda:inputOutput>
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_YesSlowPayer</bpmn:incoming>
+      <bpmn:outgoing>Flow_ToPenalties</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:serviceTask id="Task_ApplyPenalties" name="Aplicar Penalidades" camunda:type="external" camunda:topic="collection.apply_penalties">
+      <bpmn:extensionElements>
+        <camunda:inputOutput>
+          <camunda:inputParameter name="accounts">${slowPayerAccounts}</camunda:inputParameter>
+          <camunda:inputParameter name="negotiationResults">${negotiationResults}</camunda:inputParameter>
+          <camunda:inputParameter name="penaltyRate">0.02</camunda:inputParameter>
+          <camunda:inputParameter name="tenantId">${tenantId}</camunda:inputParameter>
+          <camunda:outputParameter name="penaltiesApplied">${penaltiesApplied}</camunda:outputParameter>
+          <camunda:outputParameter name="penaltyAmount">${penaltyAmount}</camunda:outputParameter>
+        </camunda:inputOutput>
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_ToPenalties</bpmn:incoming>
+      <bpmn:outgoing>Flow_FromSlowPayerPath</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:serviceTask id="Task_ApplyContractualAdjustments" name="Aplicar Ajustes Contratuais" camunda:type="external" camunda:topic="collection.apply_contractual_adjustments">
+      <bpmn:extensionElements>
+        <camunda:inputOutput>
+          <camunda:inputParameter name="accounts">${accounts}</camunda:inputParameter>
+          <camunda:inputParameter name="payerMetrics">${payerMetrics}</camunda:inputParameter>
+          <camunda:inputParameter name="tenantId">${tenantId}</camunda:inputParameter>
+          <camunda:outputParameter name="adjustmentsApplied">${adjustmentsApplied}</camunda:outputParameter>
+          <camunda:outputParameter name="adjustmentAmount">${adjustmentAmount}</camunda:outputParameter>
+        </camunda:inputOutput>
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_NoSlowPayer</bpmn:incoming>
+      <bpmn:outgoing>Flow_FromNormalPath</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:exclusiveGateway id="Gateway_PathMerge">
+      <bpmn:incoming>Flow_FromSlowPayerPath</bpmn:incoming>
+      <bpmn:incoming>Flow_FromNormalPath</bpmn:incoming>
+      <bpmn:outgoing>Flow_ToUpdateForecasts</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:serviceTask id="Task_UpdateForecasts" name="Atualizar Projeções" camunda:type="external" camunda:topic="collection.update_forecasts">
+      <bpmn:extensionElements>
+        <camunda:inputOutput>
+          <camunda:inputParameter name="predictedDates">${predictedDates}</camunda:inputParameter>
+          <camunda:inputParameter name="paymentPlansCreated">${paymentPlansCreated}</camunda:inputParameter>
+          <camunda:inputParameter name="adjustmentsApplied">${adjustmentsApplied}</camunda:inputParameter>
+          <camunda:inputParameter name="penaltiesApplied">${penaltiesApplied}</camunda:inputParameter>
+          <camunda:inputParameter name="tenantId">${tenantId}</camunda:inputParameter>
+          <camunda:outputParameter name="forecastsUpdated">${forecastsUpdated}</camunda:outputParameter>
+          <camunda:outputParameter name="projectedRevenue">${projectedRevenue}</camunda:outputParameter>
+        </camunda:inputOutput>
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_ToUpdateForecasts</bpmn:incoming>
+      <bpmn:outgoing>Flow_ToEnd</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:endEvent id="EndEvent_CollectionAnalyticsComplete" name="Análise Completa">
+      <bpmn:incoming>Flow_ToEnd</bpmn:incoming>
+      <bpmn:messageEventDefinition id="MessageEventDefinition_1" messageRef="Message_CollectionAnalyticsComplete" />
+    </bpmn:endEvent>
+    <bpmn:boundaryEvent id="Event_DailyAnalyticsCycle" name="Ciclo Diário" cancelActivity="false" attachedToRef="Task_CalculateDSO">
+      <bpmn:outgoing>Flow_DailyCycleToStart</bpmn:outgoing>
+      <bpmn:timerEventDefinition id="TimerEventDefinition_1">
+        <bpmn:timeCycle xsi:type="bpmn:tFormalExpression">R/P1D</bpmn:timeCycle>
+      </bpmn:timerEventDefinition>
+    </bpmn:boundaryEvent>
+    <bpmn:sequenceFlow id="Flow_ToParallelSplit" sourceRef="StartEvent_CollectionAnalytics" targetRef="Gateway_AnalyticsSplit" />
+    <bpmn:sequenceFlow id="Flow_ToDSO" sourceRef="Gateway_AnalyticsSplit" targetRef="Task_CalculateDSO" />
+    <bpmn:sequenceFlow id="Flow_ToCollectionRate" sourceRef="Gateway_AnalyticsSplit" targetRef="Task_CalculateCollectionRate" />
+    <bpmn:sequenceFlow id="Flow_ToVariance" sourceRef="Gateway_AnalyticsSplit" targetRef="Task_CalculateVariance" />
+    <bpmn:sequenceFlow id="Flow_ToRevenueCycleTime" sourceRef="Gateway_AnalyticsSplit" targetRef="Task_CalculateRevenueCycleTime" />
+    <bpmn:sequenceFlow id="Flow_ToPayerPerformance" sourceRef="Gateway_AnalyticsSplit" targetRef="Task_AnalyzePayerPerformance" />
+    <bpmn:sequenceFlow id="Flow_ToRevenueLeakage" sourceRef="Gateway_AnalyticsSplit" targetRef="Task_DetectRevenueLeakage" />
+    <bpmn:sequenceFlow id="Flow_FromDSO" sourceRef="Task_CalculateDSO" targetRef="Gateway_AnalyticsJoin" />
+    <bpmn:sequenceFlow id="Flow_FromCollectionRate" sourceRef="Task_CalculateCollectionRate" targetRef="Gateway_AnalyticsJoin" />
+    <bpmn:sequenceFlow id="Flow_FromVariance" sourceRef="Task_CalculateVariance" targetRef="Gateway_AnalyticsJoin" />
+    <bpmn:sequenceFlow id="Flow_FromRevenueCycleTime" sourceRef="Task_CalculateRevenueCycleTime" targetRef="Gateway_AnalyticsJoin" />
+    <bpmn:sequenceFlow id="Flow_FromPayerPerformance" sourceRef="Task_AnalyzePayerPerformance" targetRef="Gateway_AnalyticsJoin" />
+    <bpmn:sequenceFlow id="Flow_FromRevenueLeakage" sourceRef="Task_DetectRevenueLeakage" targetRef="Gateway_AnalyticsJoin" />
+    <bpmn:sequenceFlow id="Flow_ToDashboard" sourceRef="Gateway_AnalyticsJoin" targetRef="Task_GenerateExecutiveDashboard" />
+    <bpmn:sequenceFlow id="Flow_ToForecast" sourceRef="Task_GenerateExecutiveDashboard" targetRef="Task_PredictCollectionDate" />
+    <bpmn:sequenceFlow id="Flow_ToSlowPayers" sourceRef="Task_PredictCollectionDate" targetRef="Task_IdentifySlowPayers" />
+    <bpmn:sequenceFlow id="Flow_ToSlowPayerGateway" sourceRef="Task_IdentifySlowPayers" targetRef="Gateway_SlowPayerCheck" />
+    <bpmn:sequenceFlow id="Flow_YesSlowPayer" name="Sim" sourceRef="Gateway_SlowPayerCheck" targetRef="Task_NegotiatePaymentPlan">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${slowPayersDetected == true}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_NoSlowPayer" name="Não" sourceRef="Gateway_SlowPayerCheck" targetRef="Task_ApplyContractualAdjustments" />
+    <bpmn:sequenceFlow id="Flow_ToPenalties" sourceRef="Task_NegotiatePaymentPlan" targetRef="Task_ApplyPenalties" />
+    <bpmn:sequenceFlow id="Flow_FromSlowPayerPath" sourceRef="Task_ApplyPenalties" targetRef="Gateway_PathMerge" />
+    <bpmn:sequenceFlow id="Flow_FromNormalPath" sourceRef="Task_ApplyContractualAdjustments" targetRef="Gateway_PathMerge" />
+    <bpmn:sequenceFlow id="Flow_ToUpdateForecasts" sourceRef="Gateway_PathMerge" targetRef="Task_UpdateForecasts" />
+    <bpmn:sequenceFlow id="Flow_ToEnd" sourceRef="Task_UpdateForecasts" targetRef="EndEvent_CollectionAnalyticsComplete" />
+    <bpmn:sequenceFlow id="Flow_DailyCycleToStart" sourceRef="Event_DailyAnalyticsCycle" targetRef="StartEvent_CollectionAnalytics" />
+  </bpmn:process>
+  <bpmn:message id="Message_CollectionAnalyticsComplete" name="Message_CollectionAnalyticsComplete" />
+  <bpmndi:BPMNDiagram id="BPMNDiagram_1">
+    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="SP_RC_009A_Collection_Analytics_Forecasting">
+      <bpmndi:BPMNShape id="StartEvent_CollectionAnalytics_di" bpmnElement="StartEvent_CollectionAnalytics">
+        <dc:Bounds x="162" y="362" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="142" y="405" width="76" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Gateway_AnalyticsSplit_di" bpmnElement="Gateway_AnalyticsSplit">
+        <dc:Bounds x="255" y="355" width="50" height="50" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="234" y="412" width="92" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_CalculateDSO_di" bpmnElement="Task_CalculateDSO">
+        <dc:Bounds x="360" y="80" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_CalculateCollectionRate_di" bpmnElement="Task_CalculateCollectionRate">
+        <dc:Bounds x="360" y="180" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_CalculateVariance_di" bpmnElement="Task_CalculateVariance">
+        <dc:Bounds x="360" y="280" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_CalculateRevenueCycleTime_di" bpmnElement="Task_CalculateRevenueCycleTime">
+        <dc:Bounds x="360" y="380" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_AnalyzePayerPerformance_di" bpmnElement="Task_AnalyzePayerPerformance">
+        <dc:Bounds x="360" y="480" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_DetectRevenueLeakage_di" bpmnElement="Task_DetectRevenueLeakage">
+        <dc:Bounds x="360" y="580" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Gateway_AnalyticsJoin_di" bpmnElement="Gateway_AnalyticsJoin">
+        <dc:Bounds x="515" y="355" width="50" height="50" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="499" y="412" width="82" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_GenerateExecutiveDashboard_di" bpmnElement="Task_GenerateExecutiveDashboard">
+        <dc:Bounds x="620" y="340" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_PredictCollectionDate_di" bpmnElement="Task_PredictCollectionDate">
+        <dc:Bounds x="770" y="340" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_IdentifySlowPayers_di" bpmnElement="Task_IdentifySlowPayers">
+        <dc:Bounds x="920" y="340" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Gateway_SlowPayerCheck_di" bpmnElement="Gateway_SlowPayerCheck" isMarkerVisible="true">
+        <dc:Bounds x="1075" y="355" width="50" height="50" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1056" y="412" width="88" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_NegotiatePaymentPlan_di" bpmnElement="Task_NegotiatePaymentPlan">
+        <dc:Bounds x="1180" y="240" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_ApplyPenalties_di" bpmnElement="Task_ApplyPenalties">
+        <dc:Bounds x="1330" y="240" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_ApplyContractualAdjustments_di" bpmnElement="Task_ApplyContractualAdjustments">
+        <dc:Bounds x="1180" y="440" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Gateway_PathMerge_di" bpmnElement="Gateway_PathMerge" isMarkerVisible="true">
+        <dc:Bounds x="1485" y="355" width="50" height="50" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_UpdateForecasts_di" bpmnElement="Task_UpdateForecasts">
+        <dc:Bounds x="1590" y="340" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="EndEvent_CollectionAnalyticsComplete_di" bpmnElement="EndEvent_CollectionAnalyticsComplete">
+        <dc:Bounds x="1742" y="362" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1716" y="405" width="88" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Event_DailyAnalyticsCycle_di" bpmnElement="Event_DailyAnalyticsCycle">
+        <dc:Bounds x="392" y="142" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="423" y="173" width="54" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Flow_ToParallelSplit_di" bpmnElement="Flow_ToParallelSplit">
+        <di:waypoint x="198" y="380" />
+        <di:waypoint x="255" y="380" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_ToDSO_di" bpmnElement="Flow_ToDSO">
+        <di:waypoint x="280" y="355" />
+        <di:waypoint x="280" y="120" />
+        <di:waypoint x="360" y="120" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_ToCollectionRate_di" bpmnElement="Flow_ToCollectionRate">
+        <di:waypoint x="280" y="355" />
+        <di:waypoint x="280" y="220" />
+        <di:waypoint x="360" y="220" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_ToVariance_di" bpmnElement="Flow_ToVariance">
+        <di:waypoint x="280" y="355" />
+        <di:waypoint x="280" y="320" />
+        <di:waypoint x="360" y="320" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_ToRevenueCycleTime_di" bpmnElement="Flow_ToRevenueCycleTime">
+        <di:waypoint x="305" y="380" />
+        <di:waypoint x="333" y="380" />
+        <di:waypoint x="333" y="420" />
+        <di:waypoint x="360" y="420" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_ToPayerPerformance_di" bpmnElement="Flow_ToPayerPerformance">
+        <di:waypoint x="280" y="405" />
+        <di:waypoint x="280" y="520" />
+        <di:waypoint x="360" y="520" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_ToRevenueLeakage_di" bpmnElement="Flow_ToRevenueLeakage">
+        <di:waypoint x="280" y="405" />
+        <di:waypoint x="280" y="620" />
+        <di:waypoint x="360" y="620" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_FromDSO_di" bpmnElement="Flow_FromDSO">
+        <di:waypoint x="460" y="120" />
+        <di:waypoint x="540" y="120" />
+        <di:waypoint x="540" y="355" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_FromCollectionRate_di" bpmnElement="Flow_FromCollectionRate">
+        <di:waypoint x="460" y="220" />
+        <di:waypoint x="540" y="220" />
+        <di:waypoint x="540" y="355" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_FromVariance_di" bpmnElement="Flow_FromVariance">
+        <di:waypoint x="460" y="320" />
+        <di:waypoint x="540" y="320" />
+        <di:waypoint x="540" y="355" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_FromRevenueCycleTime_di" bpmnElement="Flow_FromRevenueCycleTime">
+        <di:waypoint x="460" y="420" />
+        <di:waypoint x="488" y="420" />
+        <di:waypoint x="488" y="380" />
+        <di:waypoint x="515" y="380" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_FromPayerPerformance_di" bpmnElement="Flow_FromPayerPerformance">
+        <di:waypoint x="460" y="520" />
+        <di:waypoint x="540" y="520" />
+        <di:waypoint x="540" y="405" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_FromRevenueLeakage_di" bpmnElement="Flow_FromRevenueLeakage">
+        <di:waypoint x="460" y="620" />
+        <di:waypoint x="540" y="620" />
+        <di:waypoint x="540" y="405" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_ToDashboard_di" bpmnElement="Flow_ToDashboard">
+        <di:waypoint x="565" y="380" />
+        <di:waypoint x="620" y="380" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_ToForecast_di" bpmnElement="Flow_ToForecast">
+        <di:waypoint x="720" y="380" />
+        <di:waypoint x="770" y="380" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_ToSlowPayers_di" bpmnElement="Flow_ToSlowPayers">
+        <di:waypoint x="870" y="380" />
+        <di:waypoint x="920" y="380" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_ToSlowPayerGateway_di" bpmnElement="Flow_ToSlowPayerGateway">
+        <di:waypoint x="1020" y="380" />
+        <di:waypoint x="1075" y="380" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_YesSlowPayer_di" bpmnElement="Flow_YesSlowPayer">
+        <di:waypoint x="1100" y="355" />
+        <di:waypoint x="1100" y="280" />
+        <di:waypoint x="1180" y="280" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1107" y="315" width="20" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_NoSlowPayer_di" bpmnElement="Flow_NoSlowPayer">
+        <di:waypoint x="1100" y="405" />
+        <di:waypoint x="1100" y="480" />
+        <di:waypoint x="1180" y="480" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1106" y="440" width="20" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_ToPenalties_di" bpmnElement="Flow_ToPenalties">
+        <di:waypoint x="1280" y="280" />
+        <di:waypoint x="1330" y="280" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_FromSlowPayerPath_di" bpmnElement="Flow_FromSlowPayerPath">
+        <di:waypoint x="1430" y="280" />
+        <di:waypoint x="1510" y="280" />
+        <di:waypoint x="1510" y="355" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_FromNormalPath_di" bpmnElement="Flow_FromNormalPath">
+        <di:waypoint x="1280" y="480" />
+        <di:waypoint x="1510" y="480" />
+        <di:waypoint x="1510" y="405" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_ToUpdateForecasts_di" bpmnElement="Flow_ToUpdateForecasts">
+        <di:waypoint x="1535" y="380" />
+        <di:waypoint x="1590" y="380" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_ToEnd_di" bpmnElement="Flow_ToEnd">
+        <di:waypoint x="1690" y="380" />
+        <di:waypoint x="1742" y="380" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_DailyCycleToStart_di" bpmnElement="Flow_DailyCycleToStart">
+        <di:waypoint x="410" y="142" />
+        <di:waypoint x="410" y="40" />
+        <di:waypoint x="180" y="40" />
+        <di:waypoint x="180" y="362" />
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>

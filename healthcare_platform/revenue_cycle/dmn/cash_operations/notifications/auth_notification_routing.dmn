@@ -1,0 +1,96 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/"
+             xmlns:dc="http://www.omg.org/spec/DMN/20180521/DC/"
+             id="Definitions_AuthNotificationRouting"
+             name="Auth Notification Routing"
+             namespace="http://camunda.org/schema/1.0/dmn">
+  <!-- Archetype: OPERATIONAL_ROUTING | Source: auth_notification_routing_worker.py -->
+
+  <!-- Source: doctor_procedure_auth_status_worker.py
+       Rules extracted from pending authorization count and oldest days logic.
+  -->
+
+  <decision id="Decision_AuthNotifRouting" name="Auth Notification Routing">
+    <decisionTable id="DecisionTable_AuthNotifRouting" hitPolicy="FIRST">
+
+      <input id="Input_totalPending" label="Total Pending">
+        <inputExpression id="InputExpr_totalPending" typeRef="number">
+          <text>totalPending</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_oldestDays" label="Oldest Days Pending">
+        <inputExpression id="InputExpr_oldestDays" typeRef="number">
+          <text>oldestDays</text>
+        </inputExpression>
+      </input>
+
+      <output id="Output_destino" label="Destino" name="destino" typeRef="string"/>
+
+      <output id="Output_prioridade" label="Prioridade" name="prioridade" typeRef="number"/>
+
+      <output id="Output_restricao" label="Restricao" name="restricao" typeRef="string"/>
+
+      <!-- R1: No pending authorizations — skip -->
+      <rule id="Rule_none">
+        <description>No pending authorizations — skip notification</description>
+        <inputEntry id="IE_n_1"><text>0</text></inputEntry>
+        <inputEntry id="IE_n_2"><text>-</text></inputEntry>
+        <outputEntry id="OE_n_dest"><text>"skip"</text></outputEntry>
+        <outputEntry id="OE_n_prio"><text>5</text></outputEntry>
+        <outputEntry id="OE_n_restr"><text>"No pending authorizations"</text></outputEntry>
+      </rule>
+
+      <!-- R2: Overdue authorizations (> 7 days) — urgent -->
+      <rule id="Rule_overdue">
+        <description>Overdue authorizations — urgent WhatsApp notification</description>
+        <inputEntry id="IE_o_1"><text>&gt; 0</text></inputEntry>
+        <inputEntry id="IE_o_2"><text>&gt; 7</text></inputEntry>
+        <outputEntry id="OE_o_dest"><text>"whatsapp"</text></outputEntry>
+        <outputEntry id="OE_o_prio"><text>1</text></outputEntry>
+        <outputEntry id="OE_o_restr"><text>"Urgent: overdue authorizations"</text></outputEntry>
+      </rule>
+
+      <!-- R3: Standard pending — normal notification -->
+      
+      <rule id="Rule_critical_volume">
+        <description>Volume critico de autorizacoes pendentes</description>
+        <inputEntry id="IE_critical_volume_1"><text>> 10</text></inputEntry>
+        <inputEntry id="IE_critical_volume_2"><text>> 3</text></inputEntry>
+        <outputEntry id="OE_critical_volume_dest"><text>"whatsapp"</text></outputEntry>
+        <outputEntry id="OE_critical_volume_prio"><text>1</text></outputEntry>
+        <outputEntry id="OE_critical_volume_restr"><text>"Volume critico: mais de 10 pendentes com atraso"</text></outputEntry>
+      </rule>
+
+
+      <rule id="Rule_near_expiry">
+        <description>Autorizacoes proximas ao vencimento</description>
+        <inputEntry id="IE_near_expiry_1"><text>> 0</text></inputEntry>
+        <inputEntry id="IE_near_expiry_2"><text>[5..7]</text></inputEntry>
+        <outputEntry id="OE_near_expiry_dest"><text>"whatsapp"</text></outputEntry>
+        <outputEntry id="OE_near_expiry_prio"><text>2</text></outputEntry>
+        <outputEntry id="OE_near_expiry_restr"><text>"Atencao: autorizacoes proximas ao prazo limite"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_standard">
+        <description>Standard pending authorizations — normal notification</description>
+        <inputEntry id="IE_s_1"><text>&gt; 0</text></inputEntry>
+        <inputEntry id="IE_s_2"><text>-</text></inputEntry>
+        <outputEntry id="OE_s_dest"><text>"whatsapp"</text></outputEntry>
+        <outputEntry id="OE_s_prio"><text>3</text></outputEntry>
+        <outputEntry id="OE_s_restr"><text>"Standard notification"</text></outputEntry>
+      </rule>
+
+    </decisionTable>
+  </decision>
+
+  <dmndi:DMNDI>
+    <dmndi:DMNDiagram id="DMNDiagram_1">
+      <dmndi:DMNShape id="DMNShape_Decision" dmnElementRef="Decision_AuthNotifRouting">
+        <dc:Bounds height="80" width="180" x="160" y="100"/>
+      </dmndi:DMNShape>
+    </dmndi:DMNDiagram>
+  </dmndi:DMNDI>
+
+</definitions>

@@ -109,13 +109,13 @@ class TestCreatePatientRecordWorker:
             }
         )
 
-        # Switch to HPA
-        hpa_ctx = TenantContext.from_tenant_code(TenantCode.HPA)
-        set_current_tenant(hpa_ctx)
+        # Switch to HOSPITAL_B
+        hospital_b_ctx = TenantContext.from_tenant_code(TenantCode.HOSPITAL_B)
+        set_current_tenant(hospital_b_ctx)
 
-        # Execute with HPA
+        # Execute with HOSPITAL_B
         fhir_client.create.return_value = {"resourceType": "Patient", "id": "hpa-patient"}
-        result_hpa = await worker.execute(
+        result_hospital_b = await worker.execute(
             {
                 "cpf_hash": cpf_hash,
                 "name": "João HPA",
@@ -125,7 +125,7 @@ class TestCreatePatientRecordWorker:
         )
 
         # Patients should be created independently
-        assert result_austa["patient_id"] != result_hpa["patient_id"]
+        assert result_austa["patient_id"] != result_hospital_b["patient_id"]
 
     @pytest.mark.asyncio
     async def test_idempotency(self, worker, fhir_client, tenant_austa):

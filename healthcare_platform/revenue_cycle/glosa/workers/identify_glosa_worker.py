@@ -42,6 +42,8 @@ class IdentifyGlosaWorker(BaseWorker, GlosaWorkerMixin):
         - totalDeniedAmount: Total BRL amount denied
         - glosaCount: Number of glosas identified
         - hasGlosas: Boolean indicating if any glosas were found
+
+        Archetype: FINANCIAL_CALCULATION
     """
 
     def __init__(self, tasy_api_client: TasyApiClientProtocol | None = None) -> None:

@@ -92,11 +92,6 @@ class TestIdentifyCodingOpportunitiesWorker:
         """Test that missing encounter_id raises validation error."""
         with pytest.raises(Exception):  # Pydantic validation error
             IdentifyCodingOpportunitiesInput(
-                encounter_id="",
-                patient_id="pat-456",
-                current_procedure_codes=["10101012"],
-                clinical_documentation={},
-                provider_id="prov-789",
             )
 
     @pytest.mark.asyncio

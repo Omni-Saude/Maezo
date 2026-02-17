@@ -1,0 +1,105 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/"
+             xmlns:dc="http://www.omg.org/spec/DMN/20180521/DC/"
+             id="Definitions_TUSS_CID10_Requirements"
+             name="TUSS-CID10 Requirements Decision"
+             namespace="http://camunda.org/schema/1.0/dmn">
+  <!-- Archetype: ADMIN_ADJUDICATION | Source: tuss_cid10_requirements_worker.py -->
+
+  <!-- DMN: TUSS-CID10 Requirements
+       Based on: validate_codes_worker.py lines 41-43, 432-461
+       Rule: TUSS codes requiring specific CID-10 diagnoses
+  -->
+
+  <decision id="Decision_TUSS_CID10_Requirements" name="TUSS-CID10 Requirements">
+    <decisionTable id="DecisionTable_TUSS_CID10_Requirements" hitPolicy="FIRST">
+
+      <!-- === INPUTS === -->
+      <input id="Input_tussCodePrefix" label="TUSS Code Prefix">
+        <inputExpression id="InputExpr_tussCodePrefix" typeRef="string">
+          <text>tuss_code_prefix</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_hasRequiredCid10" label="Has Required CID-10">
+        <inputExpression id="InputExpr_hasRequiredCid10" typeRef="boolean">
+          <text>has_required_cid10</text>
+        </inputExpression>
+      </input>
+
+      <!-- === OUTPUTS === -->
+      <output id="Output_resultado" label="Resultado" name="resultado" typeRef="string">
+        <outputValues><text>"PROSSEGUIR","BLOQUEAR","REVISAR"</text></outputValues>
+      </output>
+
+      <output id="Output_acao" label="Acao" name="acao" typeRef="string"/>
+
+      <output id="Output_risco" label="Risco" name="risco" typeRef="string">
+        <outputValues><text>"CRITICO","ALTO","MEDIO","BAIXO"</text></outputValues>
+      </output>
+
+      <!-- === RULES === -->
+
+      <!-- Rule 1: Surgical TUSS (31003036 Apendicectomia) without required CID-10 K35 → BLOCK HIGH -->
+      <rule id="Rule_Appendectomy_No_Diagnosis">
+        <description>Apendicectomia sem diagnostico de apendicite</description>
+        <inputEntry id="IE_App_1"><text>"31003036"</text></inputEntry>
+        <inputEntry id="IE_App_2"><text>false</text></inputEntry>
+        <outputEntry id="OE_App_res"><text>"BLOQUEAR"</text></outputEntry>
+        <outputEntry id="OE_App_acao"><text>"Procedimento TUSS 31003036 (Apendicectomia) requer diagnostico CID-10 K35 (Apendicite)"</text></outputEntry>
+        <outputEntry id="OE_App_risco"><text>"ALTO"</text></outputEntry>
+      </rule>
+
+      <!-- Rule 2: Surgical TUSS prefix 3xxxx without diagnosis → BLOCK HIGH -->
+      <rule id="Rule_Surgical_No_Diagnosis">
+        <description>Procedimento cirurgico sem diagnostico correspondente</description>
+        <inputEntry id="IE_Surg_1"><text>starts with(tuss_code_prefix, "3")</text></inputEntry>
+        <inputEntry id="IE_Surg_2"><text>false</text></inputEntry>
+        <outputEntry id="OE_Surg_res"><text>"BLOQUEAR"</text></outputEntry>
+        <outputEntry id="OE_Surg_acao"><text>"Procedimento cirurgico TUSS requer diagnostico CID-10 correspondente"</text></outputEntry>
+        <outputEntry id="OE_Surg_risco"><text>"ALTO"</text></outputEntry>
+      </rule>
+
+      <!-- Rule 3: Diagnostic TUSS prefix 4xxxx without diagnosis → REVIEW MEDIUM -->
+      <rule id="Rule_Diagnostic_No_Diagnosis">
+        <description>Procedimento diagnostico sem CID-10 - requer revisao</description>
+        <inputEntry id="IE_Diag_1"><text>starts with(tuss_code_prefix, "4")</text></inputEntry>
+        <inputEntry id="IE_Diag_2"><text>false</text></inputEntry>
+        <outputEntry id="OE_Diag_res"><text>"REVISAR"</text></outputEntry>
+        <outputEntry id="OE_Diag_acao"><text>"Procedimento diagnostico TUSS sem CID-10 associado - verificar necessidade clinica"</text></outputEntry>
+        <outputEntry id="OE_Diag_risco"><text>"MEDIO"</text></outputEntry>
+      </rule>
+
+      <!-- Rule 4: Has required CID-10 → PROCEED LOW -->
+      <rule id="Rule_Has_Required_Diagnosis">
+        <description>Procedimento TUSS com diagnostico CID-10 correspondente</description>
+        <inputEntry id="IE_Req_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_Req_2"><text>true</text></inputEntry>
+        <outputEntry id="OE_Req_res"><text>"PROSSEGUIR"</text></outputEntry>
+        <outputEntry id="OE_Req_acao"><text>"Procedimento TUSS possui diagnostico CID-10 correspondente aprovado"</text></outputEntry>
+        <outputEntry id="OE_Req_risco"><text>"BAIXO"</text></outputEntry>
+      </rule>
+
+      <!-- Fallback: Other TUSS codes without specific requirements → PROCEED LOW -->
+      <rule id="Rule_No_Requirement">
+        <description>Procedimento TUSS sem requisito especifico de CID-10</description>
+        <inputEntry id="IE_NR_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_NR_2"><text>-</text></inputEntry>
+        <outputEntry id="OE_NR_res"><text>"PROSSEGUIR"</text></outputEntry>
+        <outputEntry id="OE_NR_acao"><text>"Procedimento TUSS sem requisito obrigatorio de diagnostico CID-10"</text></outputEntry>
+        <outputEntry id="OE_NR_risco"><text>"BAIXO"</text></outputEntry>
+      </rule>
+
+    </decisionTable>
+  </decision>
+
+  <dmndi:DMNDI>
+    <dmndi:DMNDiagram id="DMNDiagram_TUSS_CID10_Requirements">
+      <dmndi:DMNShape id="DMNShape_Decision" dmnElementRef="Decision_TUSS_CID10_Requirements">
+        <dc:Bounds height="80" width="180" x="160" y="100"/>
+      </dmndi:DMNShape>
+    </dmndi:DMNDiagram>
+  </dmndi:DMNDI>
+
+</definitions>

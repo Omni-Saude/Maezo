@@ -1,0 +1,119 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  ============================================================================
+  PLAN-ELIGIBILITY - Elegibilidade para Plano de Pagamento
+  ============================================================================
+  Versao: 1.0.0 (2026-02-14)
+  Categoria: COLLECTION_PAYMENT
+  Archetype: THRESHOLD | Source: negotiate_payment_plan_worker.py
+  ============================================================================
+-->
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/"
+             xmlns:dc="http://www.omg.org/spec/DMN/20180521/DC/"
+             id="Definitions_PLAN_ELIGIBILITY"
+             name="Elegibilidade para Plano de Pagamento"
+             targetNamespace="http://camunda.org/schema/1.0/dmn">
+
+  <decision id="Decision_PLAN_ELIGIBILITY" name="Elegibilidade para Plano de Pagamento">
+    <decisionTable id="DecisionTable_PLAN_ELIGIBILITY" hitPolicy="FIRST">
+
+      <input id="Input_1" label="Valor Total Divida">
+        <inputExpression id="InputExpression_1" typeRef="number">
+          <text>totalDebt</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_2" label="Parcelas Solicitadas">
+        <inputExpression id="InputExpression_2" typeRef="number">
+          <text>requestedInstallments</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_3" label="Historico Inadimplencia">
+        <inputExpression id="InputExpression_3" typeRef="string">
+          <text>defaultHistory</text>
+        </inputExpression>
+      </input>
+
+      <!-- ========== OUTPUTS ========== -->
+      <output id="Output_resultado" label="Resultado" name="resultado" typeRef="string">
+        <outputValues><text>"PROSSEGUIR","BLOQUEAR","REVISAR"</text></outputValues>
+      </output>
+      <output id="Output_acao" label="Acao" name="acao" typeRef="string"/>
+      <output id="Output_risco" label="Risco" name="risco" typeRef="string">
+        <outputValues><text>"CRITICO","ALTO","MEDIO","BAIXO"</text></outputValues>
+      </output>
+
+      <rule id="Rule_1">
+        <description>Parcela abaixo do minimo R$100</description>
+        <inputEntry id="IE_1_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_1_2"><text>&gt; 12</text></inputEntry>
+        <inputEntry id="IE_1_3"><text>-</text></inputEntry>
+        <outputEntry id="OE_1_1"><text>"BLOQUEAR"</text></outputEntry>
+        <outputEntry id="OE_1_2"><text>"Maximo 12 parcelas permitido - reduzir numero de parcelas"</text></outputEntry>
+        <outputEntry id="OE_1_3"><text>"ALTO"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_2">
+        <description>Reincidente com historico ruim</description>
+        <inputEntry id="IE_2_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_2_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_2_3"><text>"RECURRENT_DEFAULT"</text></inputEntry>
+        <outputEntry id="OE_2_1"><text>"REVISAR"</text></outputEntry>
+        <outputEntry id="OE_2_2"><text>"Paciente reincidente - exigir entrada minima de 30% e max 6 parcelas"</text></outputEntry>
+        <outputEntry id="OE_2_3"><text>"CRITICO"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_3">
+        <description>Valor baixo - pagamento a vista preferencial</description>
+        <inputEntry id="IE_3_1"><text>&lt; 200</text></inputEntry>
+        <inputEntry id="IE_3_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_3_3"><text>-</text></inputEntry>
+        <outputEntry id="OE_3_1"><text>"BLOQUEAR"</text></outputEntry>
+        <outputEntry id="OE_3_2"><text>"Valor abaixo de R$200 - parcelamento nao disponivel, cobrar a vista"</text></outputEntry>
+        <outputEntry id="OE_3_3"><text>"BAIXO"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_4">
+        <description>Bom historico - aprovacao automatica</description>
+        <inputEntry id="IE_4_1"><text>[200..5000]</text></inputEntry>
+        <inputEntry id="IE_4_2"><text>&lt;= 6</text></inputEntry>
+        <inputEntry id="IE_4_3"><text>"GOOD_STANDING"</text></inputEntry>
+        <outputEntry id="OE_4_1"><text>"PROSSEGUIR"</text></outputEntry>
+        <outputEntry id="OE_4_2"><text>"Paciente adimplente - aprovar parcelamento automaticamente"</text></outputEntry>
+        <outputEntry id="OE_4_3"><text>"BAIXO"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_5">
+        <description>Valor alto com muitas parcelas - aprovacao gerencial</description>
+        <inputEntry id="IE_5_1"><text>&gt; 5000</text></inputEntry>
+        <inputEntry id="IE_5_2"><text>&gt; 6</text></inputEntry>
+        <inputEntry id="IE_5_3"><text>-</text></inputEntry>
+        <outputEntry id="OE_5_1"><text>"REVISAR"</text></outputEntry>
+        <outputEntry id="OE_5_2"><text>"Parcelamento longo de valor alto - requer aprovacao gerencial"</text></outputEntry>
+        <outputEntry id="OE_5_3"><text>"ALTO"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Fallback">
+        <description>Fallback</description>
+        <inputEntry id="IE_F_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_F_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_F_3"><text>-</text></inputEntry>
+        <outputEntry id="OE_F_1"><text>"REVISAR"</text></outputEntry>
+        <outputEntry id="OE_F_2"><text>"Avaliar elegibilidade para parcelamento"</text></outputEntry>
+        <outputEntry id="OE_F_3"><text>"MEDIO"</text></outputEntry>
+      </rule>
+
+    </decisionTable>
+  </decision>
+
+  <dmndi:DMNDI>
+    <dmndi:DMNDiagram id="DMNDiagram_PLAN_ELIGIBILITY">
+      <dmndi:DMNShape id="DMNShape_Decision" dmnElementRef="Decision_PLAN_ELIGIBILITY">
+        <dc:Bounds height="80" width="180" x="160" y="100"/>
+      </dmndi:DMNShape>
+    </dmndi:DMNDiagram>
+  </dmndi:DMNDI>
+
+</definitions>

@@ -41,7 +41,10 @@ forecast_duration_seconds = Histogram(
 
 
 class RevenueForecastingError(DomainException):
-    """Exception raised when revenue forecasting fails."""
+    """    Exception raised when revenue forecasting fails.
+    
+        Archetype: FINANCIAL_CALCULATION
+        """
 
     def __init__(self, message: str, details: dict[str, Any] | None = None) -> None:
         super().__init__(

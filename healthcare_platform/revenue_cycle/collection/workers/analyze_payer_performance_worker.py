@@ -15,7 +15,10 @@ logger = get_logger(__name__)
 
 
 class PayerPerformanceMetrics(BaseModel):
-    """Métricas de performance de um pagador."""
+    """    Métricas de performance de um pagador.
+    
+        Archetype: FINANCIAL_CALCULATION
+        """
 
     payer_id: str
     payer_name: str

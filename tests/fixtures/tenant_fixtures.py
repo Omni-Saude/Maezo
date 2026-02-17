@@ -1,12 +1,15 @@
+from __future__ import annotations
+
 """Tenant fixtures para testes."""
 
 from typing import Dict, Any
-from healthcare_platform.shared.models.tenant import TenantCode, TenantContext
+from healthcare_platform.shared.domain.enums import TenantCode
+from healthcare_platform.shared.multi_tenant.context import TenantContext
 
 
 TENANT_AUSTA: Dict[str, Any] = {
     "tenant_id": "austa-001",
-    "tenant_code": TenantCode.AUSTA,
+    "tenant_code": TenantCode.HOSPITAL_A,
     "name": "AUSTA Hospital",
     "database_config": {
         "host": "localhost",
@@ -18,7 +21,7 @@ TENANT_AUSTA: Dict[str, Any] = {
     "erp_integration": {
         "system": "TASY",
         "base_url": "http://tasy.austa.local/api",
-        "tenant_code": "AUSTA",
+        "tenant_code": "HOSPITAL_A",
     },
     "insurance_types": ["SUS", "AMB", "CBHPM", "PRIVATE"],
     "features": {
@@ -35,9 +38,9 @@ TENANT_AUSTA: Dict[str, Any] = {
     },
 }
 
-TENANT_HPA: Dict[str, Any] = {
+TENANT_AMH_SP: Dict[str, Any] = {
     "tenant_id": "hpa-001",
-    "tenant_code": TenantCode.HPA,
+    "tenant_code": TenantCode.AMH_SP,
     "name": "HPA Saúde",
     "database_config": {
         "host": "localhost",
@@ -83,11 +86,11 @@ def tenant_configuration(
 
     Example:
         >>> config = tenant_configuration(
-        ...     TenantCode.AUSTA,
+        ...     TenantCode.HOSPITAL_A,
         ...     {"features": {"whatsapp_notifications": False}}
         ... )
     """
-    base_config = TENANT_AUSTA.copy() if tenant_code == TenantCode.AUSTA else TENANT_HPA.copy()
+    base_config = TENANT_AUSTA.copy() if tenant_code == TenantCode.HOSPITAL_A else TENANT_AMH_SP.copy()
 
     if overrides:
         # Deep merge of overrides

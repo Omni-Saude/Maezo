@@ -16,7 +16,10 @@ logger = get_logger(__name__)
 
 
 class PaymentDataDTO(BaseModel):
-    """Payment data for validation."""
+    """    Payment data for validation.
+    
+        Archetype: FINANCIAL_CALCULATION
+        """
 
     transaction_id: str = Field(..., min_length=1)
     gross_amount: Decimal = Field(..., gt=0)

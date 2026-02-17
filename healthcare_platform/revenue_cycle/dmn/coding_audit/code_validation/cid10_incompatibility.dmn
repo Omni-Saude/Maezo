@@ -1,0 +1,105 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/"
+             xmlns:dc="http://www.omg.org/spec/DMN/20180521/DC/"
+             id="Definitions_CID10_Incompatibility"
+             name="CID-10 Incompatibility Check Decision"
+             namespace="http://camunda.org/schema/1.0/dmn">
+  <!-- Archetype: ADMIN_ADJUDICATION | Source: cid10_incompatibility_worker.py -->
+
+  <!-- DMN: CID-10 Incompatibility Check
+       Based on: validate_codes_worker.py lines 35-38, 280-307
+       Rule: Detect incompatible CID-10 code pairs
+  -->
+
+  <decision id="Decision_CID10_Incompatibility" name="CID-10 Incompatibility Check">
+    <decisionTable id="DecisionTable_CID10_Incompatibility" hitPolicy="FIRST">
+
+      <!-- === INPUTS === -->
+      <input id="Input_codePrefixA" label="Code Prefix A">
+        <inputExpression id="InputExpr_codePrefixA" typeRef="string">
+          <text>code_prefix_a</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_codePrefixB" label="Code Prefix B">
+        <inputExpression id="InputExpr_codePrefixB" typeRef="string">
+          <text>code_prefix_b</text>
+        </inputExpression>
+      </input>
+
+      <!-- === OUTPUTS === -->
+      <output id="Output_resultado" label="Resultado" name="resultado" typeRef="string">
+        <outputValues><text>"PROSSEGUIR","BLOQUEAR","REVISAR"</text></outputValues>
+      </output>
+
+      <output id="Output_acao" label="Acao" name="acao" typeRef="string"/>
+
+      <output id="Output_risco" label="Risco" name="risco" typeRef="string">
+        <outputValues><text>"CRITICO","ALTO","MEDIO","BAIXO"</text></outputValues>
+      </output>
+
+      <!-- === RULES === -->
+
+      <!-- Rule 1: E10 + E11 (Diabetes tipo 1 + tipo 2) → INCOMPATIBLE -->
+      <rule id="Rule_E10_E11_Incompatible">
+        <description>Diabetes tipo 1 e tipo 2 simultaneamente - incompativel</description>
+        <inputEntry id="IE_E10_1"><text>"E10"</text></inputEntry>
+        <inputEntry id="IE_E10_2"><text>"E11"</text></inputEntry>
+        <outputEntry id="OE_E10_res"><text>"BLOQUEAR"</text></outputEntry>
+        <outputEntry id="OE_E10_acao"><text>"Codigos CID-10 incompativeis: E10 (Diabetes tipo 1) e E11 (Diabetes tipo 2) nao podem coexistir no mesmo atendimento"</text></outputEntry>
+        <outputEntry id="OE_E10_risco"><text>"ALTO"</text></outputEntry>
+      </rule>
+
+      <!-- Rule 2: O80 + O82 (Parto espontâneo + cesariana) → INCOMPATIBLE -->
+      <rule id="Rule_O80_O82_Incompatible">
+        <description>Parto espontaneo e cesariana simultaneamente - incompativel</description>
+        <inputEntry id="IE_O80_1"><text>"O80"</text></inputEntry>
+        <inputEntry id="IE_O80_2"><text>"O82"</text></inputEntry>
+        <outputEntry id="OE_O80_res"><text>"BLOQUEAR"</text></outputEntry>
+        <outputEntry id="OE_O80_acao"><text>"Codigos CID-10 incompativeis: O80 (Parto espontaneo) e O82 (Cesariana) nao podem coexistir no mesmo atendimento"</text></outputEntry>
+        <outputEntry id="OE_O80_risco"><text>"ALTO"</text></outputEntry>
+      </rule>
+
+      <!-- Rule 3: Z34 + O80/O82 (Pregnancy supervision + delivery) → INCOMPATIBLE -->
+      <rule id="Rule_Z34_Delivery_Incompatible">
+        <description>Supervisao de gravidez com parto no mesmo encontro - incompativel</description>
+        <inputEntry id="IE_Z34_1"><text>"Z34"</text></inputEntry>
+        <inputEntry id="IE_Z34_2"><text>"O80","O82"</text></inputEntry>
+        <outputEntry id="OE_Z34_res"><text>"BLOQUEAR"</text></outputEntry>
+        <outputEntry id="OE_Z34_acao"><text>"Codigos CID-10 incompativeis: Z34 (Supervisao gravidez) nao pode coexistir com O80/O82 (parto) no mesmo atendimento"</text></outputEntry>
+        <outputEntry id="OE_Z34_risco"><text>"ALTO"</text></outputEntry>
+      </rule>
+
+      <!-- Rule 4: Compatible codes → PROCEED LOW -->
+      
+      <rule id="Rule_HighRisk">
+        <description>Risco alto detectado - revisao obrigatoria</description>
+        <inputEntry id="IE_HighRisk_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_HighRisk_2"><text>-</text></inputEntry>
+        <outputEntry id="OE_HighRisk_res"><text>"REVISAR"</text></outputEntry>
+        <outputEntry id="OE_HighRisk_acao"><text>"Situacao de risco alto identificada - avaliacao detalhada necessaria"</text></outputEntry>
+        <outputEntry id="OE_HighRisk_risco"><text>"ALTO"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Compatible">
+        <description>Codigos CID-10 compativeis</description>
+        <inputEntry id="IE_Comp_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_Comp_2"><text>-</text></inputEntry>
+        <outputEntry id="OE_Comp_res"><text>"PROSSEGUIR"</text></outputEntry>
+        <outputEntry id="OE_Comp_acao"><text>"Nenhuma incompatibilidade detectada entre codigos CID-10"</text></outputEntry>
+        <outputEntry id="OE_Comp_risco"><text>"BAIXO"</text></outputEntry>
+      </rule>
+
+    </decisionTable>
+  </decision>
+
+  <dmndi:DMNDI>
+    <dmndi:DMNDiagram id="DMNDiagram_CID10_Incompatibility">
+      <dmndi:DMNShape id="DMNShape_Decision" dmnElementRef="Decision_CID10_Incompatibility">
+        <dc:Bounds height="80" width="180" x="160" y="100"/>
+      </dmndi:DMNShape>
+    </dmndi:DMNDiagram>
+  </dmndi:DMNDI>
+
+</definitions>

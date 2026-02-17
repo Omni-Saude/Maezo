@@ -18,7 +18,10 @@ logger = get_logger(__name__)
 
 
 class ReconcileMonthlyWorker:
-    """Executa fechamento mensal validando todas as alocações de pagamento."""
+    """    Executa fechamento mensal validando todas as alocações de pagamento.
+    
+        Archetype: FINANCIAL_CALCULATION
+        """
 
     WORKER_TYPE = "reconcile_monthly"
 

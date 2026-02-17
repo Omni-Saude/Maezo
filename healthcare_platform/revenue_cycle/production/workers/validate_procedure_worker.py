@@ -25,6 +25,8 @@ class ValidateProcedureWorker:
     - Existence in current ANS Rol
     - Active status (not terminated)
     - Coverage type compatibility
+
+    Archetype: COMPLIANCE_VALIDATION
     """
 
     TOPIC = "production.validate_procedure"

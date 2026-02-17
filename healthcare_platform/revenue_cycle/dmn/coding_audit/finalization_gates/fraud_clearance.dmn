@@ -1,0 +1,94 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/"
+             xmlns:dc="http://www.omg.org/spec/DMN/20180521/DC/"
+             id="Definitions_FraudClearance"
+             name="Fraud Clearance Gate Decision"
+             namespace="http://camunda.org/schema/1.0/dmn">
+  <!-- Archetype: ADMIN_ADJUDICATION | Source: fraud_clearance_worker.py -->
+
+  <!-- DMN: Fraud Clearance Gate
+       Based on: finalize_coding_worker.py lines 304-317
+       Rule: Pre-condition check for fraud clearance before finalization
+  -->
+
+  <decision id="Decision_FraudClearance" name="Fraud Clearance Gate">
+    <decisionTable id="DecisionTable_FraudClearance" hitPolicy="FIRST">
+
+      <!-- === INPUTS === -->
+      <input id="Input_fraudRecommendation" label="Fraud Recommendation">
+        <inputExpression id="InputExpr_fraudRecommendation" typeRef="string">
+          <text>fraud_recommendation</text>
+        </inputExpression>
+      </input>
+
+      <!-- === OUTPUTS === -->
+      <output id="Output_resultado" label="Resultado" name="resultado" typeRef="string">
+        <outputValues><text>"PROSSEGUIR","BLOQUEAR","REVISAR"</text></outputValues>
+      </output>
+
+      <output id="Output_acao" label="Acao" name="acao" typeRef="string"/>
+
+      <output id="Output_risco" label="Risco" name="risco" typeRef="string">
+        <outputValues><text>"CRITICO","ALTO","MEDIO","BAIXO"</text></outputValues>
+      </output>
+
+      <!-- === RULES === -->
+
+      <!-- Rule 1: Fraud recommendation = clear - proceed -->
+      <rule id="Rule_FraudClear">
+        <description>Fraude nao detectada - prosseguir com finalizacao</description>
+        <inputEntry id="IE_Clear_1"><text>"clear"</text></inputEntry>
+        <outputEntry id="OE_Clear_res"><text>"PROSSEGUIR"</text></outputEntry>
+        <outputEntry id="OE_Clear_acao"><text>"Nenhuma fraude detectada"</text></outputEntry>
+        <outputEntry id="OE_Clear_risco"><text>"BAIXO"</text></outputEntry>
+      </rule>
+
+      <!-- Rule 2: Fraud recommendation = review - allow with monitoring -->
+      <rule id="Rule_FraudReview">
+        <description>Fraude requer revisao - permitir com monitoramento</description>
+        <inputEntry id="IE_Review_1"><text>"review"</text></inputEntry>
+        <outputEntry id="OE_Review_res"><text>"REVISAR"</text></outputEntry>
+        <outputEntry id="OE_Review_acao"><text>"Possivel fraude requer monitoramento"</text></outputEntry>
+        <outputEntry id="OE_Review_risco"><text>"MEDIO"</text></outputEntry>
+      </rule>
+
+      <!-- Rule 3: Fraud recommendation = flag or other - block -->
+      
+      <rule id="Rule_LowRiskClear">
+        <description>Score de fraude baixo - liberacao automatica</description>
+        <inputEntry id="IE_LowRiskClear_1"><text>-</text></inputEntry>
+        <outputEntry id="OE_LowRiskClear_res"><text>"PROSSEGUIR"</text></outputEntry>
+        <outputEntry id="OE_LowRiskClear_acao"><text>"Score de fraude dentro dos parametros - liberacao automatica"</text></outputEntry>
+        <outputEntry id="OE_LowRiskClear_risco"><text>"BAIXO"</text></outputEntry>
+      </rule>
+
+
+      <rule id="Rule_MediumRiskFlag">
+        <description>Score de fraude moderado - monitoramento</description>
+        <inputEntry id="IE_MediumRiskFlag_1"><text>-</text></inputEntry>
+        <outputEntry id="OE_MediumRiskFlag_res"><text>"REVISAR"</text></outputEntry>
+        <outputEntry id="OE_MediumRiskFlag_acao"><text>"Score de fraude moderado - incluir em monitoramento continuo"</text></outputEntry>
+        <outputEntry id="OE_MediumRiskFlag_risco"><text>"MEDIO"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_FraudBlocked">
+        <description>Fraude detectada - bloquear finalizacao</description>
+        <inputEntry id="IE_Blocked_1"><text>-</text></inputEntry>
+        <outputEntry id="OE_Blocked_res"><text>"BLOQUEAR"</text></outputEntry>
+        <outputEntry id="OE_Blocked_acao"><text>"Codificacao bloqueada por deteccao de fraude"</text></outputEntry>
+        <outputEntry id="OE_Blocked_risco"><text>"CRITICO"</text></outputEntry>
+      </rule>
+
+    </decisionTable>
+  </decision>
+
+  <dmndi:DMNDI>
+    <dmndi:DMNDiagram id="DMNDiagram_FraudClearance">
+      <dmndi:DMNShape id="DMNShape_Decision" dmnElementRef="Decision_FraudClearance">
+        <dc:Bounds height="80" width="180" x="160" y="100"/>
+      </dmndi:DMNShape>
+    </dmndi:DMNDiagram>
+  </dmndi:DMNDI>
+
+</definitions>

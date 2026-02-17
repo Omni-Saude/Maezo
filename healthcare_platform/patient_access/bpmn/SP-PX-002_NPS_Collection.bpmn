@@ -1,0 +1,284 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+                  xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+                  xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+                  xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
+                  xmlns:camunda="http://camunda.org/schema/1.0/bpmn"
+                  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                  id="Definitions_SP_PX_002"
+                  targetNamespace="http://cib7.healthcare/patient-access/nps"
+                  exporter="CIB Seven 2.1.3"
+                  exporterVersion="2.1.3">
+
+  <bpmn:error id="Error_SurveyFailed" name="SURVEY_FAILED_ERROR" errorCode="SURVEY_FAILED_ERROR"/>
+
+  <bpmn:message id="Message_DischargeComplete" name="msg_discharge_complete"/>
+
+  <bpmn:process id="SP_PX_002_NPS_Collection" name="Coleta NPS e Satisfação" isExecutable="true">
+
+    <!-- Start Event: Discharge Complete -->
+    <bpmn:startEvent id="Start_DischargeComplete" name="Alta Concluída">
+      <bpmn:outgoing>Flow_ToTimer48h</bpmn:outgoing>
+      <bpmn:messageEventDefinition messageRef="Message_DischargeComplete"/>
+    </bpmn:startEvent>
+
+    <!-- Timer: Wait 48h post-discharge before sending survey -->
+    <bpmn:intermediateCatchEvent id="Timer_48h" name="Aguardar 48h Pós-Alta">
+      <bpmn:incoming>Flow_ToTimer48h</bpmn:incoming>
+      <bpmn:outgoing>Flow_ToSendSurvey</bpmn:outgoing>
+      <bpmn:timerEventDefinition>
+        <bpmn:timeDuration xsi:type="bpmn:tFormalExpression">PT48H</bpmn:timeDuration>
+      </bpmn:timerEventDefinition>
+    </bpmn:intermediateCatchEvent>
+
+    <!-- Task 1: Send NPS Survey -->
+    <bpmn:serviceTask id="Task_SendNPSSurvey" name="Enviar Pesquisa NPS"
+                      camunda:type="external" camunda:topic="survey.send_nps_survey">
+      <bpmn:incoming>Flow_ToSendSurvey</bpmn:incoming>
+      <bpmn:outgoing>Flow_ToSendWhatsApp</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Task 2: Send WhatsApp with survey link -->
+    <bpmn:serviceTask id="Task_SendWhatsApp" name="Enviar Link via WhatsApp"
+                      camunda:type="external" camunda:topic="platform.send_whatsapp">
+      <bpmn:incoming>Flow_ToSendWhatsApp</bpmn:incoming>
+      <bpmn:outgoing>Flow_ToCollectResponse</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Task 3: Collect Response -->
+    <bpmn:serviceTask id="Task_CollectResponse" name="Coletar Resposta"
+                      camunda:type="external" camunda:topic="survey.collect_response">
+      <bpmn:incoming>Flow_ToCollectResponse</bpmn:incoming>
+      <bpmn:outgoing>Flow_ToAnalyzeSentiment</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Task 4: Analyze Sentiment -->
+    <bpmn:serviceTask id="Task_AnalyzeSentiment" name="Analisar Sentimento"
+                      camunda:type="external" camunda:topic="survey.analyze_sentiment">
+      <bpmn:incoming>Flow_ToAnalyzeSentiment</bpmn:incoming>
+      <bpmn:outgoing>Flow_ToNPSGateway</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Gateway: NPS Category (Detractor/Passive/Promoter) -->
+    <bpmn:exclusiveGateway id="Gateway_NPSCategory" name="Categoria NPS?">
+      <bpmn:incoming>Flow_ToNPSGateway</bpmn:incoming>
+      <bpmn:outgoing>Flow_Detractor</bpmn:outgoing>
+      <bpmn:outgoing>Flow_Passive</bpmn:outgoing>
+      <bpmn:outgoing>Flow_Promoter</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+
+    <!-- Task 5a: Route Feedback - Detractor -->
+    <bpmn:serviceTask id="Task_RouteFeedbackDetractor" name="Tratar Detrator (0-6)"
+                      camunda:type="external" camunda:topic="survey.route_feedback">
+      <bpmn:incoming>Flow_Detractor</bpmn:incoming>
+      <bpmn:outgoing>Flow_DetractorToClose</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Task 5b: Route Feedback - Passive -->
+    <bpmn:serviceTask id="Task_RouteFeedbackPassive" name="Registrar Passivo (7-8)"
+                      camunda:type="external" camunda:topic="survey.route_feedback">
+      <bpmn:incoming>Flow_Passive</bpmn:incoming>
+      <bpmn:outgoing>Flow_PassiveToClose</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Task 5c: Route Feedback - Promoter -->
+    <bpmn:serviceTask id="Task_RouteFeedbackPromoter" name="Agradecer Promotor (9-10)"
+                      camunda:type="external" camunda:topic="survey.route_feedback">
+      <bpmn:incoming>Flow_Promoter</bpmn:incoming>
+      <bpmn:outgoing>Flow_PromoterToClose</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Merge Gateway -->
+    <bpmn:exclusiveGateway id="Gateway_MergeNPS" name="Merge">
+      <bpmn:incoming>Flow_DetractorToClose</bpmn:incoming>
+      <bpmn:incoming>Flow_PassiveToClose</bpmn:incoming>
+      <bpmn:incoming>Flow_PromoterToClose</bpmn:incoming>
+      <bpmn:outgoing>Flow_ToCloseLoop</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+
+    <!-- Task 6: Close Loop -->
+    <bpmn:serviceTask id="Task_CloseLoop" name="Fechar Loop de Feedback"
+                      camunda:type="external" camunda:topic="survey.close_loop">
+      <bpmn:incoming>Flow_ToCloseLoop</bpmn:incoming>
+      <bpmn:outgoing>Flow_ToEnd</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- End Event -->
+    <bpmn:endEvent id="End_NPSComplete" name="Coleta NPS Concluída">
+      <bpmn:incoming>Flow_ToEnd</bpmn:incoming>
+    </bpmn:endEvent>
+
+    <!-- Sequence Flows -->
+    <bpmn:sequenceFlow id="Flow_ToTimer48h" sourceRef="Start_DischargeComplete" targetRef="Timer_48h"/>
+    <bpmn:sequenceFlow id="Flow_ToSendSurvey" sourceRef="Timer_48h" targetRef="Task_SendNPSSurvey"/>
+    <bpmn:sequenceFlow id="Flow_ToSendWhatsApp" sourceRef="Task_SendNPSSurvey" targetRef="Task_SendWhatsApp"/>
+    <bpmn:sequenceFlow id="Flow_ToCollectResponse" sourceRef="Task_SendWhatsApp" targetRef="Task_CollectResponse"/>
+    <bpmn:sequenceFlow id="Flow_ToAnalyzeSentiment" sourceRef="Task_CollectResponse" targetRef="Task_AnalyzeSentiment"/>
+    <bpmn:sequenceFlow id="Flow_ToNPSGateway" sourceRef="Task_AnalyzeSentiment" targetRef="Gateway_NPSCategory"/>
+    <bpmn:sequenceFlow id="Flow_Detractor" name="Detrator (0-6)" sourceRef="Gateway_NPSCategory" targetRef="Task_RouteFeedbackDetractor">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${nps_score &lt;= 6}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_Passive" name="Passivo (7-8)" sourceRef="Gateway_NPSCategory" targetRef="Task_RouteFeedbackPassive">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${nps_score >= 7 &amp;&amp; nps_score &lt;= 8}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_Promoter" name="Promotor (9-10)" sourceRef="Gateway_NPSCategory" targetRef="Task_RouteFeedbackPromoter">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${nps_score >= 9}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_DetractorToClose" sourceRef="Task_RouteFeedbackDetractor" targetRef="Gateway_MergeNPS"/>
+    <bpmn:sequenceFlow id="Flow_PassiveToClose" sourceRef="Task_RouteFeedbackPassive" targetRef="Gateway_MergeNPS"/>
+    <bpmn:sequenceFlow id="Flow_PromoterToClose" sourceRef="Task_RouteFeedbackPromoter" targetRef="Gateway_MergeNPS"/>
+    <bpmn:sequenceFlow id="Flow_ToCloseLoop" sourceRef="Gateway_MergeNPS" targetRef="Task_CloseLoop"/>
+    <bpmn:sequenceFlow id="Flow_ToEnd" sourceRef="Task_CloseLoop" targetRef="End_NPSComplete"/>
+
+  </bpmn:process>
+
+  <!-- Diagram Interchange -->
+  <bpmndi:BPMNDiagram id="BPMNDiagram_SP_PX_002">
+    <bpmndi:BPMNPlane id="BPMNPlane_SP_PX_002" bpmnElement="SP_PX_002_NPS_Collection">
+
+      <bpmndi:BPMNShape id="Shape_Start_DischargeComplete" bpmnElement="Start_DischargeComplete">
+        <dc:Bounds x="152" y="202" width="36" height="36"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="131" y="245" width="78" height="27"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Shape_Timer_48h" bpmnElement="Timer_48h">
+        <dc:Bounds x="242" y="202" width="36" height="36"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="220" y="245" width="80" height="14"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Shape_Task_SendNPSSurvey" bpmnElement="Task_SendNPSSurvey">
+        <dc:Bounds x="330" y="180" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Shape_Task_SendWhatsApp" bpmnElement="Task_SendWhatsApp">
+        <dc:Bounds x="480" y="180" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Shape_Task_CollectResponse" bpmnElement="Task_CollectResponse">
+        <dc:Bounds x="630" y="180" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Shape_Task_AnalyzeSentiment" bpmnElement="Task_AnalyzeSentiment">
+        <dc:Bounds x="780" y="180" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Shape_Gateway_NPSCategory" bpmnElement="Gateway_NPSCategory" isMarkerVisible="true">
+        <dc:Bounds x="935" y="195" width="50" height="50"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="920" y="165" width="80" height="14"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Shape_Task_RouteFeedbackDetractor" bpmnElement="Task_RouteFeedbackDetractor">
+        <dc:Bounds x="1040" y="80" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Shape_Task_RouteFeedbackPassive" bpmnElement="Task_RouteFeedbackPassive">
+        <dc:Bounds x="1040" y="180" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Shape_Task_RouteFeedbackPromoter" bpmnElement="Task_RouteFeedbackPromoter">
+        <dc:Bounds x="1040" y="290" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Shape_Gateway_MergeNPS" bpmnElement="Gateway_MergeNPS" isMarkerVisible="true">
+        <dc:Bounds x="1195" y="195" width="50" height="50"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1205" y="165" width="30" height="14"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Shape_Task_CloseLoop" bpmnElement="Task_CloseLoop">
+        <dc:Bounds x="1300" y="180" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Shape_End_NPSComplete" bpmnElement="End_NPSComplete">
+        <dc:Bounds x="1452" y="202" width="36" height="36"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1430" y="245" width="80" height="27"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+
+      <!-- Edges -->
+      <bpmndi:BPMNEdge id="Edge_Flow_ToTimer48h" bpmnElement="Flow_ToTimer48h">
+        <di:waypoint x="188" y="220"/>
+        <di:waypoint x="242" y="220"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_Flow_ToSendSurvey" bpmnElement="Flow_ToSendSurvey">
+        <di:waypoint x="278" y="220"/>
+        <di:waypoint x="330" y="220"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_Flow_ToSendWhatsApp" bpmnElement="Flow_ToSendWhatsApp">
+        <di:waypoint x="430" y="220"/>
+        <di:waypoint x="480" y="220"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_Flow_ToCollectResponse" bpmnElement="Flow_ToCollectResponse">
+        <di:waypoint x="580" y="220"/>
+        <di:waypoint x="630" y="220"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_Flow_ToAnalyzeSentiment" bpmnElement="Flow_ToAnalyzeSentiment">
+        <di:waypoint x="730" y="220"/>
+        <di:waypoint x="780" y="220"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_Flow_ToNPSGateway" bpmnElement="Flow_ToNPSGateway">
+        <di:waypoint x="880" y="220"/>
+        <di:waypoint x="935" y="220"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_Flow_Detractor" bpmnElement="Flow_Detractor">
+        <di:waypoint x="960" y="195"/>
+        <di:waypoint x="960" y="120"/>
+        <di:waypoint x="1040" y="120"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_Flow_Passive" bpmnElement="Flow_Passive">
+        <di:waypoint x="985" y="220"/>
+        <di:waypoint x="1040" y="220"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_Flow_Promoter" bpmnElement="Flow_Promoter">
+        <di:waypoint x="960" y="245"/>
+        <di:waypoint x="960" y="330"/>
+        <di:waypoint x="1040" y="330"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_Flow_DetractorToClose" bpmnElement="Flow_DetractorToClose">
+        <di:waypoint x="1140" y="120"/>
+        <di:waypoint x="1220" y="120"/>
+        <di:waypoint x="1220" y="195"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_Flow_PassiveToClose" bpmnElement="Flow_PassiveToClose">
+        <di:waypoint x="1140" y="220"/>
+        <di:waypoint x="1195" y="220"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_Flow_PromoterToClose" bpmnElement="Flow_PromoterToClose">
+        <di:waypoint x="1140" y="330"/>
+        <di:waypoint x="1220" y="330"/>
+        <di:waypoint x="1220" y="245"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_Flow_ToCloseLoop" bpmnElement="Flow_ToCloseLoop">
+        <di:waypoint x="1245" y="220"/>
+        <di:waypoint x="1300" y="220"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_Flow_ToEnd" bpmnElement="Flow_ToEnd">
+        <di:waypoint x="1400" y="220"/>
+        <di:waypoint x="1452" y="220"/>
+      </bpmndi:BPMNEdge>
+
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+
+</bpmn:definitions>

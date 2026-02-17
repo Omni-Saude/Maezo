@@ -54,7 +54,10 @@ TOPIC = "platform.reconcile_data_sources"
 
 
 class ReconciliationException(DomainException):
-    """Exceção de reconciliação de dados."""
+    """    Exceção de reconciliação de dados.
+    
+        Archetype: OPERATIONAL_ROUTING
+        """
 
     def __init__(self, message: str, details: dict[str, Any] | None = None):
         super().__init__(

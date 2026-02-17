@@ -13,7 +13,10 @@ logger = get_logger(__name__)
 
 
 class ApplyPenaltiesWorker:
-    """Aplica multas e juros conforme legislação brasileira."""
+    """    Aplica multas e juros conforme legislação brasileira.
+    
+        Archetype: FINANCIAL_CALCULATION
+        """
 
     WORKER_TYPE = "apply_penalties"
 

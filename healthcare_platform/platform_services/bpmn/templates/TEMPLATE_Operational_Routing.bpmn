@@ -1,0 +1,145 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+                  xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+                  xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+                  xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
+                  xmlns:camunda="http://camunda.org/schema/1.0/bpmn"
+                  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                  id="Definitions_OperationalRouting"
+                  targetNamespace="http://cib7.healthcare/templates"
+                  exporter="Camunda Modeler"
+                  exporterVersion="5.20.0">
+
+  <!--
+    TEMPLATE: BPMN_OPERATIONAL_ROUTING v2.0
+    Purpose: Operational workflow subprocess for scheduling, resource allocation, queue management
+    DMN Archetype: OPERATIONAL_ROUTING (3 outputs: destino, prioridade, restricao)
+    Coverage: 53 workers across clinical operations and platform services
+    ADR Compliance: ADR-002 (tenant resolution), ADR-007 (DMN federation)
+    -->
+
+  <bpmn:process id="TEMPLATE_Operational_Routing" name="[Operational Routing Template]" isExecutable="true">
+    <bpmn:startEvent id="start_routing" name="Início">
+      <bpmn:outgoing>flow1</bpmn:outgoing>
+    </bpmn:startEvent>
+    <bpmn:serviceTask id="task_fetch" name="Buscar Contexto">
+      <bpmn:incoming>flow1</bpmn:incoming>
+      <bpmn:outgoing>flow2</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:businessRuleTask id="dmn_eval" name="Avaliar DMN">
+      <bpmn:incoming>flow2</bpmn:incoming>
+      <bpmn:outgoing>flow3</bpmn:outgoing>
+    </bpmn:businessRuleTask>
+    <bpmn:exclusiveGateway id="gateway" name="Prioridade?" default="flow_low">
+      <bpmn:incoming>flow3</bpmn:incoming>
+      <bpmn:outgoing>flow_urgent</bpmn:outgoing>
+      <bpmn:outgoing>flow_high</bpmn:outgoing>
+      <bpmn:outgoing>flow_low</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:serviceTask id="task_urgent" name="Alocação Urgente">
+      <bpmn:incoming>flow_urgent</bpmn:incoming>
+      <bpmn:outgoing>flow_end1</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:serviceTask id="task_high" name="Alocação Alta">
+      <bpmn:incoming>flow_high</bpmn:incoming>
+      <bpmn:outgoing>flow_end2</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:serviceTask id="task_low" name="Alocação Padrão">
+      <bpmn:incoming>flow_low</bpmn:incoming>
+      <bpmn:outgoing>flow_end3</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:endEvent id="end1" name="Urgente">
+      <bpmn:incoming>flow_end1</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:endEvent id="end2" name="Alta">
+      <bpmn:incoming>flow_end2</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:endEvent id="end3" name="Padrão">
+      <bpmn:incoming>flow_end3</bpmn:incoming>
+    </bpmn:endEvent>
+    
+    <bpmn:sequenceFlow id="flow1" sourceRef="start_routing" targetRef="task_fetch"/>
+    <bpmn:sequenceFlow id="flow2" sourceRef="task_fetch" targetRef="dmn_eval"/>
+    <bpmn:sequenceFlow id="flow3" sourceRef="dmn_eval" targetRef="gateway"/>
+    <bpmn:sequenceFlow id="flow_urgent" sourceRef="gateway" targetRef="task_urgent"/>
+    <bpmn:sequenceFlow id="flow_high" sourceRef="gateway" targetRef="task_high"/>
+    <bpmn:sequenceFlow id="flow_low" sourceRef="gateway" targetRef="task_low"/>
+    <bpmn:sequenceFlow id="flow_end1" sourceRef="task_urgent" targetRef="end1"/>
+    <bpmn:sequenceFlow id="flow_end2" sourceRef="task_high" targetRef="end2"/>
+    <bpmn:sequenceFlow id="flow_end3" sourceRef="task_low" targetRef="end3"/>
+  </bpmn:process>
+
+  <bpmndi:BPMNDiagram id="BPMNDiagram_1">
+    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="TEMPLATE_Operational_Routing">
+      <bpmndi:BPMNShape id="Shape_start" bpmnElement="start_routing">
+        <dc:Bounds x="152" y="222" width="36" height="36"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_fetch" bpmnElement="task_fetch">
+        <dc:Bounds x="250" y="200" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_dmn" bpmnElement="dmn_eval">
+        <dc:Bounds x="410" y="200" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_gw" bpmnElement="gateway" isMarkerVisible="true">
+        <dc:Bounds x="565" y="215" width="50" height="50"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_urgent" bpmnElement="task_urgent">
+        <dc:Bounds x="680" y="80" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_high" bpmnElement="task_high">
+        <dc:Bounds x="680" y="200" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_low" bpmnElement="task_low">
+        <dc:Bounds x="680" y="320" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_end1" bpmnElement="end1">
+        <dc:Bounds x="842" y="102" width="36" height="36"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_end2" bpmnElement="end2">
+        <dc:Bounds x="842" y="222" width="36" height="36"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_end3" bpmnElement="end3">
+        <dc:Bounds x="842" y="342" width="36" height="36"/>
+      </bpmndi:BPMNShape>
+      
+      <bpmndi:BPMNEdge id="Edge_1" bpmnElement="flow1">
+        <di:waypoint x="188" y="240"/>
+        <di:waypoint x="250" y="240"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_2" bpmnElement="flow2">
+        <di:waypoint x="350" y="240"/>
+        <di:waypoint x="410" y="240"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_3" bpmnElement="flow3">
+        <di:waypoint x="510" y="240"/>
+        <di:waypoint x="565" y="240"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_urgent" bpmnElement="flow_urgent">
+        <di:waypoint x="590" y="215"/>
+        <di:waypoint x="590" y="120"/>
+        <di:waypoint x="680" y="120"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_high" bpmnElement="flow_high">
+        <di:waypoint x="615" y="240"/>
+        <di:waypoint x="680" y="240"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_low" bpmnElement="flow_low">
+        <di:waypoint x="590" y="265"/>
+        <di:waypoint x="590" y="360"/>
+        <di:waypoint x="680" y="360"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_end1" bpmnElement="flow_end1">
+        <di:waypoint x="780" y="120"/>
+        <di:waypoint x="842" y="120"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_end2" bpmnElement="flow_end2">
+        <di:waypoint x="780" y="240"/>
+        <di:waypoint x="842" y="240"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_end3" bpmnElement="flow_end3">
+        <di:waypoint x="780" y="360"/>
+        <di:waypoint x="842" y="360"/>
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>

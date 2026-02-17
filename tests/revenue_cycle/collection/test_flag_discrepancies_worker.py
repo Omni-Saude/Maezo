@@ -1,23 +1,33 @@
 """Tests for FlagDiscrepanciesWorker."""
 from __future__ import annotations
 
+from unittest.mock import MagicMock, patch
+from uuid import uuid4
+
 import pytest
 
 from healthcare_platform.revenue_cycle.collection.workers.flag_discrepancies_worker import FlagDiscrepanciesWorker
 
 
-@pytest.fixture
-def worker():
-    """Create worker instance."""
-    return FlagDiscrepanciesWorker()
-
-
 @pytest.mark.asyncio
-async def test_flag_overpayment_high_severity(worker):
+@patch("healthcare_platform.revenue_cycle.collection.workers.flag_discrepancies_worker.get_required_tenant")
+@patch("healthcare_platform.revenue_cycle.collection.workers.flag_discrepancies_worker.FederatedDMNService")
+async def test_flag_overpayment_high_severity(mock_dmn_service_cls, mock_tenant):
     """Test flagging overpayment with high severity."""
-    task_vars = {
-        "payment_id": "pay-001",
-        "claim_id": "claim-001",
+    mock_tenant.return_value = "tenant-1"
+    mock_dmn = MagicMock()
+    mock_dmn.evaluate.return_value = {
+        "hasDiscrepancy": True,
+        "discrepancyType": "overpayment",
+        "severity": "high",
+    }
+    mock_dmn_service_cls.return_value = mock_dmn
+
+    worker = FlagDiscrepanciesWorker()
+    job = MagicMock()
+    job.variables = {
+        "payment_id": str(uuid4()),
+        "claim_id": str(uuid4()),
         "variance": 150.00,
         "expected_amount": 1000.00,
         "actual_amount": 1150.00,
@@ -25,20 +35,34 @@ async def test_flag_overpayment_high_severity(worker):
         "currency": "BRL",
     }
 
-    result = await worker.execute(task_vars)
+    result = await worker.execute(job)
 
-    assert result["has_discrepancy"] is True
-    assert result["discrepancy_type"] == "overpayment"
-    assert result["severity"] == "high"
-    assert result["requires_review"] is True
+    assert result.success
+    assert result.variables["has_discrepancy"] is True
+    assert result.variables["discrepancy_type"] == "overpayment"
+    assert result.variables["severity"] == "high"
+    assert result.variables["requires_review"] is True
 
 
 @pytest.mark.asyncio
-async def test_flag_duplicate_critical(worker):
+@patch("healthcare_platform.revenue_cycle.collection.workers.flag_discrepancies_worker.get_required_tenant")
+@patch("healthcare_platform.revenue_cycle.collection.workers.flag_discrepancies_worker.FederatedDMNService")
+async def test_flag_duplicate_critical(mock_dmn_service_cls, mock_tenant):
     """Test flagging duplicate payment."""
-    task_vars = {
-        "payment_id": "pay-002",
-        "claim_id": "claim-002",
+    mock_tenant.return_value = "tenant-1"
+    mock_dmn = MagicMock()
+    mock_dmn.evaluate.return_value = {
+        "hasDiscrepancy": True,
+        "discrepancyType": "duplicate_payment",
+        "severity": "critical",
+    }
+    mock_dmn_service_cls.return_value = mock_dmn
+
+    worker = FlagDiscrepanciesWorker()
+    job = MagicMock()
+    job.variables = {
+        "payment_id": str(uuid4()),
+        "claim_id": str(uuid4()),
         "variance": 0.00,
         "expected_amount": 1000.00,
         "actual_amount": 1000.00,
@@ -46,19 +70,33 @@ async def test_flag_duplicate_critical(worker):
         "currency": "BRL",
     }
 
-    result = await worker.execute(task_vars)
+    result = await worker.execute(job)
 
-    assert result["has_discrepancy"] is True
-    assert result["discrepancy_type"] == "duplicate_payment"
-    assert result["severity"] == "critical"
+    assert result.success
+    assert result.variables["has_discrepancy"] is True
+    assert result.variables["discrepancy_type"] == "duplicate_payment"
+    assert result.variables["severity"] == "critical"
 
 
 @pytest.mark.asyncio
-async def test_no_discrepancy(worker):
+@patch("healthcare_platform.revenue_cycle.collection.workers.flag_discrepancies_worker.get_required_tenant")
+@patch("healthcare_platform.revenue_cycle.collection.workers.flag_discrepancies_worker.FederatedDMNService")
+async def test_no_discrepancy(mock_dmn_service_cls, mock_tenant):
     """Test when no discrepancy exists."""
-    task_vars = {
-        "payment_id": "pay-003",
-        "claim_id": "claim-003",
+    mock_tenant.return_value = "tenant-1"
+    mock_dmn = MagicMock()
+    mock_dmn.evaluate.return_value = {
+        "hasDiscrepancy": False,
+        "discrepancyType": None,
+        "severity": "low",
+    }
+    mock_dmn_service_cls.return_value = mock_dmn
+
+    worker = FlagDiscrepanciesWorker()
+    job = MagicMock()
+    job.variables = {
+        "payment_id": str(uuid4()),
+        "claim_id": str(uuid4()),
         "variance": 0.00,
         "expected_amount": 1000.00,
         "actual_amount": 1000.00,
@@ -66,7 +104,8 @@ async def test_no_discrepancy(worker):
         "currency": "BRL",
     }
 
-    result = await worker.execute(task_vars)
+    result = await worker.execute(job)
 
-    assert result["has_discrepancy"] is False
-    assert result["requires_review"] is False
+    assert result.success
+    assert result.variables["has_discrepancy"] is False
+    assert result.variables["requires_review"] is False

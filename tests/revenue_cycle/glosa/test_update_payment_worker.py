@@ -1,4 +1,6 @@
 """
+from __future__ import annotations
+
 Tests for Update Payment Worker.
 
 Tests payment recalculation after glosa appeal outcomes.
@@ -8,7 +10,7 @@ import pytest
 from decimal import Decimal
 from unittest.mock import Mock
 
-from healthcare_platform.revenue_cycle.glosa.workers.update_payment_worker import UpdatePaymentWorker
+from healthcare_platform.revenue_cycle.glosa.workers.update_payment_worker_v2 import UpdatePaymentWorker
 
 
 @pytest.fixture

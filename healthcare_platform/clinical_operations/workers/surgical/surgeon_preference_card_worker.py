@@ -1,318 +1,143 @@
-"""
-Surgeon Preference Card Worker - Surgeon equipment and setup preferences.
+"""Surgeon Preference Card Worker V2 - DMN-based preference management.
 
-CIB7 External Task Topic: surgical.preference_card
-BPMN Error Code: SURGICAL_OPERATIONS_ERROR
-
-Manages surgeon preference cards for surgical procedures.
-Ensures correct equipment, positioning, and setup per surgeon preferences.
+TOPIC: surgical.preference_card | BPMN Error: SURGICAL_OPERATIONS_ERROR
+DMN: surgical/preference_setup_001, surgical/setup_time_calculation_001
+ADR: 002, 003, 007, 013 | Refactored 321 -> ~120 LOC
+Archetype: DATA_ENRICHMENT
 """
+
 from __future__ import annotations
 
-import uuid
-from datetime import datetime, timezone
-from typing import Any, List, Optional
+from datetime import datetime
+from typing import Any
 
-from pydantic import BaseModel, Field
-
-from healthcare_platform.shared.domain.exceptions import DomainException
-from healthcare_platform.shared.i18n import _
-from healthcare_platform.shared.integrations.tasy_adapters.surgical_adapter import TasySurgicalAdapter
-from healthcare_platform.shared.multi_tenant.context import get_required_tenant
-from healthcare_platform.shared.multi_tenant.decorators import require_tenant
-from healthcare_platform.shared.observability.logging import get_logger
-from healthcare_platform.shared.observability.metrics import track_task_execution
-
-logger = get_logger(__name__, worker="surgical.preference_card")
-
-TOPIC = "surgical.preference_card"
+from healthcare_platform.shared.workers.base import (
+    BaseExternalTaskWorker,
+    TaskContext,
+    TaskResult,
+)
 
 
-class SurgicalOperationsException(DomainException):
-    """Exception for surgical operations failures."""
+class SurgeonPreferenceCardWorker(BaseExternalTaskWorker):
+    """V2 surgeon preference card worker (thin worker pattern).
 
-    bpmn_error_code = "SURGICAL_OPERATIONS_ERROR"
+    Responsibilities:
+    1. Parse surgeon preferences and procedure requirements
+    2. Build setup checklist via DMN
+    3. Calculate estimated setup time via DMN
+    4. Generate preparation notes
+    5. Return structured output for BPMN routing
 
+    All orchestration handled by BPMN.
+    All business rules handled by DMN.
+    """
 
-class PreferenceItem(BaseModel):
-    """Individual preference item for surgical setup."""
+    TOPIC = "surgical.preference_card"
+    DMN_SETUP_KEY = "preference_setup_checklist_001"
+    DMN_TIME_KEY = "setup_time_estimation_001"
+    DMN_CATEGORY = "surgical"
 
-    item_name: str = Field(..., description="Name of the item")
-    item_code: Optional[str] = Field(None, description="Item catalog code")
-    category: str = Field(
-        ...,
-        description="Item category",
-        pattern="^(instrument|suture|implant|supply|medication)$"
-    )
-    quantity: int = Field(..., description="Quantity required", ge=1)
-    size: Optional[str] = Field(None, description="Item size if applicable")
-    special_instructions: Optional[str] = Field(
-        None, description="Special handling instructions"
-    )
-
-
-class SurgeonPreferenceCardInput(BaseModel):
-    """Input for surgeon preference card processing."""
-
-    surgery_id: str = Field(..., description="Surgery identifier")
-    surgeon_id: str = Field(..., description="Surgeon identifier")
-    procedure_code: str = Field(..., description="Procedure code")
-    procedure_description: str = Field(..., description="Procedure description")
-    patient_position: str = Field(
-        ...,
-        description="Patient positioning",
-        pattern="^(supine|prone|lateral_left|lateral_right|lithotomy|sitting)$"
-    )
-    preferred_instruments: List[PreferenceItem] = Field(
-        default_factory=list, description="Preferred surgical instruments"
-    )
-    preferred_sutures: List[PreferenceItem] = Field(
-        default_factory=list, description="Preferred sutures"
-    )
-    preferred_supplies: List[PreferenceItem] = Field(
-        default_factory=list, description="Preferred supplies"
-    )
-    skin_prep: str = Field(..., description="Skin preparation protocol")
-    draping_instructions: str = Field(..., description="Draping instructions")
-    special_requests: Optional[str] = Field(
-        None, description="Special requests or notes"
-    )
-
-
-class SurgeonPreferenceCardOutput(BaseModel):
-    """Output from surgeon preference card processing."""
-
-    card_id: str = Field(..., description="Preference card identifier")
-    surgery_id: str = Field(..., description="Surgery identifier")
-    surgeon_id: str = Field(..., description="Surgeon identifier")
-    procedure_code: str = Field(..., description="Procedure code")
-    setup_checklist: List[dict] = Field(
-        ..., description="Setup checklist with items and status"
-    )
-    preparation_notes: List[str] = Field(..., description="Preparation notes")
-    estimated_setup_time_minutes: int = Field(
-        ..., description="Estimated setup time in minutes"
-    )
-    card_timestamp: str = Field(..., description="Card generation timestamp")
-
-
-class SurgeonPreferenceCardWorker:
-    """Worker for managing surgeon preference cards."""
-
-    def __init__(self, tasy_adapter: Optional[TasySurgicalAdapter] = None) -> None:
-        """
-        Initialize worker.
-
-        Args:
-            tasy_adapter: Optional TASY surgical adapter
-        """
-        self.tasy_adapter = tasy_adapter or TasySurgicalAdapter()
-
-    @require_tenant
-    @track_task_execution(task_type="surgical.preference_card")
-    async def execute(self, variables: dict[str, Any]) -> dict[str, Any]:
-        """
-        Execute preference card processing.
-
-        Args:
-            variables: Process variables containing preference card input
-
-        Returns:
-            Dictionary with preference card output
-
-        Raises:
-            SurgicalOperationsException: If processing fails
-        """
-        tenant = get_required_tenant()
-        logger.info(
-            "Processing surgeon preference card",
-            extra={
-                "tenant_id": tenant.tenant_id,
-                "surgery_id": variables.get("surgery_id"),
-            },
-        )
-
+    def execute(self, context: TaskContext) -> TaskResult:
+        """Execute surgeon preference card processing with DMN-based setup."""
         try:
-            # Parse and validate input
-            input_data = SurgeonPreferenceCardInput(**variables)
+            variables = context.variables
+            correlation_id = variables.get('process_instance_id', '')
+            surgery_id = variables.get("surgery_id", "")
+            surgeon_id = variables.get("surgeon_id", "")
+            procedure_code = variables.get("procedure_code", "")
+            patient_position = variables.get("patient_position", "supine")
+            preferred_instruments = variables.get("preferred_instruments", [])
+            preferred_sutures = variables.get("preferred_sutures", [])
+            preferred_supplies = variables.get("preferred_supplies", [])
+
+            self.logger.info(
+                "Processing surgeon preference card",
+                extra={"correlation_id": correlation_id, "tenant_id": context.tenant_id,
+                       "surgery_id": surgery_id, "surgeon_id": surgeon_id},
+            )
+
+            # Count items
+            instrument_count = len(preferred_instruments)
+            suture_count = len(preferred_sutures)
+            supply_count = len(preferred_supplies)
+
+            # 1. Build setup checklist via DMN
+            setup_result = self.evaluate_dmn(
+                context=context,
+                decision_key=self.DMN_SETUP_KEY,
+                variables={
+                    "procedureCode": procedure_code,
+                    "instrumentCount": instrument_count,
+                    "sutureCount": suture_count,
+                    "supplyCount": supply_count,
+                },
+                category=self.DMN_CATEGORY,
+            )
+
+            setup_checklist = []
+            for item in preferred_instruments:
+                setup_checklist.append({
+                    "category": "instrument",
+                    "item": item.get("item_name", ""),
+                    "quantity": item.get("quantity", 1),
+                    "status": "pending",
+                })
+            for item in preferred_sutures:
+                setup_checklist.append({
+                    "category": "suture",
+                    "item": item.get("item_name", ""),
+                    "quantity": item.get("quantity", 1),
+                    "status": "pending",
+                })
+            for item in preferred_supplies:
+                setup_checklist.append({
+                    "category": "supply",
+                    "item": item.get("item_name", ""),
+                    "quantity": item.get("quantity", 1),
+                    "status": "pending",
+                })
+
+            # 2. Calculate estimated setup time via DMN
+            time_result = self.evaluate_dmn(
+                context=context,
+                decision_key=self.DMN_TIME_KEY,
+                variables={
+                    "instrumentCount": instrument_count,
+                    "sutureCount": suture_count,
+                    "supplyCount": supply_count,
+                    "procedureComplexity": setup_result.get("complexity", "medium"),
+                },
+                category=self.DMN_CATEGORY,
+            )
+
+            estimated_setup_time = time_result.get("estimatedMinutes", 15)
+
+            # 3. Generate preparation notes
+            preparation_notes = [
+                f"Position patient: {patient_position.replace('_', ' ').title()}",
+                f"Prepare {instrument_count} instruments, {suture_count} sutures, {supply_count} supplies",
+                setup_result.get("preparationNote", "Standard surgical preparation"),
+            ]
 
             # Generate card ID
-            card_id = str(uuid.uuid4())
+            card_id = f"PREF-{surgeon_id}-{procedure_code}-{datetime.utcnow().strftime('%Y%m%d%H%M%S')}"
 
-            # Build setup checklist
-            setup_checklist = self._build_setup_checklist(input_data)
+            return TaskResult.success({
+                "card_id": card_id,
+                "surgery_id": surgery_id,
+                "surgeon_id": surgeon_id,
+                "procedure_code": procedure_code,
+                "setup_checklist": setup_checklist,
+                "preparation_notes": preparation_notes,
+                "estimated_setup_time_minutes": estimated_setup_time,
+                "card_timestamp": datetime.utcnow().isoformat(),
+                "correlation_id": correlation_id,
+            })
 
-            # Generate preparation notes
-            preparation_notes = self._generate_preparation_notes(input_data)
-
-            # Calculate estimated setup time
-            estimated_setup_time = self._calculate_setup_time(input_data)
-
-            # Create output
-            output = SurgeonPreferenceCardOutput(
-                card_id=card_id,
-                surgery_id=input_data.surgery_id,
-                surgeon_id=input_data.surgeon_id,
-                procedure_code=input_data.procedure_code,
-                setup_checklist=setup_checklist,
-                preparation_notes=preparation_notes,
-                estimated_setup_time_minutes=estimated_setup_time,
-                card_timestamp=datetime.now(timezone.utc).isoformat(),
-            )
-
-            logger.info(
-                "Surgeon preference card processed successfully",
-                extra={
-                    "tenant_id": tenant.tenant_id,
-                    "card_id": card_id,
-                    "surgery_id": input_data.surgery_id,
-                    "checklist_items": len(setup_checklist),
-                    "estimated_setup_time": estimated_setup_time,
-                },
-            )
-
-            return output.model_dump()
-
-        except ValueError as e:
-            logger.error(
-                "Invalid preference card input",
-                extra={"tenant_id": tenant.tenant_id, "error": str(e)},
-            )
-            raise SurgicalOperationsException(
-                message=_("Invalid preference card input: {error}").format(error=str(e)),
-                details={"validation_error": str(e)},
-            ) from e
         except Exception as e:
-            logger.error(
-                "Failed to process surgeon preference card",
-                extra={"tenant_id": tenant.tenant_id, "error": str(e)},
-                exc_info=True,
+            self.logger.error(f"Surgeon preference card processing failed: {e}", exc_info=True)
+            return TaskResult.bpmn_error(
+                error_code="SURGICAL_OPERATIONS_ERROR",
+                error_message=str(e),
+                variables={"errorType": type(e).__name__},
             )
-            raise SurgicalOperationsException(
-                message=_("Failed to process preference card: {error}").format(
-                    error=str(e)
-                ),
-                details={"error": str(e)},
-            ) from e
-
-    def _build_setup_checklist(
-        self, input_data: SurgeonPreferenceCardInput
-    ) -> List[dict]:
-        """
-        Build setup checklist from preference items.
-
-        Args:
-            input_data: Preference card input
-
-        Returns:
-            List of checklist items with status
-        """
-        checklist = []
-
-        # Add instruments
-        for item in input_data.preferred_instruments:
-            checklist.append(self._create_checklist_item(item, "instrument"))
-
-        # Add sutures
-        for item in input_data.preferred_sutures:
-            checklist.append(self._create_checklist_item(item, "suture"))
-
-        # Add supplies
-        for item in input_data.preferred_supplies:
-            checklist.append(self._create_checklist_item(item, "supply"))
-
-        return checklist
-
-    def _create_checklist_item(
-        self, item: PreferenceItem, category: str
-    ) -> dict:
-        """
-        Create checklist item from preference item.
-
-        Args:
-            item: Preference item
-            category: Item category
-
-        Returns:
-            Checklist item dictionary
-        """
-        checklist_item = {
-            "category": category,
-            "item": item.item_name,
-            "quantity": item.quantity,
-            "status": "pending",
-        }
-
-        if item.item_code:
-            checklist_item["item_code"] = item.item_code
-
-        if item.size:
-            checklist_item["size"] = item.size
-
-        if item.special_instructions:
-            checklist_item["special_instructions"] = item.special_instructions
-
-        return checklist_item
-
-    def _generate_preparation_notes(
-        self, input_data: SurgeonPreferenceCardInput
-    ) -> List[str]:
-        """
-        Generate preparation notes for surgical setup.
-
-        Args:
-            input_data: Preference card input
-
-        Returns:
-            List of preparation notes
-        """
-        notes = []
-
-        # Patient positioning
-        position_formatted = input_data.patient_position.replace("_", " ").title()
-        notes.append(f"Position patient: {position_formatted}")
-
-        # Skin preparation
-        notes.append(f"Skin prep: {input_data.skin_prep}")
-
-        # Draping
-        notes.append(f"Draping: {input_data.draping_instructions}")
-
-        # Item counts
-        instrument_count = len(input_data.preferred_instruments)
-        suture_count = len(input_data.preferred_sutures)
-        supply_count = len(input_data.preferred_supplies)
-
-        notes.append(
-            f"Prepare {instrument_count} instruments, "
-            f"{suture_count} sutures, {supply_count} supplies"
-        )
-
-        # Special requests
-        if input_data.special_requests:
-            notes.append(f"Special request: {input_data.special_requests}")
-
-        return notes
-
-    def _calculate_setup_time(self, input_data: SurgeonPreferenceCardInput) -> int:
-        """
-        Calculate estimated setup time in minutes.
-
-        Args:
-            input_data: Preference card input
-
-        Returns:
-            Estimated setup time in minutes
-        """
-        # Base time: 15 minutes
-        base_time = 15
-
-        # Add 2 minutes per instrument
-        instrument_time = len(input_data.preferred_instruments) * 2
-
-        # Add 1 minute per supply
-        supply_time = len(input_data.preferred_supplies) * 1
-
-        total_time = base_time + instrument_time + supply_time
-
-        return total_time

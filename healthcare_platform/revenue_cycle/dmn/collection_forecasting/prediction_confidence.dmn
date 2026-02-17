@@ -1,0 +1,119 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  ============================================================================
+  PREDICTION-CONFIDENCE - Avaliacao de Confianca da Predicao
+  ============================================================================
+  Versao: 1.0.0 (2026-02-14)
+  Categoria: COLLECTION_FORECASTING
+  Archetype: CLINICAL_SCORE | Source: predict_collection_date_worker.py
+  ============================================================================
+-->
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/"
+             xmlns:dc="http://www.omg.org/spec/DMN/20180521/DC/"
+             id="Definitions_PRED_CONFIDENCE"
+             name="Avaliacao de Confianca da Predicao"
+             targetNamespace="http://camunda.org/schema/1.0/dmn">
+
+  <decision id="Decision_PRED_CONFIDENCE" name="Avaliacao de Confianca da Predicao">
+    <decisionTable id="DecisionTable_PRED_CONFIDENCE" hitPolicy="FIRST">
+
+      <input id="Input_1" label="Confianca Modelo">
+        <inputExpression id="InputExpression_1" typeRef="number">
+          <text>confidence</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_2" label="Amostras Historicas">
+        <inputExpression id="InputExpression_2" typeRef="number">
+          <text>historicalSamples</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_3" label="Tipo Modelo">
+        <inputExpression id="InputExpression_3" typeRef="string">
+          <text>modelType</text>
+        </inputExpression>
+      </input>
+
+      <!-- ========== OUTPUTS ========== -->
+      <output id="Output_resultado" label="Resultado" name="resultado" typeRef="string">
+        <outputValues><text>"PROSSEGUIR","BLOQUEAR","REVISAR"</text></outputValues>
+      </output>
+      <output id="Output_acao" label="Acao" name="acao" typeRef="string"/>
+      <output id="Output_risco" label="Risco" name="risco" typeRef="string">
+        <outputValues><text>"CRITICO","ALTO","MEDIO","BAIXO"</text></outputValues>
+      </output>
+
+      <rule id="Rule_1">
+        <description>Confianca muito baixa - modelo nao confiavel</description>
+        <inputEntry id="IE_1_1"><text>&lt; 0.3</text></inputEntry>
+        <inputEntry id="IE_1_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_1_3"><text>-</text></inputEntry>
+        <outputEntry id="OE_1_1"><text>"BLOQUEAR"</text></outputEntry>
+        <outputEntry id="OE_1_2"><text>"Confianca abaixo de 30% - descartar predicao e usar estimativa manual"</text></outputEntry>
+        <outputEntry id="OE_1_3"><text>"CRITICO"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_2">
+        <description>Confianca baixa com poucas amostras</description>
+        <inputEntry id="IE_2_1"><text>[0.3..0.6]</text></inputEntry>
+        <inputEntry id="IE_2_2"><text>&lt; 5</text></inputEntry>
+        <inputEntry id="IE_2_3"><text>-</text></inputEntry>
+        <outputEntry id="OE_2_1"><text>"REVISAR"</text></outputEntry>
+        <outputEntry id="OE_2_2"><text>"Confianca moderada com poucos dados - validar com analista"</text></outputEntry>
+        <outputEntry id="OE_2_3"><text>"ALTO"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_3">
+        <description>Confianca moderada com bom historico</description>
+        <inputEntry id="IE_3_1"><text>[0.6..0.8]</text></inputEntry>
+        <inputEntry id="IE_3_2"><text>&gt;= 5</text></inputEntry>
+        <inputEntry id="IE_3_3"><text>"linear_regression"</text></inputEntry>
+        <outputEntry id="OE_3_1"><text>"PROSSEGUIR"</text></outputEntry>
+        <outputEntry id="OE_3_2"><text>"Confianca aceitavel - usar predicao com monitoramento"</text></outputEntry>
+        <outputEntry id="OE_3_3"><text>"MEDIO"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_4">
+        <description>Confianca alta</description>
+        <inputEntry id="IE_4_1"><text>&gt;= 0.8</text></inputEntry>
+        <inputEntry id="IE_4_2"><text>&gt;= 8</text></inputEntry>
+        <inputEntry id="IE_4_3"><text>-</text></inputEntry>
+        <outputEntry id="OE_4_1"><text>"PROSSEGUIR"</text></outputEntry>
+        <outputEntry id="OE_4_2"><text>"Alta confianca - predicao confiavel para planejamento"</text></outputEntry>
+        <outputEntry id="OE_4_3"><text>"BAIXO"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_5">
+        <description>Modelo media simples - confianca limitada</description>
+        <inputEntry id="IE_5_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_5_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_5_3"><text>"average"</text></inputEntry>
+        <outputEntry id="OE_5_1"><text>"REVISAR"</text></outputEntry>
+        <outputEntry id="OE_5_2"><text>"Modelo media simples - confianca inerentemente limitada"</text></outputEntry>
+        <outputEntry id="OE_5_3"><text>"MEDIO"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Fallback">
+        <description>Fallback</description>
+        <inputEntry id="IE_F_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_F_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_F_3"><text>-</text></inputEntry>
+        <outputEntry id="OE_F_1"><text>"REVISAR"</text></outputEntry>
+        <outputEntry id="OE_F_2"><text>"Avaliar confianca manualmente"</text></outputEntry>
+        <outputEntry id="OE_F_3"><text>"MEDIO"</text></outputEntry>
+      </rule>
+
+    </decisionTable>
+  </decision>
+
+  <dmndi:DMNDI>
+    <dmndi:DMNDiagram id="DMNDiagram_PRED_CONFIDENCE">
+      <dmndi:DMNShape id="DMNShape_Decision" dmnElementRef="Decision_PRED_CONFIDENCE">
+        <dc:Bounds height="80" width="180" x="160" y="100"/>
+      </dmndi:DMNShape>
+    </dmndi:DMNDiagram>
+  </dmndi:DMNDI>
+
+</definitions>

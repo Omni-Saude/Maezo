@@ -1,13 +1,17 @@
 """Tests for suggest_cid10_worker - Phase 2.2 Coding & Audit."""
 
+from __future__ import annotations
+
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 
-from healthcare_platform.revenue_cycle.coding.workers.suggest_cid10_worker import (
+from healthcare_platform.revenue_cycle.coding.workers import (
     SuggestCid10Worker,
+    register_worker,
+)
+from healthcare_platform.revenue_cycle.coding.workers.suggest_cid10_worker_v2 import (
     SuggestCid10Input,
     SuggestCid10Output,
-    register_worker,
 )
 
 
@@ -24,63 +28,63 @@ class TestSuggestCid10Worker:
         return engine
 
     @pytest.fixture
-    def worker(self, mock_nlp_engine, mock_ans_client):
+    def worker(self, mock_nlp_engine, mock_ans_client, mock_dmn_service):
         return SuggestCid10Worker(
             nlp_engine=mock_nlp_engine,
             ans_client=mock_ans_client,
+            dmn_service=mock_dmn_service,
         )
 
     @pytest.mark.asyncio
-    async def test_successful_suggestion(self, worker, mock_task):
+    async def test_successful_suggestion(self, worker):
         """NLP suggests valid CID-10 codes from clinical notes."""
-        mock_task.get_variable.side_effect = lambda key, default=None: {
-            "encounter_id": "ENC-001",
-            "tenant_id": "hospital-alpha",
+        task_variables = {
             "clinical_notes": "Paciente com diabetes tipo 2 e hipertensao.",
-        }.get(key, default)
+            "extracted_diagnoses": [],
+            "encounter_class": "ambulatorio",
+            "tenant_id": "hospital-alpha",
+        }
 
-        await worker.execute(mock_task)
+        result = await worker.execute(task_variables)
 
-        mock_task.complete.assert_called_once()
-        call_args = mock_task.complete.call_args
-        variables = call_args[0][0] if call_args[0] else call_args[1].get("variables", {})
-        assert "suggested_cid10" in variables or "cid10_codes" in variables or mock_task.complete.called
+        assert "suggested_cid10_codes" in result
+        assert "primary_cid10" in result
+        assert "cid10_count" in result
+        assert result["cid10_count"] >= 0
 
     @pytest.mark.asyncio
-    async def test_cid10_format_validation(self, worker, mock_task, mock_ans_client):
+    async def test_cid10_format_validation(self, worker, mock_ans_client):
         """CID-10 codes are validated against ANS reference tables."""
-        mock_task.get_variable.side_effect = lambda key, default=None: {
-            "encounter_id": "ENC-001",
-            "tenant_id": "hospital-alpha",
+        task_variables = {
             "clinical_notes": "Paciente com diabetes.",
-        }.get(key, default)
+            "extracted_diagnoses": [],
+            "encounter_class": "ambulatorio",
+            "tenant_id": "hospital-alpha",
+        }
 
-        await worker.execute(mock_task)
+        result = await worker.execute(task_variables)
 
-        mock_task.complete.assert_called_once()
-        mock_task.bpmn_error.assert_not_called()
+        assert "suggested_cid10_codes" in result
+        assert result["cid10_count"] >= 0
 
     @pytest.mark.asyncio
-    async def test_empty_clinical_notes(self, worker, mock_task, mock_nlp_engine):
-        """Empty clinical notes trigger BPMN error or return empty suggestions."""
-        mock_task.get_variable.side_effect = lambda key, default=None: {
-            "encounter_id": "ENC-001",
-            "tenant_id": "hospital-alpha",
+    async def test_empty_clinical_notes(self, worker, mock_nlp_engine):
+        """Empty clinical notes trigger validation error."""
+        task_variables = {
             "clinical_notes": "",
-        }.get(key, default)
+            "extracted_diagnoses": [],
+            "encounter_class": "ambulatorio",
+            "tenant_id": "hospital-alpha",
+        }
         mock_nlp_engine.extract_diagnoses = AsyncMock(return_value=[])
 
-        await worker.execute(mock_task)
-
-        assert mock_task.bpmn_error.called or mock_task.complete.called
-        if mock_task.complete.called:
-            call_args = mock_task.complete.call_args
-            variables = call_args[0][0] if call_args[0] else call_args[1].get("variables", {})
-            suggestions = variables.get("suggested_cid10", variables.get("cid10_codes", []))
-            assert len(suggestions) == 0
+        # Pydantic validates min_length=1 before worker logic runs
+        from pydantic import ValidationError
+        with pytest.raises(ValidationError):
+            await worker.execute(task_variables)
 
     @pytest.mark.asyncio
-    async def test_multiple_diagnoses_suggested(self, worker, mock_task, mock_nlp_engine):
+    async def test_multiple_diagnoses_suggested(self, worker, mock_nlp_engine):
         """Multiple diagnoses from complex notes are all returned."""
         mock_nlp_engine.extract_diagnoses = AsyncMock(return_value=[
             {"code": "E11.9", "description": "Diabetes mellitus tipo 2", "confidence": 0.95},
@@ -88,19 +92,17 @@ class TestSuggestCid10Worker:
             {"code": "E78.5", "description": "Hiperlipidemia", "confidence": 0.82},
             {"code": "N18.3", "description": "Doenca renal cronica estagio 3", "confidence": 0.75},
         ])
-        mock_task.get_variable.side_effect = lambda key, default=None: {
-            "encounter_id": "ENC-001",
-            "tenant_id": "hospital-alpha",
+        task_variables = {
             "clinical_notes": "Paciente pluripatologico com DM2, HAS, dislipidemia e DRC.",
-        }.get(key, default)
+            "extracted_diagnoses": [],
+            "encounter_class": "ambulatorio",
+            "tenant_id": "hospital-alpha",
+        }
 
-        await worker.execute(mock_task)
+        result = await worker.execute(task_variables)
 
-        mock_task.complete.assert_called_once()
-        call_args = mock_task.complete.call_args
-        variables = call_args[0][0] if call_args[0] else call_args[1].get("variables", {})
-        suggestions = variables.get("suggested_cid10", variables.get("cid10_codes", []))
-        assert len(suggestions) >= 2
+        assert "suggested_cid10_codes" in result
+        assert result["cid10_count"] >= 2
 
 
 class TestSuggestCid10Input:
@@ -108,14 +110,23 @@ class TestSuggestCid10Input:
 
     def test_valid_input(self):
         inp = SuggestCid10Input(
-            encounter_id="ENC-001",
             clinical_notes="Paciente com diabetes.",
+            extracted_diagnoses=[],
+            encounter_class="ambulatorio",
+            tenant_id="hospital-alpha",
         )
-        assert inp.encounter_id == "ENC-001"
+        assert inp.clinical_notes == "Paciente com diabetes."
 
     def test_missing_notes_raises(self):
-        with pytest.raises((ValueError, TypeError)):
-            SuggestCid10Input(encounter_id="ENC-001", clinical_notes="")
+        # V2 model requires clinical_notes with min_length=1
+        from pydantic import ValidationError
+        with pytest.raises(ValidationError):
+            SuggestCid10Input(
+                clinical_notes="",
+                extracted_diagnoses=[],
+                encounter_class="ambulatorio",
+                tenant_id="hospital-alpha",
+            )
 
 
 class TestSuggestCid10Output:
@@ -123,9 +134,12 @@ class TestSuggestCid10Output:
 
     def test_output_structure(self):
         out = SuggestCid10Output(
-            suggested_codes=[
+            suggested_cid10_codes=[
                 {"code": "E11.9", "confidence": 0.95},
             ],
+            primary_cid10="E11.9",
+            cid10_count=1,
         )
-        assert len(out.suggested_codes) == 1
-        assert out.suggested_codes[0]["code"] == "E11.9"
+        assert len(out.suggested_cid10_codes) == 1
+        assert out.suggested_cid10_codes[0]["code"] == "E11.9"
+        assert out.primary_cid10 == "E11.9"

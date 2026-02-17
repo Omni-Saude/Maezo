@@ -94,6 +94,8 @@ class PatientCopayEstimateWorker:
     - Insurance coverage percentage
     - Interactive payment buttons (Pay Now, Pay at Visit, Question)
     - Deep link for online payment
+
+    Archetype: FINANCIAL_CALCULATION
     """
 
     TOPIC = "financial.copay_estimate"

@@ -88,7 +88,7 @@ class TestValidatePatientDataWorker:
         """Test successful validation of all patient data."""
         # Arrange
         task_vars = {
-            "cpf": "12345678901",
+            "cpf": "11144477735",  # Valid CPF
             "cns": "123456789012345",
             "name": "João Silva Santos",
             "birth_date": "1980-01-15",
@@ -111,7 +111,7 @@ class TestValidatePatientDataWorker:
     async def test_cpf_hashing_for_privacy(self, worker, mock_validator, tenant_austa):
         """Test that CPF is hashed for privacy compliance."""
         # Arrange
-        cpf = "12345678901"
+        cpf = "11144477735"  # Valid CPF
         task_vars = {
             "cpf": cpf,
             "name": "Test Patient",
@@ -133,7 +133,7 @@ class TestValidatePatientDataWorker:
         """Test validation without optional CNS."""
         # Arrange
         task_vars = {
-            "cpf": "12345678901",
+            "cpf": "11144477735",  # Valid CPF
             "name": "Maria Santos",
             "birth_date": "1985-03-10",
             "gender": "female",
@@ -254,16 +254,16 @@ class TestValidatePatientDataWorker:
         self, worker, mock_validator, tenant_austa, tenant_hpa
     ):
         """Test that patient data validations are isolated per tenant."""
-        # Arrange
+        # Arrange (using valid CPFs)
         task_vars_austa = {
-            "cpf": "11111111111",
+            "cpf": "11144477735",  # Valid CPF
             "name": "AUSTA Patient",
             "birth_date": "1980-01-01",
             "gender": "male",
         }
 
         task_vars_hpa = {
-            "cpf": "22222222222",
+            "cpf": "52998224725",  # Different valid CPF
             "name": "HPA Patient",
             "birth_date": "1985-05-15",
             "gender": "female",
@@ -301,7 +301,7 @@ class TestValidatePatientDataWorker:
         """Test all valid gender values."""
         for gender in ["male", "female", "other", "unknown"]:
             task_vars = {
-                "cpf": "12345678901",
+                "cpf": "11144477735",  # Valid CPF
                 "name": f"Test {gender}",
                 "birth_date": "1990-01-01",
                 "gender": gender,

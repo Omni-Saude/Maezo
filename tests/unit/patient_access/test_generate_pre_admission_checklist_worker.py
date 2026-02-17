@@ -177,12 +177,12 @@ class TestGeneratePreAdmissionChecklistWorker:
             }
         )
 
-        # Switch to HPA
-        hpa_ctx = TenantContext.from_tenant_code(TenantCode.HPA)
-        set_current_tenant(hpa_ctx)
+        # Switch to HOSPITAL_B
+        hospital_b_ctx = TenantContext.from_tenant_code(TenantCode.HOSPITAL_B)
+        set_current_tenant(hospital_b_ctx)
 
-        # Execute with HPA
-        result_hpa = await worker.execute(
+        # Execute with HOSPITAL_B
+        result_hospital_b = await worker.execute(
             {
                 "appointment_id": "Appointment/hpa-123",
                 "appointment_type": "internacao",
@@ -193,7 +193,7 @@ class TestGeneratePreAdmissionChecklistWorker:
         )
 
         # Checklists should be consistent (same rules)
-        assert result_austa["total_items"] == result_hpa["total_items"]
+        assert result_austa["total_items"] == result_hospital_b["total_items"]
 
     @pytest.mark.asyncio
     async def test_idempotency(self, worker, tenant_austa):

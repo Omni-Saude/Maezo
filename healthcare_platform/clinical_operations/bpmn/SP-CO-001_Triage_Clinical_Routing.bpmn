@@ -1,0 +1,245 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+                  xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+                  xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+                  xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
+                  xmlns:camunda="http://camunda.org/schema/1.0/bpmn"
+                  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                  id="Definitions_TriageRouting"
+                  targetNamespace="http://cib7.health/clinical/triage"
+                  exporter="Claude Code"
+                  exporterVersion="1.0">
+
+  <!--
+    SUBPROCESS: SP-CO-001 Triage and Clinical Routing
+    Purpose: Assess patient severity and route to appropriate care level
+    Worker Topics: emergency.triage_escalation, emergency.specialist_consult
+
+    ADR Compliance:
+    - ADR-001: External Task pattern
+    - ADR-002: Tenant marker resolution
+    - ADR-013: Template-first generation
+
+    Variables:
+      Input:  patientId, encounterId, chiefComplaint, vitalSigns, arrivalMode
+      Output: triageSeverity, routingDecision, assignedSpecialist
+  -->
+
+  <bpmn:process id="SP_CO_001_Triage_Routing" name="SP-CO-001 Triage and Clinical Routing" isExecutable="true">
+
+    <!-- Start Event -->
+    <bpmn:startEvent id="start_patient_arrives" name="Patient Arrives">
+      <bpmn:documentation>
+        Patient arrives at emergency department or triage area.
+
+        Input Variables:
+        - patientId: Patient/patient-123
+        - encounterId: Encounter/encounter-456
+        - chiefComplaint: Primary complaint description
+        - vitalSigns: {temperature, heartRate, bloodPressure, oxygenSaturation, respiratoryRate}
+        - arrivalMode: ambulance|walk_in|transfer
+        - arrivalDatetime: ISO 8601 timestamp
+      </bpmn:documentation>
+      <bpmn:outgoing>flow_to_triage</bpmn:outgoing>
+    </bpmn:startEvent>
+
+    <!-- Service Task: Triage Assessment -->
+    <bpmn:serviceTask id="task_triage_assessment"
+                      name="Triage Assessment"
+                      camunda:type="external"
+                      camunda:topic="emergency.triage_escalation">
+      <bpmn:documentation>
+        Worker Topic: emergency.triage_escalation
+        Purpose: Assess patient severity using triage protocols (ESI, Manchester, etc.)
+
+        Actions:
+        - Evaluate vital signs against threshold criteria
+        - Assess chief complaint severity
+        - Calculate triage severity level
+        - Determine escalation requirements
+
+        Output Variables:
+        - triageSeverity: critical|urgent|standard
+        - triageScore: Numeric score (1-5 ESI scale)
+        - requiredResources: List of required clinical resources
+        - escalationReason: Justification for escalation
+      </bpmn:documentation>
+      <bpmn:extensionElements>
+        <camunda:inputOutput>
+          <camunda:inputParameter name="patientId">${patientId}</camunda:inputParameter>
+          <camunda:inputParameter name="encounterId">${encounterId}</camunda:inputParameter>
+          <camunda:inputParameter name="chiefComplaint">${chiefComplaint}</camunda:inputParameter>
+          <camunda:inputParameter name="vitalSigns">${vitalSigns}</camunda:inputParameter>
+          <camunda:inputParameter name="arrivalMode">${arrivalMode}</camunda:inputParameter>
+          <camunda:outputParameter name="triageSeverity">${triageSeverity}</camunda:outputParameter>
+          <camunda:outputParameter name="triageScore">${triageScore}</camunda:outputParameter>
+          <camunda:outputParameter name="requiredResources">${requiredResources}</camunda:outputParameter>
+          <camunda:outputParameter name="escalationReason">${escalationReason}</camunda:outputParameter>
+        </camunda:inputOutput>
+      </bpmn:extensionElements>
+      <bpmn:incoming>flow_to_triage</bpmn:incoming>
+      <bpmn:outgoing>flow_to_severity_gateway</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Exclusive Gateway: Severity Routing -->
+    <bpmn:exclusiveGateway id="gateway_severity" name="Severity?" default="flow_standard">
+      <bpmn:incoming>flow_to_severity_gateway</bpmn:incoming>
+      <bpmn:outgoing>flow_critical_urgent</bpmn:outgoing>
+      <bpmn:outgoing>flow_standard</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+
+    <!-- Critical/Urgent Path: Specialist Consultation -->
+    <bpmn:serviceTask id="task_specialist_consult"
+                      name="Specialist Consult"
+                      camunda:type="external"
+                      camunda:topic="emergency.specialist_consult">
+      <bpmn:documentation>
+        Worker Topic: emergency.specialist_consult
+        Purpose: Request immediate specialist consultation for critical/urgent cases
+
+        Actions:
+        - Page appropriate specialist based on chief complaint
+        - Assign to critical care team
+        - Reserve appropriate care area (trauma bay, resuscitation room)
+        - Initiate rapid response protocols
+
+        Output Variables:
+        - assignedSpecialist: Practitioner/specialist-789
+        - consultResponse: accepted|escalated|delegated
+        - estimatedResponseTime: Minutes until specialist arrival
+        - careAreaAssigned: Location/trauma-bay-1
+      </bpmn:documentation>
+      <bpmn:extensionElements>
+        <camunda:inputOutput>
+          <camunda:inputParameter name="patientId">${patientId}</camunda:inputParameter>
+          <camunda:inputParameter name="encounterId">${encounterId}</camunda:inputParameter>
+          <camunda:inputParameter name="triageSeverity">${triageSeverity}</camunda:inputParameter>
+          <camunda:inputParameter name="triageScore">${triageScore}</camunda:inputParameter>
+          <camunda:inputParameter name="escalationReason">${escalationReason}</camunda:inputParameter>
+          <camunda:inputParameter name="requiredResources">${requiredResources}</camunda:inputParameter>
+          <camunda:outputParameter name="assignedSpecialist">${assignedSpecialist}</camunda:outputParameter>
+          <camunda:outputParameter name="consultResponse">${consultResponse}</camunda:outputParameter>
+          <camunda:outputParameter name="estimatedResponseTime">${estimatedResponseTime}</camunda:outputParameter>
+          <camunda:outputParameter name="careAreaAssigned">${careAreaAssigned}</camunda:outputParameter>
+        </camunda:inputOutput>
+      </bpmn:extensionElements>
+      <bpmn:incoming>flow_critical_urgent</bpmn:incoming>
+      <bpmn:outgoing>flow_to_specialist_end</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- End Events -->
+    <bpmn:endEvent id="end_routed_specialist" name="Routed to Specialist">
+      <bpmn:documentation>
+        Patient has been routed to specialist care for critical/urgent condition.
+        Next subprocess: SP-CO-002 Critical Care Management or appropriate specialty pathway.
+      </bpmn:documentation>
+      <bpmn:incoming>flow_to_specialist_end</bpmn:incoming>
+    </bpmn:endEvent>
+
+    <bpmn:endEvent id="end_standard_care" name="Standard Care Path">
+      <bpmn:documentation>
+        Patient follows standard care pathway (non-critical).
+        Next subprocess: SP-CO-003 Standard Clinical Care or appropriate outpatient flow.
+      </bpmn:documentation>
+      <bpmn:incoming>flow_standard</bpmn:incoming>
+    </bpmn:endEvent>
+
+    <!-- Sequence Flows -->
+    <bpmn:sequenceFlow id="flow_to_triage" sourceRef="start_patient_arrives" targetRef="task_triage_assessment"/>
+    <bpmn:sequenceFlow id="flow_to_severity_gateway" sourceRef="task_triage_assessment" targetRef="gateway_severity"/>
+
+    <bpmn:sequenceFlow id="flow_critical_urgent" name="Critical/Urgent" sourceRef="gateway_severity" targetRef="task_specialist_consult">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${triageSeverity == 'critical' || triageSeverity == 'urgent'}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+
+    <bpmn:sequenceFlow id="flow_standard" name="Standard" sourceRef="gateway_severity" targetRef="end_standard_care"/>
+
+    <bpmn:sequenceFlow id="flow_to_specialist_end" sourceRef="task_specialist_consult" targetRef="end_routed_specialist"/>
+
+  </bpmn:process>
+
+  <!-- BPMNDI: Visual diagram layout -->
+  <bpmndi:BPMNDiagram id="BPMNDiagram_TriageRouting">
+    <bpmndi:BPMNPlane id="BPMNPlane_TriageRouting" bpmnElement="SP_CO_001_Triage_Routing">
+
+      <!-- Start Event -->
+      <bpmndi:BPMNShape id="Shape_start_patient_arrives" bpmnElement="start_patient_arrives">
+        <dc:Bounds x="180" y="260" width="36" height="36"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="160" y="303" width="77" height="14"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+
+      <!-- Triage Assessment Task -->
+      <bpmndi:BPMNShape id="Shape_task_triage_assessment" bpmnElement="task_triage_assessment">
+        <dc:Bounds x="280" y="238" width="100" height="80"/>
+        <bpmndi:BPMNLabel/>
+      </bpmndi:BPMNShape>
+
+      <!-- Severity Gateway -->
+      <bpmndi:BPMNShape id="Shape_gateway_severity" bpmnElement="gateway_severity" isMarkerVisible="true">
+        <dc:Bounds x="445" y="253" width="50" height="50"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="448" y="223" width="45" height="14"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+
+      <!-- Specialist Consult Task -->
+      <bpmndi:BPMNShape id="Shape_task_specialist_consult" bpmnElement="task_specialist_consult">
+        <dc:Bounds x="560" y="140" width="100" height="80"/>
+        <bpmndi:BPMNLabel/>
+      </bpmndi:BPMNShape>
+
+      <!-- End Events -->
+      <bpmndi:BPMNShape id="Shape_end_routed_specialist" bpmnElement="end_routed_specialist">
+        <dc:Bounds x="732" y="162" width="36" height="36"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="708" y="205" width="85" height="27"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Shape_end_standard_care" bpmnElement="end_standard_care">
+        <dc:Bounds x="560" y="360" width="36" height="36"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="542" y="403" width="73" height="27"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+
+      <!-- Sequence Flow Edges -->
+      <bpmndi:BPMNEdge id="Edge_flow_to_triage" bpmnElement="flow_to_triage">
+        <di:waypoint x="216" y="278"/>
+        <di:waypoint x="280" y="278"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_flow_to_severity_gateway" bpmnElement="flow_to_severity_gateway">
+        <di:waypoint x="380" y="278"/>
+        <di:waypoint x="445" y="278"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_flow_critical_urgent" bpmnElement="flow_critical_urgent">
+        <di:waypoint x="470" y="253"/>
+        <di:waypoint x="470" y="180"/>
+        <di:waypoint x="560" y="180"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="480" y="163" width="71" height="14"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_flow_standard" bpmnElement="flow_standard">
+        <di:waypoint x="470" y="303"/>
+        <di:waypoint x="470" y="378"/>
+        <di:waypoint x="560" y="378"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="480" y="360" width="45" height="14"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_flow_to_specialist_end" bpmnElement="flow_to_specialist_end">
+        <di:waypoint x="660" y="180"/>
+        <di:waypoint x="732" y="180"/>
+      </bpmndi:BPMNEdge>
+
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+
+</bpmn:definitions>

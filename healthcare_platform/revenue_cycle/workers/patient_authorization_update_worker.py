@@ -76,6 +76,8 @@ class PatientAuthorizationUpdateWorker:
     Worker to send authorization status updates via WhatsApp.
 
     Provides status-specific instructions and next steps.
+
+    Archetype: FINANCIAL_CALCULATION
     """
 
     TOPIC = "financial.auth_update"

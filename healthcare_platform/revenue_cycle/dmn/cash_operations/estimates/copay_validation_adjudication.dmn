@@ -1,0 +1,111 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/"
+             xmlns:dc="http://www.omg.org/spec/DMN/20180521/DC/"
+             id="Definitions_CopayValidationAdjudication"
+             name="Copay Validation Adjudication"
+             namespace="http://camunda.org/schema/1.0/dmn">
+  <!-- Archetype: ADMIN_ADJUDICATION | Source: copay_validation_adjudication_worker.py -->
+
+  <!-- Source: patient_copay_estimate_worker.py
+       Rules extracted from Pydantic validators and business validation.
+  -->
+
+  <decision id="Decision_CopayValidAdj" name="Copay Validation Adjudication">
+    <decisionTable id="DecisionTable_CopayValidAdj" hitPolicy="FIRST">
+
+      <input id="Input_phoneFormat" label="Phone Format">
+        <inputExpression id="InputExpr_phoneFormat" typeRef="string">
+          <text>phoneFormat</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_insuranceCoverage" label="Insurance Coverage (%)">
+        <inputExpression id="InputExpr_insuranceCoverage" typeRef="number">
+          <text>insuranceCoverage</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_estimatedCopay" label="Estimated Copay">
+        <inputExpression id="InputExpr_estimatedCopay" typeRef="number">
+          <text>estimatedCopay</text>
+        </inputExpression>
+      </input>
+
+      <output id="Output_resultado" label="Resultado" name="resultado" typeRef="string">
+        <outputValues><text>"PROSSEGUIR","BLOQUEAR","REVISAR"</text></outputValues>
+      </output>
+
+      <output id="Output_acao" label="Acao" name="acao" typeRef="string"/>
+
+      <output id="Output_risco" label="Risco" name="risco" typeRef="string">
+        <outputValues><text>"CRITICO","ALTO","MEDIO","BAIXO"</text></outputValues>
+      </output>
+
+      <!-- R1: Invalid phone format -->
+      <rule id="Rule_bad_phone">
+        <description>Phone not in E.164 format — block</description>
+        <inputEntry id="IE_bp_1"><text>not("E.164")</text></inputEntry>
+        <inputEntry id="IE_bp_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_bp_3"><text>-</text></inputEntry>
+        <outputEntry id="OE_bp_res"><text>"BLOQUEAR"</text></outputEntry>
+        <outputEntry id="OE_bp_acao"><text>"Invalid phone format"</text></outputEntry>
+        <outputEntry id="OE_bp_risco"><text>"MEDIO"</text></outputEntry>
+      </rule>
+
+      <!-- R2: Invalid coverage percentage (< 0) -->
+      <rule id="Rule_coverage_low">
+        <description>Insurance coverage below 0 — block</description>
+        <inputEntry id="IE_cl_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_cl_2"><text>&lt; 0</text></inputEntry>
+        <inputEntry id="IE_cl_3"><text>-</text></inputEntry>
+        <outputEntry id="OE_cl_res"><text>"BLOQUEAR"</text></outputEntry>
+        <outputEntry id="OE_cl_acao"><text>"Invalid coverage percentage"</text></outputEntry>
+        <outputEntry id="OE_cl_risco"><text>"MEDIO"</text></outputEntry>
+      </rule>
+
+      <!-- R3: Invalid coverage percentage (> 100) -->
+      <rule id="Rule_coverage_high">
+        <description>Insurance coverage above 100 — block</description>
+        <inputEntry id="IE_ch_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_ch_2"><text>&gt; 100</text></inputEntry>
+        <inputEntry id="IE_ch_3"><text>-</text></inputEntry>
+        <outputEntry id="OE_ch_res"><text>"BLOQUEAR"</text></outputEntry>
+        <outputEntry id="OE_ch_acao"><text>"Invalid coverage percentage"</text></outputEntry>
+        <outputEntry id="OE_ch_risco"><text>"MEDIO"</text></outputEntry>
+      </rule>
+
+      <!-- R4: Negative copay -->
+      <rule id="Rule_neg_copay">
+        <description>Negative copay amount — block</description>
+        <inputEntry id="IE_nc_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_nc_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_nc_3"><text>&lt; 0</text></inputEntry>
+        <outputEntry id="OE_nc_res"><text>"BLOQUEAR"</text></outputEntry>
+        <outputEntry id="OE_nc_acao"><text>"Negative copay"</text></outputEntry>
+        <outputEntry id="OE_nc_risco"><text>"MEDIO"</text></outputEntry>
+      </rule>
+
+      <!-- R5: Valid — proceed -->
+      <rule id="Rule_valid">
+        <description>Copay estimate valid — proceed</description>
+        <inputEntry id="IE_v_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_v_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_v_3"><text>-</text></inputEntry>
+        <outputEntry id="OE_v_res"><text>"PROSSEGUIR"</text></outputEntry>
+        <outputEntry id="OE_v_acao"><text>"Copay estimate valid"</text></outputEntry>
+        <outputEntry id="OE_v_risco"><text>"BAIXO"</text></outputEntry>
+      </rule>
+
+    </decisionTable>
+  </decision>
+
+  <dmndi:DMNDI>
+    <dmndi:DMNDiagram id="DMNDiagram_1">
+      <dmndi:DMNShape id="DMNShape_Decision" dmnElementRef="Decision_CopayValidAdj">
+        <dc:Bounds height="80" width="180" x="160" y="100"/>
+      </dmndi:DMNShape>
+    </dmndi:DMNDiagram>
+  </dmndi:DMNDI>
+
+</definitions>

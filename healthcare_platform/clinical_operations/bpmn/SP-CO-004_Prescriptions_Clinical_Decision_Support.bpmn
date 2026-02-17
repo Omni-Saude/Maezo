@@ -1,0 +1,179 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+                  xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+                  xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+                  xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
+                  xmlns:camunda="http://camunda.org/schema/1.0/bpmn"
+                  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                  id="Definitions_PrescriptionsCDS"
+                  targetNamespace="http://cib7.health/clinical/prescriptions"
+                  exporter="Claude Code"
+                  exporterVersion="1.0">
+
+  <bpmn:process id="SP_CO_004_Prescriptions_CDS" name="SP-CO-004 Prescriptions and Clinical Decision Support" isExecutable="true">
+
+    <bpmn:startEvent id="Start_ClinicalDecision" name="Clinical Decision Initiated">
+      <bpmn:outgoing>Flow_ToAssessment</bpmn:outgoing>
+    </bpmn:startEvent>
+
+    <!-- Clinical assessment -->
+    <bpmn:serviceTask id="Task_ClinicalAssessment" name="Perform Clinical Assessment"
+                      camunda:type="external" camunda:topic="clinical.assessment">
+      <bpmn:incoming>Flow_ToAssessment</bpmn:incoming>
+      <bpmn:outgoing>Flow_ToDecisionSupport</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Run CDS checks -->
+    <bpmn:serviceTask id="Task_DecisionSupport" name="Run CDS Checks"
+                      camunda:type="external" camunda:topic="clinical.decision_support">
+      <bpmn:incoming>Flow_ToDecisionSupport</bpmn:incoming>
+      <bpmn:outgoing>Flow_ToAlertGateway</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Alert decision gateway -->
+    <bpmn:exclusiveGateway id="Gateway_Alerts" name="Alerts detected?">
+      <bpmn:incoming>Flow_ToAlertGateway</bpmn:incoming>
+      <bpmn:outgoing>Flow_AlertsYes</bpmn:outgoing>
+      <bpmn:outgoing>Flow_AlertsNo</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+
+    <!-- Apply protocols -->
+    <bpmn:serviceTask id="Task_ApplyProtocols" name="Apply Clinical Protocols"
+                      camunda:type="external" camunda:topic="clinical.protocols">
+      <bpmn:incoming>Flow_AlertsYes</bpmn:incoming>
+      <bpmn:outgoing>Flow_ToPathways</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Evaluate pathways (from alerts) -->
+    <bpmn:serviceTask id="Task_PathwaysFromAlerts" name="Evaluate Clinical Pathways"
+                      camunda:type="external" camunda:topic="clinical.pathways">
+      <bpmn:incoming>Flow_ToPathways</bpmn:incoming>
+      <bpmn:outgoing>Flow_ToEnd</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Evaluate pathways (no alerts) -->
+    <bpmn:serviceTask id="Task_PathwaysNoAlerts" name="Evaluate Clinical Pathways"
+                      camunda:type="external" camunda:topic="clinical.pathways">
+      <bpmn:incoming>Flow_AlertsNo</bpmn:incoming>
+      <bpmn:outgoing>Flow_ToEnd</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <bpmn:endEvent id="End_ClinicalDecision" name="Clinical Decision Complete">
+      <bpmn:incoming>Flow_ToEnd</bpmn:incoming>
+    </bpmn:endEvent>
+
+    <!-- Sequence Flows -->
+    <bpmn:sequenceFlow id="Flow_ToAssessment" sourceRef="Start_ClinicalDecision" targetRef="Task_ClinicalAssessment"/>
+    <bpmn:sequenceFlow id="Flow_ToDecisionSupport" sourceRef="Task_ClinicalAssessment" targetRef="Task_DecisionSupport"/>
+    <bpmn:sequenceFlow id="Flow_ToAlertGateway" sourceRef="Task_DecisionSupport" targetRef="Gateway_Alerts"/>
+    <bpmn:sequenceFlow id="Flow_AlertsYes" sourceRef="Gateway_Alerts" targetRef="Task_ApplyProtocols">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${alerts_detected == true}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_AlertsNo" sourceRef="Gateway_Alerts" targetRef="Task_PathwaysNoAlerts"/>
+    <bpmn:sequenceFlow id="Flow_ToPathways" sourceRef="Task_ApplyProtocols" targetRef="Task_PathwaysFromAlerts"/>
+    <bpmn:sequenceFlow id="Flow_ToEnd" sourceRef="Task_PathwaysFromAlerts" targetRef="End_ClinicalDecision"/>
+
+  </bpmn:process>
+
+  <!-- Diagram Interchange -->
+  <bpmndi:BPMNDiagram id="BPMNDiagram_PrescriptionsCDS">
+    <bpmndi:BPMNPlane id="BPMNPlane_PrescriptionsCDS" bpmnElement="SP_CO_004_Prescriptions_CDS">
+
+      <!-- Start Event -->
+      <bpmndi:BPMNShape id="Shape_Start_ClinicalDecision" bpmnElement="Start_ClinicalDecision">
+        <dc:Bounds x="152" y="102" width="36" height="36"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="131" y="145" width="78" height="27"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+
+      <!-- Clinical Assessment -->
+      <bpmndi:BPMNShape id="Shape_Task_ClinicalAssessment" bpmnElement="Task_ClinicalAssessment">
+        <dc:Bounds x="240" y="80" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <!-- Decision Support -->
+      <bpmndi:BPMNShape id="Shape_Task_DecisionSupport" bpmnElement="Task_DecisionSupport">
+        <dc:Bounds x="390" y="80" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <!-- Alerts Gateway -->
+      <bpmndi:BPMNShape id="Shape_Gateway_Alerts" bpmnElement="Gateway_Alerts" isMarkerVisible="true">
+        <dc:Bounds x="545" y="95" width="50" height="50"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="528" y="65" width="84" height="14"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+
+      <!-- Apply Protocols -->
+      <bpmndi:BPMNShape id="Shape_Task_ApplyProtocols" bpmnElement="Task_ApplyProtocols">
+        <dc:Bounds x="650" y="80" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <!-- Pathways From Alerts -->
+      <bpmndi:BPMNShape id="Shape_Task_PathwaysFromAlerts" bpmnElement="Task_PathwaysFromAlerts">
+        <dc:Bounds x="800" y="80" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <!-- Pathways No Alerts -->
+      <bpmndi:BPMNShape id="Shape_Task_PathwaysNoAlerts" bpmnElement="Task_PathwaysNoAlerts">
+        <dc:Bounds x="650" y="240" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <!-- End Event -->
+      <bpmndi:BPMNShape id="Shape_End_ClinicalDecision" bpmnElement="End_ClinicalDecision">
+        <dc:Bounds x="832" y="262" width="36" height="36"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="823" y="305" width="54" height="27"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+
+      <!-- Sequence Flow Edges -->
+      <bpmndi:BPMNEdge id="Edge_Flow_ToAssessment" bpmnElement="Flow_ToAssessment">
+        <di:waypoint x="188" y="120"/>
+        <di:waypoint x="240" y="120"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_Flow_ToDecisionSupport" bpmnElement="Flow_ToDecisionSupport">
+        <di:waypoint x="340" y="120"/>
+        <di:waypoint x="390" y="120"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_Flow_ToAlertGateway" bpmnElement="Flow_ToAlertGateway">
+        <di:waypoint x="490" y="120"/>
+        <di:waypoint x="545" y="120"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_Flow_AlertsYes" bpmnElement="Flow_AlertsYes">
+        <di:waypoint x="595" y="120"/>
+        <di:waypoint x="650" y="120"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="600" y="102" width="45" height="14"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_Flow_AlertsNo" bpmnElement="Flow_AlertsNo">
+        <di:waypoint x="570" y="145"/>
+        <di:waypoint x="570" y="280"/>
+        <di:waypoint x="650" y="280"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="580" y="263" width="51" height="14"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_Flow_ToPathways" bpmnElement="Flow_ToPathways">
+        <di:waypoint x="750" y="120"/>
+        <di:waypoint x="800" y="120"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_Flow_ToEnd" bpmnElement="Flow_ToEnd">
+        <di:waypoint x="900" y="120"/>
+        <di:waypoint x="950" y="120"/>
+        <di:waypoint x="950" y="280"/>
+        <di:waypoint x="868" y="280"/>
+      </bpmndi:BPMNEdge>
+
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+
+</bpmn:definitions>

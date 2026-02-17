@@ -15,7 +15,10 @@ logger = get_logger(__name__)
 
 
 class FinalizeAllocationWorker:
-    """Locks final allocation - no further changes allowed after finalization."""
+    """    Locks final allocation - no further changes allowed after finalization.
+    
+        Archetype: FINANCIAL_CALCULATION
+        """
 
     WORKER_TYPE = "finalize_allocation"
 

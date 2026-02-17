@@ -1,0 +1,146 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/"
+             xmlns:dc="http://www.omg.org/spec/DMN/20180521/DC/"
+             id="Definitions_NotificationRouting"
+             name="Notification Routing Rules"
+             namespace="http://camunda.org/schema/1.0/dmn">
+  <!-- Archetype: ADMIN_ADJUDICATION | Source: notification_routing_rules_worker.py -->
+
+  <decision id="Decision_NotificationRouting" name="Notification Routing Rules">
+    <decisionTable id="DecisionTable_NotificationRouting" hitPolicy="FIRST">
+
+      <!-- === INPUTS === -->
+
+      <input id="Input_claimId" label="Claim ID">
+        <inputExpression id="InputExpr_claimId" typeRef="string">
+          <text>claimId</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_submissionStatus" label="Submission Status">
+        <inputExpression id="InputExpr_submissionStatus" typeRef="string">
+          <text>submissionStatus</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_notificationPhonesCount" label="Notification Phones Count">
+        <inputExpression id="InputExpr_notificationPhonesCount" typeRef="number">
+          <text>notificationPhonesCount</text>
+        </inputExpression>
+      </input>
+
+      <!-- === OUTPUTS === -->
+
+      <output id="Output_resultado" label="Resultado" name="resultado" typeRef="string">
+        <outputValues><text>"PROSSEGUIR","BLOQUEAR","REVISAR"</text></outputValues>
+      </output>
+
+      <output id="Output_acao" label="Acao" name="acao" typeRef="string"/>
+
+      <output id="Output_risco" label="Risco" name="risco" typeRef="string">
+        <outputValues><text>"CRITICO","ALTO","MEDIO","BAIXO"</text></outputValues>
+      </output>
+
+      <!-- === RULES === -->
+
+      <!-- Rule 1: Missing claim ID -->
+      <rule id="Rule_NoClaimId">
+        <description>Rejeitar conta ausente</description>
+        <inputEntry id="IE_NoClaimId_1"><text>claimId = null or claimId = ""</text></inputEntry>
+        <inputEntry id="IE_NoClaimId_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_NoClaimId_3"><text>-</text></inputEntry>
+        <outputEntry id="OE_NoClaimId_res"><text>"BLOQUEAR"</text></outputEntry>
+        <outputEntry id="OE_NoClaimId_acao"><text>"Rejeitar conta ausente"</text></outputEntry>
+        <outputEntry id="OE_NoClaimId_risco"><text>"CRITICO"</text></outputEntry>
+      </rule>
+
+      <!-- Rule 2: Invalid submission status -->
+      <rule id="Rule_InvalidStatus">
+        <description>Rejeitar status de submissao invalido</description>
+        <inputEntry id="IE_InvalidStatus_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_InvalidStatus_2"><text>not(submissionStatus in ("submitted","acknowledged","rejected","failed"))</text></inputEntry>
+        <inputEntry id="IE_InvalidStatus_3"><text>-</text></inputEntry>
+        <outputEntry id="OE_InvalidStatus_res"><text>"BLOQUEAR"</text></outputEntry>
+        <outputEntry id="OE_InvalidStatus_acao"><text>"Rejeitar status de submissao invalido"</text></outputEntry>
+        <outputEntry id="OE_InvalidStatus_risco"><text>"CRITICO"</text></outputEntry>
+      </rule>
+
+      <!-- Rule 3: No phones available - skip notifications -->
+      <rule id="Rule_NoPhones">
+        <description>Pular notificacoes - sem telefones cadastrados</description>
+        <inputEntry id="IE_NoPhones_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_NoPhones_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_NoPhones_3"><text>notificationPhonesCount &lt;= 0</text></inputEntry>
+        <outputEntry id="OE_NoPhones_res"><text>"PROSSEGUIR"</text></outputEntry>
+        <outputEntry id="OE_NoPhones_acao"><text>"Pular notificacoes - sem telefones cadastrados"</text></outputEntry>
+        <outputEntry id="OE_NoPhones_risco"><text>"BAIXO"</text></outputEntry>
+      </rule>
+
+      <!-- Rule 4: Submitted status -->
+      <rule id="Rule_Submitted">
+        <description>Enviar template billing_submitted</description>
+        <inputEntry id="IE_Submitted_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_Submitted_2"><text>submissionStatus = "submitted"</text></inputEntry>
+        <inputEntry id="IE_Submitted_3"><text>-</text></inputEntry>
+        <outputEntry id="OE_Submitted_res"><text>"PROSSEGUIR"</text></outputEntry>
+        <outputEntry id="OE_Submitted_acao"><text>"Enviar template billing_submitted"</text></outputEntry>
+        <outputEntry id="OE_Submitted_risco"><text>"BAIXO"</text></outputEntry>
+      </rule>
+
+      <!-- Rule 5: Acknowledged status -->
+      <rule id="Rule_Acknowledged">
+        <description>Enviar template billing_acknowledged</description>
+        <inputEntry id="IE_Acknowledged_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_Acknowledged_2"><text>submissionStatus = "acknowledged"</text></inputEntry>
+        <inputEntry id="IE_Acknowledged_3"><text>-</text></inputEntry>
+        <outputEntry id="OE_Acknowledged_res"><text>"PROSSEGUIR"</text></outputEntry>
+        <outputEntry id="OE_Acknowledged_acao"><text>"Enviar template billing_acknowledged"</text></outputEntry>
+        <outputEntry id="OE_Acknowledged_risco"><text>"BAIXO"</text></outputEntry>
+      </rule>
+
+      <!-- Rule 6: Rejected status -->
+      <rule id="Rule_Rejected">
+        <description>Enviar template billing_rejected</description>
+        <inputEntry id="IE_Rejected_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_Rejected_2"><text>submissionStatus = "rejected"</text></inputEntry>
+        <inputEntry id="IE_Rejected_3"><text>-</text></inputEntry>
+        <outputEntry id="OE_Rejected_res"><text>"PROSSEGUIR"</text></outputEntry>
+        <outputEntry id="OE_Rejected_acao"><text>"Enviar template billing_rejected"</text></outputEntry>
+        <outputEntry id="OE_Rejected_risco"><text>"MEDIO"</text></outputEntry>
+      </rule>
+
+      <!-- Rule 7: Failed status -->
+      <rule id="Rule_Failed">
+        <description>Enviar template billing_failed</description>
+        <inputEntry id="IE_Failed_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_Failed_2"><text>submissionStatus = "failed"</text></inputEntry>
+        <inputEntry id="IE_Failed_3"><text>-</text></inputEntry>
+        <outputEntry id="OE_Failed_res"><text>"PROSSEGUIR"</text></outputEntry>
+        <outputEntry id="OE_Failed_acao"><text>"Enviar template billing_failed"</text></outputEntry>
+        <outputEntry id="OE_Failed_risco"><text>"ALTO"</text></outputEntry>
+      </rule>
+
+      <!-- Fallback: Unknown status -->
+      <rule id="Rule_Fallback">
+        <description>Status desconhecido - requer avaliacao manual</description>
+        <inputEntry id="IE_Fallback_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_Fallback_2"><text>-</text></inputEntry>
+        <inputEntry id="IE_Fallback_3"><text>-</text></inputEntry>
+        <outputEntry id="OE_Fallback_res"><text>"REVISAR"</text></outputEntry>
+        <outputEntry id="OE_Fallback_acao"><text>"Status desconhecido - requer avaliacao manual"</text></outputEntry>
+        <outputEntry id="OE_Fallback_risco"><text>"MEDIO"</text></outputEntry>
+      </rule>
+
+    </decisionTable>
+  </decision>
+
+  <dmndi:DMNDI>
+    <dmndi:DMNDiagram id="DMNDiagram_NotificationRouting">
+      <dmndi:DMNShape id="DMNShape_NotificationRouting" dmnElementRef="Decision_NotificationRouting">
+        <dc:Bounds height="80" width="180" x="160" y="100"/>
+      </dmndi:DMNShape>
+    </dmndi:DMNDiagram>
+  </dmndi:DMNDI>
+
+</definitions>

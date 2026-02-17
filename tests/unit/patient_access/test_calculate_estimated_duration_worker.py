@@ -117,12 +117,12 @@ class TestCalculateEstimatedDurationWorker:
             }
         )
 
-        # Switch to HPA
-        hpa_ctx = TenantContext.from_tenant_code(TenantCode.HPA)
-        set_current_tenant(hpa_ctx)
+        # Switch to HOSPITAL_B
+        hospital_b_ctx = TenantContext.from_tenant_code(TenantCode.HOSPITAL_B)
+        set_current_tenant(hospital_b_ctx)
 
-        # Execute with HPA
-        result_hpa = await worker.execute(
+        # Execute with HOSPITAL_B
+        result_hospital_b = await worker.execute(
             {
                 "service_type": "consulta",
                 "specialty_code": "cardiologia",
@@ -130,7 +130,7 @@ class TestCalculateEstimatedDurationWorker:
         )
 
         # Results should be consistent (same calculation logic)
-        assert result_austa["estimated_duration_minutes"] == result_hpa["estimated_duration_minutes"]
+        assert result_austa["estimated_duration_minutes"] == result_hospital_b["estimated_duration_minutes"]
 
     @pytest.mark.asyncio
     async def test_idempotency(self, worker, tenant_austa):

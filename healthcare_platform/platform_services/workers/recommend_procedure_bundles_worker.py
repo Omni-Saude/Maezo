@@ -3,6 +3,8 @@ Worker para recomendação de bundles de procedimentos.
 
 Analisa co-ocorrência de procedimentos, calcula preços de bundle,
 projeta economia e identifica oportunidades de pagamento empacotado.
+
+Archetype: FINANCIAL_CALCULATION
 """
 from __future__ import annotations
 

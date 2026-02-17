@@ -120,18 +120,18 @@ class TestCheckExistingPatientWorker:
 
         result_austa = await worker.execute({"cpf_hash": cpf_hash})
 
-        # Switch to HPA
-        hpa_ctx = TenantContext.from_tenant_code(TenantCode.HPA)
-        set_current_tenant(hpa_ctx)
+        # Switch to HOSPITAL_B
+        hospital_b_ctx = TenantContext.from_tenant_code(TenantCode.HOSPITAL_B)
+        set_current_tenant(hospital_b_ctx)
 
         # HPA doesn't have the patient
         fhir_client.search.return_value = {"entry": []}
 
-        result_hpa = await worker.execute({"cpf_hash": cpf_hash})
+        result_hospital_b = await worker.execute({"cpf_hash": cpf_hash})
 
         # Results should differ by tenant
         assert result_austa["patient_exists"] is True
-        assert result_hpa["patient_exists"] is False
+        assert result_hospital_b["patient_exists"] is False
 
     @pytest.mark.asyncio
     async def test_idempotency(self, worker, fhir_client, tenant_austa):

@@ -1,4 +1,7 @@
-"""Worker for applying contract rules to claims."""
+"""Worker for applying contract rules to claims.
+
+Archetype: FINANCIAL_CALCULATION
+"""
 from __future__ import annotations
 
 from decimal import Decimal

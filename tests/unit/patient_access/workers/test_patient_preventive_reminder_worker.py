@@ -6,7 +6,7 @@ Tests preventive care reminder notifications with scheduling options.
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from typing import Any
 from unittest.mock import AsyncMock
 
@@ -209,7 +209,7 @@ class TestPatientPreventiveReminderWorker:
         output_data = {
             "notification_sent": True,
             "message_id": "msg-789",
-            "sent_at": datetime.now(UTC).isoformat(),
+            "sent_at": datetime.now(timezone.utc).isoformat(),
             "action_taken": None,
         }
         output_model = PatientPreventiveReminderOutput(**output_data)

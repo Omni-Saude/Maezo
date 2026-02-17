@@ -17,7 +17,10 @@ logger = get_logger(__name__)
 
 
 class ReconcileWeeklyWorker:
-    """Agrega reconciliações diárias em relatório semanal."""
+    """    Agrega reconciliações diárias em relatório semanal.
+    
+        Archetype: FINANCIAL_CALCULATION
+        """
 
     WORKER_TYPE = "reconcile_weekly"
 

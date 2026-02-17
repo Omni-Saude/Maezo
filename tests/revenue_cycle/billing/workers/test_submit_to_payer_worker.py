@@ -6,9 +6,25 @@ from datetime import datetime
 
 import pytest
 
-from healthcare_platform.revenue_cycle.billing.workers.submit_to_payer_worker import SubmitToPayerWorker
+from healthcare_platform.revenue_cycle.billing.workers.submit_to_payer_worker_v2 import SubmitToPayerWorker
 from healthcare_platform.shared.domain.exceptions import ClaimSubmissionError
 from healthcare_platform.shared.integrations.tiss_client import StubTISSClient, TISSSubmissionResult
+from healthcare_platform.shared.workers.base import TaskStatus
+
+from unittest.mock import Mock
+
+
+@pytest.fixture
+def mock_dmn_service():
+    """Create mock DMN service."""
+    dmn_service = Mock()
+    # Default DMN response: PROSSEGUIR (allow processing)
+    dmn_service.evaluate.return_value = {
+        "resultado": "PROSSEGUIR",
+        "acao": "Processar com sucesso",
+        "risco": "BAIXO"
+    }
+    return dmn_service
 
 
 @pytest.fixture
@@ -18,9 +34,12 @@ def tiss_client():
 
 
 @pytest.fixture
-def worker(tiss_client):
+def worker(tiss_client, mock_dmn_service):
     """Create worker instance."""
-    return SubmitToPayerWorker(tiss_client=tiss_client)
+    return SubmitToPayerWorker(
+        tiss_client=tiss_client,
+        dmn_service=mock_dmn_service
+    )
 
 
 @pytest.fixture
@@ -40,7 +59,7 @@ async def test_successful_submission(worker, valid_job):
     """Test successful TISS guide submission."""
     result = await worker.execute(valid_job)
 
-    assert result.success is True
+    assert result.status == TaskStatus.SUCCESS
     assert result.variables["submission_success"] is True
     assert result.variables["protocol_number"].startswith("STUB-")
     assert result.variables["submission_timestamp"] is not None
@@ -59,7 +78,7 @@ async def test_missing_tiss_xml(worker, tiss_client):
 
     result = await worker.execute(job)
 
-    assert result.success is False
+    assert result.status == TaskStatus.BPMN_ERROR
     assert result.error_code == "MISSING_TISS_XML"
     assert "XML TISS não fornecido" in result.error_message
 
@@ -76,7 +95,7 @@ async def test_missing_payer_id(worker, tiss_client):
 
     result = await worker.execute(job)
 
-    assert result.success is False
+    assert result.status == TaskStatus.BPMN_ERROR
     assert result.error_code == "MISSING_PAYER_ID"
     assert "operadora" in result.error_message.lower()
 
@@ -93,7 +112,7 @@ async def test_missing_claim_id(worker, tiss_client):
 
     result = await worker.execute(job)
 
-    assert result.success is False
+    assert result.status == TaskStatus.BPMN_ERROR
     assert result.error_code == "MISSING_CLAIM_ID"
     assert "fatura" in result.error_message.lower()
 
@@ -126,8 +145,8 @@ async def test_submission_failure_retryable(worker, tiss_client, monkeypatch):
     result = await worker.execute(job)
 
     # Should be BPMN error with retryable ClaimSubmissionError
-    assert result.success is False
-    assert result.error_code == "CLAIM_SUBMISSION_FAILED"
+    assert result.status == TaskStatus.BPMN_ERROR
+    assert result.error_code == "ERR_SUBMISSION_FAILED"
 
 
 @pytest.mark.asyncio
@@ -156,8 +175,8 @@ async def test_submission_with_validation_errors(worker, tiss_client, monkeypatc
 
     result = await worker.execute(job)
 
-    assert result.success is False
-    assert result.error_code == "CLAIM_SUBMISSION_FAILED"
+    assert result.status == TaskStatus.BPMN_ERROR
+    assert result.error_code == "ERR_SUBMISSION_FAILED"
 
 
 @pytest.mark.asyncio
@@ -178,16 +197,16 @@ async def test_unexpected_exception_handling(worker, tiss_client, monkeypatch):
 
     result = await worker.execute(job)
 
-    assert result.success is False
-    assert result.error_code == "CLAIM_SUBMISSION_FAILED"
+    assert result.status == TaskStatus.BPMN_ERROR
+    assert result.error_code == "ERR_SUBMISSION_FAILED"
 
 
 @pytest.mark.asyncio
 async def test_worker_metadata(worker):
     """Test worker metadata and configuration."""
-    assert worker._topic == "billing-submit-to-payer"
-    assert worker.operation_name == "Submeter guia TISS à operadora"
-    assert worker.worker_name == "SubmitToPayerWorker"
+    assert worker.TOPIC == "billing.submit_to_payer"
+    assert worker.OPERATION_NAME == "Submeter guia TISS à operadora"
+    assert worker.__class__.__name__ == "SubmitToPayerWorker"
 
 
 @pytest.mark.asyncio
@@ -195,7 +214,7 @@ async def test_protocol_number_format(worker, valid_job):
     """Test that protocol number is returned in expected format."""
     result = await worker.execute(valid_job)
 
-    assert result.success is True
+    assert result.status == TaskStatus.SUCCESS
     protocol = result.variables["protocol_number"]
     assert isinstance(protocol, str)
     assert len(protocol) > 0
@@ -206,7 +225,7 @@ async def test_submission_timestamp_format(worker, valid_job):
     """Test that submission timestamp is ISO formatted."""
     result = await worker.execute(valid_job)
 
-    assert result.success is True
+    assert result.status == TaskStatus.SUCCESS
     timestamp = result.variables["submission_timestamp"]
     assert isinstance(timestamp, str)
     # Should be ISO format
@@ -234,8 +253,8 @@ async def test_multiple_submissions(worker, tiss_client):
     result1 = await worker.execute(job1)
     result2 = await worker.execute(job2)
 
-    assert result1.success is True
-    assert result2.success is True
+    assert result1.status == TaskStatus.SUCCESS
+    assert result2.status == TaskStatus.SUCCESS
     assert result1.variables["protocol_number"] != result2.variables["protocol_number"]
 
 
@@ -244,6 +263,6 @@ async def test_payer_response_message_included(worker, valid_job):
     """Test that payer response message is included in output."""
     result = await worker.execute(valid_job)
 
-    assert result.success is True
+    assert result.status == TaskStatus.SUCCESS
     assert "payer_response_message" in result.variables
     assert result.variables["payer_response_message"] == "Stub submission accepted"

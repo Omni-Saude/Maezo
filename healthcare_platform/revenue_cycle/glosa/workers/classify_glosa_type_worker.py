@@ -40,6 +40,8 @@ class ClassifyGlosaTypeWorker(BaseWorker, GlosaWorkerMixin):
         - glosaTypeDistribution: Dict mapping type to count
         - hasAdministrative: Boolean for administrative glosas
         - hasTechnical: Boolean for technical glosas
+
+        Archetype: CLINICAL_SCORE
     """
 
     def __init__(self) -> None:

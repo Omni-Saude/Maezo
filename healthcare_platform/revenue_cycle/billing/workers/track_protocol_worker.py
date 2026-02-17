@@ -14,7 +14,9 @@ logger = get_logger(__name__)
 
 @worker(topic="billing-track-protocol")
 class TrackProtocolWorker(BaseWorker):
-    """Worker to track protocol number from payer submission."""
+    """Worker to track protocol number from payer submission.
+
+    Archetype: FINANCIAL_CALCULATION"""
 
     def __init__(self) -> None:
         """Initialize worker with in-memory protocol storage."""

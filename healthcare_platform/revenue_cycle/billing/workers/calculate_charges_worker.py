@@ -1,4 +1,7 @@
-"""Worker for calculating billing charges."""
+"""Worker for calculating billing charges.
+
+Archetype: FINANCIAL_CALCULATION
+"""
 from __future__ import annotations
 
 from decimal import Decimal

@@ -47,6 +47,8 @@ _AGE_RESTRICTIONS: dict[str, tuple[int | None, int | None]] = {
 class ValidateCompatibilityWorker:
     """Validates procedure compatibility and business rules.
 
+    Archetype: COMPLIANCE_VALIDATION
+
     Checks:
     - Mutually exclusive procedure pairs (INCOMPATIBLE_CODES)
     - Frequency limits per time period

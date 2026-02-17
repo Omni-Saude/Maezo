@@ -1,4 +1,6 @@
 """
+from __future__ import annotations
+
 Tests for Check Appeal Eligibility Worker
 
 Tests appeal eligibility validation including deadlines, appealability,
@@ -9,9 +11,7 @@ from datetime import datetime, timedelta, timezone
 
 import pytest
 
-from healthcare_platform.revenue_cycle.glosa.workers.check_appeal_eligibility_worker import (
-    CheckAppealEligibilityWorker,
-)
+from healthcare_platform.revenue_cycle.glosa.workers import CheckAppealEligibilityWorker
 from healthcare_platform.shared.domain.enums import GlosaReasonCode, GlosaType
 from healthcare_platform.shared.domain.exceptions import (
     GlosaAppealDeadlineExpired,
@@ -20,9 +20,9 @@ from healthcare_platform.shared.domain.exceptions import (
 
 
 @pytest.fixture
-def worker():
-    """Create worker instance."""
-    return CheckAppealEligibilityWorker()
+def worker(mock_dmn_service):
+    """Create worker instance with mocked DMN service."""
+    return CheckAppealEligibilityWorker(dmn_service=mock_dmn_service)
 
 
 @pytest.fixture
@@ -209,7 +209,8 @@ async def test_empty_glosas_list_error(worker, base_variables):
     result = await worker.process_task(None, base_variables)
 
     assert result.success is False
-    assert "error" in result.variables
+    assert result.error_code == "ERR_NO_GLOSAS"
+    assert "Nenhuma glosa encontrada" in result.error_message
 
 
 @pytest.mark.asyncio
@@ -228,7 +229,8 @@ async def test_missing_glosa_date_error(worker, base_variables):
     result = await worker.process_task(None, base_variables)
 
     assert result.success is False
-    assert "error" in result.variables
+    assert result.error_code == "ERR_MISSING_DATE"
+    assert "Data da glosa não informada" in result.error_message
 
 
 @pytest.mark.asyncio

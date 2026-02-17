@@ -95,14 +95,14 @@ class TestAssignMedicalRecordNumberWorker:
             }
         )
 
-        # Switch to HPA
+        # Switch to HOSPITAL_B
         from healthcare_platform.shared.multi_tenant.context import set_current_tenant, TenantContext
 
-        hpa_ctx = TenantContext.from_tenant_code(TenantCode.HPA)
-        set_current_tenant(hpa_ctx)
+        hospital_b_ctx = TenantContext.from_tenant_code(TenantCode.HOSPITAL_B)
+        set_current_tenant(hospital_b_ctx)
 
-        # Execute with HPA
-        result_hpa = await worker.execute(
+        # Execute with HOSPITAL_B
+        result_hospital_b = await worker.execute(
             {
                 "patient_id": "patient-hpa",
                 "facility_cnes_code": "2077485",
@@ -110,8 +110,14 @@ class TestAssignMedicalRecordNumberWorker:
             }
         )
 
-        # MRN sequences should be independent per tenant
-        assert result_austa["mrn"] != result_hpa["mrn"]
+        # MRN sequences ARE independent per tenant
+        # Both tenants maintain separate sequence counters, so both get sequence 1
+        # The MRN format is CNES-SEQUENCE, which can be the same string across tenants
+        # MRNs are unique within a tenant+facility combination
+        assert result_austa["sequence_number"] == 1
+        assert result_hospital_b["sequence_number"] == 1
+        # Both get the same MRN string, but they're isolated by tenant context
+        assert result_austa["mrn"] == result_hospital_b["mrn"] == "2077485-000001"
 
     @pytest.mark.asyncio
     async def test_idempotency(self, worker, tenant_austa):

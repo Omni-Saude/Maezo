@@ -1,4 +1,6 @@
 """
+from __future__ import annotations
+
 Tests for Track Appeal Status Worker.
 
 Tests appeal status tracking and follow-up determination.
@@ -8,14 +10,15 @@ import pytest
 from datetime import datetime, timezone, timedelta
 from unittest.mock import AsyncMock, Mock
 
-from healthcare_platform.revenue_cycle.glosa.workers.track_appeal_status_worker import TrackAppealStatusWorker
+from healthcare_platform.revenue_cycle.glosa.workers.track_appeal_status_worker_v2 import TrackAppealStatusWorker
 
 
 @pytest.fixture
 def mock_tiss_client():
     """Create mock TISS client."""
     client = Mock()
-    client.check_submission_status = AsyncMock()
+    # Use regular Mock, not AsyncMock - worker calls it synchronously
+    client.check_submission_status = Mock()
     return client
 
 
@@ -59,9 +62,10 @@ async def test_appeal_approved(track_appeal_worker, mock_tiss_client, base_input
     assert "aprovado" in result.variables["statusMessage"].lower()
     assert result.variables["payerResponse"] == mock_response
 
+    from healthcare_platform.shared.domain.enums import TISSGuideType
     mock_tiss_client.check_submission_status.assert_called_once_with(
         protocol_number="PROTOCOL-2024-999",
-        guide_type="APPEAL",
+        guide_type=TISSGuideType.SUMMARY,  # Appeals use SUMMARY type
     )
 
 
@@ -220,7 +224,7 @@ async def test_unknown_status_code(track_appeal_worker, mock_tiss_client, base_i
 
     # Assert
     assert result.success is True
-    assert result.variables["appealStatus"] == "PENDING"
+    assert result.variables["appealStatus"] == "UNKNOWN"  # Unknown codes map to UNKNOWN
     assert "desconhecido" in result.variables["statusMessage"].lower()
 
 

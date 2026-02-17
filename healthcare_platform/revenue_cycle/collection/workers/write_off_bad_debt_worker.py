@@ -13,7 +13,10 @@ logger = get_logger(__name__)
 
 
 class WriteOffBadDebtWorker:
-    """Baixa dívidas incobráveis (requer aprovação para valores altos)."""
+    """    Baixa dívidas incobráveis (requer aprovação para valores altos).
+    
+        Archetype: FINANCIAL_CALCULATION
+        """
 
     WORKER_TYPE = "write_off_bad_debt"
 

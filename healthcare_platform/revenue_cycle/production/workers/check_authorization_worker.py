@@ -35,6 +35,8 @@ class CheckAuthorizationWorker:
     - Pre-authorized procedures (auth number already assigned)
     - Real-time authorization check
     - Authorization not required (based on payer rules)
+
+    Archetype: COMPLIANCE_VALIDATION
     """
 
     TOPIC = "production.check_authorization"

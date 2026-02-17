@@ -15,7 +15,10 @@ logger = get_logger(__name__)
 
 
 class GenerateAgingReportWorker:
-    """Gera relatório de aging de contas a receber (AR)."""
+    """    Gera relatório de aging de contas a receber (AR).
+    
+        Archetype: FINANCIAL_CALCULATION
+        """
 
     WORKER_TYPE = "generate_aging_report"
 

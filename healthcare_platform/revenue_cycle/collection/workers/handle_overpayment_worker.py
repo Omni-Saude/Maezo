@@ -16,7 +16,10 @@ logger = get_logger(__name__)
 
 
 class HandleOverpaymentWorker:
-    """Handles overpayments - records overpayment and creates credit note for payer."""
+    """    Handles overpayments - records overpayment and creates credit note for payer.
+    
+        Archetype: FINANCIAL_CALCULATION
+        """
 
     WORKER_TYPE = "handle_overpayment"
 

@@ -1,0 +1,105 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/"
+             xmlns:dc="http://www.omg.org/spec/DMN/20180521/DC/"
+             id="Definitions_PhantomNoDiagnosis"
+             name="Phantom Billing No Diagnosis Decision"
+             namespace="http://camunda.org/schema/1.0/dmn">
+  <!-- Archetype: CLINICAL_SCORE | Source: phantom_no_diagnosis_worker.py -->
+
+  <!-- DMN: Phantom Billing - No Diagnosis Detection
+       Based on: detect_fraud_worker.py lines 377-390
+       Rule: Flag procedures billed without matching diagnostic justification
+  -->
+
+  <decision id="Decision_PhantomNoDiagnosis" name="Phantom Billing No Diagnosis">
+    <decisionTable id="DecisionTable_PhantomNoDiagnosis" hitPolicy="FIRST">
+
+      <!-- === INPUTS === -->
+      <input id="Input_hasTussCodes" label="Has TUSS Codes">
+        <inputExpression id="InputExpr_hasTussCodes" typeRef="boolean">
+          <text>has_tuss_codes</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_hasCid10Codes" label="Has CID-10 Codes">
+        <inputExpression id="InputExpr_hasCid10Codes" typeRef="boolean">
+          <text>has_cid10_codes</text>
+        </inputExpression>
+      </input>
+
+      <!-- === OUTPUTS === -->
+      <output id="Output_resultado" label="Resultado" name="resultado" typeRef="string">
+        <outputValues><text>"PROSSEGUIR","BLOQUEAR","REVISAR"</text></outputValues>
+      </output>
+
+      <output id="Output_acao" label="Acao" name="acao" typeRef="string"/>
+
+      <output id="Output_risco" label="Risco" name="risco" typeRef="string">
+        <outputValues><text>"CRITICO","ALTO","MEDIO","BAIXO"</text></outputValues>
+      </output>
+
+      <!-- === RULES === -->
+
+      <!-- Rule 1: TUSS codes without CID-10 - critical phantom billing -->
+      <rule id="Rule_PhantomBilling">
+        <description>Procedimentos cobrados sem diagnostico documentado</description>
+        <inputEntry id="IE_Phantom_1"><text>true</text></inputEntry>
+        <inputEntry id="IE_Phantom_2"><text>false</text></inputEntry>
+        <outputEntry id="OE_Phantom_res"><text>"BLOQUEAR"</text></outputEntry>
+        <outputEntry id="OE_Phantom_acao"><text>"Procedimentos cobrados sem diagnostico documentado"</text></outputEntry>
+        <outputEntry id="OE_Phantom_risco"><text>"CRITICO"</text></outputEntry>
+      </rule>
+
+      <!-- Rule 2: Both TUSS and CID-10 present - proceed -->
+      <rule id="Rule_BothPresent">
+        <description>Procedimentos e diagnosticos documentados</description>
+        <inputEntry id="IE_Both_1"><text>true</text></inputEntry>
+        <inputEntry id="IE_Both_2"><text>true</text></inputEntry>
+        <outputEntry id="OE_Both_res"><text>"PROSSEGUIR"</text></outputEntry>
+        <outputEntry id="OE_Both_acao"><text>"Procedimentos e diagnosticos adequadamente documentados"</text></outputEntry>
+        <outputEntry id="OE_Both_risco"><text>"BAIXO"</text></outputEntry>
+      </rule>
+
+      <!-- Rule 3: No TUSS codes - proceed -->
+      <rule id="Rule_NoTuss">
+        <description>Nenhum procedimento para avaliar</description>
+        <inputEntry id="IE_NoTuss_1"><text>false</text></inputEntry>
+        <inputEntry id="IE_NoTuss_2"><text>-</text></inputEntry>
+        <outputEntry id="OE_NoTuss_res"><text>"PROSSEGUIR"</text></outputEntry>
+        <outputEntry id="OE_NoTuss_acao"><text>"Nenhum procedimento TUSS presente"</text></outputEntry>
+        <outputEntry id="OE_NoTuss_risco"><text>"BAIXO"</text></outputEntry>
+      </rule>
+
+      <!-- Fallback: Unknown state - review -->
+      
+      <rule id="Rule_HighRisk">
+        <description>Risco alto detectado - revisao obrigatoria</description>
+        <inputEntry id="IE_HighRisk_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_HighRisk_2"><text>-</text></inputEntry>
+        <outputEntry id="OE_HighRisk_res"><text>"REVISAR"</text></outputEntry>
+        <outputEntry id="OE_HighRisk_acao"><text>"Situacao de risco alto identificada - avaliacao detalhada necessaria"</text></outputEntry>
+        <outputEntry id="OE_HighRisk_risco"><text>"ALTO"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Fallback">
+        <description>Estado desconhecido - revisao obrigatoria</description>
+        <inputEntry id="IE_fb_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_fb_2"><text>-</text></inputEntry>
+        <outputEntry id="OE_fb_res"><text>"REVISAR"</text></outputEntry>
+        <outputEntry id="OE_fb_acao"><text>"Situacao requer avaliacao manual"</text></outputEntry>
+        <outputEntry id="OE_fb_risco"><text>"MEDIO"</text></outputEntry>
+      </rule>
+
+    </decisionTable>
+  </decision>
+
+  <dmndi:DMNDI>
+    <dmndi:DMNDiagram id="DMNDiagram_PhantomNoDiagnosis">
+      <dmndi:DMNShape id="DMNShape_Decision" dmnElementRef="Decision_PhantomNoDiagnosis">
+        <dc:Bounds height="80" width="180" x="160" y="100"/>
+      </dmndi:DMNShape>
+    </dmndi:DMNDiagram>
+  </dmndi:DMNDI>
+
+</definitions>

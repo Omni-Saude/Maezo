@@ -3,6 +3,8 @@ Worker para identificação de gaps contratuais.
 
 Analisa contratos com operadoras para identificar procedimentos não cobertos,
 termos desfavoráveis, emendas perdidas e contratos expirando.
+
+Archetype: COMPLIANCE_VALIDATION
 """
 from __future__ import annotations
 

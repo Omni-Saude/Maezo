@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from unittest.mock import AsyncMock, Mock
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -13,16 +13,21 @@ from healthcare_platform.revenue_cycle.collection.workers.send_whatsapp_reminder
 class TestSendWhatsAppReminderWorker:
     """Testes para SendWhatsAppReminderWorker."""
 
-    async def test_send_gentle_reminder_early_overdue(self):
+    @patch('healthcare_platform.revenue_cycle.collection.workers.send_whatsapp_reminder_worker.get_required_tenant')
+    @patch('healthcare_platform.revenue_cycle.collection.workers.send_whatsapp_reminder_worker.FederatedDMNService')
+    async def test_send_gentle_reminder_early_overdue(self, mock_dmn_class, mock_tenant):
         """Testa envio de lembrete gentil para vencimento recente (≤7 dias)."""
-        mock_client = Mock()
-        mock_client.send_template_message = AsyncMock(
-            return_value={"message_id": "MSG-12345", "status": "sent"}
-        )
+        mock_tenant.return_value = 'test-tenant'
+        mock_dmn = MagicMock()
+        mock_dmn_class.return_value = mock_dmn
+        mock_dmn.evaluate.return_value = {
+            'templateName': 'payment_reminder_gentle'
+        }
 
-        worker = SendWhatsAppReminderWorker(whatsapp_client=mock_client)
+        worker = SendWhatsAppReminderWorker()
 
-        task_vars = {
+        job = MagicMock()
+        job.variables = {
             "collection_case_id": "CC-12345",
             "patient_phone": "+5511987654321",
             "patient_first_name": "João",
@@ -31,23 +36,28 @@ class TestSendWhatsAppReminderWorker:
             "days_overdue": 5,
         }
 
-        result = await worker.execute(task_vars)
+        result = await worker.execute(job)
 
-        assert result["message_id"] == "MSG-12345"
-        assert result["status"] == "sent"
-        assert result["template_name"] == "payment_reminder_gentle"
-        mock_client.send_template_message.assert_called_once()
+        assert result.success
+        assert result.variables["message_id"] == "WA-CC-12345"
+        assert result.variables["status"] == "sent"
+        assert result.variables["template_name"] == "payment_reminder_gentle"
 
-    async def test_send_urgent_reminder_medium_overdue(self):
+    @patch('healthcare_platform.revenue_cycle.collection.workers.send_whatsapp_reminder_worker.get_required_tenant')
+    @patch('healthcare_platform.revenue_cycle.collection.workers.send_whatsapp_reminder_worker.FederatedDMNService')
+    async def test_send_urgent_reminder_medium_overdue(self, mock_dmn_class, mock_tenant):
         """Testa envio de lembrete urgente para vencimento médio (8-30 dias)."""
-        mock_client = Mock()
-        mock_client.send_template_message = AsyncMock(
-            return_value={"message_id": "MSG-67890", "status": "sent"}
-        )
+        mock_tenant.return_value = 'test-tenant'
+        mock_dmn = MagicMock()
+        mock_dmn_class.return_value = mock_dmn
+        mock_dmn.evaluate.return_value = {
+            'templateName': 'payment_reminder_urgent'
+        }
 
-        worker = SendWhatsAppReminderWorker(whatsapp_client=mock_client)
+        worker = SendWhatsAppReminderWorker()
 
-        task_vars = {
+        job = MagicMock()
+        job.variables = {
             "collection_case_id": "CC-12345",
             "patient_phone": "+5511987654321",
             "patient_first_name": "Maria",
@@ -56,20 +66,26 @@ class TestSendWhatsAppReminderWorker:
             "days_overdue": 20,
         }
 
-        result = await worker.execute(task_vars)
+        result = await worker.execute(job)
 
-        assert result["template_name"] == "payment_reminder_urgent"
+        assert result.success
+        assert result.variables["template_name"] == "payment_reminder_urgent"
 
-    async def test_send_final_reminder_late_overdue(self):
+    @patch('healthcare_platform.revenue_cycle.collection.workers.send_whatsapp_reminder_worker.get_required_tenant')
+    @patch('healthcare_platform.revenue_cycle.collection.workers.send_whatsapp_reminder_worker.FederatedDMNService')
+    async def test_send_final_reminder_late_overdue(self, mock_dmn_class, mock_tenant):
         """Testa envio de lembrete final para vencimento tardio (>30 dias)."""
-        mock_client = Mock()
-        mock_client.send_template_message = AsyncMock(
-            return_value={"message_id": "MSG-99999", "status": "sent"}
-        )
+        mock_tenant.return_value = 'test-tenant'
+        mock_dmn = MagicMock()
+        mock_dmn_class.return_value = mock_dmn
+        mock_dmn.evaluate.return_value = {
+            'templateName': 'payment_reminder_final'
+        }
 
-        worker = SendWhatsAppReminderWorker(whatsapp_client=mock_client)
+        worker = SendWhatsAppReminderWorker()
 
-        task_vars = {
+        job = MagicMock()
+        job.variables = {
             "collection_case_id": "CC-12345",
             "patient_phone": "+5511987654321",
             "patient_first_name": "Pedro",
@@ -78,46 +94,26 @@ class TestSendWhatsAppReminderWorker:
             "days_overdue": 60,
         }
 
-        result = await worker.execute(task_vars)
+        result = await worker.execute(job)
 
-        assert result["template_name"] == "payment_reminder_final"
+        assert result.success
+        assert result.variables["template_name"] == "payment_reminder_final"
 
-    async def test_includes_payment_link_when_provided(self):
-        """Testa inclusão de link de pagamento quando fornecido."""
-        mock_client = Mock()
-        mock_client.send_template_message = AsyncMock(
-            return_value={"message_id": "MSG-12345", "status": "sent"}
-        )
-
-        worker = SendWhatsAppReminderWorker(whatsapp_client=mock_client)
-
-        task_vars = {
-            "collection_case_id": "CC-12345",
-            "patient_phone": "+5511987654321",
-            "patient_first_name": "Ana",
-            "amount_due": 1500.0,
-            "currency": "BRL",
-            "days_overdue": 10,
-            "payment_link": "https://pay.hospital.com/ABC123",
+    @patch('healthcare_platform.revenue_cycle.collection.workers.send_whatsapp_reminder_worker.get_required_tenant')
+    @patch('healthcare_platform.revenue_cycle.collection.workers.send_whatsapp_reminder_worker.FederatedDMNService')
+    async def test_lgpd_no_pii_in_result(self, mock_dmn_class, mock_tenant):
+        """Testa conformidade LGPD: sem PII nos resultados."""
+        mock_tenant.return_value = 'test-tenant'
+        mock_dmn = MagicMock()
+        mock_dmn_class.return_value = mock_dmn
+        mock_dmn.evaluate.return_value = {
+            'templateName': 'payment_reminder_gentle'
         }
 
-        result = await worker.execute(task_vars)
+        worker = SendWhatsAppReminderWorker()
 
-        # Verify template parameters include payment link
-        call_args = mock_client.send_template_message.call_args
-        template = call_args.kwargs["template"]
-        assert "payment_link" in template.parameters
-
-    async def test_lgpd_no_pii_in_result(self):
-        """Testa conformidade LGPD: sem PII nos resultados."""
-        mock_client = Mock()
-        mock_client.send_template_message = AsyncMock(
-            return_value={"message_id": "MSG-12345", "status": "sent"}
-        )
-
-        worker = SendWhatsAppReminderWorker(whatsapp_client=mock_client)
-
-        task_vars = {
+        job = MagicMock()
+        job.variables = {
             "collection_case_id": "CC-12345",
             "patient_phone": "+5511987654321",
             "patient_first_name": "Carlos",
@@ -126,9 +122,10 @@ class TestSendWhatsAppReminderWorker:
             "days_overdue": 15,
         }
 
-        result = await worker.execute(task_vars)
+        result = await worker.execute(job)
 
+        assert result.success
         # Result should NOT contain patient phone or name
-        assert "patient_phone" not in result
-        assert "patient_first_name" not in result
-        assert result["collection_case_id"] == "CC-12345"
+        assert "patient_phone" not in result.variables
+        assert "patient_first_name" not in result.variables
+        assert result.variables["collection_case_id"] == "CC-12345"

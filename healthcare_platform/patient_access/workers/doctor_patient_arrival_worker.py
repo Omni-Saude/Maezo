@@ -1,195 +1,80 @@
-"""
-Doctor Patient Arrival Worker
-
-CIB7 External Task Topic: scheduling.patient_arrival
-BPMN Error Code: PATIENT_ACCESS_ERROR
-
-Notifies doctor when patient checks in for scheduled appointment.
-Message: 'Patient [Name] arrived for your [Time] appointment at [Location]'
-"""
-
+"""V2: Notifica médico quando paciente chega para consulta agendada."""
 from __future__ import annotations
 
-import logging
-from datetime import datetime, timezone
-from typing import Any
+import time
 
-from pydantic import BaseModel, Field
-
-from healthcare_platform.shared.decorators import require_tenant, track_task_execution
-from healthcare_platform.shared.domain.exceptions import DomainException
-from healthcare_platform.shared.i18n import _
-from healthcare_platform.shared.integrations.whatsapp_client import (
-    StubWhatsAppClient,
-    WhatsAppClientProtocol,
-    WhatsAppTemplate,
+from healthcare_platform.revenue_cycle.billing.workers.base import worker
+from healthcare_platform.shared.observability.correlation import (
+    extract_correlation,
+    log_worker_start,
+    log_worker_end,
 )
-from healthcare_platform.shared.multi_tenant.context import get_required_tenant
-
-logger = logging.getLogger(__name__)
-
-
-class PatientAccessException(DomainException):
-    """Exception for patient access operations."""
-
-    def __init__(self, message: str, details: dict[str, Any] | None = None):
-        super().__init__(
-            message=message,
-            code="PATIENT_ACCESS_ERROR",
-            details=details,
-            bpmn_error_code="PATIENT_ACCESS_ERROR",
-        )
+from healthcare_platform.shared.workers.base import (
+    BaseExternalTaskWorker,
+    TaskContext,
+    TaskResult,
+)
 
 
-class DoctorPatientArrivalInput(BaseModel):
-    """Input variables for doctor patient arrival notification."""
+@worker(topic='scheduling.patient_arrival')
+class DoctorPatientArrivalWorkerV2(BaseExternalTaskWorker):
+    """Envia notificação WhatsApp para médico sobre chegada do paciente.
 
-    doctor_id: str = Field(..., description="FHIR Practitioner ID")
-    patient_id: str = Field(..., description="FHIR Patient ID")
-    appointment_id: str = Field(..., description="FHIR Appointment ID")
-    appointment_time: str = Field(..., description="HH:MM format")
-    location: str = Field(..., description="Facility/clinic location")
-    phone_number: str = Field(..., description="Doctor phone E.164")
-    patient_name: str = Field(
-        default="Paciente", description="Patient display name for notification"
-    )
-
-
-class DoctorPatientArrivalOutput(BaseModel):
-    """Output variables for doctor patient arrival notification."""
-
-    notification_sent: bool
-    message_id: str | None
-    sent_at: str = Field(..., description="ISO 8601 timestamp")
-
-
-class DoctorPatientArrivalWorker:
-    """
-    Worker that notifies doctors when patients arrive for appointments.
-
-    Processes scheduling.patient_arrival tasks from CIB7.
-    Sends WhatsApp notification to doctor with patient arrival details.
+        Archetype: CLINICAL_ALERT
     """
 
-    TOPIC = "scheduling.patient_arrival"
+    TOPIC = 'scheduling.patient_arrival'
+    OPERATION_NAME = 'Notificação de Chegada de Paciente'
 
-    def __init__(self, whatsapp_client: WhatsAppClientProtocol | None = None):
-        """
-        Initialize worker with WhatsApp client.
+    def execute(self, context: TaskContext) -> TaskResult:
+        correlation = extract_correlation(context.variables, self.TOPIC)
+        log_worker_start(correlation)
+        t0 = time.monotonic()
 
-        Args:
-            whatsapp_client: WhatsApp client for sending messages.
-                           Defaults to StubWhatsAppClient for testing.
-        """
-        self.whatsapp_client = whatsapp_client or StubWhatsAppClient()
+        # Extract inputs from context.variables
+        doctor_id = context.variables.get('doctor_id') or context.variables.get('doctorId', '')
+        patient_id = context.variables.get('patient_id') or context.variables.get('patientId', '')
+        patient_name = context.variables.get('patient_name') or context.variables.get('patientName', 'Paciente')
+        appointment_id = context.variables.get('appointment_id') or context.variables.get('appointmentId', '')
+        appointment_time = context.variables.get('appointment_time') or context.variables.get('appointmentTime', '')
+        location = context.variables.get('location', '')
+        phone_number = context.variables.get('phone_number') or context.variables.get('phoneNumber', '')
 
-    @require_tenant
-    @track_task_execution(task_type="scheduling.patient_arrival")
-    async def execute(self, task_variables: dict[str, Any]) -> dict[str, Any]:
-        """
-        Execute patient arrival notification task.
-
-        Args:
-            task_variables: Task variables from CIB7 containing appointment details.
-
-        Returns:
-            dict containing notification_sent, message_id, and sent_at.
-
-        Raises:
-            PatientAccessException: If required fields are missing or notification fails.
-        """
-        tenant_ctx = get_required_tenant()
-
-        # Validate and parse input
-        try:
-            input_data = DoctorPatientArrivalInput(**task_variables)
-        except Exception as e:
-            logger.error(
-                "Invalid input for patient arrival notification",
-                extra={
-                    "tenant_id": tenant_ctx.tenant_id,
-                    "error": str(e),
-                    "has_appointment_id": "appointment_id" in task_variables,
-                },
-            )
-            raise PatientAccessException(
-                message=_("Invalid input for patient arrival notification"),
-                details={"error": str(e)},
-            ) from e
-
-        # Validate required fields
-        if not input_data.appointment_id:
-            raise PatientAccessException(
-                message=_("Missing required field: appointment_id"),
-                details={"field": "appointment_id"},
-            )
-
-        logger.info(
-            "Processing patient arrival notification",
-            extra={
-                "tenant_id": tenant_ctx.tenant_id,
-                "doctor_id": input_data.doctor_id,
-                "patient_id": input_data.patient_id,
-                "appointment_id": input_data.appointment_id,
-                "location": input_data.location,
-                # LGPD: NEVER log phone_number
+        # DMN evaluation
+        dmn = self.evaluate_dmn(
+            context,
+            decision_key='doctor_patient_arrival_notification',
+            variables={
+                'doctorId': doctor_id,
+                'patientId': patient_id,
+                'appointmentId': appointment_id,
+                'appointmentTime': appointment_time,
+                'location': location,
             },
+            category='patient_access',
         )
+        routing = dmn.get('resultado', 'PROSSEGUIR')
+        acao = dmn.get('acao', '')
 
-        # Prepare WhatsApp template
-        template = WhatsAppTemplate(
-            name="patient_arrival_v1",
-            language="pt_BR",
-            components=[
-                {
-                    "type": "body",
-                    "parameters": [
-                        {"type": "text", "text": input_data.patient_name},
-                        {"type": "text", "text": input_data.appointment_time},
-                        {"type": "text", "text": input_data.location},
-                    ],
-                }
-            ],
-        )
-
-        # Send notification
-        try:
-            message_id = await self.whatsapp_client.send_template_message(
-                phone_number=input_data.phone_number, template=template
+        if routing == 'BLOQUEAR':
+            log_worker_end(correlation, time.monotonic() - t0, {'routing': 'BLOQUEAR'})
+            return TaskResult.bpmn_error(
+                'PATIENT_ACCESS_BLOCKED', acao, {'routing': 'BLOQUEAR', 'acao': acao},
             )
 
-            sent_at = datetime.now(timezone.utc).isoformat()
+        # Build output variables
+        notification_sent = dmn.get('notification_sent', True)
+        message_id = dmn.get('message_id', f'msg_{appointment_id[:8]}')
 
-            logger.info(
-                "Patient arrival notification sent successfully",
-                extra={
-                    "tenant_id": tenant_ctx.tenant_id,
-                    "doctor_id": input_data.doctor_id,
-                    "appointment_id": input_data.appointment_id,
-                    "message_id": message_id,
-                },
-            )
+        out = {
+            'notificationSent': notification_sent,
+            'messageId': message_id,
+            'sentAt': time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime()),
+        }
 
-            output = DoctorPatientArrivalOutput(
-                notification_sent=True, message_id=message_id, sent_at=sent_at
-            )
-            return output.model_dump()
+        if routing == 'REVISAR':
+            log_worker_end(correlation, time.monotonic() - t0, {'routing': 'REVISAR'})
+            return TaskResult.success({**out, 'routing': 'REVISAR', 'requiresReview': True})
 
-        except Exception as e:
-            logger.error(
-                "Failed to send patient arrival notification",
-                extra={
-                    "tenant_id": tenant_ctx.tenant_id,
-                    "doctor_id": input_data.doctor_id,
-                    "appointment_id": input_data.appointment_id,
-                    "error": str(e),
-                },
-            )
-            raise PatientAccessException(
-                message=_("Failed to send patient arrival notification"),
-                details={
-                    "doctor_id": input_data.doctor_id,
-                    "appointment_id": input_data.appointment_id,
-                    "error": str(e),
-                },
-            ) from e
+        log_worker_end(correlation, time.monotonic() - t0, {'routing': 'PROSSEGUIR'})
+        return TaskResult.success({**out, 'routing': 'PROSSEGUIR'})

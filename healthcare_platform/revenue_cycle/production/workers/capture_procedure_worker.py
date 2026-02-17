@@ -30,6 +30,8 @@ class CaptureProcedureWorker:
     Routes to Tasy (AUSTA) or MV Soul (AMH units) based on tenant context.
     Per ADR-004: CDC only, no direct ERP queries.
     Per ADR-006: Snapshot queries via FHIR.
+
+    Archetype: FINANCIAL_CALCULATION
     """
 
     TOPIC = "production.capture_procedure"

@@ -13,7 +13,10 @@ logger = get_logger(__name__)
 
 
 class EscalateToLegalWorker:
-    """Escalona caso para departamento jurídico (180+ dias ou >R$50k)."""
+    """    Escalona caso para departamento jurídico (180+ dias ou >R$50k).
+    
+        Archetype: FINANCIAL_CALCULATION
+        """
 
     WORKER_TYPE = "escalate_to_legal"
 

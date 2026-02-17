@@ -13,7 +13,10 @@ logger = get_logger(__name__)
 
 
 class CalculateVarianceWorker:
-    """Calculates variance between expected and actual payment using Money arithmetic."""
+    """    Calculates variance between expected and actual payment using Money arithmetic.
+    
+        Archetype: FINANCIAL_CALCULATION
+        """
 
     WORKER_TYPE = "calculate_variance"
 

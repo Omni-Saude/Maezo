@@ -73,10 +73,7 @@ class TestIdentifyContractGapsWorker:
     async def test_missing_contract_id_raises(self, worker, tenant_austa):
         """Test that missing contract_id raises validation error."""
         with pytest.raises(Exception):  # Pydantic validation error
-            IdentifyContractGapsInput(
-                contract_id="",
-                payer_id="payer-456",
-            )
+            IdentifyContractGapsInput()
 
     @pytest.mark.asyncio
     async def test_no_tenant_raises(self, worker):

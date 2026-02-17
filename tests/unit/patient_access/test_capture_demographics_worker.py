@@ -164,12 +164,12 @@ class TestCaptureDemographicsWorker:
             }
         )
 
-        # Switch to HPA
-        hpa_ctx = TenantContext.from_tenant_code(TenantCode.HPA)
-        set_current_tenant(hpa_ctx)
+        # Switch to HOSPITAL_B
+        hospital_b_ctx = TenantContext.from_tenant_code(TenantCode.HOSPITAL_B)
+        set_current_tenant(hospital_b_ctx)
 
-        # Execute with HPA
-        result_hpa = await worker.execute(
+        # Execute with HOSPITAL_B
+        result_hospital_b = await worker.execute(
             {
                 "patient_reference": "Patient/hpa-123",
                 "address_cep": "01310100",
@@ -183,7 +183,7 @@ class TestCaptureDemographicsWorker:
         )
 
         # Hashes should be same (same input data), but updates isolated
-        assert result_austa["address_hash"] == result_hpa["address_hash"]
+        assert result_austa["address_hash"] == result_hospital_b["address_hash"]
 
     @pytest.mark.asyncio
     async def test_idempotency(self, worker, fhir_client, tenant_austa):

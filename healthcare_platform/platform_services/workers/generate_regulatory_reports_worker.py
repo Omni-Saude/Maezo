@@ -51,7 +51,10 @@ TOPIC = "platform.generate_regulatory_reports"
 
 
 class RegulatoryReportException(DomainException):
-    """Exceção de geração de relatório regulatório."""
+    """    Exceção de geração de relatório regulatório.
+    
+        Archetype: COMPLIANCE_VALIDATION
+        """
 
     def __init__(self, message: str, details: dict[str, Any] | None = None):
         super().__init__(

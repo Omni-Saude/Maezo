@@ -16,7 +16,10 @@ logger = get_logger(__name__)
 
 
 class MatchByProtocolWorker:
-    """Matches payment to claim by TISS protocol number - exact match only."""
+    """    Matches payment to claim by TISS protocol number - exact match only.
+    
+        Archetype: FINANCIAL_CALCULATION
+        """
 
     WORKER_TYPE = "match_by_protocol"
 

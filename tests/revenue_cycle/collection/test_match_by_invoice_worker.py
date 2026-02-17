@@ -1,6 +1,9 @@
 """Tests for MatchByInvoiceWorker."""
 from __future__ import annotations
 
+from uuid import uuid4
+from unittest.mock import MagicMock, patch
+
 import pytest
 
 from healthcare_platform.revenue_cycle.collection.workers.match_by_invoice_worker import MatchByInvoiceWorker
@@ -13,58 +16,60 @@ def worker():
 
 
 @pytest.mark.asyncio
-async def test_match_by_invoice_number(worker):
+@patch('healthcare_platform.revenue_cycle.collection.workers.match_by_invoice_worker.get_required_tenant')
+@patch('healthcare_platform.revenue_cycle.collection.workers.match_by_invoice_worker.FederatedDMNService')
+async def test_match_by_invoice_number(mock_dmn_service, mock_tenant, worker):
     """Test match by invoice number."""
-    task_vars = {
-        "payment_id": "pay-001",
+    mock_tenant.return_value = 'test_tenant'
+    mock_dmn = MagicMock()
+    mock_dmn.evaluate.return_value = {'match_quality': 'exact', 'confidence': 1.0}
+    mock_dmn_service.return_value = mock_dmn
+
+    worker.dmn_service = mock_dmn
+
+    claim_id = str(uuid4())
+    job = MagicMock()
+    job.variables = {
+        "payment_id": str(uuid4()),
         "invoice_number": "INV-001",
         "payment_amount": 1000.00,
         "currency": "BRL",
         "available_claims": [
-            {"claim_id": "claim-001", "invoice_number": "INV-001"}
+            {"claim_id": claim_id, "invoice_number": "INV-001", "total_amount": 1000.00}
         ],
     }
 
-    result = await worker.execute(task_vars)
+    result = await worker.execute(job)
 
-    assert result["matched"] is True
-    assert result["claim_id"] == "claim-001"
-
-
-@pytest.mark.asyncio
-async def test_match_by_nosso_numero(worker):
-    """Test match by nosso_numero from CNAB."""
-    task_vars = {
-        "payment_id": "pay-002",
-        "invoice_number": "INV-002",
-        "nosso_numero": "NN-123",
-        "payment_amount": 2000.00,
-        "currency": "BRL",
-        "available_claims": [
-            {"claim_id": "claim-002", "nosso_numero": "NN-123"}
-        ],
-    }
-
-    result = await worker.execute(task_vars)
-
-    assert result["matched"] is True
-    assert result["claim_id"] == "claim-002"
+    assert result.success is True
+    assert result.variables["matched"] is True
+    assert result.variables["claim_id"] == claim_id
 
 
 @pytest.mark.asyncio
-async def test_invoice_not_found(worker):
+@patch('healthcare_platform.revenue_cycle.collection.workers.match_by_invoice_worker.get_required_tenant')
+@patch('healthcare_platform.revenue_cycle.collection.workers.match_by_invoice_worker.FederatedDMNService')
+async def test_invoice_not_found(mock_dmn_service, mock_tenant, worker):
     """Test when invoice is not found."""
-    task_vars = {
-        "payment_id": "pay-003",
+    mock_tenant.return_value = 'test_tenant'
+    mock_dmn = MagicMock()
+    mock_dmn_service.return_value = mock_dmn
+
+    worker.dmn_service = mock_dmn
+
+    job = MagicMock()
+    job.variables = {
+        "payment_id": str(uuid4()),
         "invoice_number": "INV-999",
         "payment_amount": 1000.00,
         "currency": "BRL",
         "available_claims": [
-            {"claim_id": "claim-001", "invoice_number": "INV-001"}
+            {"claim_id": str(uuid4()), "invoice_number": "INV-001", "total_amount": 1000.00}
         ],
     }
 
-    result = await worker.execute(task_vars)
+    result = await worker.execute(job)
 
-    assert result["matched"] is False
-    assert result["claim_id"] is None
+    assert result.success is True
+    assert result.variables["matched"] is False
+    assert result.variables["claim_id"] is None

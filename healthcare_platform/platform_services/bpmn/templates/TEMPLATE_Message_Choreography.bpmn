@@ -1,0 +1,164 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+                  xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+                  xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+                  xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
+                  xmlns:camunda="http://camunda.org/schema/1.0/bpmn"
+                  id="Definitions_MessageChoreography"
+                  targetNamespace="http://cib7.healthcare/templates"
+                  exporter="Camunda Modeler"
+                  exporterVersion="5.20.0">
+
+  <!--
+    TEMPLATE: BPMN_MESSAGE_CHOREOGRAPHY v2.0
+    Purpose: Async message-driven subprocess for webhooks, CDC events, payer callbacks
+    Coverage: 27 workers (payer authorization responses, TISS webhooks, Debezium CDC)
+    ADR Compliance: ADR-004 (Debezium CDC), ADR-014 (Webhook receivers)
+    
+    Pattern:
+      1. Message start event (async trigger from external system)
+      2. Process message payload
+      3. Correlation with existing process instances (if needed)
+      4. Execute business logic
+      5. Send response message (if synchronous callback required)
+    
+    Variables:
+      Input:  messageId, correlationKey, payload, source
+      Output: processedAt, responseMessage, status
+    -->
+
+  <bpmn:process id="TEMPLATE_Message_Choreography" name="[Message Choreography Template]" isExecutable="true">
+    
+    <bpmn:startEvent id="start_message" name="Mensagem Recebida">
+      <bpmn:documentation>
+        MESSAGE CORRELATION (ADR-014):
+        
+        Uses correlation keys from config/correlation_keys.yaml:
+        - patientId: Patient-scoped processes
+        - claimId: Claim-scoped processes
+        - authorizationId: Authorization-scoped processes
+        
+        Webhook receivers (ADR-014) parse incoming messages and set correlation variables.
+        CIB Seven matches correlation keys to find existing process instances.
+      </bpmn:documentation>
+      <bpmn:messageEventDefinition messageRef="Message_External"/>
+      <bpmn:outgoing>flow1</bpmn:outgoing>
+    </bpmn:startEvent>
+    
+    <bpmn:serviceTask id="task_parse" name="Processar Mensagem" camunda:type="external" camunda:topic="{domain}.{subdomain}.process-message">
+      <bpmn:incoming>flow1</bpmn:incoming>
+      <bpmn:outgoing>flow2</bpmn:outgoing>
+    </bpmn:serviceTask>
+    
+    <bpmn:serviceTask id="task_business_logic" name="Executar Lógica de Negócio" camunda:type="external" camunda:topic="{domain}.{subdomain}.execute-logic">
+      <bpmn:incoming>flow2</bpmn:incoming>
+      <bpmn:outgoing>flow3</bpmn:outgoing>
+    </bpmn:serviceTask>
+    
+    <bpmn:intermediateCatchEvent id="event_await_callback" name="Aguardar Callback (Opcional)">
+      <bpmn:messageEventDefinition messageRef="Message_Callback"/>
+      <bpmn:incoming>flow3</bpmn:incoming>
+      <bpmn:outgoing>flow4</bpmn:outgoing>
+    </bpmn:intermediateCatchEvent>
+    
+    <bpmn:serviceTask id="task_send_response" name="Enviar Resposta" camunda:type="external" camunda:topic="{domain}.{subdomain}.send-response">
+      <bpmn:incoming>flow4</bpmn:incoming>
+      <bpmn:outgoing>flow5</bpmn:outgoing>
+    </bpmn:serviceTask>
+    
+    <bpmn:endEvent id="end_success" name="Processado">
+      <bpmn:incoming>flow5</bpmn:incoming>
+    </bpmn:endEvent>
+    
+    <bpmn:boundaryEvent id="timer_callback_timeout" name="Timeout 2h" attachedToRef="event_await_callback" cancelActivity="true">
+      <bpmn:timerEventDefinition>
+        <bpmn:timeDuration>PT2H</bpmn:timeDuration>
+      </bpmn:timerEventDefinition>
+      <bpmn:outgoing>flow_timeout</bpmn:outgoing>
+    </bpmn:boundaryEvent>
+    
+    <bpmn:endEvent id="end_timeout" name="Timeout">
+      <bpmn:incoming>flow_timeout</bpmn:incoming>
+    </bpmn:endEvent>
+    
+    <bpmn:sequenceFlow id="flow1" sourceRef="start_message" targetRef="task_parse"/>
+    <bpmn:sequenceFlow id="flow2" sourceRef="task_parse" targetRef="task_business_logic"/>
+    <bpmn:sequenceFlow id="flow3" sourceRef="task_business_logic" targetRef="event_await_callback"/>
+    <bpmn:sequenceFlow id="flow4" sourceRef="event_await_callback" targetRef="task_send_response"/>
+    <bpmn:sequenceFlow id="flow5" sourceRef="task_send_response" targetRef="end_success"/>
+    <bpmn:sequenceFlow id="flow_timeout" sourceRef="timer_callback_timeout" targetRef="end_timeout"/>
+  </bpmn:process>
+
+  <bpmn:message id="Message_External" name="msg_external_event"/>
+  <bpmn:message id="Message_Callback" name="msg_callback_response"/>
+
+  <bpmndi:BPMNDiagram id="BPMNDiagram_MessageChoreography">
+    <bpmndi:BPMNPlane id="BPMNPlane_MessageChoreography" bpmnElement="TEMPLATE_Message_Choreography">
+      <bpmndi:BPMNShape id="Shape_start" bpmnElement="start_message">
+        <dc:Bounds x="152" y="202" width="36" height="36"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="136" y="245" width="68" height="27"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_parse" bpmnElement="task_parse">
+        <dc:Bounds x="250" y="180" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_logic" bpmnElement="task_business_logic">
+        <dc:Bounds x="410" y="180" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_await" bpmnElement="event_await_callback">
+        <dc:Bounds x="572" y="202" width="36" height="36"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="556" y="245" width="68" height="27"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_timer" bpmnElement="timer_callback_timeout">
+        <dc:Bounds x="572" y="220" width="36" height="36"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="608" y="233" width="52" height="14"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_response" bpmnElement="task_send_response">
+        <dc:Bounds x="670" y="180" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_end_success" bpmnElement="end_success">
+        <dc:Bounds x="832" y="202" width="36" height="36"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="819" y="245" width="62" height="14"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_end_timeout" bpmnElement="end_timeout">
+        <dc:Bounds x="672" y="302" width="36" height="36"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="669" y="345" width="42" height="14"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      
+      <bpmndi:BPMNEdge id="Edge_1" bpmnElement="flow1">
+        <di:waypoint x="188" y="220"/>
+        <di:waypoint x="250" y="220"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_2" bpmnElement="flow2">
+        <di:waypoint x="350" y="220"/>
+        <di:waypoint x="410" y="220"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_3" bpmnElement="flow3">
+        <di:waypoint x="510" y="220"/>
+        <di:waypoint x="572" y="220"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_4" bpmnElement="flow4">
+        <di:waypoint x="608" y="220"/>
+        <di:waypoint x="670" y="220"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_5" bpmnElement="flow5">
+        <di:waypoint x="770" y="220"/>
+        <di:waypoint x="832" y="220"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_timeout" bpmnElement="flow_timeout">
+        <di:waypoint x="590" y="256"/>
+        <di:waypoint x="590" y="320"/>
+        <di:waypoint x="672" y="320"/>
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>

@@ -40,7 +40,10 @@ pricing_duration_seconds = Histogram(
 
 
 class PricingOptimizationError(DomainException):
-    """Exceção para erros na otimização de preços."""
+    """    Exceção para erros na otimização de preços.
+    
+        Archetype: FINANCIAL_CALCULATION
+        """
 
     def __init__(self, message: str, details: dict[str, Any] | None = None):
         super().__init__(

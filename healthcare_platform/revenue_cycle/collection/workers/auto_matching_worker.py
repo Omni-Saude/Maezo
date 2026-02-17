@@ -16,7 +16,10 @@ logger = get_logger(__name__)
 
 
 class AutoMatchingWorker:
-    """Auto-matches payment to claims using multiple strategies with confidence scoring."""
+    """    Auto-matches payment to claims using multiple strategies with confidence scoring.
+    
+        Archetype: FINANCIAL_CALCULATION
+        """
 
     WORKER_TYPE = "auto_matching"
 

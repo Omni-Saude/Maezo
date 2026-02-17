@@ -1,5 +1,7 @@
 """Appointment, Slot, and Practitioner FHIR resource fixtures."""
 
+from __future__ import annotations
+
 from typing import Dict, Any
 
 

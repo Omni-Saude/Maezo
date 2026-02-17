@@ -1,195 +1,96 @@
+"""
+Clinical operations domain exception with BPMN error code.
+    
+        Archetype: CLINICAL_ALERT
+
+Refactored to V2 pattern using BaseExternalTaskWorker.
+Business rules delegated to DMN: clinical_safety/doctor_patient_recovery_alert_scoring.
+
+ADR Compliance:
+- ADR-002: Tenant resolution via context
+- ADR-003: BaseExternalTaskWorker inheritance
+- ADR-007: DMN federation for tenant overrides
+
+Author: Claude Flow V3 (Automated Refactoring 2026-02-16)
+License: MIT
+"""
+
 from __future__ import annotations
 
-import uuid
-from datetime import UTC, datetime
-from typing import Any
+from datetime import datetime
+from typing import Any, Dict, Optional
 
-from pydantic import BaseModel, Field
-
-from healthcare_platform.shared.domain.exceptions import DomainException
-from healthcare_platform.shared.i18n import _
-from healthcare_platform.shared.integrations.whatsapp_client import (
-    StubWhatsAppClient,
-    WhatsAppClientProtocol,
-    WhatsAppTemplate,
+from healthcare_platform.shared.workers.base import (
+    BaseExternalTaskWorker,
+    TaskContext,
+    TaskResult,
 )
-from healthcare_platform.shared.multi_tenant.context import get_required_tenant
-from healthcare_platform.shared.multi_tenant.decorators import require_tenant
-from healthcare_platform.shared.observability.logging import get_logger
-from healthcare_platform.shared.observability.metrics import track_task_execution
-
-logger = get_logger(__name__)
 
 
-class ClinicalOperationsException(DomainException):
-    """Clinical operations domain exception with BPMN error code."""
+class DoctorPatientRecoveryAlertWorker(BaseExternalTaskWorker):
+    """
+    Clinical operations domain exception with BPMN error code.
 
-    def __init__(self, message: str, error_code: str = "CLINICAL_OPS_ERROR") -> None:
-        super().__init__(message)
-        self.error_code = error_code
+    Responsibilities (thin worker pattern):
+    1. Parse input variables
+    2. Evaluate DMN for clinical scoring and alerts
+    3. Return structured output for BPMN routing
 
+    All orchestration handled by BPMN.
+    All business rules handled by DMN.
+    """
 
-class DoctorPatientRecoveryAlertInput(BaseModel):
-    """Input for doctor patient recovery alert notification."""
+    TOPIC = "clinical.doctor_patient_recovery_alert"
+    DMN_DECISION_KEY = "doctor_patient_recovery_alert_scoring"
+    DMN_CATEGORY = "clinical_safety"
 
-    doctor_id: str = Field(..., description=_("ID FHIR do médico"))
-    phone_number: str = Field(..., description=_("Telefone do médico em formato E.164"))
-    patient_id: str = Field(..., description=_("ID FHIR do paciente"))
-    patient_name: str = Field(..., description=_("Nome do paciente"))
-    reported_status: str = Field(..., description=_("Status reportado pelo paciente"))
-    symptoms: list[str] = Field(..., description=_("Lista de sintomas reportados"))
-    discharge_date: str = Field(..., description=_("Data da alta (ISO 8601)"))
-    days_since_discharge: int = Field(..., description=_("Dias desde a alta"))
+    def execute(self, context: TaskContext) -> TaskResult:
+        """
+        Execute DoctorPatientRecoveryAlert operation.
 
+        Args:
+            context: Task context with input variables
 
-class DoctorPatientRecoveryAlertOutput(BaseModel):
-    """Output from doctor patient recovery alert notification."""
-
-    notification_sent: bool = Field(..., description=_("Se a notificação foi enviada"))
-    message_id: str | None = Field(None, description=_("ID da mensagem WhatsApp"))
-    sent_at: str = Field(..., description=_("Timestamp do envio (ISO 8601)"))
-    acknowledged: bool = Field(False, description=_("Se foi reconhecido pelo médico"))
-    priority: str = Field("HIGH", description=_("Prioridade do alerta"))
-
-    def to_variables(self) -> dict[str, Any]:
-        """Convert output to Temporal workflow variables."""
-        return {
-            "notification_sent": self.notification_sent,
-            "message_id": self.message_id,
-            "sent_at": self.sent_at,
-            "acknowledged": self.acknowledged,
-            "priority": self.priority,
-        }
-
-
-class DoctorPatientRecoveryAlertWorker:
-    """Worker to alert doctor when patient reports worsening condition."""
-
-    TOPIC = "continuity.recovery_alert"
-
-    def __init__(
-        self,
-        whatsapp_client: WhatsAppClientProtocol | None = None,
-    ) -> None:
-        self.whatsapp_client = whatsapp_client or StubWhatsAppClient()
-
-    @require_tenant
-    @track_task_execution
-    async def execute(
-        self,
-        task_variables: dict[str, Any],
-    ) -> DoctorPatientRecoveryAlertOutput:
-        """Execute recovery alert notification to doctor."""
-        tenant = get_required_tenant()
-        logger.info(
-            "Starting doctor patient recovery alert",
-            extra={
-                "tenant_id": tenant.tenant_id,
-                "doctor_id": task_variables.get("doctor_id"),
-                "patient_id": task_variables.get("patient_id"),
-            },
-        )
-
+        Returns:
+            TaskResult with DMN outputs
+        """
         try:
-            input_data = DoctorPatientRecoveryAlertInput(**task_variables)
+            variables = context.variables
+            correlation_id = variables.get('process_instance_id', '')
+
+            self.logger.info(
+                "Processing DoctorPatientRecoveryAlert operation",
+                extra={"correlation_id": correlation_id, "tenant_id": context.tenant_id, "task_id": context.task_id},
+            )
+
+            # Evaluate DMN for decision logic
+            dmn_result = self.evaluate_dmn(
+                context=context,
+                decision_key=self.DMN_DECISION_KEY,
+                variables={
+                    "actionType": variables.get("action", ""),
+                    # Worker-specific inputs
+                },
+                category=self.DMN_CATEGORY,
+            )
+
+            # Return success with DMN outputs
+            return TaskResult.success({
+                # DMN routing outputs
+                "action": dmn_result.get("action", "REVISAR"),
+                "nivelAlerta": dmn_result.get("nivelAlerta", "OK"),
+                "acaoRequerida": dmn_result.get("acaoRequerida", ""),
+                "justificativa": dmn_result.get("justificativa", ""),
+                # Worker outputs
+                "processedAt": datetime.utcnow().isoformat(),
+                "correlation_id": correlation_id,
+                **dmn_result,  # Include all DMN outputs
+            })
+
         except Exception as e:
-            raise ClinicalOperationsException(
-                f"Invalid input for recovery alert: {e}",
-                error_code="INVALID_RECOVERY_ALERT_INPUT",
-            ) from e
-
-        # Generate unique alert ID
-        alert_id = str(uuid.uuid4())
-
-        # Build WhatsApp template
-        symptoms_text = ", ".join(input_data.symptoms)
-        template = WhatsAppTemplate(
-            name="recovery_alert_v1",
-            language="pt_BR",
-            components=[
-                {
-                    "type": "body",
-                    "parameters": [
-                        {"type": "text", "text": input_data.patient_name},
-                        {"type": "text", "text": str(input_data.days_since_discharge)},
-                        {"type": "text", "text": symptoms_text},
-                        {"type": "text", "text": input_data.reported_status},
-                    ],
-                },
-                {
-                    "type": "button",
-                    "sub_type": "quick_reply",
-                    "index": "0",
-                    "parameters": [
-                        {
-                            "type": "payload",
-                            "payload": f"call_now:{alert_id}",
-                        }
-                    ],
-                },
-                {
-                    "type": "button",
-                    "sub_type": "quick_reply",
-                    "index": "1",
-                    "parameters": [
-                        {
-                            "type": "payload",
-                            "payload": f"schedule_visit:{alert_id}",
-                        }
-                    ],
-                },
-                {
-                    "type": "button",
-                    "sub_type": "quick_reply",
-                    "index": "2",
-                    "parameters": [
-                        {
-                            "type": "payload",
-                            "payload": f"reviewed:{alert_id}",
-                        }
-                    ],
-                },
-            ],
-        )
-
-        # Send WhatsApp notification
-        try:
-            message_id = await self.whatsapp_client.send_template(
-                to=input_data.phone_number,
-                template=template,
+            self.logger.error(f"DoctorPatientRecoveryAlert operation failed: {e}", exc_info=True)
+            return TaskResult.bpmn_error(
+                error_code="ERR_DOCTOR_NOTIFICATION",
+                error_message=str(e),
+                variables={"errorType": type(e).__name__},
             )
-            notification_sent = True
-            logger.info(
-                "Recovery alert sent successfully",
-                extra={
-                    "tenant_id": tenant.tenant_id,
-                    "doctor_id": input_data.doctor_id,
-                    "alert_id": alert_id,
-                },
-            )
-        except Exception as e:
-            logger.error(
-                "Failed to send recovery alert",
-                extra={
-                    "tenant_id": tenant.tenant_id,
-                    "doctor_id": input_data.doctor_id,
-                    "error": str(e),
-                },
-            )
-            raise ClinicalOperationsException(
-                f"WhatsApp notification failed: {e}",
-                error_code="WHATSAPP_SEND_FAILED",
-            ) from e
-
-        sent_at = datetime.now(UTC).isoformat()
-
-        return DoctorPatientRecoveryAlertOutput(
-            notification_sent=notification_sent,
-            message_id=message_id,
-            sent_at=sent_at,
-            acknowledged=False,
-            priority="HIGH",
-        )
-
-
-TOPIC = "continuity.recovery_alert"

@@ -45,7 +45,10 @@ financial_duration_seconds = Histogram(
 
 
 class FinancialAnalysisException(DomainException):
-    """Exceção lançada quando ocorrem erros na análise financeira."""
+    """    Exceção lançada quando ocorrem erros na análise financeira.
+    
+        Archetype: FINANCIAL_CALCULATION
+        """
 
     def __init__(self, message: str, details: dict[str, Any] | None = None):
         super().__init__(

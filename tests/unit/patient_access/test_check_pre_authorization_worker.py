@@ -136,12 +136,12 @@ class TestCheckPreAuthorizationWorker:
             }
         )
 
-        # Switch to HPA
-        hpa_ctx = TenantContext.from_tenant_code(TenantCode.HPA)
-        set_current_tenant(hpa_ctx)
+        # Switch to HOSPITAL_B
+        hospital_b_ctx = TenantContext.from_tenant_code(TenantCode.HOSPITAL_B)
+        set_current_tenant(hospital_b_ctx)
 
-        # Execute with HPA
-        result_hpa = await worker.execute(
+        # Execute with HOSPITAL_B
+        result_hospital_b = await worker.execute(
             {
                 "patient_id": "Patient/hpa-123",
                 "coverage_id": "Coverage/hpa-456",
@@ -154,9 +154,9 @@ class TestCheckPreAuthorizationWorker:
         )
 
         # Both should require auth (same procedure)
-        assert result_austa["pre_auth_required"] == result_hpa["pre_auth_required"]
+        assert result_austa["pre_auth_required"] == result_hospital_b["pre_auth_required"]
         # But authorization numbers should be different
-        assert result_austa["authorization_number"] != result_hpa["authorization_number"]
+        assert result_austa["authorization_number"] != result_hospital_b["authorization_number"]
 
     @pytest.mark.asyncio
     async def test_idempotency(self, worker, tenant_austa):

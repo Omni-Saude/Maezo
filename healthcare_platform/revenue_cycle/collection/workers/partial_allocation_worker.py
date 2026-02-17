@@ -15,7 +15,10 @@ logger = get_logger(__name__)
 
 
 class PartialAllocationWorker:
-    """Handles partial payments - allocates payment across multiple claims by priority."""
+    """    Handles partial payments - allocates payment across multiple claims by priority.
+    
+        Archetype: FINANCIAL_CALCULATION
+        """
 
     WORKER_TYPE = "partial_allocation"
 

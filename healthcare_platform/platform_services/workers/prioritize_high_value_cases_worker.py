@@ -3,6 +3,8 @@ Prioritize High-Value Cases Worker.
 
 Ranks clinical cases by revenue potential, complexity, and payer margin
 to enable expedited processing of high-value encounters.
+
+Archetype: OPERATIONAL_ROUTING
 """
 
 from __future__ import annotations

@@ -1,0 +1,98 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/"
+             xmlns:dc="http://www.omg.org/spec/DMN/20180521/DC/"
+             id="Definitions_UpcodingComplexityCeiling"
+             name="Upcoding Complexity Ceiling"
+             namespace="http://camunda.org/schema/1.0/dmn">
+  <!-- Archetype: CLINICAL_SCORE | Source: upcoding_complexity_ceiling_worker.py -->
+
+  <!-- Based on: detect_fraud_worker.py lines 44-59, 286-318 -->
+
+  <decision id="Decision_UpcodingComplexityCeiling" name="Upcoding Complexity Ceiling">
+    <decisionTable id="DecisionTable_UpcodingComplexityCeiling" hitPolicy="FIRST">
+
+      <input id="Input_encounterClass" label="Encounter Class">
+        <inputExpression id="InputExpr_encounterClass" typeRef="string">
+          <text>encounter_class</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_codeTier" label="Code Complexity Tier">
+        <inputExpression id="InputExpr_codeTier" typeRef="number">
+          <text>code_tier</text>
+        </inputExpression>
+      </input>
+
+      <output id="Output_resultado" label="Resultado" name="resultado" typeRef="string">
+        <outputValues><text>"PROSSEGUIR","BLOQUEAR","REVISAR"</text></outputValues>
+      </output>
+
+      <output id="Output_acao" label="Acao" name="acao" typeRef="string"/>
+
+      <output id="Output_risco" label="Risco" name="risco" typeRef="string">
+        <outputValues><text>"CRITICO","ALTO","MEDIO","BAIXO"</text></outputValues>
+      </output>
+
+      <!-- Rule 1: Ambulatorio tier 3+ - clear upcoding -->
+      <rule id="Rule_Ambulatorio_Tier3">
+        <description>Ambulatorio: tier 3 excede limite</description>
+        <inputEntry id="IE_AT3_1"><text>"ambulatorio"</text></inputEntry>
+        <inputEntry id="IE_AT3_2"><text>&gt; 2</text></inputEntry>
+        <outputEntry id="OE_AT3_res"><text>"BLOQUEAR"</text></outputEntry>
+        <outputEntry id="OE_AT3_acao"><text>"UPCODING: Codigo complexidade acima do esperado para ambulatorio"</text></outputEntry>
+        <outputEntry id="OE_AT3_risco"><text>"ALTO"</text></outputEntry>
+      </rule>
+
+      <!-- Rule 2: Pronto-socorro tier 4+ - upcoding suspicion -->
+      <rule id="Rule_PS_Tier4">
+        <description>Pronto-socorro: tier 4 excede limite</description>
+        <inputEntry id="IE_PT4_1"><text>"pronto_socorro"</text></inputEntry>
+        <inputEntry id="IE_PT4_2"><text>&gt; 3</text></inputEntry>
+        <outputEntry id="OE_PT4_res"><text>"BLOQUEAR"</text></outputEntry>
+        <outputEntry id="OE_PT4_acao"><text>"UPCODING: Complexidade excessiva para pronto-socorro"</text></outputEntry>
+        <outputEntry id="OE_PT4_risco"><text>"ALTO"</text></outputEntry>
+      </rule>
+
+      <!-- Rule 3: Ambulatorio tier 2 - borderline review -->
+      <rule id="Rule_Ambulatorio_Tier2">
+        <description>Ambulatorio: tier 2 no limite - revisar</description>
+        <inputEntry id="IE_AT2_1"><text>"ambulatorio"</text></inputEntry>
+        <inputEntry id="IE_AT2_2"><text>2</text></inputEntry>
+        <outputEntry id="OE_AT2_res"><text>"REVISAR"</text></outputEntry>
+        <outputEntry id="OE_AT2_acao"><text>"Ambulatorio com complexidade tier 2 - revisar justificativa"</text></outputEntry>
+        <outputEntry id="OE_AT2_risco"><text>"MEDIO"</text></outputEntry>
+      </rule>
+
+      <!-- Rule 4: Internacao allows higher tiers -->
+      <rule id="Rule_Internacao_HighTier">
+        <description>Internacao permite tiers mais altos</description>
+        <inputEntry id="IE_IHT_1"><text>"internacao"</text></inputEntry>
+        <inputEntry id="IE_IHT_2"><text>&gt; 4</text></inputEntry>
+        <outputEntry id="OE_IHT_res"><text>"REVISAR"</text></outputEntry>
+        <outputEntry id="OE_IHT_acao"><text>"Internacao com tier muito alto - validar complexidade clinica"</text></outputEntry>
+        <outputEntry id="OE_IHT_risco"><text>"MEDIO"</text></outputEntry>
+      </rule>
+
+      <!-- Rule 5: Fallback - within ceiling -->
+      <rule id="Rule_Within_Ceiling">
+        <description>Dentro do teto de complexidade</description>
+        <inputEntry id="IE_WC_1"><text>-</text></inputEntry>
+        <inputEntry id="IE_WC_2"><text>-</text></inputEntry>
+        <outputEntry id="OE_WC_res"><text>"PROSSEGUIR"</text></outputEntry>
+        <outputEntry id="OE_WC_acao"><text>"Complexidade dentro do esperado"</text></outputEntry>
+        <outputEntry id="OE_WC_risco"><text>"BAIXO"</text></outputEntry>
+      </rule>
+
+    </decisionTable>
+  </decision>
+
+  <dmndi:DMNDI>
+    <dmndi:DMNDiagram id="DMNDiagram_UpcodingComplexityCeiling">
+      <dmndi:DMNShape id="DMNShape_Decision" dmnElementRef="Decision_UpcodingComplexityCeiling">
+        <dc:Bounds height="80" width="180" x="160" y="100"/>
+      </dmndi:DMNShape>
+    </dmndi:DMNDiagram>
+  </dmndi:DMNDI>
+
+</definitions>

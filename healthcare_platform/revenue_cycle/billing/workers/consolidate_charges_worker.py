@@ -33,6 +33,8 @@ class ConsolidateChargesWorker(BaseWorker):
         - claim_total (float): Total claim amount
         - item_count (int): Number of line items
         - billing_status (str): Set to "validated"
+
+    Archetype: FINANCIAL_CALCULATION
     """
 
     def __init__(self) -> None:

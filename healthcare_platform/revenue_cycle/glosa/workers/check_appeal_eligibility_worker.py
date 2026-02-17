@@ -65,6 +65,8 @@ class CheckAppealEligibilityWorker(GlosaWorkerMixin):
     Raises:
         GlosaAppealDeadlineExpired: If appeal deadline has passed
         GlosaNotAppealable: If glosa type is not appealable
+
+        Archetype: COMPLIANCE_VALIDATION
     """
 
     def __init__(self) -> None:

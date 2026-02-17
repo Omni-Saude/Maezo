@@ -1,4 +1,6 @@
 """
+from __future__ import annotations
+
 Tests for IdentifyGlosaWorker
 
 Tests glosa identification from claim responses including denial extraction,
@@ -10,18 +12,16 @@ from unittest.mock import AsyncMock, Mock
 
 import pytest
 
-from healthcare_platform.revenue_cycle.glosa.workers.identify_glosa_worker import (
-    IdentifyGlosaWorker,
-)
+from healthcare_platform.revenue_cycle.glosa.workers import IdentifyGlosaWorker
 from healthcare_platform.shared.domain.entities import ClaimResponse
 from healthcare_platform.shared.domain.enums import GlosaReasonCode
 from healthcare_platform.shared.domain.exceptions import GlosaException
 
 
 @pytest.fixture
-def worker():
-    """Create worker instance for testing."""
-    return IdentifyGlosaWorker()
+def worker(mock_dmn_service):
+    """Create worker instance for testing with mocked DMN service."""
+    return IdentifyGlosaWorker(dmn_service=mock_dmn_service)
 
 
 @pytest.fixture

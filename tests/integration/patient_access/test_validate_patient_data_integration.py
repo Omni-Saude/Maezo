@@ -1,4 +1,6 @@
 """Integration tests for Validate Patient Data Worker with CIB7 engine."""
+from __future__ import annotations
+
 import pytest
 from unittest.mock import AsyncMock, MagicMock
 from datetime import date
@@ -21,16 +23,16 @@ class TestValidatePatientDataIntegration:
         return validator
 
     @pytest.fixture
-    def worker(self, mock_validator):
-        """Create worker instance with mocked validator."""
+    def worker(self, mock_validator, current_tenant):
+        """Create worker instance with mocked validator and tenant context."""
         return ValidatePatientDataWorker(validator=mock_validator)
 
     @pytest.mark.asyncio
     async def test_end_to_end_process(self, worker):
         """Test complete validation process flow with mocked engine."""
-        # Given: external task from Camunda with patient data
+        # Given: external task from Camunda with patient data (valid CPF)
         task_variables = {
-            "cpf": "12345678901",
+            "cpf": "11144477735",  # Valid CPF
             "cns": "123456789012345",
             "name": "João da Silva",
             "birth_date": "1980-05-15",
@@ -134,9 +136,9 @@ class TestValidatePatientDataIntegration:
     @pytest.mark.asyncio
     async def test_multi_tenant_isolation(self, worker):
         """Test that tenant context is properly maintained."""
-        # Given: tasks from different tenants
+        # Given: tasks from different tenants (using valid CPFs)
         tenant1_vars = {
-            "cpf": "12345678901",
+            "cpf": "11144477735",  # Valid CPF
             "name": "Patient 1",
             "birth_date": "1980-01-01",
             "gender": "male",
@@ -144,7 +146,7 @@ class TestValidatePatientDataIntegration:
         }
 
         tenant2_vars = {
-            "cpf": "98765432109",
+            "cpf": "52998224725",  # Different valid CPF
             "name": "Patient 2",
             "birth_date": "1990-01-01",
             "gender": "female",
@@ -183,9 +185,9 @@ class TestValidatePatientDataIntegration:
     @pytest.mark.asyncio
     async def test_pii_hashing(self, worker):
         """Test that PII is properly hashed and not stored in plain text."""
-        # Given: valid patient data
+        # Given: valid patient data (using valid CPF and CNS)
         task_variables = {
-            "cpf": "12345678901",
+            "cpf": "11144477735",  # Valid CPF
             "cns": "123456789012345",
             "name": "Test Patient",
             "birth_date": "1985-01-01",

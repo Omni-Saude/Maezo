@@ -1,9 +1,11 @@
 """Tests for detect_fraud_worker - Phase 2.2 Coding & Audit."""
 
+from __future__ import annotations
+
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 
-from healthcare_platform.revenue_cycle.coding.workers.detect_fraud_worker import (
+from healthcare_platform.revenue_cycle.coding.workers import (
     DetectFraudWorker,
     DetectFraudInput,
     DetectFraudOutput,
@@ -28,8 +30,8 @@ class TestDetectFraudWorker:
         return engine
 
     @pytest.fixture
-    def worker(self, mock_fraud_engine):
-        return DetectFraudWorker(fraud_engine=mock_fraud_engine)
+    def worker(self, mock_fraud_engine, mock_dmn_service):
+        return DetectFraudWorker(fraud_engine=mock_fraud_engine, dmn_service=mock_dmn_service)
 
     def _make_task_vars(self, overrides=None):
         base = {

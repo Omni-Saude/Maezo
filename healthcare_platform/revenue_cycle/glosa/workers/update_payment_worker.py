@@ -26,6 +26,8 @@ class UpdatePaymentWorker(BaseWorker, GlosaWorkerMixin):
 
     Recalculates expected payment, determines adjustment type,
     and updates billing status based on recovery results.
+
+        Archetype: FINANCIAL_CALCULATION
     """
 
     # Payment adjustment type thresholds

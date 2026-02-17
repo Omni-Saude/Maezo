@@ -14,7 +14,10 @@ logger = get_logger(__name__)
 
 
 class PaymentRepository(Protocol):
-    """Protocol for payment repository (dependency injection)."""
+    """    Protocol for payment repository (dependency injection).
+    
+        Archetype: FINANCIAL_CALCULATION
+        """
 
     async def find_by_transaction_id(self, transaction_id: str) -> Any | None:
         """Find payment by transaction_id."""

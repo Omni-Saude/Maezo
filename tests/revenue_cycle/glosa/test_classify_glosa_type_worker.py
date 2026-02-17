@@ -1,4 +1,6 @@
 """
+from __future__ import annotations
+
 Tests for ClassifyGlosaTypeWorker
 
 Tests glosa type classification including administrative, technical, linear,
@@ -9,16 +11,14 @@ from unittest.mock import Mock
 
 import pytest
 
-from healthcare_platform.revenue_cycle.glosa.workers.classify_glosa_type_worker import (
-    ClassifyGlosaTypeWorker,
-)
+from healthcare_platform.revenue_cycle.glosa.workers import ClassifyGlosaTypeWorker
 from healthcare_platform.shared.domain.enums import GlosaReasonCode, GlosaType
 
 
 @pytest.fixture
-def worker():
-    """Create worker instance for testing."""
-    return ClassifyGlosaTypeWorker()
+def worker(mock_dmn_service):
+    """Create worker instance for testing with mocked DMN service."""
+    return ClassifyGlosaTypeWorker(dmn_service=mock_dmn_service)
 
 
 @pytest.fixture

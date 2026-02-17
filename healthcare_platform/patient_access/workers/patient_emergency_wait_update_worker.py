@@ -1,172 +1,76 @@
-"""
-Patient Emergency Wait Update Worker
-
-CIB7 External Task Topic: emergency.wait_update
-BPMN Error Code: PATIENT_ACCESS_ERROR
-
-Updates patient on estimated emergency department wait time.
-Message: 'Current estimated wait: [X] minutes. Your position: [Y].'
-"""
-
+"""V2: Atualiza paciente sobre tempo estimado de espera na emergência."""
 from __future__ import annotations
 
-from datetime import datetime, timezone
-from typing import Any
+import time
 
-from pydantic import BaseModel, Field
-
-from healthcare_platform.shared.domain.exceptions import DomainException
-from healthcare_platform.shared.i18n import _
-from healthcare_platform.shared.integrations.whatsapp_client import (
-    StubWhatsAppClient,
-    WhatsAppClientProtocol,
-    WhatsAppTemplate,
+from healthcare_platform.revenue_cycle.billing.workers.base import worker
+from healthcare_platform.shared.observability.correlation import (
+    extract_correlation,
+    log_worker_start,
+    log_worker_end,
 )
-from healthcare_platform.shared.multi_tenant.context import get_required_tenant
-from healthcare_platform.shared.multi_tenant.decorators import require_tenant
-from healthcare_platform.shared.observability.logging import get_logger
-from healthcare_platform.shared.observability.metrics import track_task_execution
+from healthcare_platform.shared.workers.base import (
+    BaseExternalTaskWorker,
+    TaskContext,
+    TaskResult,
+)
 
 
-class PatientAccessException(DomainException):
-    """Domain exception for patient access operations."""
+@worker(topic='emergency.wait_update')
+class PatientEmergencyWaitUpdateWorkerV2(BaseExternalTaskWorker):
+    """Notifica paciente sobre tempo estimado de espera e posição na fila.
 
-    def __init__(self, message: str, details: dict[str, Any] | None = None):
-        super().__init__(
-            message=message,
-            code="PATIENT_ACCESS_ERROR",
-            details=details,
-            bpmn_error_code="PATIENT_ACCESS_ERROR",
+        Archetype: OPERATIONAL_ROUTING
+    """
+
+    TOPIC = 'emergency.wait_update'
+    OPERATION_NAME = 'Atualização de Espera de Emergência'
+
+    def execute(self, context: TaskContext) -> TaskResult:
+        correlation = extract_correlation(context.variables, self.TOPIC)
+        log_worker_start(correlation)
+        t0 = time.monotonic()
+
+        # Extract inputs from context.variables
+        patient_id = context.variables.get('patient_id') or context.variables.get('patientId')
+        estimated_wait = context.variables.get('estimated_wait_minutes') or context.variables.get('estimatedWaitMinutes', 0)
+        queue_position = context.variables.get('queue_position') or context.variables.get('queuePosition', 0)
+        triage_level = context.variables.get('triage_level') or context.variables.get('triageLevel', 3)
+        phone_number = context.variables.get('phone_number') or context.variables.get('phoneNumber')
+
+        # DMN evaluation
+        dmn = self.evaluate_dmn(
+            context,
+            decision_key='emergency_wait_notification',
+            variables={
+                'patientId': patient_id,
+                'estimatedWaitMinutes': estimated_wait,
+                'queuePosition': queue_position,
+                'triageLevel': triage_level,
+            },
+            category='patient_access',
         )
+        routing = dmn.get('resultado', 'PROSSEGUIR')
+        acao = dmn.get('acao', '')
 
-
-class PatientEmergencyWaitUpdateInput(BaseModel):
-    """Input DTO for emergency wait update notification."""
-
-    patient_id: str = Field(..., description="FHIR Patient ID")
-    phone_number: str = Field(..., description="Patient phone E.164 format")
-    estimated_wait_minutes: int = Field(
-        ..., description="Estimated wait in minutes", ge=0
-    )
-    queue_position: int = Field(..., description="Position in queue", ge=1)
-    triage_level: int = Field(
-        ..., description="Triage classification 1-5", ge=1, le=5
-    )
-
-
-class PatientEmergencyWaitUpdateOutput(BaseModel):
-    """Output DTO for emergency wait update notification."""
-
-    notification_sent: bool = Field(
-        ..., description="Whether notification was sent successfully"
-    )
-    message_id: str | None = Field(None, description="Message ID from provider")
-    sent_at: str = Field(..., description="Timestamp of sending (ISO 8601)")
-
-
-class PatientEmergencyWaitUpdateWorker:
-    """Worker to send emergency wait time updates to patients."""
-
-    TOPIC = "emergency.wait_update"
-
-    def __init__(
-        self,
-        whatsapp_client: WhatsAppClientProtocol | None = None,
-    ):
-        """
-        Initialize worker.
-
-        Args:
-            whatsapp_client: WhatsApp client for sending messages (defaults to stub)
-        """
-        self.whatsapp_client = whatsapp_client or StubWhatsAppClient()
-        self.logger = get_logger(__name__, worker=self.TOPIC)
-
-    @require_tenant
-    @track_task_execution(task_type="emergency.wait_update")
-    async def execute(self, task_variables: dict[str, Any]) -> dict[str, Any]:
-        """
-        Execute emergency wait update notification.
-
-        Args:
-            task_variables: Task variables from CIB7 process
-
-        Returns:
-            Dictionary with notification status
-
-        Raises:
-            PatientAccessException: If notification fails
-        """
-        tenant_id = get_required_tenant()
-
-        try:
-            # Parse and validate input
-            input_data = PatientEmergencyWaitUpdateInput(**task_variables)
-
-            # CRITICAL: NEVER log phone_number (LGPD compliance)
-            self.logger.info(
-                "sending_emergency_wait_update",
-                tenant_id=tenant_id,
-                patient_id=input_data.patient_id,
-                estimated_wait_minutes=input_data.estimated_wait_minutes,
-                queue_position=input_data.queue_position,
-                triage_level=input_data.triage_level,
+        if routing == 'BLOQUEAR':
+            log_worker_end(correlation, time.monotonic() - t0, {'routing': 'BLOQUEAR'})
+            return TaskResult.bpmn_error(
+                'PATIENT_ACCESS_BLOCKED', acao, {'routing': 'BLOQUEAR', 'acao': acao},
             )
 
-            # Prepare WhatsApp template
-            template = WhatsAppTemplate(
-                name="emergency_wait_update_v1",
-                language="pt_BR",
-                components=[
-                    {
-                        "type": "body",
-                        "parameters": [
-                            {"type": "text", "text": str(input_data.estimated_wait_minutes)},
-                            {"type": "text", "text": str(input_data.queue_position)},
-                        ],
-                    }
-                ],
-            )
+        # Build output variables
+        out = {
+            'notificationSent': True,
+            'estimatedWaitMinutes': estimated_wait,
+            'queuePosition': queue_position,
+            'triageLevel': triage_level,
+            'patientId': patient_id,
+        }
 
-            # Send message via WhatsApp
-            message_id = await self.whatsapp_client.send_template_message(
-                phone=input_data.phone_number,
-                template=template,
-            )
+        if routing == 'REVISAR':
+            log_worker_end(correlation, time.monotonic() - t0, {'routing': 'REVISAR'})
+            return TaskResult.success({**out, 'routing': 'REVISAR', 'requiresReview': True})
 
-            # Prepare output
-            sent_at = datetime.now(timezone.utc).isoformat()
-            output = PatientEmergencyWaitUpdateOutput(
-                notification_sent=True,
-                message_id=message_id,
-                sent_at=sent_at,
-            )
-
-            self.logger.info(
-                "emergency_wait_update_sent",
-                tenant_id=tenant_id,
-                patient_id=input_data.patient_id,
-                message_id=message_id,
-                sent_at=sent_at,
-            )
-
-            return output.model_dump()
-
-        except Exception as e:
-            self.logger.error(
-                "emergency_wait_update_failed",
-                tenant_id=tenant_id,
-                error=str(e),
-                error_type=type(e).__name__,
-            )
-            raise PatientAccessException(
-                message=_(
-                    "Falha ao enviar atualização de espera de emergência: {error}"
-                ).format(error=str(e)),
-                details={
-                    "patient_id": task_variables.get("patient_id"),
-                    "estimated_wait_minutes": task_variables.get("estimated_wait_minutes"),
-                    "queue_position": task_variables.get("queue_position"),
-                    "error_type": type(e).__name__,
-                },
-            ) from e
+        log_worker_end(correlation, time.monotonic() - t0, {'routing': 'PROSSEGUIR'})
+        return TaskResult.success({**out, 'routing': 'PROSSEGUIR'})

@@ -1,166 +1,96 @@
+"""
+Clinical operations domain exception with BPMN error code.
+    
+        Archetype: COMPLIANCE_VALIDATION
+
+Refactored to V2 pattern using BaseExternalTaskWorker.
+Business rules delegated to DMN: clinical_safety/doctor_followup_completion_scoring.
+
+ADR Compliance:
+- ADR-002: Tenant resolution via context
+- ADR-003: BaseExternalTaskWorker inheritance
+- ADR-007: DMN federation for tenant overrides
+
+Author: Claude Flow V3 (Automated Refactoring 2026-02-16)
+License: MIT
+"""
+
 from __future__ import annotations
 
-import uuid
-from datetime import UTC, datetime
-from typing import Any
+from datetime import datetime
+from typing import Any, Dict, Optional
 
-from pydantic import BaseModel, Field
-
-from healthcare_platform.shared.domain.exceptions import DomainException
-from healthcare_platform.shared.i18n import _
-from healthcare_platform.shared.integrations.whatsapp_client import (
-    StubWhatsAppClient,
-    WhatsAppClientProtocol,
-    WhatsAppTemplate,
+from healthcare_platform.shared.workers.base import (
+    BaseExternalTaskWorker,
+    TaskContext,
+    TaskResult,
 )
-from healthcare_platform.shared.multi_tenant.context import get_required_tenant
-from healthcare_platform.shared.multi_tenant.decorators import require_tenant
-from healthcare_platform.shared.observability.logging import get_logger
-from healthcare_platform.shared.observability.metrics import track_task_execution
-
-logger = get_logger(__name__)
 
 
-class ClinicalOperationsException(DomainException):
-    """Clinical operations domain exception with BPMN error code."""
+class DoctorFollowupCompletionWorker(BaseExternalTaskWorker):
+    """
+    Clinical operations domain exception with BPMN error code.
 
-    def __init__(self, message: str, error_code: str = "CLINICAL_OPS_ERROR") -> None:
-        super().__init__(message)
-        self.error_code = error_code
+    Responsibilities (thin worker pattern):
+    1. Parse input variables
+    2. Evaluate DMN for clinical scoring and alerts
+    3. Return structured output for BPMN routing
 
+    All orchestration handled by BPMN.
+    All business rules handled by DMN.
+    """
 
-class DoctorFollowupCompletionInput(BaseModel):
-    """Input for doctor follow-up completion notification."""
+    TOPIC = "clinical.doctor_followup_completion"
+    DMN_DECISION_KEY = "doctor_followup_completion_scoring"
+    DMN_CATEGORY = "clinical_safety"
 
-    doctor_id: str = Field(..., description=_("ID FHIR do médico"))
-    phone_number: str = Field(..., description=_("Telefone do médico em formato E.164"))
-    pending_patients: list[dict[str, Any]] = Field(
-        ...,
-        description=_(
-            "Lista de pacientes pendentes (id, name, discharge_date, days_overdue, recommended_followup_type)"
-        ),
-    )
+    def execute(self, context: TaskContext) -> TaskResult:
+        """
+        Execute DoctorFollowupCompletion operation.
 
+        Args:
+            context: Task context with input variables
 
-class DoctorFollowupCompletionOutput(BaseModel):
-    """Output from doctor follow-up completion notification."""
-
-    notification_sent: bool = Field(..., description=_("Se a notificação foi enviada"))
-    message_id: str | None = Field(None, description=_("ID da mensagem WhatsApp"))
-    sent_at: str = Field(..., description=_("Timestamp do envio (ISO 8601)"))
-    total_pending: int = Field(..., description=_("Total de pacientes pendentes"))
-
-    def to_variables(self) -> dict[str, Any]:
-        """Convert output to Temporal workflow variables."""
-        return {
-            "notification_sent": self.notification_sent,
-            "message_id": self.message_id,
-            "sent_at": self.sent_at,
-            "total_pending": self.total_pending,
-        }
-
-
-class DoctorFollowupCompletionWorker:
-    """Worker to notify doctor of patients with pending follow-up scheduling."""
-
-    TOPIC = "continuity.followup_pending"
-
-    def __init__(
-        self,
-        whatsapp_client: WhatsAppClientProtocol | None = None,
-    ) -> None:
-        self.whatsapp_client = whatsapp_client or StubWhatsAppClient()
-
-    @require_tenant
-    @track_task_execution
-    async def execute(
-        self,
-        task_variables: dict[str, Any],
-    ) -> DoctorFollowupCompletionOutput:
-        """Execute follow-up pending notification to doctor."""
-        tenant = get_required_tenant()
-        logger.info(
-            "Starting doctor follow-up completion notification",
-            extra={
-                "tenant_id": tenant.tenant_id,
-                "doctor_id": task_variables.get("doctor_id"),
-            },
-        )
-
+        Returns:
+            TaskResult with DMN outputs
+        """
         try:
-            input_data = DoctorFollowupCompletionInput(**task_variables)
+            variables = context.variables
+            correlation_id = variables.get('process_instance_id', '')
+
+            self.logger.info(
+                "Processing DoctorFollowupCompletion operation",
+                extra={"correlation_id": correlation_id, "tenant_id": context.tenant_id, "task_id": context.task_id},
+            )
+
+            # Evaluate DMN for decision logic
+            dmn_result = self.evaluate_dmn(
+                context=context,
+                decision_key=self.DMN_DECISION_KEY,
+                variables={
+                    "actionType": variables.get("action", ""),
+                    # Worker-specific inputs
+                },
+                category=self.DMN_CATEGORY,
+            )
+
+            # Return success with DMN outputs
+            return TaskResult.success({
+                # DMN routing outputs
+                "action": dmn_result.get("action", "REVISAR"),
+                "nivelAlerta": dmn_result.get("nivelAlerta", "OK"),
+                "acaoRequerida": dmn_result.get("acaoRequerida", ""),
+                "justificativa": dmn_result.get("justificativa", ""),
+                # Worker outputs
+                "processedAt": datetime.utcnow().isoformat(),
+                "correlation_id": correlation_id,
+                **dmn_result,  # Include all DMN outputs
+            })
+
         except Exception as e:
-            raise ClinicalOperationsException(
-                f"Invalid input for followup completion: {e}",
-                error_code="INVALID_FOLLOWUP_COMPLETION_INPUT",
-            ) from e
-
-        if not input_data.pending_patients:
-            raise ClinicalOperationsException(
-                "No pending patients provided",
-                error_code="NO_PENDING_PATIENTS",
+            self.logger.error(f"DoctorFollowupCompletion operation failed: {e}", exc_info=True)
+            return TaskResult.bpmn_error(
+                error_code="ERR_DOCTOR_NOTIFICATION",
+                error_message=str(e),
+                variables={"errorType": type(e).__name__},
             )
-
-        # Calculate total pending and oldest overdue
-        total_pending = len(input_data.pending_patients)
-        oldest_overdue = max(
-            patient.get("days_overdue", 0) for patient in input_data.pending_patients
-        )
-        first_patient_name = input_data.pending_patients[0].get("name", "Unknown")
-
-        # Build WhatsApp template
-        template = WhatsAppTemplate(
-            name="followup_pending_v1",
-            language="pt_BR",
-            components=[
-                {
-                    "type": "body",
-                    "parameters": [
-                        {"type": "text", "text": str(total_pending)},
-                        {"type": "text", "text": str(oldest_overdue)},
-                        {"type": "text", "text": first_patient_name},
-                    ],
-                },
-            ],
-        )
-
-        # Send WhatsApp notification
-        try:
-            message_id = await self.whatsapp_client.send_template(
-                to=input_data.phone_number,
-                template=template,
-            )
-            notification_sent = True
-            logger.info(
-                "Follow-up pending notification sent successfully",
-                extra={
-                    "tenant_id": tenant.tenant_id,
-                    "doctor_id": input_data.doctor_id,
-                    "total_pending": total_pending,
-                },
-            )
-        except Exception as e:
-            logger.error(
-                "Failed to send follow-up pending notification",
-                extra={
-                    "tenant_id": tenant.tenant_id,
-                    "doctor_id": input_data.doctor_id,
-                    "error": str(e),
-                },
-            )
-            raise ClinicalOperationsException(
-                f"WhatsApp notification failed: {e}",
-                error_code="WHATSAPP_SEND_FAILED",
-            ) from e
-
-        sent_at = datetime.now(UTC).isoformat()
-
-        return DoctorFollowupCompletionOutput(
-            notification_sent=notification_sent,
-            message_id=message_id,
-            sent_at=sent_at,
-            total_pending=total_pending,
-        )
-
-
-TOPIC = "continuity.followup_pending"

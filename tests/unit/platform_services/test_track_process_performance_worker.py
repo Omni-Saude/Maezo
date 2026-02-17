@@ -47,11 +47,7 @@ class TestTrackProcessPerformanceWorker:
     async def test_missing_required_field_raises(self, worker, tenant_austa):
         """Test that missing required fields raise validation error."""
         with pytest.raises(Exception):  # Pydantic validation error
-            TrackProcessPerformanceInput(
-                process_definition_key="",
-                date_start=datetime.now(),
-                date_end=datetime.now(),
-            )
+            TrackProcessPerformanceInput()
 
     @pytest.mark.asyncio
     async def test_no_tenant_raises(self, worker):

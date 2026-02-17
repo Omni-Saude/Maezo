@@ -1,318 +1,75 @@
-"""
-Handle Cancellation Worker
-
-CIB7 External Task Topic: scheduling.handle_cancellation
-BPMN Error Code: PATIENT_ACCESS_ERROR
-
-Processes appointment cancellation, updates FHIR resources,
-releases allocated resources, and suggests rebooking options.
-"""
-
+"""V2: Handle appointment cancellation with resource release."""
 from __future__ import annotations
 
-from abc import ABC, abstractmethod
-from typing import Any
+import time
 
-from pydantic import BaseModel, Field
-
-from healthcare_platform.shared.dmn.federation_service import FederatedDMNService
-from healthcare_platform.shared.domain.exceptions import DomainException
-from healthcare_platform.shared.i18n import _
-from healthcare_platform.shared.integrations.fhir_client import FHIRClientProtocol
-from healthcare_platform.shared.multi_tenant.context import get_required_tenant
-from healthcare_platform.shared.multi_tenant.decorators import require_tenant
-from healthcare_platform.shared.observability.logging import get_logger
-from healthcare_platform.shared.observability.metrics import track_task_execution
-
-
-class PatientAccessException(DomainException):
-    """Domain exception for patient access operations."""
-
-    def __init__(self, message: str, details: dict[str, Any] | None = None):
-        super().__init__(
-            message=message,
-            code="PATIENT_ACCESS_ERROR",
-            details=details,
-            bpmn_error_code="PATIENT_ACCESS_ERROR",
-        )
+from healthcare_platform.revenue_cycle.billing.workers.base import worker
+from healthcare_platform.shared.observability.correlation import (
+    extract_correlation,
+    log_worker_start,
+    log_worker_end,
+)
+from healthcare_platform.shared.workers.base import (
+    BaseExternalTaskWorker,
+    TaskContext,
+    TaskResult,
+)
 
 
-class SuggestedSlot(BaseModel):
-    """Suggested alternative appointment slot."""
+@worker(topic='scheduling.handle_cancellation')
+class HandleCancellationWorkerV2(BaseExternalTaskWorker):
+    """Process appointment cancellation and release resources.
 
-    slot_id: str = Field(..., description="FHIR Slot ID")
-    start_time: str = Field(..., description="Slot start time (ISO 8601)")
-    end_time: str = Field(..., description="Slot end time (ISO 8601)")
-    practitioner_id: str = Field(..., description="FHIR Practitioner ID")
-    practitioner_name: str = Field(..., description="Practitioner full name")
-    location_name: str = Field(..., description="Location name")
-    availability_score: float = Field(
-        ..., description="Availability score (0.0-1.0, higher is better)"
-    )
+        Archetype: OPERATIONAL_ROUTING
+    """
 
+    TOPIC = 'scheduling.handle_cancellation'
+    OPERATION_NAME = 'Processar Cancelamento'
 
-class HandleCancellationInput(BaseModel):
-    """Input DTO for appointment cancellation."""
+    def execute(self, context: TaskContext) -> TaskResult:
+        correlation = extract_correlation(context.variables, self.TOPIC)
+        log_worker_start(correlation)
+        t0 = time.monotonic()
 
-    appointment_id: str = Field(..., description="FHIR Appointment ID")
-    patient_id: str = Field(..., description="FHIR Patient ID")
-    cancellation_reason: str = Field(..., description="Reason for cancellation")
-    cancelled_by: str = Field(
-        ..., description="Who cancelled (patient, provider, system)"
-    )
-    suggest_rebooking: bool = Field(
-        default=True, description="Whether to suggest rebooking options"
-    )
-    preferred_date_range_start: str | None = Field(
-        None, description="Preferred start date for rebooking (ISO 8601)"
-    )
-    preferred_date_range_end: str | None = Field(
-        None, description="Preferred end date for rebooking (ISO 8601)"
-    )
-
-
-class HandleCancellationOutput(BaseModel):
-    """Output DTO for appointment cancellation."""
-
-    cancellation_processed: bool = Field(
-        ..., description="Whether cancellation was processed"
-    )
-    appointment_id: str = Field(..., description="Cancelled appointment ID")
-    cancelled_at: str = Field(..., description="Cancellation timestamp (ISO 8601)")
-    resources_released: list[str] = Field(
-        default_factory=list, description="List of released resource IDs"
-    )
-    suggested_slots: list[SuggestedSlot] = Field(
-        default_factory=list, description="Suggested rebooking slots"
-    )
-    notification_sent: bool = Field(
-        default=False, description="Whether cancellation notification was sent"
-    )
-
-
-class CancellationHandlerProtocol(ABC):
-    """Protocol for handling appointment cancellations."""
-
-    @abstractmethod
-    async def cancel_appointment(
-        self,
-        appointment_id: str,
-        patient_id: str,
-        cancellation_reason: str,
-        cancelled_by: str,
-    ) -> dict[str, Any]:
-        """
-        Cancel appointment and update FHIR resources.
-
-        Args:
-            appointment_id: FHIR Appointment ID
-            patient_id: FHIR Patient ID
-            cancellation_reason: Reason for cancellation
-            cancelled_by: Who cancelled the appointment
-
-        Returns:
-            Dictionary with cancellation status and released resources
-        """
-        pass
-
-    @abstractmethod
-    async def suggest_rebooking_slots(
-        self,
-        appointment_id: str,
-        patient_id: str,
-        preferred_start: str | None,
-        preferred_end: str | None,
-    ) -> list[SuggestedSlot]:
-        """
-        Suggest alternative appointment slots for rebooking.
-
-        Args:
-            appointment_id: Original appointment ID
-            patient_id: FHIR Patient ID
-            preferred_start: Preferred start date (ISO 8601)
-            preferred_end: Preferred end date (ISO 8601)
-
-        Returns:
-            List of suggested slots
-        """
-        pass
-
-
-class StubCancellationHandler(CancellationHandlerProtocol):
-    """Stub implementation for testing."""
-
-    def __init__(self):
-        self.dmn_service = FederatedDMNService()
-        # DMN integration point: auth_appeal_001
-        # Inputs: {'appointment_id': appointment_id, 'cancellation_reason': reason}
-        # Call: self.dmn_service.evaluate(tenant_id=..., category='authorization', table_name='auth_appeal_001', inputs={...})
-
-
-    def __init__(self):
-        self.logger = get_logger(__name__, worker="scheduling.handle_cancellation")
-
-    async def cancel_appointment(
-        self,
-        appointment_id: str,
-        patient_id: str,
-        cancellation_reason: str,
-        cancelled_by: str,
-    ) -> dict[str, Any]:
-        """Stub implementation - logs and returns success."""
-        from datetime import datetime, timezone
+        # Extract inputs
+        appointment_id = context.variables.get('appointment_id', '')
+        patient_id = context.variables.get('patient_id', '')
+        cancellation_reason = context.variables.get('cancellation_reason', '')
+        cancelled_by = context.variables.get('cancelled_by', '')
 
         self.logger.info(
-            "stub_appointment_cancelled",
-            appointment_id=appointment_id,
-            patient_id=patient_id,
-            cancelled_by=cancelled_by,
-            reason=cancellation_reason,
+            f"Processing cancellation for appointment {appointment_id}, "
+            f"patient {patient_id}, reason: {cancellation_reason}, by: {cancelled_by}"
         )
 
-        return {
-            "cancellation_processed": True,
-            "appointment_id": appointment_id,
-            "cancelled_at": datetime.now(timezone.utc).isoformat(),
-            "resources_released": [
-                f"slot_{appointment_id}",
-                f"room_{appointment_id}",
-                f"equipment_{appointment_id}",
-            ],
-            "notification_sent": True,
+        # DMN evaluation
+        dmn = self.evaluate_dmn(
+            context,
+            decision_key='scheduling_cancellation_rules',
+            variables={
+                'appointmentId': appointment_id,
+                'cancellationReason': cancellation_reason,
+                'cancelledBy': cancelled_by
+            },
+            category='patient_access'
+        )
+        routing = dmn.get('resultado', 'PROSSEGUIR')
+        acao = dmn.get('acao', '')
+
+        if routing == 'BLOQUEAR':
+            log_worker_end(correlation, time.monotonic() - t0, {'routing': 'BLOQUEAR'})
+            return TaskResult.bpmn_error('PATIENT_ACCESS_BLOCKED', acao, {'routing': 'BLOQUEAR', 'acao': acao})
+
+        out = {
+            'cancellation_processed': True,
+            'appointment_id': appointment_id,
+            'cancelled_by': cancelled_by,
+            'resources_released': dmn.get('resourcesReleased', [])
         }
 
-    async def suggest_rebooking_slots(
-        self,
-        appointment_id: str,
-        patient_id: str,
-        preferred_start: str | None,
-        preferred_end: str | None,
-    ) -> list[SuggestedSlot]:
-        """Stub implementation - returns sample slots."""
-        from datetime import datetime, timedelta, timezone
+        if routing == 'REVISAR':
+            log_worker_end(correlation, time.monotonic() - t0, {'routing': 'REVISAR'})
+            return TaskResult.success({**out, 'routing': 'REVISAR', 'requiresReview': True})
 
-        self.logger.info(
-            "stub_rebooking_slots_suggested",
-            appointment_id=appointment_id,
-            patient_id=patient_id,
-        )
-
-        base_time = datetime.now(timezone.utc) + timedelta(days=2)
-
-        # Generate 3 sample slots
-        slots = []
-        for i in range(3):
-            slot_time = base_time + timedelta(days=i, hours=9 + (i * 2))
-            slots.append(
-                SuggestedSlot(
-                    slot_id=f"stub_slot_{appointment_id}_{i}",
-                    start_time=slot_time.isoformat(),
-                    end_time=(slot_time + timedelta(minutes=30)).isoformat(),
-                    practitioner_id=f"practitioner_{i}",
-                    practitioner_name=f"Dr. Silva {i+1}",
-                    location_name=f"Consultório {i+1}",
-                    availability_score=0.9 - (i * 0.1),
-                )
-            )
-
-        return slots
-
-
-class HandleCancellationWorker:
-    """Worker to handle appointment cancellations."""
-
-    TOPIC = "scheduling.handle_cancellation"
-
-    def __init__(
-        self,
-        cancellation_handler: CancellationHandlerProtocol | None = None,
-    ):
-        """
-        Initialize worker.
-
-        Args:
-            cancellation_handler: Service to handle cancellations (defaults to stub)
-        """
-        self.cancellation_handler = cancellation_handler or StubCancellationHandler()
-        self.logger = get_logger(__name__, worker=self.TOPIC)
-
-    @require_tenant
-    @track_task_execution(task_type="scheduling.handle_cancellation")
-    async def execute(self, task_variables: dict[str, Any]) -> dict[str, Any]:
-        """
-        Execute appointment cancellation handling.
-
-        Args:
-            task_variables: Task variables from CIB7 process
-
-        Returns:
-            Dictionary with cancellation status and suggested slots
-
-        Raises:
-            PatientAccessException: If cancellation fails
-        """
-        tenant_id = get_required_tenant()
-
-        try:
-            # Parse and validate input
-            input_data = HandleCancellationInput(**task_variables)
-
-            self.logger.info(
-                "handling_appointment_cancellation",
-                tenant_id=tenant_id,
-                appointment_id=input_data.appointment_id,
-                patient_id=input_data.patient_id,
-                cancelled_by=input_data.cancelled_by,
-            )
-
-            # Process cancellation
-            cancellation_result = await self.cancellation_handler.cancel_appointment(
-                appointment_id=input_data.appointment_id,
-                patient_id=input_data.patient_id,
-                cancellation_reason=input_data.cancellation_reason,
-                cancelled_by=input_data.cancelled_by,
-            )
-
-            # Suggest rebooking slots if requested
-            suggested_slots = []
-            if input_data.suggest_rebooking:
-                suggested_slots = await self.cancellation_handler.suggest_rebooking_slots(
-                    appointment_id=input_data.appointment_id,
-                    patient_id=input_data.patient_id,
-                    preferred_start=input_data.preferred_date_range_start,
-                    preferred_end=input_data.preferred_date_range_end,
-                )
-
-            # Validate output
-            output = HandleCancellationOutput(
-                **cancellation_result,
-                suggested_slots=suggested_slots,
-            )
-
-            self.logger.info(
-                "appointment_cancellation_handled",
-                tenant_id=tenant_id,
-                appointment_id=input_data.appointment_id,
-                resources_released=len(output.resources_released),
-                suggested_slots_count=len(output.suggested_slots),
-            )
-
-            return output.model_dump()
-
-        except Exception as e:
-            self.logger.error(
-                "cancellation_handling_failed",
-                tenant_id=tenant_id,
-                error=str(e),
-                error_type=type(e).__name__,
-            )
-            raise PatientAccessException(
-                message=_("Falha ao processar cancelamento de agendamento: {error}").format(
-                    error=str(e)
-                ),
-                details={
-                    "appointment_id": task_variables.get("appointment_id"),
-                    "patient_id": task_variables.get("patient_id"),
-                    "error_type": type(e).__name__,
-                },
-            ) from e
+        log_worker_end(correlation, time.monotonic() - t0, {'routing': 'PROSSEGUIR'})
+        return TaskResult.success({**out, 'routing': 'PROSSEGUIR'})
