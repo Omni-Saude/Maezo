@@ -30,7 +30,7 @@ class CheckAuthorizationWorker(BaseExternalTaskWorker):
     Worker handles: input extraction, DMN call, result formatting.
     """
 
-    TOPIC = "production.check_authorization"
+    TOPIC = "revenue_cycle.production.check_authorization"
     DMN_DECISION_KEY = "authorization_status_adjudication"
     DMN_CATEGORY = "pricing"
 

@@ -57,7 +57,7 @@ class ValidateCompatibilityWorker:
     - Same-date conflicts
     """
 
-    TOPIC = "production.validate_compatibility"
+    TOPIC = "revenue_cycle.production.validate_compatibility"
 
     def __init__(self) -> None:
         self._logger = get_logger(__name__, worker=self.TOPIC)

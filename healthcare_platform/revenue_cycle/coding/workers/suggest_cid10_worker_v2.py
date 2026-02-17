@@ -52,7 +52,7 @@ class SuggestCid10WorkerV2(BaseExternalTaskWorker):
     Delegates all business logic to companion DMN tables in cid10_suggestion/.
     """
 
-    TOPIC = "coding.suggest_cid10"
+    TOPIC = "revenue_cycle.coding.suggest_cid10"
 
     def __init__(self, dmn_service: FederatedDMNService | None = None, nlp_engine: Any = None, **kwargs: Any) -> None:
         super().__init__(dmn_service=dmn_service)

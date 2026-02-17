@@ -507,4 +507,4 @@ async def execute(input_data: dict[str, Any]) -> dict[str, Any]:
 
 
 # Topic Kafka
-TOPIC = "platform.services.sync-erp-data"
+TOPIC = "platform.sync_erp_data"

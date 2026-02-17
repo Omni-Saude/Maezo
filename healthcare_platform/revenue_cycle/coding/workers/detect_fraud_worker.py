@@ -601,7 +601,7 @@ class DetectFraudWorker:
     and provider-level pattern anomalies.
     """
 
-    TOPIC = "coding.detect_fraud"
+    TOPIC = "revenue_cycle.coding.detect_fraud"
 
     def __init__(
         self,

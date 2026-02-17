@@ -19,7 +19,7 @@ from healthcare_platform.revenue_cycle.production.services.production_persistenc
 class PersistProductionWorker(BaseExternalTaskWorker):
     """Persists production data. Thin worker - delegates to ProductionPersistenceService."""
 
-    TOPIC = "production.persist_production"
+    TOPIC = "revenue_cycle.production.record_production"
     DMN_DECISION_KEY = "persistence_validation_adjudication"
     DMN_CATEGORY = "pricing"
 

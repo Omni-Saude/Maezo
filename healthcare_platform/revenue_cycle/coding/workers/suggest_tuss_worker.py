@@ -340,7 +340,7 @@ class SuggestTussWorker:
     validates suggested codes against the ANS Rol via ANSClient.
     """
 
-    TOPIC = "coding.suggest_tuss_codes"
+    TOPIC = "revenue_cycle.coding.suggest_tuss"
 
     def __init__(
         self,

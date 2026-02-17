@@ -18,7 +18,7 @@ from healthcare_platform.revenue_cycle.coding.services.clinical_data_extraction_
 
 class ExtractClinicalDataWorkerV2(BaseExternalTaskWorker):
     """V2 thin worker: delegates extraction to ClinicalDataExtractionService + DMN."""
-    TOPIC = "coding.extract_clinical_data"
+    TOPIC = "revenue_cycle.coding.extract_clinical_data"
 
     def __init__(self, fhir_client: FHIRClientProtocol | None = None, fhir_service: FHIRClientProtocol | None = None, **kwargs: Any) -> None:
         super().__init__(**kwargs)

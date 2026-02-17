@@ -572,4 +572,4 @@ class BenchmarkPayerPerformanceWorkerStub(BenchmarkPayerPerformanceProtocol):
 
 
 # Topic constant for Camunda message correlation
-TOPIC = "benchmark-payer-performance"
+TOPIC = "platform.benchmark_payer_performance"

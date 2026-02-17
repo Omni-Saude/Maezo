@@ -570,4 +570,4 @@ class CalculateRevenuePotentialStub(CalculateRevenuePotentialProtocol):
 
 
 # Task topic para Camunda
-TOPIC = "calculate-revenue-potential"
+TOPIC = "platform.calculate_revenue_potential"

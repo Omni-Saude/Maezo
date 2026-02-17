@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """
 Identify Glosa Worker
 

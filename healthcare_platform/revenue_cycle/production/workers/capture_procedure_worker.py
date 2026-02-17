@@ -34,7 +34,7 @@ class CaptureProcedureWorker:
     Archetype: FINANCIAL_CALCULATION
     """
 
-    TOPIC = "production.capture_procedure"
+    TOPIC = "revenue_cycle.production.capture_procedure"
 
     def __init__(
         self,

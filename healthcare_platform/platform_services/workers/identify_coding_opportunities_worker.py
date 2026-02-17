@@ -359,4 +359,4 @@ class IdentifyCodingOpportunitiesStub(IdentifyCodingOpportunitiesProtocol):
 
 
 # Task topic para Camunda
-TOPIC = "identify-coding-opportunities"
+TOPIC = "platform.identify_coding_opportunities"

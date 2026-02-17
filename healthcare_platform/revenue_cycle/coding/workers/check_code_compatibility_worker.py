@@ -199,7 +199,7 @@ class CheckCodeCompatibilityWorker:
     invalid combinations of diagnosis and procedure codes.
     """
 
-    TOPIC = "check-code-compatibility"
+    TOPIC = "revenue_cycle.coding.check_compatibility"
 
     def __init__(
         self,

@@ -1,7 +1,7 @@
 """
 Surgical Specimen Worker - Specimen tracking and labeling verification.
 
-CIB7 External Task Topic: surgical.specimen_tracking
+CIB7 External Task Topic: surgical.specimen
 BPMN Error Code: SURGICAL_OPERATIONS_ERROR
 
 Tracks surgical specimens from collection through pathology processing.
@@ -23,9 +23,9 @@ from healthcare_platform.shared.multi_tenant.decorators import require_tenant
 from healthcare_platform.shared.observability.logging import get_logger
 from healthcare_platform.shared.observability.metrics import track_task_execution
 
-logger = get_logger(__name__, worker="surgical.specimen_tracking")
+logger = get_logger(__name__, worker="surgical.specimen")
 
-TOPIC = "surgical.specimen_tracking"
+TOPIC = "surgical.specimen"
 
 VALID_SPECIMEN_TYPES = [
     "biopsy",
@@ -139,7 +139,7 @@ class SurgicalSpecimenWorker:
         logger.info("SurgicalSpecimenWorker initialized", topic=TOPIC)
 
     @require_tenant
-    @track_task_execution(task_type="surgical.specimen_tracking")
+    @track_task_execution(task_type="surgical.specimen")
     async def execute(self, variables: dict[str, Any]) -> dict[str, Any]:
         """Execute surgical specimen tracking.
 

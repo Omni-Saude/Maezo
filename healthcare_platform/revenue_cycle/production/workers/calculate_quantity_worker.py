@@ -43,7 +43,7 @@ class CalculateQuantityWorker:
     Archetype: CLINICAL_SCORE
     """
 
-    TOPIC = "production.calculate_quantity"
+    TOPIC = "revenue_cycle.production.calculate_value"
 
     def __init__(self) -> None:
         self._logger = get_logger(__name__, worker=self.TOPIC)

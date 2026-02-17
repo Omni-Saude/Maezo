@@ -3,7 +3,7 @@ Escalate to Supervisor Worker (Refactored)
 Purpose: Prepare escalation package for supervisor review using DMN-based priority/team assignment
 
 TOPIC: glosa.escalate_to_supervisor
-ORPHAN: Yes (no BPMN reference found in glosa_management.bpmn)
+ORPHAN: Yes (no BPMN reference found in SP-RC-007_Denial_Management.bpmn)
 
 Refactored using Keep & Augment DMN strategy:
 - Existing revenue_recovery DMN preserved

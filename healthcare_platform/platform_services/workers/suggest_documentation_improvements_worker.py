@@ -373,4 +373,4 @@ class SuggestDocumentationImprovementsStub(SuggestDocumentationImprovementsProto
 
 
 # Task topic para Camunda
-TOPIC = "suggest-documentation-improvements"
+TOPIC = "platform.suggest_documentation_improvements"

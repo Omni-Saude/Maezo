@@ -32,7 +32,7 @@ class AuditCodingOutputV2(BaseModel):
         }
 class AuditCodingWorkerV2:
     """V2 thin worker: delegates audit logic to DMN tables. ORPHAN: No companion DMN tables exist yet."""
-    TOPIC = "coding.audit_coding"
+    TOPIC = "revenue_cycle.coding.audit_coding"
     _FAIL_THRESHOLD = 60
 
     def __init__(self, **kwargs: Any) -> None:
