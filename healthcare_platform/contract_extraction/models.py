@@ -14,6 +14,8 @@ class RuleCategory(enum.Enum):
     OPME = "OPME"
     AUTHORIZATION = "AUTHORIZATION"
     DISCOUNT = "DISCOUNT"
+    COMPLIANCE = "COMPLIANCE"
+    QUALITY = "QUALITY"
 
 
 class RuleArchetype(enum.Enum):
@@ -25,6 +27,10 @@ class RuleArchetype(enum.Enum):
     WHITELIST = "WHITELIST"
     OPME = "OPME"
     DISCOUNT = "DISCOUNT"
+    GLOSA_RULE = "GLOSA_RULE"
+    INDICATOR_QUALITY_METRIC = "INDICATOR_QUALITY_METRIC"
+    SLA_TIME_BOUND = "SLA_TIME_BOUND"
+    PENALTY_FINANCIAL = "PENALTY_FINANCIAL"
 
 
 class RuleStatus(enum.Enum):

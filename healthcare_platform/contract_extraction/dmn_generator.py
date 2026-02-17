@@ -4,9 +4,10 @@ import logging
 import re
 import subprocess
 from pathlib import Path
-from typing import Optional
+from typing import List, Optional
 
 from jinja2 import Environment, FileSystemLoader
+from pydantic import BaseModel, Field, field_validator
 
 from healthcare_platform.contract_extraction.feel_compiler import FEELCompiler
 from healthcare_platform.contract_extraction.tenant_file_manager import TenantFileManager
@@ -16,7 +17,70 @@ logger = logging.getLogger(__name__)
 _TEMPLATES_DIR = Path(__file__).parent / "dmn_templates"
 _JSON_TEMPLATES_DIR = Path(__file__).parent / "templates"
 
+
+# ---------------------------------------------------------------------------
+# DMN template schema — validated access replaces raw dict .get() fallbacks
+# ---------------------------------------------------------------------------
+
+class _TemplateField(BaseModel):
+    """Describes a single input or output field in a DMN JSON template."""
+
+    name: str = Field(..., description="FEEL expression name")
+    type: str = Field("string", description="FEEL type: string, number, boolean")
+    label: Optional[str] = Field(None, description="Human-readable column label")
+
+    @field_validator("type")
+    @classmethod
+    def _validate_type(cls, v: str) -> str:
+        allowed = {"string", "number", "boolean", "date", "any"}
+        if v not in allowed:
+            raise ValueError(f"Template field type '{v}' is not a valid FEEL type. Allowed: {allowed}")
+        return v
+
+
+class _DMNTemplateSchema(BaseModel):
+    """Schema for DMN JSON template files loaded from the templates/ directory."""
+
+    archetype: str = Field(..., description="Rule archetype this template applies to")
+    hit_policy: str = Field("FIRST", description="DMN hit policy")
+    inputs: List[_TemplateField] = Field(default_factory=list)
+    outputs: List[_TemplateField] = Field(default_factory=list)
+
+    @field_validator("hit_policy")
+    @classmethod
+    def _validate_hit_policy(cls, v: str) -> str:
+        allowed = {"UNIQUE", "FIRST", "PRIORITY", "ANY", "COLLECT", "RULE ORDER", "OUTPUT ORDER"}
+        if v not in allowed:
+            raise ValueError(f"hit_policy '{v}' is not a valid DMN hit policy. Allowed: {allowed}")
+        return v
+
+    def to_template_dict(self) -> dict:
+        """Return a plain dict compatible with Jinja2 template rendering."""
+        return {
+            "hit_policy": self.hit_policy,
+            "inputs": [f.model_dump(exclude_none=True) for f in self.inputs],
+            "outputs": [f.model_dump(exclude_none=True) for f in self.outputs],
+        }
+
+
+def _parse_template_schema(raw: dict) -> _DMNTemplateSchema:
+    """Parse a raw JSON template dict into a validated _DMNTemplateSchema.
+
+    Falls back to an empty default schema on validation failure so that
+    missing or malformed templates never crash generation.
+    """
+    try:
+        return _DMNTemplateSchema.model_validate(raw)
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("DMN template schema validation failed: %s — using empty default", exc)
+        archetype = raw.get("archetype", "UNKNOWN")
+        return _DMNTemplateSchema(archetype=archetype)
+
+
+# ---------------------------------------------------------------------------
 # Archetype → Jinja2 template file
+# ---------------------------------------------------------------------------
+
 _ARCHETYPE_MAP = {
     "PRICING": "pricing.xml.j2",
     "LOOKUP": "pricing.xml.j2",
@@ -26,6 +90,10 @@ _ARCHETYPE_MAP = {
     "WHITELIST": "whitelist.xml.j2",
     "OPME": "opme.xml.j2",
     "DISCOUNT": "discount.xml.j2",
+    "GLOSA_RULE": "authorization.xml.j2",
+    "INDICATOR_QUALITY_METRIC": "discount.xml.j2",
+    "SLA_TIME_BOUND": "authorization.xml.j2",
+    "PENALTY_FINANCIAL": "pricing.xml.j2",
 }
 
 
@@ -34,16 +102,22 @@ def _sanitize_id(raw: str) -> str:
     return re.sub(r'[^a-zA-Z0-9_]', '_', str(raw))
 
 
-def _load_json_template(archetype: str) -> dict:
-    """Load the first JSON template matching the archetype."""
+def _load_json_template(archetype: str) -> _DMNTemplateSchema:
+    """Load and validate the first JSON template matching the archetype.
+
+    Returns a validated _DMNTemplateSchema. Falls back to an empty default
+    schema (with no inputs/outputs) when no matching template is found.
+    """
     for f in _JSON_TEMPLATES_DIR.glob("*.json"):
         try:
             data = json.loads(f.read_text("utf-8"))
             if data.get("archetype") == archetype:
-                return data
-        except (json.JSONDecodeError, OSError):
+                return _parse_template_schema(data)
+        except (json.JSONDecodeError, OSError) as exc:
+            logger.warning("Failed to load template file %s: %s", f, exc)
             continue
-    return {"inputs": [], "outputs": [], "hit_policy": "FIRST"}
+    logger.debug("No JSON template found for archetype '%s'; using empty default", archetype)
+    return _DMNTemplateSchema(archetype=archetype)
 
 
 class DMNGenerator:
@@ -72,8 +146,9 @@ class DMNGenerator:
         template_file = _ARCHETYPE_MAP.get(archetype_name, "pricing.xml.j2")
         jinja_template = self.env.get_template(template_file)
 
-        json_template = _load_json_template(archetype_name)
-        conditions = self.feel_compiler.compile(rule.rule_definition, json_template)
+        template_schema = _load_json_template(archetype_name)
+        template_dict = template_schema.to_template_dict()
+        conditions = self.feel_compiler.compile(rule.rule_definition, template_dict)
 
         rule_id = _sanitize_id(rule.id)
         category_val = rule.category.value if hasattr(rule.category, 'value') else str(rule.category)
@@ -83,9 +158,9 @@ class DMNGenerator:
             rule=rule,
             rule_id=rule_id,
             rule_name=rule_name,
-            hit_policy=json_template.get("hit_policy", "FIRST"),
-            inputs=json_template.get("inputs", []),
-            outputs=json_template.get("outputs", []),
+            hit_policy=template_schema.hit_policy,
+            inputs=template_dict["inputs"],
+            outputs=template_dict["outputs"],
             conditions=conditions,
         )
 

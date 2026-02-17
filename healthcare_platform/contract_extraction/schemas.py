@@ -1,4 +1,6 @@
 """Pydantic v2 request/response schemas for the Contract Rule Extraction API."""
+from __future__ import annotations
+
 import re
 from datetime import date, datetime
 from typing import Any, Dict, List, Optional

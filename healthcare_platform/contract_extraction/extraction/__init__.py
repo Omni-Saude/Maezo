@@ -8,5 +8,6 @@ dicts that conform to the JSON template schemas.
 
 from .clause_parser import ClauseParser
 from .extractor import ContractExtractor
+from .json_loader import DomedJsonLoader
 
-__all__ = ["ClauseParser", "ContractExtractor"]
+__all__ = ["ClauseParser", "ContractExtractor", "DomedJsonLoader"]

@@ -1,0 +1,97 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             id="hemotherapy_authorization_def"
+             name="Hemotherapy Authorization"
+             namespace="http://healthcare.platform/dmn/contract_extraction">
+  <!--
+    Authorization rules for hemotherapy products based on Apendice IX (Hemoterapia).
+    Hit Policy FIRST: first matching rule wins.
+
+    Pre-transfusion selection levels:
+    - Selecao I: Tipagem ABO, Rh/PAI (standard for all products)
+    - Selecao II: Prova de compatibilidade (only for hemacias)
+    - Selecao III: Criancas <=4 meses (additional authorization required)
+
+    Special processing (irradiacao, lavagem, fenotipagem) requires additional authorization.
+  -->
+  <decision id="decision_hemotherapy_authorization" name="Hemotherapy Authorization">
+    <decisionTable id="dt_hemotherapy_authorization" hitPolicy="FIRST">
+      <input id="in_product_type_hta" label="Product Type">
+        <inputExpression id="inExpr_product_type_hta" typeRef="string">
+          <text>product_type</text>
+        </inputExpression>
+      </input>
+      <input id="in_patient_age_months" label="Patient Age (Months)">
+        <inputExpression id="inExpr_patient_age_months" typeRef="number">
+          <text>patient_age_months</text>
+        </inputExpression>
+      </input>
+      <input id="in_requires_special" label="Requires Special Processing">
+        <inputExpression id="inExpr_requires_special" typeRef="boolean">
+          <text>requires_special_processing</text>
+        </inputExpression>
+      </input>
+      <output id="out_selection_level" label="Selection Level" name="selection_level" typeRef="string"/>
+      <output id="out_auth_required_hta" label="Authorization Required" name="authorization_required" typeRef="boolean"/>
+      <output id="out_description_hta" label="Description" name="description" typeRef="string"/>
+      <!-- Rule 1: Children <=4 months - any product - Selecao III required -->
+      <rule id="r_hta_child_hemacias">
+        <description>Criancas &lt;=4 meses com hemacias: Selecao III obrigatoria + Selecao I + II (Apendice IX)</description>
+        <inputEntry id="ie_hta_ch_1"><text>"CONCENTRADO_HEMACIAS"</text></inputEntry>
+        <inputEntry id="ie_hta_ch_2"><text>&lt;= 4</text></inputEntry>
+        <inputEntry id="ie_hta_ch_3"><text></text></inputEntry>
+        <outputEntry id="oe_hta_ch_1"><text>"SELECAO_I_II_III"</text></outputEntry>
+        <outputEntry id="oe_hta_ch_2"><text>true</text></outputEntry>
+        <outputEntry id="oe_hta_ch_3"><text>"Crianca &lt;=4 meses: requer Selecao pre-transfusional III (servico complementar) alem de Selecao I (Tipagem/Retipagem ABO, Rh/PAI) e Selecao II (Prova compatibilidade). Autorizacao adicional necessaria (Apendice IX)"</text></outputEntry>
+      </rule>
+      <rule id="r_hta_child_plaquetas">
+        <description>Criancas &lt;=4 meses com plaquetas: Selecao III obrigatoria + Selecao I (Apendice IX)</description>
+        <inputEntry id="ie_hta_cp_1"><text>"PLAQUETAS_RANDOMICO","PLAQUETAS_AFERESE"</text></inputEntry>
+        <inputEntry id="ie_hta_cp_2"><text>&lt;= 4</text></inputEntry>
+        <inputEntry id="ie_hta_cp_3"><text></text></inputEntry>
+        <outputEntry id="oe_hta_cp_1"><text>"SELECAO_I_III"</text></outputEntry>
+        <outputEntry id="oe_hta_cp_2"><text>true</text></outputEntry>
+        <outputEntry id="oe_hta_cp_3"><text>"Crianca &lt;=4 meses: requer Selecao pre-transfusional III (servico complementar) alem de Selecao I (Tipagem ABO, Rh/PAI). Autorizacao adicional necessaria (Apendice IX)"</text></outputEntry>
+      </rule>
+      <rule id="r_hta_child_other">
+        <description>Criancas &lt;=4 meses com outros hemocomponentes: Selecao III obrigatoria (Apendice IX)</description>
+        <inputEntry id="ie_hta_co_1"><text></text></inputEntry>
+        <inputEntry id="ie_hta_co_2"><text>&lt;= 4</text></inputEntry>
+        <inputEntry id="ie_hta_co_3"><text></text></inputEntry>
+        <outputEntry id="oe_hta_co_1"><text>"SELECAO_I_III"</text></outputEntry>
+        <outputEntry id="oe_hta_co_2"><text>true</text></outputEntry>
+        <outputEntry id="oe_hta_co_3"><text>"Crianca &lt;=4 meses: requer Selecao pre-transfusional III (servico complementar). Autorizacao adicional necessaria (Apendice IX)"</text></outputEntry>
+      </rule>
+      <!-- Rule 2: Hemacias with special processing (irradiacao, lavagem, fenotipagem) -->
+      <rule id="r_hta_hemacias_special">
+        <description>Concentrado de Hemacias com processamento especial: autorizacao adicional para servicos complementares (Apendice IX)</description>
+        <inputEntry id="ie_hta_hs_1"><text>"CONCENTRADO_HEMACIAS"</text></inputEntry>
+        <inputEntry id="ie_hta_hs_2"><text>&gt; 4</text></inputEntry>
+        <inputEntry id="ie_hta_hs_3"><text>true</text></inputEntry>
+        <outputEntry id="oe_hta_hs_1"><text>"SELECAO_I_II_COMPLEMENTAR"</text></outputEntry>
+        <outputEntry id="oe_hta_hs_2"><text>true</text></outputEntry>
+        <outputEntry id="oe_hta_hs_3"><text>"Adulto/crianca &gt;4m com hemacias: Selecao I + II incluidas. Processamento especial (irradiacao/lavagem/fenotipagem/deleucotizacao) requer autorizacao como servico complementar (Apendice IX)"</text></outputEntry>
+      </rule>
+      <!-- Rule 3: Standard adult hemacias -->
+      <rule id="r_hta_hemacias_standard">
+        <description>Concentrado de Hemacias padrao adulto: Selecao I + II incluidas (Apendice IX)</description>
+        <inputEntry id="ie_hta_hstd_1"><text>"CONCENTRADO_HEMACIAS"</text></inputEntry>
+        <inputEntry id="ie_hta_hstd_2"><text>&gt; 4</text></inputEntry>
+        <inputEntry id="ie_hta_hstd_3"><text>false</text></inputEntry>
+        <outputEntry id="oe_hta_hstd_1"><text>"SELECAO_I_II"</text></outputEntry>
+        <outputEntry id="oe_hta_hstd_2"><text>false</text></outputEntry>
+        <outputEntry id="oe_hta_hstd_3"><text>"Adulto/crianca &gt;4m com hemacias: Selecao pre-transfusional I (Tipagem/Retipagem ABO, Rh/PAI) e Selecao II (Prova compatibilidade) incluidas no pacote (Apendice IX)"</text></outputEntry>
+      </rule>
+      <!-- Rule 4: Standard adult plaquetas/plasma/crioprecipitado - Selecao I only -->
+      <rule id="r_hta_other_standard">
+        <description>Outros hemocomponentes padrao adulto: apenas Selecao I incluida (Apendice IX)</description>
+        <inputEntry id="ie_hta_ostd_1"><text></text></inputEntry>
+        <inputEntry id="ie_hta_ostd_2"><text>&gt; 4</text></inputEntry>
+        <inputEntry id="ie_hta_ostd_3"><text>false</text></inputEntry>
+        <outputEntry id="oe_hta_ostd_1"><text>"SELECAO_I"</text></outputEntry>
+        <outputEntry id="oe_hta_ostd_2"><text>false</text></outputEntry>
+        <outputEntry id="oe_hta_ostd_3"><text>"Adulto/crianca &gt;4m: Selecao pre-transfusional I (Tipagem ABO, Rh/PAI) incluida no pacote. Sem autorizacao adicional necessaria (Apendice IX)"</text></outputEntry>
+      </rule>
+    </decisionTable>
+  </decision>
+</definitions>
