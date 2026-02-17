@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             id="{{ rule_id }}_def"
+             name="{{ rule_name }}"
+             namespace="http://healthcare.platform/dmn/contract_extraction">
+  <!--
+    AUTHORIZATION archetype template.
+    Determines whether a procedure requires prior authorization and the type/urgency.
+    Payer: {{ rule.payer_id }}
+    Category: {{ rule.category.value if rule.category else 'unknown' }}
+    Archetype: {{ rule.archetype.value if rule.archetype else 'AUTHORIZATION' }}
+    Rule ID: {{ rule.id }}
+    Hit Policy FIRST: returns the first matching authorization rule.
+  -->
+  <decision id="decision_{{ rule_id }}" name="{{ rule_name }}">
+    <decisionTable id="dt_{{ rule_id }}" hitPolicy="{{ hit_policy }}">
+{%- if inputs %}
+{%- for inp in inputs %}
+      <input id="in_{{ rule_id }}_{{ loop.index }}" label="{{ inp.name }}">
+        <inputExpression id="inExpr_{{ rule_id }}_{{ loop.index }}" typeRef="{{ inp.type }}">
+          <text>{{ inp.name }}</text>
+        </inputExpression>
+      </input>
+{%- endfor %}
+{%- else %}
+      <input id="in_{{ rule_id }}_1" label="procedure_code">
+        <inputExpression id="inExpr_{{ rule_id }}_1" typeRef="string">
+          <text>procedure_code</text>
+        </inputExpression>
+      </input>
+      <input id="in_{{ rule_id }}_2" label="amount">
+        <inputExpression id="inExpr_{{ rule_id }}_2" typeRef="number">
+          <text>amount</text>
+        </inputExpression>
+      </input>
+      <input id="in_{{ rule_id }}_3" label="payer_id">
+        <inputExpression id="inExpr_{{ rule_id }}_3" typeRef="string">
+          <text>payer_id</text>
+        </inputExpression>
+      </input>
+{%- endif %}
+{%- if outputs %}
+{%- for out in outputs %}
+      <output id="out_{{ rule_id }}_{{ loop.index }}" label="{{ out.name }}" name="{{ out.name }}" typeRef="{{ out.type }}"/>
+{%- endfor %}
+{%- else %}
+      <output id="out_{{ rule_id }}_1" label="requires_auth" name="requires_auth" typeRef="boolean"/>
+      <output id="out_{{ rule_id }}_2" label="auth_type" name="auth_type" typeRef="string"/>
+      <output id="out_{{ rule_id }}_3" label="urgency_level" name="urgency_level" typeRef="string"/>
+{%- endif %}
+{%- set effective_inputs = inputs if inputs else [{'name': 'procedure_code', 'type': 'string'}, {'name': 'amount', 'type': 'number'}, {'name': 'payer_id', 'type': 'string'}] %}
+{%- set effective_outputs = outputs if outputs else [{'name': 'requires_auth', 'type': 'boolean'}, {'name': 'auth_type', 'type': 'string'}, {'name': 'urgency_level', 'type': 'string'}] %}
+{%- for cond in conditions %}
+      <rule id="r_{{ rule_id }}_{{ loop.index }}">
+        <description>{{ cond.description | default('Authorization rule ' ~ loop.index) }}</description>
+{%- set outer_loop = loop %}
+{%- for inp in effective_inputs %}
+        <inputEntry id="ie_{{ rule_id }}_{{ outer_loop.index }}_{{ loop.index }}"><text>{{ cond.input_entries[loop.index - 1] if cond.input_entries is defined and loop.index - 1 < cond.input_entries | length else '' }}</text></inputEntry>
+{%- endfor %}
+{%- for out in effective_outputs %}
+        <outputEntry id="oe_{{ rule_id }}_{{ outer_loop.index }}_{{ loop.index }}"><text>{{ cond.output_entries[loop.index - 1] if cond.output_entries is defined and loop.index - 1 < cond.output_entries | length else '' }}</text></outputEntry>
+{%- endfor %}
+      </rule>
+{%- endfor %}
+    </decisionTable>
+  </decision>
+</definitions>
