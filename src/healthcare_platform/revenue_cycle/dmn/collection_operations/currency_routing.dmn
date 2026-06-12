@@ -1,0 +1,124 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  ============================================================================
+  CURRENCY-ROUTING - Roteamento de Conversao de Moeda
+  ============================================================================
+  Versao: 1.0.0 (2026-02-14)
+  Categoria: COLLECTION_OPERATIONS
+  Archetype: OPERATIONAL_ROUTING | Source: convert_currency_worker.py
+  ============================================================================
+-->
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/"
+             xmlns:dc="http://www.omg.org/spec/DMN/20180521/DC/"
+             xmlns:di="http://www.omg.org/spec/DMN/20180521/DI/"
+             xmlns:camunda="http://camunda.org/schema/1.0/dmn"
+             id="Definitions_CURRENCY_ROUTING"
+             name="Roteamento de Conversao de Moeda"
+             namespace="http://camunda.org/schema/1.0/dmn">
+
+  <decision id="Decision_CURRENCY_ROUTING" name="[SP-RC-013 | collection_operations] Roteamento de Conversao de Moeda" camunda:historyTimeToLive="180">
+    <decisionTable id="DecisionTable_CURRENCY_ROUTING" hitPolicy="FIRST">
+
+      <input id="Input_1_CURRENCY_ROUTING" label="Moeda Origem">
+        <inputExpression id="InputExpression_1_CURRENCY_ROUTING" typeRef="string">
+          <text>currency</text>
+        </inputExpression>
+        <inputValues id="InputValues_1_CURRENCY_ROUTING">
+          <text>"BRL","USD","EUR","GBP"</text>
+        </inputValues>
+      </input>
+
+      <input id="Input_2_CURRENCY_ROUTING" label="Valor Bruto">
+        <inputExpression id="InputExpression_2_CURRENCY_ROUTING" typeRef="number">
+          <text>grossAmount</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_3_CURRENCY_ROUTING" label="Taxa Cambio Disponivel">
+        <inputExpression id="InputExpression_3_CURRENCY_ROUTING" typeRef="boolean">
+          <text>exchangeRateAvailable</text>
+        </inputExpression>
+      </input>
+
+      <!-- ========== OUTPUTS ========== -->
+      <output id="Output_resultado_CURRENCY_ROUTING" label="Resultado" name="resultado" typeRef="string">
+        <outputValues><text>"PROSSEGUIR","BLOQUEAR","REVISAR"</text></outputValues>
+      </output>
+      <output id="Output_acao_CURRENCY_ROUTING" label="Acao" name="acao" typeRef="string"/>
+      <output id="Output_risco_CURRENCY_ROUTING" label="Risco" name="risco" typeRef="string">
+        <outputValues><text>"CRITICO","ALTO","MEDIO","BAIXO"</text></outputValues>
+      </output>
+
+      <rule id="Rule_1_CURRENCY_ROUTING">
+        <description>Ja em BRL - sem conversao necessaria</description>
+        <inputEntry id="IE_1_1_CURRENCY_ROUTING"><text>"BRL"</text></inputEntry>
+        <inputEntry id="IE_1_2_CURRENCY_ROUTING"><text>-</text></inputEntry>
+        <inputEntry id="IE_1_3_CURRENCY_ROUTING"><text>-</text></inputEntry>
+        <outputEntry id="OE_1_1_CURRENCY_ROUTING"><text>"PROSSEGUIR"</text></outputEntry>
+        <outputEntry id="OE_1_2_CURRENCY_ROUTING"><text>"Pagamento ja em BRL - nenhuma conversao necessaria"</text></outputEntry>
+        <outputEntry id="OE_1_3_CURRENCY_ROUTING"><text>"BAIXO"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_2_CURRENCY_ROUTING">
+        <description>Moeda estrangeira sem taxa disponivel</description>
+        <inputEntry id="IE_2_1_CURRENCY_ROUTING"><text>not("BRL")</text></inputEntry>
+        <inputEntry id="IE_2_2_CURRENCY_ROUTING"><text>-</text></inputEntry>
+        <inputEntry id="IE_2_3_CURRENCY_ROUTING"><text>false</text></inputEntry>
+        <outputEntry id="OE_2_1_CURRENCY_ROUTING"><text>"BLOQUEAR"</text></outputEntry>
+        <outputEntry id="OE_2_2_CURRENCY_ROUTING"><text>"Taxa de cambio nao disponivel - buscar cotacao antes de converter"</text></outputEntry>
+        <outputEntry id="OE_2_3_CURRENCY_ROUTING"><text>"CRITICO"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_3_CURRENCY_ROUTING">
+        <description>Conversao de alto valor</description>
+        <inputEntry id="IE_3_1_CURRENCY_ROUTING"><text>not("BRL")</text></inputEntry>
+        <inputEntry id="IE_3_2_CURRENCY_ROUTING"><text>&gt; 100000</text></inputEntry>
+        <inputEntry id="IE_3_3_CURRENCY_ROUTING"><text>true</text></inputEntry>
+        <outputEntry id="OE_3_1_CURRENCY_ROUTING"><text>"REVISAR"</text></outputEntry>
+        <outputEntry id="OE_3_2_CURRENCY_ROUTING"><text>"Conversao de alto valor - validar taxa de cambio com tesouraria"</text></outputEntry>
+        <outputEntry id="OE_3_3_CURRENCY_ROUTING"><text>"ALTO"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_4_CURRENCY_ROUTING">
+        <description>Conversao USD padrao</description>
+        <inputEntry id="IE_4_1_CURRENCY_ROUTING"><text>"USD"</text></inputEntry>
+        <inputEntry id="IE_4_2_CURRENCY_ROUTING"><text>&lt;= 100000</text></inputEntry>
+        <inputEntry id="IE_4_3_CURRENCY_ROUTING"><text>true</text></inputEntry>
+        <outputEntry id="OE_4_1_CURRENCY_ROUTING"><text>"PROSSEGUIR"</text></outputEntry>
+        <outputEntry id="OE_4_2_CURRENCY_ROUTING"><text>"Converter USD para BRL usando taxa vigente"</text></outputEntry>
+        <outputEntry id="OE_4_3_CURRENCY_ROUTING"><text>"MEDIO"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_5_CURRENCY_ROUTING">
+        <description>Conversao EUR/GBP padrao</description>
+        <inputEntry id="IE_5_1_CURRENCY_ROUTING"><text>"EUR","GBP"</text></inputEntry>
+        <inputEntry id="IE_5_2_CURRENCY_ROUTING"><text>&lt;= 100000</text></inputEntry>
+        <inputEntry id="IE_5_3_CURRENCY_ROUTING"><text>true</text></inputEntry>
+        <outputEntry id="OE_5_1_CURRENCY_ROUTING"><text>"PROSSEGUIR"</text></outputEntry>
+        <outputEntry id="OE_5_2_CURRENCY_ROUTING"><text>"Converter para BRL usando taxa vigente"</text></outputEntry>
+        <outputEntry id="OE_5_3_CURRENCY_ROUTING"><text>"MEDIO"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Fallback_CURRENCY_ROUTING">
+        <description>Fallback - moeda desconhecida</description>
+        <inputEntry id="IE_F_1_CURRENCY_ROUTING"><text>-</text></inputEntry>
+        <inputEntry id="IE_F_2_CURRENCY_ROUTING"><text>-</text></inputEntry>
+        <inputEntry id="IE_F_3_CURRENCY_ROUTING"><text>-</text></inputEntry>
+        <outputEntry id="OE_F_1_CURRENCY_ROUTING"><text>"BLOQUEAR"</text></outputEntry>
+        <outputEntry id="OE_F_2_CURRENCY_ROUTING"><text>"Moeda nao suportada - encaminhar para tratamento manual"</text></outputEntry>
+        <outputEntry id="OE_F_3_CURRENCY_ROUTING"><text>"ALTO"</text></outputEntry>
+      </rule>
+
+    </decisionTable>
+  </decision>
+
+  <dmndi:DMNDI>
+    <dmndi:DMNDiagram id="DMNDiagram_CURRENCY_ROUTING">
+      <dmndi:DMNShape id="DMNShape_Decision_CURRENCY_ROUTING" dmnElementRef="Decision_CURRENCY_ROUTING">
+        <dc:Bounds height="80" width="180" x="160" y="100"/>
+      </dmndi:DMNShape>
+    </dmndi:DMNDiagram>
+  </dmndi:DMNDI>
+
+</definitions>

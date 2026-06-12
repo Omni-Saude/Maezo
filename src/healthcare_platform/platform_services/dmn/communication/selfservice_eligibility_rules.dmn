@@ -1,0 +1,389 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/"
+             xmlns:dc="http://www.omg.org/spec/DMN/20180521/DC/"
+             xmlns:camunda="http://camunda.org/schema/1.0/dmn"
+             xmlns:biodi="http://bpmn.io/schema/dmn/biodi/2.0"
+             xmlns:di="http://www.omg.org/spec/DMN/20180521/DI/"
+             id="Definitions_selfservice_eligibility"
+             name="Self-Service Eligibility Rules"
+             namespace="http://camunda.org/schema/1.0/dmn">
+
+  <decision id="selfservice_eligibility_rules" name="[SP-PS-004 | communication] Self-Service Eligibility Rules" camunda:historyTimeToLive="180">
+    <informationRequirement>
+      <requiredInput href="#InputData_actionType"/>
+    </informationRequirement>
+    <informationRequirement>
+      <requiredInput href="#InputData_patientRiskLevel"/>
+    </informationRequirement>
+    <informationRequirement>
+      <requiredInput href="#InputData_timeWindowHours"/>
+    </informationRequirement>
+    <informationRequirement>
+      <requiredInput href="#InputData_complexityScore"/>
+    </informationRequirement>
+
+    <decisionTable id="DecisionTable_selfservice" hitPolicy="FIRST">
+      <input id="Input_actionType_selfservice_eligibility_rules" label="Action Type" camunda:inputVariable="actionType">
+        <inputExpression id="InputExpression_actionType_selfservice_eligibility_rules" typeRef="string">
+          <text>actionType</text>
+        </inputExpression>
+        <inputValues id="UnaryTests_actionType_selfservice_eligibility_rules">
+          <text>"confirm","cancel","reschedule","pay","question"</text>
+        </inputValues>
+      </input>
+
+      <input id="Input_patientRiskLevel_selfservice_eligibility_rules" label="Patient Risk Level" camunda:inputVariable="patientRiskLevel">
+        <inputExpression id="InputExpression_patientRiskLevel_selfservice_eligibility_rules" typeRef="string">
+          <text>patientRiskLevel</text>
+        </inputExpression>
+        <inputValues id="UnaryTests_patientRiskLevel_selfservice_eligibility_rules">
+          <text>"low","medium","high"</text>
+        </inputValues>
+      </input>
+
+      <input id="Input_timeWindowHours_selfservice_eligibility_rules" label="Time Window Hours" camunda:inputVariable="timeWindowHours">
+        <inputExpression id="InputExpression_timeWindowHours_selfservice_eligibility_rules" typeRef="integer">
+          <text>timeWindowHours</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_complexityScore_selfservice_eligibility_rules" label="Complexity Score (0-100)" camunda:inputVariable="complexityScore">
+        <inputExpression id="InputExpression_complexityScore_selfservice_eligibility_rules" typeRef="integer">
+          <text>complexityScore</text>
+        </inputExpression>
+      </input>
+
+      <output id="Output_allowSelfService_selfservice_eligibility_rules" label="Allow Self Service" name="allowSelfService" typeRef="boolean"/>
+      <output id="Output_requiresApproval_selfservice_eligibility_rules" label="Requires Approval" name="requiresApproval" typeRef="boolean"/>
+      <output id="Output_escalateToStaff_selfservice_eligibility_rules" label="Escalate To Staff" name="escalateToStaff" typeRef="boolean"/>
+
+      <!-- Rule 1: High risk patients always escalate to staff -->
+      <rule id="Rule_high_risk_escalate_selfservice_eligibility_rules">
+        <description>High-risk patients: always escalate any action to staff for review and approval</description>
+        <inputEntry id="InputEntry_r1_actionType_selfservice_eligibility_rules">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_r1_patientRiskLevel_selfservice_eligibility_rules">
+          <text>"high"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_r1_timeWindowHours_selfservice_eligibility_rules">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_r1_complexityScore_selfservice_eligibility_rules">
+          <text>-</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_r1_allowSelfService_selfservice_eligibility_rules">
+          <text>false</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_r1_requiresApproval_selfservice_eligibility_rules">
+          <text>false</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_r1_escalateToStaff_selfservice_eligibility_rules">
+          <text>true</text>
+        </outputEntry>
+      </rule>
+
+      <!-- Rule 2: Cancel within 24 hours requires approval -->
+      <rule id="Rule_cancel_short_notice_selfservice_eligibility_rules">
+        <description>Cancel appointment within 24 hours: requires manual approval due to scheduling impact</description>
+        <inputEntry id="InputEntry_r2_actionType_selfservice_eligibility_rules">
+          <text>"cancel"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_r2_patientRiskLevel_selfservice_eligibility_rules">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_r2_timeWindowHours_selfservice_eligibility_rules">
+          <text>&lt; 24</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_r2_complexityScore_selfservice_eligibility_rules">
+          <text>-</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_r2_allowSelfService_selfservice_eligibility_rules">
+          <text>false</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_r2_requiresApproval_selfservice_eligibility_rules">
+          <text>true</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_r2_escalateToStaff_selfservice_eligibility_rules">
+          <text>false</text>
+        </outputEntry>
+      </rule>
+
+      <!-- Rule 3: Cancel with 24+ hours - low risk -->
+      <rule id="Rule_cancel_low_risk_selfservice_eligibility_rules">
+        <description>Cancel appointment 24+ hours in advance for low-risk patients: allow self-service</description>
+        <inputEntry id="InputEntry_r3_actionType_selfservice_eligibility_rules">
+          <text>"cancel"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_r3_patientRiskLevel_selfservice_eligibility_rules">
+          <text>"low"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_r3_timeWindowHours_selfservice_eligibility_rules">
+          <text>&gt;= 24</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_r3_complexityScore_selfservice_eligibility_rules">
+          <text>-</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_r3_allowSelfService_selfservice_eligibility_rules">
+          <text>true</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_r3_requiresApproval_selfservice_eligibility_rules">
+          <text>false</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_r3_escalateToStaff_selfservice_eligibility_rules">
+          <text>false</text>
+        </outputEntry>
+      </rule>
+
+      <!-- Rule 4: Cancel with 24+ hours - medium risk needs approval -->
+      <rule id="Rule_cancel_medium_risk_selfservice_eligibility_rules">
+        <description>Cancel appointment 24+ hours in advance for medium-risk: allow but requires follow-up approval</description>
+        <inputEntry id="InputEntry_r4_actionType_selfservice_eligibility_rules">
+          <text>"cancel"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_r4_patientRiskLevel_selfservice_eligibility_rules">
+          <text>"medium"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_r4_timeWindowHours_selfservice_eligibility_rules">
+          <text>&gt;= 24</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_r4_complexityScore_selfservice_eligibility_rules">
+          <text>-</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_r4_allowSelfService_selfservice_eligibility_rules">
+          <text>true</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_r4_requiresApproval_selfservice_eligibility_rules">
+          <text>true</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_r4_escalateToStaff_selfservice_eligibility_rules">
+          <text>false</text>
+        </outputEntry>
+      </rule>
+
+      <!-- Rule 5: Confirm appointment - always allow -->
+      <rule id="Rule_confirm_always_selfservice_eligibility_rules">
+        <description>Confirm appointment: always allow self-service for any risk level</description>
+        <inputEntry id="InputEntry_r5_actionType_selfservice_eligibility_rules">
+          <text>"confirm"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_r5_patientRiskLevel_selfservice_eligibility_rules">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_r5_timeWindowHours_selfservice_eligibility_rules">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_r5_complexityScore_selfservice_eligibility_rules">
+          <text>-</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_r5_allowSelfService_selfservice_eligibility_rules">
+          <text>true</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_r5_requiresApproval_selfservice_eligibility_rules">
+          <text>false</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_r5_escalateToStaff_selfservice_eligibility_rules">
+          <text>false</text>
+        </outputEntry>
+      </rule>
+
+      <!-- Rule 6: Reschedule within 48 hours requires approval -->
+      <rule id="Rule_reschedule_short_notice_selfservice_eligibility_rules">
+        <description>Reschedule appointment within 48 hours: requires approval due to complex scheduling</description>
+        <inputEntry id="InputEntry_r6_actionType_selfservice_eligibility_rules">
+          <text>"reschedule"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_r6_patientRiskLevel_selfservice_eligibility_rules">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_r6_timeWindowHours_selfservice_eligibility_rules">
+          <text>&lt; 48</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_r6_complexityScore_selfservice_eligibility_rules">
+          <text>-</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_r6_allowSelfService_selfservice_eligibility_rules">
+          <text>false</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_r6_requiresApproval_selfservice_eligibility_rules">
+          <text>true</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_r6_escalateToStaff_selfservice_eligibility_rules">
+          <text>false</text>
+        </outputEntry>
+      </rule>
+
+      <!-- Rule 7: Reschedule 48+ hours - low risk -->
+      <rule id="Rule_reschedule_low_risk_selfservice_eligibility_rules">
+        <description>Reschedule appointment 48+ hours in advance for low-risk: allow self-service</description>
+        <inputEntry id="InputEntry_r7_actionType_selfservice_eligibility_rules">
+          <text>"reschedule"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_r7_patientRiskLevel_selfservice_eligibility_rules">
+          <text>"low"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_r7_timeWindowHours_selfservice_eligibility_rules">
+          <text>&gt;= 48</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_r7_complexityScore_selfservice_eligibility_rules">
+          <text>-</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_r7_allowSelfService_selfservice_eligibility_rules">
+          <text>true</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_r7_requiresApproval_selfservice_eligibility_rules">
+          <text>false</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_r7_escalateToStaff_selfservice_eligibility_rules">
+          <text>false</text>
+        </outputEntry>
+      </rule>
+
+      <!-- Rule 8: Reschedule 48+ hours - medium risk needs approval -->
+      <rule id="Rule_reschedule_medium_risk_selfservice_eligibility_rules">
+        <description>Reschedule appointment 48+ hours in advance for medium-risk: allow but needs review</description>
+        <inputEntry id="InputEntry_r8_actionType_selfservice_eligibility_rules">
+          <text>"reschedule"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_r8_patientRiskLevel_selfservice_eligibility_rules">
+          <text>"medium"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_r8_timeWindowHours_selfservice_eligibility_rules">
+          <text>&gt;= 48</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_r8_complexityScore_selfservice_eligibility_rules">
+          <text>-</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_r8_allowSelfService_selfservice_eligibility_rules">
+          <text>true</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_r8_requiresApproval_selfservice_eligibility_rules">
+          <text>true</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_r8_escalateToStaff_selfservice_eligibility_rules">
+          <text>false</text>
+        </outputEntry>
+      </rule>
+
+      <!-- Rule 9: Payment - always allow for non-high risk -->
+      <rule id="Rule_pay_non_high_selfservice_eligibility_rules">
+        <description>Payment action: always allow self-service for low and medium risk patients</description>
+        <inputEntry id="InputEntry_r9_actionType_selfservice_eligibility_rules">
+          <text>"pay"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_r9_patientRiskLevel_selfservice_eligibility_rules">
+          <text>"low","medium"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_r9_timeWindowHours_selfservice_eligibility_rules">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_r9_complexityScore_selfservice_eligibility_rules">
+          <text>-</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_r9_allowSelfService_selfservice_eligibility_rules">
+          <text>true</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_r9_requiresApproval_selfservice_eligibility_rules">
+          <text>false</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_r9_escalateToStaff_selfservice_eligibility_rules">
+          <text>false</text>
+        </outputEntry>
+      </rule>
+
+      <!-- Rule 10: Simple questions via FAQ bot -->
+      <rule id="Rule_question_simple_selfservice_eligibility_rules">
+        <description>Simple questions (complexity &lt; 30): handle via automated FAQ bot</description>
+        <inputEntry id="InputEntry_r10_actionType_selfservice_eligibility_rules">
+          <text>"question"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_r10_patientRiskLevel_selfservice_eligibility_rules">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_r10_timeWindowHours_selfservice_eligibility_rules">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_r10_complexityScore_selfservice_eligibility_rules">
+          <text>&lt; 30</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_r10_allowSelfService_selfservice_eligibility_rules">
+          <text>true</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_r10_requiresApproval_selfservice_eligibility_rules">
+          <text>false</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_r10_escalateToStaff_selfservice_eligibility_rules">
+          <text>false</text>
+        </outputEntry>
+      </rule>
+
+      <!-- Rule 11: Moderate complexity questions -->
+      <rule id="Rule_question_moderate_selfservice_eligibility_rules">
+        <description>Moderate complexity questions (30-70): allow self-service but flag for review</description>
+        <inputEntry id="InputEntry_r11_actionType_selfservice_eligibility_rules">
+          <text>"question"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_r11_patientRiskLevel_selfservice_eligibility_rules">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_r11_timeWindowHours_selfservice_eligibility_rules">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_r11_complexityScore_selfservice_eligibility_rules">
+          <text>[30..70]</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_r11_allowSelfService_selfservice_eligibility_rules">
+          <text>true</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_r11_requiresApproval_selfservice_eligibility_rules">
+          <text>true</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_r11_escalateToStaff_selfservice_eligibility_rules">
+          <text>false</text>
+        </outputEntry>
+      </rule>
+
+      <!-- Rule 12: Complex questions escalate to staff -->
+      <rule id="Rule_question_complex_selfservice_eligibility_rules">
+        <description>Complex questions (complexity &gt; 70): escalate to staff for personalized response</description>
+        <inputEntry id="InputEntry_r12_actionType_selfservice_eligibility_rules">
+          <text>"question"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_r12_patientRiskLevel_selfservice_eligibility_rules">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_r12_timeWindowHours_selfservice_eligibility_rules">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_r12_complexityScore_selfservice_eligibility_rules">
+          <text>&gt; 70</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_r12_allowSelfService_selfservice_eligibility_rules">
+          <text>false</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_r12_requiresApproval_selfservice_eligibility_rules">
+          <text>false</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_r12_escalateToStaff_selfservice_eligibility_rules">
+          <text>true</text>
+        </outputEntry>
+      </rule>
+
+    </decisionTable>
+  </decision>
+
+  <inputData id="InputData_actionType_selfservice_eligibility_rules" name="Action Type"/>
+  <inputData id="InputData_patientRiskLevel_selfservice_eligibility_rules" name="Patient Risk Level"/>
+  <inputData id="InputData_timeWindowHours_selfservice_eligibility_rules" name="Time Window Hours"/>
+  <inputData id="InputData_complexityScore_selfservice_eligibility_rules" name="Complexity Score"/>
+
+
+  <dmndi:DMNDI>
+    <dmndi:DMNDiagram id="DMNDiagram_selfservice_eligibility_rules">
+      <dmndi:DMNShape id="DMNShape_selfservice_eligibility_rules" dmnElementRef="selfservice_eligibility_rules">
+        <dc:Bounds height="80" width="180" x="160" y="100" />
+      </dmndi:DMNShape>
+    </dmndi:DMNDiagram>
+  </dmndi:DMNDI>
+</definitions>

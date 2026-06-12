@@ -1,0 +1,221 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+                  xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+                  xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+                  xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
+                  xmlns:camunda="http://camunda.org/schema/1.0/bpmn"
+                  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                  id="Definitions_ComplianceAudit"
+                  targetNamespace="http://cib7.health/platform/compliance"
+                  exporter="Claude Code"
+                  exporterVersion="1.0">
+
+  <bpmn:process id="Process_ComplianceAudit" name="SP-PS-001 LGPD Compliance Audit" isExecutable="true" camunda:historyTimeToLive="30">
+
+    <!-- Start: Compliance audit triggered (scheduled or on-demand) -->
+    <bpmn:startEvent id="Start_AuditTriggered" name="Compliance Audit Triggered">
+      <bpmn:outgoing>Flow_ToValidateConsent</bpmn:outgoing>
+    </bpmn:startEvent>
+
+    <!-- Step 1: Validate patient consent records against LGPD requirements -->
+    <bpmn:serviceTask id="Task_ValidateConsent" name="Validate LGPD Consent"
+                      camunda:type="external" camunda:topic="compliance.lgpd">
+      <bpmn:extensionElements>
+        <camunda:inputOutput>
+          <camunda:inputParameter name="dmnTable">comp_lgpd_001</camunda:inputParameter>
+        </camunda:inputOutput>
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_ToValidateConsent</bpmn:incoming>
+      <bpmn:outgoing>Flow_ToCheckRetention</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Step 2: Check data retention policies comply with LGPD -->
+    <bpmn:serviceTask id="Task_CheckRetention" name="Check Data Retention"
+                      camunda:type="external" camunda:topic="compliance.lgpd">
+      <bpmn:extensionElements>
+        <camunda:inputOutput>
+          <camunda:inputParameter name="dmnTable">comp_lgpd_002</camunda:inputParameter>
+        </camunda:inputOutput>
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_ToCheckRetention</bpmn:incoming>
+      <bpmn:outgoing>Flow_ToRetentionGateway</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Gateway: Are retention policies compliant? -->
+    <bpmn:exclusiveGateway id="Gateway_RetentionCompliant" name="Retention Compliant?" default="Flow_RetentionFail">
+      <bpmn:incoming>Flow_ToRetentionGateway</bpmn:incoming>
+      <bpmn:outgoing>Flow_RetentionOk</bpmn:outgoing>
+      <bpmn:outgoing>Flow_RetentionFail</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+
+    <!-- Non-compliance path: flag and remediate -->
+    <bpmn:serviceTask id="Task_FlagNonCompliance" name="Flag Non-Compliance"
+                      camunda:type="external" camunda:topic="compliance.remediation">
+      <bpmn:incoming>Flow_RetentionFail</bpmn:incoming>
+      <bpmn:outgoing>Flow_FlagToMerge</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Merge gateway after compliance check -->
+    <bpmn:exclusiveGateway id="Gateway_MergeCompliance" name="Merge">
+      <bpmn:incoming>Flow_RetentionOk</bpmn:incoming>
+      <bpmn:incoming>Flow_FlagToMerge</bpmn:incoming>
+      <bpmn:outgoing>Flow_ToAuditTrail</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+
+    <!-- Step 3: Record audit trail entry -->
+    <bpmn:serviceTask id="Task_AuditTrail" name="Record Audit Trail"
+                      camunda:type="external" camunda:topic="compliance.audit">
+      <bpmn:extensionElements>
+        <camunda:inputOutput>
+          <camunda:inputParameter name="dmnTable">comp_audit_001</camunda:inputParameter>
+        </camunda:inputOutput>
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_ToAuditTrail</bpmn:incoming>
+      <bpmn:outgoing>Flow_ToGenerateReport</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Step 4: Generate compliance report -->
+    <bpmn:serviceTask id="Task_GenerateReport" name="Generate Compliance Report"
+                      camunda:type="external" camunda:topic="compliance.reporting">
+      <bpmn:incoming>Flow_ToGenerateReport</bpmn:incoming>
+      <bpmn:outgoing>Flow_ToEnd</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <bpmn:endEvent id="End_AuditComplete" name="Audit Complete">
+      <bpmn:incoming>Flow_ToEnd</bpmn:incoming>
+    </bpmn:endEvent>
+
+    <!-- Error boundary on consent validation for critical failures -->
+    <bpmn:boundaryEvent id="Boundary_ConsentError" name="Consent Error"
+                        attachedToRef="Task_ValidateConsent">
+      <bpmn:outgoing>Flow_ErrorToEnd</bpmn:outgoing>
+      <bpmn:errorEventDefinition id="ErrorDef_Consent" errorRef="Error_NonCompliance"/>
+    </bpmn:boundaryEvent>
+
+    <bpmn:endEvent id="End_ErrorTermination" name="Non-Compliance Error">
+      <bpmn:incoming>Flow_ErrorToEnd</bpmn:incoming>
+      <bpmn:errorEventDefinition id="ErrorDef_Term" errorRef="Error_NonCompliance"/>
+    </bpmn:endEvent>
+
+    <!-- Sequence Flows -->
+    <bpmn:sequenceFlow id="Flow_ToValidateConsent" sourceRef="Start_AuditTriggered" targetRef="Task_ValidateConsent"/>
+    <bpmn:sequenceFlow id="Flow_ToCheckRetention" sourceRef="Task_ValidateConsent" targetRef="Task_CheckRetention"/>
+    <bpmn:sequenceFlow id="Flow_ToRetentionGateway" sourceRef="Task_CheckRetention" targetRef="Gateway_RetentionCompliant"/>
+    <bpmn:sequenceFlow id="Flow_RetentionOk" sourceRef="Gateway_RetentionCompliant" targetRef="Gateway_MergeCompliance">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${retention_compliant == true}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_RetentionFail" sourceRef="Gateway_RetentionCompliant" targetRef="Task_FlagNonCompliance">
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_FlagToMerge" sourceRef="Task_FlagNonCompliance" targetRef="Gateway_MergeCompliance"/>
+    <bpmn:sequenceFlow id="Flow_ToAuditTrail" sourceRef="Gateway_MergeCompliance" targetRef="Task_AuditTrail"/>
+    <bpmn:sequenceFlow id="Flow_ToGenerateReport" sourceRef="Task_AuditTrail" targetRef="Task_GenerateReport"/>
+    <bpmn:sequenceFlow id="Flow_ToEnd" sourceRef="Task_GenerateReport" targetRef="End_AuditComplete"/>
+    <bpmn:sequenceFlow id="Flow_ErrorToEnd" sourceRef="Boundary_ConsentError" targetRef="End_ErrorTermination"/>
+
+  </bpmn:process>
+
+  <bpmn:error id="Error_NonCompliance" name="Non-Compliance Error" errorCode="LGPD_NON_COMPLIANCE"/>
+
+  <!-- Diagram Interchange -->
+  <bpmndi:BPMNDiagram id="BPMNDiagram_ComplianceAudit">
+    <bpmndi:BPMNPlane id="BPMNPlane_ComplianceAudit" bpmnElement="Process_ComplianceAudit">
+
+      <bpmndi:BPMNShape id="Shape_Start" bpmnElement="Start_AuditTriggered">
+        <dc:Bounds x="152" y="102" width="36" height="36"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Shape_ValidateConsent" bpmnElement="Task_ValidateConsent">
+        <dc:Bounds x="240" y="80" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Shape_CheckRetention" bpmnElement="Task_CheckRetention">
+        <dc:Bounds x="400" y="80" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Shape_GatewayRetention" bpmnElement="Gateway_RetentionCompliant" isMarkerVisible="true">
+        <dc:Bounds x="555" y="95" width="50" height="50"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Shape_FlagNonCompliance" bpmnElement="Task_FlagNonCompliance">
+        <dc:Bounds x="530" y="220" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Shape_MergeCompliance" bpmnElement="Gateway_MergeCompliance" isMarkerVisible="true">
+        <dc:Bounds x="685" y="95" width="50" height="50"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Shape_AuditTrail" bpmnElement="Task_AuditTrail">
+        <dc:Bounds x="790" y="80" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Shape_GenerateReport" bpmnElement="Task_GenerateReport">
+        <dc:Bounds x="950" y="80" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Shape_End" bpmnElement="End_AuditComplete">
+        <dc:Bounds x="1112" y="102" width="36" height="36"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Shape_BoundaryError" bpmnElement="Boundary_ConsentError">
+        <dc:Bounds x="272" y="142" width="36" height="36"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Shape_ErrorEnd" bpmnElement="End_ErrorTermination">
+        <dc:Bounds x="272" y="222" width="36" height="36"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNEdge id="Edge_ToValidateConsent" bpmnElement="Flow_ToValidateConsent">
+        <di:waypoint x="188" y="120"/>
+        <di:waypoint x="240" y="120"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_ToCheckRetention" bpmnElement="Flow_ToCheckRetention">
+        <di:waypoint x="340" y="120"/>
+        <di:waypoint x="400" y="120"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_ToRetentionGateway" bpmnElement="Flow_ToRetentionGateway">
+        <di:waypoint x="500" y="120"/>
+        <di:waypoint x="555" y="120"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_RetentionOk" bpmnElement="Flow_RetentionOk">
+        <di:waypoint x="605" y="120"/>
+        <di:waypoint x="685" y="120"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_RetentionFail" bpmnElement="Flow_RetentionFail">
+        <di:waypoint x="580" y="145"/>
+        <di:waypoint x="580" y="220"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_FlagToMerge" bpmnElement="Flow_FlagToMerge">
+        <di:waypoint x="630" y="260"/>
+        <di:waypoint x="710" y="260"/>
+        <di:waypoint x="710" y="145"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_ToAuditTrail" bpmnElement="Flow_ToAuditTrail">
+        <di:waypoint x="735" y="120"/>
+        <di:waypoint x="790" y="120"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_ToGenerateReport" bpmnElement="Flow_ToGenerateReport">
+        <di:waypoint x="890" y="120"/>
+        <di:waypoint x="950" y="120"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_ToEnd" bpmnElement="Flow_ToEnd">
+        <di:waypoint x="1050" y="120"/>
+        <di:waypoint x="1112" y="120"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_ErrorToEnd" bpmnElement="Flow_ErrorToEnd">
+        <di:waypoint x="290" y="178"/>
+        <di:waypoint x="290" y="222"/>
+      </bpmndi:BPMNEdge>
+
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+
+</bpmn:definitions>

@@ -1,3 +1,12 @@
+<!-- Documentação completa: PROJECT.md | MAP.md | CONTRIBUTING.md -->
+
+> **Navegação rápida:**
+> [📋 PROJECT.md](PROJECT.md) — arquitetura e como iniciar |
+> [🗺️ MAP.md](MAP.md) — onde está cada arquivo |
+> [🤝 CONTRIBUTING.md](CONTRIBUTING.md) — como adicionar workers, DMN, BPMN
+
+---
+
 <h1 align="center">🏥 MAEZO</h1>
 
 <p align="center">
@@ -158,7 +167,7 @@ Substitui fluxos fragmentados e isolados por departamento por **jornadas orquest
 
 | Camada | Implementação |
 |--------|---------------|
-| **Autenticação** | Keycloak 24 + OAuth2/OIDC |
+| **Autenticação** | Basic Auth (CIB Seven) — ADR-020 |
 | **Autorização** | Baseada em roles (RBAC) + isolamento de tenant |
 | **Secrets** | Kubernetes secrets, pronto para Vault |
 | **Segurança de API** | Validação de assinatura HMAC, rate limiting |
@@ -176,7 +185,7 @@ Substitui fluxos fragmentados e isolados por departamento por **jornadas orquest
 | 005 | HAPI FHIR R4 Armazenamento Canônico | Padrão de dados clínicos da indústria |
 | 006 | Kafka REST Bridge Apenas | Sem Kafka direto dos workers |
 | 007 | Federação DMN com Override por Tenant | Regras de negócio customizáveis |
-| 008 | Keycloak OAuth2 para Workers | Identidade centralizada |
+| 008 | Basic Auth para Workers (supersedeu Keycloak — ADR-020) | Complexidade operacional eliminada |
 | 009 | Mono-repo, Pasta por Domínio | Fonte única de verdade |
 | 010 | Observabilidade Prometheus + Grafana | Monitoramento em tempo real |
 | 011 | TTL de Histórico LGPD por Variável | Retenção de dados compliance-aware |
@@ -268,7 +277,7 @@ O MAEZO orquestra a experiência completa do paciente em **5 jornadas interconec
 ├─────────────────────────────────────────────────────────────┤
 │  Dados: PostgreSQL 16 · Redis 7.2 · Elasticsearch 8.13      │
 ├─────────────────────────────────────────────────────────────┤
-│  Infra: EKS · Keycloak 24 · Prometheus · Grafana 11         │
+│  Infra: EKS · Traefik v3.0 · Prometheus · Grafana 11        │
 └─────────────────────────────────────────────────────────────┘
 ```
 
@@ -302,7 +311,6 @@ curl http://localhost:8080/engine-rest/engine
 | Tasklist (Tarefas Humanas) | http://localhost:8080/cibseven/app/tasklist | admin/admin |
 | Grafana (Métricas) | http://localhost:3000 | admin/admin |
 | HAPI FHIR | http://localhost:8082/fhir/metadata | — |
-| Keycloak (Identidade) | http://localhost:8180/admin | admin/admin |
 
 ---
 
@@ -317,7 +325,6 @@ curl http://localhost:8080/engine-rest/engine
 | Streaming | Apache Kafka | 3.7 | ✅ Configurado |
 | Banco de Dados | PostgreSQL | 16 | ✅ Testado |
 | Cache | Redis | 7.2 | ✅ Testado |
-| Identidade | Keycloak | 24 | ✅ Realm pronto |
 | Observabilidade | Prometheus + Grafana | Mais recente | ✅ Dashboards |
 | Container Runtime | Docker | 24+ | ✅ Obrigatório |
 | Orquestração K8s | Kubernetes/Helm | 1.28+ | ✅ Charts prontos |
@@ -336,7 +343,7 @@ maestro/
 │   └── shared/                # CDC bridge, webhooks, adaptadores, multi-tenant
 ├── tests/                     # 393 arquivos de teste (pytest + asyncio)
 ├── docs/                      # 19 ADRs, specs, guias de migração
-├── config/                    # Observabilidade (Prometheus, Grafana), Keycloak
+├── config/                    # Observabilidade (Prometheus, Grafana)
 ├── helm/                      # Charts Kubernetes Helm (16 templates)
 ├── k8s/                       # Manifests base (namespace, secrets, network policies)
 └── scripts/                   # Validação DMN, ferramentas de deploy
@@ -348,9 +355,9 @@ maestro/
 
 | Documento | Descrição |
 |-----------|-----------|
-| [Especificação Técnica](docs/Technical%20specification/technical-specification.md) | Arquitetura completa do sistema |
-| [ADRs](docs/ADRs/) | 19 Registros de Decisão de Arquitetura |
-| [Guia de Migração](docs/Migration/) | Migração de sistemas legados |
+| [Especificação Técnica](docs/architecture/technical-specification/technical-specification.md) | Arquitetura completa do sistema |
+| [ADRs](docs/adr/) | 19 Registros de Decisão de Arquitetura |
+| [Guia de Migração](docs/migration/) | Migração de sistemas legados |
 | [Regras de Negócio](docs/Regras%20de%20Negocio%20(PT-BR)/) | Inventário completo de regras |
 
 ---
@@ -406,7 +413,6 @@ Infraestrutura como código pronta para acelerar seu deploy:
 | **K8s Base Manifests** | `k8s/base/` | Namespace, RBAC, Secrets, Network Policies |
 | **CI/CD Pipeline** | `.github/workflows/ci-cd.yaml` | Build, test, security scan, deploy multi-stage |
 | **Dockerfiles adicionais** | `Dockerfile.cdc-bridge`, `Dockerfile.webhook-receiver` | Containers para CDC e webhooks TASY |
-| **Keycloak Realm** | `config/keycloak/maezo-bpm-realm.json` | 5 clients (admin + 4 domain workers) |
 
 **Para começar:**
 ```bash
@@ -435,7 +441,6 @@ O código da plataforma (workers, BPMN, DMN) está implementado. As pendências 
 | **Docker Compose + Dockerfiles** | ✅ Implementado | — |
 | **Helm Charts / K8s Manifests** | ✅ **Implementado** (helm/, k8s/) | — |
 | **pyproject.toml / requirements.txt** | ✅ Implementado | — |
-| **Keycloak realm + clients** | 🔴 Bloqueante | Java Dev |
 | **Deploy CIB Seven 2.1.3** | 🔴 Bloqueante | Java Dev / BPM Architect |
 | **Debezium CDC → Tasy Oracle** | 🟠 Alta | Integration Dev + DBA |
 | **HAPI FHIR + adaptadores Tasy→FHIR** | 🟠 Alta | Integration Dev |
@@ -456,7 +461,7 @@ O runtime que conecta os 402 workers ao engine CIB Seven já está pronto:
 | **Topic Registry** | `config/topic_registry.yaml` | 2,290 linhas, 200+ topics validados |
 | **Registry Loader** | `healthcare_platform/shared/workers/generic/registry_loader.py` | Auto-discovery e validação de workers contra topic registry |
 | **Dockerfile** | `Dockerfile` | Imagem Python 3.12 com health check em `:8000` |
-| **Docker Compose** | `docker-compose.yml` | 17 serviços: engine + 4 workers + FHIR + Keycloak + Kafka + Redis + Prometheus + Grafana |
+| **Docker Compose** | `docker-compose.yml` | 17 serviços: engine + 4 workers + FHIR + Kafka + Redis + Prometheus + Grafana |
 | **Docker Compose Test** | `docker-compose.test.yml` | Ambiente de teste isolado para CI/CD |
 | **pyproject.toml** | `pyproject.toml` | Dependências Python (httpx, pydantic, structlog, camunda-client, etc.) |
 
@@ -474,13 +479,13 @@ python -m healthcare_platform.shared.runtime.worker_runner --all
 
 ```
 Semana 1-4:   Infraestrutura (EKS, RDS, Kafka, Redis, CI/CD, Docker)
-Semana 5-8:   Engine + Keycloak + FHIR + CDC Tasy
+Semana 5-8:   Engine + FHIR + CDC Tasy
 Semana 9-12:  Deploy workers + BPMN/DMN + testes integração
 Semana 13-14: Shadow mode (Bradesco Saúde, paralelo com manual)
 Semana 15-16: Go-live revenue cycle (tenant hospital-a)
 ```
 
-> Detalhes completos em [Pendências para Desenvolvedores](docs/Pendencias%20para%20desenvolvedores/pendencias-desenvolvedores.md)
+> Detalhes completos em [Pendências para Desenvolvedores](docs/pending/pendencias-desenvolvedores.md)
 
 ---
 

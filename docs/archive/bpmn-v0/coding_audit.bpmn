@@ -1,0 +1,470 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+                  xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+                  xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+                  xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
+                  xmlns:camunda="http://camunda.org/schema/1.0/bpmn"
+                  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                  id="Definitions_CodingAudit"
+                  targetNamespace="http://bpmn.io/schema/bpmn"
+                  exporter="Healthcare-Orchest-CIB7"
+                  exporterVersion="1.0.0">
+
+  <!-- Error Definitions -->
+  <bpmn:error id="Error_EncounterNotFound" name="Encounter Not Found" errorCode="ENCOUNTER_NOT_FOUND" />
+  <bpmn:error id="Error_InvalidCID10" name="Invalid CID10 Code" errorCode="INVALID_CID10_CODE" />
+  <bpmn:error id="Error_InvalidTUSS" name="Invalid TUSS Code" errorCode="INVALID_TUSS_CODE" />
+  <bpmn:error id="Error_FraudDetected" name="Fraud Detected" errorCode="FRAUD_DETECTED" />
+
+  <bpmn:process id="SUB_05_Coding_Audit" name="Codificação e Auditoria Clínica" isExecutable="true">
+
+    <!-- Start Event -->
+    <bpmn:startEvent id="StartEvent_CodingAudit" name="Atendimento Concluído">
+      <bpmn:outgoing>Flow_Start_Extract</bpmn:outgoing>
+    </bpmn:startEvent>
+
+    <!-- 1. Extract Clinical Data -->
+    <bpmn:serviceTask id="Task_Extract_Clinical_Data" name="Extrair Dados Clínicos"
+                      camunda:type="external" camunda:topic="coding.extract_clinical_data" camunda:taskPriority="50">
+      <bpmn:incoming>Flow_Start_Extract</bpmn:incoming>
+      <bpmn:outgoing>Flow_Extract_ParallelOpen</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Error Boundary: ENCOUNTER_NOT_FOUND -->
+    <bpmn:boundaryEvent id="BoundaryEvent_EncounterNotFound" name="Atendimento Não Encontrado"
+                        attachedToRef="Task_Extract_Clinical_Data">
+      <bpmn:outgoing>Flow_EncounterNotFound_End</bpmn:outgoing>
+      <bpmn:errorEventDefinition id="ErrorDef_EncounterNotFound" errorRef="Error_EncounterNotFound" />
+    </bpmn:boundaryEvent>
+
+    <!-- Parallel Gateway Open -->
+    <bpmn:parallelGateway id="Gateway_Parallel_Coding" name="Fork Codificação">
+      <bpmn:incoming>Flow_Extract_ParallelOpen</bpmn:incoming>
+      <bpmn:outgoing>Flow_PathA_CID10</bpmn:outgoing>
+      <bpmn:outgoing>Flow_PathB_Complexity</bpmn:outgoing>
+    </bpmn:parallelGateway>
+
+    <!-- === Path A: Coding === -->
+
+    <!-- 2. Suggest CID-10 Codes -->
+    <bpmn:serviceTask id="Task_Suggest_CID10" name="Sugerir Códigos CID-10"
+                      camunda:type="external" camunda:topic="coding.suggest_cid10" camunda:taskPriority="50">
+      <bpmn:incoming>Flow_PathA_CID10</bpmn:incoming>
+      <bpmn:incoming>Flow_Revision_Loop</bpmn:incoming>
+      <bpmn:outgoing>Flow_CID10_TUSS</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- 3. Suggest TUSS Codes -->
+    <bpmn:serviceTask id="Task_Suggest_TUSS" name="Sugerir Códigos TUSS"
+                      camunda:type="external" camunda:topic="coding.suggest_tuss" camunda:taskPriority="50">
+      <bpmn:incoming>Flow_CID10_TUSS</bpmn:incoming>
+      <bpmn:outgoing>Flow_TUSS_Validate</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- 4. Validate Codes -->
+    <bpmn:serviceTask id="Task_Validate_Codes" name="Validar Códigos"
+                      camunda:type="external" camunda:topic="coding.validate_codes" camunda:taskPriority="50">
+      <bpmn:incoming>Flow_TUSS_Validate</bpmn:incoming>
+      <bpmn:outgoing>Flow_Validate_Compat</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Error Boundary: INVALID_CID10_CODE -->
+    <bpmn:boundaryEvent id="BoundaryEvent_InvalidCID10" name="CID-10 Inválido"
+                        attachedToRef="Task_Validate_Codes">
+      <bpmn:outgoing>Flow_InvalidCID10_Manual</bpmn:outgoing>
+      <bpmn:errorEventDefinition id="ErrorDef_InvalidCID10" errorRef="Error_InvalidCID10" />
+    </bpmn:boundaryEvent>
+
+    <!-- Error Boundary: INVALID_TUSS_CODE -->
+    <bpmn:boundaryEvent id="BoundaryEvent_InvalidTUSS" name="TUSS Inválido"
+                        attachedToRef="Task_Validate_Codes">
+      <bpmn:outgoing>Flow_InvalidTUSS_Manual</bpmn:outgoing>
+      <bpmn:errorEventDefinition id="ErrorDef_InvalidTUSS" errorRef="Error_InvalidTUSS" />
+    </bpmn:boundaryEvent>
+
+    <!-- Manual Coding Subprocess (called on validation errors) -->
+    <bpmn:callActivity id="SubProcess_ManualCoding" name="Codificação Manual"
+                       calledElement="SUB_ManualCoding">
+      <bpmn:incoming>Flow_InvalidCID10_Manual</bpmn:incoming>
+      <bpmn:incoming>Flow_InvalidTUSS_Manual</bpmn:incoming>
+      <bpmn:outgoing>Flow_ManualCoding_Compat</bpmn:outgoing>
+    </bpmn:callActivity>
+
+    <!-- 5. Check Compatibility -->
+    <bpmn:serviceTask id="Task_Check_Compatibility" name="Verificar Compatibilidade"
+                      camunda:type="external" camunda:topic="coding.check_code_compatibility" camunda:taskPriority="50">
+      <bpmn:incoming>Flow_Validate_Compat</bpmn:incoming>
+      <bpmn:incoming>Flow_ManualCoding_Compat</bpmn:incoming>
+      <bpmn:outgoing>Flow_Compat_Rules</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- 6. Apply Coding Rules -->
+    <bpmn:serviceTask id="Task_Apply_Rules" name="Aplicar Regras de Codificação"
+                      camunda:type="external" camunda:topic="coding.apply_coding_rules" camunda:taskPriority="50">
+      <bpmn:incoming>Flow_Compat_Rules</bpmn:incoming>
+      <bpmn:outgoing>Flow_Rules_Join</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- === Path B: Complexity === -->
+
+    <!-- 7. Calculate Clinical Complexity -->
+    <bpmn:serviceTask id="Task_Calculate_Complexity" name="Calcular Complexidade Clínica"
+                      camunda:type="external" camunda:topic="coding.calculate_complexity" camunda:taskPriority="50">
+      <bpmn:incoming>Flow_PathB_Complexity</bpmn:incoming>
+      <bpmn:outgoing>Flow_Complexity_Join</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Parallel Gateway Close -->
+    <bpmn:parallelGateway id="Gateway_Join_Coding" name="Join Codificação">
+      <bpmn:incoming>Flow_Rules_Join</bpmn:incoming>
+      <bpmn:incoming>Flow_Complexity_Join</bpmn:incoming>
+      <bpmn:outgoing>Flow_Join_Audit</bpmn:outgoing>
+    </bpmn:parallelGateway>
+
+    <!-- 8. Audit Coding -->
+    <bpmn:serviceTask id="Task_Audit_Coding" name="Auditar Codificação"
+                      camunda:type="external" camunda:topic="coding.audit_coding" camunda:taskPriority="50">
+      <bpmn:incoming>Flow_Join_Audit</bpmn:incoming>
+      <bpmn:outgoing>Flow_Audit_Decision</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Audit Decision Gateway -->
+    <bpmn:exclusiveGateway id="Gateway_Audit_Decision" name="Resultado da Auditoria">
+      <bpmn:incoming>Flow_Audit_Decision</bpmn:incoming>
+      <bpmn:outgoing>Flow_Audit_Approved</bpmn:outgoing>
+      <bpmn:outgoing>Flow_Audit_Revision</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+
+    <!-- 9. Detect Fraud -->
+    <bpmn:serviceTask id="Task_Detect_Fraud" name="Detectar Fraude em Codificação"
+                      camunda:type="external" camunda:topic="coding.detect_fraud" camunda:taskPriority="50">
+      <bpmn:incoming>Flow_Audit_Approved</bpmn:incoming>
+      <bpmn:outgoing>Flow_Fraud_Decision</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Error Boundary: FRAUD_DETECTED -->
+    <bpmn:boundaryEvent id="BoundaryEvent_FraudDetected" name="Fraude Detectada"
+                        attachedToRef="Task_Detect_Fraud">
+      <bpmn:outgoing>Flow_Fraud_Review</bpmn:outgoing>
+      <bpmn:errorEventDefinition id="ErrorDef_FraudDetected" errorRef="Error_FraudDetected" />
+    </bpmn:boundaryEvent>
+
+    <!-- Fraud Review Subprocess -->
+    <bpmn:callActivity id="SubProcess_FraudReview" name="Revisão de Fraude"
+                       calledElement="SUB_FraudReview">
+      <bpmn:incoming>Flow_Fraud_Review</bpmn:incoming>
+      <bpmn:outgoing>Flow_FraudReview_ErrorEnd</bpmn:outgoing>
+    </bpmn:callActivity>
+
+    <!-- Fraud Decision Gateway -->
+    <bpmn:exclusiveGateway id="Gateway_Fraud_Decision" name="Resultado Fraude">
+      <bpmn:incoming>Flow_Fraud_Decision</bpmn:incoming>
+      <bpmn:outgoing>Flow_Fraud_Clear</bpmn:outgoing>
+      <bpmn:outgoing>Flow_Fraud_Flagged</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+
+    <!-- 10. Finalize Coding -->
+    <bpmn:serviceTask id="Task_Finalize_Coding" name="Finalizar Codificação"
+                      camunda:type="external" camunda:topic="coding.finalize_coding" camunda:taskPriority="50">
+      <bpmn:incoming>Flow_Fraud_Clear</bpmn:incoming>
+      <bpmn:outgoing>Flow_Finalize_End</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- End Events -->
+    <bpmn:endEvent id="EndEvent_CodingComplete" name="Codificação Completa">
+      <bpmn:incoming>Flow_Finalize_End</bpmn:incoming>
+    </bpmn:endEvent>
+
+    <bpmn:endEvent id="EndEvent_Error_EncounterNotFound" name="Erro: Atendimento Não Encontrado">
+      <bpmn:incoming>Flow_EncounterNotFound_End</bpmn:incoming>
+      <bpmn:errorEventDefinition id="ErrorEnd_EncounterNotFound" errorRef="Error_EncounterNotFound" />
+    </bpmn:endEvent>
+
+    <bpmn:endEvent id="EndEvent_Error_FraudFlagged" name="Erro: Fraude Sinalizada">
+      <bpmn:incoming>Flow_Fraud_Flagged</bpmn:incoming>
+      <bpmn:incoming>Flow_FraudReview_ErrorEnd</bpmn:incoming>
+      <bpmn:errorEventDefinition id="ErrorEnd_FraudFlagged" errorRef="Error_FraudDetected" />
+    </bpmn:endEvent>
+
+    <!-- Sequence Flows -->
+    <bpmn:sequenceFlow id="Flow_Start_Extract" sourceRef="StartEvent_CodingAudit" targetRef="Task_Extract_Clinical_Data" />
+    <bpmn:sequenceFlow id="Flow_Extract_ParallelOpen" sourceRef="Task_Extract_Clinical_Data" targetRef="Gateway_Parallel_Coding" />
+    <bpmn:sequenceFlow id="Flow_EncounterNotFound_End" sourceRef="BoundaryEvent_EncounterNotFound" targetRef="EndEvent_Error_EncounterNotFound" />
+
+    <!-- Path A Flows -->
+    <bpmn:sequenceFlow id="Flow_PathA_CID10" sourceRef="Gateway_Parallel_Coding" targetRef="Task_Suggest_CID10" />
+    <bpmn:sequenceFlow id="Flow_CID10_TUSS" sourceRef="Task_Suggest_CID10" targetRef="Task_Suggest_TUSS" />
+    <bpmn:sequenceFlow id="Flow_TUSS_Validate" sourceRef="Task_Suggest_TUSS" targetRef="Task_Validate_Codes" />
+    <bpmn:sequenceFlow id="Flow_InvalidCID10_Manual" sourceRef="BoundaryEvent_InvalidCID10" targetRef="SubProcess_ManualCoding" />
+    <bpmn:sequenceFlow id="Flow_InvalidTUSS_Manual" sourceRef="BoundaryEvent_InvalidTUSS" targetRef="SubProcess_ManualCoding" />
+    <bpmn:sequenceFlow id="Flow_Validate_Compat" sourceRef="Task_Validate_Codes" targetRef="Task_Check_Compatibility" />
+    <bpmn:sequenceFlow id="Flow_ManualCoding_Compat" sourceRef="SubProcess_ManualCoding" targetRef="Task_Check_Compatibility" />
+    <bpmn:sequenceFlow id="Flow_Compat_Rules" sourceRef="Task_Check_Compatibility" targetRef="Task_Apply_Rules" />
+    <bpmn:sequenceFlow id="Flow_Rules_Join" sourceRef="Task_Apply_Rules" targetRef="Gateway_Join_Coding" />
+
+    <!-- Path B Flows -->
+    <bpmn:sequenceFlow id="Flow_PathB_Complexity" sourceRef="Gateway_Parallel_Coding" targetRef="Task_Calculate_Complexity" />
+    <bpmn:sequenceFlow id="Flow_Complexity_Join" sourceRef="Task_Calculate_Complexity" targetRef="Gateway_Join_Coding" />
+
+    <!-- Post-Join Flows -->
+    <bpmn:sequenceFlow id="Flow_Join_Audit" sourceRef="Gateway_Join_Coding" targetRef="Task_Audit_Coding" />
+    <bpmn:sequenceFlow id="Flow_Audit_Decision" sourceRef="Task_Audit_Coding" targetRef="Gateway_Audit_Decision" />
+    <bpmn:sequenceFlow id="Flow_Audit_Approved" name="Aprovado" sourceRef="Gateway_Audit_Decision" targetRef="Task_Detect_Fraud">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${auditResult == 'approved'}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_Audit_Revision" name="Revisão (max 3x)" sourceRef="Gateway_Audit_Decision" targetRef="Task_Suggest_CID10">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${auditResult == 'revision_required' &amp;&amp; loopCounter &lt; 3}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+
+    <!-- Fraud Flows -->
+    <bpmn:sequenceFlow id="Flow_Fraud_Decision" sourceRef="Task_Detect_Fraud" targetRef="Gateway_Fraud_Decision" />
+    <bpmn:sequenceFlow id="Flow_Fraud_Review" sourceRef="BoundaryEvent_FraudDetected" targetRef="SubProcess_FraudReview" />
+    <bpmn:sequenceFlow id="Flow_FraudReview_ErrorEnd" sourceRef="SubProcess_FraudReview" targetRef="EndEvent_Error_FraudFlagged" />
+    <bpmn:sequenceFlow id="Flow_Fraud_Clear" name="Liberado / Revisão" sourceRef="Gateway_Fraud_Decision" targetRef="Task_Finalize_Coding">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${fraudResult == 'clear' || fraudResult == 'review'}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_Fraud_Flagged" name="Sinalizado" sourceRef="Gateway_Fraud_Decision" targetRef="EndEvent_Error_FraudFlagged">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${fraudResult == 'flagged'}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_Finalize_End" sourceRef="Task_Finalize_Coding" targetRef="EndEvent_CodingComplete" />
+
+  </bpmn:process>
+
+  <!-- BPMN Diagram Information -->
+  <bpmndi:BPMNDiagram id="BPMNDiagram_CodingAudit">
+    <bpmndi:BPMNPlane id="BPMNPlane_CodingAudit" bpmnElement="SUB_05_Coding_Audit">
+
+      <!-- Start Event -->
+      <bpmndi:BPMNShape id="Shape_StartEvent" bpmnElement="StartEvent_CodingAudit">
+        <dc:Bounds x="160" y="310" width="36" height="36" />
+        <bpmndi:BPMNLabel><dc:Bounds x="133" y="353" width="90" height="14" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+
+      <!-- Extract Clinical Data -->
+      <bpmndi:BPMNShape id="Shape_Extract" bpmnElement="Task_Extract_Clinical_Data">
+        <dc:Bounds x="250" y="288" width="100" height="80" />
+      </bpmndi:BPMNShape>
+
+      <!-- Boundary: Encounter Not Found -->
+      <bpmndi:BPMNShape id="Shape_BoundaryEncounter" bpmnElement="BoundaryEvent_EncounterNotFound">
+        <dc:Bounds x="282" y="350" width="36" height="36" />
+      </bpmndi:BPMNShape>
+
+      <!-- Error End: Encounter Not Found -->
+      <bpmndi:BPMNShape id="Shape_EndEncounterError" bpmnElement="EndEvent_Error_EncounterNotFound">
+        <dc:Bounds x="282" y="440" width="36" height="36" />
+      </bpmndi:BPMNShape>
+
+      <!-- Parallel Gateway Open -->
+      <bpmndi:BPMNShape id="Shape_ParallelOpen" bpmnElement="Gateway_Parallel_Coding" isMarkerVisible="true">
+        <dc:Bounds x="405" y="303" width="50" height="50" />
+      </bpmndi:BPMNShape>
+
+      <!-- Path A: Suggest CID-10 -->
+      <bpmndi:BPMNShape id="Shape_CID10" bpmnElement="Task_Suggest_CID10">
+        <dc:Bounds x="510" y="188" width="100" height="80" />
+      </bpmndi:BPMNShape>
+
+      <!-- Path A: Suggest TUSS -->
+      <bpmndi:BPMNShape id="Shape_TUSS" bpmnElement="Task_Suggest_TUSS">
+        <dc:Bounds x="660" y="188" width="100" height="80" />
+      </bpmndi:BPMNShape>
+
+      <!-- Path A: Validate Codes -->
+      <bpmndi:BPMNShape id="Shape_Validate" bpmnElement="Task_Validate_Codes">
+        <dc:Bounds x="810" y="188" width="100" height="80" />
+      </bpmndi:BPMNShape>
+
+      <!-- Boundary: Invalid CID10 -->
+      <bpmndi:BPMNShape id="Shape_BoundaryCID10" bpmnElement="BoundaryEvent_InvalidCID10">
+        <dc:Bounds x="822" y="250" width="36" height="36" />
+      </bpmndi:BPMNShape>
+
+      <!-- Boundary: Invalid TUSS -->
+      <bpmndi:BPMNShape id="Shape_BoundaryTUSS" bpmnElement="BoundaryEvent_InvalidTUSS">
+        <dc:Bounds x="872" y="250" width="36" height="36" />
+      </bpmndi:BPMNShape>
+
+      <!-- Manual Coding Subprocess -->
+      <bpmndi:BPMNShape id="Shape_ManualCoding" bpmnElement="SubProcess_ManualCoding">
+        <dc:Bounds x="850" y="340" width="100" height="80" />
+      </bpmndi:BPMNShape>
+
+      <!-- Path A: Check Compatibility -->
+      <bpmndi:BPMNShape id="Shape_Compat" bpmnElement="Task_Check_Compatibility">
+        <dc:Bounds x="960" y="188" width="100" height="80" />
+      </bpmndi:BPMNShape>
+
+      <!-- Path A: Apply Rules -->
+      <bpmndi:BPMNShape id="Shape_Rules" bpmnElement="Task_Apply_Rules">
+        <dc:Bounds x="1110" y="188" width="100" height="80" />
+      </bpmndi:BPMNShape>
+
+      <!-- Path B: Calculate Complexity -->
+      <bpmndi:BPMNShape id="Shape_Complexity" bpmnElement="Task_Calculate_Complexity">
+        <dc:Bounds x="510" y="420" width="100" height="80" />
+      </bpmndi:BPMNShape>
+
+      <!-- Parallel Gateway Close -->
+      <bpmndi:BPMNShape id="Shape_ParallelClose" bpmnElement="Gateway_Join_Coding" isMarkerVisible="true">
+        <dc:Bounds x="1265" y="303" width="50" height="50" />
+      </bpmndi:BPMNShape>
+
+      <!-- Audit Coding -->
+      <bpmndi:BPMNShape id="Shape_Audit" bpmnElement="Task_Audit_Coding">
+        <dc:Bounds x="1370" y="288" width="100" height="80" />
+      </bpmndi:BPMNShape>
+
+      <!-- Audit Decision -->
+      <bpmndi:BPMNShape id="Shape_AuditDecision" bpmnElement="Gateway_Audit_Decision" isMarkerVisible="true">
+        <dc:Bounds x="1525" y="303" width="50" height="50" />
+      </bpmndi:BPMNShape>
+
+      <!-- Detect Fraud -->
+      <bpmndi:BPMNShape id="Shape_Fraud" bpmnElement="Task_Detect_Fraud">
+        <dc:Bounds x="1630" y="288" width="100" height="80" />
+      </bpmndi:BPMNShape>
+
+      <!-- Boundary: Fraud Detected -->
+      <bpmndi:BPMNShape id="Shape_BoundaryFraud" bpmnElement="BoundaryEvent_FraudDetected">
+        <dc:Bounds x="1662" y="350" width="36" height="36" />
+      </bpmndi:BPMNShape>
+
+      <!-- Fraud Review Subprocess -->
+      <bpmndi:BPMNShape id="Shape_FraudReview" bpmnElement="SubProcess_FraudReview">
+        <dc:Bounds x="1630" y="440" width="100" height="80" />
+      </bpmndi:BPMNShape>
+
+      <!-- Fraud Decision -->
+      <bpmndi:BPMNShape id="Shape_FraudDecision" bpmnElement="Gateway_Fraud_Decision" isMarkerVisible="true">
+        <dc:Bounds x="1785" y="303" width="50" height="50" />
+      </bpmndi:BPMNShape>
+
+      <!-- Finalize Coding -->
+      <bpmndi:BPMNShape id="Shape_Finalize" bpmnElement="Task_Finalize_Coding">
+        <dc:Bounds x="1890" y="288" width="100" height="80" />
+      </bpmndi:BPMNShape>
+
+      <!-- End Event: Complete -->
+      <bpmndi:BPMNShape id="Shape_EndComplete" bpmnElement="EndEvent_CodingComplete">
+        <dc:Bounds x="2042" y="310" width="36" height="36" />
+      </bpmndi:BPMNShape>
+
+      <!-- End Event: Fraud Flagged -->
+      <bpmndi:BPMNShape id="Shape_EndFraud" bpmnElement="EndEvent_Error_FraudFlagged">
+        <dc:Bounds x="1892" y="440" width="36" height="36" />
+      </bpmndi:BPMNShape>
+
+      <!-- Sequence Flow Edges -->
+      <bpmndi:BPMNEdge id="Edge_Start_Extract" bpmnElement="Flow_Start_Extract">
+        <di:waypoint x="196" y="328" />
+        <di:waypoint x="250" y="328" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Extract_Parallel" bpmnElement="Flow_Extract_ParallelOpen">
+        <di:waypoint x="350" y="328" />
+        <di:waypoint x="405" y="328" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_EncounterNotFound" bpmnElement="Flow_EncounterNotFound_End">
+        <di:waypoint x="300" y="386" />
+        <di:waypoint x="300" y="440" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_PathA" bpmnElement="Flow_PathA_CID10">
+        <di:waypoint x="430" y="303" />
+        <di:waypoint x="430" y="228" />
+        <di:waypoint x="510" y="228" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_CID10_TUSS" bpmnElement="Flow_CID10_TUSS">
+        <di:waypoint x="610" y="228" />
+        <di:waypoint x="660" y="228" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_TUSS_Validate" bpmnElement="Flow_TUSS_Validate">
+        <di:waypoint x="760" y="228" />
+        <di:waypoint x="810" y="228" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_InvalidCID10" bpmnElement="Flow_InvalidCID10_Manual">
+        <di:waypoint x="840" y="286" />
+        <di:waypoint x="840" y="380" />
+        <di:waypoint x="850" y="380" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_InvalidTUSS" bpmnElement="Flow_InvalidTUSS_Manual">
+        <di:waypoint x="890" y="286" />
+        <di:waypoint x="890" y="340" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Validate_Compat" bpmnElement="Flow_Validate_Compat">
+        <di:waypoint x="910" y="228" />
+        <di:waypoint x="960" y="228" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_ManualCoding_Compat" bpmnElement="Flow_ManualCoding_Compat">
+        <di:waypoint x="950" y="380" />
+        <di:waypoint x="1010" y="380" />
+        <di:waypoint x="1010" y="268" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Compat_Rules" bpmnElement="Flow_Compat_Rules">
+        <di:waypoint x="1060" y="228" />
+        <di:waypoint x="1110" y="228" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Rules_Join" bpmnElement="Flow_Rules_Join">
+        <di:waypoint x="1210" y="228" />
+        <di:waypoint x="1290" y="228" />
+        <di:waypoint x="1290" y="303" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_PathB" bpmnElement="Flow_PathB_Complexity">
+        <di:waypoint x="430" y="353" />
+        <di:waypoint x="430" y="460" />
+        <di:waypoint x="510" y="460" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Complexity_Join" bpmnElement="Flow_Complexity_Join">
+        <di:waypoint x="610" y="460" />
+        <di:waypoint x="1290" y="460" />
+        <di:waypoint x="1290" y="353" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Join_Audit" bpmnElement="Flow_Join_Audit">
+        <di:waypoint x="1315" y="328" />
+        <di:waypoint x="1370" y="328" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Audit_Decision" bpmnElement="Flow_Audit_Decision">
+        <di:waypoint x="1470" y="328" />
+        <di:waypoint x="1525" y="328" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Audit_Approved" bpmnElement="Flow_Audit_Approved">
+        <di:waypoint x="1575" y="328" />
+        <di:waypoint x="1630" y="328" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Audit_Revision" bpmnElement="Flow_Audit_Revision">
+        <di:waypoint x="1550" y="303" />
+        <di:waypoint x="1550" y="100" />
+        <di:waypoint x="560" y="100" />
+        <di:waypoint x="560" y="188" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Fraud_Decision" bpmnElement="Flow_Fraud_Decision">
+        <di:waypoint x="1730" y="328" />
+        <di:waypoint x="1785" y="328" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Fraud_Review" bpmnElement="Flow_Fraud_Review">
+        <di:waypoint x="1680" y="386" />
+        <di:waypoint x="1680" y="440" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_FraudReview_End" bpmnElement="Flow_FraudReview_ErrorEnd">
+        <di:waypoint x="1730" y="480" />
+        <di:waypoint x="1810" y="480" />
+        <di:waypoint x="1810" y="458" />
+        <di:waypoint x="1892" y="458" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Fraud_Clear" bpmnElement="Flow_Fraud_Clear">
+        <di:waypoint x="1835" y="328" />
+        <di:waypoint x="1890" y="328" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Fraud_Flagged" bpmnElement="Flow_Fraud_Flagged">
+        <di:waypoint x="1810" y="353" />
+        <di:waypoint x="1810" y="458" />
+        <di:waypoint x="1892" y="458" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Finalize_End" bpmnElement="Flow_Finalize_End">
+        <di:waypoint x="1990" y="328" />
+        <di:waypoint x="2042" y="328" />
+      </bpmndi:BPMNEdge>
+
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+
+</bpmn:definitions>

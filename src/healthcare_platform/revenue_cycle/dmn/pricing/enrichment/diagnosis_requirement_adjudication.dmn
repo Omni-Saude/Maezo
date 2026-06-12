@@ -1,0 +1,91 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/"
+             xmlns:dc="http://www.omg.org/spec/DMN/20180521/DC/"
+             xmlns:di="http://www.omg.org/spec/DMN/20180521/DI/"
+             xmlns:camunda="http://camunda.org/schema/1.0/dmn"
+             id="Definitions_DiagnosisRequirementAdjudication"
+             name="Diagnosis Requirement Adjudication"
+             namespace="http://camunda.org/schema/1.0/dmn">
+  <!-- Archetype: ADMIN_ADJUDICATION | Source: diagnosis_requirement_adjudication_worker.py -->
+
+  <!-- Source: enrich_procedure_worker.py
+       Rules extracted from diagnosis code validation (MissingDiagnosisCode exception).
+  -->
+
+  <decision id="Decision_DiagnosisReqAdj" name="[SP-RC-003 | pricing/enrichment] Diagnosis Requirement Adjudication" camunda:historyTimeToLive="180">
+    <decisionTable id="DecisionTable_DiagnosisReqAdj" hitPolicy="FIRST">
+
+      <input id="Input_diagnosisCodesCount_DiagnosisReqAdj" label="Diagnosis Codes Count">
+        <inputExpression id="InputExpr_diagnosisCodesCount_DiagnosisReqAdj" typeRef="number">
+          <text>diagnosisCodesCount</text>
+        </inputExpression>
+      </input>
+
+      <output id="Output_resultado_DiagnosisReqAdj" label="Resultado" name="resultado" typeRef="string">
+        <outputValues><text>"PROSSEGUIR","BLOQUEAR","REVISAR"</text></outputValues>
+      </output>
+
+      <output id="Output_acao_DiagnosisReqAdj" label="Acao" name="acao" typeRef="string"/>
+
+      <output id="Output_risco_DiagnosisReqAdj" label="Risco" name="risco" typeRef="string">
+        <outputValues><text>"CRITICO","ALTO","MEDIO","BAIXO"</text></outputValues>
+      </output>
+
+      <!-- R1: No diagnosis codes — block -->
+      <rule id="Rule_missing_diag_DiagnosisReqAdj">
+        <description>Missing CID-10 diagnosis code — hard block</description>
+        <inputEntry id="IE_md_1_DiagnosisReqAdj"><text>0</text></inputEntry>
+        <outputEntry id="OE_md_res_DiagnosisReqAdj"><text>"BLOQUEAR"</text></outputEntry>
+        <outputEntry id="OE_md_acao_DiagnosisReqAdj"><text>"Missing CID-10 diagnosis code"</text></outputEntry>
+        <outputEntry id="OE_md_risco_DiagnosisReqAdj"><text>"CRITICO"</text></outputEntry>
+      </rule>
+
+      <!-- R2: Diagnosis codes present — proceed -->
+      <rule id="Rule_diag_present_DiagnosisReqAdj">
+        <description>Diagnosis codes present — proceed</description>
+        <inputEntry id="IE_dp_1_DiagnosisReqAdj"><text>&gt; 0</text></inputEntry>
+        <outputEntry id="OE_dp_res_DiagnosisReqAdj"><text>"PROSSEGUIR"</text></outputEntry>
+        <outputEntry id="OE_dp_acao_DiagnosisReqAdj"><text>"Diagnosis codes present"</text></outputEntry>
+        <outputEntry id="OE_dp_risco_DiagnosisReqAdj"><text>"BAIXO"</text></outputEntry>
+      </rule>
+
+      <!-- Fallback -->
+      
+      <rule id="Rule_HighRisk_DiagnosisReqAdj">
+        <description>Risco alto detectado - revisao obrigatoria</description>
+        <inputEntry id="IE_HighRisk_1_DiagnosisReqAdj"><text>-</text></inputEntry>
+        <outputEntry id="OE_HighRisk_res_DiagnosisReqAdj"><text>"REVISAR"</text></outputEntry>
+        <outputEntry id="OE_HighRisk_acao_DiagnosisReqAdj"><text>"Situacao de risco alto identificada - avaliacao detalhada necessaria"</text></outputEntry>
+        <outputEntry id="OE_HighRisk_risco_DiagnosisReqAdj"><text>"ALTO"</text></outputEntry>
+      </rule>
+
+
+      <rule id="Rule_MediumRisk_DiagnosisReqAdj">
+        <description>Risco moderado - monitoramento</description>
+        <inputEntry id="IE_MediumRisk_1_DiagnosisReqAdj"><text>-</text></inputEntry>
+        <outputEntry id="OE_MediumRisk_res_DiagnosisReqAdj"><text>"REVISAR"</text></outputEntry>
+        <outputEntry id="OE_MediumRisk_acao_DiagnosisReqAdj"><text>"Risco moderado identificado - incluir em monitoramento"</text></outputEntry>
+        <outputEntry id="OE_MediumRisk_risco_DiagnosisReqAdj"><text>"MEDIO"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_fallback_DiagnosisReqAdj">
+        <description>Caso nao enquadrado — revisao obrigatoria</description>
+        <inputEntry id="IE_fb_1_DiagnosisReqAdj"><text>-</text></inputEntry>
+        <outputEntry id="OE_fb_res_DiagnosisReqAdj"><text>"REVISAR"</text></outputEntry>
+        <outputEntry id="OE_fb_acao_DiagnosisReqAdj"><text>"Caso requer avaliacao manual"</text></outputEntry>
+        <outputEntry id="OE_fb_risco_DiagnosisReqAdj"><text>"MEDIO"</text></outputEntry>
+      </rule>
+
+    </decisionTable>
+  </decision>
+
+  <dmndi:DMNDI>
+    <dmndi:DMNDiagram id="DMNDiagram_1_DiagnosisReqAdj">
+      <dmndi:DMNShape id="DMNShape_Decision_DiagnosisReqAdj" dmnElementRef="Decision_DiagnosisReqAdj">
+        <dc:Bounds height="80" width="180" x="160" y="100"/>
+      </dmndi:DMNShape>
+    </dmndi:DMNDiagram>
+  </dmndi:DMNDI>
+
+</definitions>

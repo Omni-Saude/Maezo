@@ -1,0 +1,63 @@
+version: "3.9"
+# Grupo: maezo-infra
+# Serviços: postgres, kafka
+# Este compose CRIA a rede compartilhada (maestro_local) — deve subir primeiro.
+
+networks:
+  maestro_local:
+    driver: bridge
+    name: maestro_local   # nome fixo para que outros projetos possam referenciar
+
+volumes:
+  pg_data:
+  kafka_data:
+
+services:
+
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: maestro
+      POSTGRES_PASSWORD: maestro_local
+      POSTGRES_DB: cibseven
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+      - ../config/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    ports:
+      - "5432:5432"
+    networks: [maestro_local]
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U maestro -d cibseven"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+
+  kafka:
+    image: confluentinc/cp-kafka:7.7.0
+    environment:
+      KAFKA_NODE_ID: "1"
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092,CONTROLLER://0.0.0.0:9093
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,CONTROLLER:PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: "1"
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: "1"
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: "1"
+      KAFKA_LOG_RETENTION_HOURS: "24"
+      CLUSTER_ID: local-dev-cluster-id-maezo-01
+    volumes:
+      - kafka_data:/var/lib/kafka/data
+    ports:
+      - "9092:9092"
+    networks: [maestro_local]
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "kafka-topics", "--bootstrap-server", "localhost:9092", "--list"]
+      interval: 30s
+      timeout: 10s
+      retries: 10
+      start_period: 30s

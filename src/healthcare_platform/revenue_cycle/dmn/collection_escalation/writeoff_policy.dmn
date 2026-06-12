@@ -1,0 +1,131 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  ============================================================================
+  WRITEOFF-POLICY - Politica de Baixa de Divida Incobravel
+  ============================================================================
+  Versao: 1.0.0 (2026-02-14)
+  Categoria: COLLECTION_ESCALATION
+  Archetype: THRESHOLD | Source: write_off_bad_debt_worker.py
+  ============================================================================
+-->
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/"
+             xmlns:dc="http://www.omg.org/spec/DMN/20180521/DC/"
+             xmlns:di="http://www.omg.org/spec/DMN/20180521/DI/"
+             xmlns:camunda="http://camunda.org/schema/1.0/dmn"
+             id="Definitions_WRITEOFF_POLICY"
+             name="Politica de Baixa de Divida Incobravel"
+             namespace="http://camunda.org/schema/1.0/dmn">
+
+  <decision id="Decision_WRITEOFF_POLICY" name="[SP-RC-013 | collection_escalation] Politica de Baixa de Divida Incobravel" camunda:historyTimeToLive="180">
+    <decisionTable id="DecisionTable_WRITEOFF_POLICY" hitPolicy="FIRST">
+
+      <input id="Input_1_WRITEOFF_POLICY" label="Valor Divida">
+        <inputExpression id="InputExpression_1_WRITEOFF_POLICY" typeRef="number">
+          <text>debtAmount</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_2_WRITEOFF_POLICY" label="Dias em Atraso">
+        <inputExpression id="InputExpression_2_WRITEOFF_POLICY" typeRef="number">
+          <text>daysOverdue</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_3_WRITEOFF_POLICY" label="Motivo Baixa">
+        <inputExpression id="InputExpression_3_WRITEOFF_POLICY" typeRef="string">
+          <text>writeoffReason</text>
+        </inputExpression>
+      </input>
+
+      <!-- ========== OUTPUTS ========== -->
+      <output id="Output_resultado_WRITEOFF_POLICY" label="Resultado" name="resultado" typeRef="string">
+        <outputValues><text>"PROSSEGUIR","BLOQUEAR","REVISAR"</text></outputValues>
+      </output>
+      <output id="Output_acao_WRITEOFF_POLICY" label="Acao" name="acao" typeRef="string"/>
+      <output id="Output_risco_WRITEOFF_POLICY" label="Risco" name="risco" typeRef="string">
+        <outputValues><text>"CRITICO","ALTO","MEDIO","BAIXO"</text></outputValues>
+      </output>
+
+      <rule id="Rule_1_WRITEOFF_POLICY">
+        <description>Valor alto requer aprovacao diretoria</description>
+        <inputEntry id="IE_1_1_WRITEOFF_POLICY"><text>&gt;= 10000</text></inputEntry>
+        <inputEntry id="IE_1_2_WRITEOFF_POLICY"><text>-</text></inputEntry>
+        <inputEntry id="IE_1_3_WRITEOFF_POLICY"><text>-</text></inputEntry>
+        <outputEntry id="OE_1_1_WRITEOFF_POLICY"><text>"REVISAR"</text></outputEntry>
+        <outputEntry id="OE_1_2_WRITEOFF_POLICY"><text>"Valor acima de R$10k requer aprovacao da diretoria financeira"</text></outputEntry>
+        <outputEntry id="OE_1_3_WRITEOFF_POLICY"><text>"CRITICO"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_2_WRITEOFF_POLICY">
+        <description>Obito do paciente - baixa automatica</description>
+        <inputEntry id="IE_2_1_WRITEOFF_POLICY"><text>&lt; 10000</text></inputEntry>
+        <inputEntry id="IE_2_2_WRITEOFF_POLICY"><text>-</text></inputEntry>
+        <inputEntry id="IE_2_3_WRITEOFF_POLICY"><text>"PATIENT_DECEASED"</text></inputEntry>
+        <outputEntry id="OE_2_1_WRITEOFF_POLICY"><text>"PROSSEGUIR"</text></outputEntry>
+        <outputEntry id="OE_2_2_WRITEOFF_POLICY"><text>"Baixa automatica por obito - registrar na contabilidade"</text></outputEntry>
+        <outputEntry id="OE_2_3_WRITEOFF_POLICY"><text>"BAIXO"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_3_WRITEOFF_POLICY">
+        <description>Insolvencia comprovada</description>
+        <inputEntry id="IE_3_1_WRITEOFF_POLICY"><text>&lt; 10000</text></inputEntry>
+        <inputEntry id="IE_3_2_WRITEOFF_POLICY"><text>&gt;= 365</text></inputEntry>
+        <inputEntry id="IE_3_3_WRITEOFF_POLICY"><text>"INSOLVENCY"</text></inputEntry>
+        <outputEntry id="OE_3_1_WRITEOFF_POLICY"><text>"PROSSEGUIR"</text></outputEntry>
+        <outputEntry id="OE_3_2_WRITEOFF_POLICY"><text>"Insolvencia documentada - aprovar baixa com registro fiscal"</text></outputEntry>
+        <outputEntry id="OE_3_3_WRITEOFF_POLICY"><text>"MEDIO"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_4_WRITEOFF_POLICY">
+        <description>Atraso insuficiente para baixa</description>
+        <inputEntry id="IE_4_1_WRITEOFF_POLICY"><text>-</text></inputEntry>
+        <inputEntry id="IE_4_2_WRITEOFF_POLICY"><text>&lt; 180</text></inputEntry>
+        <inputEntry id="IE_4_3_WRITEOFF_POLICY"><text>not("PATIENT_DECEASED","INSOLVENCY")</text></inputEntry>
+        <outputEntry id="OE_4_1_WRITEOFF_POLICY"><text>"BLOQUEAR"</text></outputEntry>
+        <outputEntry id="OE_4_2_WRITEOFF_POLICY"><text>"Minimo 180 dias de atraso para baixa - continuar cobranca"</text></outputEntry>
+        <outputEntry id="OE_4_3_WRITEOFF_POLICY"><text>"ALTO"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_5_WRITEOFF_POLICY">
+        <description>Valor baixo com atraso longo - baixa operacional</description>
+        <inputEntry id="IE_5_1_WRITEOFF_POLICY"><text>&lt; 500</text></inputEntry>
+        <inputEntry id="IE_5_2_WRITEOFF_POLICY"><text>&gt;= 180</text></inputEntry>
+        <inputEntry id="IE_5_3_WRITEOFF_POLICY"><text>-</text></inputEntry>
+        <outputEntry id="OE_5_1_WRITEOFF_POLICY"><text>"PROSSEGUIR"</text></outputEntry>
+        <outputEntry id="OE_5_2_WRITEOFF_POLICY"><text>"Valor residual com atraso longo - aprovacao automatica de baixa"</text></outputEntry>
+        <outputEntry id="OE_5_3_WRITEOFF_POLICY"><text>"BAIXO"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_6_WRITEOFF_POLICY">
+        <description>Valor medio com atraso longo - aprovacao gerencial</description>
+        <inputEntry id="IE_6_1_WRITEOFF_POLICY"><text>[500..10000]</text></inputEntry>
+        <inputEntry id="IE_6_2_WRITEOFF_POLICY"><text>&gt;= 365</text></inputEntry>
+        <inputEntry id="IE_6_3_WRITEOFF_POLICY"><text>-</text></inputEntry>
+        <outputEntry id="OE_6_1_WRITEOFF_POLICY"><text>"REVISAR"</text></outputEntry>
+        <outputEntry id="OE_6_2_WRITEOFF_POLICY"><text>"Baixa requer aprovacao do gerente financeiro"</text></outputEntry>
+        <outputEntry id="OE_6_3_WRITEOFF_POLICY"><text>"ALTO"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Fallback_WRITEOFF_POLICY">
+        <description>Fallback</description>
+        <inputEntry id="IE_F_1_WRITEOFF_POLICY"><text>-</text></inputEntry>
+        <inputEntry id="IE_F_2_WRITEOFF_POLICY"><text>-</text></inputEntry>
+        <inputEntry id="IE_F_3_WRITEOFF_POLICY"><text>-</text></inputEntry>
+        <outputEntry id="OE_F_1_WRITEOFF_POLICY"><text>"REVISAR"</text></outputEntry>
+        <outputEntry id="OE_F_2_WRITEOFF_POLICY"><text>"Avaliar politica de baixa manualmente"</text></outputEntry>
+        <outputEntry id="OE_F_3_WRITEOFF_POLICY"><text>"MEDIO"</text></outputEntry>
+      </rule>
+
+    </decisionTable>
+  </decision>
+
+  <dmndi:DMNDI>
+    <dmndi:DMNDiagram id="DMNDiagram_WRITEOFF_POLICY">
+      <dmndi:DMNShape id="DMNShape_Decision_WRITEOFF_POLICY" dmnElementRef="Decision_WRITEOFF_POLICY">
+        <dc:Bounds height="80" width="180" x="160" y="100"/>
+      </dmndi:DMNShape>
+    </dmndi:DMNDiagram>
+  </dmndi:DMNDI>
+
+</definitions>

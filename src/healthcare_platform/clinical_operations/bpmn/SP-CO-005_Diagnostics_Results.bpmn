@@ -1,0 +1,180 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+                  xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+                  xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+                  xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
+                  xmlns:camunda="http://camunda.org/schema/1.0/bpmn"
+                  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                  id="Definitions_DiagnosticsResults"
+                  targetNamespace="http://cib7.health/clinical/diagnostics"
+                  exporter="Claude Code"
+                  exporterVersion="1.0">
+
+  <bpmn:process id="SP_CO_005_Diagnostics_Results" name="SP-CO-005 Diagnostics and Results Management" isExecutable="true" camunda:historyTimeToLive="30">
+
+    <bpmn:startEvent id="Start_Diagnostics" name="Diagnostics Initiated">
+      <bpmn:outgoing>Flow_ToVitals</bpmn:outgoing>
+    </bpmn:startEvent>
+
+    <!-- Collect vital signs -->
+    <bpmn:serviceTask id="Task_VitalSigns" name="Collect Vital Signs"
+                      camunda:type="external" camunda:topic="clinical.vital_signs">
+      <bpmn:incoming>Flow_ToVitals</bpmn:incoming>
+      <bpmn:outgoing>Flow_ToParallel</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Parallel gateway -->
+    <bpmn:parallelGateway id="Gateway_ParallelSplit" name="Parallel Processing">
+      <bpmn:incoming>Flow_ToParallel</bpmn:incoming>
+      <bpmn:outgoing>Flow_ToReporting</bpmn:outgoing>
+      <bpmn:outgoing>Flow_ToAnalytics</bpmn:outgoing>
+    </bpmn:parallelGateway>
+
+    <!-- Generate reports -->
+    <bpmn:serviceTask id="Task_Reporting" name="Generate Clinical Reports"
+                      camunda:type="external" camunda:topic="clinical.reporting">
+      <bpmn:incoming>Flow_ToReporting</bpmn:incoming>
+      <bpmn:outgoing>Flow_FromReporting</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Run analytics -->
+    <bpmn:serviceTask id="Task_Analytics" name="Run Clinical Analytics"
+                      camunda:type="external" camunda:topic="clinical.analytics">
+      <bpmn:incoming>Flow_ToAnalytics</bpmn:incoming>
+      <bpmn:outgoing>Flow_FromAnalytics</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Join parallel activities -->
+    <bpmn:parallelGateway id="Gateway_ParallelJoin" name="Join Processing">
+      <bpmn:incoming>Flow_FromReporting</bpmn:incoming>
+      <bpmn:incoming>Flow_FromAnalytics</bpmn:incoming>
+      <bpmn:outgoing>Flow_ToQuality</bpmn:outgoing>
+    </bpmn:parallelGateway>
+
+    <!-- Evaluate quality indicators -->
+    <bpmn:serviceTask id="Task_QualityIndicators" name="Evaluate Quality Indicators"
+                      camunda:type="external" camunda:topic="clinical.quality_indicators">
+      <bpmn:incoming>Flow_ToQuality</bpmn:incoming>
+      <bpmn:outgoing>Flow_ToEnd</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <bpmn:endEvent id="End_Diagnostics" name="Diagnostics Complete">
+      <bpmn:incoming>Flow_ToEnd</bpmn:incoming>
+    </bpmn:endEvent>
+
+    <!-- Sequence Flows -->
+    <bpmn:sequenceFlow id="Flow_ToVitals" sourceRef="Start_Diagnostics" targetRef="Task_VitalSigns"/>
+    <bpmn:sequenceFlow id="Flow_ToParallel" sourceRef="Task_VitalSigns" targetRef="Gateway_ParallelSplit"/>
+    <bpmn:sequenceFlow id="Flow_ToReporting" sourceRef="Gateway_ParallelSplit" targetRef="Task_Reporting"/>
+    <bpmn:sequenceFlow id="Flow_ToAnalytics" sourceRef="Gateway_ParallelSplit" targetRef="Task_Analytics"/>
+    <bpmn:sequenceFlow id="Flow_FromReporting" sourceRef="Task_Reporting" targetRef="Gateway_ParallelJoin"/>
+    <bpmn:sequenceFlow id="Flow_FromAnalytics" sourceRef="Task_Analytics" targetRef="Gateway_ParallelJoin"/>
+    <bpmn:sequenceFlow id="Flow_ToQuality" sourceRef="Gateway_ParallelJoin" targetRef="Task_QualityIndicators"/>
+    <bpmn:sequenceFlow id="Flow_ToEnd" sourceRef="Task_QualityIndicators" targetRef="End_Diagnostics"/>
+
+  </bpmn:process>
+
+  <!-- Diagram Interchange -->
+  <bpmndi:BPMNDiagram id="BPMNDiagram_DiagnosticsResults">
+    <bpmndi:BPMNPlane id="BPMNPlane_DiagnosticsResults" bpmnElement="SP_CO_005_Diagnostics_Results">
+
+      <!-- Start Event -->
+      <bpmndi:BPMNShape id="Shape_Start_Diagnostics" bpmnElement="Start_Diagnostics">
+        <dc:Bounds x="152" y="102" width="36" height="36"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="131" y="145" width="78" height="27"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+
+      <!-- Vital Signs -->
+      <bpmndi:BPMNShape id="Shape_Task_VitalSigns" bpmnElement="Task_VitalSigns">
+        <dc:Bounds x="240" y="80" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <!-- Parallel Split Gateway -->
+      <bpmndi:BPMNShape id="Shape_Gateway_ParallelSplit" bpmnElement="Gateway_ParallelSplit">
+        <dc:Bounds x="395" y="95" width="50" height="50"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="378" y="65" width="84" height="14"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+
+      <!-- Reporting -->
+      <bpmndi:BPMNShape id="Shape_Task_Reporting" bpmnElement="Task_Reporting">
+        <dc:Bounds x="500" y="80" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <!-- Analytics -->
+      <bpmndi:BPMNShape id="Shape_Task_Analytics" bpmnElement="Task_Analytics">
+        <dc:Bounds x="500" y="200" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <!-- Parallel Join Gateway -->
+      <bpmndi:BPMNShape id="Shape_Gateway_ParallelJoin" bpmnElement="Gateway_ParallelJoin">
+        <dc:Bounds x="655" y="135" width="50" height="50"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="638" y="105" width="84" height="14"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+
+      <!-- Quality Indicators -->
+      <bpmndi:BPMNShape id="Shape_Task_QualityIndicators" bpmnElement="Task_QualityIndicators">
+        <dc:Bounds x="760" y="120" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <!-- End Event -->
+      <bpmndi:BPMNShape id="Shape_End_Diagnostics" bpmnElement="End_Diagnostics">
+        <dc:Bounds x="912" y="142" width="36" height="36"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="903" y="185" width="54" height="27"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+
+      <!-- Sequence Flow Edges -->
+      <bpmndi:BPMNEdge id="Edge_Flow_ToVitals" bpmnElement="Flow_ToVitals">
+        <di:waypoint x="188" y="120"/>
+        <di:waypoint x="240" y="120"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_Flow_ToParallel" bpmnElement="Flow_ToParallel">
+        <di:waypoint x="340" y="120"/>
+        <di:waypoint x="395" y="120"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_Flow_ToReporting" bpmnElement="Flow_ToReporting">
+        <di:waypoint x="445" y="120"/>
+        <di:waypoint x="500" y="120"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_Flow_ToAnalytics" bpmnElement="Flow_ToAnalytics">
+        <di:waypoint x="420" y="145"/>
+        <di:waypoint x="420" y="240"/>
+        <di:waypoint x="500" y="240"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_Flow_FromReporting" bpmnElement="Flow_FromReporting">
+        <di:waypoint x="600" y="120"/>
+        <di:waypoint x="680" y="120"/>
+        <di:waypoint x="680" y="135"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_Flow_FromAnalytics" bpmnElement="Flow_FromAnalytics">
+        <di:waypoint x="600" y="240"/>
+        <di:waypoint x="680" y="240"/>
+        <di:waypoint x="680" y="185"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_Flow_ToQuality" bpmnElement="Flow_ToQuality">
+        <di:waypoint x="705" y="160"/>
+        <di:waypoint x="760" y="160"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_Flow_ToEnd" bpmnElement="Flow_ToEnd">
+        <di:waypoint x="860" y="160"/>
+        <di:waypoint x="912" y="160"/>
+      </bpmndi:BPMNEdge>
+
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+
+</bpmn:definitions>

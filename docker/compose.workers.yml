@@ -1,0 +1,125 @@
+version: "3.9"
+# Grupo: maezo-workers
+# Serviços: cib7, workers_rc, workers_co, workers_pa, workers_ps
+# Requer: maezo-infra rodando (postgres + kafka na rede maestro_local)
+
+networks:
+  maestro_local:
+    external: true
+    name: maestro_local
+
+x-worker-common: &worker-common
+  build:
+    context: ..
+    dockerfile: Dockerfile.worker
+  environment: &worker-env
+    TZ: America/Sao_Paulo
+    CIBSEVEN_ENGINE_URL: http://cib7:8080/engine-rest
+    CIB7_BASE_URL: http://cib7:8080/engine-rest
+    CIB7_USER: admin
+    CIB7_PASSWORD: admin
+    FHIR_BASE_URL: http://hapi_fhir:8080/fhir
+    DATABASE_URL: postgresql://maestro:maestro_local@postgres:5432/maestro
+    KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+    LOG_LEVEL: DEBUG
+  networks: [maestro_local]
+  restart: unless-stopped
+  depends_on:
+    cib7:
+      condition: service_healthy
+
+services:
+
+  cib7:
+    image: cibseven/cibseven:run-latest
+    environment:
+      TZ: America/Sao_Paulo
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/cibseven
+      SPRING_DATASOURCE_USERNAME: maestro
+      SPRING_DATASOURCE_PASSWORD: maestro_local
+      SPRING_DATASOURCE_DRIVER_CLASS_NAME: org.postgresql.Driver
+      CAMUNDA_BPM_ADMIN_USER_ID: admin
+      CAMUNDA_BPM_ADMIN_USER_PASSWORD: admin
+      CAMUNDA_BPM_MULTITENANCY_TENANTS_CHECKED: "false"
+    ports:
+      - "8080:8080"
+    networks: [maestro_local]
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/engine-rest/engine"]
+      interval: 30s
+      timeout: 10s
+      retries: 10
+      start_period: 90s
+
+  workers_rc:
+    <<: *worker-common
+    build:
+      context: ..
+      dockerfile: Dockerfile.worker
+      args:
+        DOMAIN: revenue_cycle
+    environment:
+      <<: *worker-env
+      WORKER_DOMAIN: revenue_cycle
+    ports:
+      - "8100:8000"
+
+  workers_co:
+    <<: *worker-common
+    build:
+      context: ..
+      dockerfile: Dockerfile.worker
+      args:
+        DOMAIN: clinical_operations
+    environment:
+      <<: *worker-env
+      WORKER_DOMAIN: clinical_operations
+    ports:
+      - "8101:8000"
+
+  workers_pa:
+    <<: *worker-common
+    build:
+      context: ..
+      dockerfile: Dockerfile.worker
+      args:
+        DOMAIN: patient_access
+    environment:
+      <<: *worker-env
+      WORKER_DOMAIN: patient_access
+    ports:
+      - "8102:8000"
+
+  workers_ps:
+    <<: *worker-common
+    build:
+      context: ..
+      dockerfile: Dockerfile.worker
+      args:
+        DOMAIN: platform_services
+    environment:
+      <<: *worker-env
+      WORKER_DOMAIN: platform_services
+    ports:
+      - "8103:8000"
+
+  cib7_exporter:
+    image: prometheuscommunity/json-exporter:v0.6.0
+    command:
+      - "--config.file=/etc/json-exporter/cib7.yml"
+    volumes:
+      - ../config/json-exporter/cib7.yml:/etc/json-exporter/cib7.yml:ro
+    ports:
+      - "7979:7979"
+    networks: [maestro_local]
+    restart: unless-stopped
+    depends_on:
+      cib7:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "-", "http://localhost:7979/probe?target=http://cib7:8080/engine-rest/metrics/process-instances/sum&module=process_instances"]
+      interval: 30s
+      timeout: 15s
+      retries: 5
+      start_period: 20s

@@ -1,11 +1,11 @@
-"""Tests for SuggestTussWorkerV2 (thin DMN-federated worker)."""
+"""Tests for SuggestTussWorker (thin DMN-federated worker)."""
 from __future__ import annotations
 
 from unittest.mock import MagicMock
 
 import pytest
 
-from healthcare_platform.revenue_cycle.coding.workers import SuggestTussWorkerV2
+from healthcare_platform.revenue_cycle.coding.workers import SuggestTussWorker
 from healthcare_platform.shared.domain.exceptions import CodingException
 from tests.fixtures.workers import mock_dmn_service
 
@@ -13,7 +13,7 @@ from tests.fixtures.workers import mock_dmn_service
 @pytest.fixture
 def worker(mock_dmn_service):
     """Create worker with mocked DMN service."""
-    return SuggestTussWorkerV2(dmn_service=mock_dmn_service)
+    return SuggestTussWorker(dmn_service=mock_dmn_service)
 
 
 async def test_suggest_tuss_happy_path(worker, mock_dmn_service):

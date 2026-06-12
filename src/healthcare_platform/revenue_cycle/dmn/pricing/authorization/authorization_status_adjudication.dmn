@@ -1,0 +1,124 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/"
+             xmlns:dc="http://www.omg.org/spec/DMN/20180521/DC/"
+             xmlns:di="http://www.omg.org/spec/DMN/20180521/DI/"
+             xmlns:camunda="http://camunda.org/schema/1.0/dmn"
+             id="Definitions_AuthorizationStatusAdjudication"
+             name="Authorization Status Adjudication"
+             namespace="http://camunda.org/schema/1.0/dmn">
+  <!-- Archetype: ADMIN_ADJUDICATION | Source: authorization_status_adjudication_worker.py -->
+
+  <!-- Source: check_authorization_worker.py
+       Rules extracted from authorization status checks and missing auth validation.
+  -->
+
+  <decision id="Decision_AuthStatusAdj" name="[SP-RC-003 | pricing/authorization] Authorization Status Adjudication" camunda:historyTimeToLive="180">
+    <decisionTable id="DecisionTable_AuthStatusAdj" hitPolicy="FIRST">
+
+      <input id="Input_authorizationStatus_AuthStatusAdj" label="Authorization Status">
+        <inputExpression id="InputExpr_authorizationStatus_AuthStatusAdj" typeRef="string">
+          <text>authorization_status</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_authorizationNumber_AuthStatusAdj" label="Authorization Number">
+        <inputExpression id="InputExpr_authorizationNumber_AuthStatusAdj" typeRef="string">
+          <text>authorization_number</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_requiresAuth_AuthStatusAdj" label="Requires Authorization">
+        <inputExpression id="InputExpr_requiresAuth_AuthStatusAdj" typeRef="boolean">
+          <text>requires_auth</text>
+        </inputExpression>
+      </input>
+
+      <output id="Output_resultado_AuthStatusAdj" label="Resultado" name="resultado" typeRef="string">
+        <outputValues><text>"PROSSEGUIR","BLOQUEAR","REVISAR"</text></outputValues>
+      </output>
+
+      <output id="Output_acao_AuthStatusAdj" label="Acao" name="acao" typeRef="string"/>
+
+      <output id="Output_risco_AuthStatusAdj" label="Risco" name="risco" typeRef="string">
+        <outputValues><text>"CRITICO","ALTO","MEDIO","BAIXO"</text></outputValues>
+      </output>
+
+      <!-- R1: Cancelled -->
+      <rule id="Rule_cancelled_AuthStatusAdj">
+        <description>Authorization cancelled — hard block</description>
+        <inputEntry id="IE_canc_1_AuthStatusAdj"><text>"cancelled"</text></inputEntry>
+        <inputEntry id="IE_canc_2_AuthStatusAdj"><text>-</text></inputEntry>
+        <inputEntry id="IE_canc_3_AuthStatusAdj"><text>-</text></inputEntry>
+        <outputEntry id="OE_canc_res_AuthStatusAdj"><text>"BLOQUEAR"</text></outputEntry>
+        <outputEntry id="OE_canc_acao_AuthStatusAdj"><text>"Authorization cancelled"</text></outputEntry>
+        <outputEntry id="OE_canc_risco_AuthStatusAdj"><text>"CRITICO"</text></outputEntry>
+      </rule>
+
+      <!-- R2: Denied -->
+      <rule id="Rule_denied_AuthStatusAdj">
+        <description>Authorization denied — hard block</description>
+        <inputEntry id="IE_den_1_AuthStatusAdj"><text>"denied"</text></inputEntry>
+        <inputEntry id="IE_den_2_AuthStatusAdj"><text>-</text></inputEntry>
+        <inputEntry id="IE_den_3_AuthStatusAdj"><text>-</text></inputEntry>
+        <outputEntry id="OE_den_res_AuthStatusAdj"><text>"BLOQUEAR"</text></outputEntry>
+        <outputEntry id="OE_den_acao_AuthStatusAdj"><text>"Authorization denied"</text></outputEntry>
+        <outputEntry id="OE_den_risco_AuthStatusAdj"><text>"CRITICO"</text></outputEntry>
+      </rule>
+
+      <!-- R3: Missing auth number when required -->
+      <rule id="Rule_missing_AuthStatusAdj">
+        <description>Missing authorization number when required</description>
+        <inputEntry id="IE_miss_1_AuthStatusAdj"><text>-</text></inputEntry>
+        <inputEntry id="IE_miss_2_AuthStatusAdj"><text>""</text></inputEntry>
+        <inputEntry id="IE_miss_3_AuthStatusAdj"><text>true</text></inputEntry>
+        <outputEntry id="OE_miss_res_AuthStatusAdj"><text>"BLOQUEAR"</text></outputEntry>
+        <outputEntry id="OE_miss_acao_AuthStatusAdj"><text>"Missing authorization"</text></outputEntry>
+        <outputEntry id="OE_miss_risco_AuthStatusAdj"><text>"ALTO"</text></outputEntry>
+      </rule>
+
+      <!-- R4: Pending -->
+      <rule id="Rule_pending_AuthStatusAdj">
+        <description>Authorization pending — needs review</description>
+        <inputEntry id="IE_pend_1_AuthStatusAdj"><text>"pending"</text></inputEntry>
+        <inputEntry id="IE_pend_2_AuthStatusAdj"><text>-</text></inputEntry>
+        <inputEntry id="IE_pend_3_AuthStatusAdj"><text>-</text></inputEntry>
+        <outputEntry id="OE_pend_res_AuthStatusAdj"><text>"REVISAR"</text></outputEntry>
+        <outputEntry id="OE_pend_acao_AuthStatusAdj"><text>"Awaiting authorization approval"</text></outputEntry>
+        <outputEntry id="OE_pend_risco_AuthStatusAdj"><text>"MEDIO"</text></outputEntry>
+      </rule>
+
+      <!-- R5: Approved -->
+      <rule id="Rule_approved_AuthStatusAdj">
+        <description>Authorization approved — proceed</description>
+        <inputEntry id="IE_app_1_AuthStatusAdj"><text>"approved"</text></inputEntry>
+        <inputEntry id="IE_app_2_AuthStatusAdj"><text>-</text></inputEntry>
+        <inputEntry id="IE_app_3_AuthStatusAdj"><text>-</text></inputEntry>
+        <outputEntry id="OE_app_res_AuthStatusAdj"><text>"PROSSEGUIR"</text></outputEntry>
+        <outputEntry id="OE_app_acao_AuthStatusAdj"><text>"Authorization valid"</text></outputEntry>
+        <outputEntry id="OE_app_risco_AuthStatusAdj"><text>"BAIXO"</text></outputEntry>
+      </rule>
+
+      <!-- Fallback -->
+      <rule id="Rule_fallback_AuthStatusAdj">
+        <description>Unknown status — force review</description>
+        <inputEntry id="IE_fb_1_AuthStatusAdj"><text>-</text></inputEntry>
+        <inputEntry id="IE_fb_2_AuthStatusAdj"><text>-</text></inputEntry>
+        <inputEntry id="IE_fb_3_AuthStatusAdj"><text>-</text></inputEntry>
+        <outputEntry id="OE_fb_res_AuthStatusAdj"><text>"REVISAR"</text></outputEntry>
+        <outputEntry id="OE_fb_acao_AuthStatusAdj"><text>"Caso requer avaliacao manual"</text></outputEntry>
+        <outputEntry id="OE_fb_risco_AuthStatusAdj"><text>"MEDIO"</text></outputEntry>
+      </rule>
+
+    </decisionTable>
+  </decision>
+
+  <dmndi:DMNDI>
+    <dmndi:DMNDiagram id="DMNDiagram_1_AuthStatusAdj">
+      <dmndi:DMNShape id="DMNShape_Decision_AuthStatusAdj" dmnElementRef="Decision_AuthStatusAdj">
+        <dc:Bounds height="80" width="180" x="160" y="100"/>
+      </dmndi:DMNShape>
+    </dmndi:DMNDiagram>
+  </dmndi:DMNDI>
+
+</definitions>

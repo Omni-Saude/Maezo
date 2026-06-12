@@ -1,0 +1,121 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  ============================================================================
+  FORECAST-ADJUSTMENT - Ajuste de Previsao de Fluxo de Caixa
+  ============================================================================
+  Versao: 1.0.0 (2026-02-14)
+  Categoria: COLLECTION_FORECASTING
+  Archetype: CLINICAL_SCORE | Source: update_forecasts_worker.py
+  ============================================================================
+-->
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/"
+             xmlns:dc="http://www.omg.org/spec/DMN/20180521/DC/"
+             xmlns:di="http://www.omg.org/spec/DMN/20180521/DI/"
+             xmlns:camunda="http://camunda.org/schema/1.0/dmn"
+             id="Definitions_FORECAST_ADJUSTMENT"
+             name="Ajuste de Previsao de Fluxo de Caixa"
+             namespace="http://camunda.org/schema/1.0/dmn">
+
+  <decision id="Decision_FORECAST_ADJUSTMENT" name="[SP-RC-011 | collection_forecasting] Ajuste de Previsao de Fluxo de Caixa" camunda:historyTimeToLive="180">
+    <decisionTable id="DecisionTable_FORECAST_ADJUSTMENT" hitPolicy="FIRST">
+
+      <input id="Input_1_FORECAST_ADJUSTMENT" label="Semanas com Coleta">
+        <inputExpression id="InputExpression_1_FORECAST_ADJUSTMENT" typeRef="number">
+          <text>weeksWithCollections</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_2_FORECAST_ADJUSTMENT" label="Desvio Previsao vs Real (%)">
+        <inputExpression id="InputExpression_2_FORECAST_ADJUSTMENT" typeRef="number">
+          <text>forecastDeviationPct</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_3_FORECAST_ADJUSTMENT" label="Periodo Previsao (dias)">
+        <inputExpression id="InputExpression_3_FORECAST_ADJUSTMENT" typeRef="number">
+          <text>forecastPeriodDays</text>
+        </inputExpression>
+      </input>
+
+      <!-- ========== OUTPUTS ========== -->
+      <output id="Output_resultado_FORECAST_ADJUSTMENT" label="Resultado" name="resultado" typeRef="string">
+        <outputValues><text>"PROSSEGUIR","BLOQUEAR","REVISAR"</text></outputValues>
+      </output>
+      <output id="Output_acao_FORECAST_ADJUSTMENT" label="Acao" name="acao" typeRef="string"/>
+      <output id="Output_risco_FORECAST_ADJUSTMENT" label="Risco" name="risco" typeRef="string">
+        <outputValues><text>"CRITICO","ALTO","MEDIO","BAIXO"</text></outputValues>
+      </output>
+
+      <rule id="Rule_1_FORECAST_ADJUSTMENT">
+        <description>Desvio critico na previsao</description>
+        <inputEntry id="IE_1_1_FORECAST_ADJUSTMENT"><text>-</text></inputEntry>
+        <inputEntry id="IE_1_2_FORECAST_ADJUSTMENT"><text>&gt; 30</text></inputEntry>
+        <inputEntry id="IE_1_3_FORECAST_ADJUSTMENT"><text>-</text></inputEntry>
+        <outputEntry id="OE_1_1_FORECAST_ADJUSTMENT"><text>"BLOQUEAR"</text></outputEntry>
+        <outputEntry id="OE_1_2_FORECAST_ADJUSTMENT"><text>"Desvio acima de 30% - recalibrar modelo e investigar causa"</text></outputEntry>
+        <outputEntry id="OE_1_3_FORECAST_ADJUSTMENT"><text>"CRITICO"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_2_FORECAST_ADJUSTMENT">
+        <description>Desvio significativo</description>
+        <inputEntry id="IE_2_1_FORECAST_ADJUSTMENT"><text>-</text></inputEntry>
+        <inputEntry id="IE_2_2_FORECAST_ADJUSTMENT"><text>[15..30]</text></inputEntry>
+        <inputEntry id="IE_2_3_FORECAST_ADJUSTMENT"><text>-</text></inputEntry>
+        <outputEntry id="OE_2_1_FORECAST_ADJUSTMENT"><text>"REVISAR"</text></outputEntry>
+        <outputEntry id="OE_2_2_FORECAST_ADJUSTMENT"><text>"Desvio entre 15-30% - ajustar parametros do modelo"</text></outputEntry>
+        <outputEntry id="OE_2_3_FORECAST_ADJUSTMENT"><text>"ALTO"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_3_FORECAST_ADJUSTMENT">
+        <description>Semanas sem coletas previstas</description>
+        <inputEntry id="IE_3_1_FORECAST_ADJUSTMENT"><text>0</text></inputEntry>
+        <inputEntry id="IE_3_2_FORECAST_ADJUSTMENT"><text>-</text></inputEntry>
+        <inputEntry id="IE_3_3_FORECAST_ADJUSTMENT"><text>&gt; 14</text></inputEntry>
+        <outputEntry id="OE_3_1_FORECAST_ADJUSTMENT"><text>"REVISAR"</text></outputEntry>
+        <outputEntry id="OE_3_2_FORECAST_ADJUSTMENT"><text>"Nenhuma coleta prevista no periodo - verificar dados de entrada"</text></outputEntry>
+        <outputEntry id="OE_3_3_FORECAST_ADJUSTMENT"><text>"ALTO"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_4_FORECAST_ADJUSTMENT">
+        <description>Previsao dentro do aceitavel</description>
+        <inputEntry id="IE_4_1_FORECAST_ADJUSTMENT"><text>&gt;= 1</text></inputEntry>
+        <inputEntry id="IE_4_2_FORECAST_ADJUSTMENT"><text>[0..15]</text></inputEntry>
+        <inputEntry id="IE_4_3_FORECAST_ADJUSTMENT"><text>-</text></inputEntry>
+        <outputEntry id="OE_4_1_FORECAST_ADJUSTMENT"><text>"PROSSEGUIR"</text></outputEntry>
+        <outputEntry id="OE_4_2_FORECAST_ADJUSTMENT"><text>"Previsao dentro da margem aceitavel - manter modelo atual"</text></outputEntry>
+        <outputEntry id="OE_4_3_FORECAST_ADJUSTMENT"><text>"BAIXO"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_5_FORECAST_ADJUSTMENT">
+        <description>Periodo curto de previsao</description>
+        <inputEntry id="IE_5_1_FORECAST_ADJUSTMENT"><text>-</text></inputEntry>
+        <inputEntry id="IE_5_2_FORECAST_ADJUSTMENT"><text>-</text></inputEntry>
+        <inputEntry id="IE_5_3_FORECAST_ADJUSTMENT"><text>&lt; 7</text></inputEntry>
+        <outputEntry id="OE_5_1_FORECAST_ADJUSTMENT"><text>"PROSSEGUIR"</text></outputEntry>
+        <outputEntry id="OE_5_2_FORECAST_ADJUSTMENT"><text>"Periodo curto - previsao de alta precisao"</text></outputEntry>
+        <outputEntry id="OE_5_3_FORECAST_ADJUSTMENT"><text>"BAIXO"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Fallback_FORECAST_ADJUSTMENT">
+        <description>Fallback</description>
+        <inputEntry id="IE_F_1_FORECAST_ADJUSTMENT"><text>-</text></inputEntry>
+        <inputEntry id="IE_F_2_FORECAST_ADJUSTMENT"><text>-</text></inputEntry>
+        <inputEntry id="IE_F_3_FORECAST_ADJUSTMENT"><text>-</text></inputEntry>
+        <outputEntry id="OE_F_1_FORECAST_ADJUSTMENT"><text>"REVISAR"</text></outputEntry>
+        <outputEntry id="OE_F_2_FORECAST_ADJUSTMENT"><text>"Avaliar ajuste de previsao manualmente"</text></outputEntry>
+        <outputEntry id="OE_F_3_FORECAST_ADJUSTMENT"><text>"MEDIO"</text></outputEntry>
+      </rule>
+
+    </decisionTable>
+  </decision>
+
+  <dmndi:DMNDI>
+    <dmndi:DMNDiagram id="DMNDiagram_FORECAST_ADJUSTMENT">
+      <dmndi:DMNShape id="DMNShape_Decision_FORECAST_ADJUSTMENT" dmnElementRef="Decision_FORECAST_ADJUSTMENT">
+        <dc:Bounds height="80" width="180" x="160" y="100"/>
+      </dmndi:DMNShape>
+    </dmndi:DMNDiagram>
+  </dmndi:DMNDI>
+
+</definitions>

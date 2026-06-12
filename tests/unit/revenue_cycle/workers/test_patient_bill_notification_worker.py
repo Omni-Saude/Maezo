@@ -10,11 +10,12 @@ from pydantic import ValidationError
 
 pytestmark = pytest.mark.skip(reason="Test needs updating for V2 worker pattern (TaskContext/TaskResult)")
 
-from healthcare_platform.revenue_cycle.workers.patient_bill_notification_worker_v2 import (
+from healthcare_platform.revenue_cycle.billing.workers.patient_bill_notification_worker import (
     PatientBillNotificationInput,
     PatientBillNotificationOutput,
     PatientBillNotificationWorker,
 )
+from healthcare_platform.shared.domain.exceptions import RevenueCycleException
 from healthcare_platform.shared.integrations.whatsapp_client import (
     StubWhatsAppClient,
     WhatsAppTemplate,

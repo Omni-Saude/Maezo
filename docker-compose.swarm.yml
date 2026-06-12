@@ -1,0 +1,233 @@
+version: "3.9"
+
+# =============================================================================
+# MAEZO — Docker Swarm Stack
+# Arquitetura: 11 serviços · PostgreSQL externo (RDS ou self-hosted) · Kafka self-hosted
+# BPM Engine: CIB Seven Community — cibseven/cibseven:run-latest (Spring Boot)
+# Deploy: docker stack deploy -c docker-compose.swarm.yml maestro
+# Docs: PROJECT.md | MAP.md | docs/MAEZO-Arquitetura-2026.html
+# =============================================================================
+
+# ── Secrets (criados via: echo "valor" | docker secret create nome -) ─────────
+secrets:
+  postgres_password:
+    external: true
+
+# ── Networks ──────────────────────────────────────────────────────────────────
+networks:
+  maestro_net:
+    driver: overlay
+    attachable: true
+
+# ── Volumes ───────────────────────────────────────────────────────────────────
+volumes:
+  kafka_data:
+  traefik_certs:
+
+# ── Services ──────────────────────────────────────────────────────────────────
+services:
+
+  # ── 1. Traefik — Reverse proxy + SSL Let's Encrypt ──────────────────────────
+  traefik:
+    image: traefik:v3.0
+    command:
+      - "--providers.docker=true"
+      - "--providers.docker.swarmMode=true"
+      - "--entrypoints.web.address=:80"
+      - "--entrypoints.websecure.address=:443"
+      - "--entrypoints.web.http.redirections.entrypoint.to=websecure"
+      - "--certificatesresolvers.le.acme.email=${ACME_EMAIL}"
+      - "--certificatesresolvers.le.acme.storage=/certs/acme.json"
+      - "--certificatesresolvers.le.acme.tlschallenge=true"
+      - "--api.insecure=false"
+      - "--log.level=INFO"
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - traefik_certs:/certs
+    networks: [maestro_net]
+    deploy:
+      placement:
+        constraints: [node.role == manager]
+      restart_policy: { condition: on-failure }
+
+  # ── 2. CIB Seven Community BPM Engine (Run / Spring Boot) ───────────────────
+  cib7:
+    image: cibseven/cibseven:run-latest
+    environment:
+      TZ: America/Sao_Paulo
+      # Basic Auth (sem Keycloak — ADR-020)
+      CAMUNDA_BPM_ADMIN_USER_ID: ${CIB7_USER:-admin}
+      CAMUNDA_BPM_ADMIN_USER_PASSWORD: ${CIB7_PASS}
+      # Banco externo (AWS RDS ou PostgreSQL self-hosted)
+      SPRING_DATASOURCE_URL: jdbc:postgresql://${RDS_HOST}:5432/cibseven
+      SPRING_DATASOURCE_USERNAME: ${RDS_USER}
+      SPRING_DATASOURCE_PASSWORD: ${PG_PASS}
+      SPRING_DATASOURCE_DRIVER_CLASS_NAME: org.postgresql.Driver
+      # Multi-tenancy (path /tenant-id/{id} — sem JWT)
+      CAMUNDA_BPM_MULTITENANCY_TENANTS_CHECKED: "false"
+    networks: [maestro_net]
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/engine-rest/engine"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    deploy:
+      replicas: 2
+      update_config: { parallelism: 1, delay: 30s, order: start-first }
+      restart_policy: { condition: on-failure, delay: 10s }
+      labels:
+        - "traefik.enable=true"
+        - "traefik.http.routers.cib7.rule=Host(`bpm.${DOMAIN}`)"
+        - "traefik.http.routers.cib7.entrypoints=websecure"
+        - "traefik.http.routers.cib7.tls.certresolver=le"
+        - "traefik.http.services.cib7.loadbalancer.server.port=8080"
+
+  # ── 3. HAPI FHIR R4 ──────────────────────────────────────────────────────────
+  hapi_fhir:
+    image: ${IMAGE_HAPI:-ghcr.io/austa/maezo-hapi-fhir}:v8.8.0-1
+    environment:
+      spring.datasource.url: jdbc:postgresql://${RDS_HOST}:5432/hapi_fhir
+      spring.datasource.username: ${RDS_USER}
+      spring.datasource.password_file: /run/secrets/postgres_password
+      hapi.fhir.fhir_version: R4
+      hapi.fhir.server_address: https://fhir.${DOMAIN}/fhir
+    secrets: [postgres_password]
+    networks: [maestro_net]
+    healthcheck:
+      test: ["CMD", "curl", "-fs", "http://localhost:8080/fhir/metadata"]
+      interval: 30s
+      timeout: 30s
+      retries: 15
+      start_period: 120s
+    deploy:
+      replicas: 1
+      restart_policy: { condition: on-failure }
+      labels:
+        - "traefik.enable=true"
+        - "traefik.http.routers.fhir.rule=Host(`fhir.${DOMAIN}`)"
+        - "traefik.http.routers.fhir.entrypoints=websecure"
+        - "traefik.http.routers.fhir.tls.certresolver=le"
+        - "traefik.http.services.fhir.loadbalancer.server.port=8080"
+
+  # ── 5. Apache Kafka KRaft (sem ZooKeeper) ────────────────────────────────────
+  kafka:
+    image: confluentinc/cp-kafka:7.7.0
+    environment:
+      KAFKA_NODE_ID: "1"
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092,CONTROLLER://0.0.0.0:9093
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,CONTROLLER:PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: "1"
+      KAFKA_LOG_RETENTION_HOURS: "168"
+      CLUSTER_ID: ${KAFKA_CLUSTER_ID}
+    volumes:
+      - kafka_data:/var/lib/kafka/data
+    networks: [maestro_net]
+    deploy:
+      replicas: 1
+      restart_policy: { condition: on-failure }
+
+  # ── 6. Debezium Connect — CDC Oracle Tasy → Kafka ─────────────────────────────
+  debezium:
+    image: debezium/connect:2.7
+    environment:
+      BOOTSTRAP_SERVERS: kafka:9092
+      GROUP_ID: debezium-maestro
+      CONFIG_STORAGE_TOPIC: _debezium.config
+      OFFSET_STORAGE_TOPIC: _debezium.offsets
+      STATUS_STORAGE_TOPIC: _debezium.status
+      KEY_CONVERTER: org.apache.kafka.connect.json.JsonConverter
+      VALUE_CONVERTER: org.apache.kafka.connect.json.JsonConverter
+      KEY_CONVERTER_SCHEMAS_ENABLE: "false"
+      VALUE_CONVERTER_SCHEMAS_ENABLE: "false"
+    networks: [maestro_net]
+    deploy:
+      replicas: 1
+      restart_policy: { condition: on-failure, delay: 10s }
+
+  # ── 7-10. Workers Python por domínio ─────────────────────────────────────────
+  workers_rc:
+    image: ${IMAGE_WORKERS:-ghcr.io/austa/maestro-workers}:${IMAGE_TAG:-latest}
+    environment:
+      TZ: America/Sao_Paulo
+      WORKER_DOMAIN: revenue_cycle
+      CIB7_BASE_URL: http://cib7:8080/engine-rest
+      CIB7_USER: ${CIB7_USER:-admin}
+      CIB7_PASSWORD: ${CIB7_PASS}
+      FHIR_BASE_URL: http://hapi_fhir:8080/fhir
+      DATABASE_URL: postgresql://${RDS_USER}:${PG_PASS}@${RDS_HOST}:5432/maestro
+    networks: [maestro_net]
+    deploy:
+      replicas: 2
+      update_config: { parallelism: 1, delay: 10s, order: start-first }
+      restart_policy: { condition: on-failure }
+      stop_grace_period: 90s
+
+  workers_co:
+    image: ${IMAGE_WORKERS:-ghcr.io/austa/maestro-workers}:${IMAGE_TAG:-latest}
+    environment:
+      TZ: America/Sao_Paulo
+      WORKER_DOMAIN: clinical_operations
+      CIB7_BASE_URL: http://cib7:8080/engine-rest
+      CIB7_USER: ${CIB7_USER:-admin}
+      CIB7_PASSWORD: ${CIB7_PASS}
+      FHIR_BASE_URL: http://hapi_fhir:8080/fhir
+      DATABASE_URL: postgresql://${RDS_USER}:${PG_PASS}@${RDS_HOST}:5432/maestro
+    networks: [maestro_net]
+    deploy:
+      replicas: 2
+      stop_grace_period: 90s
+
+  workers_pa:
+    image: ${IMAGE_WORKERS:-ghcr.io/austa/maestro-workers}:${IMAGE_TAG:-latest}
+    environment:
+      TZ: America/Sao_Paulo
+      WORKER_DOMAIN: patient_access
+      CIB7_BASE_URL: http://cib7:8080/engine-rest
+      CIB7_USER: ${CIB7_USER:-admin}
+      CIB7_PASSWORD: ${CIB7_PASS}
+      DATABASE_URL: postgresql://${RDS_USER}:${PG_PASS}@${RDS_HOST}:5432/maestro
+    networks: [maestro_net]
+    deploy:
+      replicas: 1
+      stop_grace_period: 90s
+
+  workers_ps:
+    image: ${IMAGE_WORKERS:-ghcr.io/austa/maestro-workers}:${IMAGE_TAG:-latest}
+    environment:
+      TZ: America/Sao_Paulo
+      WORKER_DOMAIN: platform_services
+      CIB7_BASE_URL: http://cib7:8080/engine-rest
+      CIB7_USER: ${CIB7_USER:-admin}
+      CIB7_PASSWORD: ${CIB7_PASS}
+      DATABASE_URL: postgresql://${RDS_USER}:${PG_PASS}@${RDS_HOST}:5432/maestro
+    networks: [maestro_net]
+    deploy:
+      replicas: 1
+      stop_grace_period: 90s
+
+  # ── 11. Contract Extraction API ───────────────────────────────────────────────
+  ce_api:
+    image: ${IMAGE_CE:-ghcr.io/austa/maestro-ce}:${IMAGE_TAG:-latest}
+    environment:
+      DATABASE_URL: postgresql://${RDS_USER}:${PG_PASS}@${RDS_HOST}:5432/maestro
+      CIB7_BASE_URL: http://cib7:8080/engine-rest
+      CIB7_USER: ${CIB7_USER:-admin}
+      CIB7_PASSWORD: ${CIB7_PASS}
+    networks: [maestro_net]
+    deploy:
+      replicas: 1
+      restart_policy: { condition: on-failure }
+      labels:
+        - "traefik.enable=true"
+        - "traefik.http.routers.ce.rule=Host(`api.${DOMAIN}`)"
+        - "traefik.http.routers.ce.entrypoints=websecure"
+        - "traefik.http.routers.ce.tls.certresolver=le"
+        - "traefik.http.services.ce.loadbalancer.server.port=8000"

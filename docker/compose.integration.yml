@@ -1,0 +1,66 @@
+version: "3.9"
+# Grupo: maezo-integration
+# Serviços: hapi_fhir, debezium, ce_api
+# Requer: maezo-infra rodando (postgres + kafka na rede maestro_local)
+
+networks:
+  maestro_local:
+    external: true
+    name: maestro_local
+
+services:
+
+  hapi_fhir:
+    image: hapiproject/hapi:v7.4.0
+    volumes:
+      - ../config/hapi-fhir/application.yaml:/app/config/application.yaml:ro
+    ports:
+      - "8082:8080"
+    networks: [maestro_local]
+    restart: unless-stopped
+    healthcheck:
+      disable: true
+
+  debezium:
+    image: debezium/connect:2.6
+    environment:
+      BOOTSTRAP_SERVERS: kafka:9092
+      GROUP_ID: debezium-maestro-local
+      CONFIG_STORAGE_TOPIC: _debezium.config
+      OFFSET_STORAGE_TOPIC: _debezium.offsets
+      STATUS_STORAGE_TOPIC: _debezium.status
+      KEY_CONVERTER: org.apache.kafka.connect.json.JsonConverter
+      VALUE_CONVERTER: org.apache.kafka.connect.json.JsonConverter
+      KEY_CONVERTER_SCHEMAS_ENABLE: "false"
+      VALUE_CONVERTER_SCHEMAS_ENABLE: "false"
+    ports:
+      - "8083:8083"
+    networks: [maestro_local]
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8083/connectors"]
+      interval: 30s
+      timeout: 10s
+      retries: 10
+      start_period: 30s
+
+  ce_api:
+    build:
+      context: ..
+      dockerfile: Dockerfile.contract-extraction
+    environment:
+      DATABASE_URL: postgresql://maestro:maestro_local@postgres:5432/maestro
+      CIB7_BASE_URL: http://cib7:8080/engine-rest
+      CIB7_USER: admin
+      CIB7_PASSWORD: admin
+      LOG_LEVEL: DEBUG
+    ports:
+      - "8000:8000"
+    networks: [maestro_local]
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 15s

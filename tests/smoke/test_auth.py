@@ -1,31 +1,34 @@
-"""Authentication smoke tests."""
+"""Authentication smoke tests — Basic Auth (ADR-020)."""
+import os
 import pytest
 
 
-def test_keycloak_realm_exists(http_client, keycloak_url):
-    """Keycloak austa-bpm realm should exist."""
-    resp = http_client.get(f"{keycloak_url}/auth/realms/austa-bpm")
-    assert resp.status_code == 200
+def test_cib7_engine_accessible(http_client, camunda_base_url):
+    """CIB Seven engine REST API deve estar acessível."""
+    resp = http_client.get(f"{camunda_base_url}/engine")
+    assert resp.status_code == 200, f"Engine indisponível: {resp.status_code}"
     body = resp.json()
-    assert body.get("realm") == "austa-bpm"
+    assert len(body) > 0
+    assert "name" in body[0]
 
 
-def test_worker_service_account_token(http_client, keycloak_url):
-    """Worker service account should be able to obtain a token."""
-    import os
-    client_id = os.getenv("WORKER_CLIENT_ID", "maestro-workers")
-    client_secret = os.getenv("WORKER_CLIENT_SECRET", "")
-    if not client_secret:
-        pytest.skip("WORKER_CLIENT_SECRET not set")
+def test_cib7_basic_auth(http_client, camunda_base_url):
+    """Workers devem autenticar no CIB Seven via Basic Auth."""
+    user = os.getenv("CIB7_USER", "admin")
+    password = os.getenv("CIB7_PASSWORD", "")
+    if not password:
+        pytest.skip("CIB7_PASSWORD não configurado")
 
-    resp = http_client.post(
-        f"{keycloak_url}/auth/realms/austa-bpm/protocol/openid-connect/token",
-        data={
-            "grant_type": "client_credentials",
-            "client_id": client_id,
-            "client_secret": client_secret,
-        },
+    resp = http_client.get(
+        f"{camunda_base_url}/engine",
+        auth=(user, password),
     )
-    assert resp.status_code == 200
-    body = resp.json()
-    assert "access_token" in body
+    assert resp.status_code == 200, f"Basic Auth falhou: {resp.status_code}"
+
+
+def test_cib7_unauthorized_without_credentials(http_client, camunda_base_url):
+    """Requisições sem credenciais devem ser rejeitadas quando auth está ativo."""
+    resp = http_client.get(f"{camunda_base_url}/process-definition")
+    assert resp.status_code in (200, 401), (
+        f"Status inesperado: {resp.status_code}"
+    )

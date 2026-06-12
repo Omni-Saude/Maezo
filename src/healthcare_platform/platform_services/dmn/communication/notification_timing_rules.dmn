@@ -1,0 +1,436 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/"
+             xmlns:dc="http://www.omg.org/spec/DMN/20180521/DC/"
+             xmlns:camunda="http://camunda.org/schema/1.0/dmn"
+             xmlns:biodi="http://bpmn.io/schema/dmn/biodi/2.0"
+             xmlns:di="http://www.omg.org/spec/DMN/20180521/DI/"
+             id="Definitions_notification_timing"
+             name="Notification Timing Rules"
+             namespace="http://camunda.org/schema/1.0/dmn">
+
+  <decision id="notification_timing_rules" name="[SP-PS-004 | communication] Notification Timing Rules" camunda:historyTimeToLive="180">
+    <informationRequirement>
+      <requiredInput href="#InputData_recipientType"/>
+    </informationRequirement>
+    <informationRequirement>
+      <requiredInput href="#InputData_specialty"/>
+    </informationRequirement>
+    <informationRequirement>
+      <requiredInput href="#InputData_currentHour"/>
+    </informationRequirement>
+    <informationRequirement>
+      <requiredInput href="#InputData_urgencyLevel"/>
+    </informationRequirement>
+    <informationRequirement>
+      <requiredInput href="#InputData_userPreferences"/>
+    </informationRequirement>
+
+    <decisionTable id="DecisionTable_timing" hitPolicy="FIRST">
+      <input id="Input_recipientType_notification_timing_rules" label="Recipient Type" camunda:inputVariable="recipientType">
+        <inputExpression id="InputExpression_recipientType_notification_timing_rules" typeRef="string">
+          <text>recipientType</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_specialty_notification_timing_rules" label="Specialty" camunda:inputVariable="specialty">
+        <inputExpression id="InputExpression_specialty_notification_timing_rules" typeRef="string">
+          <text>specialty</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_currentHour_notification_timing_rules" label="Current Hour (0-23)" camunda:inputVariable="currentHour">
+        <inputExpression id="InputExpression_currentHour_notification_timing_rules" typeRef="integer">
+          <text>currentHour</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_urgencyLevel_notification_timing_rules" label="Urgency Level" camunda:inputVariable="urgencyLevel">
+        <inputExpression id="InputExpression_urgencyLevel_notification_timing_rules" typeRef="string">
+          <text>urgencyLevel</text>
+        </inputExpression>
+        <inputValues id="UnaryTests_urgencyLevel_notification_timing_rules">
+          <text>"low","medium","high","critical"</text>
+        </inputValues>
+      </input>
+
+      <input id="Input_userPreferences_notification_timing_rules" label="User Preferences" camunda:inputVariable="userPreferences">
+        <inputExpression id="InputExpression_userPreferences_notification_timing_rules" typeRef="string">
+          <text>userPreferences</text>
+        </inputExpression>
+      </input>
+
+      <output id="Output_sendNow_notification_timing_rules" label="Send Now" name="sendNow" typeRef="boolean"/>
+      <output id="Output_delayMinutes_notification_timing_rules" label="Delay Minutes" name="delayMinutes" typeRef="integer"/>
+      <output id="Output_channelPriority_notification_timing_rules" label="Channel Priority" name="channelPriority" typeRef="string">
+        <outputValues id="UnaryTests_channelPriority_notification_timing_rules">
+          <text>"whatsapp","sms","email"</text>
+        </outputValues>
+      </output>
+
+      <!-- Rule 1: Critical messages always send immediately via WhatsApp -->
+      <rule id="Rule_critical_immediate_notification_timing_rules">
+        <description>Critical urgency: send immediately regardless of time via WhatsApp</description>
+        <inputEntry id="InputEntry_r1_recipientType_notification_timing_rules">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_r1_specialty_notification_timing_rules">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_r1_currentHour_notification_timing_rules">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_r1_urgencyLevel_notification_timing_rules">
+          <text>"critical"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_r1_userPreferences_notification_timing_rules">
+          <text>-</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_r1_sendNow_notification_timing_rules">
+          <text>true</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_r1_delayMinutes_notification_timing_rules">
+          <text>0</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_r1_channelPriority_notification_timing_rules">
+          <text>"whatsapp"</text>
+        </outputEntry>
+      </rule>
+
+      <!-- Rule 2: High urgency doctor - before 6am delay until 6am via SMS -->
+      <rule id="Rule_high_doctor_early_notification_timing_rules">
+        <description>High urgency for doctors before 6am: delay until 6am via SMS</description>
+        <inputEntry id="InputEntry_r2_recipientType_notification_timing_rules">
+          <text>"doctor"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_r2_specialty_notification_timing_rules">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_r2_currentHour_notification_timing_rules">
+          <text>&lt; 6</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_r2_urgencyLevel_notification_timing_rules">
+          <text>"high"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_r2_userPreferences_notification_timing_rules">
+          <text>-</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_r2_sendNow_notification_timing_rules">
+          <text>false</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_r2_delayMinutes_notification_timing_rules">
+          <text>(6 - currentHour) * 60</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_r2_channelPriority_notification_timing_rules">
+          <text>"sms"</text>
+        </outputEntry>
+      </rule>
+
+      <!-- Rule 3: High urgency doctor - after 10pm delay until 6am via SMS -->
+      <rule id="Rule_high_doctor_late_notification_timing_rules">
+        <description>High urgency for doctors after 10pm: delay until next morning 6am via SMS</description>
+        <inputEntry id="InputEntry_r3_recipientType_notification_timing_rules">
+          <text>"doctor"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_r3_specialty_notification_timing_rules">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_r3_currentHour_notification_timing_rules">
+          <text>&gt; 22</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_r3_urgencyLevel_notification_timing_rules">
+          <text>"high"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_r3_userPreferences_notification_timing_rules">
+          <text>-</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_r3_sendNow_notification_timing_rules">
+          <text>false</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_r3_delayMinutes_notification_timing_rules">
+          <text>(24 - currentHour + 6) * 60</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_r3_channelPriority_notification_timing_rules">
+          <text>"sms"</text>
+        </outputEntry>
+      </rule>
+
+      <!-- Rule 4: High urgency doctor - business hours send immediately via WhatsApp -->
+      <rule id="Rule_high_doctor_business_notification_timing_rules">
+        <description>High urgency for doctors during business hours (6am-10pm): send immediately via WhatsApp</description>
+        <inputEntry id="InputEntry_r4_recipientType_notification_timing_rules">
+          <text>"doctor"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_r4_specialty_notification_timing_rules">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_r4_currentHour_notification_timing_rules">
+          <text>[6..22]</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_r4_urgencyLevel_notification_timing_rules">
+          <text>"high"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_r4_userPreferences_notification_timing_rules">
+          <text>-</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_r4_sendNow_notification_timing_rules">
+          <text>true</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_r4_delayMinutes_notification_timing_rules">
+          <text>0</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_r4_channelPriority_notification_timing_rules">
+          <text>"whatsapp"</text>
+        </outputEntry>
+      </rule>
+
+      <!-- Rule 5: High urgency patient - before 8am delay until 8am via WhatsApp -->
+      <rule id="Rule_high_patient_early_notification_timing_rules">
+        <description>High urgency for patients before 8am: delay until 8am via WhatsApp</description>
+        <inputEntry id="InputEntry_r5_recipientType_notification_timing_rules">
+          <text>"patient"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_r5_specialty_notification_timing_rules">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_r5_currentHour_notification_timing_rules">
+          <text>&lt; 8</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_r5_urgencyLevel_notification_timing_rules">
+          <text>"high"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_r5_userPreferences_notification_timing_rules">
+          <text>-</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_r5_sendNow_notification_timing_rules">
+          <text>false</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_r5_delayMinutes_notification_timing_rules">
+          <text>(8 - currentHour) * 60</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_r5_channelPriority_notification_timing_rules">
+          <text>"whatsapp"</text>
+        </outputEntry>
+      </rule>
+
+      <!-- Rule 6: High urgency patient - after 9pm delay until 8am via WhatsApp -->
+      <rule id="Rule_high_patient_late_notification_timing_rules">
+        <description>High urgency for patients after 9pm: delay until next morning 8am via WhatsApp</description>
+        <inputEntry id="InputEntry_r6_recipientType_notification_timing_rules">
+          <text>"patient"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_r6_specialty_notification_timing_rules">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_r6_currentHour_notification_timing_rules">
+          <text>&gt; 21</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_r6_urgencyLevel_notification_timing_rules">
+          <text>"high"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_r6_userPreferences_notification_timing_rules">
+          <text>-</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_r6_sendNow_notification_timing_rules">
+          <text>false</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_r6_delayMinutes_notification_timing_rules">
+          <text>(24 - currentHour + 8) * 60</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_r6_channelPriority_notification_timing_rules">
+          <text>"whatsapp"</text>
+        </outputEntry>
+      </rule>
+
+      <!-- Rule 7: High urgency patient - business hours send immediately via WhatsApp -->
+      <rule id="Rule_high_patient_business_notification_timing_rules">
+        <description>High urgency for patients during business hours (8am-9pm): send immediately via WhatsApp</description>
+        <inputEntry id="InputEntry_r7_recipientType_notification_timing_rules">
+          <text>"patient"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_r7_specialty_notification_timing_rules">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_r7_currentHour_notification_timing_rules">
+          <text>[8..21]</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_r7_urgencyLevel_notification_timing_rules">
+          <text>"high"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_r7_userPreferences_notification_timing_rules">
+          <text>-</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_r7_sendNow_notification_timing_rules">
+          <text>true</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_r7_delayMinutes_notification_timing_rules">
+          <text>0</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_r7_channelPriority_notification_timing_rules">
+          <text>"whatsapp"</text>
+        </outputEntry>
+      </rule>
+
+      <!-- Rule 8: Medium urgency doctor - send immediately via WhatsApp -->
+      <rule id="Rule_medium_doctor_notification_timing_rules">
+        <description>Medium urgency for doctors: send immediately via WhatsApp (doctors manage their own schedules)</description>
+        <inputEntry id="InputEntry_r8_recipientType_notification_timing_rules">
+          <text>"doctor"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_r8_specialty_notification_timing_rules">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_r8_currentHour_notification_timing_rules">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_r8_urgencyLevel_notification_timing_rules">
+          <text>"medium"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_r8_userPreferences_notification_timing_rules">
+          <text>-</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_r8_sendNow_notification_timing_rules">
+          <text>true</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_r8_delayMinutes_notification_timing_rules">
+          <text>0</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_r8_channelPriority_notification_timing_rules">
+          <text>"whatsapp"</text>
+        </outputEntry>
+      </rule>
+
+      <!-- Rule 9: Medium urgency patient - morning hours send immediately -->
+      <rule id="Rule_medium_patient_morning_notification_timing_rules">
+        <description>Medium urgency for patients during morning (8am-12pm): send immediately via WhatsApp</description>
+        <inputEntry id="InputEntry_r9_recipientType_notification_timing_rules">
+          <text>"patient"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_r9_specialty_notification_timing_rules">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_r9_currentHour_notification_timing_rules">
+          <text>[8..12]</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_r9_urgencyLevel_notification_timing_rules">
+          <text>"medium"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_r9_userPreferences_notification_timing_rules">
+          <text>-</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_r9_sendNow_notification_timing_rules">
+          <text>true</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_r9_delayMinutes_notification_timing_rules">
+          <text>0</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_r9_channelPriority_notification_timing_rules">
+          <text>"whatsapp"</text>
+        </outputEntry>
+      </rule>
+
+      <!-- Rule 10: Medium urgency patient - not morning delay to next morning via email -->
+      <rule id="Rule_medium_patient_not_morning_notification_timing_rules">
+        <description>Medium urgency for patients outside morning hours: delay to next morning via email</description>
+        <inputEntry id="InputEntry_r10_recipientType_notification_timing_rules">
+          <text>"patient"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_r10_specialty_notification_timing_rules">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_r10_currentHour_notification_timing_rules">
+          <text>not([8..12])</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_r10_urgencyLevel_notification_timing_rules">
+          <text>"medium"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_r10_userPreferences_notification_timing_rules">
+          <text>-</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_r10_sendNow_notification_timing_rules">
+          <text>false</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_r10_delayMinutes_notification_timing_rules">
+          <text>if currentHour &lt; 8 then (8 - currentHour) * 60 else (24 - currentHour + 8) * 60</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_r10_channelPriority_notification_timing_rules">
+          <text>"email"</text>
+        </outputEntry>
+      </rule>
+
+      <!-- Rule 11: Low urgency doctor - delay 60 minutes via email -->
+      <rule id="Rule_low_doctor_notification_timing_rules">
+        <description>Low urgency for doctors: delay 60 minutes and send via email</description>
+        <inputEntry id="InputEntry_r11_recipientType_notification_timing_rules">
+          <text>"doctor"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_r11_specialty_notification_timing_rules">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_r11_currentHour_notification_timing_rules">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_r11_urgencyLevel_notification_timing_rules">
+          <text>"low"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_r11_userPreferences_notification_timing_rules">
+          <text>-</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_r11_sendNow_notification_timing_rules">
+          <text>false</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_r11_delayMinutes_notification_timing_rules">
+          <text>60</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_r11_channelPriority_notification_timing_rules">
+          <text>"email"</text>
+        </outputEntry>
+      </rule>
+
+      <!-- Rule 12: Low urgency patient - delay 120 minutes via email -->
+      <rule id="Rule_low_patient_notification_timing_rules">
+        <description>Low urgency for patients: delay 120 minutes and send via email</description>
+        <inputEntry id="InputEntry_r12_recipientType_notification_timing_rules">
+          <text>"patient"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_r12_specialty_notification_timing_rules">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_r12_currentHour_notification_timing_rules">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_r12_urgencyLevel_notification_timing_rules">
+          <text>"low"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_r12_userPreferences_notification_timing_rules">
+          <text>-</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_r12_sendNow_notification_timing_rules">
+          <text>false</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_r12_delayMinutes_notification_timing_rules">
+          <text>120</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_r12_channelPriority_notification_timing_rules">
+          <text>"email"</text>
+        </outputEntry>
+      </rule>
+
+    </decisionTable>
+  </decision>
+
+  <inputData id="InputData_recipientType_notification_timing_rules" name="Recipient Type"/>
+  <inputData id="InputData_specialty_notification_timing_rules" name="Specialty"/>
+  <inputData id="InputData_currentHour_notification_timing_rules" name="Current Hour"/>
+  <inputData id="InputData_urgencyLevel_notification_timing_rules" name="Urgency Level"/>
+  <inputData id="InputData_userPreferences_notification_timing_rules" name="User Preferences"/>
+
+
+  <dmndi:DMNDI>
+    <dmndi:DMNDiagram id="DMNDiagram_notification_timing_rules">
+      <dmndi:DMNShape id="DMNShape_notification_timing_rules" dmnElementRef="notification_timing_rules">
+        <dc:Bounds height="80" width="180" x="160" y="100" />
+      </dmndi:DMNShape>
+    </dmndi:DMNDiagram>
+  </dmndi:DMNDI>
+</definitions>

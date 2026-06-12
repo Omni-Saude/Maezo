@@ -1,0 +1,121 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  ============================================================================
+  OVERPAYMENT-REFUND - Roteamento de Reembolso por Pagamento Excedente
+  ============================================================================
+  Versao: 1.0.0 (2026-02-14)
+  Categoria: COLLECTION_PAYMENT
+  Archetype: ROUTING | Source: handle_overpayment_worker.py
+  ============================================================================
+-->
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/"
+             xmlns:dc="http://www.omg.org/spec/DMN/20180521/DC/"
+             xmlns:di="http://www.omg.org/spec/DMN/20180521/DI/"
+             xmlns:camunda="http://camunda.org/schema/1.0/dmn"
+             id="Definitions_OVERPAY_REFUND"
+             name="Roteamento de Reembolso por Pagamento Excedente"
+             namespace="http://camunda.org/schema/1.0/dmn">
+
+  <decision id="Decision_OVERPAY_REFUND" name="[SP-RC-008 | collection_payment] Roteamento de Reembolso por Pagamento Excedente" camunda:historyTimeToLive="180">
+    <decisionTable id="DecisionTable_OVERPAY_REFUND" hitPolicy="FIRST">
+
+      <input id="Input_1_OVERPAY_REFUND" label="Valor Excedente">
+        <inputExpression id="InputExpression_1_OVERPAY_REFUND" typeRef="number">
+          <text>overpaymentAmount</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_2_OVERPAY_REFUND" label="Tipo Pagador">
+        <inputExpression id="InputExpression_2_OVERPAY_REFUND" typeRef="string">
+          <text>payerType</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_3_OVERPAY_REFUND" label="Percentual Excedente">
+        <inputExpression id="InputExpression_3_OVERPAY_REFUND" typeRef="number">
+          <text>overpaymentPercent</text>
+        </inputExpression>
+      </input>
+
+      <!-- ========== OUTPUTS ========== -->
+      <output id="Output_resultado_OVERPAY_REFUND" label="Resultado" name="resultado" typeRef="string">
+        <outputValues><text>"PROSSEGUIR","BLOQUEAR","REVISAR"</text></outputValues>
+      </output>
+      <output id="Output_acao_OVERPAY_REFUND" label="Acao" name="acao" typeRef="string"/>
+      <output id="Output_risco_OVERPAY_REFUND" label="Risco" name="risco" typeRef="string">
+        <outputValues><text>"CRITICO","ALTO","MEDIO","BAIXO"</text></outputValues>
+      </output>
+
+      <rule id="Rule_1_OVERPAY_REFUND">
+        <description>Excedente muito alto - possivel erro de lancamento</description>
+        <inputEntry id="IE_1_1_OVERPAY_REFUND"><text>-</text></inputEntry>
+        <inputEntry id="IE_1_2_OVERPAY_REFUND"><text>-</text></inputEntry>
+        <inputEntry id="IE_1_3_OVERPAY_REFUND"><text>&gt; 50</text></inputEntry>
+        <outputEntry id="OE_1_1_OVERPAY_REFUND"><text>"BLOQUEAR"</text></outputEntry>
+        <outputEntry id="OE_1_2_OVERPAY_REFUND"><text>"Pagamento excede 50% do esperado - provavel erro de lancamento"</text></outputEntry>
+        <outputEntry id="OE_1_3_OVERPAY_REFUND"><text>"CRITICO"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_2_OVERPAY_REFUND">
+        <description>Operadora - gerar nota de credito</description>
+        <inputEntry id="IE_2_1_OVERPAY_REFUND"><text>&gt; 100</text></inputEntry>
+        <inputEntry id="IE_2_2_OVERPAY_REFUND"><text>"OPERADORA"</text></inputEntry>
+        <inputEntry id="IE_2_3_OVERPAY_REFUND"><text>&lt;= 50</text></inputEntry>
+        <outputEntry id="OE_2_1_OVERPAY_REFUND"><text>"PROSSEGUIR"</text></outputEntry>
+        <outputEntry id="OE_2_2_OVERPAY_REFUND"><text>"Gerar nota de credito para operadora e compensar no proximo lote"</text></outputEntry>
+        <outputEntry id="OE_2_3_OVERPAY_REFUND"><text>"MEDIO"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_3_OVERPAY_REFUND">
+        <description>Particular - reembolso direto</description>
+        <inputEntry id="IE_3_1_OVERPAY_REFUND"><text>&gt; 50</text></inputEntry>
+        <inputEntry id="IE_3_2_OVERPAY_REFUND"><text>"PARTICULAR"</text></inputEntry>
+        <inputEntry id="IE_3_3_OVERPAY_REFUND"><text>-</text></inputEntry>
+        <outputEntry id="OE_3_1_OVERPAY_REFUND"><text>"PROSSEGUIR"</text></outputEntry>
+        <outputEntry id="OE_3_2_OVERPAY_REFUND"><text>"Processar reembolso direto ao paciente via transferencia bancaria"</text></outputEntry>
+        <outputEntry id="OE_3_3_OVERPAY_REFUND"><text>"MEDIO"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_4_OVERPAY_REFUND">
+        <description>Valor residual pequeno - credito em conta</description>
+        <inputEntry id="IE_4_1_OVERPAY_REFUND"><text>&lt;= 50</text></inputEntry>
+        <inputEntry id="IE_4_2_OVERPAY_REFUND"><text>-</text></inputEntry>
+        <inputEntry id="IE_4_3_OVERPAY_REFUND"><text>-</text></inputEntry>
+        <outputEntry id="OE_4_1_OVERPAY_REFUND"><text>"PROSSEGUIR"</text></outputEntry>
+        <outputEntry id="OE_4_2_OVERPAY_REFUND"><text>"Valor residual - registrar como credito para proxima consulta"</text></outputEntry>
+        <outputEntry id="OE_4_3_OVERPAY_REFUND"><text>"BAIXO"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_5_OVERPAY_REFUND">
+        <description>SUS - devolver ao fundo publico</description>
+        <inputEntry id="IE_5_1_OVERPAY_REFUND"><text>-</text></inputEntry>
+        <inputEntry id="IE_5_2_OVERPAY_REFUND"><text>"SUS"</text></inputEntry>
+        <inputEntry id="IE_5_3_OVERPAY_REFUND"><text>-</text></inputEntry>
+        <outputEntry id="OE_5_1_OVERPAY_REFUND"><text>"REVISAR"</text></outputEntry>
+        <outputEntry id="OE_5_2_OVERPAY_REFUND"><text>"Pagamento SUS excedente - revisar AIH e gerar GRU de devolucao"</text></outputEntry>
+        <outputEntry id="OE_5_3_OVERPAY_REFUND"><text>"ALTO"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Fallback_OVERPAY_REFUND">
+        <description>Fallback</description>
+        <inputEntry id="IE_F_1_OVERPAY_REFUND"><text>-</text></inputEntry>
+        <inputEntry id="IE_F_2_OVERPAY_REFUND"><text>-</text></inputEntry>
+        <inputEntry id="IE_F_3_OVERPAY_REFUND"><text>-</text></inputEntry>
+        <outputEntry id="OE_F_1_OVERPAY_REFUND"><text>"REVISAR"</text></outputEntry>
+        <outputEntry id="OE_F_2_OVERPAY_REFUND"><text>"Avaliar roteamento de reembolso manualmente"</text></outputEntry>
+        <outputEntry id="OE_F_3_OVERPAY_REFUND"><text>"MEDIO"</text></outputEntry>
+      </rule>
+
+    </decisionTable>
+  </decision>
+
+  <dmndi:DMNDI>
+    <dmndi:DMNDiagram id="DMNDiagram_OVERPAY_REFUND">
+      <dmndi:DMNShape id="DMNShape_Decision_OVERPAY_REFUND" dmnElementRef="Decision_OVERPAY_REFUND">
+        <dc:Bounds height="80" width="180" x="160" y="100"/>
+      </dmndi:DMNShape>
+    </dmndi:DMNDiagram>
+  </dmndi:DMNDI>
+
+</definitions>

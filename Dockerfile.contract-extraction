@@ -1,0 +1,60 @@
+# =============================================================================
+# Dockerfile.contract-extraction — FastAPI service for contract rule extraction
+#
+# Builds a dedicated image for the contract_extraction API service.
+# NOT a CIB Seven worker — runs uvicorn with FastAPI.
+#
+# Usage:
+#   docker build -f Dockerfile.contract-extraction -t maestro-ce .
+# =============================================================================
+
+FROM python:3.11-slim AS base
+
+WORKDIR /app
+
+# System deps (cached layer)
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+# ---------------------------------------------------------------------------
+# Dependencies layer (rebuild ONLY when pyproject.toml changes)
+# ---------------------------------------------------------------------------
+COPY pyproject.toml ./
+RUN python -c "\
+import tomllib, pathlib; \
+cfg = tomllib.loads(pathlib.Path('pyproject.toml').read_text()); \
+deps = cfg['project']['dependencies']; \
+pathlib.Path('/tmp/requirements.txt').write_text('\n'.join(deps))" && \
+    pip install --no-cache-dir -r /tmp/requirements.txt && \
+    rm -f /tmp/requirements.txt pyproject.toml
+
+# ---------------------------------------------------------------------------
+# Code: shared + contract_extraction only
+# Migração completa para src/healthcare_platform/ (dual-layer eliminado).
+# ---------------------------------------------------------------------------
+COPY src/healthcare_platform/__init__.py ./healthcare_platform/__init__.py
+COPY src/healthcare_platform/shared/     ./healthcare_platform/shared/
+COPY src/healthcare_platform/contract_extraction/ ./healthcare_platform/contract_extraction/
+
+ENV PYTHONPATH=/app
+
+# ---------------------------------------------------------------------------
+# Health check
+# ---------------------------------------------------------------------------
+HEALTHCHECK --interval=30s --timeout=5s --retries=3 \
+    CMD curl -f http://localhost:8000/health || exit 1
+
+EXPOSE 8000
+
+# ---------------------------------------------------------------------------
+# Non-root user (security)
+# ---------------------------------------------------------------------------
+RUN useradd -m -u 1000 worker && chown -R worker:worker /app
+USER worker
+
+# ---------------------------------------------------------------------------
+# Entrypoint: uvicorn with the FastAPI app
+# ---------------------------------------------------------------------------
+ENTRYPOINT ["python", "-m", "uvicorn"]
+CMD ["healthcare_platform.contract_extraction.app:app", "--host", "0.0.0.0", "--port", "8000"]

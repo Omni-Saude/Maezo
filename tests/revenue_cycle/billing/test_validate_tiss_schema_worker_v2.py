@@ -4,7 +4,7 @@ from __future__ import annotations
 import pytest
 from unittest.mock import MagicMock
 from healthcare_platform.shared.workers.base import TaskContext, TaskResult
-from healthcare_platform.revenue_cycle.billing.workers.validate_tiss_schema_worker_v2 import ValidateTISSSchemaWorker
+from healthcare_platform.revenue_cycle.billing.workers.validate_tiss_schema_worker import ValidateTISSSchemaWorker
 
 from tests.fixtures.workers import *
 

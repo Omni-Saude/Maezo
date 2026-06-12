@@ -1,0 +1,40 @@
+# =============================================================================
+# Dockerfile.fhir-sync — FHIR Sync Service
+#
+# Consumes Debezium CDC events from Kafka and persists FHIR R4 resources
+# to HAPI FHIR via conditional upsert (ADR-004, ADR-005).
+#
+# Usage:
+#   docker build -f Dockerfile.fhir-sync -t maezo-fhir-sync:local .
+# =============================================================================
+
+FROM python:3.11-slim
+
+WORKDIR /app
+
+RUN apt-get update && apt-get install -y --no-install-recommends curl \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY pyproject.toml ./
+RUN python -c "\
+import tomllib, pathlib; \
+cfg = tomllib.loads(pathlib.Path('pyproject.toml').read_text()); \
+deps = cfg['project']['dependencies']; \
+pathlib.Path('/tmp/requirements.txt').write_text('\n'.join(deps))" && \
+    pip install --no-cache-dir -r /tmp/requirements.txt fastavro && \
+    rm -f /tmp/requirements.txt pyproject.toml
+
+COPY src/healthcare_platform/__init__.py ./healthcare_platform/__init__.py
+COPY src/healthcare_platform/shared/     ./healthcare_platform/shared/
+
+ENV PYTHONPATH=/app
+
+HEALTHCHECK --interval=30s --timeout=5s --retries=3 \
+    CMD curl -f http://localhost:8092/health || exit 1
+
+EXPOSE 8092
+
+RUN useradd -m -u 1000 worker && chown -R worker:worker /app
+USER worker
+
+CMD ["python", "-m", "healthcare_platform.shared.fhir_sync"]

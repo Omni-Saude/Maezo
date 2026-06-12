@@ -1,0 +1,439 @@
+version: "3.9"
+
+# =============================================================================
+# MAEZO — Docker Swarm Stack (Single-Node + Traefik TLS)
+#
+# Deploy:
+#   set -a && source .env.swarm.local && set +a
+#   sudo -E docker stack deploy -c docker-compose.swarm.local.yml maezo
+#
+# URLs (HTTPS):
+#   BPM Cockpit:   https://bpm.${DOMAIN}/cibseven/app/cockpit
+#   HAPI FHIR:     https://fhir.${DOMAIN}/fhir/metadata
+#   CE API:        https://api.${DOMAIN}/docs
+#   Grafana:       http://127.0.0.1:3000  (interno)
+#   Prometheus:    http://127.0.0.1:9090  (interno)
+# =============================================================================
+
+secrets:
+  postgres_password:
+    external: true
+  aws_access_key_id:
+    external: true
+  aws_secret_access_key:
+    external: true
+
+networks:
+  maestro_net:
+    driver: overlay
+    attachable: true
+
+volumes:
+  pg_data:
+  kafka_data:
+  prometheus_data:
+  grafana_data:
+  traefik_certs:
+
+services:
+
+  # ── 0. Traefik v3.0 — Reverse Proxy + TLS ──────────────────────────────────
+  traefik:
+    image: traefik:v3.6
+    command:
+      - "--providers.swarm=true"
+      - "--providers.swarm.exposedByDefault=false"
+      - "--providers.swarm.network=maezo_maestro_net"
+      - "--entrypoints.web.address=:80"
+      - "--entrypoints.websecure.address=:443"
+      - "--entrypoints.web.http.redirections.entrypoint.to=websecure"
+      - "--entrypoints.web.http.redirections.entrypoint.scheme=https"
+      - "--certificatesresolvers.le.acme.email=${ACME_EMAIL}"
+      - "--certificatesresolvers.le.acme.storage=/certs/acme.json"
+      - "--certificatesresolvers.le.acme.tlschallenge=true"
+      - "--api.dashboard=false"
+      - "--log.level=INFO"
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - traefik_certs:/certs
+    networks: [maestro_net]
+    deploy:
+      replicas: 1
+      placement:
+        constraints: [node.role == manager]
+      restart_policy: {condition: on-failure, delay: 5s}
+
+  # ── 1. PostgreSQL 16 ─────────────────────────────────────────────────────────
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: maestro
+      POSTGRES_PASSWORD_FILE: /run/secrets/postgres_password
+      POSTGRES_DB: cibseven
+    secrets: [postgres_password]
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+      - /home/ubuntu/projetoMaezo/Healthcare-Orchest/config/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    networks: [maestro_net]
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U maestro -d cibseven"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    deploy:
+      replicas: 1
+      restart_policy: {condition: on-failure, delay: 5s}
+
+  # ── 2. Redis 7.2 ─────────────────────────────────────────────────────────────
+  redis:
+    image: redis:7.2-alpine
+    command: redis-server --appendonly yes
+    networks: [maestro_net]
+    deploy:
+      replicas: 1
+      restart_policy: {condition: on-failure}
+
+  # ── 3. Apache Kafka KRaft ────────────────────────────────────────────────────
+  kafka:
+    image: confluentinc/cp-kafka:7.7.0
+    environment:
+      KAFKA_NODE_ID: "1"
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092,CONTROLLER://0.0.0.0:9093
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@localhost:9093
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,CONTROLLER:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: "1"
+      KAFKA_LOG_RETENTION_HOURS: "168"
+      CLUSTER_ID: ${KAFKA_CLUSTER_ID}
+    volumes:
+      - kafka_data:/var/lib/kafka/data
+    networks: [maestro_net]
+    healthcheck:
+      test: ["CMD-SHELL", "kafka-broker-api-versions --bootstrap-server localhost:9092 2>/dev/null || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 10
+      start_period: 60s
+    deploy:
+      replicas: 1
+      restart_policy: {condition: on-failure, delay: 10s}
+
+  # ── 4. CIB Seven Community BPM Engine ────────────────────────────────────────
+  cib7:
+    image: cibseven/cibseven:run-latest
+    environment:
+      CAMUNDA_BPM_ADMIN_USER_ID: ${CIB7_USER:-admin}
+      CAMUNDA_BPM_ADMIN_USER_PASSWORD: ${CIB7_PASS}
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/cibseven
+      SPRING_DATASOURCE_USERNAME: ${RDS_USER}
+      SPRING_DATASOURCE_PASSWORD: ${PG_PASS}
+      SPRING_DATASOURCE_DRIVER_CLASS_NAME: org.postgresql.Driver
+      CAMUNDA_BPM_MULTITENANCY_TENANTS_CHECKED: "false"
+    networks: [maestro_net]
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:8080/engine-rest/engine || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 10
+      start_period: 90s
+    deploy:
+      replicas: 1
+      restart_policy: {condition: on-failure, delay: 10s}
+      labels:
+        - "traefik.enable=true"
+        - "traefik.http.routers.cib7.rule=Host(`bpm.${DOMAIN}`)"
+        - "traefik.http.routers.cib7.entrypoints=websecure"
+        - "traefik.http.routers.cib7.tls.certresolver=le"
+        - "traefik.http.services.cib7.loadbalancer.server.port=8080"
+
+  # ── 5. HAPI FHIR R4 ──────────────────────────────────────────────────────────
+  hapi_fhir:
+    image: maezo-hapi-fhir:local
+    environment:
+      spring.datasource.url: jdbc:postgresql://postgres:5432/hapi_fhir
+      spring.datasource.username: ${RDS_USER}
+      spring.datasource.password: ${PG_PASS}
+      spring.datasource.driverClassName: org.postgresql.Driver
+      spring.jpa.properties.hibernate.dialect: org.hibernate.dialect.PostgreSQLDialect
+      hapi.fhir.fhir_version: R4
+      hapi.fhir.server_address: https://fhir.${DOMAIN}/fhir
+      hapi.fhir.enforce_referential_integrity_on_write: "false"
+      hapi.fhir.enforce_referential_integrity_on_delete: "false"
+    secrets: [postgres_password]
+    networks: [maestro_net]
+    healthcheck:
+      test: ["CMD", "curl", "-fs", "http://localhost:8080/fhir/metadata"]
+      interval: 30s
+      timeout: 30s
+      retries: 15
+      start_period: 120s
+    deploy:
+      replicas: 1
+      restart_policy: {condition: on-failure}
+      labels:
+        - "traefik.enable=true"
+        - "traefik.http.routers.fhir.rule=Host(`fhir.${DOMAIN}`)"
+        - "traefik.http.routers.fhir.entrypoints=websecure"
+        - "traefik.http.routers.fhir.tls.certresolver=le"
+        - "traefik.http.services.fhir.loadbalancer.server.port=8080"
+
+  # ── 7. Schema Registry ────────────────────────────────────────────────────────
+  schema_registry:
+    image: confluentinc/cp-schema-registry:7.7.0
+    environment:
+      SCHEMA_REGISTRY_HOST_NAME: schema_registry
+      SCHEMA_REGISTRY_KAFKASTORE_BOOTSTRAP_SERVERS: kafka:9092
+      SCHEMA_REGISTRY_LISTENERS: http://0.0.0.0:8081
+    networks: [maestro_net]
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8081/subjects"]
+      interval: 30s
+      timeout: 10s
+      retries: 10
+      start_period: 30s
+    deploy:
+      replicas: 1
+      restart_policy: {condition: on-failure, delay: 10s}
+
+  # ── 8. Debezium Connect ───────────────────────────────────────────────────────
+  debezium:
+    image: maezo-debezium:local
+    environment:
+      BOOTSTRAP_SERVERS: kafka:9092
+      GROUP_ID: debezium-maestro
+      CONFIG_STORAGE_TOPIC: _debezium.config
+      OFFSET_STORAGE_TOPIC: _debezium.offsets
+      STATUS_STORAGE_TOPIC: _debezium.status
+      KEY_CONVERTER: io.confluent.connect.avro.AvroConverter
+      VALUE_CONVERTER: io.confluent.connect.avro.AvroConverter
+      KEY_CONVERTER_SCHEMA_REGISTRY_URL: http://schema_registry:8081
+      VALUE_CONVERTER_SCHEMA_REGISTRY_URL: http://schema_registry:8081
+    secrets:
+      - aws_access_key_id
+      - aws_secret_access_key
+    networks: [maestro_net]
+    deploy:
+      replicas: 1
+      restart_policy: {condition: on-failure, delay: 10s}
+
+  # ── 9. CDC-to-BPM Bridge ─────────────────────────────────────────────────────
+  cdc_bridge:
+    image: maezo-cdc-bridge:local
+    environment:
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      KAFKA_CONSUMER_GROUP: cdc-to-bpm-bridge
+      CIB7_ENGINE_URL: http://cib7:8080/engine-rest
+      CIB7_USER: ${CIB7_USER:-admin}
+      CIB7_PASSWORD: ${CIB7_PASS}
+      CIB7_TENANT_ID: austa
+    networks: [maestro_net]
+    stop_grace_period: 30s
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:8091/health || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    deploy:
+      replicas: 1
+      restart_policy: {condition: on-failure, delay: 10s}
+
+  # ── 9b. FHIR Sync Service (CDC → HAPI FHIR) ─────────────────────────────────
+  fhir_sync:
+    image: maezo-fhir-sync:local
+    environment:
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      KAFKA_CONSUMER_GROUP: fhir-sync
+      FHIR_BASE_URL: http://tasks.hapi_fhir:8080/fhir
+      DLQ_TOPIC: fhir-sync.dead-letter
+      TENANT_ID: austa
+    networks: [maestro_net]
+    stop_grace_period: 30s
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:8092/health || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    deploy:
+      replicas: 1
+      restart_policy: {condition: on-failure, delay: 10s}
+
+  # ── 10-13. Workers Python por domínio ────────────────────────────────────────
+  workers_rc:
+    image: maezo-workers-rc:local
+    environment:
+      WORKER_DOMAIN: revenue_cycle
+      CIBSEVEN_ENGINE_URL: http://cib7:8080/engine-rest
+      CIB7_BASE_URL: http://cib7:8080/engine-rest
+      CIB7_USER: ${CIB7_USER:-admin}
+      CIB7_PASSWORD: ${CIB7_PASS}
+      FHIR_BASE_URL: http://hapi_fhir:8080/fhir
+      DATABASE_URL: postgresql://${RDS_USER}:${PG_PASS}@postgres:5432/maestro
+    networks: [maestro_net]
+    stop_grace_period: 90s
+    deploy:
+      replicas: 1
+      restart_policy: {condition: on-failure, delay: 15s}
+
+  workers_co:
+    image: maezo-workers-co:local
+    environment:
+      WORKER_DOMAIN: clinical_operations
+      CIBSEVEN_ENGINE_URL: http://cib7:8080/engine-rest
+      CIB7_BASE_URL: http://cib7:8080/engine-rest
+      CIB7_USER: ${CIB7_USER:-admin}
+      CIB7_PASSWORD: ${CIB7_PASS}
+      FHIR_BASE_URL: http://hapi_fhir:8080/fhir
+      DATABASE_URL: postgresql://${RDS_USER}:${PG_PASS}@postgres:5432/maestro
+    networks: [maestro_net]
+    stop_grace_period: 90s
+    deploy:
+      replicas: 1
+      restart_policy: {condition: on-failure, delay: 15s}
+
+  workers_pa:
+    image: maezo-workers-pa:local
+    environment:
+      WORKER_DOMAIN: patient_access
+      CIBSEVEN_ENGINE_URL: http://cib7:8080/engine-rest
+      CIB7_BASE_URL: http://cib7:8080/engine-rest
+      CIB7_USER: ${CIB7_USER:-admin}
+      CIB7_PASSWORD: ${CIB7_PASS}
+      DATABASE_URL: postgresql://${RDS_USER}:${PG_PASS}@postgres:5432/maestro
+    networks: [maestro_net]
+    stop_grace_period: 90s
+    deploy:
+      replicas: 1
+      restart_policy: {condition: on-failure, delay: 15s}
+
+  workers_ps:
+    image: maezo-workers-ps:local
+    environment:
+      WORKER_DOMAIN: platform_services
+      CIBSEVEN_ENGINE_URL: http://cib7:8080/engine-rest
+      CIB7_BASE_URL: http://cib7:8080/engine-rest
+      CIB7_USER: ${CIB7_USER:-admin}
+      CIB7_PASSWORD: ${CIB7_PASS}
+      DATABASE_URL: postgresql://${RDS_USER}:${PG_PASS}@postgres:5432/maestro
+    networks: [maestro_net]
+    stop_grace_period: 90s
+    deploy:
+      replicas: 1
+      restart_policy: {condition: on-failure, delay: 15s}
+
+  # ── 12. Contract Extraction API ───────────────────────────────────────────────
+  ce_api:
+    image: maezo-ce:local
+    environment:
+      DATABASE_URL: postgresql://${RDS_USER}:${PG_PASS}@postgres:5432/maestro
+      CIB7_BASE_URL: http://cib7:8080/engine-rest
+      CIB7_USER: ${CIB7_USER:-admin}
+      CIB7_PASSWORD: ${CIB7_PASS}
+    networks: [maestro_net]
+    deploy:
+      replicas: 1
+      restart_policy: {condition: on-failure}
+      labels:
+        - "traefik.enable=true"
+        - "traefik.http.routers.ce.rule=Host(`api.${DOMAIN}`)"
+        - "traefik.http.routers.ce.entrypoints=websecure"
+        - "traefik.http.routers.ce.tls.certresolver=le"
+        - "traefik.http.services.ce.loadbalancer.server.port=8000"
+
+  # ── 13. Prometheus ────────────────────────────────────────────────────────────
+  prometheus:
+    image: prom/prometheus:latest
+    volumes:
+      - /home/ubuntu/projetoMaezo/Healthcare-Orchest/config/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.retention.time=15d"
+    networks: [maestro_net]
+    ports:
+      - "9090:9090"
+    deploy:
+      replicas: 1
+      restart_policy: {condition: on-failure}
+
+  # ── 15. Kafka Connect S3 Sink — Data Lakehouse Raw Layer (Avro) ─────────────
+  kafka_connect_s3:
+    image: confluentinc/cp-kafka-connect:7.7.0
+    environment:
+      CONNECT_BOOTSTRAP_SERVERS: kafka:9092
+      CONNECT_REST_PORT: "8083"
+      CONNECT_REST_ADVERTISED_HOST_NAME: localhost
+      CONNECT_GROUP_ID: connect-s3-sink
+      CONNECT_CONFIG_STORAGE_TOPIC: _connect-s3.config
+      CONNECT_OFFSET_STORAGE_TOPIC: _connect-s3.offsets
+      CONNECT_STATUS_STORAGE_TOPIC: _connect-s3.status
+      CONNECT_CONFIG_STORAGE_REPLICATION_FACTOR: "1"
+      CONNECT_OFFSET_STORAGE_REPLICATION_FACTOR: "1"
+      CONNECT_STATUS_STORAGE_REPLICATION_FACTOR: "1"
+      CONNECT_KEY_CONVERTER: io.confluent.connect.avro.AvroConverter
+      CONNECT_KEY_CONVERTER_SCHEMA_REGISTRY_URL: http://schema_registry:8081
+      CONNECT_VALUE_CONVERTER: io.confluent.connect.avro.AvroConverter
+      CONNECT_VALUE_CONVERTER_SCHEMA_REGISTRY_URL: http://schema_registry:8081
+      CONNECT_PLUGIN_PATH: /usr/share/confluent-hub-components
+      KAFKA_HEAP_OPTS: "-Xms1g -Xmx8g"
+      AWS_DEFAULT_REGION: sa-east-1
+    secrets:
+      - aws_access_key_id
+      - aws_secret_access_key
+    command:
+      - bash
+      - -c
+      - |
+        export AWS_ACCESS_KEY_ID=$$(cat /run/secrets/aws_access_key_id)
+        export AWS_SECRET_ACCESS_KEY=$$(cat /run/secrets/aws_secret_access_key)
+        confluent-hub install --no-prompt confluentinc/kafka-connect-s3:latest
+        DEBEZIUM_LIB=/usr/share/confluent-hub-components/confluentinc-kafka-connect-s3/lib
+        curl -sf -L "https://repo1.maven.org/maven2/io/debezium/debezium-core/2.6.2.Final/debezium-core-2.6.2.Final.jar" \
+          -o $${DEBEZIUM_LIB}/debezium-core-2.6.2.Final.jar
+        curl -sf -L "https://repo1.maven.org/maven2/io/debezium/debezium-api/2.6.2.Final/debezium-api-2.6.2.Final.jar" \
+          -o $${DEBEZIUM_LIB}/debezium-api-2.6.2.Final.jar
+        /etc/confluent/docker/run
+    ports:
+      - "8084:8083"
+    networks: [maestro_net]
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:8083/connectors"]
+      interval: 30s
+      timeout: 10s
+      retries: 10
+      start_period: 120s
+    deploy:
+      replicas: 1
+      restart_policy: {condition: on-failure, delay: 10s}
+
+  # ── 14. Grafana ───────────────────────────────────────────────────────────────
+  grafana:
+    image: grafana/grafana:latest
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: admin
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_SERVER_ROOT_URL: https://monitoring.${DOMAIN}
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - /home/ubuntu/projetoMaezo/Healthcare-Orchest/config/grafana/provisioning/dashboards:/etc/grafana/provisioning/dashboards:ro
+      - /home/ubuntu/projetoMaezo/Healthcare-Orchest/config/grafana/provisioning/datasources:/etc/grafana/provisioning/datasources:ro
+    networks: [maestro_net]
+    deploy:
+      replicas: 1
+      restart_policy: {condition: on-failure}
+      labels:
+        - "traefik.enable=true"
+        - "traefik.http.routers.grafana.rule=Host(`monitoring.${DOMAIN}`)"
+        - "traefik.http.routers.grafana.entrypoints=websecure"
+        - "traefik.http.routers.grafana.tls.certresolver=le"
+        - "traefik.http.services.grafana.loadbalancer.server.port=3000"

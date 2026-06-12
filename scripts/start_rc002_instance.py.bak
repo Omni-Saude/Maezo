@@ -1,0 +1,329 @@
+"""
+Inicia instância(s) SP-RC-002 Pré-Atendimento e Autorização com workers stub.
+
+Cenários disponíveis:
+  1. Happy path  — UNIMED, consulta ambulatorial, autorização APPROVED
+  2. Auth denied — AMIL, procedimento complexo, autorização DENIED
+  3. Auth pending — BRADESCO, cirurgia, autorização PENDING (→ revisão manual)
+
+Requer: CIB Seven rodando (default http://localhost:8085)
+        BPMN SP-RC-002_Pre_Service deployado no tenant Maezo_rc
+
+Uso:
+  python scripts/start_rc002_instance.py              # roda todos os cenários
+  python scripts/start_rc002_instance.py --cenario 1  # apenas happy path
+  python scripts/start_rc002_instance.py --port 8080  # CIB Seven em porta diferente
+"""
+from __future__ import annotations
+
+import argparse
+import json
+import sys
+import threading
+import time
+import uuid
+
+import httpx
+
+# ---------------------------------------------------------------------------
+# Reutiliza infra do worker_harness (stubs, harness, helpers)
+# ---------------------------------------------------------------------------
+sys.path.insert(0, ".")
+sys.path.insert(0, "src")
+
+from tests.integration.worker_harness import (
+    WorkerHarness,
+    cancel_all_active,
+    get_process_variables,
+    make_mock_dmn,
+    stub_worker,
+    trigger_timers,
+    wait_for_state,
+)
+from healthcare_platform.revenue_cycle.production.workers.validate_procedure_worker_v2 import (
+    ValidateProcedureWorker,
+)
+from healthcare_platform.shared.workers.base import TaskContext, TaskResult, TaskStatus
+
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8")
+
+PROCESS_KEY = "SP_RC_002_Pre_Service"
+TENANT = "Maezo_rc"
+
+
+# ---------------------------------------------------------------------------
+# Adapter: ValidateProcedureWorker (mesmo do teste)
+# ---------------------------------------------------------------------------
+
+def _make_validate_adapter(mock_dmn):
+    """Adapta ValidateProcedureWorker para contrato BPMN SP-RC-002."""
+    import dataclasses
+    worker = ValidateProcedureWorker(dmn_service=mock_dmn)
+
+    def adapter(context: TaskContext) -> TaskResult:
+        procedure_code = context.variables.get("procedureCode", "")
+        clinical_data = context.variables.get("clinicalData", {})
+        if isinstance(clinical_data, str):
+            try:
+                clinical_data = json.loads(clinical_data)
+            except Exception:
+                clinical_data = {}
+
+        adapted = dataclasses.replace(
+            context,
+            variables={
+                **context.variables,
+                "procedure_codes": [procedure_code] if procedure_code else [],
+                "coverage_type": clinical_data.get("coverageType", "ambulatorial"),
+            },
+        )
+        result = worker.execute(adapted)
+
+        if result.status == TaskStatus.SUCCESS:
+            all_valid = result.variables.get("all_valid", True)
+            vars_out = dict(result.variables or {})
+            vars_out["validationStatus"] = "OK" if all_valid else "INVALID"
+            return TaskResult.success(vars_out)
+        return result
+
+    return adapter
+
+
+# ---------------------------------------------------------------------------
+# Worker map por cenário
+# ---------------------------------------------------------------------------
+
+def build_worker_map(auth_status: str = "APPROVED") -> dict:
+    mock_dmn = make_mock_dmn(responses={
+        "procedure_code_adjudication": {
+            "resultado": "PROSSEGUIR",
+            "acao": "Código TUSS válido",
+            "risco": "BAIXO",
+            "coverageType": "ambulatorial",
+            "procedureName": "Consulta médica em consultório",
+        }
+    })
+    return {
+        "revenue_cycle.check_authorization": stub_worker({
+            "requiresAuth": True,
+            "authType": "prior_auth",
+        }),
+        "revenue_cycle.request_authorization": stub_worker({
+            "authorizationNumber": f"AUTH-{uuid.uuid4().hex[:8]}",
+            "authStatus": auth_status,
+        }),
+        "AtualizarTasy": stub_worker({"tasyUpdated": True}),
+        "revenue_cycle.validate_procedure": _make_validate_adapter(mock_dmn),
+        "RevisarManual": stub_worker({"reviewCompleted": True}),
+        "escalar-autoriza-o": stub_worker({"escalated": True}),
+    }
+
+
+# ---------------------------------------------------------------------------
+# Cenários RC-002
+# ---------------------------------------------------------------------------
+
+CENARIOS = [
+    {
+        "label": "RC-002 #1 Happy Path / UNIMED (APPROVED)",
+        "auth_status": "APPROVED",
+        "variables": {
+            "patientId": f"PAT-{uuid.uuid4().hex[:8]}",
+            "encounterId": f"ENC-{uuid.uuid4().hex[:8]}",
+            "procedureCode": "40101010",
+            "payerId": "UNIMED-SP",
+            "clinicalJustification": "Consulta de rotina",
+            "clinicalData": json.dumps({
+                "diagnosis": "K80.2",
+                "procedure": "40101010",
+                "coverageType": "ambulatorial",
+            }),
+        },
+    },
+    {
+        "label": "RC-002 #2 Auth Denied / AMIL (DENIED)",
+        "auth_status": "DENIED",
+        "variables": {
+            "patientId": f"PAT-{uuid.uuid4().hex[:8]}",
+            "encounterId": f"ENC-{uuid.uuid4().hex[:8]}",
+            "procedureCode": "30722018",
+            "payerId": "AMIL",
+            "clinicalJustification": "Cirurgia eletiva — prótese quadril",
+            "clinicalData": json.dumps({
+                "diagnosis": "M16.1",
+                "procedure": "30722018",
+                "coverageType": "internacao",
+            }),
+        },
+    },
+    {
+        "label": "RC-002 #3 Auth Pending / BRADESCO (PENDING → revisão manual)",
+        "auth_status": "PENDING",
+        "variables": {
+            "patientId": f"PAT-{uuid.uuid4().hex[:8]}",
+            "encounterId": f"ENC-{uuid.uuid4().hex[:8]}",
+            "procedureCode": "31309016",
+            "payerId": "BRADESCO",
+            "clinicalJustification": "Procedimento complexo — artroscopia",
+            "priority": "URGENT",
+            "clinicalData": json.dumps({
+                "diagnosis": "M23.5",
+                "procedure": "31309016",
+                "coverageType": "internacao",
+            }),
+        },
+    },
+]
+
+
+# ---------------------------------------------------------------------------
+# Execução
+# ---------------------------------------------------------------------------
+
+def start_instance(client: httpx.Client, variables: dict) -> str | None:
+    payload = {
+        "variables": {
+            k: {"value": v, "type": "String"}
+            for k, v in variables.items()
+        }
+    }
+    r = client.post(
+        f"/process-definition/key/{PROCESS_KEY}/tenant-id/{TENANT}/start",
+        json=payload,
+    )
+    if r.status_code == 200:
+        return r.json()["id"]
+    print(f"  ERR HTTP {r.status_code}: {r.text[:200]}")
+    return None
+
+
+def run_cenario(client: httpx.Client, cenario: dict, timeout_s: int = 45) -> dict:
+    label = cenario["label"]
+    auth_status = cenario["auth_status"]
+    variables = cenario["variables"]
+
+    print(f"\n{'='*70}")
+    print(f"  {label}")
+    print(f"{'='*70}")
+    print(f"  payerId={variables['payerId']}  procedure={variables['procedureCode']}")
+    print(f"  authStatus esperado: {auth_status}")
+
+    # Iniciar instância
+    instance_id = start_instance(client, variables)
+    if not instance_id:
+        return {"label": label, "state": "START_FAILED", "instance_id": None}
+
+    print(f"  Instância: {instance_id[:12]}...")
+
+    # Worker map com auth_status do cenário
+    worker_map = build_worker_map(auth_status=auth_status)
+
+    # Rodar harness com stubs
+    with WorkerHarness(client, worker_map, instance_ids=[instance_id]) as harness:
+        # Aguardar stubs processarem check + request authorization
+        time.sleep(3)
+
+        # Disparar timers (PT1H do BPMN)
+        triggered = trigger_timers(client, instance_id, wait_s=10)
+        print(f"  Timers disparados: {triggered}")
+
+        # Aguardar estado final
+        state = wait_for_state(client, instance_id, "COMPLETED", timeout_s=timeout_s)
+
+        # Workers que executaram
+        executed_topics = [e["topic"] for e in harness.executed]
+        errors = harness.errors
+
+    # Variáveis finais
+    proc_vars = get_process_variables(client, instance_id)
+
+    print(f"\n  Estado final: {state}")
+    print(f"  Workers executados: {executed_topics}")
+    if errors:
+        print(f"  ERROS: {errors}")
+
+    # Variáveis relevantes
+    relevant_keys = [
+        "authStatus", "authorizationNumber", "requiresAuth",
+        "validationStatus", "tasyUpdated", "reviewCompleted", "escalated",
+    ]
+    print(f"  Variáveis relevantes:")
+    for k in relevant_keys:
+        if k in proc_vars:
+            print(f"    {k} = {proc_vars[k]}")
+
+    return {
+        "label": label,
+        "state": state,
+        "instance_id": instance_id,
+        "executed": executed_topics,
+        "errors": errors,
+        "variables": {k: proc_vars.get(k) for k in relevant_keys if k in proc_vars},
+    }
+
+
+def main():
+    parser = argparse.ArgumentParser(description="Smoke test SP-RC-002 com workers stub")
+    parser.add_argument("--port", type=int, default=8085, help="Porta do CIB Seven (default: 8085)")
+    parser.add_argument("--host", default="localhost", help="Host do CIB Seven (default: localhost)")
+    parser.add_argument("--user", default="admin", help="Usuário CIB Seven")
+    parser.add_argument("--password", default="admin", help="Senha CIB Seven")
+    parser.add_argument("--cenario", type=int, choices=[1, 2, 3], help="Rodar cenário específico (1-3)")
+    parser.add_argument("--timeout", type=int, default=45, help="Timeout por cenário em segundos")
+    args = parser.parse_args()
+
+    base_url = f"http://{args.host}:{args.port}/engine-rest"
+    print(f"\n-- SP-RC-002 Pré-Atendimento e Autorização ----------------------------")
+    print(f"   Engine: {base_url}")
+    print(f"   Tenant: {TENANT}")
+    print(f"   Process: {PROCESS_KEY}")
+
+    client = httpx.Client(
+        base_url=base_url,
+        auth=(args.user, args.password),
+        timeout=30.0,
+    )
+
+    # Verificar engine disponível
+    try:
+        r = client.get("/engine")
+        if r.status_code != 200:
+            print(f"\n  ERRO: CIB Seven não respondeu (HTTP {r.status_code})")
+            sys.exit(1)
+        print(f"   Engine OK: {r.json()[0].get('name', '?')}")
+    except Exception as e:
+        print(f"\n  ERRO: Não foi possível conectar ao CIB Seven: {e}")
+        sys.exit(1)
+
+    # Selecionar cenários
+    if args.cenario:
+        selected = [CENARIOS[args.cenario - 1]]
+    else:
+        selected = CENARIOS
+
+    # Executar
+    results = []
+    for cenario in selected:
+        result = run_cenario(client, cenario, timeout_s=args.timeout)
+        results.append(result)
+
+    # Resumo
+    print(f"\n{'='*70}")
+    print(f"  RESUMO — {len(results)} cenário(s)")
+    print(f"{'='*70}")
+    for r in results:
+        icon = "OK" if r["state"] == "COMPLETED" else "!!"
+        print(f"  [{icon}] {r['label']} -> {r['state']}")
+        if r["errors"]:
+            print(f"       Erros: {r['errors']}")
+
+    client.close()
+
+    # Exit code
+    all_ok = all(r["state"] in ("COMPLETED", "ACTIVE") for r in results)
+    sys.exit(0 if all_ok else 1)
+
+
+if __name__ == "__main__":
+    main()

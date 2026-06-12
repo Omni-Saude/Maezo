@@ -1,0 +1,406 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+                  xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+                  xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+                  xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
+                  xmlns:camunda="http://camunda.org/schema/1.0/bpmn"
+                  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                  id="Definitions_ClinicalAlert"
+                  targetNamespace="http://cib7.healthcare/templates"
+                  exporter="Camunda Modeler"
+                  exporterVersion="5.20.0">
+
+  <!--
+    TEMPLATE: BPMN_CLINICAL_ALERT (v2.0 - With BPMNDI)
+    Purpose: Clinical safety subprocess for alert-based decision making
+    DMN Archetype: CLINICAL_ALERT (3 outputs: nivelAlerta, acaoRequerida, justificativa)
+    Coverage: 55 clinical workers (alert monitoring, vital signs, early warning)
+    
+    ADR Compliance:
+    - ADR-001: External Task pattern (no Java delegates)
+    - ADR-002: Tenant marker resolution (documented in start event)
+    - ADR-007: DMN federation (tenant overrides documented)
+    - ADR-013: Template-first generation strategy
+    
+    Pattern:
+      1. Fetch clinical data (FHIR/TASY)
+      2. Evaluate DMN alert rules
+      3. Route based on severity
+      4. Take action (notify, escalate, or proceed)
+    
+    Variables:
+      Input:  encounterId, patientId, clinicalContext, tenantId
+      Output: nivelAlerta, acaoRequerida, justificativa, alertHandled
+  -->
+
+  <bpmn:process id="TEMPLATE_Clinical_Alert" name="[Clinical Alert Template]" isExecutable="true" camunda:historyTimeToLive="30">
+
+    <!-- Start Event -->
+    <bpmn:startEvent id="start_alert" name="Início&#10;Alerta Clínico">
+      <bpmn:documentation>
+        Tenant Resolution (ADR-002):
+        1. Check process variable "tenantId" (explicit)
+        2. Check process variable "hospitalCode" (implicit)
+        3. Use deployment tenant marker
+        4. Default to "default" tenant
+        
+        Every process instance MUST resolve to exactly one tenant.
+        Tenant determines which DMN overrides apply (ADR-007).
+        
+        Example instantiation:
+        POST /process-definition/key/TEMPLATE_Clinical_Alert/start
+        {
+          "variables": {
+            "tenantId": {"value": "hospital-a", "type": "String"},
+            "encounterId": {"value": "ENC-12345", "type": "String"},
+            "patientId": {"value": "PAT-67890", "type": "String"}
+          },
+          "businessKey": "alert-sepsis-12345"
+        }
+      </bpmn:documentation>
+      <bpmn:outgoing>flow_to_fetch</bpmn:outgoing>
+    </bpmn:startEvent>
+
+    <!-- Service Task: Fetch Clinical Data -->
+    <bpmn:serviceTask id="task_fetch_clinical_data" name="Buscar Dados Clínicos" camunda:type="external" camunda:topic="template.clinical_alert.fetch_clinical_data">
+      <bpmn:documentation>
+        Worker: {domain}.{subdomain}.fetch-clinical-data
+        Fetches: Patient demographics, vitals, labs, medications (FHIR R4)
+        Integration: FHIRClient + TasyApiClient
+      </bpmn:documentation>
+      <bpmn:extensionElements>
+        <camunda:inputOutput>
+          <camunda:inputParameter name="encounterId">${encounterId}</camunda:inputParameter>
+          <camunda:inputParameter name="patientId">${patientId}</camunda:inputParameter>
+          <camunda:outputParameter name="clinicalContext">${context}</camunda:outputParameter>
+        </camunda:inputOutput>
+      </bpmn:extensionElements>
+      <bpmn:incoming>flow_to_fetch</bpmn:incoming>
+      <bpmn:outgoing>flow_to_dmn_alert</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Business Rule Task: Evaluate DMN Alert -->
+    <bpmn:businessRuleTask id="dmn_evaluate_alert" name="Avaliar&#10;Regra de Alerta"
+                           camunda:decisionRef="{dmn_table_name}"
+                           camunda:resultVariable="alertResult"
+                           camunda:mapDecisionResult="singleEntry">
+      <bpmn:documentation>
+        DMN: {category}/{subcategory}/{table_name} (CLINICAL_ALERT archetype)
+        Outputs: nivelAlerta (CRITICO|ALTO|MEDIO|BAIXO|OK), acaoRequerida, justificativa
+
+        DMN Federation (ADR-007):
+        1. Engine checks for tenant-specific DMN deployment FIRST
+           Example: If tenantId="hospital-a" and DMN "sepsis_detection" exists for "hospital-a", use it
+        2. Falls back to global (no-tenant) DMN if tenant override not found
+        3. Payer-specific rules handled via input parameters (e.g., payerId column in DMN table)
+
+        Federation Benefits:
+        - Most rules are global (qSOFA thresholds, NEWS2 criteria)
+        - Only genuine hospital-unit differences require overrides
+        - Global updates propagate to non-overriding tenants automatically
+
+        Example Tenant Override Scenario:
+        - Global DMN: sepsis_detection (threshold: qSOFA >= 2)
+        - hospital-a override: sepsis_detection (threshold: qSOFA >= 1, more sensitive)
+        - amh-sp-morumbi: No override → uses global version
+      </bpmn:documentation>
+      <bpmn:incoming>flow_to_dmn_alert</bpmn:incoming>
+      <bpmn:outgoing>flow_to_severity_gateway</bpmn:outgoing>
+    </bpmn:businessRuleTask>
+
+    <!-- Exclusive Gateway: Severity Routing -->
+    <bpmn:exclusiveGateway id="gateway_severity" name="Nível de&#10;Alerta?" default="flow_ok">
+      <bpmn:incoming>flow_to_severity_gateway</bpmn:incoming>
+      <bpmn:outgoing>flow_critical</bpmn:outgoing>
+      <bpmn:outgoing>flow_high</bpmn:outgoing>
+      <bpmn:outgoing>flow_medium_low</bpmn:outgoing>
+      <bpmn:outgoing>flow_ok</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+
+    <!-- Critical Path: Immediate Alert + Escalation -->
+    <bpmn:serviceTask id="task_alert_critical" name="Alerta Crítico Imediato" camunda:type="external" camunda:topic="template.clinical_alert.send_critical_alert">
+      <bpmn:documentation>
+        Worker: {domain}.{subdomain}.send-critical-alert
+        Action: Page physician, SMS, push notification (all channels)
+      </bpmn:documentation>
+      <bpmn:extensionElements>
+        <camunda:inputOutput>
+          <camunda:inputParameter name="severity">CRITICO</camunda:inputParameter>
+          <camunda:inputParameter name="acaoRequerida">${acaoRequerida}</camunda:inputParameter>
+          <camunda:inputParameter name="justificativa">${justificativa}</camunda:inputParameter>
+        </camunda:inputOutput>
+      </bpmn:extensionElements>
+      <bpmn:incoming>flow_critical</bpmn:incoming>
+      <bpmn:outgoing>flow_to_end_escalated</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- High Path: Standard Alert + Notification -->
+    <bpmn:serviceTask id="task_alert_high" name="Notificar Equipe" camunda:type="external" camunda:topic="template.clinical_alert.notify_team">
+      <bpmn:documentation>
+        Worker: {domain}.{subdomain}.notify-team
+        Action: In-app notification, email to care team
+      </bpmn:documentation>
+      <bpmn:extensionElements>
+        <camunda:inputOutput>
+          <camunda:inputParameter name="severity">ALTO</camunda:inputParameter>
+          <camunda:inputParameter name="acaoRequerida">${acaoRequerida}</camunda:inputParameter>
+        </camunda:inputOutput>
+      </bpmn:extensionElements>
+      <bpmn:incoming>flow_high</bpmn:incoming>
+      <bpmn:outgoing>flow_to_end_notified</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Medium/Low Path: Log Only -->
+    <bpmn:serviceTask id="task_log_alert" name="Registrar Alerta" camunda:type="external" camunda:topic="template.clinical_alert.log_alert">
+      <bpmn:documentation>
+        Worker: {domain}.{subdomain}.log-alert
+        Action: Store in clinical audit log (LGPD compliant)
+      </bpmn:documentation>
+      <bpmn:incoming>flow_medium_low</bpmn:incoming>
+      <bpmn:outgoing>flow_to_end_logged</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Error Boundary: FHIR/TASY Fetch Failure -->
+    <bpmn:boundaryEvent id="error_fetch_failure" name="Erro ao Buscar Dados" attachedToRef="task_fetch_clinical_data">
+      <bpmn:outgoing>flow_to_manual_review</bpmn:outgoing>
+      <bpmn:errorEventDefinition errorRef="Error_DataFetchFailed"/>
+    </bpmn:boundaryEvent>
+
+    <!-- User Task: Manual Review (Fallback) -->
+    <bpmn:userTask id="task_manual_review" name="Revisão Manual">
+      <bpmn:documentation>
+        Assignee: Physician or Clinical Coordinator
+        Reason: Data fetch failed, manual assessment required
+      </bpmn:documentation>
+      <bpmn:incoming>flow_to_manual_review</bpmn:incoming>
+      <bpmn:outgoing>flow_to_end_manual</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <!-- End Events -->
+    <bpmn:endEvent id="end_escalated" name="Escalado">
+      <bpmn:incoming>flow_to_end_escalated</bpmn:incoming>
+    </bpmn:endEvent>
+
+    <bpmn:endEvent id="end_notified" name="Equipe Notificada">
+      <bpmn:incoming>flow_to_end_notified</bpmn:incoming>
+    </bpmn:endEvent>
+
+    <bpmn:endEvent id="end_logged" name="Registrado">
+      <bpmn:incoming>flow_to_end_logged</bpmn:incoming>
+    </bpmn:endEvent>
+
+    <bpmn:endEvent id="end_ok" name="OK - Sem Ação">
+      <bpmn:incoming>flow_ok</bpmn:incoming>
+    </bpmn:endEvent>
+
+    <bpmn:endEvent id="end_manual" name="Revisão Manual">
+      <bpmn:incoming>flow_to_end_manual</bpmn:incoming>
+    </bpmn:endEvent>
+
+    <!-- Sequence Flows -->
+    <bpmn:sequenceFlow id="flow_to_fetch" sourceRef="start_alert" targetRef="task_fetch_clinical_data"/>
+    <bpmn:sequenceFlow id="flow_to_dmn_alert" sourceRef="task_fetch_clinical_data" targetRef="dmn_evaluate_alert"/>
+    <bpmn:sequenceFlow id="flow_to_severity_gateway" sourceRef="dmn_evaluate_alert" targetRef="gateway_severity"/>
+    
+    <bpmn:sequenceFlow id="flow_critical" name="CRÍTICO" sourceRef="gateway_severity" targetRef="task_alert_critical">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${nivelAlerta == "CRITICO"}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+
+    <bpmn:sequenceFlow id="flow_high" name="ALTO" sourceRef="gateway_severity" targetRef="task_alert_high">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${nivelAlerta == "ALTO"}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+
+    <bpmn:sequenceFlow id="flow_medium_low" name="MÉDIO/BAIXO" sourceRef="gateway_severity" targetRef="task_log_alert">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${nivelAlerta == "MEDIO" || nivelAlerta == "BAIXO"}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+
+    <bpmn:sequenceFlow id="flow_ok" name="OK" sourceRef="gateway_severity" targetRef="end_ok">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${nivelAlerta == "OK"}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    
+    <bpmn:sequenceFlow id="flow_to_manual_review" sourceRef="error_fetch_failure" targetRef="task_manual_review"/>
+    <bpmn:sequenceFlow id="flow_to_end_escalated" sourceRef="task_alert_critical" targetRef="end_escalated"/>
+    <bpmn:sequenceFlow id="flow_to_end_notified" sourceRef="task_alert_high" targetRef="end_notified"/>
+    <bpmn:sequenceFlow id="flow_to_end_logged" sourceRef="task_log_alert" targetRef="end_logged"/>
+    <bpmn:sequenceFlow id="flow_to_end_manual" sourceRef="task_manual_review" targetRef="end_manual"/>
+
+  </bpmn:process>
+
+  <!-- Error Definitions -->
+  <bpmn:error id="Error_DataFetchFailed" name="DataFetchFailed" errorCode="ERR_DATA_FETCH"/>
+
+  <!-- Escalation Definitions (Best Practice: Use for non-fatal issues like SLA breaches) -->
+  <bpmn:escalation id="Escalation_SLABreach" name="SLA Breach" escalationCode="ESC_SLA_BREACH"/>
+
+  <!-- BPMNDI Visual Diagram -->
+  <bpmndi:BPMNDiagram id="BPMNDiagram_Clinical_Alert">
+    <bpmndi:BPMNPlane id="BPMNPlane_Clinical_Alert" bpmnElement="TEMPLATE_Clinical_Alert">
+      
+      <!-- Start Event -->
+      <bpmndi:BPMNShape id="shape_start_alert" bpmnElement="start_alert">
+        <dc:Bounds x="152" y="102" width="36" height="36"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="144" y="145" width="52" height="27"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      
+      <!-- Service Task: Fetch -->
+      <bpmndi:BPMNShape id="shape_task_fetch" bpmnElement="task_fetch_clinical_data">
+        <dc:Bounds x="240" y="80" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+      
+      <!-- Error Boundary on Fetch -->
+      <bpmndi:BPMNShape id="shape_error_fetch" bpmnElement="error_fetch_failure">
+        <dc:Bounds x="322" y="142" width="36" height="36"/>
+      </bpmndi:BPMNShape>
+      
+      <!-- Business Rule Task: DMN -->
+      <bpmndi:BPMNShape id="shape_dmn_alert" bpmnElement="dmn_evaluate_alert">
+        <dc:Bounds x="400" y="80" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+      
+      <!-- Gateway: Severity -->
+      <bpmndi:BPMNShape id="shape_gateway_severity" bpmnElement="gateway_severity" isMarkerVisible="true">
+        <dc:Bounds x="560" y="95" width="50" height="50"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="556" y="65" width="58" height="27"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      
+      <!-- Critical Path -->
+      <bpmndi:BPMNShape id="shape_task_critical" bpmnElement="task_alert_critical">
+        <dc:Bounds x="670" y="200" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+      
+      <!-- High Path -->
+      <bpmndi:BPMNShape id="shape_task_high" bpmnElement="task_alert_high">
+        <dc:Bounds x="670" y="310" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+      
+      <!-- Medium/Low Path -->
+      <bpmndi:BPMNShape id="shape_task_log" bpmnElement="task_log_alert">
+        <dc:Bounds x="670" y="420" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+      
+      <!-- Manual Review (Error Fallback) -->
+      <bpmndi:BPMNShape id="shape_task_manual" bpmnElement="task_manual_review">
+        <dc:Bounds x="400" y="240" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+      
+      <!-- End Events -->
+      <bpmndi:BPMNShape id="shape_end_escalated" bpmnElement="end_escalated">
+        <dc:Bounds x="832" y="222" width="36" height="36"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="825" y="265" width="50" height="14"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      
+      <bpmndi:BPMNShape id="shape_end_notified" bpmnElement="end_notified">
+        <dc:Bounds x="832" y="332" width="36" height="36"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="807" y="375" width="87" height="14"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      
+      <bpmndi:BPMNShape id="shape_end_logged" bpmnElement="end_logged">
+        <dc:Bounds x="832" y="442" width="36" height="36"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="818" y="485" width="65" height="14"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      
+      <bpmndi:BPMNShape id="shape_end_ok" bpmnElement="end_ok">
+        <dc:Bounds x="672" y="102" width="36" height="36"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="651" y="78" width="78" height="14"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      
+      <bpmndi:BPMNShape id="shape_end_manual" bpmnElement="end_manual">
+        <dc:Bounds x="562" y="262" width="36" height="36"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="537" y="305" width="87" height="14"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      
+      <!-- Sequence Flows -->
+      <bpmndi:BPMNEdge id="edge_flow_to_fetch" bpmnElement="flow_to_fetch">
+        <di:waypoint x="188" y="120"/>
+        <di:waypoint x="240" y="120"/>
+      </bpmndi:BPMNEdge>
+      
+      <bpmndi:BPMNEdge id="edge_flow_to_dmn" bpmnElement="flow_to_dmn_alert">
+        <di:waypoint x="340" y="120"/>
+        <di:waypoint x="400" y="120"/>
+      </bpmndi:BPMNEdge>
+      
+      <bpmndi:BPMNEdge id="edge_flow_to_gateway" bpmnElement="flow_to_severity_gateway">
+        <di:waypoint x="500" y="120"/>
+        <di:waypoint x="560" y="120"/>
+      </bpmndi:BPMNEdge>
+      
+      <bpmndi:BPMNEdge id="edge_flow_critical" bpmnElement="flow_critical">
+        <di:waypoint x="585" y="145"/>
+        <di:waypoint x="585" y="240"/>
+        <di:waypoint x="670" y="240"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="598" y="223" width="53" height="14"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      
+      <bpmndi:BPMNEdge id="edge_flow_high" bpmnElement="flow_high">
+        <di:waypoint x="585" y="145"/>
+        <di:waypoint x="585" y="350"/>
+        <di:waypoint x="670" y="350"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="605" y="333" width="31" height="14"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      
+      <bpmndi:BPMNEdge id="edge_flow_medium_low" bpmnElement="flow_medium_low">
+        <di:waypoint x="585" y="145"/>
+        <di:waypoint x="585" y="460"/>
+        <di:waypoint x="670" y="460"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="580" y="443" width="70" height="14"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      
+      <bpmndi:BPMNEdge id="edge_flow_ok" bpmnElement="flow_ok">
+        <di:waypoint x="610" y="120"/>
+        <di:waypoint x="672" y="120"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="633" y="102" width="17" height="14"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      
+      <bpmndi:BPMNEdge id="edge_flow_to_manual" bpmnElement="flow_to_manual_review">
+        <di:waypoint x="340" y="178"/>
+        <di:waypoint x="340" y="280"/>
+        <di:waypoint x="400" y="280"/>
+      </bpmndi:BPMNEdge>
+      
+      <bpmndi:BPMNEdge id="edge_flow_to_end_critical" bpmnElement="flow_to_end_escalated">
+        <di:waypoint x="770" y="240"/>
+        <di:waypoint x="832" y="240"/>
+      </bpmndi:BPMNEdge>
+      
+      <bpmndi:BPMNEdge id="edge_flow_to_end_high" bpmnElement="flow_to_end_notified">
+        <di:waypoint x="770" y="350"/>
+        <di:waypoint x="832" y="350"/>
+      </bpmndi:BPMNEdge>
+      
+      <bpmndi:BPMNEdge id="edge_flow_to_end_logged" bpmnElement="flow_to_end_logged">
+        <di:waypoint x="770" y="460"/>
+        <di:waypoint x="832" y="460"/>
+      </bpmndi:BPMNEdge>
+      
+      <bpmndi:BPMNEdge id="edge_flow_to_end_manual" bpmnElement="flow_to_end_manual">
+        <di:waypoint x="500" y="280"/>
+        <di:waypoint x="562" y="280"/>
+      </bpmndi:BPMNEdge>
+      
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+
+</bpmn:definitions>

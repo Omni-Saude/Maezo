@@ -1,0 +1,228 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" xmlns:camunda="http://camunda.org/schema/1.0/bpmn" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" id="Definitions_RC001" targetNamespace="http://cib7.healthcare/revenue-cycle" exporter="Camunda Modeler" exporterVersion="5.35.0">
+  <bpmn:process id="SP_RC_001_Scheduling_Registration" name="Agendamento e Registro" isExecutable="true" camunda:historyTimeToLive="30">
+    <bpmn:startEvent id="start_scheduling" name="Início Agendamento">
+      <bpmn:outgoing>flow_to_verify_insurance</bpmn:outgoing>
+    </bpmn:startEvent>
+    <bpmn:boundaryEvent id="timer_insurance_sla" name="SLA 4h" attachedToRef="task_verify_insurance">
+      <bpmn:outgoing>flow_to_escalate_insurance</bpmn:outgoing>
+      <bpmn:timerEventDefinition>
+        <bpmn:timeDuration xsi:type="bpmn:tFormalExpression">PT4H</bpmn:timeDuration>
+      </bpmn:timerEventDefinition>
+    </bpmn:boundaryEvent>
+    <bpmn:boundaryEvent id="error_insurance_verification" name="Erro Verificação" attachedToRef="task_verify_insurance">
+      <bpmn:outgoing>flow_to_manual_review</bpmn:outgoing>
+      <bpmn:errorEventDefinition errorRef="Error_InsuranceVerificationFailed" />
+    </bpmn:boundaryEvent>
+    <bpmn:exclusiveGateway id="gateway_eligibility" name="Elegível?" default="flow_eligible_no">
+      <bpmn:incoming>flow_to_eligibility_gateway</bpmn:incoming>
+      <bpmn:outgoing>flow_eligible_yes</bpmn:outgoing>
+      <bpmn:outgoing>flow_eligible_no</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:endEvent id="end_success" name="Agendamento Concluído">
+      <bpmn:incoming>flow_to_end_success</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:endEvent id="end_manual_review" name="Revisão Manual Necessária">
+      <bpmn:incoming>flow_to_end_manual</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:endEvent id="end_escalated" name="Escalado">
+      <bpmn:incoming>flow_to_end_escalated</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:sequenceFlow id="flow_to_verify_insurance" sourceRef="start_scheduling" targetRef="task_verify_insurance" />
+    <bpmn:sequenceFlow id="flow_to_check_eligibility" sourceRef="task_verify_insurance" targetRef="task_check_eligibility" />
+    <bpmn:sequenceFlow id="flow_to_eligibility_gateway" sourceRef="task_check_eligibility" targetRef="gateway_eligibility" />
+    <bpmn:sequenceFlow id="flow_eligible_yes" name="Sim" sourceRef="gateway_eligibility" targetRef="task_schedule_appointment">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${eligibilityStatus == true}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="flow_eligible_no" name="Não" sourceRef="gateway_eligibility" targetRef="Gateway_03meg5s" />
+    <bpmn:sequenceFlow id="flow_to_manual_review" sourceRef="error_insurance_verification" targetRef="Gateway_03meg5s" />
+    <bpmn:sequenceFlow id="flow_to_escalate_insurance" sourceRef="timer_insurance_sla" targetRef="task_escalate_insurance" />
+    <bpmn:sequenceFlow id="flow_to_end_success" sourceRef="task_schedule_appointment" targetRef="end_success" />
+    <bpmn:sequenceFlow id="flow_to_end_manual" sourceRef="task_manual_review" targetRef="end_manual_review" />
+    <bpmn:sequenceFlow id="flow_to_end_escalated" sourceRef="task_escalate_insurance" targetRef="end_escalated" />
+    <bpmn:exclusiveGateway id="Gateway_03meg5s">
+      <bpmn:incoming>flow_to_manual_review</bpmn:incoming>
+      <bpmn:incoming>flow_eligible_no</bpmn:incoming>
+      <bpmn:outgoing>Flow_16n26de</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:sequenceFlow id="Flow_16n26de" sourceRef="Gateway_03meg5s" targetRef="task_manual_review" />
+    <bpmn:task id="task_verify_insurance" name="Verificar Cobertura">
+      <bpmn:extensionElements>
+        <camunda:inputOutput>
+          <camunda:inputParameter name="patientId">${patientId}</camunda:inputParameter>
+          <camunda:inputParameter name="cardNumber">${insuranceCardNumber}</camunda:inputParameter>
+          <camunda:outputParameter name="insuranceVerified">${coverageStatus}</camunda:outputParameter>
+        </camunda:inputOutput>
+      </bpmn:extensionElements>
+      <bpmn:incoming>flow_to_verify_insurance</bpmn:incoming>
+      <bpmn:outgoing>flow_to_check_eligibility</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:task id="task_check_eligibility" name="Verificar Elegibilidade">
+      <bpmn:extensionElements>
+        <camunda:inputOutput>
+          <camunda:outputParameter name="eligibilityStatus">${isEligible}</camunda:outputParameter>
+        </camunda:inputOutput>
+      </bpmn:extensionElements>
+      <bpmn:incoming>flow_to_check_eligibility</bpmn:incoming>
+      <bpmn:outgoing>flow_to_eligibility_gateway</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:task id="task_schedule_appointment" name="Agendar Consulta">
+      <bpmn:extensionElements>
+        <camunda:inputOutput>
+          <camunda:outputParameter name="scheduledAppointmentId">${appointmentId}</camunda:outputParameter>
+        </camunda:inputOutput>
+      </bpmn:extensionElements>
+      <bpmn:incoming>flow_eligible_yes</bpmn:incoming>
+      <bpmn:outgoing>flow_to_end_success</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:task id="task_manual_review" name="Revisão Manual">
+      <bpmn:incoming>Flow_16n26de</bpmn:incoming>
+      <bpmn:outgoing>flow_to_end_manual</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:task id="task_escalate_insurance" name="Escalar para Supervisor">
+      <bpmn:incoming>flow_to_escalate_insurance</bpmn:incoming>
+      <bpmn:outgoing>flow_to_end_escalated</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:textAnnotation id="TextAnnotation_190muz1">
+      <bpmn:text>Este fluxo é coberto pela entrada do paciente</bpmn:text>
+    </bpmn:textAnnotation>
+    <bpmn:association id="Association_0i1ndk7" associationDirection="None" sourceRef="start_scheduling" targetRef="TextAnnotation_190muz1" />
+    <bpmn:textAnnotation id="TextAnnotation_1box9it">
+      <bpmn:text>dashboard</bpmn:text>
+    </bpmn:textAnnotation>
+    <bpmn:association id="Association_1cz1jax" associationDirection="None" sourceRef="task_escalate_insurance" targetRef="TextAnnotation_1box9it" />
+  </bpmn:process>
+  <bpmn:error id="Error_InsuranceVerificationFailed" name="InsuranceVerificationFailed" errorCode="ERR_INSURANCE_001" />
+  <bpmndi:BPMNDiagram id="BPMNDiagram_RC001">
+    <bpmndi:BPMNPlane id="BPMNPlane_RC001" bpmnElement="SP_RC_001_Scheduling_Registration">
+      <bpmndi:BPMNShape id="Shape_start_scheduling" bpmnElement="start_scheduling">
+        <dc:Bounds x="190" y="300" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="174" y="336" width="68" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_gateway_eligibility" bpmnElement="gateway_eligibility" isMarkerVisible="true">
+        <dc:Bounds x="585" y="293" width="50" height="50" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="587" y="269" width="46" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_end_success" bpmnElement="end_success">
+        <dc:Bounds x="862" y="300" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="846" y="336" width="68" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_end_manual_review" bpmnElement="end_manual_review">
+        <dc:Bounds x="862" y="432" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="842" y="468" width="79" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_end_escalated" bpmnElement="end_escalated">
+        <dc:Bounds x="592" y="172" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="587" y="148" width="46" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Gateway_03meg5s_di" bpmnElement="Gateway_03meg5s" isMarkerVisible="true">
+        <dc:Bounds x="585" y="425" width="50" height="50" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Activity_0pjqyqj_di" bpmnElement="task_verify_insurance">
+        <dc:Bounds x="290" y="278" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Activity_0uv20zw_di" bpmnElement="task_check_eligibility">
+        <dc:Bounds x="450" y="278" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Activity_14stm3b_di" bpmnElement="task_schedule_appointment">
+        <dc:Bounds x="690" y="278" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Activity_1i8o3pi_di" bpmnElement="task_manual_review">
+        <dc:Bounds x="690" y="410" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Activity_188lg2j_di" bpmnElement="task_escalate_insurance">
+        <dc:Bounds x="450" y="150" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="TextAnnotation_190muz1_di" bpmnElement="TextAnnotation_190muz1">
+        <dc:Bounds x="131" y="172" width="154" height="53" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="TextAnnotation_1box9it_di" bpmnElement="TextAnnotation_1box9it">
+        <dc:Bounds x="450" y="80" width="100" height="30" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_error_insurance_verification" bpmnElement="error_insurance_verification">
+        <dc:Bounds x="312" y="340" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="341" y="423" width="78" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_timer_insurance_sla" bpmnElement="timer_insurance_sla">
+        <dc:Bounds x="322" y="260" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="372" y="173" width="36" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Edge_flow_to_verify_insurance" bpmnElement="flow_to_verify_insurance">
+        <di:waypoint x="226" y="318" />
+        <di:waypoint x="290" y="318" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_flow_to_check_eligibility" bpmnElement="flow_to_check_eligibility">
+        <di:waypoint x="390" y="318" />
+        <di:waypoint x="450" y="318" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_flow_to_eligibility_gateway" bpmnElement="flow_to_eligibility_gateway">
+        <di:waypoint x="550" y="318" />
+        <di:waypoint x="585" y="318" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_flow_eligible_yes" bpmnElement="flow_eligible_yes">
+        <di:waypoint x="635" y="318" />
+        <di:waypoint x="690" y="318" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="654" y="293" width="20" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_flow_eligible_no" bpmnElement="flow_eligible_no">
+        <di:waypoint x="610" y="343" />
+        <di:waypoint x="610" y="425" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="619" y="348" width="21" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_flow_to_manual_review" bpmnElement="flow_to_manual_review">
+        <di:waypoint x="330" y="376" />
+        <di:waypoint x="330" y="450" />
+        <di:waypoint x="585" y="450" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_flow_to_escalate_insurance" bpmnElement="flow_to_escalate_insurance">
+        <di:waypoint x="340" y="260" />
+        <di:waypoint x="340" y="190" />
+        <di:waypoint x="450" y="190" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_flow_to_end_success" bpmnElement="flow_to_end_success">
+        <di:waypoint x="790" y="318" />
+        <di:waypoint x="862" y="318" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_flow_to_end_manual" bpmnElement="flow_to_end_manual">
+        <di:waypoint x="790" y="450" />
+        <di:waypoint x="862" y="450" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_flow_to_end_escalated" bpmnElement="flow_to_end_escalated">
+        <di:waypoint x="550" y="190" />
+        <di:waypoint x="592" y="190" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_16n26de_di" bpmnElement="Flow_16n26de">
+        <di:waypoint x="635" y="450" />
+        <di:waypoint x="690" y="450" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Association_0i1ndk7_di" bpmnElement="Association_0i1ndk7">
+        <di:waypoint x="208" y="300" />
+        <di:waypoint x="208" y="225" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Association_1cz1jax_di" bpmnElement="Association_1cz1jax">
+        <di:waypoint x="500" y="150" />
+        <di:waypoint x="500" y="110" />
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>

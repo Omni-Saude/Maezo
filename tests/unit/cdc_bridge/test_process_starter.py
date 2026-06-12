@@ -1,86 +1,56 @@
-"""Unit tests for CIB7 process starter with OAuth2."""
+"""Unit tests for CIB7 process starter with Basic Auth (ADR-020)."""
 
 from __future__ import annotations
 
 from typing import Any, AsyncGenerator
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import MagicMock, patch
 
 import httpx
 import pytest
 
-from healthcare_platform.shared.cdc_bridge.config import CIB7Settings, KeycloakSettings
+from healthcare_platform.shared.cdc_bridge.config import CIB7Settings
 from healthcare_platform.shared.cdc_bridge.process_starter import ProcessStarter
 
 
 @pytest.fixture
 def cib7_settings() -> CIB7Settings:
-    return CIB7Settings(engine_url="http://test-engine:8080", tenant_id="test-tenant")
-
-
-@pytest.fixture
-def keycloak_settings() -> KeycloakSettings:
-    return KeycloakSettings(
-        url="http://test-keycloak:8080",
-        realm="test-realm",
-        client_id="test-client",
-        client_secret="test-secret",
+    return CIB7Settings(
+        engine_url="http://test-engine:8080",
+        tenant_id="test-tenant",
+        user="admin",
+        password="test-password",
     )
 
 
 @pytest.fixture
 async def process_starter(
-    cib7_settings: CIB7Settings, keycloak_settings: KeycloakSettings
+    cib7_settings: CIB7Settings,
 ) -> AsyncGenerator[ProcessStarter, None]:
-    starter = ProcessStarter(cib7_settings, keycloak_settings)
+    starter = ProcessStarter(cib7_settings)
     await starter.start()
     yield starter
     await starter.close()
 
 
-class TestOAuth2TokenManagement:
-    """Test Keycloak OAuth2 token acquisition and refresh."""
+class TestBasicAuth:
+    """Test Basic Auth configuration on the HTTP client."""
 
     @pytest.mark.asyncio
-    async def test_token_acquisition(
-        self, process_starter: ProcessStarter, keycloak_settings: KeycloakSettings
-    ) -> None:
-        mock_response = MagicMock()
-        mock_response.json.return_value = {"access_token": "test-token-123", "expires_in": 300}
-        mock_response.raise_for_status = MagicMock()
-
-        with patch("httpx.AsyncClient.post", return_value=mock_response) as mock_post:
-            token = await process_starter._ensure_token()
-            assert token == "test-token-123"
-            assert process_starter._token == "test-token-123"
-            mock_post.assert_called_once()
-            call_args = mock_post.call_args
-            assert keycloak_settings.realm in call_args[0][0]
-            assert call_args[1]["data"]["client_id"] == "test-client"
+    async def test_client_created_with_basic_auth(self, cib7_settings: CIB7Settings) -> None:
+        starter = ProcessStarter(cib7_settings)
+        await starter.start()
+        assert starter._client is not None
+        assert starter._client.auth is not None
+        await starter.close()
 
     @pytest.mark.asyncio
-    async def test_token_cached_when_valid(self, process_starter: ProcessStarter) -> None:
-        process_starter._token = "cached-token"
-        process_starter._token_expires_at = 9999999999.0  # Far future
-
-        with patch("httpx.AsyncClient.post") as mock_post:
-            token = await process_starter._ensure_token()
-            assert token == "cached-token"
-            mock_post.assert_not_called()
-
-    @pytest.mark.asyncio
-    async def test_token_refresh_before_expiry(self, process_starter: ProcessStarter) -> None:
-        import time
-
-        process_starter._token = "old-token"
-        process_starter._token_expires_at = time.time() + 20  # Expires in 20s
-
-        mock_response = MagicMock()
-        mock_response.json.return_value = {"access_token": "new-token", "expires_in": 300}
-        mock_response.raise_for_status = MagicMock()
-
-        with patch("httpx.AsyncClient.post", return_value=mock_response):
-            token = await process_starter._ensure_token()
-            assert token == "new-token"
+    async def test_client_created_without_auth_when_no_user(self) -> None:
+        settings = CIB7Settings(engine_url="http://test:8080", tenant_id="t", user="", password="")
+        starter = ProcessStarter(settings)
+        await starter.start()
+        assert starter._client is not None
+        assert starter._client.auth is None
+        await starter.close()
 
 
 class TestStartProcess:
@@ -88,9 +58,6 @@ class TestStartProcess:
 
     @pytest.mark.asyncio
     async def test_start_process_success(self, process_starter: ProcessStarter) -> None:
-        process_starter._token = "valid-token"
-        process_starter._token_expires_at = 9999999999.0
-
         mock_response = MagicMock()
         mock_response.json.return_value = {"id": "process-instance-123", "businessKey": "BK-001"}
         mock_response.raise_for_status = MagicMock()
@@ -121,9 +88,6 @@ class TestStartProcess:
 
     @pytest.mark.asyncio
     async def test_start_process_with_retry(self, process_starter: ProcessStarter) -> None:
-        process_starter._token = "valid-token"
-        process_starter._token_expires_at = 9999999999.0
-
         mock_success = MagicMock()
         mock_success.json.return_value = {"id": "instance-456"}
         mock_success.raise_for_status = MagicMock()
@@ -154,9 +118,6 @@ class TestStartProcess:
     async def test_start_process_max_retries_exceeded(
         self, process_starter: ProcessStarter
     ) -> None:
-        process_starter._token = "valid-token"
-        process_starter._token_expires_at = 9999999999.0
-
         with patch.object(
             process_starter._client,
             "request",
@@ -176,9 +137,6 @@ class TestCorrelateMessage:
 
     @pytest.mark.asyncio
     async def test_correlate_message_success(self, process_starter: ProcessStarter) -> None:
-        process_starter._token = "valid-token"
-        process_starter._token_expires_at = 9999999999.0
-
         mock_response = MagicMock()
         mock_response.json.return_value = {"resultType": "ProcessDefinition"}
         mock_response.raise_for_status = MagicMock()
@@ -206,9 +164,6 @@ class TestCorrelateMessage:
     async def test_correlate_message_with_http_error(
         self, process_starter: ProcessStarter
     ) -> None:
-        process_starter._token = "valid-token"
-        process_starter._token_expires_at = 9999999999.0
-
         async def mock_raise_error(*args: Any, **kwargs: Any) -> None:
             raise httpx.HTTPStatusError(
                 "404 Not Found", request=MagicMock(), response=MagicMock(status_code=404)
@@ -230,9 +185,6 @@ class TestVariableTypeMapping:
     async def test_variable_types_mapped_correctly(
         self, process_starter: ProcessStarter
     ) -> None:
-        process_starter._token = "valid-token"
-        process_starter._token_expires_at = 9999999999.0
-
         mock_response = MagicMock()
         mock_response.json.return_value = {"id": "instance"}
         mock_response.raise_for_status = MagicMock()

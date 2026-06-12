@@ -1,9 +1,11 @@
 # Security Audit Report: Identity & Access Management
-## Maestro Healthcare Platform (CIB Seven 2.1.3 + Keycloak 24)
+## Maestro Healthcare Platform (CIB Seven 2.1.3)
 
 **Audit Date:** 2026-02-10
 **Auditor:** Security Auditor Agent (Worker 2)
-**Scope:** Keycloak realm configuration, secrets management, authentication flows, multi-tenant isolation
+**Scope:** Configuração de segurança, gestão de secrets, fluxos de autenticação, isolamento multi-tenant
+
+> **Nota:** Este relatório foi gerado antes do ADR-020. O Keycloak foi removido — autenticação agora via Basic Auth (CIB7_USER/CIB7_PASSWORD). Findings relacionados ao Keycloak realm são obsoletos.
 
 ---
 

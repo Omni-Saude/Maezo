@@ -42,7 +42,7 @@ def test_happy_path_prosseguir(worker, context, mock_dmn):
         "quantityCapped": False,
     }
     context.variables = {
-        "enriched_procedures": [{"code": "20101012", "quantity": 1}],
+        "procedures": [{"code": "20101012", "quantity": 1}],
         "encounter_start": "2026-01-01T08:00:00",
         "encounter_end": "2026-01-01T09:00:00",
     }
@@ -50,8 +50,8 @@ def test_happy_path_prosseguir(worker, context, mock_dmn):
     result = worker.execute(context)
 
     assert result.status == TaskStatus.SUCCESS
-    assert result.variables["quantified_procedures"][0]["quantity"] == 4
-    assert result.variables["total_items"] == 4
+    assert result.variables["breakdown"][0]["quantity"] == 4
+    assert result.variables["totalValue"] == 4
 
 
 def test_bloquear_returns_error(worker, context, mock_dmn):
@@ -61,7 +61,7 @@ def test_bloquear_returns_error(worker, context, mock_dmn):
         "acao": "Quantity exceeds maximum allowed",
     }
     context.variables = {
-        "enriched_procedures": [{"code": "40101010", "quantity": 100}],
+        "procedures": [{"code": "40101010", "quantity": 100}],
     }
 
     result = worker.execute(context)
@@ -79,18 +79,18 @@ def test_capped_quantity(worker, context, mock_dmn):
         "quantityCapped": True,
     }
     context.variables = {
-        "enriched_procedures": [{"code": "20101012", "quantity": 1}],
+        "procedures": [{"code": "20101012", "quantity": 1}],
     }
 
     result = worker.execute(context)
 
     assert result.status == TaskStatus.SUCCESS
-    assert result.variables["quantified_procedures"][0]["quantity_capped"] is True
+    assert result.variables["breakdown"][0]["quantity_capped"] is True
 
 
 def test_empty_procedures_error(worker, context):
     """No procedures triggers error."""
-    context.variables = {"enriched_procedures": []}
+    context.variables = {"procedures": []}
 
     result = worker.execute(context)
 
@@ -102,7 +102,7 @@ def test_dmn_evaluator_failure(worker, context, mock_dmn):
     """DMN service exception is caught."""
     mock_dmn.evaluate.side_effect = RuntimeError("DMN evaluation failed")
     context.variables = {
-        "enriched_procedures": [{"code": "40101010", "quantity": 1}],
+        "procedures": [{"code": "40101010", "quantity": 1}],
     }
 
     result = worker.execute(context)
@@ -119,13 +119,13 @@ def test_no_encounter_times(worker, context, mock_dmn):
         "quantityCapped": False,
     }
     context.variables = {
-        "enriched_procedures": [{"code": "40101010", "quantity": 1}],
+        "procedures": [{"code": "40101010", "quantity": 1}],
     }
 
     result = worker.execute(context)
 
     assert result.status == TaskStatus.SUCCESS
-    assert result.variables["quantified_procedures"][0]["quantity_method"] == "direct"
+    assert result.variables["breakdown"][0]["quantity_method"] == "direct"
 
 
 def test_multiple_procedures(worker, context, mock_dmn):
@@ -137,7 +137,7 @@ def test_multiple_procedures(worker, context, mock_dmn):
         "quantityCapped": False,
     }
     context.variables = {
-        "enriched_procedures": [
+        "procedures": [
             {"code": "40101010", "quantity": 1},
             {"code": "40201010", "quantity": 1},
         ],
@@ -146,4 +146,4 @@ def test_multiple_procedures(worker, context, mock_dmn):
     result = worker.execute(context)
 
     assert result.status == TaskStatus.SUCCESS
-    assert result.variables["total_items"] == 4
+    assert result.variables["totalValue"] == 4

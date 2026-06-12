@@ -1,0 +1,380 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+                  xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+                  xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+                  xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
+                  xmlns:camunda="http://camunda.org/schema/1.0/bpmn"
+                  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                  id="Definitions_ParallelCoordination"
+                  targetNamespace="http://cib7.healthcare/templates"
+                  exporter="Camunda Modeler"
+                  exporterVersion="5.20.0">
+
+  <!--
+    TEMPLATE: BPMN_PARALLEL_COORDINATION (v2.0 - With BPMNDI)
+    Purpose: Parallel task execution with fork-join pattern and error aggregation
+    Coverage: 40 workers (patient admission, surgical coordination, daily care plans, batch jobs)
+    
+    Pattern:
+      1. Parallel Gateway (fork) - spawn multiple concurrent tasks
+      2. Execute independent external tasks in parallel
+      3. Parallel Gateway (join) - wait for all branches
+      4. Error aggregation - handle partial failures gracefully
+    
+    Use Cases:
+      - Patient admission: Register + Insurance verification + Bed assignment (parallel)
+      - Surgical coordination: OR prep + Anesthesia evaluation + Equipment check (parallel)
+      - Daily care plans: Medication + Meals + Family visits (parallel)
+      - Revenue cycle batch: Billing + Coding + Audit (parallel)
+    
+    Variables:
+      Input:  requestId, tenantId, parallelContexts (array of task contexts)
+      Output: aggregatedResults, successCount, failureCount, partialSuccess
+    
+    ADR Compliance:
+      - ADR-001: External Task pattern
+      - ADR-002: Tenant marker resolution
+      - ADR-013: Template-first generation
+  -->
+
+  <bpmn:process id="TEMPLATE_Parallel_Coordination" name="[Parallel Coordination Template]" isExecutable="true" camunda:historyTimeToLive="30">
+
+    <!-- Start Event -->
+    <bpmn:startEvent id="start_parallel" name="Início&#10;Coordenação">
+      <bpmn:documentation>
+        Tenant Resolution (ADR-002):
+        Tenant ID resolved from process variables or deployment marker.
+        
+        Example instantiation:
+        POST /process-definition/key/TEMPLATE_Parallel_Coordination/start
+        {
+          "variables": {
+            "tenantId": {"value": "hospital-a", "type": "String"},
+            "requestId": {"value": "REQ-12345", "type": "String"},
+            "patientId": {"value": "PAT-67890", "type": "String"},
+            "admissionType": {"value": "elective", "type": "String"}
+          }
+        }
+      </bpmn:documentation>
+      <bpmn:outgoing>flow_to_fork</bpmn:outgoing>
+    </bpmn:startEvent>
+
+    <!-- Parallel Gateway: Fork -->
+    <bpmn:parallelGateway id="gateway_fork" name="Fork:&#10;Executar em&#10;Paralelo">
+      <bpmn:incoming>flow_to_fork</bpmn:incoming>
+      <bpmn:outgoing>flow_to_task_a</bpmn:outgoing>
+      <bpmn:outgoing>flow_to_task_b</bpmn:outgoing>
+      <bpmn:outgoing>flow_to_task_c</bpmn:outgoing>
+    </bpmn:parallelGateway>
+
+    <!-- Parallel Branch A -->
+    <bpmn:serviceTask id="task_parallel_a" name="Tarefa A&#10;(Ex: Registro)" camunda:type="external" camunda:topic="template.parallel_coordination.task_a">
+      <bpmn:documentation>
+        Worker: {domain}.{subdomain}.task-a
+        Example: Patient registration, bed assignment, billing setup
+        Executes independently of other branches
+      </bpmn:documentation>
+      <bpmn:incoming>flow_to_task_a</bpmn:incoming>
+      <bpmn:outgoing>flow_task_a_to_join</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Error Boundary on Task A -->
+    <bpmn:boundaryEvent id="error_task_a" name="Erro A" attachedToRef="task_parallel_a">
+      <bpmn:outgoing>flow_error_a_to_compensation</bpmn:outgoing>
+      <bpmn:errorEventDefinition errorRef="Error_TaskFailure"/>
+    </bpmn:boundaryEvent>
+
+    <!-- Parallel Branch B -->
+    <bpmn:serviceTask id="task_parallel_b" name="Tarefa B&#10;(Ex: Seguro)" camunda:type="external" camunda:topic="template.parallel_coordination.task_b">
+      <bpmn:documentation>
+        Worker: {domain}.{subdomain}.task-b
+        Example: Insurance verification, authorization request, payer integration
+      </bpmn:documentation>
+      <bpmn:incoming>flow_to_task_b</bpmn:incoming>
+      <bpmn:outgoing>flow_task_b_to_join</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Error Boundary on Task B -->
+    <bpmn:boundaryEvent id="error_task_b" name="Erro B" attachedToRef="task_parallel_b">
+      <bpmn:outgoing>flow_error_b_to_compensation</bpmn:outgoing>
+      <bpmn:errorEventDefinition errorRef="Error_TaskFailure"/>
+    </bpmn:boundaryEvent>
+
+    <!-- Parallel Branch C -->
+    <bpmn:serviceTask id="task_parallel_c" name="Tarefa C&#10;(Ex: Leito)" camunda:type="external" camunda:topic="template.parallel_coordination.task_c">
+      <bpmn:documentation>
+        Worker: {domain}.{subdomain}.task-c
+        Example: Bed assignment, equipment allocation, resource scheduling
+      </bpmn:documentation>
+      <bpmn:incoming>flow_to_task_c</bpmn:incoming>
+      <bpmn:outgoing>flow_task_c_to_join</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Error Boundary on Task C -->
+    <bpmn:boundaryEvent id="error_task_c" name="Erro C" attachedToRef="task_parallel_c">
+      <bpmn:outgoing>flow_error_c_to_compensation</bpmn:outgoing>
+      <bpmn:errorEventDefinition errorRef="Error_TaskFailure"/>
+    </bpmn:boundaryEvent>
+
+    <!-- Parallel Gateway: Join -->
+    <bpmn:parallelGateway id="gateway_join" name="Join:&#10;Aguardar Todas">
+      <bpmn:incoming>flow_task_a_to_join</bpmn:incoming>
+      <bpmn:incoming>flow_task_b_to_join</bpmn:incoming>
+      <bpmn:incoming>flow_task_c_to_join</bpmn:incoming>
+      <bpmn:outgoing>flow_join_to_aggregate</bpmn:outgoing>
+    </bpmn:parallelGateway>
+
+    <!-- Service Task: Aggregate Results -->
+    <bpmn:serviceTask id="task_aggregate_results" name="Agregar&#10;Resultados" camunda:type="external" camunda:topic="template.parallel_coordination.aggregate_results">
+      <bpmn:documentation>
+        Worker: {domain}.{subdomain}.aggregate-results
+        Combines outputs from all parallel branches
+        Sets: aggregatedResults, successCount, allTasksSuccessful
+      </bpmn:documentation>
+      <bpmn:incoming>flow_join_to_aggregate</bpmn:incoming>
+      <bpmn:outgoing>flow_to_success_end</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Error Compensation Handler -->
+    <bpmn:serviceTask id="task_handle_partial_failure" name="Tratar&#10;Falha Parcial" camunda:type="external" camunda:topic="template.parallel_coordination.handle_partial_failure">
+      <bpmn:documentation>
+        Worker: {domain}.{subdomain}.handle-partial-failure
+        Handles case where one or more parallel branches failed
+        Decisions:
+        - Retry failed branches?
+        - Rollback successful branches?
+        - Escalate to manual review?
+      </bpmn:documentation>
+      <bpmn:incoming>flow_error_a_to_compensation</bpmn:incoming>
+      <bpmn:incoming>flow_error_b_to_compensation</bpmn:incoming>
+      <bpmn:incoming>flow_error_c_to_compensation</bpmn:incoming>
+      <bpmn:outgoing>flow_to_failure_gateway</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Gateway: Retry or Fail? -->
+    <bpmn:exclusiveGateway id="gateway_retry_decision" name="Retentar?" default="flow_to_error_end">
+      <bpmn:incoming>flow_to_failure_gateway</bpmn:incoming>
+      <bpmn:outgoing>flow_retry</bpmn:outgoing>
+      <bpmn:outgoing>flow_to_error_end</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+
+    <!-- Loop back to fork for retry -->
+    <bpmn:sequenceFlow id="flow_retry" name="Sim" sourceRef="gateway_retry_decision" targetRef="gateway_fork">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${retryCount &lt; 3 &amp;&amp; canRetry == true}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+
+    <!-- End Events -->
+    <bpmn:endEvent id="end_success" name="Todas Tarefas&#10;Concluídas">
+      <bpmn:incoming>flow_to_success_end</bpmn:incoming>
+    </bpmn:endEvent>
+
+    <bpmn:endEvent id="end_error" name="Falha Parcial">
+      <bpmn:incoming>flow_to_error_end</bpmn:incoming>
+      <bpmn:errorEventDefinition errorRef="Error_ParallelExecutionFailed"/>
+    </bpmn:endEvent>
+
+    <!-- Sequence Flows -->
+    <bpmn:sequenceFlow id="flow_to_fork" sourceRef="start_parallel" targetRef="gateway_fork"/>
+    <bpmn:sequenceFlow id="flow_to_task_a" sourceRef="gateway_fork" targetRef="task_parallel_a"/>
+    <bpmn:sequenceFlow id="flow_to_task_b" sourceRef="gateway_fork" targetRef="task_parallel_b"/>
+    <bpmn:sequenceFlow id="flow_to_task_c" sourceRef="gateway_fork" targetRef="task_parallel_c"/>
+    <bpmn:sequenceFlow id="flow_task_a_to_join" sourceRef="task_parallel_a" targetRef="gateway_join"/>
+    <bpmn:sequenceFlow id="flow_task_b_to_join" sourceRef="task_parallel_b" targetRef="gateway_join"/>
+    <bpmn:sequenceFlow id="flow_task_c_to_join" sourceRef="task_parallel_c" targetRef="gateway_join"/>
+    <bpmn:sequenceFlow id="flow_join_to_aggregate" sourceRef="gateway_join" targetRef="task_aggregate_results"/>
+    <bpmn:sequenceFlow id="flow_to_success_end" sourceRef="task_aggregate_results" targetRef="end_success"/>
+    <bpmn:sequenceFlow id="flow_error_a_to_compensation" sourceRef="error_task_a" targetRef="task_handle_partial_failure"/>
+    <bpmn:sequenceFlow id="flow_error_b_to_compensation" sourceRef="error_task_b" targetRef="task_handle_partial_failure"/>
+    <bpmn:sequenceFlow id="flow_error_c_to_compensation" sourceRef="error_task_c" targetRef="task_handle_partial_failure"/>
+    <bpmn:sequenceFlow id="flow_to_failure_gateway" sourceRef="task_handle_partial_failure" targetRef="gateway_retry_decision"/>
+    <bpmn:sequenceFlow id="flow_to_error_end" name="Não" sourceRef="gateway_retry_decision" targetRef="end_error"/>
+
+  </bpmn:process>
+
+  <!-- Error Definitions -->
+  <bpmn:error id="Error_TaskFailure" name="TaskFailure" errorCode="ERR_TASK_FAILED"/>
+  <bpmn:error id="Error_ParallelExecutionFailed" name="ParallelExecutionFailed" errorCode="ERR_PARALLEL_FAILED"/>
+
+  <!-- BPMNDI Visual Diagram -->
+  <bpmndi:BPMNDiagram id="BPMNDiagram_Parallel">
+    <bpmndi:BPMNPlane id="BPMNPlane_Parallel" bpmnElement="TEMPLATE_Parallel_Coordination">
+      
+      <!-- Start Event -->
+      <bpmndi:BPMNShape id="shape_start" bpmnElement="start_parallel">
+        <dc:Bounds x="152" y="242" width="36" height="36"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="144" y="285" width="52" height="27"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      
+      <!-- Fork Gateway -->
+      <bpmndi:BPMNShape id="shape_fork" bpmnElement="gateway_fork">
+        <dc:Bounds x="240" y="235" width="50" height="50"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="230" y="292" width="70" height="40"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      
+      <!-- Parallel Task A -->
+      <bpmndi:BPMNShape id="shape_task_a" bpmnElement="task_parallel_a">
+        <dc:Bounds x="350" y="80" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+      
+      <bpmndi:BPMNShape id="shape_error_a" bpmnElement="error_task_a">
+        <dc:Bounds x="432" y="142" width="36" height="36"/>
+      </bpmndi:BPMNShape>
+      
+      <!-- Parallel Task B -->
+      <bpmndi:BPMNShape id="shape_task_b" bpmnElement="task_parallel_b">
+        <dc:Bounds x="350" y="220" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+      
+      <bpmndi:BPMNShape id="shape_error_b" bpmnElement="error_task_b">
+        <dc:Bounds x="432" y="282" width="36" height="36"/>
+      </bpmndi:BPMNShape>
+      
+      <!-- Parallel Task C -->
+      <bpmndi:BPMNShape id="shape_task_c" bpmnElement="task_parallel_c">
+        <dc:Bounds x="350" y="360" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+      
+      <bpmndi:BPMNShape id="shape_error_c" bpmnElement="error_task_c">
+        <dc:Bounds x="432" y="422" width="36" height="36"/>
+      </bpmndi:BPMNShape>
+      
+      <!-- Join Gateway -->
+      <bpmndi:BPMNShape id="shape_join" bpmnElement="gateway_join">
+        <dc:Bounds x="520" y="235" width="50" height="50"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="510" y="292" width="70" height="27"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      
+      <!-- Aggregate Task -->
+      <bpmndi:BPMNShape id="shape_aggregate" bpmnElement="task_aggregate_results">
+        <dc:Bounds x="630" y="220" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+      
+      <!-- Error Handler -->
+      <bpmndi:BPMNShape id="shape_handler" bpmnElement="task_handle_partial_failure">
+        <dc:Bounds x="530" y="460" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+      
+      <!-- Retry Gateway -->
+      <bpmndi:BPMNShape id="shape_retry_gw" bpmnElement="gateway_retry_decision" isMarkerVisible="true">
+        <dc:Bounds x="690" y="475" width="50" height="50"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="687" y="532" width="56" height="14"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      
+      <!-- End Events -->
+      <bpmndi:BPMNShape id="shape_end_success" bpmnElement="end_success">
+        <dc:Bounds x="792" y="242" width="36" height="36"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="774" y="285" width="72" height="27"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      
+      <bpmndi:BPMNShape id="shape_end_error" bpmnElement="end_error">
+        <dc:Bounds x="792" y="482" width="36" height="36"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="776" y="525" width="68" height="14"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      
+      <!-- Edges -->
+      <bpmndi:BPMNEdge id="edge_to_fork" bpmnElement="flow_to_fork">
+        <di:waypoint x="188" y="260"/>
+        <di:waypoint x="240" y="260"/>
+      </bpmndi:BPMNEdge>
+      
+      <bpmndi:BPMNEdge id="edge_to_a" bpmnElement="flow_to_task_a">
+        <di:waypoint x="265" y="235"/>
+        <di:waypoint x="265" y="120"/>
+        <di:waypoint x="350" y="120"/>
+      </bpmndi:BPMNEdge>
+      
+      <bpmndi:BPMNEdge id="edge_to_b" bpmnElement="flow_to_task_b">
+        <di:waypoint x="290" y="260"/>
+        <di:waypoint x="350" y="260"/>
+      </bpmndi:BPMNEdge>
+      
+      <bpmndi:BPMNEdge id="edge_to_c" bpmnElement="flow_to_task_c">
+        <di:waypoint x="265" y="285"/>
+        <di:waypoint x="265" y="400"/>
+        <di:waypoint x="350" y="400"/>
+      </bpmndi:BPMNEdge>
+      
+      <bpmndi:BPMNEdge id="edge_a_to_join" bpmnElement="flow_task_a_to_join">
+        <di:waypoint x="450" y="120"/>
+        <di:waypoint x="545" y="120"/>
+        <di:waypoint x="545" y="235"/>
+      </bpmndi:BPMNEdge>
+      
+      <bpmndi:BPMNEdge id="edge_b_to_join" bpmnElement="flow_task_b_to_join">
+        <di:waypoint x="450" y="260"/>
+        <di:waypoint x="520" y="260"/>
+      </bpmndi:BPMNEdge>
+      
+      <bpmndi:BPMNEdge id="edge_c_to_join" bpmnElement="flow_task_c_to_join">
+        <di:waypoint x="450" y="400"/>
+        <di:waypoint x="545" y="400"/>
+        <di:waypoint x="545" y="285"/>
+      </bpmndi:BPMNEdge>
+      
+      <bpmndi:BPMNEdge id="edge_join_to_agg" bpmnElement="flow_join_to_aggregate">
+        <di:waypoint x="570" y="260"/>
+        <di:waypoint x="630" y="260"/>
+      </bpmndi:BPMNEdge>
+      
+      <bpmndi:BPMNEdge id="edge_to_success" bpmnElement="flow_to_success_end">
+        <di:waypoint x="730" y="260"/>
+        <di:waypoint x="792" y="260"/>
+      </bpmndi:BPMNEdge>
+      
+      <bpmndi:BPMNEdge id="edge_error_a" bpmnElement="flow_error_a_to_compensation">
+        <di:waypoint x="450" y="178"/>
+        <di:waypoint x="450" y="500"/>
+        <di:waypoint x="530" y="500"/>
+      </bpmndi:BPMNEdge>
+      
+      <bpmndi:BPMNEdge id="edge_error_b" bpmnElement="flow_error_b_to_compensation">
+        <di:waypoint x="450" y="318"/>
+        <di:waypoint x="450" y="500"/>
+        <di:waypoint x="530" y="500"/>
+      </bpmndi:BPMNEdge>
+      
+      <bpmndi:BPMNEdge id="edge_error_c" bpmnElement="flow_error_c_to_compensation">
+        <di:waypoint x="450" y="458"/>
+        <di:waypoint x="450" y="500"/>
+        <di:waypoint x="530" y="500"/>
+      </bpmndi:BPMNEdge>
+      
+      <bpmndi:BPMNEdge id="edge_to_retry_gw" bpmnElement="flow_to_failure_gateway">
+        <di:waypoint x="630" y="500"/>
+        <di:waypoint x="690" y="500"/>
+      </bpmndi:BPMNEdge>
+      
+      <bpmndi:BPMNEdge id="edge_retry" bpmnElement="flow_retry">
+        <di:waypoint x="715" y="475"/>
+        <di:waypoint x="715" y="360"/>
+        <di:waypoint x="265" y="360"/>
+        <di:waypoint x="265" y="285"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="723" y="443" width="19" height="14"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      
+      <bpmndi:BPMNEdge id="edge_to_error" bpmnElement="flow_to_error_end">
+        <di:waypoint x="740" y="500"/>
+        <di:waypoint x="792" y="500"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="753" y="482" width="21" height="14"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+
+</bpmn:definitions>

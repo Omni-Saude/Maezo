@@ -1,0 +1,187 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  ============================================================================
+  CASH-PAYMENT-001 - Parcelamento Cartao Credito
+  ============================================================================
+  Versao: 1.0.0 (2026-02-08)
+  Categoria: CASH-PAYMENT
+  Perspectiva: HOSPITAL (Financeiro)
+
+  ============================================================================
+  INDICACOES (Quando PROSSEGUIR):
+  ============================================================================
+  - Parcelamento em cartao de credito ate 6x sem juros
+  - Valor total compativel com limite do cartao
+  - Forma de pagamento aceita pelo hospital
+
+  ============================================================================
+  CONTRAINDICACOES (Quando BLOQUEAR):
+  ============================================================================
+  - Parcelamento superior a 6x (requer aprovacao financeira)
+  - Valor da parcela inferior ao minimo estabelecido (R$ 100,00)
+  - Forma de pagamento nao aceita (ex: cheque)
+
+  ============================================================================
+  REFERENCIAS NORMATIVAS:
+  ============================================================================
+  - Lei 8.078/1990 CDC Art. 52 (credito ao consumidor)
+  - CPC Art. 47 (politica de credito hospitalar)
+  - Resolucao CMN 4.549/2017 (parcelamento de credito)
+  ============================================================================
+-->
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/"
+             xmlns:dc="http://www.omg.org/spec/DMN/20180521/DC/"
+             xmlns:di="http://www.omg.org/spec/DMN/20180521/DI/"
+             xmlns:camunda="http://camunda.org/schema/1.0/dmn"
+             id="Definitions_CASH_PAYMENT_001"
+             name="Parcelamento Cartao Credito"
+             namespace="http://camunda.org/schema/1.0/dmn">
+
+  <decision id="Decision_CASH_PAYMENT_001" name="[SP-RC-008 | cash_operations/payment] Parcelamento Cartao Credito" camunda:historyTimeToLive="180">
+    <decisionTable id="DecisionTable_CASH_PAYMENT_001" hitPolicy="FIRST">
+
+      <!-- ========== INPUTS ========== -->
+      <input id="Input_1_CASH_PAYMENT_001" label="Forma Pagamento">
+        <inputExpression id="InputExpression_1_CASH_PAYMENT_001" typeRef="string">
+          <text>formaPagamento</text>
+        </inputExpression>
+        <inputValues id="InputValues_1_CASH_PAYMENT_001">
+          <text>"DINHEIRO", "CARTAO", "PIX", "BOLETO"</text>
+        </inputValues>
+      </input>
+
+      <input id="Input_2_CASH_PAYMENT_001" label="Numero Parcelas">
+        <inputExpression id="InputExpression_2_CASH_PAYMENT_001" typeRef="number">
+          <text>numeroParcelas</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_3_CASH_PAYMENT_001" label="Valor Total (R$)">
+        <inputExpression id="InputExpression_3_CASH_PAYMENT_001" typeRef="number">
+          <text>valorTotal</text>
+        </inputExpression>
+      </input>
+
+      <!-- ========== OUTPUTS (5 STANDARD) ========== -->
+      <output id="Output_1_CASH_PAYMENT_001" label="Resultado" name="resultado" typeRef="string">
+        <outputValues><text>"Prosseguir", "Bloquear", "Alertar", "Revisar"</text></outputValues>
+      </output>
+
+      <output id="Output_2_CASH_PAYMENT_001" label="Observacao" name="observacao" typeRef="string"/>
+
+      <output id="Output_3_CASH_PAYMENT_001" label="Acao Recomendada" name="acaoRecomendada" typeRef="string"/>
+
+      <output id="Output_4_CASH_PAYMENT_001" label="Alertas Conformidade" name="alertasConformidade" typeRef="string">
+        <outputValues><text>"NENHUM", "DUP", "FREQ", "PRAZO", "DOC", "VALOR", "CRED", "CONTRATO"</text></outputValues>
+      </output>
+
+      <output id="Output_5_CASH_PAYMENT_001" label="Risco Denial" name="riscoDenial" typeRef="string">
+        <outputValues><text>"BAIXO", "MEDIO", "ALTO", "CRITICO"</text></outputValues>
+      </output>
+
+      <!-- ========== RULES ========== -->
+
+      <!-- REGRA B1: Bloqueio - Forma de pagamento nao aceita -->
+      <rule id="Rule_Bloqueio_1_CASH_PAYMENT_001">
+        <description>Forma de pagamento nao suportada pelo hospital</description>
+        <inputEntry id="InputEntry_B1_1_CASH_PAYMENT_001"><text>not("DINHEIRO", "CARTAO", "PIX", "BOLETO")</text></inputEntry>
+        <inputEntry id="InputEntry_B1_2_CASH_PAYMENT_001"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_B1_3_CASH_PAYMENT_001"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_B1_1_CASH_PAYMENT_001"><text>"Bloquear"</text></outputEntry>
+        <outputEntry id="OutputEntry_B1_2_CASH_PAYMENT_001"><text>"Forma de pagamento nao aceita. Verificar modalidades disponiveis no financeiro."</text></outputEntry>
+        <outputEntry id="OutputEntry_B1_3_CASH_PAYMENT_001"><text>"Orientar paciente sobre formas de pagamento aceitas: DINHEIRO, CARTAO, PIX ou BOLETO."</text></outputEntry>
+        <outputEntry id="OutputEntry_B1_4_CASH_PAYMENT_001"><text>"CRED"</text></outputEntry>
+        <outputEntry id="OutputEntry_B1_5_CASH_PAYMENT_001"><text>"ALTO"</text></outputEntry>
+      </rule>
+
+      <!-- REGRA B2: Bloqueio - Parcelamento superior a 6x -->
+      <rule id="Rule_Bloqueio_2_CASH_PAYMENT_001">
+        <description>Parcelamento superior a 6x requer aprovacao da diretoria financeira</description>
+        <inputEntry id="InputEntry_B2_1_CASH_PAYMENT_001"><text>"CARTAO"</text></inputEntry>
+        <inputEntry id="InputEntry_B2_2_CASH_PAYMENT_001"><text>&gt; 6</text></inputEntry>
+        <inputEntry id="InputEntry_B2_3_CASH_PAYMENT_001"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_B2_1_CASH_PAYMENT_001"><text>"Bloquear"</text></outputEntry>
+        <outputEntry id="OutputEntry_B2_2_CASH_PAYMENT_001"><text>"Parcelamento superior a 6x requer aprovacao excepcional da diretoria financeira."</text></outputEntry>
+        <outputEntry id="OutputEntry_B2_3_CASH_PAYMENT_001"><text>"Solicitar aprovacao formal antes de prosseguir com parcelamento acima de 6x."</text></outputEntry>
+        <outputEntry id="OutputEntry_B2_4_CASH_PAYMENT_001"><text>"CRED"</text></outputEntry>
+        <outputEntry id="OutputEntry_B2_5_CASH_PAYMENT_001"><text>"ALTO"</text></outputEntry>
+      </rule>
+
+      <!-- REGRA B3: Bloqueio - Parcela inferior ao minimo -->
+      <rule id="Rule_Bloqueio_3_CASH_PAYMENT_001">
+        <description>Valor da parcela inferior ao minimo de R$ 100,00</description>
+        <inputEntry id="InputEntry_B3_1_CASH_PAYMENT_001"><text>"CARTAO"</text></inputEntry>
+        <inputEntry id="InputEntry_B3_2_CASH_PAYMENT_001"><text>&gt; 1</text></inputEntry>
+        <inputEntry id="InputEntry_B3_3_CASH_PAYMENT_001"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_B3_1_CASH_PAYMENT_001"><text>"Bloquear"</text></outputEntry>
+        <outputEntry id="OutputEntry_B3_2_CASH_PAYMENT_001"><text>"Valor da parcela inferior ao minimo de R$ 100,00. Reduzir numero de parcelas."</text></outputEntry>
+        <outputEntry id="OutputEntry_B3_3_CASH_PAYMENT_001"><text>"Ajustar numero de parcelas para garantir minimo de R$ 100,00 por parcela."</text></outputEntry>
+        <outputEntry id="OutputEntry_B3_4_CASH_PAYMENT_001"><text>"VALOR"</text></outputEntry>
+        <outputEntry id="OutputEntry_B3_5_CASH_PAYMENT_001"><text>"MEDIO"</text></outputEntry>
+      </rule>
+
+      <!-- REGRA A1: Alerta - Parcelamento entre 4-6x -->
+      <rule id="Rule_Alerta_1_CASH_PAYMENT_001">
+        <description>Parcelamento entre 4 e 6x - Documentar autorizacao</description>
+        <inputEntry id="InputEntry_A1_1_CASH_PAYMENT_001"><text>"CARTAO"</text></inputEntry>
+        <inputEntry id="InputEntry_A1_2_CASH_PAYMENT_001"><text>[4..6]</text></inputEntry>
+        <inputEntry id="InputEntry_A1_3_CASH_PAYMENT_001"><text>&gt;= 600</text></inputEntry>
+        <outputEntry id="OutputEntry_A1_1_CASH_PAYMENT_001"><text>"Alertar"</text></outputEntry>
+        <outputEntry id="OutputEntry_A1_2_CASH_PAYMENT_001"><text>"Parcelamento entre 4 e 6x. Documentar autorizacao no sistema financeiro."</text></outputEntry>
+        <outputEntry id="OutputEntry_A1_3_CASH_PAYMENT_001"><text>"Registrar autorizacao de parcelamento e anexar comprovante de aprovacao de credito."</text></outputEntry>
+        <outputEntry id="OutputEntry_A1_4_CASH_PAYMENT_001"><text>"DOC"</text></outputEntry>
+        <outputEntry id="OutputEntry_A1_5_CASH_PAYMENT_001"><text>"MEDIO"</text></outputEntry>
+      </rule>
+
+      <!-- REGRA P1: Aprovado - Parcelamento ate 3x -->
+      <rule id="Rule_Aprovado_1_CASH_PAYMENT_001">
+        <description>Parcelamento ate 3x em cartao de credito</description>
+        <inputEntry id="InputEntry_P1_1_CASH_PAYMENT_001"><text>"CARTAO"</text></inputEntry>
+        <inputEntry id="InputEntry_P1_2_CASH_PAYMENT_001"><text>[1..3]</text></inputEntry>
+        <inputEntry id="InputEntry_P1_3_CASH_PAYMENT_001"><text>&gt;= 100</text></inputEntry>
+        <outputEntry id="OutputEntry_P1_1_CASH_PAYMENT_001"><text>"Prosseguir"</text></outputEntry>
+        <outputEntry id="OutputEntry_P1_2_CASH_PAYMENT_001"><text>"Parcelamento em cartao de credito aprovado conforme politica financeira."</text></outputEntry>
+        <outputEntry id="OutputEntry_P1_3_CASH_PAYMENT_001"><text>"Prosseguir com faturamento em ate 3x. Confirmar aprovacao da transacao antes de liberar atendimento."</text></outputEntry>
+        <outputEntry id="OutputEntry_P1_4_CASH_PAYMENT_001"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_P1_5_CASH_PAYMENT_001"><text>"BAIXO"</text></outputEntry>
+      </rule>
+
+      <!-- REGRA P2: Aprovado - Pagamento a vista -->
+      <rule id="Rule_Aprovado_2_CASH_PAYMENT_001">
+        <description>Pagamento a vista em dinheiro, PIX ou boleto</description>
+        <inputEntry id="InputEntry_P2_1_CASH_PAYMENT_001"><text>"DINHEIRO", "PIX", "BOLETO"</text></inputEntry>
+        <inputEntry id="InputEntry_P2_2_CASH_PAYMENT_001"><text>1</text></inputEntry>
+        <inputEntry id="InputEntry_P2_3_CASH_PAYMENT_001"><text>&gt; 0</text></inputEntry>
+        <outputEntry id="OutputEntry_P2_1_CASH_PAYMENT_001"><text>"Prosseguir"</text></outputEntry>
+        <outputEntry id="OutputEntry_P2_2_CASH_PAYMENT_001"><text>"Pagamento a vista aprovado. Forma de pagamento aceita pelo hospital."</text></outputEntry>
+        <outputEntry id="OutputEntry_P2_3_CASH_PAYMENT_001"><text>"Prosseguir com faturamento. Confirmar recebimento antes de liberar atendimento."</text></outputEntry>
+        <outputEntry id="OutputEntry_P2_4_CASH_PAYMENT_001"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_P2_5_CASH_PAYMENT_001"><text>"BAIXO"</text></outputEntry>
+      </rule>
+
+      <!-- REGRA F: Fallback - Requer revisao manual -->
+      <rule id="Rule_Fallback_CASH_PAYMENT_001">
+        <description>Regra padrao - Requer avaliacao manual</description>
+        <inputEntry id="InputEntry_F_1_CASH_PAYMENT_001"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_F_2_CASH_PAYMENT_001"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_F_3_CASH_PAYMENT_001"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_F_1_CASH_PAYMENT_001"><text>"Revisar"</text></outputEntry>
+        <outputEntry id="OutputEntry_F_2_CASH_PAYMENT_001"><text>"Situacao requer analise manual por nao corresponder a nenhum criterio automatico."</text></outputEntry>
+        <outputEntry id="OutputEntry_F_3_CASH_PAYMENT_001"><text>"Encaminhar para auditoria administrativa para avaliacao caso a caso."</text></outputEntry>
+        <outputEntry id="OutputEntry_F_4_CASH_PAYMENT_001"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_F_5_CASH_PAYMENT_001"><text>"MEDIO"</text></outputEntry>
+      </rule>
+
+    </decisionTable>
+  </decision>
+
+  <dmndi:DMNDI>
+    <dmndi:DMNDiagram id="DMNDiagram_CASH_PAYMENT_001">
+      <dmndi:DMNShape id="DMNShape_Decision_CASH_PAYMENT_001" dmnElementRef="Decision_CASH_PAYMENT_001">
+        <dc:Bounds height="80" width="180" x="160" y="100"/>
+      </dmndi:DMNShape>
+    </dmndi:DMNDiagram>
+  </dmndi:DMNDI>
+
+</definitions>

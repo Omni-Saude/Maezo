@@ -1,0 +1,224 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" xmlns:camunda="http://camunda.org/schema/1.0/bpmn" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:bioc="http://bpmn.io/schema/bpmn/biocolor/1.0" xmlns:color="http://www.omg.org/spec/BPMN/non-normative/color/1.0" id="Definitions_RC002" targetNamespace="http://cib7.healthcare/revenue-cycle" exporter="Camunda Modeler" exporterVersion="5.42.0">
+  <bpmn:process id="SP_RC_002_Pre_Service" name="Pré-Atendimento e Autorização" isExecutable="true" camunda:historyTimeToLive="30">
+    <bpmn:startEvent id="start_pre_service" name="Início Pré-Atendimento">
+      <bpmn:outgoing>flow_to_check_authorization</bpmn:outgoing>
+    </bpmn:startEvent>
+    <bpmn:serviceTask id="task_check_authorization2" name="Verificar Necessidade de Autorização" camunda:type="external" camunda:topic="revenue_cycle.check_authorization">
+      <bpmn:incoming>flow_to_check_authorization</bpmn:incoming>
+      <bpmn:outgoing>Flow_check_to_dmn</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:businessRuleTask id="task_dmn_auth_channel" name="Canal de Autorização (DMN)" camunda:resultVariable="authChannelResult" camunda:decisionRef="authorization_channel_001" camunda:mapDecisionResult="singleResult">
+      <bpmn:extensionElements>
+        <camunda:inputOutput>
+          <camunda:inputParameter name="payer_id">${payerId}</camunda:inputParameter>
+          <camunda:inputParameter name="cd_estabelecimento">${cdEstabelecimento}</camunda:inputParameter>
+          <camunda:inputParameter name="authorization_type">${authorizationType}</camunda:inputParameter>
+        </camunda:inputOutput>
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_check_to_dmn</bpmn:incoming>
+      <bpmn:outgoing>Flow_0f1ldtb</bpmn:outgoing>
+    </bpmn:businessRuleTask>
+    <bpmn:serviceTask id="task_request_authorization" name="Solicitar Autorização" camunda:type="external" camunda:topic="revenue_cycle.request_authorization">
+      <bpmn:incoming>Flow_0f1ldtb</bpmn:incoming>
+      <bpmn:outgoing>flow_to_auth_status_gateway</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:receiveTask id="Activity_0qxwn97" name="Aguardar Automação RPA" messageRef="Message_AuthCompleted">
+      <bpmn:incoming>flow_to_auth_status_gateway</bpmn:incoming>
+      <bpmn:outgoing>Flow_0fynyws</bpmn:outgoing>
+    </bpmn:receiveTask>
+    <bpmn:boundaryEvent id="timer_authorization_sla" name="SLA 48h" attachedToRef="task_request_authorization">
+      <bpmn:outgoing>Flow_1nnpyys</bpmn:outgoing>
+      <bpmn:timerEventDefinition id="TimerEventDefinition_0mwvq1z">
+        <bpmn:timeDuration xsi:type="bpmn:tFormalExpression">PT48H</bpmn:timeDuration>
+      </bpmn:timerEventDefinition>
+    </bpmn:boundaryEvent>
+    <bpmn:serviceTask id="Activity_0xsi9ep" name="Consulta Autorização Consulta" camunda:type="external" camunda:topic="revenue_cycle.pending_authorization">
+      <bpmn:incoming>Flow_0fynyws</bpmn:incoming>
+      <bpmn:outgoing>Flow_01g1qr8</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:exclusiveGateway id="gateway_auth_status" name="Status Autorização?" default="flow_auth_pending">
+      <bpmn:incoming>Flow_01g1qr8</bpmn:incoming>
+      <bpmn:outgoing>flow_auth_pending</bpmn:outgoing>
+      <bpmn:outgoing>Flow_16h7fjv</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:serviceTask id="task_validate_procedure" name="Validar Procedimento" camunda:type="external" camunda:topic="revenue_cycle.validate_procedure">
+      <bpmn:incoming>Flow_16h7fjv</bpmn:incoming>
+      <bpmn:outgoing>Flow_0dslnrc</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:serviceTask id="task_manual_auth_review" name="Revisão Manual de Autorização" camunda:type="external" camunda:topic="revenue_cycle.manual_review">
+      <bpmn:incoming>flow_auth_pending</bpmn:incoming>
+      <bpmn:outgoing>flow_to_end_manual</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:serviceTask id="task_escalate_auth" name="Escalar Autorização" camunda:type="external" camunda:topic="platform.whatsapp_escalation">
+      <bpmn:extensionElements>
+        <camunda:inputOutput>
+          <camunda:inputParameter name="cdModelo">99</camunda:inputParameter>
+        </camunda:inputOutput>
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_1nnpyys</bpmn:incoming>
+      <bpmn:outgoing>flow_to_end_escalated</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:endEvent id="end_approved" name="Autorizado para Atendimento">
+      <bpmn:incoming>Flow_0dslnrc</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:endEvent id="end_manual" name="Revisão Manual">
+      <bpmn:incoming>flow_to_end_manual</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:endEvent id="end_escalated" name="Escalado">
+      <bpmn:incoming>flow_to_end_escalated</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:sequenceFlow id="flow_to_check_authorization" sourceRef="start_pre_service" targetRef="task_check_authorization2" />
+    <bpmn:sequenceFlow id="Flow_check_to_dmn" sourceRef="task_check_authorization2" targetRef="task_dmn_auth_channel" />
+    <bpmn:sequenceFlow id="Flow_0f1ldtb" sourceRef="task_dmn_auth_channel" targetRef="task_request_authorization" />
+    <bpmn:sequenceFlow id="flow_to_auth_status_gateway" sourceRef="task_request_authorization" targetRef="Activity_0qxwn97" />
+    <bpmn:sequenceFlow id="Flow_0fynyws" sourceRef="Activity_0qxwn97" targetRef="Activity_0xsi9ep" />
+    <bpmn:sequenceFlow id="Flow_01g1qr8" sourceRef="Activity_0xsi9ep" targetRef="gateway_auth_status" />
+    <bpmn:sequenceFlow id="flow_auth_pending" name="Auditoria ou&#10;Negada" sourceRef="gateway_auth_status" targetRef="task_manual_auth_review" />
+    <bpmn:sequenceFlow id="Flow_16h7fjv" name="Autorizado" sourceRef="gateway_auth_status" targetRef="task_validate_procedure">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${authorizationStatus == "APPROVED"}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_0dslnrc" sourceRef="task_validate_procedure" targetRef="end_approved" />
+    <bpmn:sequenceFlow id="flow_to_end_manual" sourceRef="task_manual_auth_review" targetRef="end_manual" />
+    <bpmn:sequenceFlow id="Flow_1nnpyys" sourceRef="timer_authorization_sla" targetRef="task_escalate_auth" />
+    <bpmn:sequenceFlow id="flow_to_end_escalated" sourceRef="task_escalate_auth" targetRef="end_escalated" />
+    <bpmn:textAnnotation id="TextAnnotation_01mxuh6">
+      <bpmn:text>validar que o retorno da operadora bate com o que foi solicitado (às vezes a operadora autoriza um código diferente ou parcial)</bpmn:text>
+    </bpmn:textAnnotation>
+    <bpmn:association id="Association_0svds1v" associationDirection="None" sourceRef="task_validate_procedure" targetRef="TextAnnotation_01mxuh6" />
+  </bpmn:process>
+  <bpmn:error id="Error_AuthorizationFailed" name="AuthorizationFailed" errorCode="ERR_AUTH_001" />
+  <bpmn:message id="Message_AuthCompleted" name="AuthorizationCompleted" />
+  <bpmndi:BPMNDiagram id="BPMNDiagram_RC002">
+    <bpmndi:BPMNPlane id="BPMNPlane_RC002" bpmnElement="SP_RC_002_Pre_Service">
+      <bpmndi:BPMNShape id="Shape_start_pre_service" bpmnElement="start_pre_service" bioc:stroke="#0d4372" bioc:fill="#bbdefb" color:background-color="#bbdefb" color:border-color="#0d4372">
+        <dc:Bounds x="162" y="442" width="36" height="36" />
+        <bpmndi:BPMNLabel color:color="#0d4372">
+          <dc:Bounds x="151" y="485" width="61" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Activity_1hld5vj_di" bpmnElement="task_check_authorization2">
+        <dc:Bounds x="260" y="420" width="100" height="80" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_task_dmn_auth_channel" bpmnElement="task_dmn_auth_channel" bioc:stroke="#0d4372" bioc:fill="#bbdefb" color:background-color="#bbdefb" color:border-color="#0d4372">
+        <dc:Bounds x="450" y="420" width="100" height="80" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_task_request_authorization" bpmnElement="task_request_authorization" bioc:stroke="#0d4372" bioc:fill="#bbdefb" color:background-color="#bbdefb" color:border-color="#0d4372">
+        <dc:Bounds x="630" y="420" width="100" height="80" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Activity_1ui880v_di" bpmnElement="Activity_0qxwn97" bioc:stroke="#0d4372" bioc:fill="#bbdefb" color:background-color="#bbdefb" color:border-color="#0d4372">
+        <dc:Bounds x="810" y="420" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Activity_10xetjc_di" bpmnElement="Activity_0xsi9ep">
+        <dc:Bounds x="990" y="420" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_gateway_auth_status" bpmnElement="gateway_auth_status" isMarkerVisible="true" bioc:stroke="#0d4372" bioc:fill="#bbdefb" color:background-color="#bbdefb" color:border-color="#0d4372">
+        <dc:Bounds x="1175" y="435" width="50" height="50" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1168" y="495" width="64" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_task_validate_procedure" bpmnElement="task_validate_procedure" bioc:stroke="#0d4372" bioc:fill="#bbdefb" color:background-color="#bbdefb" color:border-color="#0d4372">
+        <dc:Bounds x="1330" y="220" width="100" height="80" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Activity_1bpm46z_di" bpmnElement="task_manual_auth_review" bioc:stroke="#0d4372" bioc:fill="#bbdefb" color:background-color="#bbdefb" color:border-color="#0d4372">
+        <dc:Bounds x="1330" y="420" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Activity_0y8o9t2_di" bpmnElement="task_escalate_auth" bioc:stroke="#0d4372" bioc:fill="#bbdefb" color:background-color="#bbdefb" color:border-color="#0d4372">
+        <dc:Bounds x="810" y="220" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_end_approved" bpmnElement="end_approved" bioc:stroke="#0d4372" bioc:fill="#bbdefb" color:background-color="#bbdefb" color:border-color="#0d4372">
+        <dc:Bounds x="1502" y="242" width="36" height="36" />
+        <bpmndi:BPMNLabel color:color="#0d4372">
+          <dc:Bounds x="1482" y="205" width="77" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_end_manual" bpmnElement="end_manual" bioc:stroke="#0d4372" bioc:fill="#bbdefb" color:background-color="#bbdefb" color:border-color="#0d4372">
+        <dc:Bounds x="1502" y="442" width="36" height="36" />
+        <bpmndi:BPMNLabel color:color="#0d4372">
+          <dc:Bounds x="1482" y="485" width="80" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_end_escalated" bpmnElement="end_escalated" bioc:stroke="#0d4372" bioc:fill="#bbdefb" color:background-color="#bbdefb" color:border-color="#0d4372">
+        <dc:Bounds x="1022" y="242" width="36" height="36" />
+        <bpmndi:BPMNLabel color:color="#0d4372">
+          <dc:Bounds x="1017" y="218" width="46" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Event_0zj7wsl_di" bpmnElement="timer_authorization_sla" bioc:stroke="#0d4372" bioc:fill="#bbdefb" color:background-color="#bbdefb" color:border-color="#0d4372">
+        <dc:Bounds x="662" y="402" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="689" y="383" width="42" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="TextAnnotation_01mxuh6_di" bpmnElement="TextAnnotation_01mxuh6" bioc:stroke="#0d4372" bioc:fill="#bbdefb" color:background-color="#bbdefb" color:border-color="#0d4372">
+        <dc:Bounds x="1230" y="82" width="265" height="68" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Edge_flow_to_check_authorization" bpmnElement="flow_to_check_authorization" bioc:stroke="#0d4372" color:border-color="#0d4372">
+        <di:waypoint x="198" y="460" />
+        <di:waypoint x="260" y="460" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_check_to_dmn_di" bpmnElement="Flow_check_to_dmn" bioc:stroke="#0d4372" color:border-color="#0d4372">
+        <di:waypoint x="360" y="460" />
+        <di:waypoint x="450" y="460" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_0f1ldtb_di" bpmnElement="Flow_0f1ldtb" bioc:stroke="#0d4372" color:border-color="#0d4372">
+        <di:waypoint x="550" y="460" />
+        <di:waypoint x="630" y="460" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_flow_to_auth_status_gateway" bpmnElement="flow_to_auth_status_gateway">
+        <di:waypoint x="730" y="460" />
+        <di:waypoint x="810" y="460" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_0fynyws_di" bpmnElement="Flow_0fynyws" bioc:stroke="#0d4372" color:border-color="#0d4372">
+        <di:waypoint x="910" y="460" />
+        <di:waypoint x="990" y="460" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_01g1qr8_di" bpmnElement="Flow_01g1qr8">
+        <di:waypoint x="1090" y="460" />
+        <di:waypoint x="1175" y="460" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_flow_auth_pending" bpmnElement="flow_auth_pending" bioc:stroke="#0d4372" color:border-color="#0d4372">
+        <di:waypoint x="1225" y="460" />
+        <di:waypoint x="1330" y="460" />
+        <bpmndi:BPMNLabel color:color="#0d4372">
+          <dc:Bounds x="1251" y="446" width="58" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_16h7fjv_di" bpmnElement="Flow_16h7fjv" bioc:stroke="#0d4372" color:border-color="#0d4372">
+        <di:waypoint x="1200" y="435" />
+        <di:waypoint x="1200" y="260" />
+        <di:waypoint x="1330" y="260" />
+        <bpmndi:BPMNLabel color:color="#0d4372">
+          <dc:Bounds x="1214" y="273" width="52" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_0dslnrc_di" bpmnElement="Flow_0dslnrc" bioc:stroke="#0d4372" color:border-color="#0d4372">
+        <di:waypoint x="1430" y="260" />
+        <di:waypoint x="1502" y="260" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_flow_to_end_manual" bpmnElement="flow_to_end_manual" bioc:stroke="#0d4372" color:border-color="#0d4372">
+        <di:waypoint x="1430" y="460" />
+        <di:waypoint x="1502" y="460" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_1nnpyys_di" bpmnElement="Flow_1nnpyys">
+        <di:waypoint x="680" y="402" />
+        <di:waypoint x="680" y="260" />
+        <di:waypoint x="810" y="260" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_flow_to_end_escalated" bpmnElement="flow_to_end_escalated" bioc:stroke="#0d4372" color:border-color="#0d4372">
+        <di:waypoint x="910" y="260" />
+        <di:waypoint x="1022" y="260" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Association_0svds1v_di" bpmnElement="Association_0svds1v" bioc:stroke="#0d4372" color:border-color="#0d4372">
+        <di:waypoint x="1375" y="220" />
+        <di:waypoint x="1367" y="150" />
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>

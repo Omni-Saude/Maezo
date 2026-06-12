@@ -1,10 +1,10 @@
-"""Tests for ExtractClinicalDataWorkerV2."""
+"""Tests for ExtractClinicalDataWorker."""
 from __future__ import annotations
 
 import pytest
 from unittest.mock import AsyncMock, MagicMock
 
-from healthcare_platform.revenue_cycle.coding.workers import ExtractClinicalDataWorkerV2
+from healthcare_platform.revenue_cycle.coding.workers import ExtractClinicalDataWorker
 from healthcare_platform.shared.domain.exceptions import (
     BpmnErrorException,
     CodingException,
@@ -23,8 +23,8 @@ def mock_fhir_client():
 
 @pytest.fixture
 def worker_v2(mock_fhir_client, mock_dmn_service):
-    """Create ExtractClinicalDataWorkerV2 instance with mocked dependencies."""
-    worker = ExtractClinicalDataWorkerV2(fhir_client=mock_fhir_client)
+    """Create ExtractClinicalDataWorker instance with mocked dependencies."""
+    worker = ExtractClinicalDataWorker(fhir_client=mock_fhir_client)
     worker.dmn_service = mock_dmn_service
     return worker
 

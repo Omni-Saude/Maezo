@@ -1,0 +1,118 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/"
+             xmlns:dc="http://www.omg.org/spec/DMN/20180521/DC/"
+             xmlns:di="http://www.omg.org/spec/DMN/20180521/DI/"
+             xmlns:camunda="http://camunda.org/schema/1.0/dmn"
+             id="Definitions_CLINICAL_SCORE_TEMPLATE"
+             name="CLINICAL_SCORE Template"
+             namespace="http://camunda.org/schema/1.0/dmn">
+
+  <!-- TEMPLATE: CLINICAL_SCORE v1.0.0
+       Archetype: "What is the patient's calculated risk score and tier?"
+       Pattern: Two-table DRD. Table 1 (C+) sums factor points → Table 2 (F) classifies.
+       Outputs: 3 (pontuacao, classificacao, conduta)
+       Inputs: Domain-specific scoring factors.
+  -->
+
+  <!-- TABLE 1: Factor scoring (additive) -->
+  <decision id="Decision_SCORE_FACTORS" name="TEMPLATE_NAME - Scoring Factors" camunda:historyTimeToLive="180">
+    <decisionTable id="DecisionTable_SCORE_FACTORS" hitPolicy="COLLECT" aggregation="SUM">
+
+      <input id="Input_factor_1_SCORE_FACTORS" label="Factor 1">
+        <inputExpression id="InputExpr_factor_1_SCORE_FACTORS" typeRef="string">
+          <text>factor1</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_factor_2_SCORE_FACTORS" label="Factor 2">
+        <inputExpression id="InputExpr_factor_2_SCORE_FACTORS" typeRef="number">
+          <text>factor2</text>
+        </inputExpression>
+      </input>
+
+      <!-- Single output: points contributed by this factor -->
+      <output id="Output_pontos_SCORE_FACTORS" label="Pontos" name="pontos" typeRef="number"/>
+
+      <!-- CUSTOMIZE: One rule per scoring factor -->
+      <rule id="Rule_factor_example_1_SCORE_FACTORS">
+        <description>CUSTOMIZE: factor contribution</description>
+        <inputEntry id="IE_f1_SCORE_FACTORS"><text></text></inputEntry>
+        <inputEntry id="IE_f2_SCORE_FACTORS"><text></text></inputEntry>
+        <outputEntry id="OE_f1_pts_SCORE_FACTORS"><text></text></outputEntry>
+      </rule>
+
+    </decisionTable>
+  </decision>
+
+  <!-- TABLE 2: Score classification (threshold) -->
+  <decision id="Decision_SCORE_CLASSIFY" name="TEMPLATE_NAME - Classification" camunda:historyTimeToLive="180">
+    <informationRequirement>
+      <requiredDecision href="#Decision_SCORE_FACTORS"/>
+    </informationRequirement>
+    <decisionTable id="DecisionTable_SCORE_CLASSIFY_SCORE_FACTORS" hitPolicy="FIRST">
+
+      <input id="Input_totalScore_SCORE_FACTORS" label="Pontuacao Total">
+        <inputExpression id="InputExpr_totalScore_SCORE_FACTORS" typeRef="number">
+          <text>pontos</text>
+        </inputExpression>
+      </input>
+
+      <!-- === OUTPUTS (standardized) === -->
+
+      <output id="Output_pontuacao_SCORE_FACTORS" label="Pontuacao" name="pontuacao" typeRef="number"/>
+
+      <output id="Output_classificacao_SCORE_FACTORS" label="Classificacao" name="classificacao" typeRef="string">
+        <outputValues><text>"CRITICO","ALTO","MEDIO","BAIXO"</text></outputValues>
+      </output>
+
+      <output id="Output_conduta_SCORE_FACTORS" label="Conduta" name="conduta" typeRef="string"/>
+
+      <!-- CUSTOMIZE: threshold rules, highest first -->
+      <rule id="Rule_critical_tier_SCORE_FACTORS">
+        <description>CUSTOMIZE: critical threshold</description>
+        <inputEntry id="IE_crit_score_SCORE_FACTORS"><text>>= 7</text></inputEntry>
+        <outputEntry id="OE_crit_pts_SCORE_FACTORS"><text>pontos</text></outputEntry>
+        <outputEntry id="OE_crit_class_SCORE_FACTORS"><text>"CRITICO"</text></outputEntry>
+        <outputEntry id="OE_crit_cond_SCORE_FACTORS"><text>"CUSTOMIZE: protocol response"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_high_tier_SCORE_FACTORS">
+        <description>CUSTOMIZE: high threshold</description>
+        <inputEntry id="IE_high_score_SCORE_FACTORS"><text>[5..7)</text></inputEntry>
+        <outputEntry id="OE_high_pts_SCORE_FACTORS"><text>pontos</text></outputEntry>
+        <outputEntry id="OE_high_class_SCORE_FACTORS"><text>"ALTO"</text></outputEntry>
+        <outputEntry id="OE_high_cond_SCORE_FACTORS"><text>"CUSTOMIZE"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_medium_tier_SCORE_FACTORS">
+        <description>CUSTOMIZE: medium threshold</description>
+        <inputEntry id="IE_med_score_SCORE_FACTORS"><text>[3..5)</text></inputEntry>
+        <outputEntry id="OE_med_pts_SCORE_FACTORS"><text>pontos</text></outputEntry>
+        <outputEntry id="OE_med_class_SCORE_FACTORS"><text>"MEDIO"</text></outputEntry>
+        <outputEntry id="OE_med_cond_SCORE_FACTORS"><text>"CUSTOMIZE"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_low_tier_SCORE_FACTORS">
+        <description>Low score</description>
+        <inputEntry id="IE_low_score_SCORE_FACTORS"><text>&lt; 3</text></inputEntry>
+        <outputEntry id="OE_low_pts_SCORE_FACTORS"><text>pontos</text></outputEntry>
+        <outputEntry id="OE_low_class_SCORE_FACTORS"><text>"BAIXO"</text></outputEntry>
+        <outputEntry id="OE_low_cond_SCORE_FACTORS"><text>"Monitoramento de rotina"</text></outputEntry>
+      </rule>
+
+    </decisionTable>
+  </decision>
+
+  <dmndi:DMNDI>
+    <dmndi:DMNDiagram id="DMNDiagram_1_SCORE_FACTORS">
+      <dmndi:DMNShape id="DMNShape_Factors_SCORE_FACTORS" dmnElementRef="Decision_SCORE_FACTORS">
+        <dc:Bounds height="80" width="180" x="160" y="200"/>
+      </dmndi:DMNShape>
+      <dmndi:DMNShape id="DMNShape_Classify_SCORE_FACTORS" dmnElementRef="Decision_SCORE_CLASSIFY">
+        <dc:Bounds height="80" width="180" x="160" y="80"/>
+      </dmndi:DMNShape>
+    </dmndi:DMNDiagram>
+  </dmndi:DMNDI>
+
+</definitions>

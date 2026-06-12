@@ -1,7 +1,7 @@
 from __future__ import annotations
 from unittest.mock import patch, MagicMock, AsyncMock
 import pytest
-from healthcare_platform.revenue_cycle.coding.workers.detect_fraud_worker_v2 import DetectFraudWorkerV2
+from healthcare_platform.revenue_cycle.coding.workers.detect_fraud_worker import DetectFraudWorker
 from healthcare_platform.shared.domain.exceptions import BpmnErrorException, CodingException
 
 
@@ -26,13 +26,13 @@ def valid_input():
 
 
 @pytest.mark.asyncio
-@patch('healthcare_platform.revenue_cycle.coding.workers.detect_fraud_worker_v2.get_required_tenant')
+@patch('healthcare_platform.revenue_cycle.coding.workers.detect_fraud_worker.get_required_tenant')
 async def test_happy_path_clear(mock_get_tenant, tenant_ctx, valid_input):
     mock_get_tenant.return_value = tenant_ctx
     mock_dmn = MagicMock()
     mock_dmn.evaluate.return_value = {"alerts": [], "score": 0}
 
-    worker = DetectFraudWorkerV2(dmn_service=mock_dmn)
+    worker = DetectFraudWorker(dmn_service=mock_dmn)
     result = await worker.execute(valid_input)
 
     assert result["fraudRiskScore"] >= 0
@@ -42,7 +42,7 @@ async def test_happy_path_clear(mock_get_tenant, tenant_ctx, valid_input):
 
 
 @pytest.mark.asyncio
-@patch('healthcare_platform.revenue_cycle.coding.workers.detect_fraud_worker_v2.get_required_tenant')
+@patch('healthcare_platform.revenue_cycle.coding.workers.detect_fraud_worker.get_required_tenant')
 async def test_high_risk_fraud_detected(mock_get_tenant, tenant_ctx, valid_input):
     mock_get_tenant.return_value = tenant_ctx
     mock_dmn = MagicMock()
@@ -56,7 +56,7 @@ async def test_high_risk_fraud_detected(mock_get_tenant, tenant_ctx, valid_input
 
     mock_dmn.evaluate.side_effect = dmn_side_effect
 
-    worker = DetectFraudWorkerV2(dmn_service=mock_dmn)
+    worker = DetectFraudWorker(dmn_service=mock_dmn)
 
     # 6 checks × 15 = 90 > 80 → FRAUD_DETECTED
     with pytest.raises(BpmnErrorException) as exc_info:
@@ -66,12 +66,12 @@ async def test_high_risk_fraud_detected(mock_get_tenant, tenant_ctx, valid_input
 
 
 @pytest.mark.asyncio
-@patch('healthcare_platform.revenue_cycle.coding.workers.detect_fraud_worker_v2.get_required_tenant')
+@patch('healthcare_platform.revenue_cycle.coding.workers.detect_fraud_worker.get_required_tenant')
 async def test_missing_fields_error(mock_get_tenant, tenant_ctx):
     mock_get_tenant.return_value = tenant_ctx
     mock_dmn = MagicMock()
 
-    worker = DetectFraudWorkerV2(dmn_service=mock_dmn)
+    worker = DetectFraudWorker(dmn_service=mock_dmn)
 
     invalid_input = {
         "encounterId": "enc-001",
@@ -86,7 +86,7 @@ async def test_missing_fields_error(mock_get_tenant, tenant_ctx):
 
 
 @pytest.mark.asyncio
-@patch('healthcare_platform.revenue_cycle.coding.workers.detect_fraud_worker_v2.get_required_tenant')
+@patch('healthcare_platform.revenue_cycle.coding.workers.detect_fraud_worker.get_required_tenant')
 async def test_moderate_risk_flag(mock_get_tenant, tenant_ctx, valid_input):
     mock_get_tenant.return_value = tenant_ctx
     mock_dmn = MagicMock()
@@ -100,7 +100,7 @@ async def test_moderate_risk_flag(mock_get_tenant, tenant_ctx, valid_input):
 
     mock_dmn.evaluate.side_effect = dmn_side_effect
 
-    worker = DetectFraudWorkerV2(dmn_service=mock_dmn)
+    worker = DetectFraudWorker(dmn_service=mock_dmn)
     result = await worker.execute(valid_input)
 
     assert result["fraudRecommendation"] == "flag"
@@ -109,7 +109,7 @@ async def test_moderate_risk_flag(mock_get_tenant, tenant_ctx, valid_input):
 
 
 @pytest.mark.asyncio
-@patch('healthcare_platform.revenue_cycle.coding.workers.detect_fraud_worker_v2.get_required_tenant')
+@patch('healthcare_platform.revenue_cycle.coding.workers.detect_fraud_worker.get_required_tenant')
 async def test_dmn_returns_alerts(mock_get_tenant, tenant_ctx, valid_input):
     mock_get_tenant.return_value = tenant_ctx
     mock_dmn = MagicMock()
@@ -128,14 +128,14 @@ async def test_dmn_returns_alerts(mock_get_tenant, tenant_ctx, valid_input):
 
     mock_dmn.evaluate.side_effect = dmn_side_effect
 
-    worker = DetectFraudWorkerV2(dmn_service=mock_dmn)
+    worker = DetectFraudWorker(dmn_service=mock_dmn)
     result = await worker.execute(valid_input)
 
     assert len(result["fraudAlerts"]) > 0
 
 
 @pytest.mark.asyncio
-@patch('healthcare_platform.revenue_cycle.coding.workers.detect_fraud_worker_v2.get_required_tenant')
+@patch('healthcare_platform.revenue_cycle.coding.workers.detect_fraud_worker.get_required_tenant')
 async def test_process_task_compat(mock_get_tenant, tenant_ctx, valid_input):
     mock_get_tenant.return_value = tenant_ctx
     mock_dmn = MagicMock()
@@ -148,7 +148,7 @@ async def test_process_task_compat(mock_get_tenant, tenant_ctx, valid_input):
 
     mock_dmn.evaluate.side_effect = dmn_side_effect
 
-    worker = DetectFraudWorkerV2(dmn_service=mock_dmn)
+    worker = DetectFraudWorker(dmn_service=mock_dmn)
 
     result = await worker.process_task(variables=valid_input)
 
@@ -158,13 +158,13 @@ async def test_process_task_compat(mock_get_tenant, tenant_ctx, valid_input):
 
 
 @pytest.mark.asyncio
-@patch('healthcare_platform.revenue_cycle.coding.workers.detect_fraud_worker_v2.get_required_tenant')
+@patch('healthcare_platform.revenue_cycle.coding.workers.detect_fraud_worker.get_required_tenant')
 async def test_dmn_orphan_fallback(mock_get_tenant, tenant_ctx, valid_input):
     mock_get_tenant.return_value = tenant_ctx
     mock_dmn = MagicMock()
     mock_dmn.evaluate.return_value = {"alerts": [], "score": 0}
 
-    worker = DetectFraudWorkerV2(dmn_service=mock_dmn)
+    worker = DetectFraudWorker(dmn_service=mock_dmn)
     result = await worker.execute(valid_input)
 
     assert result["fraudRiskScore"] == 0

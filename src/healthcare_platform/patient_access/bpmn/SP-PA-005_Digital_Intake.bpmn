@@ -1,0 +1,218 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+                  xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+                  xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+                  xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
+                  xmlns:camunda="http://camunda.org/schema/1.0/bpmn"
+                  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                  id="Definitions_DigitalIntake"
+                  targetNamespace="http://cib7.health/patient/intake"
+                  exporter="Claude Code"
+                  exporterVersion="1.0">
+
+  <bpmn:process id="Process_DigitalIntake" name="SP-PA-005 Digital Intake" isExecutable="true" camunda:historyTimeToLive="30">
+
+    <!-- Start Event: Clearance Granted Signal -->
+    <bpmn:startEvent id="Start_ClearanceGranted" name="Clearance Granted">
+      <bpmn:outgoing>Flow_ToValidateDocumentation</bpmn:outgoing>
+      <bpmn:signalEventDefinition signalRef="Signal_ClearanceGranted"/>
+    </bpmn:startEvent>
+
+    <!-- Task 1: Validate Documentation -->
+    <bpmn:serviceTask id="Task_ValidateDocumentation" name="Validate Documentation"
+                      camunda:type="external" camunda:topic="patient.validate_documentation">
+      <bpmn:incoming>Flow_ToValidateDocumentation</bpmn:incoming>
+      <bpmn:outgoing>Flow_ToBusinessRule</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Business Rule Task: Documentation Requirements -->
+    <bpmn:businessRuleTask id="Task_DocumentationRules" name="Apply Documentation Requirements"
+                           camunda:decisionRef="auth_documentation_001"
+                           camunda:mapDecisionResult="singleResult">
+      <bpmn:incoming>Flow_ToBusinessRule</bpmn:incoming>
+      <bpmn:outgoing>Flow_ToGateway</bpmn:outgoing>
+    </bpmn:businessRuleTask>
+
+    <!-- Gateway: Documentation Complete? -->
+    <bpmn:exclusiveGateway id="Gateway_DocumentationComplete" name="Documentation Complete?" default="Flow_Incomplete">
+      <bpmn:incoming>Flow_ToGateway</bpmn:incoming>
+      <bpmn:outgoing>Flow_Complete</bpmn:outgoing>
+      <bpmn:outgoing>Flow_Incomplete</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+
+    <!-- Task 2: Request Missing Documents -->
+    <bpmn:serviceTask id="Task_RequestMissingDocuments" name="Request Missing Documents"
+                      camunda:type="external" camunda:topic="patient.request_missing_documents">
+      <bpmn:incoming>Flow_Incomplete</bpmn:incoming>
+      <bpmn:outgoing>Flow_ToWaitForDocuments</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Wait for Documents -->
+    <bpmn:intermediateCatchEvent id="Event_WaitForDocuments" name="Wait for Documents">
+      <bpmn:incoming>Flow_ToWaitForDocuments</bpmn:incoming>
+      <bpmn:outgoing>Flow_BackToValidate</bpmn:outgoing>
+      <bpmn:messageEventDefinition messageRef="Message_DocumentsReceived"/>
+    </bpmn:intermediateCatchEvent>
+
+    <!-- Loop back to validation -->
+    <bpmn:sequenceFlow id="Flow_BackToValidate" sourceRef="Event_WaitForDocuments" targetRef="Task_ValidateDocumentation"/>
+
+    <!-- Task 3: Generate Pre-Admission Checklist -->
+    <bpmn:serviceTask id="Task_GenerateChecklist" name="Generate Pre-Admission Checklist"
+                      camunda:type="external" camunda:topic="patient.generate_pre_admission_checklist">
+      <bpmn:incoming>Flow_Complete</bpmn:incoming>
+      <bpmn:outgoing>Flow_ToSendChecklist</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Task 4: Send Checklist to Patient -->
+    <bpmn:serviceTask id="Task_SendChecklist" name="Send Checklist to Patient"
+                      camunda:type="external" camunda:topic="patient.send_checklist">
+      <bpmn:incoming>Flow_ToSendChecklist</bpmn:incoming>
+      <bpmn:outgoing>Flow_ToEnd</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- End Event -->
+    <bpmn:endEvent id="End_IntakeComplete" name="Intake Complete">
+      <bpmn:incoming>Flow_ToEnd</bpmn:incoming>
+    </bpmn:endEvent>
+
+    <!-- Sequence Flows -->
+    <bpmn:sequenceFlow id="Flow_ToValidateDocumentation" sourceRef="Start_ClearanceGranted" targetRef="Task_ValidateDocumentation"/>
+    <bpmn:sequenceFlow id="Flow_ToBusinessRule" sourceRef="Task_ValidateDocumentation" targetRef="Task_DocumentationRules"/>
+    <bpmn:sequenceFlow id="Flow_ToGateway" sourceRef="Task_DocumentationRules" targetRef="Gateway_DocumentationComplete"/>
+    <bpmn:sequenceFlow id="Flow_Complete" sourceRef="Gateway_DocumentationComplete" targetRef="Task_GenerateChecklist">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${documentation_complete == true}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_Incomplete" sourceRef="Gateway_DocumentationComplete" targetRef="Task_RequestMissingDocuments">
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_ToWaitForDocuments" sourceRef="Task_RequestMissingDocuments" targetRef="Event_WaitForDocuments"/>
+    <bpmn:sequenceFlow id="Flow_ToSendChecklist" sourceRef="Task_GenerateChecklist" targetRef="Task_SendChecklist"/>
+    <bpmn:sequenceFlow id="Flow_ToEnd" sourceRef="Task_SendChecklist" targetRef="End_IntakeComplete"/>
+
+  </bpmn:process>
+
+  <!-- Signal Definition -->
+  <bpmn:signal id="Signal_ClearanceGranted" name="ClearanceGrantedSignal"/>
+
+  <!-- Message Definition -->
+  <bpmn:message id="Message_DocumentsReceived" name="DocumentsReceivedMessage"/>
+
+  <!-- Diagram Interchange -->
+  <bpmndi:BPMNDiagram id="BPMNDiagram_DigitalIntake">
+    <bpmndi:BPMNPlane id="BPMNPlane_DigitalIntake" bpmnElement="Process_DigitalIntake">
+
+      <!-- Start Event -->
+      <bpmndi:BPMNShape id="Shape_Start_ClearanceGranted" bpmnElement="Start_ClearanceGranted">
+        <dc:Bounds x="152" y="102" width="36" height="36"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="128" y="145" width="84" height="14"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+
+      <!-- Validate Documentation -->
+      <bpmndi:BPMNShape id="Shape_Task_ValidateDocumentation" bpmnElement="Task_ValidateDocumentation">
+        <dc:Bounds x="240" y="80" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <!-- Documentation Rules -->
+      <bpmndi:BPMNShape id="Shape_Task_DocumentationRules" bpmnElement="Task_DocumentationRules">
+        <dc:Bounds x="390" y="80" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <!-- Documentation Complete Gateway -->
+      <bpmndi:BPMNShape id="Shape_Gateway_DocumentationComplete" bpmnElement="Gateway_DocumentationComplete" isMarkerVisible="true">
+        <dc:Bounds x="545" y="95" width="50" height="50"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="528" y="58" width="84" height="27"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+
+      <!-- Request Missing Documents -->
+      <bpmndi:BPMNShape id="Shape_Task_RequestMissingDocuments" bpmnElement="Task_RequestMissingDocuments">
+        <dc:Bounds x="520" y="220" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <!-- Wait for Documents Event -->
+      <bpmndi:BPMNShape id="Shape_Event_WaitForDocuments" bpmnElement="Event_WaitForDocuments">
+        <dc:Bounds x="372" y="242" width="36" height="36"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="345" y="285" width="90" height="14"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+
+      <!-- Generate Checklist -->
+      <bpmndi:BPMNShape id="Shape_Task_GenerateChecklist" bpmnElement="Task_GenerateChecklist">
+        <dc:Bounds x="650" y="80" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <!-- Send Checklist -->
+      <bpmndi:BPMNShape id="Shape_Task_SendChecklist" bpmnElement="Task_SendChecklist">
+        <dc:Bounds x="800" y="80" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <!-- End Event -->
+      <bpmndi:BPMNShape id="Shape_End_IntakeComplete" bpmnElement="End_IntakeComplete">
+        <dc:Bounds x="962" y="102" width="36" height="36"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="940" y="145" width="80" height="14"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+
+      <!-- Sequence Flow Edges -->
+      <bpmndi:BPMNEdge id="Edge_Flow_ToValidateDocumentation" bpmnElement="Flow_ToValidateDocumentation">
+        <di:waypoint x="188" y="120"/>
+        <di:waypoint x="240" y="120"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_Flow_ToBusinessRule" bpmnElement="Flow_ToBusinessRule">
+        <di:waypoint x="340" y="120"/>
+        <di:waypoint x="390" y="120"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_Flow_ToGateway" bpmnElement="Flow_ToGateway">
+        <di:waypoint x="490" y="120"/>
+        <di:waypoint x="545" y="120"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_Flow_Complete" bpmnElement="Flow_Complete">
+        <di:waypoint x="595" y="120"/>
+        <di:waypoint x="650" y="120"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="600" y="102" width="45" height="14"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_Flow_Incomplete" bpmnElement="Flow_Incomplete">
+        <di:waypoint x="570" y="145"/>
+        <di:waypoint x="570" y="220"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="540" y="180" width="60" height="14"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_Flow_ToWaitForDocuments" bpmnElement="Flow_ToWaitForDocuments">
+        <di:waypoint x="520" y="260"/>
+        <di:waypoint x="408" y="260"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_Flow_BackToValidate" bpmnElement="Flow_BackToValidate">
+        <di:waypoint x="390" y="242"/>
+        <di:waypoint x="390" y="200"/>
+        <di:waypoint x="290" y="200"/>
+        <di:waypoint x="290" y="160"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_Flow_ToSendChecklist" bpmnElement="Flow_ToSendChecklist">
+        <di:waypoint x="750" y="120"/>
+        <di:waypoint x="800" y="120"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_Flow_ToEnd" bpmnElement="Flow_ToEnd">
+        <di:waypoint x="900" y="120"/>
+        <di:waypoint x="962" y="120"/>
+      </bpmndi:BPMNEdge>
+
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+
+</bpmn:definitions>

@@ -1,7 +1,7 @@
 from __future__ import annotations
 from unittest.mock import patch, MagicMock
 import pytest
-from healthcare_platform.revenue_cycle.coding.workers.validate_codes_worker_v2 import ValidateCodesWorkerV2
+from healthcare_platform.revenue_cycle.coding.workers.validate_codes_worker import ValidateCodesWorker
 from healthcare_platform.shared.domain.exceptions import CodingException, BpmnErrorException
 
 
@@ -13,7 +13,7 @@ def tenant_ctx():
 
 
 @pytest.mark.asyncio
-@patch('healthcare_platform.revenue_cycle.coding.workers.validate_codes_worker_v2.get_required_tenant')
+@patch('healthcare_platform.revenue_cycle.coding.workers.validate_codes_worker.get_required_tenant')
 async def test_happy_path_all_valid(mock_get_tenant, tenant_ctx):
     mock_get_tenant.return_value = tenant_ctx
     mock_dmn = MagicMock()
@@ -25,7 +25,7 @@ async def test_happy_path_all_valid(mock_get_tenant, tenant_ctx):
         {"errors": []},
     ]
 
-    worker = ValidateCodesWorkerV2(dmn_service=mock_dmn)
+    worker = ValidateCodesWorker(dmn_service=mock_dmn)
     result = await worker.execute({
         "suggested_cid10_codes": [{"code": "A01.0"}],
         "suggested_tuss_codes": [{"code": "10101012"}],
@@ -41,12 +41,12 @@ async def test_happy_path_all_valid(mock_get_tenant, tenant_ctx):
 
 
 @pytest.mark.asyncio
-@patch('healthcare_platform.revenue_cycle.coding.workers.validate_codes_worker_v2.get_required_tenant')
+@patch('healthcare_platform.revenue_cycle.coding.workers.validate_codes_worker.get_required_tenant')
 async def test_empty_codes_error(mock_get_tenant, tenant_ctx):
     mock_get_tenant.return_value = tenant_ctx
     mock_dmn = MagicMock()
 
-    worker = ValidateCodesWorkerV2(dmn_service=mock_dmn)
+    worker = ValidateCodesWorker(dmn_service=mock_dmn)
 
     with pytest.raises(CodingException) as exc_info:
         await worker.execute({
@@ -60,7 +60,7 @@ async def test_empty_codes_error(mock_get_tenant, tenant_ctx):
 
 
 @pytest.mark.asyncio
-@patch('healthcare_platform.revenue_cycle.coding.workers.validate_codes_worker_v2.get_required_tenant')
+@patch('healthcare_platform.revenue_cycle.coding.workers.validate_codes_worker.get_required_tenant')
 async def test_cid10_validation_failure(mock_get_tenant, tenant_ctx):
     mock_get_tenant.return_value = tenant_ctx
     mock_dmn = MagicMock()
@@ -72,7 +72,7 @@ async def test_cid10_validation_failure(mock_get_tenant, tenant_ctx):
         {"errors": []},
     ]
 
-    worker = ValidateCodesWorkerV2(dmn_service=mock_dmn)
+    worker = ValidateCodesWorker(dmn_service=mock_dmn)
 
     with pytest.raises(BpmnErrorException) as exc_info:
         await worker.execute({
@@ -86,7 +86,7 @@ async def test_cid10_validation_failure(mock_get_tenant, tenant_ctx):
 
 
 @pytest.mark.asyncio
-@patch('healthcare_platform.revenue_cycle.coding.workers.validate_codes_worker_v2.get_required_tenant')
+@patch('healthcare_platform.revenue_cycle.coding.workers.validate_codes_worker.get_required_tenant')
 async def test_tuss_validation_failure(mock_get_tenant, tenant_ctx):
     mock_get_tenant.return_value = tenant_ctx
     mock_dmn = MagicMock()
@@ -98,7 +98,7 @@ async def test_tuss_validation_failure(mock_get_tenant, tenant_ctx):
         {"errors": []},
     ]
 
-    worker = ValidateCodesWorkerV2(dmn_service=mock_dmn)
+    worker = ValidateCodesWorker(dmn_service=mock_dmn)
 
     with pytest.raises(BpmnErrorException) as exc_info:
         await worker.execute({
@@ -112,7 +112,7 @@ async def test_tuss_validation_failure(mock_get_tenant, tenant_ctx):
 
 
 @pytest.mark.asyncio
-@patch('healthcare_platform.revenue_cycle.coding.workers.validate_codes_worker_v2.get_required_tenant')
+@patch('healthcare_platform.revenue_cycle.coding.workers.validate_codes_worker.get_required_tenant')
 async def test_partial_validation(mock_get_tenant, tenant_ctx):
     mock_get_tenant.return_value = tenant_ctx
     mock_dmn = MagicMock()
@@ -124,7 +124,7 @@ async def test_partial_validation(mock_get_tenant, tenant_ctx):
         {"errors": [{"type": "warning", "message": "Incompatibility warning"}]},
     ]
 
-    worker = ValidateCodesWorkerV2(dmn_service=mock_dmn)
+    worker = ValidateCodesWorker(dmn_service=mock_dmn)
     result = await worker.execute({
         "suggested_cid10_codes": [{"code": "A01.0"}, {"code": "A01.1"}, {"code": "A01.X"}],
         "suggested_tuss_codes": [{"code": "10101012"}, {"code": "99999999"}],
@@ -139,7 +139,7 @@ async def test_partial_validation(mock_get_tenant, tenant_ctx):
 
 
 @pytest.mark.asyncio
-@patch('healthcare_platform.revenue_cycle.coding.workers.validate_codes_worker_v2.get_required_tenant')
+@patch('healthcare_platform.revenue_cycle.coding.workers.validate_codes_worker.get_required_tenant')
 async def test_process_task_compat(mock_get_tenant, tenant_ctx):
     mock_get_tenant.return_value = tenant_ctx
     mock_dmn = MagicMock()
@@ -151,7 +151,7 @@ async def test_process_task_compat(mock_get_tenant, tenant_ctx):
         {"errors": []},
     ]
 
-    worker = ValidateCodesWorkerV2(dmn_service=mock_dmn)
+    worker = ValidateCodesWorker(dmn_service=mock_dmn)
 
     result = await worker.process_task(variables={
         "suggested_cid10_codes": [{"code": "J00"}],
@@ -166,7 +166,7 @@ async def test_process_task_compat(mock_get_tenant, tenant_ctx):
 
 
 @pytest.mark.asyncio
-@patch('healthcare_platform.revenue_cycle.coding.workers.validate_codes_worker_v2.get_required_tenant')
+@patch('healthcare_platform.revenue_cycle.coding.workers.validate_codes_worker.get_required_tenant')
 async def test_dmn_sequential_calls(mock_get_tenant, tenant_ctx):
     mock_get_tenant.return_value = tenant_ctx
     mock_dmn = MagicMock()
@@ -178,7 +178,7 @@ async def test_dmn_sequential_calls(mock_get_tenant, tenant_ctx):
         {"errors": []},
     ]
 
-    worker = ValidateCodesWorkerV2(dmn_service=mock_dmn)
+    worker = ValidateCodesWorker(dmn_service=mock_dmn)
     await worker.execute({
         "suggested_cid10_codes": [{"code": "E11.9"}],
         "suggested_tuss_codes": [{"code": "20101020"}],
@@ -196,7 +196,7 @@ async def test_dmn_sequential_calls(mock_get_tenant, tenant_ctx):
 
 
 @pytest.mark.asyncio
-@patch('healthcare_platform.revenue_cycle.coding.workers.validate_codes_worker_v2.get_required_tenant')
+@patch('healthcare_platform.revenue_cycle.coding.workers.validate_codes_worker.get_required_tenant')
 async def test_incompatibility_errors(mock_get_tenant, tenant_ctx):
     mock_get_tenant.return_value = tenant_ctx
     mock_dmn = MagicMock()
@@ -208,7 +208,7 @@ async def test_incompatibility_errors(mock_get_tenant, tenant_ctx):
         {"errors": []},
     ]
 
-    worker = ValidateCodesWorkerV2(dmn_service=mock_dmn)
+    worker = ValidateCodesWorker(dmn_service=mock_dmn)
     result = await worker.execute({
         "suggested_cid10_codes": [{"code": "A01.0"}, {"code": "B01.0"}],
         "suggested_tuss_codes": [{"code": "10101012"}],

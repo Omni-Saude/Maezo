@@ -7,9 +7,19 @@ from unittest.mock import MagicMock, Mock
 
 import pytest
 
-from healthcare_platform.revenue_cycle.billing.workers.apply_contract_rules_worker_v2 import ApplyContractRulesWorker
-from healthcare_platform.shared.domain.exceptions import ContractRuleViolation
-from healthcare_platform.shared.domain.value_objects import Money
+from healthcare_platform.revenue_cycle.billing.workers.apply_contract_rules_worker import ApplyContractRulesWorker
+from healthcare_platform.shared.workers.base import TaskContext, TaskStatus
+
+
+def make_context(variables: dict, tenant_id: str = "test-tenant") -> TaskContext:
+    """Create a test TaskContext."""
+    return TaskContext(
+        task_id="task-001",
+        process_instance_id="proc-001",
+        tenant_id=tenant_id,
+        variables=variables,
+        worker_id="test-worker",
+    )
 
 
 @pytest.fixture
@@ -67,35 +77,25 @@ def basic_contract_rules() -> Dict[str, Any]:
     }
 
 
-@pytest.fixture
-def mock_job():
-    """Create mock job."""
-    job = MagicMock()
-    job.variables = {}
-    return job
-
-
 class TestApplyContractRulesWorker:
     """Tests for ApplyContractRulesWorker."""
 
-    @pytest.mark.asyncio
-    async def test_operation_name(self, worker):
+    def test_operation_name(self, worker):
         """Test operation name is set."""
-        assert worker.operation_name == "Aplicar regras contratuais"
+        assert worker.OPERATION_NAME == "Aplicar regras contratuais"
 
-    @pytest.mark.asyncio
-    async def test_process_task_success(self, worker, mock_job, sample_procedures, basic_contract_rules):
+    def test_process_task_success(self, worker, sample_procedures, basic_contract_rules):
         """Test successful contract rules application."""
-        variables = {
-            "claim_id": "claim-123",
-            "payer_id": "payer-456",
+        context = make_context({
+            "charges": "claim-123",
+            "payer": "payer-456",
             "procedures": sample_procedures,
-            "contract_rules": basic_contract_rules
-        }
+            "contract": basic_contract_rules,
+        })
 
-        result = await worker.process_task(mock_job, variables)
+        result = worker.execute(context)
 
-        assert result.success is True
+        assert result.status == TaskStatus.SUCCESS
         assert "adjusted_items" in result.variables
         assert "total_patient_responsibility" in result.variables
         assert "total_payer_responsibility" in result.variables
@@ -111,8 +111,7 @@ class TestApplyContractRulesWorker:
 
         assert total_patient + total_payer == total_charges
 
-    @pytest.mark.asyncio
-    async def test_copay_calculation(self, worker, mock_job):
+    def test_copay_calculation(self, worker):
         """Test co-payment calculation."""
         procedures = [
             {
@@ -122,29 +121,28 @@ class TestApplyContractRulesWorker:
             }
         ]
 
-        contract_rules = {
+        contract = {
             "copay_pct": "20",
             "deductible": "0",
             "coverage_limit": None,
             "procedure_limits": {}
         }
 
-        variables = {
-            "claim_id": "claim-123",
-            "payer_id": "payer-456",
+        context = make_context({
+            "charges": "claim-123",
+            "payer": "payer-456",
             "procedures": procedures,
-            "contract_rules": contract_rules
-        }
+            "contract": contract,
+        })
 
-        result = await worker.process_task(mock_job, variables)
+        result = worker.execute(context)
 
         item = result.variables["adjusted_items"][0]
         assert Decimal(item["copay_amount"]) == Decimal("20.00")
         assert Decimal(item["patient_responsibility"]) == Decimal("20.00")
         assert Decimal(item["payer_responsibility"]) == Decimal("80.00")
 
-    @pytest.mark.asyncio
-    async def test_deductible_application(self, worker, mock_job):
+    def test_deductible_application(self, worker):
         """Test deductible application."""
         procedures = [
             {
@@ -159,21 +157,21 @@ class TestApplyContractRulesWorker:
             }
         ]
 
-        contract_rules = {
+        contract = {
             "copay_pct": "0",
             "deductible": "120.00",
             "coverage_limit": None,
             "procedure_limits": {}
         }
 
-        variables = {
-            "claim_id": "claim-123",
-            "payer_id": "payer-456",
+        context = make_context({
+            "charges": "claim-123",
+            "payer": "payer-456",
             "procedures": procedures,
-            "contract_rules": contract_rules
-        }
+            "contract": contract,
+        })
 
-        result = await worker.process_task(mock_job, variables)
+        result = worker.execute(context)
 
         items = result.variables["adjusted_items"]
 
@@ -186,8 +184,7 @@ class TestApplyContractRulesWorker:
         assert Decimal(items[1]["deductible_applied"]) == Decimal("0")
         assert Decimal(items[1]["payer_responsibility"]) == Decimal("100.00")
 
-    @pytest.mark.asyncio
-    async def test_coverage_limit(self, worker, mock_job):
+    def test_coverage_limit(self, worker):
         """Test coverage limit enforcement."""
         procedures = [
             {
@@ -197,21 +194,21 @@ class TestApplyContractRulesWorker:
             }
         ]
 
-        contract_rules = {
+        contract = {
             "copay_pct": "0",
             "deductible": "0",
             "coverage_limit": "3000.00",
             "procedure_limits": {}
         }
 
-        variables = {
-            "claim_id": "claim-123",
-            "payer_id": "payer-456",
+        context = make_context({
+            "charges": "claim-123",
+            "payer": "payer-456",
             "procedures": procedures,
-            "contract_rules": contract_rules
-        }
+            "contract": contract,
+        })
 
-        result = await worker.process_task(mock_job, variables)
+        result = worker.execute(context)
 
         total_payer = Decimal(result.variables["total_payer_responsibility"])
         total_patient = Decimal(result.variables["total_patient_responsibility"])
@@ -221,8 +218,7 @@ class TestApplyContractRulesWorker:
         # Patient pays the excess
         assert total_patient == Decimal("2000.00")
 
-    @pytest.mark.asyncio
-    async def test_procedure_limits(self, worker, mock_job):
+    def test_procedure_limits(self, worker):
         """Test procedure-specific limits."""
         procedures = [
             {
@@ -232,7 +228,7 @@ class TestApplyContractRulesWorker:
             }
         ]
 
-        contract_rules = {
+        contract = {
             "copay_pct": "0",
             "deductible": "0",
             "coverage_limit": None,
@@ -241,21 +237,20 @@ class TestApplyContractRulesWorker:
             }
         }
 
-        variables = {
-            "claim_id": "claim-123",
-            "payer_id": "payer-456",
+        context = make_context({
+            "charges": "claim-123",
+            "payer": "payer-456",
             "procedures": procedures,
-            "contract_rules": contract_rules
-        }
+            "contract": contract,
+        })
 
-        result = await worker.process_task(mock_job, variables)
+        result = worker.execute(context)
 
         item = result.variables["adjusted_items"][0]
         # Line total should be capped at procedure limit
         assert Decimal(item["line_total"]) == Decimal("300.00")
 
-    @pytest.mark.asyncio
-    async def test_combined_rules(self, worker, mock_job):
+    def test_combined_rules(self, worker):
         """Test combined copay and deductible."""
         procedures = [
             {
@@ -265,21 +260,21 @@ class TestApplyContractRulesWorker:
             }
         ]
 
-        contract_rules = {
+        contract = {
             "copay_pct": "20",
             "deductible": "100.00",
             "coverage_limit": None,
             "procedure_limits": {}
         }
 
-        variables = {
-            "claim_id": "claim-123",
-            "payer_id": "payer-456",
+        context = make_context({
+            "charges": "claim-123",
+            "payer": "payer-456",
             "procedures": procedures,
-            "contract_rules": contract_rules
-        }
+            "contract": contract,
+        })
 
-        result = await worker.process_task(mock_job, variables)
+        result = worker.execute(context)
 
         item = result.variables["adjusted_items"][0]
 
@@ -297,83 +292,75 @@ class TestApplyContractRulesWorker:
         # Payer: 1000 - 300 = 700
         assert payer == Decimal("700.00")
 
-    @pytest.mark.asyncio
-    async def test_missing_claim_id(self, worker, mock_job, sample_procedures, basic_contract_rules):
-        """Test behavior when claim_id is missing."""
-        variables = {
-            "payer_id": "payer-456",
+    def test_missing_claim_id(self, worker, sample_procedures, basic_contract_rules):
+        """Test behavior when charges is missing."""
+        context = make_context({
+            "payer": "payer-456",
             "procedures": sample_procedures,
-            "contract_rules": basic_contract_rules
-        }
+            "contract": basic_contract_rules,
+        })
 
-        result = await worker.process_task(mock_job, variables)
+        result = worker.execute(context)
 
-        # V2 worker processes successfully even without claim_id (DMN handles validation)
-        # The calculation logic doesn't strictly require claim_id
-        assert result.success in [True, False]  # Accept either outcome
+        # V2 worker processes successfully even without charges (DMN handles validation)
+        assert result.status in [TaskStatus.SUCCESS, TaskStatus.BPMN_ERROR]
 
-    @pytest.mark.asyncio
-    async def test_missing_payer_id(self, worker, mock_job, sample_procedures, basic_contract_rules):
-        """Test behavior when payer_id is missing."""
-        variables = {
-            "claim_id": "claim-123",
+    def test_missing_payer_id(self, worker, sample_procedures, basic_contract_rules):
+        """Test behavior when payer is missing."""
+        context = make_context({
+            "charges": "claim-123",
             "procedures": sample_procedures,
-            "contract_rules": basic_contract_rules
-        }
+            "contract": basic_contract_rules,
+        })
 
-        result = await worker.process_task(mock_job, variables)
+        result = worker.execute(context)
 
-        # V2 worker processes successfully even without payer_id (DMN handles validation)
-        # The calculation logic doesn't strictly require payer_id
-        assert result.success in [True, False]  # Accept either outcome
+        # V2 worker processes successfully even without payer (DMN handles validation)
+        assert result.status in [TaskStatus.SUCCESS, TaskStatus.BPMN_ERROR]
 
-    @pytest.mark.asyncio
-    async def test_invalid_copay_percentage(self, worker, mock_job, sample_procedures):
+    def test_invalid_copay_percentage(self, worker, sample_procedures):
         """Test error with invalid copay percentage."""
-        contract_rules = {
+        contract = {
             "copay_pct": "150",  # Invalid: > 100
             "deductible": "0",
             "coverage_limit": None,
             "procedure_limits": {}
         }
 
-        variables = {
-            "claim_id": "claim-123",
-            "payer_id": "payer-456",
+        context = make_context({
+            "charges": "claim-123",
+            "payer": "payer-456",
             "procedures": sample_procedures,
-            "contract_rules": contract_rules
-        }
+            "contract": contract,
+        })
 
-        result = await worker.process_task(mock_job, variables)
+        result = worker.execute(context)
 
         # V2 worker may apply rules successfully or return error depending on DMN
-        # Accept both success (DMN allows it) or error (validation rejects it)
-        assert result.success in [True, False]
+        assert result.status in [TaskStatus.SUCCESS, TaskStatus.BPMN_ERROR]
 
-    @pytest.mark.asyncio
-    async def test_negative_deductible(self, worker, mock_job, sample_procedures):
+    def test_negative_deductible(self, worker, sample_procedures):
         """Test error with negative deductible."""
-        contract_rules = {
+        contract = {
             "copay_pct": "20",
             "deductible": "-100.00",  # Invalid: negative
             "coverage_limit": None,
             "procedure_limits": {}
         }
 
-        variables = {
-            "claim_id": "claim-123",
-            "payer_id": "payer-456",
+        context = make_context({
+            "charges": "claim-123",
+            "payer": "payer-456",
             "procedures": sample_procedures,
-            "contract_rules": contract_rules
-        }
+            "contract": contract,
+        })
 
-        result = await worker.process_task(mock_job, variables)
+        result = worker.execute(context)
 
         # V2 worker may handle negative deductible differently (DMN or error)
-        assert result.success in [True, False]
+        assert result.status in [TaskStatus.SUCCESS, TaskStatus.BPMN_ERROR]
 
-    @pytest.mark.asyncio
-    async def test_invalid_unit_price(self, worker, mock_job, basic_contract_rules):
+    def test_invalid_unit_price(self, worker, basic_contract_rules):
         """Test error with invalid unit price."""
         procedures = [
             {
@@ -383,20 +370,19 @@ class TestApplyContractRulesWorker:
             }
         ]
 
-        variables = {
-            "claim_id": "claim-123",
-            "payer_id": "payer-456",
+        context = make_context({
+            "charges": "claim-123",
+            "payer": "payer-456",
             "procedures": procedures,
-            "contract_rules": basic_contract_rules
-        }
+            "contract": basic_contract_rules,
+        })
 
-        result = await worker.process_task(mock_job, variables)
+        result = worker.execute(context)
 
-        assert result.success is False
+        assert result.status == TaskStatus.BPMN_ERROR
         assert result.error_code in ["ERR_CONTRACT_VIOLATION", "ERR_CONTRACT_PROCESSING"]
 
-    @pytest.mark.asyncio
-    async def test_zero_copay_and_deductible(self, worker, mock_job):
+    def test_zero_copay_and_deductible(self, worker):
         """Test with zero copay and deductible."""
         procedures = [
             {
@@ -406,21 +392,21 @@ class TestApplyContractRulesWorker:
             }
         ]
 
-        contract_rules = {
+        contract = {
             "copay_pct": "0",
             "deductible": "0",
             "coverage_limit": None,
             "procedure_limits": {}
         }
 
-        variables = {
-            "claim_id": "claim-123",
-            "payer_id": "payer-456",
+        context = make_context({
+            "charges": "claim-123",
+            "payer": "payer-456",
             "procedures": procedures,
-            "contract_rules": contract_rules
-        }
+            "contract": contract,
+        })
 
-        result = await worker.process_task(mock_job, variables)
+        result = worker.execute(context)
 
         item = result.variables["adjusted_items"][0]
         assert Decimal(item["patient_responsibility"]) == Decimal("0")

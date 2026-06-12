@@ -50,6 +50,17 @@ from .engine_fixtures import (
     PROCESS_INSTANCE_SAMPLE,
     VARIABLE_MAP_SAMPLE,
 )
+from .fhir_seed import (
+    FHIRSeedData,
+    create_rc_seed,
+    get_rc_resources,
+    build_bundle,
+    HAPPY_PATH_IDS,
+    AUTH_DENIED_IDS,
+    GLOSA_DENIAL_IDS,
+    OVERDUE_COLLECTION_IDS,
+    RESUBMIT_APPROVED_IDS,
+)
 
 __all__ = [
     # Tenant fixtures
@@ -94,4 +105,14 @@ __all__ = [
     "EXTERNAL_TASK_SAMPLE",
     "PROCESS_INSTANCE_SAMPLE",
     "VARIABLE_MAP_SAMPLE",
+    # FHIR seed
+    "FHIRSeedData",
+    "create_rc_seed",
+    "get_rc_resources",
+    "build_bundle",
+    "HAPPY_PATH_IDS",
+    "AUTH_DENIED_IDS",
+    "GLOSA_DENIAL_IDS",
+    "OVERDUE_COLLECTION_IDS",
+    "RESUBMIT_APPROVED_IDS",
 ]

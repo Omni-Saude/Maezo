@@ -1,0 +1,531 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+                  xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+                  xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+                  xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
+                  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                  xmlns:camunda="http://camunda.org/schema/1.0/bpmn"
+                  xmlns:modeler="http://camunda.org/schema/modeler/1.0"
+                  id="Definitions_BillingSubmission"
+                  targetNamespace="http://bpmn.io/schema/bpmn"
+                  exporter="Camunda Modeler"
+                  exporterVersion="5.0.0"
+                  modeler:executionPlatform="Camunda Platform"
+                  modeler:executionPlatformVersion="7.21.0">
+
+  <bpmn:process id="SUB_06_Billing_Submission" name="Faturamento e Envio TISS" isExecutable="true">
+
+    <!-- Start Event -->
+    <bpmn:startEvent id="StartEvent_Billing" name="Início do Faturamento">
+      <bpmn:outgoing>Flow_Start_To_Group</bpmn:outgoing>
+    </bpmn:startEvent>
+
+    <!-- Service Task 1: Group By Guide -->
+    <bpmn:serviceTask id="Task_Group_By_Guide" name="Agrupar por Tipo de Guia" camunda:type="external" camunda:topic="billing.group_by_guide">
+      <bpmn:incoming>Flow_Start_To_Group</bpmn:incoming>
+      <bpmn:outgoing>Flow_Group_To_Contract</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Service Task 2: Apply Contract Rules -->
+    <bpmn:serviceTask id="Task_Apply_Contract_Rules" name="Aplicar Regras Contratuais" camunda:type="external" camunda:topic="billing.apply_contract_rules">
+      <bpmn:incoming>Flow_Group_To_Contract</bpmn:incoming>
+      <bpmn:outgoing>Flow_Contract_To_Calculate</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Service Task 3: Calculate Charges -->
+    <bpmn:serviceTask id="Task_Calculate_Charges" name="Calcular Valores" camunda:type="external" camunda:topic="billing.calculate_charges">
+      <bpmn:incoming>Flow_Contract_To_Calculate</bpmn:incoming>
+      <bpmn:outgoing>Flow_Calculate_To_Discounts</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Service Task 4: Apply Discounts -->
+    <bpmn:serviceTask id="Task_Apply_Discounts" name="Aplicar Descontos" camunda:type="external" camunda:topic="billing.apply_discounts">
+      <bpmn:incoming>Flow_Calculate_To_Discounts</bpmn:incoming>
+      <bpmn:outgoing>Flow_Discounts_To_Consolidate</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Service Task 5: Consolidate Charges -->
+    <bpmn:serviceTask id="Task_Consolidate_Charges" name="Consolidar Cobrança" camunda:type="external" camunda:topic="billing.consolidate_charges">
+      <bpmn:incoming>Flow_Discounts_To_Consolidate</bpmn:incoming>
+      <bpmn:outgoing>Flow_Consolidate_To_Validate</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Service Task 6: Validate Claim -->
+    <bpmn:serviceTask id="Task_Validate_Claim" name="Validar Cobrança" camunda:type="external" camunda:topic="billing.validate_claim">
+      <bpmn:incoming>Flow_Consolidate_To_Validate</bpmn:incoming>
+      <bpmn:outgoing>Flow_Validate_To_GenerateTISS</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Error Boundary Event: Claim Validation Failed -->
+    <bpmn:boundaryEvent id="Error_Claim_Validation" name="Erro de Validação" attachedToRef="Task_Validate_Claim">
+      <bpmn:outgoing>Flow_ValidationError_To_NotifyFailed</bpmn:outgoing>
+      <bpmn:errorEventDefinition id="ErrorEventDefinition_ClaimValidation" errorRef="Error_CLAIM_VALIDATION_FAILED" />
+    </bpmn:boundaryEvent>
+
+    <!-- Service Task 7: Generate TISS XML -->
+    <bpmn:serviceTask id="Task_Generate_TISS_XML" name="Gerar XML TISS" camunda:type="external" camunda:topic="billing.generate_tiss_xml">
+      <bpmn:incoming>Flow_Validate_To_GenerateTISS</bpmn:incoming>
+      <bpmn:outgoing>Flow_GenerateTISS_To_ValidateSchema</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Error Boundary Event: TISS Schema Error -->
+    <bpmn:boundaryEvent id="Error_TISS_Schema" name="Erro de Schema TISS" attachedToRef="Task_Generate_TISS_XML">
+      <bpmn:outgoing>Flow_SchemaError_To_NotifyFailed</bpmn:outgoing>
+      <bpmn:errorEventDefinition id="ErrorEventDefinition_TISSSchema" errorRef="Error_TISS_SCHEMA_ERROR" />
+    </bpmn:boundaryEvent>
+
+    <!-- Service Task 8: Validate TISS Schema -->
+    <bpmn:serviceTask id="Task_Validate_TISS_Schema" name="Validar Schema ANS" camunda:type="external" camunda:topic="billing.validate_tiss_schema">
+      <bpmn:incoming>Flow_GenerateTISS_To_ValidateSchema</bpmn:incoming>
+      <bpmn:outgoing>Flow_ValidateSchema_To_Submit</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Error Boundary Event: TISS Validation Failed -->
+    <bpmn:boundaryEvent id="Error_TISS_Validation" name="Falha Validação TISS" attachedToRef="Task_Validate_TISS_Schema">
+      <bpmn:outgoing>Flow_TISSValidationError_To_NotifyFailed</bpmn:outgoing>
+      <bpmn:errorEventDefinition id="ErrorEventDefinition_TISSValidation" errorRef="Error_TISS_VALIDATION_FAILED" />
+    </bpmn:boundaryEvent>
+
+    <!-- Service Task 9: Submit To Payer -->
+    <bpmn:serviceTask id="Task_Submit_To_Payer" name="Enviar para Operadora" camunda:type="external" camunda:topic="billing.submit_to_payer">
+      <bpmn:incoming>Flow_ValidateSchema_To_Submit</bpmn:incoming>
+      <bpmn:incoming>Flow_RetrySuccess_To_Track</bpmn:incoming>
+      <bpmn:outgoing>Flow_Submit_To_Track</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Error Boundary Event: Submission Failed -->
+    <bpmn:boundaryEvent id="Error_Submission_Failed" name="Falha no Envio" attachedToRef="Task_Submit_To_Payer">
+      <bpmn:outgoing>Flow_SubmissionError_To_Retry</bpmn:outgoing>
+      <bpmn:errorEventDefinition id="ErrorEventDefinition_SubmissionFailed" errorRef="Error_CLAIM_SUBMISSION_FAILED" />
+    </bpmn:boundaryEvent>
+
+    <!-- Service Task 10: Track Protocol -->
+    <bpmn:serviceTask id="Task_Track_Protocol" name="Rastrear Protocolo" camunda:type="external" camunda:topic="billing.track_protocol">
+      <bpmn:incoming>Flow_Submit_To_Track</bpmn:incoming>
+      <bpmn:outgoing>Flow_Track_To_Acknowledgment</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Service Task 11: Handle Acknowledgment -->
+    <bpmn:serviceTask id="Task_Handle_Acknowledgment" name="Processar ACK/NACK" camunda:type="external" camunda:topic="billing.handle_acknowledgment">
+      <bpmn:incoming>Flow_Track_To_Acknowledgment</bpmn:incoming>
+      <bpmn:outgoing>Flow_Acknowledgment_To_Gateway</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Exclusive Gateway: Check ACK Status -->
+    <bpmn:exclusiveGateway id="Gateway_ACK_Check" name="ACK Recebido?">
+      <bpmn:incoming>Flow_Acknowledgment_To_Gateway</bpmn:incoming>
+      <bpmn:outgoing>Flow_ACK_To_NotifySubmitted</bpmn:outgoing>
+      <bpmn:outgoing>Flow_NACK_To_Retry</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+
+    <!-- Service Task 12: Notify Submitted (ACK Path) -->
+    <bpmn:serviceTask id="Task_Notify_Submitted" name="Notificar Envio Bem-Sucedido" camunda:type="external" camunda:topic="billing.notify_submission_status">
+      <bpmn:extensionElements>
+        <camunda:inputOutput>
+          <camunda:inputParameter name="status">${&#34;submitted&#34;}</camunda:inputParameter>
+        </camunda:inputOutput>
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_ACK_To_NotifySubmitted</bpmn:incoming>
+      <bpmn:outgoing>Flow_NotifySubmitted_To_End</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Notify Submission Status (Failed Paths) -->
+    <bpmn:serviceTask id="Task_Notify_Submission_Failed" name="Notificar Falha" camunda:type="external" camunda:topic="billing.notify_submission_status">
+      <bpmn:extensionElements>
+        <camunda:inputOutput>
+          <camunda:inputParameter name="status">${&#34;failed&#34;}</camunda:inputParameter>
+        </camunda:inputOutput>
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_ValidationError_To_NotifyFailed</bpmn:incoming>
+      <bpmn:incoming>Flow_SchemaError_To_NotifyFailed</bpmn:incoming>
+      <bpmn:incoming>Flow_TISSValidationError_To_NotifyFailed</bpmn:incoming>
+      <bpmn:incoming>Flow_RetryMaxAttempts_To_NotifyFailed</bpmn:incoming>
+      <bpmn:outgoing>Flow_NotifyFailed_To_End</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Retry Sub-Process (Embedded) -->
+    <bpmn:subProcess id="SubProcess_Retry" name="Processo de Retry">
+      <bpmn:incoming>Flow_SubmissionError_To_Retry</bpmn:incoming>
+      <bpmn:incoming>Flow_NACK_To_Retry</bpmn:incoming>
+      <bpmn:outgoing>Flow_Retry_To_RetryGateway</bpmn:outgoing>
+
+      <!-- Start Event for Retry -->
+      <bpmn:startEvent id="StartEvent_Retry" name="Início Retry">
+        <bpmn:outgoing>Flow_RetryStart_To_RetryTask</bpmn:outgoing>
+      </bpmn:startEvent>
+
+      <!-- Service Task: Retry Failed Submission -->
+      <bpmn:serviceTask id="Task_Retry_Failed_Submission" name="Retentar Envio" camunda:type="external" camunda:topic="billing.retry_failed_submission">
+        <bpmn:incoming>Flow_RetryStart_To_RetryTask</bpmn:incoming>
+        <bpmn:outgoing>Flow_RetryTask_To_RetryEnd</bpmn:outgoing>
+      </bpmn:serviceTask>
+
+      <!-- Timer Boundary Event: Exponential Backoff -->
+      <bpmn:boundaryEvent id="Timer_Retry_Backoff" name="Aguardar Backoff" cancelActivity="false" attachedToRef="Task_Retry_Failed_Submission">
+        <bpmn:timerEventDefinition id="TimerEventDefinition_Backoff">
+          <bpmn:timeDuration xsi:type="bpmn:tFormalExpression">PT5M</bpmn:timeDuration>
+        </bpmn:timerEventDefinition>
+      </bpmn:boundaryEvent>
+
+      <!-- End Event for Retry -->
+      <bpmn:endEvent id="EndEvent_Retry" name="Fim Retry">
+        <bpmn:incoming>Flow_RetryTask_To_RetryEnd</bpmn:incoming>
+      </bpmn:endEvent>
+
+      <!-- Sequence Flows within Sub-Process -->
+      <bpmn:sequenceFlow id="Flow_RetryStart_To_RetryTask" sourceRef="StartEvent_Retry" targetRef="Task_Retry_Failed_Submission" />
+      <bpmn:sequenceFlow id="Flow_RetryTask_To_RetryEnd" sourceRef="Task_Retry_Failed_Submission" targetRef="EndEvent_Retry" />
+    </bpmn:subProcess>
+
+    <!-- Exclusive Gateway: Retry Result -->
+    <bpmn:exclusiveGateway id="Gateway_Retry_Result" name="Retry Sucesso?">
+      <bpmn:incoming>Flow_Retry_To_RetryGateway</bpmn:incoming>
+      <bpmn:outgoing>Flow_RetrySuccess_To_Track</bpmn:outgoing>
+      <bpmn:outgoing>Flow_RetryMaxAttempts_To_NotifyFailed</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+
+    <!-- End Event -->
+    <bpmn:endEvent id="EndEvent_Billing_Complete" name="Faturamento Concluído">
+      <bpmn:incoming>Flow_NotifySubmitted_To_End</bpmn:incoming>
+      <bpmn:incoming>Flow_NotifyFailed_To_End</bpmn:incoming>
+    </bpmn:endEvent>
+
+    <!-- Sequence Flows -->
+    <bpmn:sequenceFlow id="Flow_Start_To_Group" sourceRef="StartEvent_Billing" targetRef="Task_Group_By_Guide" />
+    <bpmn:sequenceFlow id="Flow_Group_To_Contract" sourceRef="Task_Group_By_Guide" targetRef="Task_Apply_Contract_Rules" />
+    <bpmn:sequenceFlow id="Flow_Contract_To_Calculate" sourceRef="Task_Apply_Contract_Rules" targetRef="Task_Calculate_Charges" />
+    <bpmn:sequenceFlow id="Flow_Calculate_To_Discounts" sourceRef="Task_Calculate_Charges" targetRef="Task_Apply_Discounts" />
+    <bpmn:sequenceFlow id="Flow_Discounts_To_Consolidate" sourceRef="Task_Apply_Discounts" targetRef="Task_Consolidate_Charges" />
+    <bpmn:sequenceFlow id="Flow_Consolidate_To_Validate" sourceRef="Task_Consolidate_Charges" targetRef="Task_Validate_Claim" />
+    <bpmn:sequenceFlow id="Flow_Validate_To_GenerateTISS" sourceRef="Task_Validate_Claim" targetRef="Task_Generate_TISS_XML" />
+    <bpmn:sequenceFlow id="Flow_GenerateTISS_To_ValidateSchema" sourceRef="Task_Generate_TISS_XML" targetRef="Task_Validate_TISS_Schema" />
+    <bpmn:sequenceFlow id="Flow_ValidateSchema_To_Submit" sourceRef="Task_Validate_TISS_Schema" targetRef="Task_Submit_To_Payer" />
+    <bpmn:sequenceFlow id="Flow_Submit_To_Track" sourceRef="Task_Submit_To_Payer" targetRef="Task_Track_Protocol" />
+    <bpmn:sequenceFlow id="Flow_Track_To_Acknowledgment" sourceRef="Task_Track_Protocol" targetRef="Task_Handle_Acknowledgment" />
+    <bpmn:sequenceFlow id="Flow_Acknowledgment_To_Gateway" sourceRef="Task_Handle_Acknowledgment" targetRef="Gateway_ACK_Check" />
+
+    <!-- Gateway Conditional Flows -->
+    <bpmn:sequenceFlow id="Flow_ACK_To_NotifySubmitted" name="ACK" sourceRef="Gateway_ACK_Check" targetRef="Task_Notify_Submitted">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${acknowledgmentStatus == "ACK"}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_NACK_To_Retry" name="NACK" sourceRef="Gateway_ACK_Check" targetRef="SubProcess_Retry">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${acknowledgmentStatus == "NACK"}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+
+    <!-- Error Flows -->
+    <bpmn:sequenceFlow id="Flow_ValidationError_To_NotifyFailed" sourceRef="Error_Claim_Validation" targetRef="Task_Notify_Submission_Failed" />
+    <bpmn:sequenceFlow id="Flow_SchemaError_To_NotifyFailed" sourceRef="Error_TISS_Schema" targetRef="Task_Notify_Submission_Failed" />
+    <bpmn:sequenceFlow id="Flow_TISSValidationError_To_NotifyFailed" sourceRef="Error_TISS_Validation" targetRef="Task_Notify_Submission_Failed" />
+    <bpmn:sequenceFlow id="Flow_SubmissionError_To_Retry" sourceRef="Error_Submission_Failed" targetRef="SubProcess_Retry" />
+
+    <!-- Retry Flows -->
+    <bpmn:sequenceFlow id="Flow_Retry_To_RetryGateway" sourceRef="SubProcess_Retry" targetRef="Gateway_Retry_Result" />
+    <bpmn:sequenceFlow id="Flow_RetrySuccess_To_Track" name="Sucesso" sourceRef="Gateway_Retry_Result" targetRef="Task_Submit_To_Payer">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${retrySuccess == true}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_RetryMaxAttempts_To_NotifyFailed" name="Max Tentativas" sourceRef="Gateway_Retry_Result" targetRef="Task_Notify_Submission_Failed">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${retryAttempts >= maxRetryAttempts}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+
+    <!-- End Flows -->
+    <bpmn:sequenceFlow id="Flow_NotifySubmitted_To_End" sourceRef="Task_Notify_Submitted" targetRef="EndEvent_Billing_Complete" />
+    <bpmn:sequenceFlow id="Flow_NotifyFailed_To_End" sourceRef="Task_Notify_Submission_Failed" targetRef="EndEvent_Billing_Complete" />
+  </bpmn:process>
+
+  <!-- Error Definitions -->
+  <bpmn:error id="Error_CLAIM_VALIDATION_FAILED" name="CLAIM_VALIDATION_FAILED" errorCode="CLAIM_VALIDATION_FAILED" />
+  <bpmn:error id="Error_TISS_SCHEMA_ERROR" name="TISS_SCHEMA_ERROR" errorCode="TISS_SCHEMA_ERROR" />
+  <bpmn:error id="Error_TISS_VALIDATION_FAILED" name="TISS_VALIDATION_FAILED" errorCode="TISS_VALIDATION_FAILED" />
+  <bpmn:error id="Error_CLAIM_SUBMISSION_FAILED" name="CLAIM_SUBMISSION_FAILED" errorCode="CLAIM_SUBMISSION_FAILED" />
+
+  <!-- BPMN Diagram -->
+  <bpmndi:BPMNDiagram id="BPMNDiagram_BillingSubmission">
+    <bpmndi:BPMNPlane id="BPMNPlane_BillingSubmission" bpmnElement="SUB_06_Billing_Submission">
+
+      <!-- Start Event -->
+      <bpmndi:BPMNShape id="Shape_StartEvent_Billing" bpmnElement="StartEvent_Billing">
+        <dc:Bounds x="180" y="102" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="166" y="145" width="64" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+
+      <!-- Service Tasks -->
+      <bpmndi:BPMNShape id="Shape_Task_Group_By_Guide" bpmnElement="Task_Group_By_Guide">
+        <dc:Bounds x="270" y="80" width="100" height="80" />
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Shape_Task_Apply_Contract_Rules" bpmnElement="Task_Apply_Contract_Rules">
+        <dc:Bounds x="420" y="80" width="100" height="80" />
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Shape_Task_Calculate_Charges" bpmnElement="Task_Calculate_Charges">
+        <dc:Bounds x="570" y="80" width="100" height="80" />
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Shape_Task_Apply_Discounts" bpmnElement="Task_Apply_Discounts">
+        <dc:Bounds x="720" y="80" width="100" height="80" />
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Shape_Task_Consolidate_Charges" bpmnElement="Task_Consolidate_Charges">
+        <dc:Bounds x="870" y="80" width="100" height="80" />
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Shape_Task_Validate_Claim" bpmnElement="Task_Validate_Claim">
+        <dc:Bounds x="1020" y="80" width="100" height="80" />
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Shape_Task_Generate_TISS_XML" bpmnElement="Task_Generate_TISS_XML">
+        <dc:Bounds x="1170" y="80" width="100" height="80" />
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Shape_Task_Validate_TISS_Schema" bpmnElement="Task_Validate_TISS_Schema">
+        <dc:Bounds x="1320" y="80" width="100" height="80" />
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Shape_Task_Submit_To_Payer" bpmnElement="Task_Submit_To_Payer">
+        <dc:Bounds x="1470" y="80" width="100" height="80" />
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Shape_Task_Track_Protocol" bpmnElement="Task_Track_Protocol">
+        <dc:Bounds x="1620" y="80" width="100" height="80" />
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Shape_Task_Handle_Acknowledgment" bpmnElement="Task_Handle_Acknowledgment">
+        <dc:Bounds x="1770" y="80" width="100" height="80" />
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Shape_Task_Notify_Submitted" bpmnElement="Task_Notify_Submitted">
+        <dc:Bounds x="2020" y="80" width="100" height="80" />
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Shape_Task_Notify_Submission_Failed" bpmnElement="Task_Notify_Submission_Failed">
+        <dc:Bounds x="1320" y="300" width="100" height="80" />
+      </bpmndi:BPMNShape>
+
+      <!-- Gateways -->
+      <bpmndi:BPMNShape id="Shape_Gateway_ACK_Check" bpmnElement="Gateway_ACK_Check" isMarkerVisible="true">
+        <dc:Bounds x="1920" y="95" width="50" height="50" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1908" y="65" width="74" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Shape_Gateway_Retry_Result" bpmnElement="Gateway_Retry_Result" isMarkerVisible="true">
+        <dc:Bounds x="1495" y="315" width="50" height="50" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1478" y="372" width="84" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+
+      <!-- Sub-Process -->
+      <bpmndi:BPMNShape id="Shape_SubProcess_Retry" bpmnElement="SubProcess_Retry" isExpanded="true">
+        <dc:Bounds x="1670" y="230" width="350" height="200" />
+      </bpmndi:BPMNShape>
+
+      <!-- Sub-Process Elements -->
+      <bpmndi:BPMNShape id="Shape_StartEvent_Retry" bpmnElement="StartEvent_Retry">
+        <dc:Bounds x="1710" y="312" width="36" height="36" />
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Shape_Task_Retry_Failed_Submission" bpmnElement="Task_Retry_Failed_Submission">
+        <dc:Bounds x="1800" y="290" width="100" height="80" />
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Shape_EndEvent_Retry" bpmnElement="EndEvent_Retry">
+        <dc:Bounds x="1952" y="312" width="36" height="36" />
+      </bpmndi:BPMNShape>
+
+      <!-- Error Boundary Events -->
+      <bpmndi:BPMNShape id="Shape_Error_Claim_Validation" bpmnElement="Error_Claim_Validation">
+        <dc:Bounds x="1082" y="142" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1111" y="185" width="77" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Shape_Error_TISS_Schema" bpmnElement="Error_TISS_Schema">
+        <dc:Bounds x="1232" y="142" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1209" y="185" width="82" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Shape_Error_TISS_Validation" bpmnElement="Error_TISS_Validation">
+        <dc:Bounds x="1382" y="142" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1420" y="185" width="60" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Shape_Error_Submission_Failed" bpmnElement="Error_Submission_Failed">
+        <dc:Bounds x="1532" y="142" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1517" y="185" width="66" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+
+      <!-- Timer Boundary Event -->
+      <bpmndi:BPMNShape id="Shape_Timer_Retry_Backoff" bpmnElement="Timer_Retry_Backoff">
+        <dc:Bounds x="1862" y="352" width="36" height="36" />
+      </bpmndi:BPMNShape>
+
+      <!-- End Event -->
+      <bpmndi:BPMNShape id="Shape_EndEvent_Billing_Complete" bpmnElement="EndEvent_Billing_Complete">
+        <dc:Bounds x="2170" y="102" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="2156" y="145" width="64" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+
+      <!-- Sequence Flow Edges -->
+      <bpmndi:BPMNEdge id="Edge_Flow_Start_To_Group" bpmnElement="Flow_Start_To_Group">
+        <di:waypoint x="216" y="120" />
+        <di:waypoint x="270" y="120" />
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_Flow_Group_To_Contract" bpmnElement="Flow_Group_To_Contract">
+        <di:waypoint x="370" y="120" />
+        <di:waypoint x="420" y="120" />
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_Flow_Contract_To_Calculate" bpmnElement="Flow_Contract_To_Calculate">
+        <di:waypoint x="520" y="120" />
+        <di:waypoint x="570" y="120" />
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_Flow_Calculate_To_Discounts" bpmnElement="Flow_Calculate_To_Discounts">
+        <di:waypoint x="670" y="120" />
+        <di:waypoint x="720" y="120" />
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_Flow_Discounts_To_Consolidate" bpmnElement="Flow_Discounts_To_Consolidate">
+        <di:waypoint x="820" y="120" />
+        <di:waypoint x="870" y="120" />
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_Flow_Consolidate_To_Validate" bpmnElement="Flow_Consolidate_To_Validate">
+        <di:waypoint x="970" y="120" />
+        <di:waypoint x="1020" y="120" />
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_Flow_Validate_To_GenerateTISS" bpmnElement="Flow_Validate_To_GenerateTISS">
+        <di:waypoint x="1120" y="120" />
+        <di:waypoint x="1170" y="120" />
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_Flow_GenerateTISS_To_ValidateSchema" bpmnElement="Flow_GenerateTISS_To_ValidateSchema">
+        <di:waypoint x="1270" y="120" />
+        <di:waypoint x="1320" y="120" />
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_Flow_ValidateSchema_To_Submit" bpmnElement="Flow_ValidateSchema_To_Submit">
+        <di:waypoint x="1420" y="120" />
+        <di:waypoint x="1470" y="120" />
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_Flow_Submit_To_Track" bpmnElement="Flow_Submit_To_Track">
+        <di:waypoint x="1570" y="120" />
+        <di:waypoint x="1620" y="120" />
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_Flow_Track_To_Acknowledgment" bpmnElement="Flow_Track_To_Acknowledgment">
+        <di:waypoint x="1720" y="120" />
+        <di:waypoint x="1770" y="120" />
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_Flow_Acknowledgment_To_Gateway" bpmnElement="Flow_Acknowledgment_To_Gateway">
+        <di:waypoint x="1870" y="120" />
+        <di:waypoint x="1920" y="120" />
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_Flow_ACK_To_NotifySubmitted" bpmnElement="Flow_ACK_To_NotifySubmitted">
+        <di:waypoint x="1970" y="120" />
+        <di:waypoint x="2020" y="120" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1982" y="102" width="26" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_Flow_NACK_To_Retry" bpmnElement="Flow_NACK_To_Retry">
+        <di:waypoint x="1945" y="145" />
+        <di:waypoint x="1945" y="330" />
+        <di:waypoint x="1670" y="330" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1948" y="235" width="33" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_Flow_ValidationError_To_NotifyFailed" bpmnElement="Flow_ValidationError_To_NotifyFailed">
+        <di:waypoint x="1100" y="178" />
+        <di:waypoint x="1100" y="340" />
+        <di:waypoint x="1320" y="340" />
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_Flow_SchemaError_To_NotifyFailed" bpmnElement="Flow_SchemaError_To_NotifyFailed">
+        <di:waypoint x="1250" y="178" />
+        <di:waypoint x="1250" y="340" />
+        <di:waypoint x="1320" y="340" />
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_Flow_TISSValidationError_To_NotifyFailed" bpmnElement="Flow_TISSValidationError_To_NotifyFailed">
+        <di:waypoint x="1400" y="178" />
+        <di:waypoint x="1400" y="260" />
+        <di:waypoint x="1370" y="260" />
+        <di:waypoint x="1370" y="300" />
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_Flow_SubmissionError_To_Retry" bpmnElement="Flow_SubmissionError_To_Retry">
+        <di:waypoint x="1550" y="178" />
+        <di:waypoint x="1550" y="330" />
+        <di:waypoint x="1670" y="330" />
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_Flow_Retry_To_RetryGateway" bpmnElement="Flow_Retry_To_RetryGateway">
+        <di:waypoint x="1670" y="330" />
+        <di:waypoint x="1520" y="330" />
+        <di:waypoint x="1520" y="315" />
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_Flow_RetrySuccess_To_Track" bpmnElement="Flow_RetrySuccess_To_Track">
+        <di:waypoint x="1520" y="315" />
+        <di:waypoint x="1520" y="160" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1525" y="235" width="40" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_Flow_RetryMaxAttempts_To_NotifyFailed" bpmnElement="Flow_RetryMaxAttempts_To_NotifyFailed">
+        <di:waypoint x="1495" y="340" />
+        <di:waypoint x="1420" y="340" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1425" y="322" width="65" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_Flow_NotifySubmitted_To_End" bpmnElement="Flow_NotifySubmitted_To_End">
+        <di:waypoint x="2120" y="120" />
+        <di:waypoint x="2170" y="120" />
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_Flow_NotifyFailed_To_End" bpmnElement="Flow_NotifyFailed_To_End">
+        <di:waypoint x="1420" y="340" />
+        <di:waypoint x="2188" y="340" />
+        <di:waypoint x="2188" y="138" />
+      </bpmndi:BPMNEdge>
+
+      <!-- Sub-Process Internal Flows -->
+      <bpmndi:BPMNEdge id="Edge_Flow_RetryStart_To_RetryTask" bpmnElement="Flow_RetryStart_To_RetryTask">
+        <di:waypoint x="1746" y="330" />
+        <di:waypoint x="1800" y="330" />
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_Flow_RetryTask_To_RetryEnd" bpmnElement="Flow_RetryTask_To_RetryEnd">
+        <di:waypoint x="1900" y="330" />
+        <di:waypoint x="1952" y="330" />
+      </bpmndi:BPMNEdge>
+
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+
+</bpmn:definitions>

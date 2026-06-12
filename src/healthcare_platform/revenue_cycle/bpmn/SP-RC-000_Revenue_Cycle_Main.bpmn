@@ -1,0 +1,1038 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" xmlns:camunda="http://camunda.org/schema/1.0/bpmn" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" id="Definitions_Revenue_Cycle_Main" targetNamespace="http://cib7.healthcare/revenue-cycle" exporter="Camunda Modeler" exporterVersion="5.42.0">
+  <bpmn:process id="SP_RC_000" name="Revenue Cycle Orchestrator" isExecutable="true" camunda:historyTimeToLive="30">
+    <bpmn:startEvent id="start_encounter_created" name="Encounter Created">
+      <bpmn:outgoing>flow_start_to_scheduling</bpmn:outgoing>
+      <bpmn:messageEventDefinition id="msgEvtDef_encounter_created" messageRef="msg_encounter_created" />
+    </bpmn:startEvent>
+    <bpmn:callActivity id="call_SP_RC_002" name="SP-RC-002: Pré-Atendimento" calledElement="SP_RC_002_Pre_Service">
+      <bpmn:extensionElements>
+        <camunda:in source="tenantId" target="tenantId" />
+        <camunda:in source="encounterFhirId" target="encounterFhirId" />
+        <camunda:in source="patientFhirId" target="patientFhirId" />
+        <camunda:in source="payerId" target="payerId" />
+        <camunda:in source="coverageFhirId" target="coverageFhirId" />
+        <camunda:out source="authorizationStatus" target="authorizationStatus" />
+        <camunda:out source="eligibilityVerified" target="eligibilityVerified" />
+      </bpmn:extensionElements>
+      <bpmn:incoming>flow_start_to_scheduling</bpmn:incoming>
+      <bpmn:outgoing>flow_preservice_to_catch_documentation</bpmn:outgoing>
+    </bpmn:callActivity>
+    <bpmn:boundaryEvent id="error_SP_RC_002" name="Pre-Service Error" attachedToRef="call_SP_RC_002">
+      <bpmn:outgoing>flow_error_002_to_end_error</bpmn:outgoing>
+      <bpmn:errorEventDefinition id="errDef_RC_002" errorRef="Error_RevenueCycle" />
+    </bpmn:boundaryEvent>
+    <bpmn:boundaryEvent id="timer_SP_RC_002_auth_sla" name="48h Authorization SLA" attachedToRef="call_SP_RC_002">
+      <bpmn:outgoing>flow_timer_002_to_escalation</bpmn:outgoing>
+      <bpmn:timerEventDefinition id="timerDef_RC_002">
+        <bpmn:timeDuration xsi:type="bpmn:tFormalExpression">PT48H</bpmn:timeDuration>
+      </bpmn:timerEventDefinition>
+    </bpmn:boundaryEvent>
+    <bpmn:serviceTask id="task_auth_sla_escalation" name="Escalate Authorization SLA Breach" camunda:type="external" camunda:topic="platform.sla_escalation_authorization">
+      <bpmn:incoming>flow_timer_002_to_escalation</bpmn:incoming>
+      <bpmn:outgoing>flow_escalation_002_to_end_error</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:intermediateCatchEvent id="catch_clinical_doc_ready" name="Clinical Documentation Ready">
+      <bpmn:incoming>flow_preservice_to_catch_documentation</bpmn:incoming>
+      <bpmn:outgoing>flow_catch_doc_to_clinical_service</bpmn:outgoing>
+      <bpmn:messageEventDefinition id="msgEvtDef_doc_ready" messageRef="msg_clinical_documentation_ready" />
+    </bpmn:intermediateCatchEvent>
+    <bpmn:callActivity id="call_SP_RC_003" name="SP-RC-003: Serviço Clínico" calledElement="SP_RC_003_Clinical_Service">
+      <bpmn:extensionElements>
+        <camunda:in source="tenantId" target="tenantId" />
+        <camunda:in source="encounterFhirId" target="encounterFhirId" />
+        <camunda:in source="patientFhirId" target="patientFhirId" />
+        <camunda:out source="clinicalServiceStatus" target="clinicalServiceStatus" />
+      </bpmn:extensionElements>
+      <bpmn:incoming>flow_catch_doc_to_clinical_service</bpmn:incoming>
+      <bpmn:outgoing>Flow_1gwuuhi</bpmn:outgoing>
+    </bpmn:callActivity>
+    <bpmn:boundaryEvent id="error_SP_RC_003" name="Clinical Service Error" attachedToRef="call_SP_RC_003">
+      <bpmn:outgoing>flow_error_003_to_end_error</bpmn:outgoing>
+      <bpmn:errorEventDefinition id="errDef_RC_003" errorRef="Error_RevenueCycle" />
+    </bpmn:boundaryEvent>
+    <bpmn:intermediateCatchEvent id="catch_discharge_completed" name="Discharge Completed">
+      <bpmn:outgoing>flow_catch_discharge_to_production</bpmn:outgoing>
+      <bpmn:messageEventDefinition id="msgEvtDef_discharge" messageRef="msg_discharge_completed" />
+    </bpmn:intermediateCatchEvent>
+    <bpmn:callActivity id="call_SP_RC_004" name="SP-RC-004: Produção Clínica" calledElement="SP_RC_004_Clinical_Production">
+      <bpmn:extensionElements>
+        <camunda:in source="tenantId" target="tenantId" />
+        <camunda:in source="encounterFhirId" target="encounterFhirId" />
+        <camunda:in source="patientFhirId" target="patientFhirId" />
+        <camunda:out source="billingItems" target="billingItems" />
+        <camunda:out source="accountClosed" target="accountClosed" />
+      </bpmn:extensionElements>
+      <bpmn:incoming>flow_catch_discharge_to_production</bpmn:incoming>
+      <bpmn:outgoing>flow_production_to_coding</bpmn:outgoing>
+    </bpmn:callActivity>
+    <bpmn:boundaryEvent id="error_SP_RC_004" name="Production Error" attachedToRef="call_SP_RC_004">
+      <bpmn:outgoing>flow_error_004_to_end_error</bpmn:outgoing>
+      <bpmn:errorEventDefinition id="errDef_RC_004" errorRef="Error_RevenueCycle" />
+    </bpmn:boundaryEvent>
+    <bpmn:boundaryEvent id="timer_SP_RC_004_closure_sla" name="24h Account Closure SLA" cancelActivity="false" attachedToRef="call_SP_RC_004">
+      <bpmn:outgoing>flow_timer_004_to_alert</bpmn:outgoing>
+      <bpmn:timerEventDefinition id="timerDef_RC_004">
+        <bpmn:timeDuration xsi:type="bpmn:tFormalExpression">PT24H</bpmn:timeDuration>
+      </bpmn:timerEventDefinition>
+    </bpmn:boundaryEvent>
+    <bpmn:boundaryEvent id="catch_procedures_completed" name="Catch Procedures Completed" cancelActivity="false" attachedToRef="call_SP_RC_004">
+      <bpmn:outgoing>flow_from_catch_procedures</bpmn:outgoing>
+      <bpmn:messageEventDefinition messageRef="msg_procedures_completed" />
+    </bpmn:boundaryEvent>
+    <bpmn:serviceTask id="task_closure_sla_alert" name="Alert Account Closure SLA Risk" camunda:type="external" camunda:topic="platform.sla_alert_account_closure">
+      <bpmn:incoming>flow_timer_004_to_alert</bpmn:incoming>
+      <bpmn:outgoing>Flow_1xtn23h</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:manualTask id="task_update_production_capture" name="Update Production Capture with Procedure Data">
+      <bpmn:incoming>flow_from_catch_procedures</bpmn:incoming>
+      <bpmn:outgoing>flow_to_end_procedures_handled</bpmn:outgoing>
+    </bpmn:manualTask>
+    <bpmn:endEvent id="end_procedures_handled" name="Procedures Notification Handled">
+      <bpmn:incoming>flow_to_end_procedures_handled</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:sequenceFlow id="flow_from_catch_procedures" sourceRef="catch_procedures_completed" targetRef="task_update_production_capture" />
+    <bpmn:sequenceFlow id="flow_to_end_procedures_handled" sourceRef="task_update_production_capture" targetRef="end_procedures_handled" />
+    <bpmn:callActivity id="call_SP_RC_005" name="SP-RC-005: Codificação e Auditoria" calledElement="SP_RC_005_Coding_Audit">
+      <bpmn:extensionElements>
+        <camunda:in source="tenantId" target="tenantId" />
+        <camunda:in source="encounterFhirId" target="encounterFhirId" />
+        <camunda:in source="patientFhirId" target="patientFhirId" />
+        <camunda:in source="billingItems" target="billingItems" />
+        <camunda:out source="codingStatus" target="codingStatus" />
+        <camunda:out source="auditStatus" target="auditStatus" />
+        <camunda:out source="drgCode" target="drgCode" />
+      </bpmn:extensionElements>
+      <bpmn:incoming>flow_production_to_coding</bpmn:incoming>
+      <bpmn:outgoing>flow_coding_to_billing</bpmn:outgoing>
+    </bpmn:callActivity>
+    <bpmn:boundaryEvent id="error_SP_RC_005" name="Coding Error" attachedToRef="call_SP_RC_005">
+      <bpmn:outgoing>flow_error_005_to_end_error</bpmn:outgoing>
+      <bpmn:errorEventDefinition id="errDef_RC_005" errorRef="Error_RevenueCycle" />
+    </bpmn:boundaryEvent>
+    <bpmn:callActivity id="call_SP_RC_006" name="SP-RC-006: Faturamento e Envio TISS" calledElement="SP_RC_006_Billing_Submission">
+      <bpmn:extensionElements>
+        <camunda:in source="tenantId" target="tenantId" />
+        <camunda:in source="encounterFhirId" target="encounterFhirId" />
+        <camunda:in source="patientFhirId" target="patientFhirId" />
+        <camunda:in source="payerId" target="payerId" />
+        <camunda:in source="billingItems" target="billingItems" />
+        <camunda:in source="drgCode" target="drgCode" />
+        <camunda:out source="claimFhirId" target="claimFhirId" />
+        <camunda:out source="billingStatus" target="billingStatus" />
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_1qvyl6q</bpmn:incoming>
+      <bpmn:outgoing>flow_billing_to_gateway</bpmn:outgoing>
+    </bpmn:callActivity>
+    <bpmn:boundaryEvent id="error_SP_RC_006" name="Billing Error" attachedToRef="call_SP_RC_006">
+      <bpmn:outgoing>flow_error_006_to_end_error</bpmn:outgoing>
+      <bpmn:errorEventDefinition id="errDef_RC_006" errorRef="Error_RevenueCycle" />
+    </bpmn:boundaryEvent>
+    <bpmn:boundaryEvent id="timer_SP_RC_006_tiss_sla" name="24h TISS Generation SLA" cancelActivity="false" attachedToRef="call_SP_RC_006">
+      <bpmn:outgoing>flow_timer_006_to_alert</bpmn:outgoing>
+      <bpmn:timerEventDefinition id="timerDef_RC_006">
+        <bpmn:timeDuration xsi:type="bpmn:tFormalExpression">PT24H</bpmn:timeDuration>
+      </bpmn:timerEventDefinition>
+    </bpmn:boundaryEvent>
+    <bpmn:serviceTask id="task_tiss_sla_alert" name="Alert TISS Generation SLA Risk" camunda:type="external" camunda:topic="platform.sla_alert_tiss_generation">
+      <bpmn:incoming>flow_timer_006_to_alert</bpmn:incoming>
+      <bpmn:outgoing>flow_alert_006_to_end</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:exclusiveGateway id="gateway_billing_approved" name="Billing Approved?" default="flow_gateway_to_collection">
+      <bpmn:incoming>flow_billing_to_gateway</bpmn:incoming>
+      <bpmn:outgoing>flow_gateway_to_collection</bpmn:outgoing>
+      <bpmn:outgoing>flow_gateway_to_denial</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:sequenceFlow id="flow_gateway_to_denial" name="Rejected" sourceRef="gateway_billing_approved" targetRef="throw_authorization_denied">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${billingStatus == 'REJECTED'}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:intermediateThrowEvent id="throw_authorization_denied" name="Throw Authorization Denied">
+      <bpmn:incoming>flow_gateway_to_denial</bpmn:incoming>
+      <bpmn:outgoing>flow_throw_auth_denied_to_denial_mgmt</bpmn:outgoing>
+      <bpmn:messageEventDefinition messageRef="msg_authorization_denied" />
+    </bpmn:intermediateThrowEvent>
+    <bpmn:sequenceFlow id="flow_throw_auth_denied_to_denial_mgmt" sourceRef="throw_authorization_denied" targetRef="call_SP_RC_007" />
+    <bpmn:sequenceFlow id="flow_gateway_to_collection" name="Approved" sourceRef="gateway_billing_approved" targetRef="Gateway_1ykmi8z" />
+    <bpmn:callActivity id="call_SP_RC_007" name="SP-RC-007: Gestão de Glosas" calledElement="SP_RC_007_Denial_Management">
+      <bpmn:extensionElements>
+        <camunda:in source="tenantId" target="tenantId" />
+        <camunda:in source="encounterFhirId" target="encounterFhirId" />
+        <camunda:in source="claimFhirId" target="claimFhirId" />
+        <camunda:in source="payerId" target="payerId" />
+        <camunda:out source="denialCode" target="denialCode" />
+        <camunda:out source="contestationStatus" target="contestationStatus" />
+        <camunda:out source="resubmitClaim" target="resubmitClaim" />
+      </bpmn:extensionElements>
+      <bpmn:incoming>flow_gateway_to_denial</bpmn:incoming>
+      <bpmn:outgoing>flow_denial_to_gateway_resolution</bpmn:outgoing>
+    </bpmn:callActivity>
+    <bpmn:boundaryEvent id="error_SP_RC_007" name="Denial Management Error" attachedToRef="call_SP_RC_007">
+      <bpmn:outgoing>flow_error_007_to_end_error</bpmn:outgoing>
+      <bpmn:errorEventDefinition id="errDef_RC_007" errorRef="Error_RevenueCycle" />
+    </bpmn:boundaryEvent>
+    <bpmn:serviceTask id="task_contestation_sla_escalation" name="Escalate Contestation SLA Breach" camunda:type="external" camunda:topic="platform.sla_escalation_contestation">
+      <bpmn:incoming>flow_timer_007_to_escalation</bpmn:incoming>
+      <bpmn:outgoing>flow_escalation_007_to_collection</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:exclusiveGateway id="gateway_denial_resolution" name="Resubmit Claim?" default="flow_denial_resolution_to_collection">
+      <bpmn:incoming>flow_denial_to_gateway_resolution</bpmn:incoming>
+      <bpmn:outgoing>flow_denial_to_resubmission</bpmn:outgoing>
+      <bpmn:outgoing>flow_denial_resolution_to_collection</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:sequenceFlow id="flow_denial_to_resubmission" name="Resubmit" sourceRef="gateway_denial_resolution" targetRef="Gateway_0xrfi2a">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${resubmitClaim == true}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="flow_denial_resolution_to_collection" name="Proceed to Collection" sourceRef="gateway_denial_resolution" targetRef="Gateway_0d6jbgs" />
+    <bpmn:callActivity id="call_SP_RC_008" name="SP-RC-008: Arrecadação e Reconciliação" calledElement="SP_RC_008_Revenue_Collection">
+      <bpmn:extensionElements>
+        <camunda:in source="tenantId" target="tenantId" />
+        <camunda:in source="encounterFhirId" target="encounterFhirId" />
+        <camunda:in source="claimFhirId" target="claimFhirId" />
+        <camunda:in source="payerId" target="payerId" />
+        <camunda:out source="paymentReconciled" target="paymentReconciled" />
+        <camunda:out source="revenueAmount" target="revenueAmount" />
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_0d3s4rs</bpmn:incoming>
+      <bpmn:outgoing>flow_collection_to_gateway_variance</bpmn:outgoing>
+    </bpmn:callActivity>
+    <bpmn:exclusiveGateway id="gateway_payment_variance" name="Payment Variance?" default="flow_variance_to_throw_reconciled">
+      <bpmn:incoming>flow_collection_to_gateway_variance</bpmn:incoming>
+      <bpmn:outgoing>flow_variance_to_throw_glosa</bpmn:outgoing>
+      <bpmn:outgoing>flow_variance_to_throw_reconciled</bpmn:outgoing>
+      <bpmn:outgoing>Flow_0yf0yog</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:intermediateThrowEvent id="throw_glosa_detected" name="Throw Glosa Detected">
+      <bpmn:incoming>flow_variance_to_throw_glosa</bpmn:incoming>
+      <bpmn:outgoing>flow_throw_glosa_to_reconciled</bpmn:outgoing>
+      <bpmn:messageEventDefinition messageRef="msg_glosa_detected" />
+    </bpmn:intermediateThrowEvent>
+    <bpmn:sequenceFlow id="flow_collection_to_gateway_variance" sourceRef="call_SP_RC_008" targetRef="gateway_payment_variance" />
+    <bpmn:sequenceFlow id="flow_variance_to_throw_glosa" name="Variance Detected" sourceRef="gateway_payment_variance" targetRef="throw_glosa_detected">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${paymentVariance == true}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="flow_variance_to_throw_reconciled" name="No Variance" sourceRef="gateway_payment_variance" targetRef="throw_payment_reconciled" />
+    <bpmn:sequenceFlow id="flow_throw_glosa_to_reconciled" sourceRef="throw_glosa_detected" targetRef="throw_payment_reconciled" />
+    <bpmn:boundaryEvent id="error_SP_RC_008" name="Collection Error" attachedToRef="call_SP_RC_008">
+      <bpmn:outgoing>flow_error_008_to_end_error</bpmn:outgoing>
+      <bpmn:errorEventDefinition id="errDef_RC_008" errorRef="Error_RevenueCycle" />
+    </bpmn:boundaryEvent>
+    <bpmn:intermediateThrowEvent id="throw_payment_reconciled" name="Payment Reconciled">
+      <bpmn:incoming>flow_variance_to_throw_reconciled</bpmn:incoming>
+      <bpmn:incoming>flow_throw_glosa_to_reconciled</bpmn:incoming>
+      <bpmn:incoming>Flow_0xki0ae</bpmn:incoming>
+      <bpmn:outgoing>flow_throw_reconciled_to_parallel_fork</bpmn:outgoing>
+      <bpmn:messageEventDefinition id="msgEvtDef_payment_reconciled" messageRef="msg_payment_reconciled" />
+    </bpmn:intermediateThrowEvent>
+    <bpmn:parallelGateway id="gateway_parallel_fork">
+      <bpmn:incoming>flow_throw_reconciled_to_parallel_fork</bpmn:incoming>
+      <bpmn:outgoing>flow_fork_to_analytics</bpmn:outgoing>
+      <bpmn:outgoing>flow_fork_to_maximization</bpmn:outgoing>
+    </bpmn:parallelGateway>
+    <bpmn:callActivity id="call_SP_RC_009" name="SP-RC-009: Collection Analytics Forecasting" calledElement="SP_RC_009_Collection_Analytics_Forecasting">
+      <bpmn:extensionElements>
+        <camunda:in source="tenantId" target="tenantId" />
+        <camunda:in source="encounterFhirId" target="encounterFhirId" />
+        <camunda:in source="revenueAmount" target="revenueAmount" />
+        <camunda:out source="analyticsCompleted" target="analyticsCompleted" />
+      </bpmn:extensionElements>
+      <bpmn:incoming>flow_fork_to_analytics</bpmn:incoming>
+      <bpmn:outgoing>flow_analytics_to_parallel_join</bpmn:outgoing>
+    </bpmn:callActivity>
+    <bpmn:boundaryEvent id="error_SP_RC_009" name="Analytics Error" attachedToRef="call_SP_RC_009">
+      <bpmn:outgoing>flow_error_009_to_end_error</bpmn:outgoing>
+      <bpmn:errorEventDefinition id="errDef_RC_009" errorRef="Error_RevenueCycle" />
+    </bpmn:boundaryEvent>
+    <bpmn:callActivity id="call_SP_RC_010" name="SP-RC-010: Maximização e VBHC" calledElement="SP_RC_010_Maximization">
+      <bpmn:extensionElements>
+        <camunda:in source="tenantId" target="tenantId" />
+        <camunda:in source="encounterFhirId" target="encounterFhirId" />
+        <camunda:in source="revenueAmount" target="revenueAmount" />
+        <camunda:out source="maximizationCompleted" target="maximizationCompleted" />
+      </bpmn:extensionElements>
+      <bpmn:incoming>flow_fork_to_maximization</bpmn:incoming>
+      <bpmn:outgoing>flow_maximization_to_parallel_join</bpmn:outgoing>
+    </bpmn:callActivity>
+    <bpmn:boundaryEvent id="error_SP_RC_010" name="Maximization Error" attachedToRef="call_SP_RC_010">
+      <bpmn:outgoing>flow_error_010_to_end_error</bpmn:outgoing>
+      <bpmn:errorEventDefinition id="errDef_RC_010" errorRef="Error_RevenueCycle" />
+    </bpmn:boundaryEvent>
+    <bpmn:parallelGateway id="gateway_parallel_join">
+      <bpmn:incoming>flow_analytics_to_parallel_join</bpmn:incoming>
+      <bpmn:incoming>flow_maximization_to_parallel_join</bpmn:incoming>
+      <bpmn:outgoing>flow_join_to_end</bpmn:outgoing>
+    </bpmn:parallelGateway>
+    <bpmn:endEvent id="end_revenue_cycle_success" name="Revenue Cycle Completed">
+      <bpmn:incoming>flow_join_to_end</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:sequenceFlow id="flow_start_to_scheduling" sourceRef="start_encounter_created" targetRef="call_SP_RC_002" />
+    <bpmn:sequenceFlow id="flow_catch_doc_to_clinical_service" sourceRef="catch_clinical_doc_ready" targetRef="call_SP_RC_003" />
+    <bpmn:sequenceFlow id="flow_catch_discharge_to_production" sourceRef="catch_discharge_completed" targetRef="call_SP_RC_004" />
+    <bpmn:sequenceFlow id="flow_production_to_coding" sourceRef="call_SP_RC_004" targetRef="call_SP_RC_005" />
+    <bpmn:sequenceFlow id="flow_coding_to_billing" sourceRef="call_SP_RC_005" targetRef="Gateway_0xrfi2a" />
+    <bpmn:sequenceFlow id="flow_denial_to_gateway_resolution" sourceRef="call_SP_RC_007" targetRef="gateway_denial_resolution" />
+    <bpmn:sequenceFlow id="flow_throw_reconciled_to_parallel_fork" sourceRef="throw_payment_reconciled" targetRef="gateway_parallel_fork" />
+    <bpmn:sequenceFlow id="flow_fork_to_analytics" sourceRef="gateway_parallel_fork" targetRef="call_SP_RC_009" />
+    <bpmn:sequenceFlow id="flow_fork_to_maximization" sourceRef="gateway_parallel_fork" targetRef="call_SP_RC_010" />
+    <bpmn:sequenceFlow id="flow_analytics_to_parallel_join" sourceRef="call_SP_RC_009" targetRef="gateway_parallel_join" />
+    <bpmn:sequenceFlow id="flow_maximization_to_parallel_join" sourceRef="call_SP_RC_010" targetRef="gateway_parallel_join" />
+    <bpmn:sequenceFlow id="flow_join_to_end" sourceRef="gateway_parallel_join" targetRef="end_revenue_cycle_success" />
+    <bpmn:sequenceFlow id="flow_error_002_to_end_error" sourceRef="error_SP_RC_002" targetRef="Gateway_1lb9jqe" />
+    <bpmn:sequenceFlow id="flow_error_003_to_end_error" sourceRef="error_SP_RC_003" targetRef="Gateway_00mp367" />
+    <bpmn:sequenceFlow id="flow_error_004_to_end_error" sourceRef="error_SP_RC_004" targetRef="Gateway_0cgzw5h" />
+    <bpmn:sequenceFlow id="flow_error_005_to_end_error" sourceRef="error_SP_RC_005" targetRef="Gateway_1eqypge" />
+    <bpmn:sequenceFlow id="flow_error_006_to_end_error" sourceRef="error_SP_RC_006" targetRef="Gateway_11mdvp7" />
+    <bpmn:sequenceFlow id="flow_error_007_to_end_error" sourceRef="error_SP_RC_007" targetRef="Event_1y7073v" />
+    <bpmn:sequenceFlow id="flow_error_008_to_end_error" sourceRef="error_SP_RC_008" targetRef="Gateway_1vz4qz3" />
+    <bpmn:sequenceFlow id="flow_error_009_to_end_error" sourceRef="error_SP_RC_009" targetRef="Gateway_1vz4qz3" />
+    <bpmn:sequenceFlow id="flow_error_010_to_end_error" sourceRef="error_SP_RC_010" targetRef="Gateway_1l5e9uw" />
+    <bpmn:sequenceFlow id="flow_timer_002_to_escalation" sourceRef="timer_SP_RC_002_auth_sla" targetRef="task_auth_sla_escalation" />
+    <bpmn:sequenceFlow id="flow_escalation_002_to_end_error" sourceRef="task_auth_sla_escalation" targetRef="Gateway_1rxfcc6" />
+    <bpmn:sequenceFlow id="flow_timer_004_to_alert" sourceRef="timer_SP_RC_004_closure_sla" targetRef="task_closure_sla_alert" />
+    <bpmn:sequenceFlow id="flow_timer_006_to_alert" sourceRef="timer_SP_RC_006_tiss_sla" targetRef="task_tiss_sla_alert" />
+    <bpmn:sequenceFlow id="flow_alert_006_to_end" sourceRef="task_tiss_sla_alert" targetRef="Event_0pgr8j0" />
+    <bpmn:sequenceFlow id="flow_timer_007_to_escalation" sourceRef="timer_SP_RC_007_contestation_sla" targetRef="task_contestation_sla_escalation" />
+    <bpmn:subProcess id="subprocess_glosa_handler" name="Glosa Detection Handler" triggeredByEvent="true">
+      <bpmn:startEvent id="start_glosa_catch" name="Glosa Detected" isInterrupting="false">
+        <bpmn:outgoing>flow_glosa_to_denial</bpmn:outgoing>
+        <bpmn:messageEventDefinition messageRef="msg_glosa_detected" />
+      </bpmn:startEvent>
+      <bpmn:callActivity id="call_SP_RC_007_from_glosa" name="SP-RC-007 Denial Management" calledElement="SP_RC_007_Denial_Management">
+        <bpmn:extensionElements>
+          <camunda:in source="tenantId" target="tenantId" />
+          <camunda:in source="encounterFhirId" target="encounterFhirId" />
+          <camunda:in source="claimFhirId" target="claimFhirId" />
+          <camunda:in source="payerId" target="payerId" />
+        </bpmn:extensionElements>
+        <bpmn:incoming>flow_glosa_to_denial</bpmn:incoming>
+        <bpmn:outgoing>flow_denial_to_end_glosa</bpmn:outgoing>
+        <bpmn:outgoing>Flow_0fz09i0</bpmn:outgoing>
+      </bpmn:callActivity>
+      <bpmn:endEvent id="end_glosa_handled" name="Glosa Handled">
+        <bpmn:incoming>flow_denial_to_end_glosa</bpmn:incoming>
+      </bpmn:endEvent>
+      <bpmn:sequenceFlow id="flow_glosa_to_denial" sourceRef="start_glosa_catch" targetRef="call_SP_RC_007_from_glosa" />
+      <bpmn:sequenceFlow id="flow_denial_to_end_glosa" sourceRef="call_SP_RC_007_from_glosa" targetRef="end_glosa_handled" />
+      <bpmn:sequenceFlow id="Flow_0fz09i0" sourceRef="call_SP_RC_007_from_glosa" targetRef="Event_0wz3xgj" />
+      <bpmn:intermediateThrowEvent id="Event_0wz3xgj" name="Collection">
+        <bpmn:incoming>Flow_0fz09i0</bpmn:incoming>
+        <bpmn:signalEventDefinition id="SignalEventDefinition_04cpty5" />
+      </bpmn:intermediateThrowEvent>
+    </bpmn:subProcess>
+    <bpmn:exclusiveGateway id="Gateway_1rxfcc6">
+      <bpmn:incoming>flow_escalation_002_to_end_error</bpmn:incoming>
+      <bpmn:outgoing>Flow_017nika</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:sequenceFlow id="Flow_017nika" sourceRef="Gateway_1rxfcc6" targetRef="Gateway_1lb9jqe" />
+    <bpmn:exclusiveGateway id="Gateway_1lb9jqe">
+      <bpmn:incoming>flow_error_002_to_end_error</bpmn:incoming>
+      <bpmn:incoming>Flow_017nika</bpmn:incoming>
+      <bpmn:outgoing>Flow_0dssl83</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:sequenceFlow id="Flow_0dssl83" sourceRef="Gateway_1lb9jqe" targetRef="Gateway_00mp367" />
+    <bpmn:exclusiveGateway id="Gateway_00mp367">
+      <bpmn:incoming>flow_error_003_to_end_error</bpmn:incoming>
+      <bpmn:incoming>Flow_0dssl83</bpmn:incoming>
+      <bpmn:outgoing>Flow_0qko5gk</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:sequenceFlow id="Flow_0qko5gk" sourceRef="Gateway_00mp367" targetRef="Gateway_0cgzw5h" />
+    <bpmn:exclusiveGateway id="Gateway_0cgzw5h">
+      <bpmn:incoming>flow_error_004_to_end_error</bpmn:incoming>
+      <bpmn:incoming>Flow_0qko5gk</bpmn:incoming>
+      <bpmn:outgoing>Flow_1a29xii</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:sequenceFlow id="Flow_1a29xii" sourceRef="Gateway_0cgzw5h" targetRef="Gateway_1eqypge" />
+    <bpmn:exclusiveGateway id="Gateway_1eqypge">
+      <bpmn:incoming>flow_error_005_to_end_error</bpmn:incoming>
+      <bpmn:incoming>Flow_1a29xii</bpmn:incoming>
+      <bpmn:outgoing>Flow_037j2ln</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:sequenceFlow id="Flow_037j2ln" sourceRef="Gateway_1eqypge" targetRef="Gateway_11mdvp7" />
+    <bpmn:endEvent id="Event_0dqustu" name="Revenue Cycle Completed">
+      <bpmn:incoming>Flow_1xtn23h</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:sequenceFlow id="Flow_1xtn23h" sourceRef="task_closure_sla_alert" targetRef="Event_0dqustu" />
+    <bpmn:exclusiveGateway id="Gateway_11mdvp7">
+      <bpmn:incoming>flow_error_006_to_end_error</bpmn:incoming>
+      <bpmn:incoming>Flow_037j2ln</bpmn:incoming>
+      <bpmn:outgoing>Flow_1yx89e3</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:sequenceFlow id="Flow_1yx89e3" sourceRef="Gateway_11mdvp7" targetRef="Gateway_1l5e9uw" />
+    <bpmn:endEvent id="Event_0pgr8j0" name="Revenue Cycle Completed">
+      <bpmn:incoming>flow_alert_006_to_end</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:endEvent id="Event_1gzgch9" name="Revenue Cycle Error">
+      <bpmn:incoming>Flow_0ghhblr</bpmn:incoming>
+      <bpmn:errorEventDefinition id="ErrorEventDefinition_1t14vnd" errorRef="Error_RevenueCycle" />
+    </bpmn:endEvent>
+    <bpmn:exclusiveGateway id="Gateway_0chaaof">
+      <bpmn:incoming>Flow_19t36dx</bpmn:incoming>
+      <bpmn:incoming>Flow_1c8v6yi</bpmn:incoming>
+      <bpmn:outgoing>Flow_0ghhblr</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:sequenceFlow id="Flow_0ghhblr" sourceRef="Gateway_0chaaof" targetRef="Event_1gzgch9" />
+    <bpmn:exclusiveGateway id="Gateway_1ykmi8z">
+      <bpmn:incoming>flow_gateway_to_collection</bpmn:incoming>
+      <bpmn:incoming>Flow_0n98i0k</bpmn:incoming>
+      <bpmn:outgoing>Flow_0d3s4rs</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:sequenceFlow id="Flow_0d3s4rs" sourceRef="Gateway_1ykmi8z" targetRef="call_SP_RC_008" />
+    <bpmn:exclusiveGateway id="Gateway_1vz4qz3">
+      <bpmn:incoming>flow_error_009_to_end_error</bpmn:incoming>
+      <bpmn:incoming>flow_error_008_to_end_error</bpmn:incoming>
+      <bpmn:outgoing>Flow_19t36dx</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:sequenceFlow id="Flow_19t36dx" sourceRef="Gateway_1vz4qz3" targetRef="Gateway_0chaaof" />
+    <bpmn:sequenceFlow id="flow_billing_to_gateway" sourceRef="call_SP_RC_006" targetRef="gateway_billing_approved" />
+    <bpmn:exclusiveGateway id="Gateway_0xrfi2a">
+      <bpmn:incoming>flow_coding_to_billing</bpmn:incoming>
+      <bpmn:incoming>flow_denial_to_resubmission</bpmn:incoming>
+      <bpmn:outgoing>Flow_1qvyl6q</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:sequenceFlow id="Flow_1qvyl6q" sourceRef="Gateway_0xrfi2a" targetRef="call_SP_RC_006" />
+    <bpmn:boundaryEvent id="timer_SP_RC_007_contestation_sla" name="5 Day Contestation SLA" attachedToRef="call_SP_RC_007">
+      <bpmn:outgoing>flow_timer_007_to_escalation</bpmn:outgoing>
+      <bpmn:timerEventDefinition id="timerDef_RC_007">
+        <bpmn:timeDuration xsi:type="bpmn:tFormalExpression">P5D</bpmn:timeDuration>
+      </bpmn:timerEventDefinition>
+    </bpmn:boundaryEvent>
+    <bpmn:endEvent id="Event_1y7073v" name="Revenue Cycle Error">
+      <bpmn:incoming>flow_error_007_to_end_error</bpmn:incoming>
+      <bpmn:errorEventDefinition id="ErrorEventDefinition_172ptgw" errorRef="Error_RevenueCycle" />
+    </bpmn:endEvent>
+    <bpmn:sequenceFlow id="flow_escalation_007_to_collection" sourceRef="task_contestation_sla_escalation" targetRef="Gateway_0d6jbgs" />
+    <bpmn:exclusiveGateway id="Gateway_0d6jbgs">
+      <bpmn:incoming>flow_denial_resolution_to_collection</bpmn:incoming>
+      <bpmn:incoming>flow_escalation_007_to_collection</bpmn:incoming>
+      <bpmn:outgoing>Flow_0n98i0k</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:sequenceFlow id="Flow_0n98i0k" sourceRef="Gateway_0d6jbgs" targetRef="Gateway_1ykmi8z" />
+    <bpmn:exclusiveGateway id="Gateway_1l5e9uw">
+      <bpmn:incoming>flow_error_010_to_end_error</bpmn:incoming>
+      <bpmn:incoming>Flow_1yx89e3</bpmn:incoming>
+      <bpmn:outgoing>Flow_1c8v6yi</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:sequenceFlow id="Flow_1c8v6yi" sourceRef="Gateway_1l5e9uw" targetRef="Gateway_0chaaof" />
+    <bpmn:sequenceFlow id="flow_preservice_to_catch_documentation" sourceRef="call_SP_RC_002" targetRef="catch_clinical_doc_ready" />
+    <bpmn:endEvent id="Event_1wi5qqp" name="Fim Entrega 1">
+      <bpmn:incoming>Flow_1gwuuhi</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:sequenceFlow id="Flow_1gwuuhi" sourceRef="call_SP_RC_003" targetRef="Event_1wi5qqp" />
+    <bpmn:sequenceFlow id="Flow_0yf0yog" name="sem pagamento" sourceRef="gateway_payment_variance" targetRef="Activity_00f9ccp" />
+    <bpmn:subProcess id="Activity_00f9ccp" name="SP-RC-011 Collection_Management">
+      <bpmn:incoming>Flow_0yf0yog</bpmn:incoming>
+      <bpmn:incoming>Flow_05qie01</bpmn:incoming>
+      <bpmn:outgoing>Flow_0xki0ae</bpmn:outgoing>
+    </bpmn:subProcess>
+    <bpmn:sequenceFlow id="Flow_0xki0ae" sourceRef="Activity_00f9ccp" targetRef="throw_payment_reconciled" />
+    <bpmn:startEvent id="Event_0gya1lf" name="Collection">
+      <bpmn:outgoing>Flow_05qie01</bpmn:outgoing>
+      <bpmn:signalEventDefinition id="SignalEventDefinition_00gol88" />
+    </bpmn:startEvent>
+    <bpmn:sequenceFlow id="Flow_05qie01" sourceRef="Event_0gya1lf" targetRef="Activity_00f9ccp" />
+  </bpmn:process>
+  <bpmn:error id="Error_RevenueCycle" name="REVENUE_CYCLE_ERROR" errorCode="RC_ERROR" />
+  <bpmn:error id="Error_BillingRejected" name="BILLING_REJECTED" errorCode="RC_BILLING_REJECTED" />
+  <bpmn:message id="msg_encounter_created" name="msg_encounter_created" />
+  <bpmn:message id="msg_clinical_documentation_ready" name="msg_clinical_documentation_ready" />
+  <bpmn:message id="msg_discharge_completed" name="msg_discharge_completed" />
+  <bpmn:message id="msg_payment_reconciled" name="msg_payment_reconciled" />
+  <bpmn:message id="msg_patient_admitted" name="msg_patient_admitted" />
+  <bpmn:message id="msg_authorization_denied" name="msg_authorization_denied" />
+  <bpmn:message id="msg_procedures_completed" name="msg_procedures_completed" />
+  <bpmn:message id="msg_glosa_detected" name="msg_glosa_detected" />
+  <bpmndi:BPMNDiagram id="BPMNDiagram_SP_RC_000">
+    <bpmndi:BPMNPlane id="BPMNPlane_SP_RC_000" bpmnElement="SP_RC_000">
+      <bpmndi:BPMNShape id="shape_start_encounter_created" bpmnElement="start_encounter_created">
+        <dc:Bounds x="232" y="672" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="224" y="715" width="52" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="shape_call_SP_RC_002" bpmnElement="call_SP_RC_002">
+        <dc:Bounds x="360" y="650" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="shape_task_auth_sla_escalation" bpmnElement="task_auth_sla_escalation">
+        <dc:Bounds x="360" y="420" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="shape_catch_clinical_doc_ready" bpmnElement="catch_clinical_doc_ready">
+        <dc:Bounds x="512" y="672" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="494" y="715" width="74" height="40" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="shape_call_SP_RC_003" bpmnElement="call_SP_RC_003">
+        <dc:Bounds x="600" y="650" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="shape_catch_discharge_completed" bpmnElement="catch_discharge_completed">
+        <dc:Bounds x="872" y="672" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="863" y="715" width="54" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="shape_call_SP_RC_004" bpmnElement="call_SP_RC_004">
+        <dc:Bounds x="960" y="650" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="shape_task_closure_sla_alert" bpmnElement="task_closure_sla_alert">
+        <dc:Bounds x="1010" y="870" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="shape_task_update_production_capture" bpmnElement="task_update_production_capture">
+        <dc:Bounds x="960" y="420" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="shape_end_procedures_handled" bpmnElement="end_procedures_handled">
+        <dc:Bounds x="1112" y="442" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1102" y="404" width="57" height="40" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="shape_call_SP_RC_005" bpmnElement="call_SP_RC_005">
+        <dc:Bounds x="1180" y="650" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="shape_call_SP_RC_006" bpmnElement="call_SP_RC_006">
+        <dc:Bounds x="1460" y="650" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="shape_task_tiss_sla_alert" bpmnElement="task_tiss_sla_alert">
+        <dc:Bounds x="1510" y="870" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="shape_gateway_billing_approved" bpmnElement="gateway_billing_approved" isMarkerVisible="true">
+        <dc:Bounds x="1675" y="665" width="50" height="50" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1657" y="725" width="86" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="shape_throw_authorization_denied" bpmnElement="throw_authorization_denied">
+        <dc:Bounds x="1682" y="512" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1608" y="510" width="64" height="40" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="shape_call_SP_RC_007" bpmnElement="call_SP_RC_007">
+        <dc:Bounds x="1650" y="300" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="shape_task_contestation_sla_escalation" bpmnElement="task_contestation_sla_escalation">
+        <dc:Bounds x="1890" y="300" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="shape_gateway_denial_resolution" bpmnElement="gateway_denial_resolution" isMarkerVisible="true">
+        <dc:Bounds x="1675" y="105" width="50" height="50" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1657.5" y="81" width="85" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="shape_call_SP_RC_008" bpmnElement="call_SP_RC_008">
+        <dc:Bounds x="2200" y="650" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="shape_gateway_payment_variance" bpmnElement="gateway_payment_variance" isMarkerVisible="true">
+        <dc:Bounds x="2445" y="665" width="50" height="50" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="2386" y="635" width="48" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="shape_throw_glosa_detected" bpmnElement="throw_glosa_detected">
+        <dc:Bounds x="2542" y="522" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="2530" y="565" width="62" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="shape_throw_payment_reconciled" bpmnElement="throw_payment_reconciled">
+        <dc:Bounds x="2622" y="672" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="2612" y="717.5" width="55" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="shape_gateway_parallel_fork" bpmnElement="gateway_parallel_fork">
+        <dc:Bounds x="2715" y="665" width="50" height="50" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="2194.5" y="233" width="69" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="shape_call_SP_RC_009" bpmnElement="call_SP_RC_009">
+        <dc:Bounds x="2800" y="560" width="100" height="80" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="shape_call_SP_RC_010" bpmnElement="call_SP_RC_010">
+        <dc:Bounds x="2790" y="740" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="shape_gateway_parallel_join" bpmnElement="gateway_parallel_join">
+        <dc:Bounds x="2925" y="665" width="50" height="50" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="2268" y="233" width="67" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="shape_end_revenue_cycle_success" bpmnElement="end_revenue_cycle_success">
+        <dc:Bounds x="3032" y="672" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="3012" y="722.5" width="75" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="shape_subprocess_glosa_handler" bpmnElement="subprocess_glosa_handler" isExpanded="true">
+        <dc:Bounds x="1960" y="840" width="375" height="280" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="shape_start_glosa_catch" bpmnElement="start_glosa_catch">
+        <dc:Bounds x="2002" y="922" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1983" y="965" width="76" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="shape_call_SP_RC_007_from_glosa" bpmnElement="call_SP_RC_007_from_glosa">
+        <dc:Bounds x="2090" y="900" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="shape_end_glosa_handled" bpmnElement="end_glosa_handled">
+        <dc:Bounds x="2242" y="922" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="2224" y="965" width="73" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Event_1d6pt5q_di" bpmnElement="Event_0wz3xgj">
+        <dc:Bounds x="2242" y="1032" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="2236" y="1075" width="49" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="edge_flow_glosa_to_denial" bpmnElement="flow_glosa_to_denial">
+        <di:waypoint x="2038" y="940" />
+        <di:waypoint x="2090" y="940" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="edge_flow_denial_to_end_glosa" bpmnElement="flow_denial_to_end_glosa">
+        <di:waypoint x="2190" y="940" />
+        <di:waypoint x="2242" y="940" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_0fz09i0_di" bpmnElement="Flow_0fz09i0">
+        <di:waypoint x="2140" y="980" />
+        <di:waypoint x="2140" y="1050" />
+        <di:waypoint x="2242" y="1050" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape id="Gateway_1rxfcc6_di" bpmnElement="Gateway_1rxfcc6" isMarkerVisible="true">
+        <dc:Bounds x="355" y="1157" width="50" height="50" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Gateway_1lb9jqe_di" bpmnElement="Gateway_1lb9jqe" isMarkerVisible="true">
+        <dc:Bounds x="505" y="1157" width="50" height="50" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Gateway_00mp367_di" bpmnElement="Gateway_00mp367" isMarkerVisible="true">
+        <dc:Bounds x="625" y="1157" width="50" height="50" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Gateway_0cgzw5h_di" bpmnElement="Gateway_0cgzw5h" isMarkerVisible="true">
+        <dc:Bounds x="935" y="1157" width="50" height="50" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Gateway_1eqypge_di" bpmnElement="Gateway_1eqypge" isMarkerVisible="true">
+        <dc:Bounds x="1205" y="1157" width="50" height="50" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="BPMNShape_1kuojgy" bpmnElement="Event_0dqustu">
+        <dc:Bounds x="1042" y="1052" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1022" y="1097.5" width="75" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Gateway_11mdvp7_di" bpmnElement="Gateway_11mdvp7" isMarkerVisible="true">
+        <dc:Bounds x="1435" y="1157" width="50" height="50" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="BPMNShape_1u3suz4" bpmnElement="Event_0pgr8j0">
+        <dc:Bounds x="1542" y="1052" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1522" y="1097.5" width="75" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="BPMNShape_0abjhff" bpmnElement="Event_1gzgch9">
+        <dc:Bounds x="3232" y="672" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="3213" y="715" width="75" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Gateway_0chaaof_di" bpmnElement="Gateway_0chaaof" isMarkerVisible="true">
+        <dc:Bounds x="3115" y="665" width="50" height="50" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Gateway_1ykmi8z_di" bpmnElement="Gateway_1ykmi8z" isMarkerVisible="true">
+        <dc:Bounds x="2075" y="665" width="50" height="50" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Gateway_1vz4qz3_di" bpmnElement="Gateway_1vz4qz3" isMarkerVisible="true">
+        <dc:Bounds x="2825" y="435" width="50" height="50" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Gateway_0xrfi2a_di" bpmnElement="Gateway_0xrfi2a" isMarkerVisible="true">
+        <dc:Bounds x="1335" y="665" width="50" height="50" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="BPMNShape_1lkc31s" bpmnElement="Event_1y7073v">
+        <dc:Bounds x="1492" y="332" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1472" y="294.5" width="75" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Gateway_0d6jbgs_di" bpmnElement="Gateway_0d6jbgs" isMarkerVisible="true">
+        <dc:Bounds x="2075" y="315" width="50" height="50" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Gateway_1l5e9uw_di" bpmnElement="Gateway_1l5e9uw" isMarkerVisible="true">
+        <dc:Bounds x="3115" y="875" width="50" height="50" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Event_1wi5qqp_di" bpmnElement="Event_1wi5qqp">
+        <dc:Bounds x="752" y="672" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="735" y="715" width="70" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Activity_1nvv60j_di" bpmnElement="Activity_00f9ccp">
+        <dc:Bounds x="2420" y="800" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Event_0f9ed8u_di" bpmnElement="Event_0gya1lf">
+        <dc:Bounds x="2452" y="942" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="2446" y="985" width="49" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="shape_timer_SP_RC_007_contestation_sla" bpmnElement="timer_SP_RC_007_contestation_sla">
+        <dc:Bounds x="1732" y="322" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1776" y="326" width="87" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="shape_error_SP_RC_010" bpmnElement="error_SP_RC_010">
+        <dc:Bounds x="2822" y="802" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="2808" y="845" width="65" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="shape_error_SP_RC_009" bpmnElement="error_SP_RC_009">
+        <dc:Bounds x="2832" y="542" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="2814" y="518" width="72" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="shape_error_SP_RC_008" bpmnElement="error_SP_RC_008">
+        <dc:Bounds x="2232" y="632" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="2211" y="608" width="77" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="shape_error_SP_RC_007" bpmnElement="error_SP_RC_007">
+        <dc:Bounds x="1632" y="332" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1546" y="320" width="66" height="40" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="shape_timer_SP_RC_006_tiss_sla" bpmnElement="timer_SP_RC_006_tiss_sla">
+        <dc:Bounds x="1542" y="712" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1559.5" y="756.5" width="79" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="shape_error_SP_RC_006" bpmnElement="error_SP_RC_006">
+        <dc:Bounds x="1442" y="712" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1374" y="723" width="58" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="shape_error_SP_RC_005" bpmnElement="error_SP_RC_005">
+        <dc:Bounds x="1212" y="712" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1198" y="755" width="64" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="shape_catch_procedures_completed" bpmnElement="catch_procedures_completed">
+        <dc:Bounds x="992" y="630" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="965" y="586" width="89" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="shape_timer_SP_RC_004_closure_sla" bpmnElement="timer_SP_RC_004_closure_sla">
+        <dc:Bounds x="1042" y="712" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1088.5" y="676.5" width="63" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="shape_error_SP_RC_004" bpmnElement="error_SP_RC_004">
+        <dc:Bounds x="942" y="712" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="909" y="773" width="82" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="shape_error_SP_RC_003" bpmnElement="error_SP_RC_003">
+        <dc:Bounds x="632" y="712" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="612" y="755" width="76" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="shape_timer_SP_RC_002_auth_sla" bpmnElement="timer_SP_RC_002_auth_sla">
+        <dc:Bounds x="392" y="632" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="417" y="587" width="86" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="shape_error_SP_RC_002" bpmnElement="error_SP_RC_002">
+        <dc:Bounds x="392" y="712" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="367" y="755" width="87" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="edge_flow_from_catch_procedures" bpmnElement="flow_from_catch_procedures">
+        <di:waypoint x="1010" y="630" />
+        <di:waypoint x="1010" y="500" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="edge_flow_to_end_procedures_handled" bpmnElement="flow_to_end_procedures_handled">
+        <di:waypoint x="1060" y="460" />
+        <di:waypoint x="1112" y="460" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="edge_flow_gateway_to_denial" bpmnElement="flow_gateway_to_denial">
+        <di:waypoint x="1700" y="665" />
+        <di:waypoint x="1700" y="548" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1718" y="608" width="44" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="edge_flow_throw_auth_denied_to_denial_mgmt" bpmnElement="flow_throw_auth_denied_to_denial_mgmt">
+        <di:waypoint x="1700" y="512" />
+        <di:waypoint x="1700" y="380" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="edge_flow_gateway_to_collection" bpmnElement="flow_gateway_to_collection">
+        <di:waypoint x="1725" y="690" />
+        <di:waypoint x="2075" y="690" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1828" y="672" width="47" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="edge_flow_denial_to_resubmission" bpmnElement="flow_denial_to_resubmission">
+        <di:waypoint x="1675" y="130" />
+        <di:waypoint x="1360" y="130" />
+        <di:waypoint x="1360" y="665" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1489" y="113" width="48" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="edge_flow_denial_resolution_to_collection" bpmnElement="flow_denial_resolution_to_collection">
+        <di:waypoint x="1725" y="130" />
+        <di:waypoint x="2100" y="130" />
+        <di:waypoint x="2100" y="315" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1880" y="116" width="54" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="edge_flow_collection_to_gateway_variance" bpmnElement="flow_collection_to_gateway_variance">
+        <di:waypoint x="2300" y="690" />
+        <di:waypoint x="2445" y="690" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="edge_flow_variance_to_throw_glosa" bpmnElement="flow_variance_to_throw_glosa">
+        <di:waypoint x="2470" y="665" />
+        <di:waypoint x="2470" y="540" />
+        <di:waypoint x="2542" y="540" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="2409" y="583" width="89" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="edge_flow_variance_to_throw_reconciled" bpmnElement="flow_variance_to_throw_reconciled">
+        <di:waypoint x="2495" y="690" />
+        <di:waypoint x="2622" y="690" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="2530" y="672" width="60" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="edge_flow_throw_glosa_to_reconciled" bpmnElement="flow_throw_glosa_to_reconciled">
+        <di:waypoint x="2578" y="540" />
+        <di:waypoint x="2640" y="540" />
+        <di:waypoint x="2640" y="672" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="edge_flow_start_to_scheduling" bpmnElement="flow_start_to_scheduling">
+        <di:waypoint x="268" y="690" />
+        <di:waypoint x="360" y="690" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="edge_flow_catch_doc_to_clinical_service" bpmnElement="flow_catch_doc_to_clinical_service">
+        <di:waypoint x="548" y="690" />
+        <di:waypoint x="600" y="690" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="edge_flow_catch_discharge_to_production" bpmnElement="flow_catch_discharge_to_production">
+        <di:waypoint x="908" y="690" />
+        <di:waypoint x="960" y="690" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="edge_flow_production_to_coding" bpmnElement="flow_production_to_coding">
+        <di:waypoint x="1060" y="690" />
+        <di:waypoint x="1180" y="690" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="edge_flow_coding_to_billing" bpmnElement="flow_coding_to_billing">
+        <di:waypoint x="1280" y="690" />
+        <di:waypoint x="1335" y="690" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="edge_flow_denial_to_gateway_resolution" bpmnElement="flow_denial_to_gateway_resolution">
+        <di:waypoint x="1700" y="300" />
+        <di:waypoint x="1700" y="155" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="edge_flow_throw_reconciled_to_parallel_fork" bpmnElement="flow_throw_reconciled_to_parallel_fork">
+        <di:waypoint x="2658" y="690" />
+        <di:waypoint x="2715" y="690" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="edge_flow_fork_to_analytics" bpmnElement="flow_fork_to_analytics">
+        <di:waypoint x="2740" y="665" />
+        <di:waypoint x="2740" y="600" />
+        <di:waypoint x="2800" y="600" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="edge_flow_fork_to_maximization" bpmnElement="flow_fork_to_maximization">
+        <di:waypoint x="2740" y="715" />
+        <di:waypoint x="2740" y="780" />
+        <di:waypoint x="2790" y="780" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="edge_flow_analytics_to_parallel_join" bpmnElement="flow_analytics_to_parallel_join">
+        <di:waypoint x="2900" y="600" />
+        <di:waypoint x="2950" y="600" />
+        <di:waypoint x="2950" y="665" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="edge_flow_maximization_to_parallel_join" bpmnElement="flow_maximization_to_parallel_join">
+        <di:waypoint x="2890" y="780" />
+        <di:waypoint x="2950" y="780" />
+        <di:waypoint x="2950" y="715" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="edge_flow_join_to_end" bpmnElement="flow_join_to_end">
+        <di:waypoint x="2975" y="690" />
+        <di:waypoint x="3032" y="690" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="edge_flow_error_002_to_end_error" bpmnElement="flow_error_002_to_end_error">
+        <di:waypoint x="410" y="748" />
+        <di:waypoint x="410" y="1182" />
+        <di:waypoint x="505" y="1182" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="edge_flow_error_003_to_end_error" bpmnElement="flow_error_003_to_end_error">
+        <di:waypoint x="650" y="748" />
+        <di:waypoint x="650" y="1157" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="edge_flow_error_004_to_end_error" bpmnElement="flow_error_004_to_end_error">
+        <di:waypoint x="960" y="748" />
+        <di:waypoint x="960" y="1157" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="edge_flow_error_005_to_end_error" bpmnElement="flow_error_005_to_end_error">
+        <di:waypoint x="1230" y="748" />
+        <di:waypoint x="1230" y="1157" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="edge_flow_error_006_to_end_error" bpmnElement="flow_error_006_to_end_error">
+        <di:waypoint x="1460" y="748" />
+        <di:waypoint x="1460" y="1157" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="edge_flow_error_007_to_end_error" bpmnElement="flow_error_007_to_end_error">
+        <di:waypoint x="1632" y="350" />
+        <di:waypoint x="1528" y="350" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="edge_flow_error_008_to_end_error" bpmnElement="flow_error_008_to_end_error">
+        <di:waypoint x="2250" y="632" />
+        <di:waypoint x="2250" y="460" />
+        <di:waypoint x="2825" y="460" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="edge_flow_error_009_to_end_error" bpmnElement="flow_error_009_to_end_error">
+        <di:waypoint x="2850" y="542" />
+        <di:waypoint x="2850" y="485" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="edge_flow_error_010_to_end_error" bpmnElement="flow_error_010_to_end_error">
+        <di:waypoint x="2840" y="838" />
+        <di:waypoint x="2840" y="900" />
+        <di:waypoint x="3115" y="900" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="edge_flow_timer_002_to_escalation" bpmnElement="flow_timer_002_to_escalation">
+        <di:waypoint x="410" y="632" />
+        <di:waypoint x="410" y="500" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="edge_flow_escalation_002_to_end_error" bpmnElement="flow_escalation_002_to_end_error">
+        <di:waypoint x="360" y="460" />
+        <di:waypoint x="160" y="460" />
+        <di:waypoint x="160" y="1182" />
+        <di:waypoint x="355" y="1182" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="edge_flow_timer_004_to_alert" bpmnElement="flow_timer_004_to_alert">
+        <di:waypoint x="1060" y="748" />
+        <di:waypoint x="1060" y="890" />
+        <di:waypoint x="1060" y="870" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="edge_flow_timer_006_to_alert" bpmnElement="flow_timer_006_to_alert">
+        <di:waypoint x="1560" y="748" />
+        <di:waypoint x="1560" y="870" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="edge_flow_alert_006_to_end" bpmnElement="flow_alert_006_to_end">
+        <di:waypoint x="1560" y="950" />
+        <di:waypoint x="1560" y="1052" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="edge_flow_timer_007_to_escalation" bpmnElement="flow_timer_007_to_escalation">
+        <di:waypoint x="1768" y="340" />
+        <di:waypoint x="1890" y="340" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_017nika_di" bpmnElement="Flow_017nika">
+        <di:waypoint x="405" y="1182" />
+        <di:waypoint x="505" y="1182" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_0dssl83_di" bpmnElement="Flow_0dssl83">
+        <di:waypoint x="555" y="1182" />
+        <di:waypoint x="625" y="1182" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_0qko5gk_di" bpmnElement="Flow_0qko5gk">
+        <di:waypoint x="675" y="1182" />
+        <di:waypoint x="935" y="1182" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_1a29xii_di" bpmnElement="Flow_1a29xii">
+        <di:waypoint x="985" y="1182" />
+        <di:waypoint x="1205" y="1182" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_037j2ln_di" bpmnElement="Flow_037j2ln">
+        <di:waypoint x="1255" y="1182" />
+        <di:waypoint x="1435" y="1182" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_1xtn23h_di" bpmnElement="Flow_1xtn23h">
+        <di:waypoint x="1060" y="950" />
+        <di:waypoint x="1060" y="1052" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_1yx89e3_di" bpmnElement="Flow_1yx89e3">
+        <di:waypoint x="1485" y="1182" />
+        <di:waypoint x="3140" y="1182" />
+        <di:waypoint x="3140" y="925" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_0ghhblr_di" bpmnElement="Flow_0ghhblr">
+        <di:waypoint x="3165" y="690" />
+        <di:waypoint x="3232" y="690" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_0d3s4rs_di" bpmnElement="Flow_0d3s4rs">
+        <di:waypoint x="2125" y="690" />
+        <di:waypoint x="2200" y="690" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_19t36dx_di" bpmnElement="Flow_19t36dx">
+        <di:waypoint x="2875" y="460" />
+        <di:waypoint x="3140" y="460" />
+        <di:waypoint x="3140" y="665" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="edge_flow_billing_to_gateway" bpmnElement="flow_billing_to_gateway">
+        <di:waypoint x="1560" y="690" />
+        <di:waypoint x="1675" y="690" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_1qvyl6q_di" bpmnElement="Flow_1qvyl6q">
+        <di:waypoint x="1385" y="690" />
+        <di:waypoint x="1460" y="690" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="edge_flow_escalation_007_to_collection" bpmnElement="flow_escalation_007_to_collection">
+        <di:waypoint x="1990" y="340" />
+        <di:waypoint x="2075" y="340" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_0n98i0k_di" bpmnElement="Flow_0n98i0k">
+        <di:waypoint x="2100" y="365" />
+        <di:waypoint x="2100" y="665" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_1c8v6yi_di" bpmnElement="Flow_1c8v6yi">
+        <di:waypoint x="3140" y="875" />
+        <di:waypoint x="3140" y="715" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="edge_flow_preservice_to_catch_documentation" bpmnElement="flow_preservice_to_catch_documentation">
+        <di:waypoint x="460" y="690" />
+        <di:waypoint x="512" y="690" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_1gwuuhi_di" bpmnElement="Flow_1gwuuhi">
+        <di:waypoint x="700" y="690" />
+        <di:waypoint x="752" y="690" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_0yf0yog_di" bpmnElement="Flow_0yf0yog">
+        <di:waypoint x="2470" y="715" />
+        <di:waypoint x="2470" y="800" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="2414" y="745" width="79" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_0xki0ae_di" bpmnElement="Flow_0xki0ae">
+        <di:waypoint x="2520" y="840" />
+        <di:waypoint x="2640" y="840" />
+        <di:waypoint x="2640" y="708" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_05qie01_di" bpmnElement="Flow_05qie01">
+        <di:waypoint x="2470" y="942" />
+        <di:waypoint x="2470" y="880" />
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+  <bpmndi:BPMNDiagram id="BPMNDiagram_15upbyk">
+    <bpmndi:BPMNPlane id="BPMNPlane_0v3u8b2" bpmnElement="Activity_00f9ccp" />
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>

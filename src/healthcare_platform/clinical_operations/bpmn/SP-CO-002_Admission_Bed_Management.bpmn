@@ -1,0 +1,123 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" xmlns:camunda="http://camunda.org/schema/1.0/bpmn" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" id="Definitions_AdmissionBedManagement" targetNamespace="http://cib7.health/clinical/admission" exporter="Camunda Modeler" exporterVersion="5.42.0">
+  <bpmn:process id="SP_CO_002_Admission_Beds" name="SP-CO-002 Admission and Bed Management" isExecutable="true" camunda:historyTimeToLive="30">
+    <bpmn:startEvent id="Start_AdmissionRequest" name="Admission Request">
+      <bpmn:outgoing>Flow_ToCheckBed</bpmn:outgoing>
+    </bpmn:startEvent>
+    <bpmn:serviceTask id="Task_CheckBedAvailable" name="Check Bed Availability" camunda:type="external" camunda:topic="inpatient.bed_available">
+      <bpmn:incoming>Flow_ToCheckBed</bpmn:incoming>
+      <bpmn:outgoing>Flow_ToBedGateway</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:exclusiveGateway id="Gateway_BedAvailable" name="Bed available?" default="Flow_BedNo">
+      <bpmn:incoming>Flow_ToBedGateway</bpmn:incoming>
+      <bpmn:outgoing>Flow_BedYes</bpmn:outgoing>
+      <bpmn:outgoing>Flow_BedNo</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:serviceTask id="Task_AssignBed" name="Assign Bed" camunda:type="external" camunda:topic="inpatient.bed_available">
+      <bpmn:incoming>Flow_BedYes</bpmn:incoming>
+      <bpmn:outgoing>Flow_ToIntro</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:serviceTask id="Task_CareTeamIntro" name="Introduce Care Team to Patient" camunda:type="external" camunda:topic="inpatient.care_team_intro">
+      <bpmn:incoming>Flow_ToIntro</bpmn:incoming>
+      <bpmn:outgoing>Flow_ToMeal</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:serviceTask id="Task_MealChoice" name="Collect Meal Preferences" camunda:type="external" camunda:topic="inpatient.meal_choice">
+      <bpmn:incoming>Flow_ToMeal</bpmn:incoming>
+      <bpmn:outgoing>Flow_ToEndSuccess</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:serviceTask id="Task_Waitlist" name="Add to Waitlist" camunda:type="external" camunda:topic="inpatient.bed_available">
+      <bpmn:incoming>Flow_BedNo</bpmn:incoming>
+      <bpmn:outgoing>Flow_ToEndWaitlist</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:endEvent id="End_AdmissionComplete" name="Admission Complete">
+      <bpmn:incoming>Flow_ToEndSuccess</bpmn:incoming>
+      <bpmn:incoming>Flow_ToEndWaitlist</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:sequenceFlow id="Flow_ToCheckBed" sourceRef="Start_AdmissionRequest" targetRef="Task_CheckBedAvailable" />
+    <bpmn:sequenceFlow id="Flow_ToBedGateway" sourceRef="Task_CheckBedAvailable" targetRef="Gateway_BedAvailable" />
+    <bpmn:sequenceFlow id="Flow_BedYes" sourceRef="Gateway_BedAvailable" targetRef="Task_AssignBed">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${bed_available == true}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_BedNo" sourceRef="Gateway_BedAvailable" targetRef="Task_Waitlist" />
+    <bpmn:sequenceFlow id="Flow_ToIntro" sourceRef="Task_AssignBed" targetRef="Task_CareTeamIntro" />
+    <bpmn:sequenceFlow id="Flow_ToMeal" sourceRef="Task_CareTeamIntro" targetRef="Task_MealChoice" />
+    <bpmn:sequenceFlow id="Flow_ToEndSuccess" sourceRef="Task_MealChoice" targetRef="End_AdmissionComplete" />
+    <bpmn:sequenceFlow id="Flow_ToEndWaitlist" sourceRef="Task_Waitlist" targetRef="End_AdmissionComplete" />
+  </bpmn:process>
+  <bpmndi:BPMNDiagram id="BPMNDiagram_AdmissionBedManagement">
+    <bpmndi:BPMNPlane id="BPMNPlane_AdmissionBedManagement" bpmnElement="SP_CO_002_Admission_Beds">
+      <bpmndi:BPMNShape id="Shape_Start_AdmissionRequest" bpmnElement="Start_AdmissionRequest">
+        <dc:Bounds x="152" y="102" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="131" y="145" width="78" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_CheckBedAvailable" bpmnElement="Task_CheckBedAvailable">
+        <dc:Bounds x="240" y="80" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Gateway_BedAvailable" bpmnElement="Gateway_BedAvailable" isMarkerVisible="true">
+        <dc:Bounds x="395" y="95" width="50" height="50" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="378" y="65" width="84" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_AssignBed" bpmnElement="Task_AssignBed">
+        <dc:Bounds x="500" y="80" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_CareTeamIntro" bpmnElement="Task_CareTeamIntro">
+        <dc:Bounds x="650" y="80" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_MealChoice" bpmnElement="Task_MealChoice">
+        <dc:Bounds x="800" y="80" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_Waitlist" bpmnElement="Task_Waitlist">
+        <dc:Bounds x="500" y="240" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_End_AdmissionComplete" bpmnElement="End_AdmissionComplete">
+        <dc:Bounds x="832" y="262" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="823" y="305" width="54" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Edge_Flow_ToCheckBed" bpmnElement="Flow_ToCheckBed">
+        <di:waypoint x="188" y="120" />
+        <di:waypoint x="240" y="120" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_ToBedGateway" bpmnElement="Flow_ToBedGateway">
+        <di:waypoint x="340" y="120" />
+        <di:waypoint x="395" y="120" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_BedYes" bpmnElement="Flow_BedYes">
+        <di:waypoint x="445" y="120" />
+        <di:waypoint x="500" y="120" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="450" y="102" width="45" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_BedNo" bpmnElement="Flow_BedNo">
+        <di:waypoint x="420" y="145" />
+        <di:waypoint x="420" y="280" />
+        <di:waypoint x="500" y="280" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="430" y="263" width="51" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_ToIntro" bpmnElement="Flow_ToIntro">
+        <di:waypoint x="600" y="120" />
+        <di:waypoint x="650" y="120" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_ToMeal" bpmnElement="Flow_ToMeal">
+        <di:waypoint x="750" y="120" />
+        <di:waypoint x="800" y="120" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_ToEndSuccess" bpmnElement="Flow_ToEndSuccess">
+        <di:waypoint x="850" y="160" />
+        <di:waypoint x="850" y="262" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_ToEndWaitlist" bpmnElement="Flow_ToEndWaitlist">
+        <di:waypoint x="600" y="280" />
+        <di:waypoint x="832" y="280" />
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>

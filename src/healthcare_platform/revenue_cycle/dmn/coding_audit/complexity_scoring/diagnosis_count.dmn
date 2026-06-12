@@ -1,0 +1,101 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/"
+             xmlns:dc="http://www.omg.org/spec/DMN/20180521/DC/"
+             xmlns:di="http://www.omg.org/spec/DMN/20180521/DI/"
+             xmlns:camunda="http://camunda.org/schema/1.0/dmn"
+             id="Definitions_DiagnosisCount"
+             name="Diagnosis Count Scoring"
+             namespace="http://camunda.org/schema/1.0/dmn">
+  <!-- Archetype: CLINICAL_SCORE | Source: diagnosis_count_worker.py -->
+
+  <!-- DMN: Diagnosis Count Contribution to Complexity
+       Based on: calculate_complexity_worker.py lines 254-261
+       Rule: Diagnosis count * 0.5 weight
+  -->
+
+  <decision id="Decision_DiagnosisCount" name="[SP-RC-005 | coding_audit/complexity_scoring] Diagnosis Count Scoring" camunda:historyTimeToLive="180">
+    <decisionTable id="DecisionTable_DiagnosisCount" hitPolicy="FIRST">
+
+      <input id="Input_diagnosisCount_DiagnosisCount" label="Diagnosis Count">
+        <inputExpression id="InputExpr_diagnosisCount_DiagnosisCount" typeRef="number">
+          <text>diagnosis_count</text>
+        </inputExpression>
+      </input>
+
+      <output id="Output_resultado_DiagnosisCount" label="Resultado" name="resultado" typeRef="string">
+        <outputValues><text>"PROSSEGUIR","BLOQUEAR","REVISAR"</text></outputValues>
+      </output>
+
+      <output id="Output_acao_DiagnosisCount" label="Acao" name="acao" typeRef="string"/>
+
+      <output id="Output_risco_DiagnosisCount" label="Risco" name="risco" typeRef="string">
+        <outputValues><text>"CRITICO","ALTO","MEDIO","BAIXO"</text></outputValues>
+      </output>
+
+      <!-- Rule 1: Zero diagnoses - missing data -->
+      <rule id="Rule_Zero_Diagnosis_DiagnosisCount">
+        <description>Sem diagnostico - dados incompletos</description>
+        <inputEntry id="IE_ZD_1_DiagnosisCount"><text>0</text></inputEntry>
+        <outputEntry id="OE_ZD_res_DiagnosisCount"><text>"BLOQUEAR"</text></outputEntry>
+        <outputEntry id="OE_ZD_acao_DiagnosisCount"><text>"Nenhum diagnostico informado - codificacao incompleta"</text></outputEntry>
+        <outputEntry id="OE_ZD_risco_DiagnosisCount"><text>"CRITICO"</text></outputEntry>
+      </rule>
+
+      <!-- Rule 2: Very high diagnosis count (>10) - possible over-coding -->
+      <rule id="Rule_Very_High_Diagnosis_DiagnosisCount">
+        <description>Numero muito alto de diagnosticos - possivel sobre-codificacao</description>
+        <inputEntry id="IE_VHD_1_DiagnosisCount"><text>&gt; 10</text></inputEntry>
+        <outputEntry id="OE_VHD_res_DiagnosisCount"><text>"REVISAR"</text></outputEntry>
+        <outputEntry id="OE_VHD_acao_DiagnosisCount"><text>"Numero excessivo de diagnosticos - revisar pertinencia"</text></outputEntry>
+        <outputEntry id="OE_VHD_risco_DiagnosisCount"><text>"ALTO"</text></outputEntry>
+      </rule>
+
+      <!-- Rule 3: High diagnosis count (6-10) -->
+      <rule id="Rule_High_Diagnosis_Count_DiagnosisCount">
+        <description>Alto numero de diagnosticos</description>
+        <inputEntry id="IE_HDC_1_DiagnosisCount"><text>[6..10]</text></inputEntry>
+        <outputEntry id="OE_HDC_res_DiagnosisCount"><text>"PROSSEGUIR"</text></outputEntry>
+        <outputEntry id="OE_HDC_acao_DiagnosisCount"><text>"Complexidade aumentada por alto numero de diagnosticos"</text></outputEntry>
+        <outputEntry id="OE_HDC_risco_DiagnosisCount"><text>"MEDIO"</text></outputEntry>
+      </rule>
+
+      <!-- Rule 4: Moderate diagnosis count (2-5) -->
+      <rule id="Rule_Moderate_Diagnosis_Count_DiagnosisCount">
+        <description>Numero moderado de diagnosticos</description>
+        <inputEntry id="IE_MDC_1_DiagnosisCount"><text>[2..5]</text></inputEntry>
+        <outputEntry id="OE_MDC_res_DiagnosisCount"><text>"PROSSEGUIR"</text></outputEntry>
+        <outputEntry id="OE_MDC_acao_DiagnosisCount"><text>"Numero adequado de diagnosticos"</text></outputEntry>
+        <outputEntry id="OE_MDC_risco_DiagnosisCount"><text>"BAIXO"</text></outputEntry>
+      </rule>
+
+      <!-- Rule 5: Single diagnosis - low complexity -->
+      <rule id="Rule_Single_Diagnosis_DiagnosisCount">
+        <description>Diagnostico unico - baixa complexidade</description>
+        <inputEntry id="IE_SD_1_DiagnosisCount"><text>1</text></inputEntry>
+        <outputEntry id="OE_SD_res_DiagnosisCount"><text>"PROSSEGUIR"</text></outputEntry>
+        <outputEntry id="OE_SD_acao_DiagnosisCount"><text>"Diagnostico unico - contribuicao minima para complexidade"</text></outputEntry>
+        <outputEntry id="OE_SD_risco_DiagnosisCount"><text>"BAIXO"</text></outputEntry>
+      </rule>
+
+      <!-- Rule 6: Fallback -->
+      <rule id="Rule_Normal_Diagnosis_Count_DiagnosisCount">
+        <description>Numero normal de diagnosticos</description>
+        <inputEntry id="IE_NDC_1_DiagnosisCount"><text>-</text></inputEntry>
+        <outputEntry id="OE_NDC_res_DiagnosisCount"><text>"PROSSEGUIR"</text></outputEntry>
+        <outputEntry id="OE_NDC_acao_DiagnosisCount"><text>"Numero de diagnosticos contribui para pontuacao de complexidade"</text></outputEntry>
+        <outputEntry id="OE_NDC_risco_DiagnosisCount"><text>"BAIXO"</text></outputEntry>
+      </rule>
+
+    </decisionTable>
+  </decision>
+
+  <dmndi:DMNDI>
+    <dmndi:DMNDiagram id="DMNDiagram_DiagnosisCount">
+      <dmndi:DMNShape id="DMNShape_Decision_DiagnosisCount" dmnElementRef="Decision_DiagnosisCount">
+        <dc:Bounds height="80" width="180" x="160" y="100"/>
+      </dmndi:DMNShape>
+    </dmndi:DMNDiagram>
+  </dmndi:DMNDI>
+
+</definitions>

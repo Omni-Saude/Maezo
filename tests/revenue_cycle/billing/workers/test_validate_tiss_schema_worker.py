@@ -6,7 +6,7 @@ from uuid import uuid4
 
 import pytest
 
-from healthcare_platform.revenue_cycle.billing.workers.validate_tiss_schema_worker_v2 import ValidateTISSSchemaWorker
+from healthcare_platform.revenue_cycle.billing.workers.validate_tiss_schema_worker import ValidateTISSSchemaWorker
 from healthcare_platform.shared.integrations.tiss_client import StubTISSClient
 
 from unittest.mock import Mock

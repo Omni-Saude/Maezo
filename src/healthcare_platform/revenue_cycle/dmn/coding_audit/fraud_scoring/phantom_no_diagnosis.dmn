@@ -1,0 +1,107 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/"
+             xmlns:dc="http://www.omg.org/spec/DMN/20180521/DC/"
+             xmlns:di="http://www.omg.org/spec/DMN/20180521/DI/"
+             xmlns:camunda="http://camunda.org/schema/1.0/dmn"
+             id="Definitions_PhantomNoDiagnosis"
+             name="Phantom Billing No Diagnosis Decision"
+             namespace="http://camunda.org/schema/1.0/dmn">
+  <!-- Archetype: CLINICAL_SCORE | Source: phantom_no_diagnosis_worker.py -->
+
+  <!-- DMN: Phantom Billing - No Diagnosis Detection
+       Based on: detect_fraud_worker.py lines 377-390
+       Rule: Flag procedures billed without matching diagnostic justification
+  -->
+
+  <decision id="Decision_PhantomNoDiagnosis" name="[SP-RC-005 | coding_audit/fraud_scoring] Phantom Billing No Diagnosis" camunda:historyTimeToLive="180">
+    <decisionTable id="DecisionTable_PhantomNoDiagnosis" hitPolicy="FIRST">
+
+      <!-- === INPUTS === -->
+      <input id="Input_hasTussCodes_PhantomNoDiagnosis" label="Has TUSS Codes">
+        <inputExpression id="InputExpr_hasTussCodes_PhantomNoDiagnosis" typeRef="boolean">
+          <text>has_tuss_codes</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_hasCid10Codes_PhantomNoDiagnosis" label="Has CID-10 Codes">
+        <inputExpression id="InputExpr_hasCid10Codes_PhantomNoDiagnosis" typeRef="boolean">
+          <text>has_cid10_codes</text>
+        </inputExpression>
+      </input>
+
+      <!-- === OUTPUTS === -->
+      <output id="Output_resultado_PhantomNoDiagnosis" label="Resultado" name="resultado" typeRef="string">
+        <outputValues><text>"PROSSEGUIR","BLOQUEAR","REVISAR"</text></outputValues>
+      </output>
+
+      <output id="Output_acao_PhantomNoDiagnosis" label="Acao" name="acao" typeRef="string"/>
+
+      <output id="Output_risco_PhantomNoDiagnosis" label="Risco" name="risco" typeRef="string">
+        <outputValues><text>"CRITICO","ALTO","MEDIO","BAIXO"</text></outputValues>
+      </output>
+
+      <!-- === RULES === -->
+
+      <!-- Rule 1: TUSS codes without CID-10 - critical phantom billing -->
+      <rule id="Rule_PhantomBilling_PhantomNoDiagnosis">
+        <description>Procedimentos cobrados sem diagnostico documentado</description>
+        <inputEntry id="IE_Phantom_1_PhantomNoDiagnosis"><text>true</text></inputEntry>
+        <inputEntry id="IE_Phantom_2_PhantomNoDiagnosis"><text>false</text></inputEntry>
+        <outputEntry id="OE_Phantom_res_PhantomNoDiagnosis"><text>"BLOQUEAR"</text></outputEntry>
+        <outputEntry id="OE_Phantom_acao_PhantomNoDiagnosis"><text>"Procedimentos cobrados sem diagnostico documentado"</text></outputEntry>
+        <outputEntry id="OE_Phantom_risco_PhantomNoDiagnosis"><text>"CRITICO"</text></outputEntry>
+      </rule>
+
+      <!-- Rule 2: Both TUSS and CID-10 present - proceed -->
+      <rule id="Rule_BothPresent_PhantomNoDiagnosis">
+        <description>Procedimentos e diagnosticos documentados</description>
+        <inputEntry id="IE_Both_1_PhantomNoDiagnosis"><text>true</text></inputEntry>
+        <inputEntry id="IE_Both_2_PhantomNoDiagnosis"><text>true</text></inputEntry>
+        <outputEntry id="OE_Both_res_PhantomNoDiagnosis"><text>"PROSSEGUIR"</text></outputEntry>
+        <outputEntry id="OE_Both_acao_PhantomNoDiagnosis"><text>"Procedimentos e diagnosticos adequadamente documentados"</text></outputEntry>
+        <outputEntry id="OE_Both_risco_PhantomNoDiagnosis"><text>"BAIXO"</text></outputEntry>
+      </rule>
+
+      <!-- Rule 3: No TUSS codes - proceed -->
+      <rule id="Rule_NoTuss_PhantomNoDiagnosis">
+        <description>Nenhum procedimento para avaliar</description>
+        <inputEntry id="IE_NoTuss_1_PhantomNoDiagnosis"><text>false</text></inputEntry>
+        <inputEntry id="IE_NoTuss_2_PhantomNoDiagnosis"><text>-</text></inputEntry>
+        <outputEntry id="OE_NoTuss_res_PhantomNoDiagnosis"><text>"PROSSEGUIR"</text></outputEntry>
+        <outputEntry id="OE_NoTuss_acao_PhantomNoDiagnosis"><text>"Nenhum procedimento TUSS presente"</text></outputEntry>
+        <outputEntry id="OE_NoTuss_risco_PhantomNoDiagnosis"><text>"BAIXO"</text></outputEntry>
+      </rule>
+
+      <!-- Fallback: Unknown state - review -->
+      
+      <rule id="Rule_HighRisk_PhantomNoDiagnosis">
+        <description>Risco alto detectado - revisao obrigatoria</description>
+        <inputEntry id="IE_HighRisk_1_PhantomNoDiagnosis"><text>-</text></inputEntry>
+        <inputEntry id="IE_HighRisk_2_PhantomNoDiagnosis"><text>-</text></inputEntry>
+        <outputEntry id="OE_HighRisk_res_PhantomNoDiagnosis"><text>"REVISAR"</text></outputEntry>
+        <outputEntry id="OE_HighRisk_acao_PhantomNoDiagnosis"><text>"Situacao de risco alto identificada - avaliacao detalhada necessaria"</text></outputEntry>
+        <outputEntry id="OE_HighRisk_risco_PhantomNoDiagnosis"><text>"ALTO"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Fallback_PhantomNoDiagnosis">
+        <description>Estado desconhecido - revisao obrigatoria</description>
+        <inputEntry id="IE_fb_1_PhantomNoDiagnosis"><text>-</text></inputEntry>
+        <inputEntry id="IE_fb_2_PhantomNoDiagnosis"><text>-</text></inputEntry>
+        <outputEntry id="OE_fb_res_PhantomNoDiagnosis"><text>"REVISAR"</text></outputEntry>
+        <outputEntry id="OE_fb_acao_PhantomNoDiagnosis"><text>"Situacao requer avaliacao manual"</text></outputEntry>
+        <outputEntry id="OE_fb_risco_PhantomNoDiagnosis"><text>"MEDIO"</text></outputEntry>
+      </rule>
+
+    </decisionTable>
+  </decision>
+
+  <dmndi:DMNDI>
+    <dmndi:DMNDiagram id="DMNDiagram_PhantomNoDiagnosis">
+      <dmndi:DMNShape id="DMNShape_Decision_PhantomNoDiagnosis" dmnElementRef="Decision_PhantomNoDiagnosis">
+        <dc:Bounds height="80" width="180" x="160" y="100"/>
+      </dmndi:DMNShape>
+    </dmndi:DMNDiagram>
+  </dmndi:DMNDI>
+
+</definitions>

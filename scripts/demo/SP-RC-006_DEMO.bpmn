@@ -1,0 +1,165 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+                  xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+                  xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+                  xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
+                  xmlns:camunda="http://camunda.org/schema/1.0/bpmn"
+                  id="Definitions_RC006_DEMO"
+                  targetNamespace="http://cib7.healthcare/revenue-cycle/demo">
+
+  <!-- ================================================================
+       SP-RC-006 DEMO — Billing Submission (Happy Path)
+       Based on SP-RC-006_Billing_Submission.bpmn
+       Simplified: DMN → script tasks, no gateways, no user tasks
+       Purpose: Generate mock external task traffic for Grafana demo
+       ================================================================ -->
+  <bpmn:process id="SP_RC_006_DEMO_Billing" name="[DEMO] Faturamento e Envio TISS" isExecutable="true" camunda:historyTimeToLive="30">
+
+    <!-- Start -->
+    <bpmn:startEvent id="start" name="Inicio Faturamento">
+      <bpmn:outgoing>f1</bpmn:outgoing>
+    </bpmn:startEvent>
+
+    <!-- 1. External: Validar Dados da Conta -->
+    <bpmn:serviceTask id="task_validate_claim" name="Validar Dados da Conta"
+                      camunda:type="external" camunda:topic="billing.validate_claim">
+      <bpmn:incoming>f1</bpmn:incoming>
+      <bpmn:outgoing>f2</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- 2. Script: Simula DMN Quantidades -->
+    <bpmn:scriptTask id="script_qty" name="[DMN] Validar Quantidades"
+                     scriptFormat="javascript">
+      <bpmn:incoming>f2</bpmn:incoming>
+      <bpmn:outgoing>f3</bpmn:outgoing>
+      <bpmn:script>
+        execution.setVariable("quantityCheck", "OK");
+        execution.setVariable("claimValidated", true);
+      </bpmn:script>
+    </bpmn:scriptTask>
+
+    <!-- 3. External: Calcular Valores -->
+    <bpmn:serviceTask id="task_calculate_charges" name="Calcular Valores"
+                      camunda:type="external" camunda:topic="billing.calculate_charges">
+      <bpmn:incoming>f3</bpmn:incoming>
+      <bpmn:outgoing>f4</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- 4. Script: Simula DMN Modificadores + Pacotes -->
+    <bpmn:scriptTask id="script_modifiers" name="[DMN] Modificadores e Pacotes"
+                     scriptFormat="javascript">
+      <bpmn:incoming>f4</bpmn:incoming>
+      <bpmn:outgoing>f5</bpmn:outgoing>
+      <bpmn:script>
+        execution.setVariable("modifiers", "NONE");
+        execution.setVariable("bundleRules", "STANDARD");
+      </bpmn:script>
+    </bpmn:scriptTask>
+
+    <!-- 5. External: Aplicar Regras de Contrato -->
+    <bpmn:serviceTask id="task_apply_contract" name="Aplicar Regras de Contrato"
+                      camunda:type="external" camunda:topic="billing.apply_contract_rules">
+      <bpmn:incoming>f5</bpmn:incoming>
+      <bpmn:outgoing>f6</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- 6. Script: Simula DMN Taxas + OPME -->
+    <bpmn:scriptTask id="script_taxes" name="[DMN] Taxas e OPME"
+                     scriptFormat="javascript">
+      <bpmn:incoming>f6</bpmn:incoming>
+      <bpmn:outgoing>f7</bpmn:outgoing>
+      <bpmn:script>
+        execution.setVariable("taxes", "ISS_5PCT");
+        execution.setVariable("opmeRules", "STANDARD");
+      </bpmn:script>
+    </bpmn:scriptTask>
+
+    <!-- 7. External: Gerar XML TISS -->
+    <bpmn:serviceTask id="task_generate_tiss" name="Gerar XML TISS"
+                      camunda:type="external" camunda:topic="billing-generate-tiss-xml">
+      <bpmn:incoming>f7</bpmn:incoming>
+      <bpmn:outgoing>f8</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- 8. External: Validar Schema TISS -->
+    <bpmn:serviceTask id="task_validate_schema" name="Validar Schema TISS"
+                      camunda:type="external" camunda:topic="billing-validate-tiss-schema">
+      <bpmn:incoming>f8</bpmn:incoming>
+      <bpmn:outgoing>f9</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- 9. External: Enviar para Operadora -->
+    <bpmn:serviceTask id="task_submit" name="Enviar para Operadora"
+                      camunda:type="external" camunda:topic="billing.submit_to_payer">
+      <bpmn:incoming>f9</bpmn:incoming>
+      <bpmn:outgoing>f10</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- End -->
+    <bpmn:endEvent id="end" name="Enviado com Sucesso">
+      <bpmn:incoming>f10</bpmn:incoming>
+    </bpmn:endEvent>
+
+    <!-- Sequence Flows -->
+    <bpmn:sequenceFlow id="f1" sourceRef="start" targetRef="task_validate_claim"/>
+    <bpmn:sequenceFlow id="f2" sourceRef="task_validate_claim" targetRef="script_qty"/>
+    <bpmn:sequenceFlow id="f3" sourceRef="script_qty" targetRef="task_calculate_charges"/>
+    <bpmn:sequenceFlow id="f4" sourceRef="task_calculate_charges" targetRef="script_modifiers"/>
+    <bpmn:sequenceFlow id="f5" sourceRef="script_modifiers" targetRef="task_apply_contract"/>
+    <bpmn:sequenceFlow id="f6" sourceRef="task_apply_contract" targetRef="script_taxes"/>
+    <bpmn:sequenceFlow id="f7" sourceRef="script_taxes" targetRef="task_generate_tiss"/>
+    <bpmn:sequenceFlow id="f8" sourceRef="task_generate_tiss" targetRef="task_validate_schema"/>
+    <bpmn:sequenceFlow id="f9" sourceRef="task_validate_schema" targetRef="task_submit"/>
+    <bpmn:sequenceFlow id="f10" sourceRef="task_submit" targetRef="end"/>
+
+  </bpmn:process>
+
+  <bpmndi:BPMNDiagram id="BPMNDiagram_1">
+    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="SP_RC_006_DEMO_Billing">
+      <bpmndi:BPMNShape id="Shape_start" bpmnElement="start">
+        <dc:Bounds x="152" y="202" width="36" height="36"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_validate" bpmnElement="task_validate_claim">
+        <dc:Bounds x="240" y="180" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_qty" bpmnElement="script_qty">
+        <dc:Bounds x="390" y="180" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_charges" bpmnElement="task_calculate_charges">
+        <dc:Bounds x="540" y="180" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_mods" bpmnElement="script_modifiers">
+        <dc:Bounds x="690" y="180" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_contract" bpmnElement="task_apply_contract">
+        <dc:Bounds x="840" y="180" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_taxes" bpmnElement="script_taxes">
+        <dc:Bounds x="990" y="180" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_tiss" bpmnElement="task_generate_tiss">
+        <dc:Bounds x="1140" y="180" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_schema" bpmnElement="task_validate_schema">
+        <dc:Bounds x="1290" y="180" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_submit" bpmnElement="task_submit">
+        <dc:Bounds x="1440" y="180" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_end" bpmnElement="end">
+        <dc:Bounds x="1592" y="202" width="36" height="36"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="E1" bpmnElement="f1"><di:waypoint x="188" y="220"/><di:waypoint x="240" y="220"/></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E2" bpmnElement="f2"><di:waypoint x="340" y="220"/><di:waypoint x="390" y="220"/></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E3" bpmnElement="f3"><di:waypoint x="490" y="220"/><di:waypoint x="540" y="220"/></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E4" bpmnElement="f4"><di:waypoint x="640" y="220"/><di:waypoint x="690" y="220"/></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E5" bpmnElement="f5"><di:waypoint x="790" y="220"/><di:waypoint x="840" y="220"/></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E6" bpmnElement="f6"><di:waypoint x="940" y="220"/><di:waypoint x="990" y="220"/></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E7" bpmnElement="f7"><di:waypoint x="1090" y="220"/><di:waypoint x="1140" y="220"/></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E8" bpmnElement="f8"><di:waypoint x="1240" y="220"/><di:waypoint x="1290" y="220"/></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E9" bpmnElement="f9"><di:waypoint x="1390" y="220"/><di:waypoint x="1440" y="220"/></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E10" bpmnElement="f10"><di:waypoint x="1540" y="220"/><di:waypoint x="1592" y="220"/></bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+
+</bpmn:definitions>

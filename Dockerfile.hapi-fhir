@@ -1,0 +1,16 @@
+# HAPI FHIR v8 com curl para healthcheck (local dev)
+# A imagem oficial hapiproject/hapi:v8+ é distroless (sem shell/curl).
+# Esta imagem usa eclipse-temurin:21-jre-noble como base (com apt) e
+# copia o app HAPI do estágio distroless, adicionando curl para healthchecks.
+FROM eclipse-temurin:21-jre-noble AS base
+RUN apt-get update && apt-get install -y --no-install-recommends curl && rm -rf /var/lib/apt/lists/*
+
+FROM base
+COPY --from=hapiproject/hapi:v8.8.0-1 /app /app
+WORKDIR /app
+RUN mkdir -p /app/extra-classes && \
+    curl -sfL "https://repo1.maven.org/maven2/org/postgresql/postgresql/42.7.4/postgresql-42.7.4.jar" \
+      -o /app/extra-classes/postgresql-42.7.4.jar
+ENTRYPOINT ["java", "--class-path", "/app/main.war", \
+            "-Dloader.path=main.war!/WEB-INF/classes/,main.war!/WEB-INF/,/app/extra-classes", \
+            "org.springframework.boot.loader.PropertiesLauncher"]

@@ -29,7 +29,7 @@ class TestRevenueDMNIntegration:
 
     def test_billing_worker_calls_bill_dmn(self):
         """Test billing worker DMN integration."""
-        from healthcare_platform.revenue_cycle.billing.workers.validate_claim_worker_v2 import (
+        from healthcare_platform.revenue_cycle.billing.workers.validate_claim_worker import (
             ValidateClaimWorker,
         )
 
@@ -69,12 +69,12 @@ class TestRevenueDMNIntegration:
 
     def test_coding_worker_calls_edit_dmn(self):
         """Test coding worker DMN integration."""
-        from healthcare_platform.revenue_cycle.coding.workers.validate_codes_worker_v2 import (
-            ValidateCodesWorkerV2,
+        from healthcare_platform.revenue_cycle.coding.workers.validate_codes_worker import (
+            ValidateCodesWorker,
         )
 
-        # ValidateCodesWorkerV2 uses dmn_service
-        worker = ValidateCodesWorkerV2()
+        # ValidateCodesWorker uses dmn_service
+        worker = ValidateCodesWorker()
         assert hasattr(worker, "dmn_service")
 
     def test_billing_rules_service(self):

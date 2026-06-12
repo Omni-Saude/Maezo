@@ -45,12 +45,12 @@ def test_happy_path_prosseguir(worker, context, mock_dmn):
         "risco": "BAIXO",
     }
     context.variables = {
-        "compatible_procedures": [
+        "breakdown": [
             {"code": "40101010", "quantity": 1, "unit_price": "150.00", "total_price": "150.00"},
         ],
-        "encounter_reference": "Encounter/123",
-        "patient_reference": "Patient/456",
-        "total_amount": "150.00",
+        "encounter": "Encounter/123",
+        "patientReference": "Patient/456",
+        "value": "150.00",
         "diagnosis_codes": ["J18.9"],
     }
 
@@ -60,6 +60,7 @@ def test_happy_path_prosseguir(worker, context, mock_dmn):
     assert "claim_reference" in result.variables
     assert "production_id" in result.variables
     assert "persisted_at" in result.variables
+    assert "productionId" in result.variables
 
 
 def test_bloquear_blocks_persistence(worker, context, mock_dmn):
@@ -70,8 +71,8 @@ def test_bloquear_blocks_persistence(worker, context, mock_dmn):
         "risco": "ALTO",
     }
     context.variables = {
-        "compatible_procedures": [],
-        "total_amount": "0.00",
+        "breakdown": [],
+        "value": "0.00",
     }
 
     result = worker.execute(context)
@@ -88,12 +89,12 @@ def test_revisar_flags_review(worker, context, mock_dmn):
         "risco": "MEDIO",
     }
     context.variables = {
-        "compatible_procedures": [
+        "breakdown": [
             {"code": "40101010", "quantity": 1, "unit_price": "150.00", "total_price": "150.00"},
         ],
-        "encounter_reference": "Encounter/123",
-        "patient_reference": "Patient/456",
-        "total_amount": "150.00",
+        "encounter": "Encounter/123",
+        "patientReference": "Patient/456",
+        "value": "150.00",
     }
 
     result = worker.execute(context)
@@ -108,7 +109,7 @@ def test_empty_procedures_via_dmn(worker, context, mock_dmn):
         "resultado": "BLOQUEAR",
         "acao": "Empty procedure list",
     }
-    context.variables = {"compatible_procedures": [], "total_amount": "0.00"}
+    context.variables = {"breakdown": [], "value": "0.00"}
 
     result = worker.execute(context)
 
@@ -119,8 +120,8 @@ def test_dmn_evaluator_failure(worker, context, mock_dmn):
     """DMN service exception is caught."""
     mock_dmn.evaluate.side_effect = RuntimeError("DMN evaluation failed")
     context.variables = {
-        "compatible_procedures": [{"code": "40101010"}],
-        "total_amount": "100.00",
+        "breakdown": [{"code": "40101010"}],
+        "value": "100.00",
     }
 
     result = worker.execute(context)
@@ -137,13 +138,13 @@ def test_charge_items_created_for_procedures(worker, context, mock_dmn):
         "risco": "BAIXO",
     }
     context.variables = {
-        "compatible_procedures": [
+        "breakdown": [
             {"code": "40101010", "quantity": 1, "unit_price": "100.00", "total_price": "100.00"},
             {"code": "40201010", "quantity": 2, "unit_price": "50.00", "total_price": "100.00"},
         ],
-        "encounter_reference": "Encounter/123",
-        "patient_reference": "Patient/456",
-        "total_amount": "200.00",
+        "encounter": "Encounter/123",
+        "patientReference": "Patient/456",
+        "value": "200.00",
     }
 
     result = worker.execute(context)

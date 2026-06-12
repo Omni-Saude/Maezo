@@ -1,0 +1,201 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  ============================================================================
+  AUTH-PREAUTH-010 - Validade Senha Expirada
+  ============================================================================
+  Versao: 1.0.0 (2026-02-08)
+  Categoria: AUTH-PREAUTH
+  Perspectiva: HOSPITAL (Faturamento/Auditoria)
+
+  ============================================================================
+  INDICACOES (Quando PROSSEGUIR):
+  ============================================================================
+  - Senha de autorizacao dentro do prazo de validade
+  - Dias ate vencimento > 0
+  - Atendimento realizado antes da expiracao
+
+  ============================================================================
+  CONTRAINDICACOES (Quando BLOQUEAR):
+  ============================================================================
+  - Senha de autorizacao expirada antes do atendimento
+  - Validade vencida ha mais de 30 dias
+  - Tentativa de uso de senha cancelada
+
+  ============================================================================
+  REFERENCIAS NORMATIVAS:
+  ============================================================================
+  - RN 424/2017 Art. 4 (Prazo de Validade da Autorizacao)
+  - RN 465/2021 (Procedimentos Regulados)
+  - TISS 4.01.00 (Guia SADT - Campo Validade)
+  - IN DIDES/GGRAS 58/2020 (Prazos de Validade)
+  ============================================================================
+-->
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/"
+             xmlns:dc="http://www.omg.org/spec/DMN/20180521/DC/"
+             xmlns:di="http://www.omg.org/spec/DMN/20180521/DI/"
+             xmlns:camunda="http://camunda.org/schema/1.0/dmn"
+             id="Definitions_AUTH_PREAUTH_010"
+             name="Validade Senha Expirada"
+             namespace="http://camunda.org/schema/1.0/dmn">
+
+  <decision id="Decision_AUTH_PREAUTH_010" name="[SP-PA-004 | authorization/preauth] Verificar Validade de Senha de Autorizacao" camunda:historyTimeToLive="180">
+    <decisionTable id="DecisionTable_AUTH_PREAUTH_010" hitPolicy="FIRST">
+
+      <!-- ========== INPUTS ========== -->
+      <input id="Input_1_AUTH_PREAUTH_010" label="Status Autorizacao">
+        <inputExpression id="InputExpression_1_AUTH_PREAUTH_010" typeRef="string">
+          <text>statusAutorizacao</text>
+        </inputExpression>
+        <inputValues id="InputValues_1_AUTH_PREAUTH_010">
+          <text>"TOTAL", "PARCIAL", "NEGADA", "EXPIRADA"</text>
+        </inputValues>
+      </input>
+
+      <input id="Input_2_AUTH_PREAUTH_010" label="Dias Desde Autorizacao">
+        <inputExpression id="InputExpression_2_AUTH_PREAUTH_010" typeRef="integer">
+          <text>diasDesdeAutorizacao</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_3_AUTH_PREAUTH_010" label="Tem Autorizacao">
+        <inputExpression id="InputExpression_3_AUTH_PREAUTH_010" typeRef="boolean">
+          <text>temAutorizacao</text>
+        </inputExpression>
+      </input>
+
+      <!-- ========== OUTPUTS (5 STANDARD) ========== -->
+      <output id="Output_1_AUTH_PREAUTH_010" label="Resultado" name="resultado" typeRef="string">
+        <outputValues><text>"Prosseguir", "Bloquear", "Alertar", "Revisar"</text></outputValues>
+      </output>
+
+      <output id="Output_2_AUTH_PREAUTH_010" label="Observacao" name="observacao" typeRef="string"/>
+
+      <output id="Output_3_AUTH_PREAUTH_010" label="Acao Recomendada" name="acaoRecomendada" typeRef="string"/>
+
+      <output id="Output_4_AUTH_PREAUTH_010" label="Alertas Conformidade" name="alertasConformidade" typeRef="string">
+        <outputValues><text>"NENHUM", "DUP", "FREQ", "PRAZO", "DOC", "VALOR", "CRED", "CONTRATO"</text></outputValues>
+      </output>
+
+      <output id="Output_5_AUTH_PREAUTH_010" label="Risco Denial" name="riscoDenial" typeRef="string">
+        <outputValues><text>"BAIXO", "MEDIO", "ALTO", "CRITICO"</text></outputValues>
+      </output>
+
+      <!-- ========== RULES ========== -->
+
+      <!-- REGRA B1: Bloqueio - Sem autorizacao -->
+      <rule id="Rule_Bloqueio_1_AUTH_PREAUTH_010">
+        <description>Atendimento sem autorizacao previa registrada</description>
+        <inputEntry id="InputEntry_B1_1_AUTH_PREAUTH_010"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_B1_2_AUTH_PREAUTH_010"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_B1_3_AUTH_PREAUTH_010"><text>false</text></inputEntry>
+        <outputEntry id="OutputEntry_B1_1_AUTH_PREAUTH_010"><text>"Bloquear"</text></outputEntry>
+        <outputEntry id="OutputEntry_B1_2_AUTH_PREAUTH_010"><text>"Atendimento sem autorizacao previa. Impossivel validar validade de senha."</text></outputEntry>
+        <outputEntry id="OutputEntry_B1_3_AUTH_PREAUTH_010"><text>"Solicitar autorizacao com validade adequada ao planejamento do atendimento."</text></outputEntry>
+        <outputEntry id="OutputEntry_B1_4_AUTH_PREAUTH_010"><text>"DOC"</text></outputEntry>
+        <outputEntry id="OutputEntry_B1_5_AUTH_PREAUTH_010"><text>"ALTO"</text></outputEntry>
+      </rule>
+
+      <!-- REGRA B2: Bloqueio - Senha expirada -->
+      <rule id="Rule_Bloqueio_2_AUTH_PREAUTH_010">
+        <description>Senha de autorizacao expirada antes do atendimento</description>
+        <inputEntry id="InputEntry_B2_1_AUTH_PREAUTH_010"><text>"EXPIRADA"</text></inputEntry>
+        <inputEntry id="InputEntry_B2_2_AUTH_PREAUTH_010"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_B2_3_AUTH_PREAUTH_010"><text>true</text></inputEntry>
+        <outputEntry id="OutputEntry_B2_1_AUTH_PREAUTH_010"><text>"Bloquear"</text></outputEntry>
+        <outputEntry id="OutputEntry_B2_2_AUTH_PREAUTH_010"><text>"Senha de autorizacao expirada. Atendimento realizado apos vencimento da validade."</text></outputEntry>
+        <outputEntry id="OutputEntry_B2_3_AUTH_PREAUTH_010"><text>"Solicitar renovacao da autorizacao com nova data de validade antes de prosseguir com faturamento."</text></outputEntry>
+        <outputEntry id="OutputEntry_B2_4_AUTH_PREAUTH_010"><text>"PRAZO"</text></outputEntry>
+        <outputEntry id="OutputEntry_B2_5_AUTH_PREAUTH_010"><text>"CRITICO"</text></outputEntry>
+      </rule>
+
+      <!-- REGRA B3: Bloqueio - Autorizacao muito antiga sem uso -->
+      <rule id="Rule_Bloqueio_3_AUTH_PREAUTH_010">
+        <description>Autorizacao emitida ha mais de 90 dias sem realizacao</description>
+        <inputEntry id="InputEntry_B3_1_AUTH_PREAUTH_010"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_B3_2_AUTH_PREAUTH_010"><text>&gt; 90</text></inputEntry>
+        <inputEntry id="InputEntry_B3_3_AUTH_PREAUTH_010"><text>true</text></inputEntry>
+        <outputEntry id="OutputEntry_B3_1_AUTH_PREAUTH_010"><text>"Bloquear"</text></outputEntry>
+        <outputEntry id="OutputEntry_B3_2_AUTH_PREAUTH_010"><text>"Autorizacao emitida ha mais de 90 dias. Prazo de validade provavelmente expirado."</text></outputEntry>
+        <outputEntry id="OutputEntry_B3_3_AUTH_PREAUTH_010"><text>"Solicitar confirmacao de vigencia da autorizacao ou solicitar nova autorizacao atualizada."</text></outputEntry>
+        <outputEntry id="OutputEntry_B3_4_AUTH_PREAUTH_010"><text>"PRAZO"</text></outputEntry>
+        <outputEntry id="OutputEntry_B3_5_AUTH_PREAUTH_010"><text>"ALTO"</text></outputEntry>
+      </rule>
+
+      <!-- REGRA A1: Alerta - Autorizacao proxima ao vencimento -->
+      <rule id="Rule_Alerta_1_AUTH_PREAUTH_010">
+        <description>Autorizacao com mais de 60 dias, proxima ao vencimento tipico</description>
+        <inputEntry id="InputEntry_A1_1_AUTH_PREAUTH_010"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_A1_2_AUTH_PREAUTH_010"><text>[60..90]</text></inputEntry>
+        <inputEntry id="InputEntry_A1_3_AUTH_PREAUTH_010"><text>true</text></inputEntry>
+        <outputEntry id="OutputEntry_A1_1_AUTH_PREAUTH_010"><text>"Alertar"</text></outputEntry>
+        <outputEntry id="OutputEntry_A1_2_AUTH_PREAUTH_010"><text>"Autorizacao com 60-90 dias. Pode estar proxima ao vencimento do prazo de validade."</text></outputEntry>
+        <outputEntry id="OutputEntry_A1_3_AUTH_PREAUTH_010"><text>"Verificar data de validade na guia antes de prosseguir. Se vencida, solicitar renovacao."</text></outputEntry>
+        <outputEntry id="OutputEntry_A1_4_AUTH_PREAUTH_010"><text>"PRAZO"</text></outputEntry>
+        <outputEntry id="OutputEntry_A1_5_AUTH_PREAUTH_010"><text>"MEDIO"</text></outputEntry>
+      </rule>
+
+      <!-- REGRA A2: Alerta - Autorizacao negada -->
+      <rule id="Rule_Alerta_2_AUTH_PREAUTH_010">
+        <description>Autorizacao com status negado pela operadora</description>
+        <inputEntry id="InputEntry_A2_1_AUTH_PREAUTH_010"><text>"NEGADA"</text></inputEntry>
+        <inputEntry id="InputEntry_A2_2_AUTH_PREAUTH_010"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_A2_3_AUTH_PREAUTH_010"><text>true</text></inputEntry>
+        <outputEntry id="OutputEntry_A2_1_AUTH_PREAUTH_010"><text>"Bloquear"</text></outputEntry>
+        <outputEntry id="OutputEntry_A2_2_AUTH_PREAUTH_010"><text>"Autorizacao negada pela operadora. Faturamento bloqueado."</text></outputEntry>
+        <outputEntry id="OutputEntry_A2_3_AUTH_PREAUTH_010"><text>"Encaminhar para recurso administrativo ou solicitar nova autorizacao com justificativa clinica adequada."</text></outputEntry>
+        <outputEntry id="OutputEntry_A2_4_AUTH_PREAUTH_010"><text>"DOC"</text></outputEntry>
+        <outputEntry id="OutputEntry_A2_5_AUTH_PREAUTH_010"><text>"CRITICO"</text></outputEntry>
+      </rule>
+
+      <!-- REGRA P1: Aprovado - Autorizacao recente (0-30 dias) -->
+      <rule id="Rule_Aprovado_1_AUTH_PREAUTH_010">
+        <description>Autorizacao recente, dentro do prazo de validade tipico</description>
+        <inputEntry id="InputEntry_P1_1_AUTH_PREAUTH_010"><text>"TOTAL", "PARCIAL"</text></inputEntry>
+        <inputEntry id="InputEntry_P1_2_AUTH_PREAUTH_010"><text>[0..30]</text></inputEntry>
+        <inputEntry id="InputEntry_P1_3_AUTH_PREAUTH_010"><text>true</text></inputEntry>
+        <outputEntry id="OutputEntry_P1_1_AUTH_PREAUTH_010"><text>"Prosseguir"</text></outputEntry>
+        <outputEntry id="OutputEntry_P1_2_AUTH_PREAUTH_010"><text>"Autorizacao recente (0-30 dias). Senha dentro do prazo de validade esperado."</text></outputEntry>
+        <outputEntry id="OutputEntry_P1_3_AUTH_PREAUTH_010"><text>"Prosseguir com faturamento conforme autorizacao vigente."</text></outputEntry>
+        <outputEntry id="OutputEntry_P1_4_AUTH_PREAUTH_010"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_P1_5_AUTH_PREAUTH_010"><text>"BAIXO"</text></outputEntry>
+      </rule>
+
+      <!-- REGRA P2: Aprovado - Autorizacao em prazo intermediario (31-60 dias) -->
+      <rule id="Rule_Aprovado_2_AUTH_PREAUTH_010">
+        <description>Autorizacao em prazo intermediario</description>
+        <inputEntry id="InputEntry_P2_1_AUTH_PREAUTH_010"><text>"TOTAL", "PARCIAL"</text></inputEntry>
+        <inputEntry id="InputEntry_P2_2_AUTH_PREAUTH_010"><text>[31..60]</text></inputEntry>
+        <inputEntry id="InputEntry_P2_3_AUTH_PREAUTH_010"><text>true</text></inputEntry>
+        <outputEntry id="OutputEntry_P2_1_AUTH_PREAUTH_010"><text>"Prosseguir"</text></outputEntry>
+        <outputEntry id="OutputEntry_P2_2_AUTH_PREAUTH_010"><text>"Autorizacao com 31-60 dias. Ainda dentro do prazo de validade tipico para maioria dos procedimentos."</text></outputEntry>
+        <outputEntry id="OutputEntry_P2_3_AUTH_PREAUTH_010"><text>"Prosseguir com faturamento. Verificar data de validade especifica na guia."</text></outputEntry>
+        <outputEntry id="OutputEntry_P2_4_AUTH_PREAUTH_010"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_P2_5_AUTH_PREAUTH_010"><text>"BAIXO"</text></outputEntry>
+      </rule>
+
+      <!-- REGRA F: Fallback - Requer revisao manual -->
+      <rule id="Rule_Fallback_AUTH_PREAUTH_010">
+        <description>Regra padrao - Requer avaliacao manual</description>
+        <inputEntry id="InputEntry_F_1_AUTH_PREAUTH_010"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_F_2_AUTH_PREAUTH_010"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_F_3_AUTH_PREAUTH_010"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_F_1_AUTH_PREAUTH_010"><text>"Revisar"</text></outputEntry>
+        <outputEntry id="OutputEntry_F_2_AUTH_PREAUTH_010"><text>"Situacao de validade de senha requer analise manual detalhada."</text></outputEntry>
+        <outputEntry id="OutputEntry_F_3_AUTH_PREAUTH_010"><text>"Encaminhar para auditoria verificar data de validade especifica na guia de autorizacao."</text></outputEntry>
+        <outputEntry id="OutputEntry_F_4_AUTH_PREAUTH_010"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_F_5_AUTH_PREAUTH_010"><text>"MEDIO"</text></outputEntry>
+      </rule>
+
+    </decisionTable>
+  </decision>
+
+  <dmndi:DMNDI>
+    <dmndi:DMNDiagram id="DMNDiagram_AUTH_PREAUTH_010">
+      <dmndi:DMNShape id="DMNShape_Decision_AUTH_PREAUTH_010" dmnElementRef="Decision_AUTH_PREAUTH_010">
+        <dc:Bounds height="80" width="180" x="160" y="100"/>
+      </dmndi:DMNShape>
+    </dmndi:DMNDiagram>
+  </dmndi:DMNDI>
+
+</definitions>

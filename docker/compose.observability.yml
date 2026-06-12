@@ -1,0 +1,150 @@
+version: "3.9"
+# Grupo: maezo-observability
+# Serviços: kafka_exporter, postgres_exporter, prometheus, grafana
+# Requer: maezo-infra rodando (postgres + kafka na rede maestro_local)
+
+networks:
+  maestro_local:
+    external: true
+    name: maestro_local
+
+volumes:
+  prometheus_data:
+  grafana_data:
+
+services:
+
+  kafka_exporter:
+    image: danielqsj/kafka-exporter:v1.7.0
+    command:
+      - "--kafka.server=kafka:9092"
+      - "--kafka.version=3.7.0"
+    ports:
+      - "9308:9308"
+    networks: [maestro_local]
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "-", "http://localhost:9308/metrics"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 15s
+
+  postgres_exporter:
+    image: prometheuscommunity/postgres-exporter:v0.15.0
+    environment:
+      DATA_SOURCE_NAME: "postgresql://maestro:maestro_local@postgres:5432/cibseven?sslmode=disable"
+      PG_EXPORTER_AUTO_DISCOVER_DATABASES: "true"
+    ports:
+      - "9187:9187"
+    networks: [maestro_local]
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "-", "http://localhost:9187/metrics"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 10s
+
+  prometheus:
+    image: prom/prometheus:v2.54.0
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.path=/prometheus"
+      - "--storage.tsdb.retention.time=15d"
+      - "--web.console.libraries=/usr/share/prometheus/console_libraries"
+      - "--web.console.templates=/usr/share/prometheus/consoles"
+      - "--web.enable-lifecycle"
+    volumes:
+      - ../config/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    ports:
+      - "9090:9090"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    networks: [maestro_local]
+    restart: unless-stopped
+    depends_on:
+      kafka_exporter:
+        condition: service_healthy
+      postgres_exporter:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "-", "http://localhost:9090/-/healthy"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 10s
+
+  node_exporter:
+    image: prom/node-exporter:v1.8.2
+    # network_mode: host + pid: host evita necessidade de montar /
+    # e permite acesso completo às métricas do host sem mount propagation
+    network_mode: host
+    pid: host
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+    command:
+      - "--path.procfs=/host/proc"
+      - "--path.sysfs=/host/sys"
+      - "--collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$|/)"
+    restart: unless-stopped
+
+  cadvisor:
+    image: gcr.io/cadvisor/cadvisor:v0.49.1
+    privileged: true
+    volumes:
+      - /var/run:/var/run:ro
+      - /sys/fs/cgroup:/sys/fs/cgroup:ro
+      - /var/snap/docker/common/var-lib-docker:/var/snap/docker/common/var-lib-docker:ro
+    command:
+      - --docker_only=true
+    ports:
+      - "9080:8080"
+    networks: [maestro_local]
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "-", "http://localhost:8080/healthz"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 15s
+
+  grafana:
+    image: grafana/grafana:11.2.0
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: admin
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_AUTH_ANONYMOUS_ENABLED: "false"
+      GF_LOG_LEVEL: warn
+      GF_ANALYTICS_REPORTING_ENABLED: "false"
+      GF_ANALYTICS_CHECK_FOR_UPDATES: "false"
+      # SMTP — configure as variáveis abaixo no .env do projeto
+      GF_SMTP_ENABLED: "${GF_SMTP_ENABLED:-false}"
+      GF_SMTP_HOST: "${GF_SMTP_HOST:-smtp.gmail.com:587}"
+      GF_SMTP_USER: "${GF_SMTP_USER:-}"
+      GF_SMTP_PASSWORD: "${GF_SMTP_PASSWORD:-}"
+      GF_SMTP_FROM_ADDRESS: "${GF_SMTP_FROM_ADDRESS:-grafana@austa.com.br}"
+      GF_SMTP_FROM_NAME: "Grafana MAEZO"
+      GF_SMTP_STARTTLS_POLICY: "MandatoryStartTLS"
+      # Alertas — repassados ao provisioning de contact points
+      N8N_GRAFANA_WEBHOOK_URL: "${N8N_GRAFANA_WEBHOOK_URL:-http://localhost/placeholder}"
+      GRAFANA_ALERT_EMAIL: "${GRAFANA_ALERT_EMAIL:-admin@localhost}"
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ../config/grafana/provisioning:/etc/grafana/provisioning:ro
+    ports:
+      - "3000:3000"
+    networks: [maestro_local]
+    restart: unless-stopped
+    depends_on:
+      prometheus:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "-", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 15s

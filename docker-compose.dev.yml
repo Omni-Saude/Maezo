@@ -1,0 +1,132 @@
+# =============================================================================
+# MAEZO — Stack DEV (servidor remoto Linux)
+#
+# Stack minima para desenvolvimento: testar workers e validar BPMN/DMN.
+# Workers rodam FORA do Docker (Windows via rede).
+#
+# Servicos: PostgreSQL 16 + Kafka KRaft + CIB Seven + HAPI FHIR R4
+#
+# Uso:
+#   docker compose -f docker-compose.dev.yml up -d
+#   docker compose -f docker-compose.dev.yml down       # para (mantem dados)
+#   docker compose -f docker-compose.dev.yml down -v    # para + apaga volumes
+#
+# URLs:
+#   CIB Seven Cockpit: http://<IP>:8085/cibseven/app/cockpit  (admin/admin)
+#   CIB Seven REST:    http://<IP>:8085/engine-rest
+#   HAPI FHIR:         http://<IP>:8082/fhir/metadata
+#   PostgreSQL:        <IP>:5435 (maestro/maestro_dev)
+#   Kafka:             <IP>:9092
+# =============================================================================
+
+networks:
+  maezo_dev:
+    driver: bridge
+
+volumes:
+  pg_data_dev:
+  kafka_data_dev:
+
+services:
+
+  # -- PostgreSQL 16 ----------------------------------------------------------
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: maestro
+      POSTGRES_PASSWORD: maestro_dev
+      POSTGRES_DB: cibseven
+    volumes:
+      - pg_data_dev:/var/lib/postgresql/data
+      - ./config/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    ports:
+      - "5435:5432"
+    networks: [maezo_dev]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U maestro -d cibseven"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+
+  # -- Apache Kafka KRaft (sem ZooKeeper) ------------------------------------
+  kafka:
+    image: confluentinc/cp-kafka:7.7.0
+    environment:
+      KAFKA_NODE_ID: "1"
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092,CONTROLLER://0.0.0.0:9093
+      # PLAINTEXT://kafka:9092 para comunicacao interna entre containers
+      # PLAINTEXT_HOST://0.0.0.0:9094 para acesso externo (Windows)
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,CONTROLLER:PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: "1"
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: "1"
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: "1"
+      KAFKA_LOG_RETENTION_HOURS: "24"
+      CLUSTER_ID: maezo-dev-cluster-id-00000001
+    volumes:
+      - kafka_data_dev:/var/lib/kafka/data
+    ports:
+      - "9092:9092"
+    networks: [maezo_dev]
+    healthcheck:
+      test: ["CMD", "kafka-topics", "--bootstrap-server", "localhost:9092", "--list"]
+      interval: 30s
+      timeout: 10s
+      retries: 10
+      start_period: 30s
+
+  # -- CIB Seven BPM Engine --------------------------------------------------
+  cib7:
+    image: cibseven/cibseven:run-latest
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/cibseven
+      SPRING_DATASOURCE_USERNAME: maestro
+      SPRING_DATASOURCE_PASSWORD: maestro_dev
+      SPRING_DATASOURCE_DRIVER_CLASS_NAME: org.postgresql.Driver
+      CAMUNDA_BPM_ADMIN_USER_ID: admin
+      CAMUNDA_BPM_ADMIN_USER_PASSWORD: admin
+      CAMUNDA_BPM_MULTITENANCY_TENANTS_CHECKED: "false"
+    volumes:
+      - ./config/cib7/default.yml:/camunda/configuration/default.yml:ro
+    ports:
+      - "8085:8080"
+    networks: [maezo_dev]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/engine-rest/engine"]
+      interval: 30s
+      timeout: 10s
+      retries: 10
+      start_period: 90s
+
+  # -- HAPI FHIR R4 ----------------------------------------------------------
+  # Imagem distroless (sem curl/wget). Healthcheck feito externamente.
+  hapi_fhir:
+    image: hapiproject/hapi:v7.4.0
+    environment:
+      # Override Spring Boot props via env vars (mais simples que montar YAML)
+      spring.datasource.url: jdbc:postgresql://postgres:5432/hapi_fhir
+      spring.datasource.username: maestro
+      spring.datasource.password: maestro_dev
+      spring.datasource.driverClassName: org.postgresql.Driver
+      spring.jpa.properties.hibernate.dialect: ca.uhn.fhir.jpa.model.dialect.HapiFhirPostgresDialect
+      spring.jpa.properties.hibernate.search.enabled: "false"
+      hapi.fhir.fhir_version: R4
+      hapi.fhir.cors.allow_credentials: "true"
+      hapi.fhir.cors.allowed_origin: "*"
+      hapi.fhir.bulk_export_enabled: "false"
+    ports:
+      - "8082:8080"
+    networks: [maezo_dev]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    # distroless: sem ferramentas para healthcheck interno
+    healthcheck:
+      disable: true

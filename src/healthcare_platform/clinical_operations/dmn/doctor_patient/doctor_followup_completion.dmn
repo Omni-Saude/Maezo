@@ -1,0 +1,112 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  ============================================================================
+  DOCTOR-FOLLOWUP-COMPLETION - Conclusao de Acompanhamento Pos-Alta
+  ============================================================================
+  Versao: 1.0.0 (2026-02-16)
+  Categoria: DOCTOR-PATIENT
+  Perspectiva: MEDICO (Operacional)
+  ============================================================================
+-->
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/"
+             xmlns:dc="http://www.omg.org/spec/DMN/20180521/DC/"
+             xmlns:di="http://www.omg.org/spec/DMN/20180521/DI/"
+             xmlns:camunda="http://camunda.org/schema/1.0/dmn"
+             id="Definitions_DoctorFollowupCompletion"
+             name="Conclusao de Acompanhamento Pos-Alta"
+             namespace="http://camunda.org/schema/1.0/dmn">
+
+  <decision id="Decision_DoctorFollowupCompletion" name="[SP-CO-003 | doctor_patient] Decisao Followup Completion" camunda:historyTimeToLive="180">
+    <decisionTable id="DecisionTable_DoctorFollowupCompletion" hitPolicy="FIRST">
+
+      <input id="Input_daysSinceDischarge_DoctorFollowupCompletion" label="Dias Desde Alta">
+        <inputExpression id="InputExpr_daysSinceDischarge_DoctorFollowupCompletion" typeRef="number">
+          <text>daysSinceDischarge</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_followupType_DoctorFollowupCompletion" label="Tipo de Acompanhamento">
+        <inputExpression id="InputExpr_followupType_DoctorFollowupCompletion" typeRef="string">
+          <text>followupType</text>
+        </inputExpression>
+        <inputValues><text>"CIRURGIA","INTERNACAO","URGENCIA","ROTINA"</text></inputValues>
+      </input>
+
+      <input id="Input_riskLevel_DoctorFollowupCompletion" label="Nivel de Risco">
+        <inputExpression id="InputExpr_riskLevel_DoctorFollowupCompletion" typeRef="string">
+          <text>riskLevel</text>
+        </inputExpression>
+        <inputValues><text>"ALTO","MEDIO","BAIXO"</text></inputValues>
+      </input>
+
+      <output id="Output_resultado_DoctorFollowupCompletion" label="Resultado" name="resultado" typeRef="string">
+        <outputValues><text>"PROSSEGUIR","BLOQUEAR","REVISAR"</text></outputValues>
+      </output>
+      <output id="Output_acao_DoctorFollowupCompletion" label="Ação" name="acao" typeRef="string"/>
+      <output id="Output_risco_DoctorFollowupCompletion" label="Risco" name="risco" typeRef="string">
+        <outputValues><text>"BAIXO","MEDIO","ALTO"</text></outputValues>
+      </output>
+
+      <rule id="Rule_FollowComp_1_DoctorFollowupCompletion">
+        <description>Bloqueio: Cirurgia de alto risco sem followup</description>
+        <inputEntry id="InputEntry_FollowComp_1_1_DoctorFollowupCompletion"><text>&gt; 14</text></inputEntry>
+        <inputEntry id="InputEntry_FollowComp_1_2_DoctorFollowupCompletion"><text>"CIRURGIA"</text></inputEntry>
+        <inputEntry id="InputEntry_FollowComp_1_3_DoctorFollowupCompletion"><text>"ALTO"</text></inputEntry>
+        <outputEntry id="OutputEntry_FollowComp_1_resultado_DoctorFollowupCompletion"><text>"BLOQUEAR"</text></outputEntry>
+        <outputEntry id="OutputEntry_FollowComp_1_acao_DoctorFollowupCompletion"><text>"CRÍTICO: Cirurgia de alto risco sem followup há &gt;14 dias. Contatar paciente urgentemente."</text></outputEntry>
+        <outputEntry id="OutputEntry_FollowComp_1_risco_DoctorFollowupCompletion"><text>"ALTO"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_FollowComp_2_DoctorFollowupCompletion">
+        <description>Alerta: Followup atrasado</description>
+        <inputEntry id="InputEntry_FollowComp_2_1_DoctorFollowupCompletion"><text>&gt; 30</text></inputEntry>
+        <inputEntry id="InputEntry_FollowComp_2_2_DoctorFollowupCompletion"><text>"INTERNACAO","URGENCIA"</text></inputEntry>
+        <inputEntry id="InputEntry_FollowComp_2_3_DoctorFollowupCompletion"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_FollowComp_2_resultado_DoctorFollowupCompletion"><text>"REVISAR"</text></outputEntry>
+        <outputEntry id="OutputEntry_FollowComp_2_acao_DoctorFollowupCompletion"><text>"Followup atrasado. Tentar contato com paciente. Avaliar necessidade de visita."</text></outputEntry>
+        <outputEntry id="OutputEntry_FollowComp_2_risco_DoctorFollowupCompletion"><text>"MEDIO"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_FollowComp_3_DoctorFollowupCompletion">
+        <description>Alerta: Aproximando prazo ideal</description>
+        <inputEntry id="InputEntry_FollowComp_3_1_DoctorFollowupCompletion"><text>&gt; 7, &lt;= 14</text></inputEntry>
+        <inputEntry id="InputEntry_FollowComp_3_2_DoctorFollowupCompletion"><text>"CIRURGIA"</text></inputEntry>
+        <inputEntry id="InputEntry_FollowComp_3_3_DoctorFollowupCompletion"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_FollowComp_3_resultado_DoctorFollowupCompletion"><text>"REVISAR"</text></outputEntry>
+        <outputEntry id="OutputEntry_FollowComp_3_acao_DoctorFollowupCompletion"><text>"Agendar followup pós-cirúrgico. Prazo ideal em 7-14 dias."</text></outputEntry>
+        <outputEntry id="OutputEntry_FollowComp_3_risco_DoctorFollowupCompletion"><text>"BAIXO"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_FollowComp_4_DoctorFollowupCompletion">
+        <description>Aprovado: Followup no prazo</description>
+        <inputEntry id="InputEntry_FollowComp_4_1_DoctorFollowupCompletion"><text>&lt;= 7</text></inputEntry>
+        <inputEntry id="InputEntry_FollowComp_4_2_DoctorFollowupCompletion"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_FollowComp_4_3_DoctorFollowupCompletion"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_FollowComp_4_resultado_DoctorFollowupCompletion"><text>"PROSSEGUIR"</text></outputEntry>
+        <outputEntry id="OutputEntry_FollowComp_4_acao_DoctorFollowupCompletion"><text>"Followup realizado no prazo. Documentar evolução."</text></outputEntry>
+        <outputEntry id="OutputEntry_FollowComp_4_risco_DoctorFollowupCompletion"><text>"BAIXO"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_FollowComp_Fallback_DoctorFollowupCompletion">
+        <description>Regra padrão</description>
+        <inputEntry id="InputEntry_FollowComp_F_1_DoctorFollowupCompletion"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_FollowComp_F_2_DoctorFollowupCompletion"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_FollowComp_F_3_DoctorFollowupCompletion"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_FollowComp_F_resultado_DoctorFollowupCompletion"><text>"REVISAR"</text></outputEntry>
+        <outputEntry id="OutputEntry_FollowComp_F_acao_DoctorFollowupCompletion"><text>"Avaliar necessidade de followup manualmente."</text></outputEntry>
+        <outputEntry id="OutputEntry_FollowComp_F_risco_DoctorFollowupCompletion"><text>"BAIXO"</text></outputEntry>
+      </rule>
+
+    </decisionTable>
+  </decision>
+
+  <dmndi:DMNDI>
+    <dmndi:DMNDiagram id="DMNDiagram_DoctorFollowupCompletion">
+      <dmndi:DMNShape id="DMNShape_Decision_DoctorFollowupCompletion" dmnElementRef="Decision_DoctorFollowupCompletion">
+        <dc:Bounds height="80" width="180" x="160" y="100" />
+      </dmndi:DMNShape>
+    </dmndi:DMNDiagram>
+  </dmndi:DMNDI>
+
+</definitions>

@@ -15,10 +15,6 @@ def fhir_base_url():
     return os.getenv("FHIR_BASE_URL", "http://localhost:8081/fhir")
 
 
-@pytest.fixture
-def keycloak_url():
-    return os.getenv("KEYCLOAK_URL", "http://localhost:8082")
-
 
 @pytest.fixture
 def kafka_bootstrap_servers():

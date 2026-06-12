@@ -1,0 +1,48 @@
+"""Tests for GenerateOptimizationReportStub."""
+from __future__ import annotations
+import pytest
+from unittest.mock import AsyncMock
+from healthcare_platform.shared.domain.enums import TenantCode
+from healthcare_platform.shared.domain.exceptions import DomainException
+from healthcare_platform.shared.multi_tenant.context import TenantContext, set_current_tenant, clear_tenant
+
+@pytest.fixture
+def tenant_hospital_a():
+    ctx = TenantContext.from_tenant_code(TenantCode.HOSPITAL_A)
+    set_current_tenant(ctx)
+    yield ctx
+    clear_tenant()
+
+@pytest.fixture
+def fhir_client():
+    return AsyncMock()
+
+@pytest.fixture
+def worker(fhir_client):
+    from healthcare_platform.platform_services.workers.generate_optimization_report import GenerateOptimizationReportStub
+    return GenerateOptimizationReportStub(fhir_client=fhir_client)
+
+@pytest.mark.asyncio
+async def test_happy_path_generates_optimization_report(worker, tenant_hospital_a):
+    """Should successfully generate optimization report."""
+    job = {
+        "report_period": "2024-Q1",
+        "include_sections": ["opportunities", "leakage", "forecast"]
+    }
+    result = await worker.process(job)
+    assert result["status"] == "generated"
+    assert "report_url" in result
+
+@pytest.mark.asyncio
+async def test_missing_required_field_raises(worker, tenant_hospital_a):
+    """Should raise DomainException when report_period is missing."""
+    job = {"include_sections": ["opportunities"]}
+    with pytest.raises(DomainException, match="report_period"):
+        await worker.process(job)
+
+@pytest.mark.asyncio
+async def test_no_tenant_raises(worker):
+    """Should raise DomainException when tenant context is missing."""
+    job = {"report_period": "2024-Q1", "include_sections": ["opportunities"]}
+    with pytest.raises(DomainException, match="tenant"):
+        await worker.process(job)

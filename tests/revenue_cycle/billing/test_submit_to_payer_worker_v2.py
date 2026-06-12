@@ -4,7 +4,7 @@ from __future__ import annotations
 import pytest
 from unittest.mock import MagicMock, AsyncMock
 from healthcare_platform.shared.workers.base import TaskContext, TaskResult, TaskStatus
-from healthcare_platform.revenue_cycle.billing.workers.submit_to_payer_worker_v2 import SubmitToPayerWorker
+from healthcare_platform.revenue_cycle.billing.workers.submit_to_payer_worker import SubmitToPayerWorker
 
 from tests.fixtures.workers import *
 
@@ -37,8 +37,8 @@ class TestSubmitToPayerWorkerV2:
             metrics=mock_metrics
         )
         result = await worker.execute(self._make_context({
-            "claim_id": "CLM123", "tiss_xml": "<xml>test</xml>",
-            "payer_id": "PAYER001"
+            "claim_id": "CLM123", "tissXml": "<xml>test</xml>",
+            "payer": "PAYER001"
         }))
         assert result.status == TaskStatus.SUCCESS
         assert result.variables.get("submission_success") is True
@@ -62,8 +62,8 @@ class TestSubmitToPayerWorkerV2:
             metrics=mock_metrics
         )
         result = await worker.execute(self._make_context({
-            "claim_id": "CLM123", "tiss_xml": "<xml>test</xml>",
-            "payer_id": "PAYER001"
+            "claim_id": "CLM123", "tissXml": "<xml>test</xml>",
+            "payer": "PAYER001"
         }))
         assert result.status == TaskStatus.BPMN_ERROR
         assert result.error_code == "ERR_SUBMISSION_FAILED"
@@ -75,8 +75,8 @@ class TestSubmitToPayerWorkerV2:
         }
         worker = SubmitToPayerWorker(dmn_service=mock_dmn_service, metrics=mock_metrics)
         result = await worker.execute(self._make_context({
-            "claim_id": "CLM123", "tiss_xml": "<xml>test</xml>",
-            "payer_id": "PAYER001"
+            "claim_id": "CLM123", "tissXml": "<xml>test</xml>",
+            "payer": "PAYER001"
         }))
         assert result.status == TaskStatus.BPMN_ERROR
         assert result.error_code == "ERR_SUBMISSION_BLOCKED"
@@ -88,8 +88,8 @@ class TestSubmitToPayerWorkerV2:
         }
         worker = SubmitToPayerWorker(dmn_service=mock_dmn_service, metrics=mock_metrics)
         result = await worker.execute(self._make_context({
-            "claim_id": "CLM123", "tiss_xml": "<xml>test</xml>",
-            "payer_id": "PAYER001"
+            "claim_id": "CLM123", "tissXml": "<xml>test</xml>",
+            "payer": "PAYER001"
         }))
         assert result.status == TaskStatus.SUCCESS
         assert result.variables.get("requiresReview") is True
@@ -99,8 +99,8 @@ class TestSubmitToPayerWorkerV2:
         mock_dmn_service.evaluate.side_effect = RuntimeError("DMN failed")
         worker = SubmitToPayerWorker(dmn_service=mock_dmn_service, metrics=mock_metrics)
         result = await worker.execute(self._make_context({
-            "claim_id": "CLM123", "tiss_xml": "<xml>test</xml>",
-            "payer_id": "PAYER001"
+            "claim_id": "CLM123", "tissXml": "<xml>test</xml>",
+            "payer": "PAYER001"
         }))
         assert result.status == TaskStatus.BPMN_ERROR
         assert result.error_code == "ERR_SUBMISSION_FAILURE"
@@ -116,7 +116,7 @@ class TestSubmitToPayerWorkerV2:
         }
         worker = SubmitToPayerWorker(dmn_service=mock_dmn_service, metrics=mock_metrics)
         result = await worker.execute(self._make_context({
-            "claim_id": "CLM123", "tiss_xml": "<xml>test</xml>",
-            "payer_id": "PAYER001"
+            "claim_id": "CLM123", "tissXml": "<xml>test</xml>",
+            "payer": "PAYER001"
         }))
         assert result.status == TaskStatus.SUCCESS

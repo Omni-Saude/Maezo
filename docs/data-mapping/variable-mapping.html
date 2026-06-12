@@ -1,0 +1,1326 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MAEZO Healthcare Platform - Mapeamento de Variaveis</title>
+<style>
+  :root {
+    --bg: #0f172a; --surface: #1e293b; --surface2: #334155;
+    --text: #e2e8f0; --text-muted: #94a3b8; --accent: #38bdf8;
+    --green: #4ade80; --yellow: #facc15; --red: #f87171; --purple: #a78bfa;
+    --orange: #fb923c; --pink: #f472b6; --cyan: #22d3ee;
+    --rc: #38bdf8; --co: #4ade80; --pa: #a78bfa; --ps: #fb923c;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; background: var(--bg); color: var(--text); line-height: 1.6; }
+
+  .header { background: linear-gradient(135deg, #1e3a5f, #0f172a); padding: 2rem; border-bottom: 2px solid var(--accent); }
+  .header h1 { font-size: 1.8rem; color: var(--accent); }
+  .header p { color: var(--text-muted); margin-top: .5rem; }
+  .header .stats { display: flex; gap: 2rem; margin-top: 1rem; flex-wrap: wrap; }
+  .stat-card { background: var(--surface); padding: 1rem 1.5rem; border-radius: 8px; border-left: 3px solid var(--accent); }
+  .stat-card .num { font-size: 1.8rem; font-weight: 700; color: var(--accent); }
+  .stat-card .label { font-size: .75rem; color: var(--text-muted); text-transform: uppercase; }
+
+  .nav { background: var(--surface); padding: 1rem 2rem; display: flex; gap: .5rem; flex-wrap: wrap; position: sticky; top: 0; z-index: 100; border-bottom: 1px solid var(--surface2); }
+  .nav a { color: var(--text-muted); text-decoration: none; padding: .4rem .8rem; border-radius: 4px; font-size: .85rem; transition: all .2s; }
+  .nav a:hover, .nav a.active { background: var(--surface2); color: var(--accent); }
+
+  .container { max-width: 1400px; margin: 0 auto; padding: 2rem; }
+
+  .section { margin-bottom: 3rem; }
+  .section-title { font-size: 1.4rem; color: var(--accent); border-bottom: 2px solid var(--surface2); padding-bottom: .5rem; margin-bottom: 1.5rem; }
+
+  .domain-badge { display: inline-block; padding: 2px 10px; border-radius: 12px; font-size: .7rem; font-weight: 600; text-transform: uppercase; }
+  .badge-rc { background: rgba(56,189,248,.15); color: var(--rc); border: 1px solid rgba(56,189,248,.3); }
+  .badge-co { background: rgba(74,222,128,.15); color: var(--co); border: 1px solid rgba(74,222,128,.3); }
+  .badge-pa { background: rgba(167,139,250,.15); color: var(--pa); border: 1px solid rgba(167,139,250,.3); }
+  .badge-ps { background: rgba(251,146,60,.15); color: var(--ps); border: 1px solid rgba(251,146,60,.3); }
+
+  .flow-card { background: var(--surface); border-radius: 8px; margin-bottom: 1.5rem; overflow: hidden; border: 1px solid var(--surface2); }
+  .flow-header { padding: 1rem 1.5rem; cursor: pointer; display: flex; justify-content: space-between; align-items: center; transition: background .2s; }
+  .flow-header:hover { background: var(--surface2); }
+  .flow-header h3 { font-size: 1rem; display: flex; align-items: center; gap: .5rem; }
+  .flow-header .toggle { color: var(--text-muted); transition: transform .3s; font-size: 1.2rem; }
+  .flow-header .toggle.open { transform: rotate(90deg); }
+  .flow-body { display: none; padding: 0 1.5rem 1.5rem; }
+  .flow-body.open { display: block; }
+
+  .var-table { width: 100%; border-collapse: collapse; margin-top: .5rem; font-size: .85rem; }
+  .var-table th { background: var(--surface2); padding: .6rem .8rem; text-align: left; color: var(--text-muted); font-weight: 600; text-transform: uppercase; font-size: .7rem; letter-spacing: .5px; }
+  .var-table td { padding: .5rem .8rem; border-bottom: 1px solid rgba(255,255,255,.05); }
+  .var-table tr:hover td { background: rgba(255,255,255,.02); }
+
+  .tag { display: inline-block; padding: 1px 6px; border-radius: 3px; font-size: .7rem; font-weight: 600; margin-right: 2px; }
+  .tag-input { background: rgba(74,222,128,.15); color: var(--green); }
+  .tag-output { background: rgba(56,189,248,.15); color: var(--accent); }
+  .tag-intermediate { background: rgba(250,204,21,.15); color: var(--yellow); }
+  .tag-dmn { background: rgba(167,139,250,.15); color: var(--purple); }
+  .tag-gateway { background: rgba(248,113,113,.15); color: var(--red); }
+  .tag-message { background: rgba(244,114,182,.15); color: var(--pink); }
+  .tag-timer { background: rgba(34,211,238,.15); color: var(--cyan); }
+  .tag-topic { background: rgba(251,146,60,.15); color: var(--orange); }
+  .tag-bool { background: rgba(74,222,128,.1); color: var(--green); }
+  .tag-string { background: rgba(56,189,248,.1); color: var(--accent); }
+  .tag-number { background: rgba(250,204,21,.1); color: var(--yellow); }
+
+  .subsection { margin-top: 1rem; }
+  .subsection h4 { color: var(--text-muted); font-size: .8rem; text-transform: uppercase; letter-spacing: .5px; margin-bottom: .5rem; padding-bottom: .3rem; border-bottom: 1px solid var(--surface2); }
+
+  .filter-bar { display: flex; gap: 1rem; margin-bottom: 1.5rem; flex-wrap: wrap; align-items: center; }
+  .filter-bar input { background: var(--surface); border: 1px solid var(--surface2); color: var(--text); padding: .5rem 1rem; border-radius: 6px; font-size: .9rem; flex: 1; min-width: 200px; }
+  .filter-bar input::placeholder { color: var(--text-muted); }
+  .filter-bar input:focus { outline: none; border-color: var(--accent); }
+  .filter-btn { background: var(--surface); border: 1px solid var(--surface2); color: var(--text-muted); padding: .5rem 1rem; border-radius: 6px; cursor: pointer; font-size: .8rem; transition: all .2s; }
+  .filter-btn:hover, .filter-btn.active { background: var(--accent); color: var(--bg); border-color: var(--accent); }
+
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+  .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1rem; }
+  @media (max-width: 768px) { .grid-2, .grid-3 { grid-template-columns: 1fr; } }
+
+  .mini-card { background: var(--surface); border: 1px solid var(--surface2); border-radius: 6px; padding: .8rem 1rem; }
+  .mini-card h5 { font-size: .85rem; color: var(--accent); margin-bottom: .3rem; }
+  .mini-card p { font-size: .75rem; color: var(--text-muted); }
+  .mini-card code { font-size: .7rem; background: var(--bg); padding: 1px 4px; border-radius: 3px; color: var(--yellow); }
+
+  .cross-ref { font-size: .75rem; color: var(--text-muted); }
+  .cross-ref a { color: var(--accent); text-decoration: none; }
+  .cross-ref a:hover { text-decoration: underline; }
+
+  .legend { display: flex; gap: 1rem; flex-wrap: wrap; margin-bottom: 1.5rem; }
+  .legend-item { display: flex; align-items: center; gap: .3rem; font-size: .75rem; color: var(--text-muted); }
+
+  .expand-all { background: none; border: 1px solid var(--surface2); color: var(--text-muted); padding: .4rem .8rem; border-radius: 4px; cursor: pointer; font-size: .75rem; }
+  .expand-all:hover { border-color: var(--accent); color: var(--accent); }
+
+  .toc { columns: 2; column-gap: 2rem; }
+  .toc-item { break-inside: avoid; margin-bottom: .3rem; }
+  .toc-item a { color: var(--text-muted); text-decoration: none; font-size: .85rem; }
+  .toc-item a:hover { color: var(--accent); }
+
+  table.summary-table { width: 100%; border-collapse: collapse; font-size: .8rem; }
+  table.summary-table th { background: var(--surface2); color: var(--text-muted); padding: .5rem; text-align: left; }
+  table.summary-table td { padding: .5rem; border-bottom: 1px solid rgba(255,255,255,.05); }
+  table.summary-table tr:hover { background: rgba(255,255,255,.02); }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>MAEZO Healthcare Platform - Mapeamento de Dados</h1>
+  <p>Mapeamento completo de variaveis de entrada/saida de todos os fluxos BPMN, Workers e DMNs</p>
+  <p style="font-size:.75rem;color:var(--text-muted)">Gerado em: 2026-02-24 | 4 Dominios | ~210 Workers | ~1200 DMNs | 35 Fluxos BPMN</p>
+  <div class="stats">
+    <div class="stat-card"><div class="num">35</div><div class="label">Fluxos BPMN (SP-*)</div></div>
+    <div class="stat-card"><div class="num">~210</div><div class="label">Workers Python</div></div>
+    <div class="stat-card"><div class="num">~1200</div><div class="label">Tabelas DMN</div></div>
+    <div class="stat-card"><div class="num">98</div><div class="label">Topics Unicos</div></div>
+    <div class="stat-card"><div class="num">~210</div><div class="label">Variaveis Unicas</div></div>
+    <div class="stat-card"><div class="num">19</div><div class="label">Mensagens</div></div>
+    <div class="stat-card"><div class="num">37</div><div class="label">Timers</div></div>
+  </div>
+</div>
+
+<div class="nav" id="mainNav">
+  <a href="#overview" class="active">Visao Geral</a>
+  <a href="#global-vars">Variaveis Globais</a>
+  <a href="#rc-domain">Revenue Cycle</a>
+  <a href="#co-domain">Clinical Operations</a>
+  <a href="#pa-domain">Patient Access</a>
+  <a href="#ps-domain">Platform Services</a>
+  <a href="#workers">Workers</a>
+  <a href="#dmn">DMN Decisions</a>
+  <a href="#messages">Mensagens/Sinais</a>
+  <a href="#timers">Timers/SLAs</a>
+  <a href="#crossref">Cross-Reference</a>
+  <a href="#master-table">Tabela Mestre</a>
+</div>
+
+<div class="container">
+
+<!-- OVERVIEW -->
+<div class="section" id="overview">
+  <h2 class="section-title">Visao Geral da Plataforma</h2>
+
+  <div class="legend">
+    <div class="legend-item"><span class="tag tag-input">IN</span> Variavel de Entrada</div>
+    <div class="legend-item"><span class="tag tag-output">OUT</span> Variavel de Saida</div>
+    <div class="legend-item"><span class="tag tag-intermediate">MID</span> Intermediaria</div>
+    <div class="legend-item"><span class="tag tag-dmn">DMN</span> Decisao</div>
+    <div class="legend-item"><span class="tag tag-gateway">GW</span> Gateway</div>
+    <div class="legend-item"><span class="tag tag-message">MSG</span> Mensagem</div>
+    <div class="legend-item"><span class="tag tag-timer">TMR</span> Timer</div>
+    <div class="legend-item"><span class="tag tag-topic">TOPIC</span> Service Task</div>
+  </div>
+
+  <div class="grid-2">
+    <div class="mini-card">
+      <h5><span class="domain-badge badge-rc">RC</span> Revenue Cycle</h5>
+      <p>15 subprocessos (SP-RC-000 a SP-RC-014) | 5 subdominios: billing, coding, collection, glosa, production</p>
+      <p><strong>~92 workers</strong> | ~154 variaveis unicas | 26 topics</p>
+    </div>
+    <div class="mini-card">
+      <h5><span class="domain-badge badge-co">CO</span> Clinical Operations</h5>
+      <p>9 subprocessos (SP-CA-001/002, SP-CO-001 a SP-CO-012) | 4 subdominios</p>
+      <p><strong>~57 workers</strong> | ~28 variaveis de fluxo | 13 topics clinicos + 12 cirurgicos</p>
+    </div>
+    <div class="mini-card">
+      <h5><span class="domain-badge badge-pa">PA</span> Patient Access</h5>
+      <p>10 subprocessos (SP-PA, SP-PX, SP-DI) | 3 subdominios</p>
+      <p><strong>~30 workers</strong> | ~22 variaveis de fluxo | 14 topics</p>
+    </div>
+    <div class="mini-card">
+      <h5><span class="domain-badge badge-ps">PS</span> Platform Services</h5>
+      <p>4 subprocessos (SP-PS-001 a SP-PS-004) | 3 subdominios</p>
+      <p><strong>~29 workers</strong> | ~6 variaveis de fluxo | 29 topics</p>
+    </div>
+  </div>
+</div>
+
+<!-- GLOBAL VARIABLES -->
+<div class="section" id="global-vars">
+  <h2 class="section-title">Variaveis Globais (Cross-Process via SP-RC-000)</h2>
+  <p style="font-size:.85rem;color:var(--text-muted);margin-bottom:1rem;">Variaveis compartilhadas entre subprocessos via Call Activities no orquestrador principal.</p>
+
+  <table class="var-table">
+    <thead><tr><th>Variavel</th><th>Tipo</th><th>Direcao</th><th>Escopo</th><th>Descricao</th></tr></thead>
+    <tbody>
+      <tr><td><code>tenantId</code></td><td><span class="tag tag-string">string</span></td><td><span class="tag tag-input">IN</span></td><td>Todos subprocessos</td><td>Identificador multi-tenant</td></tr>
+      <tr><td><code>encounterFhirId</code></td><td><span class="tag tag-string">string</span></td><td><span class="tag tag-input">IN</span></td><td>Todos subprocessos</td><td>ID do recurso FHIR Encounter</td></tr>
+      <tr><td><code>patientFhirId</code></td><td><span class="tag tag-string">string</span></td><td><span class="tag tag-input">IN</span></td><td>Todos subprocessos</td><td>ID do recurso FHIR Patient</td></tr>
+      <tr><td><code>payerId</code></td><td><span class="tag tag-string">string</span></td><td><span class="tag tag-input">IN</span></td><td>RC-001,002,006,007,008</td><td>Identificador da operadora/convenio</td></tr>
+      <tr><td><code>coverageFhirId</code></td><td><span class="tag tag-string">string</span></td><td><span class="tag tag-output">OUT</span> / <span class="tag tag-input">IN</span></td><td>RC-001 &rarr; RC-002</td><td>ID do recurso FHIR Coverage</td></tr>
+      <tr><td><code>billingItems</code></td><td><span class="tag tag-string">list</span></td><td><span class="tag tag-output">OUT</span> / <span class="tag tag-input">IN</span></td><td>RC-004 &rarr; RC-005/006</td><td>Lista de itens de faturamento</td></tr>
+      <tr><td><code>claimFhirId</code></td><td><span class="tag tag-string">string</span></td><td><span class="tag tag-output">OUT</span> / <span class="tag tag-input">IN</span></td><td>RC-006 &rarr; RC-007/008</td><td>ID do recurso FHIR Claim</td></tr>
+      <tr><td><code>revenueAmount</code></td><td><span class="tag tag-number">number</span></td><td><span class="tag tag-output">OUT</span> / <span class="tag tag-input">IN</span></td><td>RC-008 &rarr; RC-009/010</td><td>Valor final de receita</td></tr>
+      <tr><td><code>billingStatus</code></td><td><span class="tag tag-string">string</span></td><td><span class="tag tag-output">OUT</span></td><td>RC-006</td><td>Status: APPROVED / REJECTED</td></tr>
+      <tr><td><code>resubmitClaim</code></td><td><span class="tag tag-bool">boolean</span></td><td><span class="tag tag-output">OUT</span></td><td>RC-007</td><td>Reenviar claim? true/false</td></tr>
+      <tr><td><code>drgCode</code></td><td><span class="tag tag-string">string</span></td><td><span class="tag tag-output">OUT</span> / <span class="tag tag-input">IN</span></td><td>RC-005 &rarr; RC-006</td><td>Codigo DRG</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- ==================== REVENUE CYCLE DOMAIN ==================== -->
+<div class="section" id="rc-domain">
+  <h2 class="section-title"><span class="domain-badge badge-rc">RC</span> Revenue Cycle - Fluxos BPMN</h2>
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;">
+    <div class="filter-bar" style="margin-bottom:0">
+      <input type="text" id="rcSearch" placeholder="Buscar variavel, topic ou processo..." onkeyup="filterFlows('rc')">
+    </div>
+    <button class="expand-all" onclick="toggleAllFlows('rc')">Expandir/Recolher Todos</button>
+  </div>
+
+  <!-- SP-RC-000 -->
+  <div class="flow-card" data-domain="rc" id="sp-rc-000">
+    <div class="flow-header" onclick="toggleFlow(this)">
+      <h3><span class="toggle">&#9654;</span> SP-RC-000: Revenue Cycle Orchestrator (Main)</h3>
+      <span class="domain-badge badge-rc">Orquestrador</span>
+    </div>
+    <div class="flow-body">
+      <p style="font-size:.8rem;color:var(--text-muted);margin-bottom:1rem;">Process ID: <code>SP_RC_000</code> | Orquestra todos os subprocessos RC-001 a RC-010 via Call Activities</p>
+
+      <div class="subsection"><h4>Call Activities - Variaveis In/Out</h4>
+      <table class="var-table">
+        <thead><tr><th>Call Activity</th><th>Variaveis IN</th><th>Variaveis OUT</th></tr></thead>
+        <tbody>
+          <tr><td>RC-001 Scheduling</td><td><code>tenantId, encounterFhirId, patientFhirId, payerId</code></td><td><code>registrationStatus, coverageFhirId</code></td></tr>
+          <tr><td>RC-002 Pre-Service</td><td><code>tenantId, encounterFhirId, patientFhirId, payerId, coverageFhirId</code></td><td><code>authorizationStatus, eligibilityVerified</code></td></tr>
+          <tr><td>RC-003 Clinical Service</td><td><code>tenantId, encounterFhirId, patientFhirId</code></td><td><code>clinicalServiceStatus</code></td></tr>
+          <tr><td>RC-004 Production</td><td><code>tenantId, encounterFhirId, patientFhirId</code></td><td><code>billingItems, accountClosed</code></td></tr>
+          <tr><td>RC-005 Coding/Audit</td><td><code>tenantId, encounterFhirId, patientFhirId, billingItems</code></td><td><code>codingStatus, auditStatus, drgCode</code></td></tr>
+          <tr><td>RC-006 Billing</td><td><code>tenantId, encounterFhirId, patientFhirId, payerId, billingItems, drgCode</code></td><td><code>claimFhirId, billingStatus</code></td></tr>
+          <tr><td>RC-007 Denial</td><td><code>tenantId, encounterFhirId, claimFhirId, payerId</code></td><td><code>denialCode, contestationStatus, resubmitClaim</code></td></tr>
+          <tr><td>RC-008 Collection</td><td><code>tenantId, encounterFhirId, claimFhirId, payerId</code></td><td><code>paymentReconciled, revenueAmount</code></td></tr>
+          <tr><td>RC-009 Analytics</td><td><code>tenantId, encounterFhirId, revenueAmount</code></td><td><code>analyticsCompleted</code></td></tr>
+          <tr><td>RC-010 Maximization</td><td><code>tenantId, encounterFhirId, revenueAmount</code></td><td><code>maximizationCompleted</code></td></tr>
+        </tbody>
+      </table></div>
+
+      <div class="subsection"><h4>Gateway Conditions</h4>
+      <table class="var-table">
+        <thead><tr><th>Condicao</th><th>Variavel</th><th>Destino</th></tr></thead>
+        <tbody>
+          <tr><td><code>${billingStatus == 'REJECTED'}</code></td><td><span class="tag tag-gateway">GW</span> billingStatus</td><td>Denial Management (RC-007)</td></tr>
+          <tr><td><code>${resubmitClaim == true}</code></td><td><span class="tag tag-gateway">GW</span> resubmitClaim</td><td>Billing Resubmission (RC-006)</td></tr>
+          <tr><td><code>${paymentVariance == true}</code></td><td><span class="tag tag-gateway">GW</span> paymentVariance</td><td>Glosa Detection</td></tr>
+        </tbody>
+      </table></div>
+
+      <div class="subsection"><h4>Mensagens</h4>
+      <table class="var-table">
+        <thead><tr><th>Mensagem</th><th>Tipo</th><th>Uso</th></tr></thead>
+        <tbody>
+          <tr><td><code>msg_encounter_created</code></td><td><span class="tag tag-message">START</span></td><td>Inicia o ciclo de receita</td></tr>
+          <tr><td><code>msg_clinical_documentation_ready</code></td><td><span class="tag tag-message">CATCH</span></td><td>Documentacao clinica pronta</td></tr>
+          <tr><td><code>msg_discharge_completed</code></td><td><span class="tag tag-message">CATCH</span></td><td>Alta hospitalar completada</td></tr>
+          <tr><td><code>msg_procedures_completed</code></td><td><span class="tag tag-message">BOUNDARY</span></td><td>Procedimentos finalizados</td></tr>
+          <tr><td><code>msg_authorization_denied</code></td><td><span class="tag tag-message">THROW</span></td><td>Autorizacao negada</td></tr>
+          <tr><td><code>msg_glosa_detected</code></td><td><span class="tag tag-message">THROW</span></td><td>Glosa detectada</td></tr>
+          <tr><td><code>msg_payment_reconciled</code></td><td><span class="tag tag-message">THROW</span></td><td>Pagamento reconciliado</td></tr>
+        </tbody>
+      </table></div>
+
+      <div class="subsection"><h4>Timers / SLAs</h4>
+      <table class="var-table">
+        <thead><tr><th>Timer</th><th>Contexto</th><th>Tipo</th></tr></thead>
+        <tbody>
+          <tr><td><span class="tag tag-timer">PT48H</span></td><td>Authorization SLA (RC-002)</td><td>Interrupting boundary</td></tr>
+          <tr><td><span class="tag tag-timer">PT24H</span></td><td>Account Closure SLA (RC-004)</td><td>Non-interrupting boundary</td></tr>
+          <tr><td><span class="tag tag-timer">PT24H</span></td><td>TISS Generation SLA (RC-006)</td><td>Non-interrupting boundary</td></tr>
+          <tr><td><span class="tag tag-timer">P5D</span></td><td>Contestation SLA (RC-007)</td><td>Interrupting boundary</td></tr>
+        </tbody>
+      </table></div>
+    </div>
+  </div>
+
+  <!-- SP-RC-001 -->
+  <div class="flow-card" data-domain="rc" id="sp-rc-001">
+    <div class="flow-header" onclick="toggleFlow(this)">
+      <h3><span class="toggle">&#9654;</span> SP-RC-001: Agendamento e Registro</h3>
+      <span style="font-size:.75rem;color:var(--text-muted)">3 service tasks | 4 IN | 3 OUT</span>
+    </div>
+    <div class="flow-body">
+      <p style="font-size:.8rem;color:var(--text-muted);margin-bottom:1rem;">Process ID: <code>SP_RC_001_Scheduling_Registration</code></p>
+      <table class="var-table">
+        <thead><tr><th>Service Task</th><th>Topic</th><th>Variaveis IN</th><th>Variaveis OUT</th></tr></thead>
+        <tbody>
+          <tr><td>Verificar Seguro</td><td><span class="tag tag-topic">revenue_cycle.verify_insurance</span></td><td><code>patientId, insuranceCardNumber</code></td><td><code>insuranceVerified (coverageStatus)</code></td></tr>
+          <tr><td>Verificar Elegibilidade</td><td><span class="tag tag-topic">revenue_cycle.check_eligibility</span></td><td><code>procedureCode, insuranceVerified</code></td><td><code>eligibilityStatus (isEligible)</code></td></tr>
+          <tr><td>Agendar Consulta</td><td><span class="tag tag-topic">revenue_cycle.schedule_appointment</span></td><td><code>patientId, procedureCode, preferredDate</code></td><td><code>appointmentId</code></td></tr>
+        </tbody>
+      </table>
+      <div class="subsection"><h4>Gateway</h4>
+        <code>${eligibilityStatus == true}</code> &rarr; Agendar | <code>${eligibilityStatus == false}</code> &rarr; Revisao Manual
+      </div>
+      <div class="subsection"><h4>Timer</h4> <span class="tag tag-timer">PT4H</span> Insurance verification SLA</div>
+    </div>
+  </div>
+
+  <!-- SP-RC-002 -->
+  <div class="flow-card" data-domain="rc" id="sp-rc-002">
+    <div class="flow-header" onclick="toggleFlow(this)">
+      <h3><span class="toggle">&#9654;</span> SP-RC-002: Pre-Atendimento e Autorizacao</h3>
+      <span style="font-size:.75rem;color:var(--text-muted)">3 service tasks | 1 DMN | 5 IN</span>
+    </div>
+    <div class="flow-body">
+      <p style="font-size:.8rem;color:var(--text-muted);margin-bottom:1rem;">Process ID: <code>SP_RC_002_Pre_Service</code> | DMN: <code>authorization_criteria</code></p>
+      <table class="var-table">
+        <thead><tr><th>Service Task</th><th>Topic</th><th>Variaveis IN</th><th>Variaveis OUT</th></tr></thead>
+        <tbody>
+          <tr><td>Verificar Autorizacao</td><td><span class="tag tag-topic">revenue_cycle.check_authorization</span></td><td><code>procedureCode, payerId</code></td><td><code>authorizationRequired (requiresAuth), authorizationType (authType)</code></td></tr>
+          <tr><td>Solicitar Autorizacao</td><td><span class="tag tag-topic">revenue_cycle.request_authorization</span></td><td><code>patientId, procedureCode, payerId, clinicalJustification</code></td><td><code>authorizationNumber, authorizationStatus (authStatus)</code></td></tr>
+          <tr><td>Validar Procedimento</td><td><span class="tag tag-topic">revenue_cycle.validate_procedure</span></td><td><code>procedureCode, clinicalData, authorizationNumber</code></td><td><code>procedureValidated (validationStatus)</code></td></tr>
+        </tbody>
+      </table>
+      <div class="subsection"><h4>Gateways</h4>
+        <code>authorizationRequired == true</code> &rarr; Solicitar |
+        <code>authorizationStatus == "APPROVED"</code> &rarr; Validar |
+        <code>"DENIED"</code> &rarr; Fim negado |
+        <code>"PENDING"</code> &rarr; Revisao manual
+      </div>
+    </div>
+  </div>
+
+  <!-- SP-RC-003 -->
+  <div class="flow-card" data-domain="rc" id="sp-rc-003">
+    <div class="flow-header" onclick="toggleFlow(this)">
+      <h3><span class="toggle">&#9654;</span> SP-RC-003: Atendimento Clinico e Documentacao</h3>
+      <span style="font-size:.75rem;color:var(--text-muted)">4 service tasks | 1 DMN</span>
+    </div>
+    <div class="flow-body">
+      <p style="font-size:.8rem;color:var(--text-muted);margin-bottom:1rem;">Process ID: <code>SP_RC_003_Clinical_Service</code> | DMN: <code>clinical_documentation_completeness</code></p>
+      <table class="var-table">
+        <thead><tr><th>Service Task</th><th>Topic</th><th>Variaveis IN</th><th>Variaveis OUT</th></tr></thead>
+        <tbody>
+          <tr><td>Capturar Procedimento</td><td><span class="tag tag-topic">revenue_cycle.capture_procedure</span></td><td><code>encounterId, patientId, procedureCodes</code></td><td><code>capturedData, captureTimestamp</code></td></tr>
+          <tr><td>Enriquecer Procedimento</td><td><span class="tag tag-topic">revenue_cycle.enrich_procedure</span></td><td><code>clinicalData, encounterId</code></td><td><code>enrichedData, diagnosisCodes, tussCodes</code></td></tr>
+          <tr><td>Calcular Quantidade</td><td><span class="tag tag-topic">revenue_cycle.calculate_quantity</span></td><td><code>completeData, tussCodes</code></td><td><code>quantities, units</code></td></tr>
+          <tr><td>Validar Dados Clinicos</td><td><span class="tag tag-topic">revenue_cycle.validate_clinical_data</span></td><td><code>completeData, icdCodes, tussCodes</code></td><td><code>validationResult, validationErrors</code></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- SP-RC-004 -->
+  <div class="flow-card" data-domain="rc" id="sp-rc-004">
+    <div class="flow-header" onclick="toggleFlow(this)">
+      <h3><span class="toggle">&#9654;</span> SP-RC-004: Producao Clinica</h3>
+      <span style="font-size:.75rem;color:var(--text-muted)">4 service tasks | 3 DMNs</span>
+    </div>
+    <div class="flow-body">
+      <p style="font-size:.8rem;color:var(--text-muted);margin-bottom:1rem;">Process ID: <code>SP_RC_004_Clinical_Production</code> | DMNs: <code>pricing_contract_rules, pricing_package_rules, pricing_outlier_detection</code></p>
+      <table class="var-table">
+        <thead><tr><th>Service Task</th><th>Topic</th><th>Variaveis IN</th><th>Variaveis OUT</th></tr></thead>
+        <tbody>
+          <tr><td>Atribuir Precos</td><td><span class="tag tag-topic">rc.production.assign_prices</span></td><td><code>procedureCodes, payerId, contractId</code></td><td><code>pricedProcedures</code></td></tr>
+          <tr><td>Validar Compatibilidade</td><td><span class="tag tag-topic">rc.production.validate_compatibility</span></td><td><code>pricedProcedures, icdCodes</code></td><td><code>compatibilityResult, incompatibleItems</code></td></tr>
+          <tr><td>Calcular Producao</td><td><span class="tag tag-topic">rc.production.calculate_value</span></td><td><code>pricedProcedures, contractPricing, packagePricing</code></td><td><code>totalValue, breakdown</code></td></tr>
+          <tr><td>Registrar Producao</td><td><span class="tag tag-topic">rc.production.record_production</span></td><td><code>totalValue, breakdown, encounterId</code></td><td><code>productionId</code></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- SP-RC-005 -->
+  <div class="flow-card" data-domain="rc" id="sp-rc-005">
+    <div class="flow-header" onclick="toggleFlow(this)">
+      <h3><span class="toggle">&#9654;</span> SP-RC-005: Codificacao e Auditoria</h3>
+      <span style="font-size:.75rem;color:var(--text-muted)">7 service tasks | 4 DMNs</span>
+    </div>
+    <div class="flow-body">
+      <p style="font-size:.8rem;color:var(--text-muted);margin-bottom:1rem;">Process ID: <code>SP_RC_005_Coding_Audit</code> | DMNs: <code>coding_audit_compatibility, coding_audit_duplicate, coding_audit_frequency, coding_audit_unbundle</code></p>
+      <table class="var-table">
+        <thead><tr><th>Service Task</th><th>Topic</th><th>Variaveis IN</th><th>Variaveis OUT</th></tr></thead>
+        <tbody>
+          <tr><td>Extrair Dados Clinicos</td><td><span class="tag tag-topic">rc.coding.extract_clinical_data</span></td><td><code>encounterId, documentIds</code></td><td><code>extractedData</code></td></tr>
+          <tr><td>Sugerir CID-10</td><td><span class="tag tag-topic">rc.coding.suggest_cid10</span></td><td><code>clinicalExtract</code></td><td><code>suggestedCodes, confidence</code></td></tr>
+          <tr><td>Sugerir TUSS</td><td><span class="tag tag-topic">rc.coding.suggest_tuss</span></td><td><code>clinicalExtract, icd10Suggestions</code></td><td><code>suggestedProcedures, confidence</code></td></tr>
+          <tr><td>Verificar Compatibilidade</td><td><span class="tag tag-topic">rc.coding.check_compatibility</span></td><td><code>icd10Suggestions, tussSuggestions</code></td><td><code>compatibilityResult, incompatibilities</code></td></tr>
+          <tr><td>Detectar Fraude</td><td><span class="tag tag-topic">rc.coding.detect_fraud</span></td><td><code>icd10Suggestions, tussSuggestions, duplicateCheck, unbundlingCheck</code></td><td><code>fraudScore, fraudIndicators</code></td></tr>
+          <tr><td>Validar Codificacao</td><td><span class="tag tag-topic">rc.coding.validate_coding</span></td><td><code>icd10Suggestions, tussSuggestions, compatibilityCheck</code></td><td><code>codingValidated</code></td></tr>
+          <tr><td>Auditar Codificacao</td><td><span class="tag tag-topic">rc.coding.audit_coding</span></td><td><code>codingValidated, clinicalExtract</code></td><td><code>auditResult, auditFindings</code></td></tr>
+        </tbody>
+      </table>
+      <div class="subsection"><h4>Gateway</h4>
+        <code>fraudRiskScore &lt; 0.7</code> &rarr; Baixo risco, validar | <code>&gt;= 0.7</code> &rarr; Alto risco, revisao manual
+      </div>
+    </div>
+  </div>
+
+  <!-- SP-RC-006 -->
+  <div class="flow-card" data-domain="rc" id="sp-rc-006">
+    <div class="flow-header" onclick="toggleFlow(this)">
+      <h3><span class="toggle">&#9654;</span> SP-RC-006: Faturamento e Envio TISS</h3>
+      <span style="font-size:.75rem;color:var(--text-muted)">6 service tasks | 5 DMNs</span>
+    </div>
+    <div class="flow-body">
+      <p style="font-size:.8rem;color:var(--text-muted);margin-bottom:1rem;">Process ID: <code>SP_RC_006_Billing_Submission</code> | DMNs: <code>billing_quantity_validation, billing_modifier_rules, billing_bundle_rules, billing_tax_calculation, billing_opme_rules</code></p>
+      <table class="var-table">
+        <thead><tr><th>Service Task</th><th>Topic</th><th>Variaveis IN</th><th>Variaveis OUT</th></tr></thead>
+        <tbody>
+          <tr><td>Validar Claim</td><td><span class="tag tag-topic">billing.validate_claim</span></td><td><code>encounterId, patientId, procedures</code></td><td><code>validationResult, validationErrors</code></td></tr>
+          <tr><td>Calcular Charges</td><td><span class="tag tag-topic">billing.calculate_charges</span></td><td><code>procedures, quantityCheck</code></td><td><code>totalCharges, chargeBreakdown</code></td></tr>
+          <tr><td>Aplicar Regras Contrato</td><td><span class="tag tag-topic">billing.apply_contract_rules</span></td><td><code>billingTotal, payerId, contractId, modifiers, bundleRules</code></td><td><code>adjustedCharges</code></td></tr>
+          <tr><td>Gerar TISS XML</td><td><span class="tag tag-topic">billing.generate_tiss_xml</span></td><td><code>finalCharges, taxes, opmeRules, encounterId</code></td><td><code>tissXml</code></td></tr>
+          <tr><td>Validar Schema TISS</td><td><span class="tag tag-topic">billing.validate_tiss_schema</span></td><td><code>generatedXml</code></td><td><code>schemaValid, schemaErrors</code></td></tr>
+          <tr><td>Enviar ao Convenio</td><td><span class="tag tag-topic">billing.submit_to_payer</span></td><td><code>generatedXml, payerId</code></td><td><code>submissionId, submissionStatus</code></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- SP-RC-007 -->
+  <div class="flow-card" data-domain="rc" id="sp-rc-007">
+    <div class="flow-header" onclick="toggleFlow(this)">
+      <h3><span class="toggle">&#9654;</span> SP-RC-007: Gestao de Glosas</h3>
+      <span style="font-size:.75rem;color:var(--text-muted)">7 service tasks | 4 DMNs</span>
+    </div>
+    <div class="flow-body">
+      <p style="font-size:.8rem;color:var(--text-muted);margin-bottom:1rem;">Process ID: <code>SP_RC_007_Denial_Management</code> | DMNs: <code>glosa_prevention_predict, glosa_prevention_prevent, revenue_recovery_strategy, revenue_recovery_eligibility</code></p>
+      <table class="var-table">
+        <thead><tr><th>Service Task</th><th>Topic</th><th>Variaveis IN</th><th>Variaveis OUT</th></tr></thead>
+        <tbody>
+          <tr><td>Identificar Glosa</td><td><span class="tag tag-topic">glosa.identify</span></td><td><code>batchId, payerResponse</code></td><td><code>glosaItems, glosaCount</code></td></tr>
+          <tr><td>Classificar Tipo</td><td><span class="tag tag-topic">glosa.classify_type</span></td><td><code>identifiedGlosas</code></td><td><code>classifiedGlosas, primaryType</code></td></tr>
+          <tr><td>Analisar Motivo</td><td><span class="tag tag-topic">glosa.analyze_reason</span></td><td><code>glosasByType, encounterId</code></td><td><code>rootCause, analysisDetails</code></td></tr>
+          <tr><td>Verificar Elegibilidade Recurso</td><td><span class="tag tag-topic">denial.check_appeal_eligibility</span></td><td><code>glosasByType, glosaRootCause</code></td><td><code>isEligible, eligibilityReason</code></td></tr>
+          <tr><td>Gerar Documentacao Recurso</td><td><span class="tag tag-topic">denial.generate_appeal_documentation</span></td><td><code>glosasByType, causeAnalysis, recoveryPlan</code></td><td><code>appealDocuments, appealPackage</code></td></tr>
+          <tr><td>Enviar Recurso</td><td><span class="tag tag-topic">denial.submit_appeal</span></td><td><code>completePackage, payerId</code></td><td><code>appealId, submissionDate</code></td></tr>
+          <tr><td>Rastrear Status Recurso</td><td><span class="tag tag-topic">denial.track_appeal_status</span></td><td><code>submittedAppealId</code></td><td><code>currentStatus, payerResponse</code></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- SP-RC-008 -->
+  <div class="flow-card" data-domain="rc" id="sp-rc-008">
+    <div class="flow-header" onclick="toggleFlow(this)">
+      <h3><span class="toggle">&#9654;</span> SP-RC-008: Cobranca e Recebimento</h3>
+      <span style="font-size:.75rem;color:var(--text-muted)">6 service tasks | 3 DMNs</span>
+    </div>
+    <div class="flow-body">
+      <table class="var-table">
+        <thead><tr><th>Service Task</th><th>Topic</th><th>Variaveis IN</th><th>Variaveis OUT</th></tr></thead>
+        <tbody>
+          <tr><td>Identificar Vencidos</td><td><span class="tag tag-topic">collection.identify_overdue</span></td><td><code>cutoffDate</code></td><td><code>overdueAccounts, totalOverdue</code></td></tr>
+          <tr><td>Priorizar Cobranca</td><td><span class="tag tag-topic">collection.prioritize_collection</span></td><td><code>accountsOverdue</code></td><td><code>prioritizedAccounts, highPriorityCount</code></td></tr>
+          <tr><td>Receber Notificacao Pag.</td><td><span class="tag tag-topic">rc.receive_payment_notification</span></td><td><code>accountsByPriority</code></td><td><code>payments, paymentDate</code></td></tr>
+          <tr><td>Auto Matching</td><td><span class="tag tag-topic">rc.auto_matching</span></td><td><code>receivedPayments, accountsOverdue</code></td><td><code>matchedPayments, unmatchedPayments</code></td></tr>
+          <tr><td>Reconciliar Diario</td><td><span class="tag tag-topic">rc.reconcile_daily</span></td><td><code>reconciledPayments, receiptDate</code></td><td><code>reconciliationReport, totalReconciled</code></td></tr>
+          <tr><td>Atualizar AR</td><td><span class="tag tag-topic">rc.update_accounts_receivable</span></td><td><code>reconciledPayments, accountsOverdue</code></td><td><code>updatedAR</code></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- SP-RC-010 -->
+  <div class="flow-card" data-domain="rc" id="sp-rc-010">
+    <div class="flow-header" onclick="toggleFlow(this)">
+      <h3><span class="toggle">&#9654;</span> SP-RC-010: Maximizacao de Receita</h3>
+      <span style="font-size:.75rem;color:var(--text-muted)">8 service tasks | 1 DMN</span>
+    </div>
+    <div class="flow-body">
+      <table class="var-table">
+        <thead><tr><th>Service Task</th><th>Topic</th><th>Variaveis IN</th><th>Variaveis OUT</th></tr></thead>
+        <tbody>
+          <tr><td>Prever Data Recebimento</td><td><span class="tag tag-topic">rc.predict_collection_date</span></td><td><code>accountIds, historicalData</code></td><td><code>predictedDates, confidenceScores</code></td></tr>
+          <tr><td>Identificar Pagadores Lentos</td><td><span class="tag tag-topic">rc.identify_slow_payers</span></td><td><code>collectionDatePredictions, payerPerformanceData</code></td><td><code>slowPayers, riskScores</code></td></tr>
+          <tr><td>Atualizar Previsoes</td><td><span class="tag tag-topic">rc.update_forecasts</span></td><td><code>collectionDatePredictions, optimizationPlan</code></td><td><code>updatedForecasts, forecastAccuracy</code></td></tr>
+          <tr><td>Analisar Oportunidades</td><td><span class="tag tag-topic">rc.analyze_revenue_opportunities</span></td><td><code>revenueForecasts, identifiedSlowPayers</code></td><td><code>opportunities, potentialValue</code></td></tr>
+          <tr><td>Otimizar Precos</td><td><span class="tag tag-topic">rc.optimize_pricing_strategy</span></td><td><code>revenueOpportunities</code></td><td><code>pricingRecommendations</code></td></tr>
+          <tr><td>Otimizar Contratos</td><td><span class="tag tag-topic">rc.optimize_contract_terms</span></td><td><code>identifiedSlowPayers, revenueOpportunities</code></td><td><code>contractRecommendations</code></td></tr>
+          <tr><td>Gerar Plano de Acao</td><td><span class="tag tag-topic">rc.generate_maximization_action_plan</span></td><td><code>optimizedPricing, optimizedContracts, opportunityValue</code></td><td><code>actionPlan, estimatedImpact</code></td></tr>
+          <tr><td>Negociar Plano Pag.</td><td><span class="tag tag-topic">rc.negotiate_payment_plan</span></td><td><code>identifiedSlowPayers, payerRiskScores</code></td><td><code>negotiationOutcomes</code></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== CLINICAL OPERATIONS DOMAIN ==================== -->
+<div class="section" id="co-domain">
+  <h2 class="section-title"><span class="domain-badge badge-co">CO</span> Clinical Operations - Fluxos BPMN</h2>
+  <button class="expand-all" onclick="toggleAllFlows('co')" style="margin-bottom:1rem;">Expandir/Recolher Todos</button>
+
+  <!-- SP-CA-001 -->
+  <div class="flow-card" data-domain="co" id="sp-ca-001">
+    <div class="flow-header" onclick="toggleFlow(this)">
+      <h3><span class="toggle">&#9654;</span> SP-CA-001: Deteccao de Sepse</h3>
+      <span style="font-size:.75rem;color:var(--text-muted)">2 DMNs: ews_qsofa_001, ews_sofa_001</span>
+    </div>
+    <div class="flow-body">
+      <table class="var-table">
+        <thead><tr><th>Variavel</th><th>Tipo</th><th>Direcao</th><th>Uso em Gateway</th></tr></thead>
+        <tbody>
+          <tr><td><code>qsofa_score</code></td><td><span class="tag tag-number">number</span></td><td><span class="tag tag-dmn">DMN</span> &rarr; <span class="tag tag-gateway">GW</span></td><td><code>${qsofa_score >= 2}</code> &rarr; Protocolo Sepse</td></tr>
+          <tr><td><code>sofa_score</code></td><td><span class="tag tag-number">number</span></td><td><span class="tag tag-dmn">DMN</span> &rarr; <span class="tag tag-gateway">GW</span></td><td><code>${sofa_score >= 2 && sofa_delta >= 2}</code> &rarr; Confirmar Sepse</td></tr>
+          <tr><td><code>sofa_delta</code></td><td><span class="tag tag-number">number</span></td><td><span class="tag tag-intermediate">MID</span></td><td>Variacao do SOFA</td></tr>
+        </tbody>
+      </table>
+      <p style="margin-top:.5rem;font-size:.8rem;">Topics: <span class="tag tag-topic">clinical.vital_signs</span> <span class="tag tag-topic">clinical.lab_results</span> <span class="tag tag-topic">clinical.care_team</span> <span class="tag tag-topic">clinical.medication</span> <span class="tag tag-topic">clinical.documentation</span></p>
+      <p style="font-size:.8rem;">Timer: <span class="tag tag-timer">PT5M</span> Lab result timeout</p>
+    </div>
+  </div>
+
+  <!-- SP-CA-002 -->
+  <div class="flow-card" data-domain="co" id="sp-ca-002">
+    <div class="flow-header" onclick="toggleFlow(this)">
+      <h3><span class="toggle">&#9654;</span> SP-CA-002: NEWS2 Early Warning System</h3>
+      <span style="font-size:.75rem;color:var(--text-muted)">1 DMN: ews_news_001</span>
+    </div>
+    <div class="flow-body">
+      <table class="var-table">
+        <thead><tr><th>Variavel</th><th>Tipo</th><th>Condicao Gateway</th></tr></thead>
+        <tbody>
+          <tr><td><code>news2_score</code></td><td><span class="tag tag-number">number</span></td><td><code>[0-4]</code> Baixo | <code>[5-6]</code> Medio | <code>[7+]</code> Critico</td></tr>
+        </tbody>
+      </table>
+      <p style="margin-top:.5rem;font-size:.8rem;">Timers: <span class="tag tag-timer">R/PT4H</span> Monitoramento recorrente | <span class="tag tag-timer">PT15M</span> Resposta media | <span class="tag tag-timer">PT5M</span> Resposta critica</p>
+    </div>
+  </div>
+
+  <!-- SP-CO-001 -->
+  <div class="flow-card" data-domain="co" id="sp-co-001">
+    <div class="flow-header" onclick="toggleFlow(this)">
+      <h3><span class="toggle">&#9654;</span> SP-CO-001: Triagem e Roteamento Clinico</h3>
+      <span style="font-size:.75rem;color:var(--text-muted)">9 IN / 8 OUT</span>
+    </div>
+    <div class="flow-body">
+      <div class="grid-2">
+        <div><h4 style="color:var(--green);font-size:.8rem;margin-bottom:.5rem;">Variaveis de Entrada</h4>
+          <code>patientId, encounterId, chiefComplaint, vitalSigns, arrivalMode, triageSeverity, triageScore, escalationReason, requiredResources</code>
+        </div>
+        <div><h4 style="color:var(--accent);font-size:.8rem;margin-bottom:.5rem;">Variaveis de Saida</h4>
+          <code>triageSeverity, triageScore, requiredResources, escalationReason, assignedSpecialist, consultResponse, estimatedResponseTime, careAreaAssigned</code>
+        </div>
+      </div>
+      <p style="margin-top:.5rem;font-size:.8rem;">Gateway: <code>${triageSeverity == 'critical' || triageSeverity == 'urgent'}</code> &rarr; Escalacao imediata</p>
+    </div>
+  </div>
+
+  <!-- SP-CO-007 -->
+  <div class="flow-card" data-domain="co" id="sp-co-007">
+    <div class="flow-header" onclick="toggleFlow(this)">
+      <h3><span class="toggle">&#9654;</span> SP-CO-007: Coordenacao de Servicos Cirurgicos</h3>
+      <span style="font-size:.75rem;color:var(--text-muted)">12 service tasks | 3 DMNs</span>
+    </div>
+    <div class="flow-body">
+      <p style="font-size:.8rem;color:var(--text-muted);margin-bottom:.5rem;">Topics cirurgicos completos:</p>
+      <p style="font-size:.75rem;"><span class="tag tag-topic">surgical.scheduling</span> <span class="tag tag-topic">surgical.team_assign</span> <span class="tag tag-topic">surgical.materials</span> <span class="tag tag-topic">surgical.consent</span> <span class="tag tag-topic">surgical.anesthesia_eval</span> <span class="tag tag-topic">surgical.site_mark</span> <span class="tag tag-topic">surgical.checklist</span> <span class="tag tag-topic">surgical.or_turnover</span> <span class="tag tag-topic">surgical.equipment</span> <span class="tag tag-topic">surgical.count_verification</span> <span class="tag tag-topic">surgical.specimen</span> <span class="tag tag-topic">surgical.post_op_recovery</span></p>
+      <p style="margin-top:.5rem;font-size:.8rem;">DMNs: <span class="tag tag-dmn">surgical_readiness</span> <span class="tag tag-dmn">surgical_safety_checklist</span> <span class="tag tag-dmn">or_allocation</span></p>
+      <p style="font-size:.8rem;">Gateway: <code>${canProceed == true}</code> &rarr; Prosseguir com cirurgia | <code>false</code> &rarr; Adiar</p>
+      <p style="font-size:.8rem;">Mensagem: <span class="tag tag-message">msg_procedures_completed</span> (throw)</p>
+      <p style="font-size:.8rem;">Timers: <span class="tag tag-timer">PT15M</span> Surgical readiness | <span class="tag tag-timer">PT2H</span> OR turnover</p>
+    </div>
+  </div>
+
+  <!-- Other CO flows summarized -->
+  <div class="flow-card" data-domain="co">
+    <div class="flow-header" onclick="toggleFlow(this)">
+      <h3><span class="toggle">&#9654;</span> SP-CO-002 a SP-CO-006: Fluxos Clinicos Complementares</h3>
+      <span style="font-size:.75rem;color:var(--text-muted)">5 subprocessos</span>
+    </div>
+    <div class="flow-body">
+      <table class="var-table">
+        <thead><tr><th>Processo</th><th>Variavel Gateway</th><th>Topics Principais</th></tr></thead>
+        <tbody>
+          <tr><td>SP-CO-002 Leitos</td><td><code>bed_available == true</code></td><td>inpatient.bed_available, inpatient.care_team_intro</td></tr>
+          <tr><td>SP-CO-003 Equipe</td><td>-</td><td>clinical.care_team, clinical.handoffs, clinical.care_transitions</td></tr>
+          <tr><td>SP-CO-004 Prescricoes</td><td><code>alerts_detected == true</code></td><td>clinical.assessment, clinical.decision_support, clinical.protocols</td></tr>
+          <tr><td>SP-CO-005 Diagnosticos</td><td>-</td><td>clinical.vital_signs, clinical.reporting, clinical.analytics</td></tr>
+          <tr><td>SP-CO-006 Medicamentos</td><td><code>is_inpatient == true</code></td><td>clinical.medication, inpatient.medication_reminder</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- SP-CO-011/012 -->
+  <div class="flow-card" data-domain="co">
+    <div class="flow-header" onclick="toggleFlow(this)">
+      <h3><span class="toggle">&#9654;</span> SP-CO-011/012: Experiencia do Paciente e Pos-Alta</h3>
+      <span style="font-size:.75rem;color:var(--text-muted)">Ciclo diario + Follow-up</span>
+    </div>
+    <div class="flow-body">
+      <table class="var-table">
+        <thead><tr><th>Processo</th><th>Variaveis Gateway</th><th>Mensagens</th><th>Timers</th></tr></thead>
+        <tbody>
+          <tr><td>SP-CO-011 Inpatient</td><td><code>dischargePlanned == true</code></td><td>msg_discharge_initiated, msg_patient_response</td><td>PT24H ciclo, PT1H medicamento</td></tr>
+          <tr><td>SP-CO-012 Pos-Alta</td><td><code>medicationAdherenceOK == false</code>, <code>recoveryStatus == 'Worse'</code></td><td>msg_discharge_initiated (start), msg_patient_response</td><td>PT48H initial, P7D semanal</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== PATIENT ACCESS DOMAIN ==================== -->
+<div class="section" id="pa-domain">
+  <h2 class="section-title"><span class="domain-badge badge-pa">PA</span> Patient Access - Fluxos BPMN</h2>
+  <button class="expand-all" onclick="toggleAllFlows('pa')" style="margin-bottom:1rem;">Expandir/Recolher Todos</button>
+
+  <div class="flow-card" data-domain="pa">
+    <div class="flow-header" onclick="toggleFlow(this)">
+      <h3><span class="toggle">&#9654;</span> SP-PA-001 a SP-PA-006: Jornada do Paciente</h3>
+      <span style="font-size:.75rem;color:var(--text-muted)">6 subprocessos de acesso</span>
+    </div>
+    <div class="flow-body">
+      <table class="var-table">
+        <thead><tr><th>Processo</th><th>Variavel Gateway</th><th>DMN</th><th>Sinal/Timer</th></tr></thead>
+        <tbody>
+          <tr><td>SP-PA-001 Demanda</td><td><code>patient_exists == false</code></td><td>fed_auth_001</td><td>-</td></tr>
+          <tr><td>SP-PA-002 Agendamento</td><td>-</td><td>auth_timing_001</td><td><span class="tag tag-message">DemandCapturedSignal</span> | PT48H</td></tr>
+          <tr><td>SP-PA-003 Registro</td><td><code>has_dependent == true</code></td><td>auth_coding_002</td><td><span class="tag tag-message">NewPatientSignal</span></td></tr>
+          <tr><td>SP-PA-004 Clearance</td><td><code>auth_required == true</code></td><td>auth_urgency_001, auth_preauth_001</td><td><span class="tag tag-message">AppointmentBookedSignal</span> | PT48H</td></tr>
+          <tr><td>SP-PA-005 Intake Digital</td><td><code>documentation_complete == true</code></td><td>auth_documentation_001</td><td><span class="tag tag-message">ClearanceGrantedSignal</span></td></tr>
+          <tr><td>SP-PA-006 Check-In</td><td><code>appointment_valid == true</code></td><td>auth_timing_003</td><td>-</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="flow-card" data-domain="pa">
+    <div class="flow-header" onclick="toggleFlow(this)">
+      <h3><span class="toggle">&#9654;</span> SP-PA-010: Engajamento Diario do Medico</h3>
+      <span style="font-size:.75rem;color:var(--text-muted)">Multi-instance event-driven</span>
+    </div>
+    <div class="flow-body">
+      <div class="grid-2">
+        <div><h4 style="color:var(--green);font-size:.8rem;margin-bottom:.5rem;">Input Variables</h4>
+          <code>tenantId, scheduleDate, doctorSchedules, currentDoctor.doctorId, currentDoctor.schedule, currentDoctor.channelPreference, currentDoctor.nextPatientId, currentDoctor.arrivalTime, currentDoctor.emergencyType, currentDoctor.patientId, currentDoctor.severity, notificationId, responseReceived, responseTime</code>
+        </div>
+        <div><h4 style="color:var(--accent);font-size:.8rem;margin-bottom:.5rem;">Output Variables</h4>
+          <code>doctorSchedules, totalDoctors, sortedSchedules, notificationId, notificationType, arrivalProcessed, alertSent, trackingComplete</code>
+        </div>
+      </div>
+      <p style="font-size:.8rem;margin-top:.5rem;">CRON: <span class="tag tag-timer">0 0 6 * * ?</span> Diario 6AM | Timers: <span class="tag tag-timer">PT30M</span> arrival | <span class="tag tag-timer">PT5M</span> emergency</p>
+    </div>
+  </div>
+
+  <div class="flow-card" data-domain="pa">
+    <div class="flow-header" onclick="toggleFlow(this)">
+      <h3><span class="toggle">&#9654;</span> SP-DI/PX: Alta e Pos-Alta</h3>
+      <span style="font-size:.75rem;color:var(--text-muted)">3 subprocessos</span>
+    </div>
+    <div class="flow-body">
+      <table class="var-table">
+        <thead><tr><th>Processo</th><th>Variavel Gateway</th><th>Inicio</th><th>Timers</th></tr></thead>
+        <tbody>
+          <tr><td>SP-DI-001 Alta</td><td><code>discharge_criteria_met == true</code></td><td><span class="tag tag-message">msg_discharge_requested</span></td><td>PT24H</td></tr>
+          <tr><td>SP-PX-001 Follow-up</td><td><code>readmission_risk == 'HIGH'</code></td><td><span class="tag tag-message">msg_discharge_completed</span></td><td>PT24H, R3/PT72H</td></tr>
+          <tr><td>SP-PX-002 NPS</td><td><code>nps_score &lt;= 6</code> Detrator | <code>7-8</code> Passivo | <code>9+</code> Promotor</td><td><span class="tag tag-message">msg_discharge_complete</span></td><td>PT48H</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== PLATFORM SERVICES DOMAIN ==================== -->
+<div class="section" id="ps-domain">
+  <h2 class="section-title"><span class="domain-badge badge-ps">PS</span> Platform Services - Fluxos BPMN</h2>
+
+  <div class="flow-card" data-domain="ps">
+    <div class="flow-header" onclick="toggleFlow(this)">
+      <h3><span class="toggle">&#9654;</span> SP-PS-001 a SP-PS-004: Servicos de Plataforma</h3>
+      <span style="font-size:.75rem;color:var(--text-muted)">4 subprocessos</span>
+    </div>
+    <div class="flow-body">
+      <table class="var-table">
+        <thead><tr><th>Processo</th><th>Variavel Gateway</th><th>DMN Tables</th><th>Topics</th></tr></thead>
+        <tbody>
+          <tr><td>SP-PS-001 LGPD/Compliance</td><td><code>retention_compliant == true</code></td><td>comp_lgpd_001, comp_lgpd_002, comp_audit_001</td><td>compliance.lgpd, compliance.remediation, compliance.audit</td></tr>
+          <tr><td>SP-PS-002 Credenciamento</td><td><code>credential_approved == true</code></td><td>cred_license_001, cred_facility_001, cred_provider_001</td><td>credentialing.license, credentialing.facility, credentialing.provider</td></tr>
+          <tr><td>SP-PS-003 Acesso</td><td><code>authenticated == true</code>, <code>access_level != 'DENIED'</code></td><td>ac_role_permissions_001, ac_phi_masking_001</td><td>access_control.authentication, access_control.data_access</td></tr>
+          <tr><td>SP-PS-004 Configuracao</td><td><code>params_valid == true</code>, <code>health_status == 'HEALTHY'</code></td><td>infra_001, infra_002</td><td>infrastructure.config, infrastructure.deployment</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== WORKERS ==================== -->
+<div class="section" id="workers">
+  <h2 class="section-title">Workers Python - Mapeamento por Subdominio</h2>
+  <div class="filter-bar">
+    <input type="text" id="workerSearch" placeholder="Buscar worker, topic ou variavel..." onkeyup="filterWorkers()">
+  </div>
+
+  <!-- RC Billing Workers -->
+  <div class="flow-card worker-card" id="workers-billing">
+    <div class="flow-header" onclick="toggleFlow(this)">
+      <h3><span class="toggle">&#9654;</span> <span class="domain-badge badge-rc">RC</span> Billing Workers (13)</h3>
+    </div>
+    <div class="flow-body">
+      <table class="var-table">
+        <thead><tr><th>Worker</th><th>TOPIC</th><th>DMN</th><th>Inputs</th><th>Outputs</th></tr></thead>
+        <tbody>
+          <tr><td>validate_claim</td><td><code>billing.validate_claim</code></td><td>claim_validation</td><td>claim_id, claim{patient_id, payer_id, items, total, tiss_guide_type}</td><td>validation_passed, validation_errors, claim_ready_for_submission</td></tr>
+          <tr><td>calculate_charges</td><td><code>billing.calculate_charges</code></td><td>charge_calculation_validation</td><td>procedures, modifiers</td><td>line_items, total_amount, modifier_adjustments</td></tr>
+          <tr><td>apply_contract_rules</td><td><code>billing.apply_contract_rules</code></td><td>contract_rules_validation</td><td>claim_id, payer_id, procedures, contract_rules</td><td>adjusted_items, total_patient_responsibility, total_payer_responsibility, total_charges, applied_rules</td></tr>
+          <tr><td>consolidate_charges</td><td><code>billing.consolidate_charges</code></td><td>claim_consolidation_validation</td><td>encounter_id, patient_id, tenant_id, line_items</td><td>claim_id, claim_total, item_count, billing_status</td></tr>
+          <tr><td>group_by_guide</td><td><code>billing.group_by_guide</code></td><td>guide_grouping_validation</td><td>encounter_id, procedures</td><td>grouped_guides, guide_count, total_procedures</td></tr>
+          <tr><td>generate_tiss_xml</td><td><code>billing.generate_tiss_xml</code></td><td>tiss_xml_validation</td><td>payer_id, provider_id, guide_type, claim</td><td>(via TISSGenerationService)</td></tr>
+          <tr><td>validate_tiss_schema</td><td><code>billing.validate_tiss_schema</code></td><td>tiss_schema_validation</td><td>tiss_xml, guide_type, guide_number</td><td>schema_valid, schema_errors</td></tr>
+          <tr><td>submit_to_payer</td><td><code>billing.submit_to_payer</code></td><td>submission_validation</td><td>tiss_xml, payer_id, claim_id</td><td>submission_success, ...</td></tr>
+          <tr><td>handle_acknowledgment</td><td><code>billing.handle_acknowledgment</code></td><td>acknowledgment_validation</td><td>protocol_number, claim_id, acknowledgment_type, response_code</td><td>acknowledged, billing_status, requires_resubmission</td></tr>
+          <tr><td>apply_discounts</td><td><code>billing.apply_discounts</code></td><td>discount_rules_validation</td><td>line_items, discount_rules</td><td>discounted_items, total_discount, final_amount</td></tr>
+          <tr><td>notify_submission_status</td><td><code>billing.notify_submission_status</code></td><td>notification_routing</td><td>claim_id, protocol_number, submission_status</td><td>notifications_sent, notification_ids</td></tr>
+          <tr><td>retry_failed_submission</td><td><code>billing.retry_failed_submission</code></td><td>retry_policy</td><td>claim_id, tiss_xml, payer_id, attempt_number</td><td>retry_success, ...</td></tr>
+          <tr><td>track_protocol</td><td><code>billing.track_protocol</code></td><td>protocol_tracking</td><td>claim_id, protocol_number, payer_id</td><td>protocol_tracked, tracking_id</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- RC Coding Workers -->
+  <div class="flow-card worker-card" id="workers-coding">
+    <div class="flow-header" onclick="toggleFlow(this)">
+      <h3><span class="toggle">&#9654;</span> <span class="domain-badge badge-rc">RC</span> Coding Workers (12)</h3>
+    </div>
+    <div class="flow-body">
+      <table class="var-table">
+        <thead><tr><th>Worker</th><th>TOPIC</th><th>Inputs</th><th>Outputs</th></tr></thead>
+        <tbody>
+          <tr><td>extract_clinical_data</td><td><code>rc.coding.extract_clinical_data</code></td><td>encounter_id</td><td>(via ClinicalDataExtractionService)</td></tr>
+          <tr><td>suggest_cid10</td><td><code>rc.coding.suggest_cid10</code></td><td>clinical_notes, extracted_diagnoses, encounter_class</td><td>suggested_cid10_codes, primary_cid10, cid10_count</td></tr>
+          <tr><td>suggest_tuss</td><td><code>rc.coding.suggest_tuss</code></td><td>extracted_procedures, suggested_cid10_codes, encounter_class</td><td>suggested_tuss_codes, tuss_count</td></tr>
+          <tr><td>validate_codes</td><td><code>rc.coding.validate_coding</code></td><td>suggested_cid10_codes, suggested_tuss_codes, encounter_id</td><td>validated_cid10, validated_tuss, validation_errors, all_valid</td></tr>
+          <tr><td>check_compatibility</td><td><code>rc.coding.check_compatibility</code></td><td>validatedCid10, validatedTuss, encounterId</td><td>compatible, incompatibilities, warnings</td></tr>
+          <tr><td>apply_coding_rules</td><td><code>rc.coding.apply_rules</code></td><td>validatedCid10, validatedTuss, encounterClass, payerId</td><td>rulesPassed, ruleViolations, modifiersRequired</td></tr>
+          <tr><td>calculate_complexity</td><td><code>coding.calculate_complexity</code></td><td>encounterId, validatedCid10, validatedTuss, patientAge, comorbidities</td><td>complexityScore, complexityLevel, suggestedDRG</td></tr>
+          <tr><td>detect_fraud</td><td><code>rc.coding.detect_fraud</code></td><td>encounterId, validatedCid10, validatedTuss, patientId, providerId</td><td>fraudRiskScore, fraudAlerts, fraudRecommendation</td></tr>
+          <tr><td>audit_coding</td><td><code>rc.coding.audit_coding</code></td><td>encounterId, validatedCid10, validatedTuss, codedBy</td><td>auditScore, auditFindings, auditRecommendation, requiresRevision</td></tr>
+          <tr><td>finalize_coding</td><td><code>coding.finalize_coding</code></td><td>encounterId, validatedCid10, validatedTuss, auditScore, complexityScore, fraudRecommendation</td><td>(via FinalizeCodingService)</td></tr>
+          <tr><td>coding_lock</td><td><code>coding.lock_coding</code></td><td>encounter_id</td><td>coding_locked, lock_timestamp</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- RC Glosa Workers -->
+  <div class="flow-card worker-card" id="workers-glosa">
+    <div class="flow-header" onclick="toggleFlow(this)">
+      <h3><span class="toggle">&#9654;</span> <span class="domain-badge badge-rc">RC</span> Glosa/Denial Workers (10)</h3>
+    </div>
+    <div class="flow-body">
+      <table class="var-table">
+        <thead><tr><th>Worker</th><th>TOPIC</th><th>Inputs</th><th>Outputs</th></tr></thead>
+        <tbody>
+          <tr><td>identify_glosa</td><td><code>glosa.identify</code></td><td>claimResponse, claimId</td><td>glosaItems, totalDeniedAmount, glosaCount, hasGlosas</td></tr>
+          <tr><td>classify_type</td><td><code>glosa.classify_type</code></td><td>glosaItems, reasonCode</td><td>classifiedGlosas, glosaTypeDistribution, hasAdministrative, hasTechnical</td></tr>
+          <tr><td>analyze_reason</td><td><code>glosa.analyze_reason</code></td><td>classifiedGlosas, claimId</td><td>analyzedGlosas, reasonDistribution, rootCausePatterns, systemicIssues</td></tr>
+          <tr><td>calculate_impact</td><td><code>glosa.calculate_impact</code></td><td>classifiedGlosas</td><td>totalImpactBRL, recoveryPotentialBRL, recoveryRate, impactSummary</td></tr>
+          <tr><td>check_appeal_eligibility</td><td><code>glosa.check_appeal_eligibility</code></td><td>analyzedGlosas, glosaDate, claimId</td><td>appealEligible, eligibleGlosas, appealDeadline, daysRemaining</td></tr>
+          <tr><td>generate_appeal_docs</td><td><code>glosa.generate_appeal_documentation</code></td><td>eligibleGlosas, claimId, patientReference</td><td>appealDocumentId, appealLetter, evidenceChecklist, totalAppealAmount</td></tr>
+          <tr><td>submit_appeal</td><td><code>glosa.submit_appeal</code></td><td>appealDocumentId, claimId, payerId</td><td>submissionProtocol, submissionSuccess, payerResponseCode</td></tr>
+          <tr><td>track_appeal_status</td><td><code>glosa.track_appeal_status</code></td><td>submissionProtocol, claimId</td><td>appealStatus, followUpRequired, elapsedDays</td></tr>
+          <tr><td>escalate_to_supervisor</td><td><code>glosa.escalate_to_supervisor</code></td><td>analyzedGlosas, totalImpactBRL, escalationReason</td><td>escalationId, priority, assignedTeam, systemicIssuesDetected</td></tr>
+          <tr><td>update_payment</td><td><code>glosa.update_payment</code></td><td>claimId, appealStatus, originalAmount, deniedAmount, recoveredAmount</td><td>adjustedPaymentBRL, paymentAdjustmentType, newBillingStatus, writeOffAmount</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- RC Production Workers -->
+  <div class="flow-card worker-card" id="workers-production">
+    <div class="flow-header" onclick="toggleFlow(this)">
+      <h3><span class="toggle">&#9654;</span> <span class="domain-badge badge-rc">RC</span> Production Workers (9)</h3>
+    </div>
+    <div class="flow-body">
+      <table class="var-table">
+        <thead><tr><th>Worker</th><th>TOPIC</th><th>Inputs</th><th>Outputs</th></tr></thead>
+        <tbody>
+          <tr><td>capture_procedure</td><td><code>rc.production.capture_procedure</code></td><td>encounter_reference</td><td>captured_procedures, erp_system, procedure_count</td></tr>
+          <tr><td>validate_procedure</td><td><code>rc.production.validate_procedure</code></td><td>procedure_codes, coverage_type</td><td>validated_procedures, all_valid, invalid_codes</td></tr>
+          <tr><td>enrich_procedure</td><td><code>rc.production.enrich_procedure</code></td><td>captured_procedures, encounter_reference, diagnosis_codes</td><td>enriched data + diagnosis_codes, enrichment_warnings</td></tr>
+          <tr><td>check_authorization</td><td><code>rc.production.check_authorization</code></td><td>enriched_procedures, patient_reference, payer_id</td><td>authorization_results, all_authorized, auth_number</td></tr>
+          <tr><td>assign_prices</td><td><code>rc.production.assign_prices</code></td><td>quantified_procedures, contract_id, price_table_id</td><td>(via PricingAssignmentService)</td></tr>
+          <tr><td>calculate_quantity</td><td><code>rc.production.calculate_value</code></td><td>enriched_procedures, encounter_start, encounter_end</td><td>quantified_procedures, total_items</td></tr>
+          <tr><td>validate_compatibility</td><td><code>rc.production.validate_compatibility</code></td><td>priced_procedures, patient_gender, patient_age_years</td><td>compatible_procedures, compatibility_warnings, all_compatible</td></tr>
+          <tr><td>persist_production</td><td><code>rc.production.record_production</code></td><td>compatible_procedures, encounter_reference, patient_reference, total_amount</td><td>production_id, charge_item_references</td></tr>
+          <tr><td>patient_auth_update</td><td><code>financial.auth_update</code></td><td>patient_id, phone_number, authorization_id, procedure_name, status</td><td>notification_sent, message_id, sent_at</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Worker count summary -->
+  <div class="flow-card worker-card">
+    <div class="flow-header" onclick="toggleFlow(this)">
+      <h3><span class="toggle">&#9654;</span> Resumo de Workers por Subdominio (Todos)</h3>
+    </div>
+    <div class="flow-body">
+      <table class="summary-table">
+        <thead><tr><th>Dominio</th><th>Subdominio</th><th>Workers</th><th>Ativos</th><th>Stubs</th><th>Padrao</th></tr></thead>
+        <tbody>
+          <tr><td><span class="domain-badge badge-rc">RC</span></td><td>billing</td><td>13</td><td>13</td><td>0</td><td>Class-based V2</td></tr>
+          <tr><td><span class="domain-badge badge-rc">RC</span></td><td>coding</td><td>12</td><td>12</td><td>0</td><td>Class-based V2</td></tr>
+          <tr><td><span class="domain-badge badge-rc">RC</span></td><td>collection</td><td>48+</td><td>48</td><td>0</td><td>WORKER_TYPE pattern</td></tr>
+          <tr><td><span class="domain-badge badge-rc">RC</span></td><td>glosa</td><td>10</td><td>10</td><td>0</td><td>Class-based V2</td></tr>
+          <tr><td><span class="domain-badge badge-rc">RC</span></td><td>production</td><td>9</td><td>9</td><td>0</td><td>Class-based V2</td></tr>
+          <tr><td><span class="domain-badge badge-co">CO</span></td><td>clinical_core</td><td>15</td><td>12</td><td>3</td><td>Class-based + DMN template</td></tr>
+          <tr><td><span class="domain-badge badge-co">CO</span></td><td>surgical</td><td>21</td><td>21 (6 dup)</td><td>0</td><td>Class-based V2 + old</td></tr>
+          <tr><td><span class="domain-badge badge-co">CO</span></td><td>doctor_engagement</td><td>13</td><td>7</td><td>6</td><td>DMN template</td></tr>
+          <tr><td><span class="domain-badge badge-co">CO</span></td><td>patient_engagement</td><td>8</td><td>3</td><td>5</td><td>DMN template</td></tr>
+          <tr><td><span class="domain-badge badge-pa">PA</span></td><td>scheduling</td><td>8</td><td>8</td><td>0</td><td>@worker decorator</td></tr>
+          <tr><td><span class="domain-badge badge-pa">PA</span></td><td>registration</td><td>14</td><td>14</td><td>0</td><td>@worker decorator</td></tr>
+          <tr><td><span class="domain-badge badge-pa">PA</span></td><td>engagement</td><td>8</td><td>8</td><td>0</td><td>@worker decorator</td></tr>
+          <tr><td><span class="domain-badge badge-ps">PS</span></td><td>analytics</td><td>10</td><td>10</td><td>0</td><td>Function-based + Pydantic</td></tr>
+          <tr><td><span class="domain-badge badge-ps">PS</span></td><td>integration</td><td>5</td><td>5</td><td>0</td><td>Function-based + Pydantic</td></tr>
+          <tr><td><span class="domain-badge badge-ps">PS</span></td><td>revenue_optimization</td><td>14</td><td>14</td><td>0</td><td>Function-based + Pydantic</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== DMN DECISIONS ==================== -->
+<div class="section" id="dmn">
+  <h2 class="section-title">DMN Decision Tables - Padrao de Variaveis</h2>
+
+  <div class="flow-card">
+    <div class="flow-header" onclick="toggleFlow(this)">
+      <h3><span class="toggle">&#9654;</span> Arquetipos de Output DMN</h3>
+    </div>
+    <div class="flow-body">
+      <div class="grid-3">
+        <div class="mini-card">
+          <h5>Standard 5-Output (~80% dos DMNs)</h5>
+          <p>Usado em billing, cash_operations, compliance, credentialing, patient_access</p>
+          <code>resultado</code> (Prosseguir/Bloquear/Alertar/Revisar)<br>
+          <code>observacao</code> (free text)<br>
+          <code>acaoRecomendada</code> (acao sugerida)<br>
+          <code>alertasConformidade</code> (DUP/FREQ/PRAZO/DOC/VALOR)<br>
+          <code>riscoDenial</code> (BAIXO/MEDIO/ALTO/CRITICO)
+        </div>
+        <div class="mini-card">
+          <h5>Compact 3-Output</h5>
+          <p>Usado em charges, TISS validation, copay</p>
+          <code>resultado</code> (PROSSEGUIR/BLOQUEAR/REVISAR)<br>
+          <code>acao</code> (descricao da acao)<br>
+          <code>risco</code> (CRITICO/ALTO/MEDIO/BAIXO)
+        </div>
+        <div class="mini-card">
+          <h5>Clinical Alert 6-Output</h5>
+          <p>Usado em clinical_safety, adverse events</p>
+          <code>nivelAlerta</code> (CRITICO/ALTO/MEDIO/BAIXO/OK)<br>
+          <code>acaoRequerida</code> (acao clinica)<br>
+          <code>justificativa</code> (fundamentacao)<br>
+          <code>eventClassification</code><br>
+          <code>rcaRequired</code> (boolean)<br>
+          <code>regulatoryReporting</code> (boolean)
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="flow-card">
+    <div class="flow-header" onclick="toggleFlow(this)">
+      <h3><span class="toggle">&#9654;</span> Exemplos de DMNs por Categoria (Amostra)</h3>
+    </div>
+    <div class="flow-body">
+      <table class="var-table">
+        <thead><tr><th>Categoria</th><th>DMN ID</th><th>Inputs</th><th>Outputs</th></tr></thead>
+        <tbody>
+          <tr><td><span class="domain-badge badge-rc">Billing</span> Bundle</td><td>Decision_BILL-BUNDLE-001</td><td>codigoTUSSprincipal, codigoTUSSsecundario, contratoPermiteSeparar, mesmoAtoAnestesico</td><td>Standard 5-output</td></tr>
+          <tr><td><span class="domain-badge badge-rc">Billing</span> OPME</td><td>Decision_BILL-OPME-001</td><td>codigoAnvisaValido, loteRegistradoProntuario, diasAteValidade, registroPacienteCompleto</td><td>Standard 5-output</td></tr>
+          <tr><td><span class="domain-badge badge-rc">Billing</span> Charges</td><td>Decision_CHARGE_CALCULATION</td><td>procedureCode, quantity, unitPrice, modifierType</td><td>resultado, acao, risco</td></tr>
+          <tr><td><span class="domain-badge badge-rc">Cash</span> Discount</td><td>Decision_CASH_DISCOUNT_001</td><td>tipoAtendimento, percentualDesconto, tabelaVigente</td><td>Standard 5-output</td></tr>
+          <tr><td><span class="domain-badge badge-rc">Cash</span> Payment</td><td>Decision_CASH_PAYMENT_001</td><td>formaPagamento, numeroParcelas, valorTotal</td><td>Standard 5-output</td></tr>
+          <tr><td><span class="domain-badge badge-co">Clinical</span> DDI</td><td>ddi_bleed_001_decision</td><td>medicamentosAtivos, medicamentoNovo, historicoSangramento, idade</td><td>nivelAlerta, urgencia, medicamentosConflitantes, mecanismoInteracao, acaoRequerida</td></tr>
+          <tr><td><span class="domain-badge badge-co">Clinical</span> Adverse</td><td>Decision_adverse_event</td><td>eventType, severity, patientOutcome</td><td>Clinical Alert 6-output</td></tr>
+          <tr><td><span class="domain-badge badge-ps">Platform</span> LGPD</td><td>Decision_COMP_LGPD_001</td><td>temConsentimento, consentimentoExpirado, tipoTratamento, categoriaExame, diasAteVencimento</td><td>Standard 5-output</td></tr>
+          <tr><td><span class="domain-badge badge-pa">PA</span> Urgency</td><td>Decision_AUTH_URGENCY_001</td><td>caraterAtendimento, riscoVida, temAutorizacaoPrevia, documentacaoEmergencia</td><td>Standard 5-output</td></tr>
+          <tr><td><span class="domain-badge badge-ps">Platform</span> Channel</td><td>channel_preference_rules</td><td>patientAge, hasWhatsApp, preferredChannel, messageType</td><td>primaryChannel, fallbackChannel</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== MESSAGES & SIGNALS ==================== -->
+<div class="section" id="messages">
+  <h2 class="section-title">Mensagens e Sinais</h2>
+  <div class="grid-2">
+    <div>
+      <h4 style="margin-bottom:.5rem;">Mensagens (19)</h4>
+      <table class="var-table">
+        <thead><tr><th>Nome</th><th>Tipo</th><th>Usado Em</th></tr></thead>
+        <tbody>
+          <tr><td><code>msg_encounter_created</code></td><td><span class="tag tag-message">START</span></td><td>SP-RC-000</td></tr>
+          <tr><td><code>msg_clinical_documentation_ready</code></td><td><span class="tag tag-message">CATCH</span></td><td>SP-RC-000</td></tr>
+          <tr><td><code>msg_discharge_completed</code></td><td><span class="tag tag-message">CATCH</span></td><td>SP-RC-000, SP-PX-001</td></tr>
+          <tr><td><code>msg_payment_reconciled</code></td><td><span class="tag tag-message">THROW</span></td><td>SP-RC-000</td></tr>
+          <tr><td><code>msg_authorization_denied</code></td><td><span class="tag tag-message">THROW</span></td><td>SP-RC-000</td></tr>
+          <tr><td><code>msg_procedures_completed</code></td><td><span class="tag tag-message">BOUNDARY</span></td><td>SP-RC-000, SP-CO-007</td></tr>
+          <tr><td><code>msg_glosa_detected</code></td><td><span class="tag tag-message">THROW</span></td><td>SP-RC-000</td></tr>
+          <tr><td><code>msg_discharge_initiated</code></td><td><span class="tag tag-message">START/CATCH</span></td><td>SP-CO-011, SP-CO-012</td></tr>
+          <tr><td><code>msg_patient_response</code></td><td><span class="tag tag-message">CATCH</span></td><td>SP-CO-011, SP-CO-012</td></tr>
+          <tr><td><code>msg_discharge_requested</code></td><td><span class="tag tag-message">START</span></td><td>SP-DI-001</td></tr>
+          <tr><td><code>msg_discharge_complete</code></td><td><span class="tag tag-message">START</span></td><td>SP-PX-002</td></tr>
+          <tr><td><code>DocumentsReceivedMessage</code></td><td><span class="tag tag-message">CATCH</span></td><td>SP-PA-005</td></tr>
+          <tr><td><code>Message_DoctorResponse</code></td><td><span class="tag tag-message">CATCH</span></td><td>SP-PA-010</td></tr>
+          <tr><td><code>MaximizationCompleteMessage</code></td><td><span class="tag tag-message">END THROW</span></td><td>SP-RC-010</td></tr>
+          <tr><td><code>AnalyticsCompleteMessage</code></td><td><span class="tag tag-message">END THROW</span></td><td>SP-RC-009</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div>
+      <h4 style="margin-bottom:.5rem;">Sinais (4)</h4>
+      <table class="var-table">
+        <thead><tr><th>Nome</th><th>Processo</th></tr></thead>
+        <tbody>
+          <tr><td><code>DemandCapturedSignal</code></td><td>SP-PA-002</td></tr>
+          <tr><td><code>NewPatientSignal</code></td><td>SP-PA-003</td></tr>
+          <tr><td><code>AppointmentBookedSignal</code></td><td>SP-PA-004</td></tr>
+          <tr><td><code>ClearanceGrantedSignal</code></td><td>SP-PA-005</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== TIMERS ==================== -->
+<div class="section" id="timers">
+  <h2 class="section-title">Timers e SLAs</h2>
+  <table class="var-table">
+    <thead><tr><th>Timer</th><th>Processo</th><th>Contexto</th><th>Tipo</th></tr></thead>
+    <tbody>
+      <tr style="background:rgba(248,113,113,.05)"><td><span class="tag tag-timer">PT5M</span></td><td>SP-CA-001, SP-CA-002, SP-PA-010</td><td>Lab timeout / NEWS2 critico / Emergency alert</td><td>Boundary</td></tr>
+      <tr style="background:rgba(248,113,113,.05)"><td><span class="tag tag-timer">PT15M</span></td><td>SP-CA-002, SP-CO-007</td><td>NEWS2 medio / Surgical readiness</td><td>Boundary</td></tr>
+      <tr><td><span class="tag tag-timer">PT30M</span></td><td>SP-PA-010</td><td>Patient arrival response</td><td>Boundary</td></tr>
+      <tr><td><span class="tag tag-timer">PT1H</span></td><td>SP-CO-011</td><td>Medication reminder</td><td>Cycle</td></tr>
+      <tr><td><span class="tag tag-timer">PT2H</span></td><td>SP-CO-007</td><td>OR turnover</td><td>Boundary</td></tr>
+      <tr><td><span class="tag tag-timer">PT4H</span></td><td>SP-RC-001, SP-RC-003</td><td>Insurance SLA / Capture timeout</td><td>Boundary</td></tr>
+      <tr><td><span class="tag tag-timer">PT24H</span></td><td>SP-RC-000, RC-006, DI-001, CO-011</td><td>Account/TISS/Discharge SLAs</td><td>Boundary</td></tr>
+      <tr><td><span class="tag tag-timer">PT48H</span></td><td>SP-RC-000/002, PA-002/004, PX-002, CO-012</td><td>Authorization/Scheduling/NPS SLAs</td><td>Boundary</td></tr>
+      <tr><td><span class="tag tag-timer">P3D</span></td><td>SP-RC-014</td><td>Patient acknowledgement</td><td>Boundary</td></tr>
+      <tr><td><span class="tag tag-timer">P5D</span></td><td>SP-RC-000</td><td>Contestation SLA</td><td>Interrupting</td></tr>
+      <tr><td><span class="tag tag-timer">P7D</span></td><td>SP-RC-008/009/013/014, CO-012</td><td>Payment/Collection follow-ups</td><td>Boundary/Cycle</td></tr>
+      <tr><td><span class="tag tag-timer">P14D</span></td><td>SP-RC-009</td><td>Collection escalation</td><td>Boundary</td></tr>
+      <tr><td><span class="tag tag-timer">P30D</span></td><td>SP-RC-007/009, PS-002</td><td>Appeal/Collection/Credentialing deadlines</td><td>Boundary</td></tr>
+      <tr style="background:rgba(34,211,238,.05)"><td><span class="tag tag-timer">R/PT4H</span></td><td>SP-CA-002</td><td>NEWS2 monitoring recorrente</td><td>Recurring start</td></tr>
+      <tr style="background:rgba(34,211,238,.05)"><td><span class="tag tag-timer">R/P1D</span></td><td>SP-RC-009, RC-011</td><td>Daily analytics/collection cycle</td><td>Recurring start</td></tr>
+      <tr style="background:rgba(34,211,238,.05)"><td><span class="tag tag-timer">R/P7D</span></td><td>SP-RC-010</td><td>Weekly forecast</td><td>Recurring</td></tr>
+      <tr style="background:rgba(34,211,238,.05)"><td><span class="tag tag-timer">R3/PT72H</span></td><td>SP-PX-001</td><td>3x 72h follow-up</td><td>Recurring (3x)</td></tr>
+      <tr style="background:rgba(34,211,238,.05)"><td><span class="tag tag-timer">CRON 0 0 6 * * ?</span></td><td>SP-PA-010</td><td>Daily doctor engagement</td><td>CRON start</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- ==================== CROSS REFERENCE ==================== -->
+<div class="section" id="crossref">
+  <h2 class="section-title">Cross-Reference: DMN &harr; BPMN &harr; Worker</h2>
+  <table class="var-table">
+    <thead><tr><th>DMN Decision</th><th>Referenciado no BPMN</th><th>Worker que Executa</th><th>Inputs DMN</th></tr></thead>
+    <tbody>
+      <tr><td>authorization_criteria</td><td>SP-RC-002</td><td>check_authorization_worker_v2</td><td>procedureCode, payerId</td></tr>
+      <tr><td>clinical_documentation_completeness</td><td>SP-RC-003</td><td>validate_clinical_data</td><td>clinicalData, diagnoses</td></tr>
+      <tr><td>pricing_contract_rules</td><td>SP-RC-004</td><td>assign_prices_worker_v2</td><td>procedures, contract</td></tr>
+      <tr><td>coding_audit_*</td><td>SP-RC-005</td><td>check_compatibility, detect_fraud</td><td>validatedCid10, validatedTuss</td></tr>
+      <tr><td>billing_quantity_validation</td><td>SP-RC-006</td><td>calculate_charges_worker_v2</td><td>procedures, modifiers</td></tr>
+      <tr><td>billing_bundle_rules</td><td>SP-RC-006</td><td>apply_contract_rules_worker_v2</td><td>charges, payer, contract</td></tr>
+      <tr><td>billing_opme_rules</td><td>SP-RC-006</td><td>generate_tiss_xml_worker_v2</td><td>charges, opme details</td></tr>
+      <tr><td>glosa_prevention_*</td><td>SP-RC-007</td><td>identify_glosa, classify_type</td><td>claimResponse, glosaItems</td></tr>
+      <tr><td>cash_operations_*</td><td>SP-RC-008</td><td>parse_payment, auto_matching</td><td>payment data</td></tr>
+      <tr><td>ews_qsofa_001</td><td>SP-CA-001</td><td>vital_signs_monitoring_worker</td><td>vital_signs, ewsScore</td></tr>
+      <tr><td>ews_news_001</td><td>SP-CA-002</td><td>vital_signs_monitoring_worker</td><td>vital_signs</td></tr>
+      <tr><td>surgical_readiness</td><td>SP-CO-007</td><td>surgical_readiness_check_worker</td><td>allChecksComplete, consentVerified, ...</td></tr>
+      <tr><td>fed_auth_001</td><td>SP-PA-001</td><td>validate_patient_data_worker</td><td>patient data</td></tr>
+      <tr><td>auth_urgency_001</td><td>SP-PA-004</td><td>check_authorization_requirements_worker</td><td>caraterAtendimento, riscoVida</td></tr>
+      <tr><td>comp_lgpd_001</td><td>SP-PS-001</td><td>compliance.lgpd worker</td><td>temConsentimento, tipoTratamento</td></tr>
+      <tr><td>cred_license_001</td><td>SP-PS-002</td><td>credentialing.license worker</td><td>diasValidadeCRM, crmSuspenso</td></tr>
+      <tr><td>ac_role_permissions_001</td><td>SP-PS-003</td><td>access_control.authentication worker</td><td>user_role, data_sensitivity</td></tr>
+    </tbody>
+  </table>
+</div>
+
+</div><!-- end container -->
+
+<!-- ==================== MASTER VARIABLE TABLE ==================== -->
+<div class="section" id="master-table">
+  <h2 class="section-title">Tabela Mestre: Todas as Variaveis com Direcao Explicita</h2>
+  <p style="font-size:.85rem;color:var(--text-muted);margin-bottom:1rem;">Cada variavel mapeada com direcao (IN/OUT/INTERMEDIATE) por fluxo e atividade. Use a busca para filtrar.</p>
+  <div class="filter-bar">
+    <input type="text" id="masterSearch" placeholder="Buscar variavel, fluxo ou topic..." onkeyup="filterMaster()">
+    <button class="filter-btn" onclick="filterByDir('all')" id="btn-all">Todas</button>
+    <button class="filter-btn" onclick="filterByDir('IN')" id="btn-in">IN</button>
+    <button class="filter-btn" onclick="filterByDir('OUT')" id="btn-out">OUT</button>
+    <button class="filter-btn" onclick="filterByDir('MID')" id="btn-mid">Intermediaria</button>
+  </div>
+
+  <!-- RC-001 Variables -->
+  <h3 style="color:var(--rc);font-size:.95rem;margin:1.5rem 0 .5rem;border-left:3px solid var(--rc);padding-left:.5rem;">SP-RC-001: Agendamento e Registro</h3>
+  <table class="var-table master-var-table">
+    <thead><tr><th>Variavel</th><th>Tipo</th><th>Direcao</th><th>Atividade / Topic</th><th>Descricao</th></tr></thead>
+    <tbody>
+      <tr class="dir-IN"><td><code>patientId</code></td><td><span class="tag tag-string">string</span></td><td><span class="tag tag-input">IN</span></td><td>verify_insurance, schedule_appointment</td><td>ID do paciente</td></tr>
+      <tr class="dir-IN"><td><code>insuranceCardNumber</code></td><td><span class="tag tag-string">string</span></td><td><span class="tag tag-input">IN</span></td><td>verify_insurance</td><td>Numero da carteirinha</td></tr>
+      <tr class="dir-IN"><td><code>procedureCode</code></td><td><span class="tag tag-string">string</span></td><td><span class="tag tag-input">IN</span></td><td>check_eligibility, schedule_appointment</td><td>Codigo do procedimento</td></tr>
+      <tr class="dir-IN"><td><code>preferredDate</code></td><td><span class="tag tag-string">date</span></td><td><span class="tag tag-input">IN</span></td><td>schedule_appointment</td><td>Data preferencial</td></tr>
+      <tr class="dir-MID"><td><code>coverageStatus</code></td><td><span class="tag tag-string">string</span></td><td><span class="tag tag-intermediate">MID</span></td><td>verify_insurance &rarr; check_eligibility</td><td>Status da cobertura (alias: insuranceVerified)</td></tr>
+      <tr class="dir-MID"><td><code>isEligible</code></td><td><span class="tag tag-bool">boolean</span></td><td><span class="tag tag-intermediate">MID</span> &rarr; <span class="tag tag-gateway">GW</span></td><td>check_eligibility &rarr; Gateway</td><td>Elegibilidade verificada (alias: eligibilityStatus)</td></tr>
+      <tr class="dir-OUT"><td><code>appointmentId</code></td><td><span class="tag tag-string">string</span></td><td><span class="tag tag-output">OUT</span></td><td>schedule_appointment</td><td>ID da consulta agendada</td></tr>
+    </tbody>
+  </table>
+
+  <!-- RC-002 Variables -->
+  <h3 style="color:var(--rc);font-size:.95rem;margin:1.5rem 0 .5rem;border-left:3px solid var(--rc);padding-left:.5rem;">SP-RC-002: Pre-Atendimento e Autorizacao</h3>
+  <table class="var-table master-var-table">
+    <thead><tr><th>Variavel</th><th>Tipo</th><th>Direcao</th><th>Atividade / Topic</th><th>Descricao</th></tr></thead>
+    <tbody>
+      <tr class="dir-IN"><td><code>procedureCode</code></td><td><span class="tag tag-string">string</span></td><td><span class="tag tag-input">IN</span></td><td>check_authorization, request_authorization, validate_procedure</td><td>Codigo do procedimento</td></tr>
+      <tr class="dir-IN"><td><code>payerId</code></td><td><span class="tag tag-string">string</span></td><td><span class="tag tag-input">IN</span></td><td>check_authorization, request_authorization</td><td>ID da operadora</td></tr>
+      <tr class="dir-IN"><td><code>patientId</code></td><td><span class="tag tag-string">string</span></td><td><span class="tag tag-input">IN</span></td><td>request_authorization</td><td>ID do paciente</td></tr>
+      <tr class="dir-IN"><td><code>clinicalJustification</code></td><td><span class="tag tag-string">string</span></td><td><span class="tag tag-input">IN</span></td><td>request_authorization</td><td>Justificativa clinica</td></tr>
+      <tr class="dir-IN"><td><code>clinicalData</code></td><td><span class="tag tag-string">object</span></td><td><span class="tag tag-input">IN</span></td><td>validate_procedure</td><td>Dados clinicos</td></tr>
+      <tr class="dir-MID"><td><code>requiresAuth</code></td><td><span class="tag tag-bool">boolean</span></td><td><span class="tag tag-intermediate">MID</span> &rarr; <span class="tag tag-gateway">GW</span></td><td>check_authorization &rarr; Gateway</td><td>Autorizacao necessaria?</td></tr>
+      <tr class="dir-MID"><td><code>authType</code></td><td><span class="tag tag-string">string</span></td><td><span class="tag tag-intermediate">MID</span></td><td>check_authorization</td><td>Tipo de autorizacao</td></tr>
+      <tr class="dir-MID"><td><code>authorizationNumber</code></td><td><span class="tag tag-string">string</span></td><td><span class="tag tag-intermediate">MID</span></td><td>request_authorization &rarr; validate_procedure</td><td>Numero da autorizacao</td></tr>
+      <tr class="dir-MID"><td><code>authStatus</code></td><td><span class="tag tag-string">string</span></td><td><span class="tag tag-intermediate">MID</span> &rarr; <span class="tag tag-gateway">GW</span></td><td>request_authorization &rarr; Gateway</td><td>APPROVED/DENIED/PENDING</td></tr>
+      <tr class="dir-MID"><td><code>authCriteria</code></td><td><span class="tag tag-string">object</span></td><td><span class="tag tag-dmn">DMN</span></td><td>DMN: authorization_criteria</td><td>Criterios de autorizacao (resultado DMN)</td></tr>
+      <tr class="dir-OUT"><td><code>validationStatus</code></td><td><span class="tag tag-bool">boolean</span></td><td><span class="tag tag-output">OUT</span></td><td>validate_procedure</td><td>Procedimento validado?</td></tr>
+    </tbody>
+  </table>
+
+  <!-- RC-003 Variables -->
+  <h3 style="color:var(--rc);font-size:.95rem;margin:1.5rem 0 .5rem;border-left:3px solid var(--rc);padding-left:.5rem;">SP-RC-003: Atendimento Clinico e Documentacao</h3>
+  <table class="var-table master-var-table">
+    <thead><tr><th>Variavel</th><th>Tipo</th><th>Direcao</th><th>Atividade / Topic</th><th>Descricao</th></tr></thead>
+    <tbody>
+      <tr class="dir-IN"><td><code>encounterId</code></td><td><span class="tag tag-string">string</span></td><td><span class="tag tag-input">IN</span></td><td>capture_procedure, enrich_procedure</td><td>ID do atendimento</td></tr>
+      <tr class="dir-IN"><td><code>patientId</code></td><td><span class="tag tag-string">string</span></td><td><span class="tag tag-input">IN</span></td><td>capture_procedure</td><td>ID do paciente</td></tr>
+      <tr class="dir-IN"><td><code>procedureCodes</code></td><td><span class="tag tag-string">list</span></td><td><span class="tag tag-input">IN</span></td><td>capture_procedure</td><td>Codigos de procedimento iniciais</td></tr>
+      <tr class="dir-MID"><td><code>capturedData</code></td><td><span class="tag tag-string">object</span></td><td><span class="tag tag-intermediate">MID</span></td><td>capture_procedure &rarr; enrich_procedure</td><td>Dados capturados (alias: clinicalData)</td></tr>
+      <tr class="dir-MID"><td><code>captureTimestamp</code></td><td><span class="tag tag-string">datetime</span></td><td><span class="tag tag-intermediate">MID</span></td><td>capture_procedure</td><td>Timestamp da captura</td></tr>
+      <tr class="dir-MID"><td><code>enrichedData</code></td><td><span class="tag tag-string">object</span></td><td><span class="tag tag-intermediate">MID</span></td><td>enrich_procedure &rarr; calculate_quantity, validate_data</td><td>Dados enriquecidos (alias: completeData)</td></tr>
+      <tr class="dir-MID"><td><code>diagnosisCodes</code></td><td><span class="tag tag-string">list</span></td><td><span class="tag tag-intermediate">MID</span></td><td>enrich_procedure &rarr; validate_data</td><td>CID-10 (alias: icdCodes)</td></tr>
+      <tr class="dir-MID"><td><code>tussCodes</code></td><td><span class="tag tag-string">list</span></td><td><span class="tag tag-intermediate">MID</span></td><td>enrich_procedure &rarr; calculate_quantity, validate_data</td><td>Codigos TUSS extraidos</td></tr>
+      <tr class="dir-MID"><td><code>docCompleteness</code></td><td><span class="tag tag-string">object</span></td><td><span class="tag tag-dmn">DMN</span> &rarr; <span class="tag tag-gateway">GW</span></td><td>DMN: clinical_documentation_completeness</td><td>Completude da documentacao</td></tr>
+      <tr class="dir-MID"><td><code>quantities</code></td><td><span class="tag tag-string">list</span></td><td><span class="tag tag-intermediate">MID</span></td><td>calculate_quantity</td><td>Quantidades calculadas</td></tr>
+      <tr class="dir-MID"><td><code>units</code></td><td><span class="tag tag-string">list</span></td><td><span class="tag tag-intermediate">MID</span></td><td>calculate_quantity</td><td>Unidades de medida</td></tr>
+      <tr class="dir-OUT"><td><code>validationResult</code></td><td><span class="tag tag-bool">boolean</span></td><td><span class="tag tag-output">OUT</span></td><td>validate_clinical_data</td><td>Validacao OK?</td></tr>
+      <tr class="dir-OUT"><td><code>validationErrors</code></td><td><span class="tag tag-string">list</span></td><td><span class="tag tag-output">OUT</span></td><td>validate_clinical_data</td><td>Lista de erros encontrados</td></tr>
+    </tbody>
+  </table>
+
+  <!-- RC-004 Variables -->
+  <h3 style="color:var(--rc);font-size:.95rem;margin:1.5rem 0 .5rem;border-left:3px solid var(--rc);padding-left:.5rem;">SP-RC-004: Producao Clinica</h3>
+  <table class="var-table master-var-table">
+    <thead><tr><th>Variavel</th><th>Tipo</th><th>Direcao</th><th>Atividade / Topic</th><th>Descricao</th></tr></thead>
+    <tbody>
+      <tr class="dir-IN"><td><code>procedureCodes</code></td><td><span class="tag tag-string">list</span></td><td><span class="tag tag-input">IN</span></td><td>assign_prices</td><td>Codigos de procedimento</td></tr>
+      <tr class="dir-IN"><td><code>payerId</code></td><td><span class="tag tag-string">string</span></td><td><span class="tag tag-input">IN</span></td><td>assign_prices</td><td>ID da operadora</td></tr>
+      <tr class="dir-IN"><td><code>contractId</code></td><td><span class="tag tag-string">string</span></td><td><span class="tag tag-input">IN</span></td><td>assign_prices</td><td>ID do contrato</td></tr>
+      <tr class="dir-IN"><td><code>icdCodes</code></td><td><span class="tag tag-string">list</span></td><td><span class="tag tag-input">IN</span></td><td>validate_compatibility</td><td>Diagnosticos CID-10</td></tr>
+      <tr class="dir-IN"><td><code>encounterId</code></td><td><span class="tag tag-string">string</span></td><td><span class="tag tag-input">IN</span></td><td>record_production</td><td>ID do atendimento</td></tr>
+      <tr class="dir-MID"><td><code>pricedProcedures</code></td><td><span class="tag tag-string">list</span></td><td><span class="tag tag-intermediate">MID</span></td><td>assign_prices &rarr; validate_compatibility &rarr; calculate_value</td><td>Procedimentos com preco</td></tr>
+      <tr class="dir-MID"><td><code>contractPricing</code></td><td><span class="tag tag-string">object</span></td><td><span class="tag tag-dmn">DMN</span></td><td>DMN: pricing_contract_rules</td><td>Regras de preco contratual</td></tr>
+      <tr class="dir-MID"><td><code>packagePricing</code></td><td><span class="tag tag-string">object</span></td><td><span class="tag tag-dmn">DMN</span></td><td>DMN: pricing_package_rules</td><td>Regras de pacote</td></tr>
+      <tr class="dir-MID"><td><code>compatibilityResult</code></td><td><span class="tag tag-bool">boolean</span></td><td><span class="tag tag-intermediate">MID</span> &rarr; <span class="tag tag-gateway">GW</span></td><td>validate_compatibility &rarr; Gateway</td><td>Procedimentos compativeis?</td></tr>
+      <tr class="dir-MID"><td><code>incompatibleItems</code></td><td><span class="tag tag-string">list</span></td><td><span class="tag tag-intermediate">MID</span></td><td>validate_compatibility</td><td>Itens incompativeis</td></tr>
+      <tr class="dir-MID"><td><code>totalValue</code></td><td><span class="tag tag-number">number</span></td><td><span class="tag tag-intermediate">MID</span></td><td>calculate_value &rarr; record_production</td><td>Valor total da producao</td></tr>
+      <tr class="dir-MID"><td><code>breakdown</code></td><td><span class="tag tag-string">object</span></td><td><span class="tag tag-intermediate">MID</span></td><td>calculate_value &rarr; record_production</td><td>Detalhamento dos valores</td></tr>
+      <tr class="dir-MID"><td><code>outlierAnalysis</code></td><td><span class="tag tag-string">object</span></td><td><span class="tag tag-dmn">DMN</span> &rarr; <span class="tag tag-gateway">GW</span></td><td>DMN: pricing_outlier_detection</td><td>Analise de outlier</td></tr>
+      <tr class="dir-OUT"><td><code>productionId</code></td><td><span class="tag tag-string">string</span></td><td><span class="tag tag-output">OUT</span></td><td>record_production</td><td>ID da producao registrada</td></tr>
+    </tbody>
+  </table>
+
+  <!-- RC-005 Variables -->
+  <h3 style="color:var(--rc);font-size:.95rem;margin:1.5rem 0 .5rem;border-left:3px solid var(--rc);padding-left:.5rem;">SP-RC-005: Codificacao e Auditoria</h3>
+  <table class="var-table master-var-table">
+    <thead><tr><th>Variavel</th><th>Tipo</th><th>Direcao</th><th>Atividade / Topic</th><th>Descricao</th></tr></thead>
+    <tbody>
+      <tr class="dir-IN"><td><code>encounterId</code></td><td><span class="tag tag-string">string</span></td><td><span class="tag tag-input">IN</span></td><td>extract_clinical_data</td><td>ID do atendimento</td></tr>
+      <tr class="dir-IN"><td><code>documentIds</code></td><td><span class="tag tag-string">list</span></td><td><span class="tag tag-input">IN</span></td><td>extract_clinical_data</td><td>IDs dos documentos clinicos</td></tr>
+      <tr class="dir-MID"><td><code>extractedData</code></td><td><span class="tag tag-string">object</span></td><td><span class="tag tag-intermediate">MID</span></td><td>extract_clinical_data &rarr; suggest_cid10, suggest_tuss, audit_coding</td><td>Dados clinicos extraidos</td></tr>
+      <tr class="dir-MID"><td><code>suggestedCodes</code></td><td><span class="tag tag-string">list</span></td><td><span class="tag tag-intermediate">MID</span></td><td>suggest_cid10 &rarr; suggest_tuss, check_compatibility, detect_fraud</td><td>CID-10 sugeridos</td></tr>
+      <tr class="dir-MID"><td><code>confidence</code></td><td><span class="tag tag-number">number</span></td><td><span class="tag tag-intermediate">MID</span></td><td>suggest_cid10, suggest_tuss</td><td>Score de confianca</td></tr>
+      <tr class="dir-MID"><td><code>suggestedProcedures</code></td><td><span class="tag tag-string">list</span></td><td><span class="tag tag-intermediate">MID</span></td><td>suggest_tuss &rarr; check_compatibility, detect_fraud, validate_coding</td><td>TUSS sugeridos</td></tr>
+      <tr class="dir-MID"><td><code>compatibilityCheck</code></td><td><span class="tag tag-string">object</span></td><td><span class="tag tag-dmn">DMN</span></td><td>DMN: coding_audit_compatibility</td><td>Resultado DMN de compatibilidade</td></tr>
+      <tr class="dir-MID"><td><code>duplicateCheck</code></td><td><span class="tag tag-string">object</span></td><td><span class="tag tag-dmn">DMN</span></td><td>DMN: coding_audit_duplicate</td><td>Resultado DMN de duplicatas</td></tr>
+      <tr class="dir-MID"><td><code>frequencyCheck</code></td><td><span class="tag tag-string">object</span></td><td><span class="tag tag-dmn">DMN</span></td><td>DMN: coding_audit_frequency</td><td>Resultado DMN de frequencia</td></tr>
+      <tr class="dir-MID"><td><code>unbundlingCheck</code></td><td><span class="tag tag-string">object</span></td><td><span class="tag tag-dmn">DMN</span></td><td>DMN: coding_audit_unbundle</td><td>Resultado DMN de unbundling</td></tr>
+      <tr class="dir-MID"><td><code>fraudScore</code></td><td><span class="tag tag-number">number</span></td><td><span class="tag tag-intermediate">MID</span> &rarr; <span class="tag tag-gateway">GW</span></td><td>detect_fraud &rarr; Gateway (<0.7 / >=0.7)</td><td>Score de risco de fraude</td></tr>
+      <tr class="dir-MID"><td><code>fraudIndicators</code></td><td><span class="tag tag-string">list</span></td><td><span class="tag tag-intermediate">MID</span></td><td>detect_fraud</td><td>Indicadores de fraude</td></tr>
+      <tr class="dir-MID"><td><code>codingValidated</code></td><td><span class="tag tag-bool">boolean</span></td><td><span class="tag tag-intermediate">MID</span></td><td>validate_coding &rarr; audit_coding</td><td>Codificacao validada?</td></tr>
+      <tr class="dir-OUT"><td><code>auditResult</code></td><td><span class="tag tag-string">string</span></td><td><span class="tag tag-output">OUT</span></td><td>audit_coding</td><td>Resultado da auditoria</td></tr>
+      <tr class="dir-OUT"><td><code>auditFindings</code></td><td><span class="tag tag-string">list</span></td><td><span class="tag tag-output">OUT</span></td><td>audit_coding</td><td>Achados da auditoria</td></tr>
+    </tbody>
+  </table>
+
+  <!-- RC-006 Variables -->
+  <h3 style="color:var(--rc);font-size:.95rem;margin:1.5rem 0 .5rem;border-left:3px solid var(--rc);padding-left:.5rem;">SP-RC-006: Faturamento e Envio TISS</h3>
+  <table class="var-table master-var-table">
+    <thead><tr><th>Variavel</th><th>Tipo</th><th>Direcao</th><th>Atividade / Topic</th><th>Descricao</th></tr></thead>
+    <tbody>
+      <tr class="dir-IN"><td><code>encounterId</code></td><td><span class="tag tag-string">string</span></td><td><span class="tag tag-input">IN</span></td><td>validate_claim, generate_tiss_xml</td><td>ID do atendimento</td></tr>
+      <tr class="dir-IN"><td><code>patientId</code></td><td><span class="tag tag-string">string</span></td><td><span class="tag tag-input">IN</span></td><td>validate_claim</td><td>ID do paciente</td></tr>
+      <tr class="dir-IN"><td><code>procedures</code></td><td><span class="tag tag-string">list</span></td><td><span class="tag tag-input">IN</span></td><td>validate_claim, calculate_charges</td><td>Lista de procedimentos</td></tr>
+      <tr class="dir-IN"><td><code>payerId</code></td><td><span class="tag tag-string">string</span></td><td><span class="tag tag-input">IN</span></td><td>apply_contract_rules, submit_to_payer</td><td>ID da operadora</td></tr>
+      <tr class="dir-IN"><td><code>contractId</code></td><td><span class="tag tag-string">string</span></td><td><span class="tag tag-input">IN</span></td><td>apply_contract_rules</td><td>ID do contrato</td></tr>
+      <tr class="dir-MID"><td><code>validationResult</code></td><td><span class="tag tag-bool">boolean</span></td><td><span class="tag tag-intermediate">MID</span> &rarr; <span class="tag tag-gateway">GW</span></td><td>validate_claim &rarr; Gateway</td><td>Claim valido?</td></tr>
+      <tr class="dir-MID"><td><code>validationErrors</code></td><td><span class="tag tag-string">list</span></td><td><span class="tag tag-intermediate">MID</span></td><td>validate_claim</td><td>Erros de validacao</td></tr>
+      <tr class="dir-MID"><td><code>quantityCheck</code></td><td><span class="tag tag-string">object</span></td><td><span class="tag tag-dmn">DMN</span></td><td>DMN: billing_quantity_validation</td><td>Validacao de quantidade</td></tr>
+      <tr class="dir-MID"><td><code>totalCharges</code></td><td><span class="tag tag-number">number</span></td><td><span class="tag tag-intermediate">MID</span></td><td>calculate_charges &rarr; apply_contract_rules</td><td>Total de cobranças</td></tr>
+      <tr class="dir-MID"><td><code>chargeBreakdown</code></td><td><span class="tag tag-string">object</span></td><td><span class="tag tag-intermediate">MID</span></td><td>calculate_charges</td><td>Detalhamento das cobranças</td></tr>
+      <tr class="dir-MID"><td><code>modifiers</code></td><td><span class="tag tag-string">object</span></td><td><span class="tag tag-dmn">DMN</span></td><td>DMN: billing_modifier_rules</td><td>Regras de modificadores</td></tr>
+      <tr class="dir-MID"><td><code>bundleRules</code></td><td><span class="tag tag-string">object</span></td><td><span class="tag tag-dmn">DMN</span></td><td>DMN: billing_bundle_rules</td><td>Regras de agrupamento</td></tr>
+      <tr class="dir-MID"><td><code>adjustedCharges</code></td><td><span class="tag tag-string">object</span></td><td><span class="tag tag-intermediate">MID</span></td><td>apply_contract_rules &rarr; generate_tiss_xml</td><td>Cobranças ajustadas (alias: finalCharges)</td></tr>
+      <tr class="dir-MID"><td><code>taxes</code></td><td><span class="tag tag-string">object</span></td><td><span class="tag tag-dmn">DMN</span></td><td>DMN: billing_tax_calculation</td><td>Calculo de taxas</td></tr>
+      <tr class="dir-MID"><td><code>opmeRules</code></td><td><span class="tag tag-string">object</span></td><td><span class="tag tag-dmn">DMN</span></td><td>DMN: billing_opme_rules</td><td>Regras OPME</td></tr>
+      <tr class="dir-MID"><td><code>tissXml</code></td><td><span class="tag tag-string">xml</span></td><td><span class="tag tag-intermediate">MID</span></td><td>generate_tiss_xml &rarr; validate_tiss_schema &rarr; submit_to_payer</td><td>XML TISS gerado</td></tr>
+      <tr class="dir-MID"><td><code>schemaValid</code></td><td><span class="tag tag-bool">boolean</span></td><td><span class="tag tag-intermediate">MID</span> &rarr; <span class="tag tag-gateway">GW</span></td><td>validate_tiss_schema &rarr; Gateway</td><td>Schema TISS valido?</td></tr>
+      <tr class="dir-MID"><td><code>schemaErrors</code></td><td><span class="tag tag-string">list</span></td><td><span class="tag tag-intermediate">MID</span></td><td>validate_tiss_schema</td><td>Erros de schema</td></tr>
+      <tr class="dir-OUT"><td><code>submissionId</code></td><td><span class="tag tag-string">string</span></td><td><span class="tag tag-output">OUT</span></td><td>submit_to_payer</td><td>ID da submissao (alias: batchId)</td></tr>
+      <tr class="dir-OUT"><td><code>submissionStatus</code></td><td><span class="tag tag-string">string</span></td><td><span class="tag tag-output">OUT</span></td><td>submit_to_payer</td><td>Status da submissao</td></tr>
+    </tbody>
+  </table>
+
+  <!-- RC-007 Variables -->
+  <h3 style="color:var(--rc);font-size:.95rem;margin:1.5rem 0 .5rem;border-left:3px solid var(--rc);padding-left:.5rem;">SP-RC-007: Gestao de Glosas</h3>
+  <table class="var-table master-var-table">
+    <thead><tr><th>Variavel</th><th>Tipo</th><th>Direcao</th><th>Atividade / Topic</th><th>Descricao</th></tr></thead>
+    <tbody>
+      <tr class="dir-IN"><td><code>batchId</code></td><td><span class="tag tag-string">string</span></td><td><span class="tag tag-input">IN</span></td><td>glosa.identify</td><td>ID do lote de faturamento</td></tr>
+      <tr class="dir-IN"><td><code>payerResponse</code></td><td><span class="tag tag-string">object</span></td><td><span class="tag tag-input">IN</span></td><td>glosa.identify</td><td>Resposta da operadora</td></tr>
+      <tr class="dir-IN"><td><code>encounterId</code></td><td><span class="tag tag-string">string</span></td><td><span class="tag tag-input">IN</span></td><td>glosa.analyze_reason</td><td>ID do atendimento</td></tr>
+      <tr class="dir-IN"><td><code>payerId</code></td><td><span class="tag tag-string">string</span></td><td><span class="tag tag-input">IN</span></td><td>denial.submit_appeal</td><td>ID da operadora</td></tr>
+      <tr class="dir-MID"><td><code>glosaItems</code></td><td><span class="tag tag-string">list</span></td><td><span class="tag tag-intermediate">MID</span></td><td>identify &rarr; classify_type</td><td>Itens glosados</td></tr>
+      <tr class="dir-MID"><td><code>glosaCount</code></td><td><span class="tag tag-number">number</span></td><td><span class="tag tag-intermediate">MID</span></td><td>glosa.identify</td><td>Total de glosas</td></tr>
+      <tr class="dir-MID"><td><code>classifiedGlosas</code></td><td><span class="tag tag-string">list</span></td><td><span class="tag tag-intermediate">MID</span></td><td>classify_type &rarr; analyze_reason, check_appeal_eligibility</td><td>Glosas classificadas por tipo</td></tr>
+      <tr class="dir-MID"><td><code>primaryType</code></td><td><span class="tag tag-string">string</span></td><td><span class="tag tag-intermediate">MID</span></td><td>glosa.classify_type</td><td>Tipo principal de glosa</td></tr>
+      <tr class="dir-MID"><td><code>rootCause</code></td><td><span class="tag tag-string">string</span></td><td><span class="tag tag-intermediate">MID</span></td><td>analyze_reason &rarr; check_appeal_eligibility</td><td>Causa raiz</td></tr>
+      <tr class="dir-MID"><td><code>glosaRiskPrediction</code></td><td><span class="tag tag-string">object</span></td><td><span class="tag tag-dmn">DMN</span></td><td>DMN: glosa_prevention_predict</td><td>Previsao de risco de glosa</td></tr>
+      <tr class="dir-MID"><td><code>preventionPlan</code></td><td><span class="tag tag-string">object</span></td><td><span class="tag tag-dmn">DMN</span></td><td>DMN: glosa_prevention_prevent</td><td>Plano de prevencao</td></tr>
+      <tr class="dir-MID"><td><code>isEligible</code></td><td><span class="tag tag-bool">boolean</span></td><td><span class="tag tag-intermediate">MID</span> &rarr; <span class="tag tag-gateway">GW</span></td><td>check_appeal_eligibility &rarr; Gateway</td><td>Elegivel para recurso?</td></tr>
+      <tr class="dir-MID"><td><code>recoveryPlan</code></td><td><span class="tag tag-string">object</span></td><td><span class="tag tag-dmn">DMN</span></td><td>DMN: revenue_recovery_strategy</td><td>Estrategia de recuperacao</td></tr>
+      <tr class="dir-MID"><td><code>appealPackage</code></td><td><span class="tag tag-string">object</span></td><td><span class="tag tag-intermediate">MID</span></td><td>generate_appeal_documentation &rarr; submit_appeal</td><td>Pacote do recurso</td></tr>
+      <tr class="dir-MID"><td><code>appealId</code></td><td><span class="tag tag-string">string</span></td><td><span class="tag tag-intermediate">MID</span></td><td>submit_appeal &rarr; track_appeal_status</td><td>ID do recurso</td></tr>
+      <tr class="dir-OUT"><td><code>currentStatus</code></td><td><span class="tag tag-string">string</span></td><td><span class="tag tag-output">OUT</span></td><td>track_appeal_status</td><td>Status atual do recurso</td></tr>
+    </tbody>
+  </table>
+
+  <!-- RC-008 Variables -->
+  <h3 style="color:var(--rc);font-size:.95rem;margin:1.5rem 0 .5rem;border-left:3px solid var(--rc);padding-left:.5rem;">SP-RC-008: Cobranca e Recebimento</h3>
+  <table class="var-table master-var-table">
+    <thead><tr><th>Variavel</th><th>Tipo</th><th>Direcao</th><th>Atividade / Topic</th><th>Descricao</th></tr></thead>
+    <tbody>
+      <tr class="dir-IN"><td><code>cutoffDate</code></td><td><span class="tag tag-string">date</span></td><td><span class="tag tag-input">IN</span></td><td>identify_overdue</td><td>Data de corte</td></tr>
+      <tr class="dir-MID"><td><code>overdueAccounts</code></td><td><span class="tag tag-string">list</span></td><td><span class="tag tag-intermediate">MID</span></td><td>identify_overdue &rarr; prioritize, auto_matching, update_ar</td><td>Contas vencidas</td></tr>
+      <tr class="dir-MID"><td><code>totalOverdue</code></td><td><span class="tag tag-number">number</span></td><td><span class="tag tag-intermediate">MID</span></td><td>identify_overdue</td><td>Total vencido</td></tr>
+      <tr class="dir-MID"><td><code>prioritizedAccounts</code></td><td><span class="tag tag-string">list</span></td><td><span class="tag tag-intermediate">MID</span></td><td>prioritize &rarr; receive_payment</td><td>Contas priorizadas</td></tr>
+      <tr class="dir-MID"><td><code>payments</code></td><td><span class="tag tag-string">list</span></td><td><span class="tag tag-intermediate">MID</span></td><td>receive_payment &rarr; auto_matching</td><td>Pagamentos recebidos</td></tr>
+      <tr class="dir-MID"><td><code>paymentDate</code></td><td><span class="tag tag-string">date</span></td><td><span class="tag tag-intermediate">MID</span></td><td>receive_payment &rarr; reconcile_daily</td><td>Data do pagamento</td></tr>
+      <tr class="dir-MID"><td><code>matchedPayments</code></td><td><span class="tag tag-string">list</span></td><td><span class="tag tag-intermediate">MID</span></td><td>auto_matching &rarr; reconcile_daily, update_ar</td><td>Pagamentos conciliados</td></tr>
+      <tr class="dir-MID"><td><code>unmatchedPayments</code></td><td><span class="tag tag-string">list</span></td><td><span class="tag tag-intermediate">MID</span> &rarr; <span class="tag tag-gateway">GW</span></td><td>auto_matching &rarr; Gateway (size > 0?)</td><td>Pagamentos nao conciliados</td></tr>
+      <tr class="dir-MID"><td><code>paymentMethodRules</code></td><td><span class="tag tag-string">object</span></td><td><span class="tag tag-dmn">DMN</span></td><td>DMN: cash_operations_payment_method</td><td>Regras de pagamento</td></tr>
+      <tr class="dir-MID"><td><code>discountRules</code></td><td><span class="tag tag-string">object</span></td><td><span class="tag tag-dmn">DMN</span></td><td>DMN: cash_operations_discount</td><td>Regras de desconto</td></tr>
+      <tr class="dir-OUT"><td><code>reconciliationReport</code></td><td><span class="tag tag-string">object</span></td><td><span class="tag tag-output">OUT</span></td><td>reconcile_daily</td><td>Relatorio de conciliacao</td></tr>
+      <tr class="dir-OUT"><td><code>totalReconciled</code></td><td><span class="tag tag-number">number</span></td><td><span class="tag tag-output">OUT</span></td><td>reconcile_daily</td><td>Total conciliado</td></tr>
+      <tr class="dir-OUT"><td><code>updatedAR</code></td><td><span class="tag tag-string">object</span></td><td><span class="tag tag-output">OUT</span></td><td>update_accounts_receivable</td><td>Contas a receber atualizado</td></tr>
+    </tbody>
+  </table>
+
+  <!-- Clinical Operations Variables -->
+  <h3 style="color:var(--co);font-size:.95rem;margin:1.5rem 0 .5rem;border-left:3px solid var(--co);padding-left:.5rem;">Clinical Operations: Todas as Variaveis de Gateway</h3>
+  <table class="var-table master-var-table">
+    <thead><tr><th>Variavel</th><th>Tipo</th><th>Direcao</th><th>Processo</th><th>Condicao Gateway</th></tr></thead>
+    <tbody>
+      <tr class="dir-MID"><td><code>qsofa_score</code></td><td><span class="tag tag-number">number</span></td><td><span class="tag tag-dmn">DMN</span> &rarr; <span class="tag tag-gateway">GW</span></td><td>SP-CA-001</td><td><code>>= 2</code> ativa protocolo sepse</td></tr>
+      <tr class="dir-MID"><td><code>sofa_score</code></td><td><span class="tag tag-number">number</span></td><td><span class="tag tag-dmn">DMN</span> &rarr; <span class="tag tag-gateway">GW</span></td><td>SP-CA-001</td><td><code>>= 2 && sofa_delta >= 2</code> confirma sepse</td></tr>
+      <tr class="dir-MID"><td><code>sofa_delta</code></td><td><span class="tag tag-number">number</span></td><td><span class="tag tag-intermediate">MID</span></td><td>SP-CA-001</td><td>Variacao do SOFA</td></tr>
+      <tr class="dir-MID"><td><code>news2_score</code></td><td><span class="tag tag-number">number</span></td><td><span class="tag tag-dmn">DMN</span> &rarr; <span class="tag tag-gateway">GW</span></td><td>SP-CA-002</td><td><code>[0-4]</code> baixo | <code>[5-6]</code> medio | <code>[7+]</code> critico</td></tr>
+      <tr class="dir-IN"><td><code>patientId</code></td><td><span class="tag tag-string">string</span></td><td><span class="tag tag-input">IN</span></td><td>SP-CO-001</td><td>ID do paciente</td></tr>
+      <tr class="dir-IN"><td><code>encounterId</code></td><td><span class="tag tag-string">string</span></td><td><span class="tag tag-input">IN</span></td><td>SP-CO-001</td><td>ID do atendimento</td></tr>
+      <tr class="dir-IN"><td><code>chiefComplaint</code></td><td><span class="tag tag-string">string</span></td><td><span class="tag tag-input">IN</span></td><td>SP-CO-001</td><td>Queixa principal</td></tr>
+      <tr class="dir-IN"><td><code>vitalSigns</code></td><td><span class="tag tag-string">object</span></td><td><span class="tag tag-input">IN</span></td><td>SP-CO-001</td><td>Sinais vitais</td></tr>
+      <tr class="dir-IN"><td><code>arrivalMode</code></td><td><span class="tag tag-string">string</span></td><td><span class="tag tag-input">IN</span></td><td>SP-CO-001</td><td>Modo de chegada</td></tr>
+      <tr class="dir-MID"><td><code>triageSeverity</code></td><td><span class="tag tag-string">string</span></td><td><span class="tag tag-input">IN</span> / <span class="tag tag-output">OUT</span> / <span class="tag tag-gateway">GW</span></td><td>SP-CO-001</td><td><code>== 'critical' || 'urgent'</code> &rarr; escalacao</td></tr>
+      <tr class="dir-OUT"><td><code>assignedSpecialist</code></td><td><span class="tag tag-string">string</span></td><td><span class="tag tag-output">OUT</span></td><td>SP-CO-001</td><td>Especialista atribuido</td></tr>
+      <tr class="dir-OUT"><td><code>careAreaAssigned</code></td><td><span class="tag tag-string">string</span></td><td><span class="tag tag-output">OUT</span></td><td>SP-CO-001</td><td>Area de cuidado atribuida</td></tr>
+      <tr class="dir-MID"><td><code>bed_available</code></td><td><span class="tag tag-bool">boolean</span></td><td><span class="tag tag-intermediate">MID</span> &rarr; <span class="tag tag-gateway">GW</span></td><td>SP-CO-002</td><td><code>== true</code> &rarr; admitir</td></tr>
+      <tr class="dir-MID"><td><code>alerts_detected</code></td><td><span class="tag tag-bool">boolean</span></td><td><span class="tag tag-intermediate">MID</span> &rarr; <span class="tag tag-gateway">GW</span></td><td>SP-CO-004</td><td><code>== true</code> &rarr; alertas clinicos</td></tr>
+      <tr class="dir-MID"><td><code>is_inpatient</code></td><td><span class="tag tag-bool">boolean</span></td><td><span class="tag tag-intermediate">MID</span> &rarr; <span class="tag tag-gateway">GW</span></td><td>SP-CO-006</td><td><code>== true</code> &rarr; fluxo internacao</td></tr>
+      <tr class="dir-MID"><td><code>canProceed</code></td><td><span class="tag tag-bool">boolean</span></td><td><span class="tag tag-dmn">DMN</span> &rarr; <span class="tag tag-gateway">GW</span></td><td>SP-CO-007</td><td><code>== true</code> &rarr; cirurgia | <code>false</code> &rarr; adiar</td></tr>
+      <tr class="dir-MID"><td><code>dischargePlanned</code></td><td><span class="tag tag-bool">boolean</span></td><td><span class="tag tag-intermediate">MID</span> &rarr; <span class="tag tag-gateway">GW</span></td><td>SP-CO-011</td><td><code>== true</code> &rarr; sair do ciclo diario</td></tr>
+      <tr class="dir-MID"><td><code>medicationAdherenceOK</code></td><td><span class="tag tag-bool">boolean</span></td><td><span class="tag tag-intermediate">MID</span> &rarr; <span class="tag tag-gateway">GW</span></td><td>SP-CO-012</td><td><code>== false</code> &rarr; intervencao de aderencia</td></tr>
+      <tr class="dir-MID"><td><code>recoveryStatus</code></td><td><span class="tag tag-string">string</span></td><td><span class="tag tag-intermediate">MID</span> &rarr; <span class="tag tag-gateway">GW</span></td><td>SP-CO-012</td><td><code>== 'Worse'</code> &rarr; alertar medico</td></tr>
+    </tbody>
+  </table>
+
+  <!-- Patient Access Variables -->
+  <h3 style="color:var(--pa);font-size:.95rem;margin:1.5rem 0 .5rem;border-left:3px solid var(--pa);padding-left:.5rem;">Patient Access: Todas as Variaveis de Gateway</h3>
+  <table class="var-table master-var-table">
+    <thead><tr><th>Variavel</th><th>Tipo</th><th>Direcao</th><th>Processo</th><th>Condicao Gateway</th></tr></thead>
+    <tbody>
+      <tr class="dir-MID"><td><code>patient_exists</code></td><td><span class="tag tag-bool">boolean</span></td><td><span class="tag tag-intermediate">MID</span> &rarr; <span class="tag tag-gateway">GW</span></td><td>SP-PA-001</td><td><code>== false</code> &rarr; novo paciente</td></tr>
+      <tr class="dir-MID"><td><code>has_dependent</code></td><td><span class="tag tag-bool">boolean</span></td><td><span class="tag tag-intermediate">MID</span> &rarr; <span class="tag tag-gateway">GW</span></td><td>SP-PA-003</td><td><code>== true</code> &rarr; registrar dependente</td></tr>
+      <tr class="dir-MID"><td><code>auth_required</code></td><td><span class="tag tag-bool">boolean</span></td><td><span class="tag tag-intermediate">MID</span> &rarr; <span class="tag tag-gateway">GW</span></td><td>SP-PA-004</td><td><code>== true</code> &rarr; solicitar autorizacao</td></tr>
+      <tr class="dir-MID"><td><code>documentation_complete</code></td><td><span class="tag tag-bool">boolean</span></td><td><span class="tag tag-intermediate">MID</span> &rarr; <span class="tag tag-gateway">GW</span></td><td>SP-PA-005</td><td><code>== true</code> &rarr; pronto | <code>false</code> &rarr; solicitar docs</td></tr>
+      <tr class="dir-MID"><td><code>appointment_valid</code></td><td><span class="tag tag-bool">boolean</span></td><td><span class="tag tag-intermediate">MID</span> &rarr; <span class="tag tag-gateway">GW</span></td><td>SP-PA-006</td><td><code>== true</code> &rarr; check-in | <code>false</code> &rarr; cancelar</td></tr>
+      <tr class="dir-MID"><td><code>discharge_criteria_met</code></td><td><span class="tag tag-bool">boolean</span></td><td><span class="tag tag-intermediate">MID</span> &rarr; <span class="tag tag-gateway">GW</span></td><td>SP-DI-001</td><td><code>== true</code> &rarr; proceder | <code>false</code> &rarr; manter</td></tr>
+      <tr class="dir-MID"><td><code>readmission_risk</code></td><td><span class="tag tag-string">string</span></td><td><span class="tag tag-intermediate">MID</span> &rarr; <span class="tag tag-gateway">GW</span></td><td>SP-PX-001</td><td><code>== 'HIGH'</code> &rarr; escalar preocupacao</td></tr>
+      <tr class="dir-MID"><td><code>nps_score</code></td><td><span class="tag tag-number">number</span></td><td><span class="tag tag-intermediate">MID</span> &rarr; <span class="tag tag-gateway">GW</span></td><td>SP-PX-002</td><td><code>&lt;= 6</code> detrator | <code>7-8</code> passivo | <code>9+</code> promotor</td></tr>
+    </tbody>
+  </table>
+
+  <!-- Platform Services Variables -->
+  <h3 style="color:var(--ps);font-size:.95rem;margin:1.5rem 0 .5rem;border-left:3px solid var(--ps);padding-left:.5rem;">Platform Services: Todas as Variaveis de Gateway</h3>
+  <table class="var-table master-var-table">
+    <thead><tr><th>Variavel</th><th>Tipo</th><th>Direcao</th><th>Processo</th><th>Condicao Gateway</th></tr></thead>
+    <tbody>
+      <tr class="dir-MID"><td><code>retention_compliant</code></td><td><span class="tag tag-bool">boolean</span></td><td><span class="tag tag-intermediate">MID</span> &rarr; <span class="tag tag-gateway">GW</span></td><td>SP-PS-001</td><td><code>== true</code> &rarr; compliant | <code>false</code> &rarr; remediacao</td></tr>
+      <tr class="dir-MID"><td><code>credential_approved</code></td><td><span class="tag tag-bool">boolean</span></td><td><span class="tag tag-intermediate">MID</span> &rarr; <span class="tag tag-gateway">GW</span></td><td>SP-PS-002</td><td><code>== true</code> &rarr; aprovado</td></tr>
+      <tr class="dir-MID"><td><code>authenticated</code></td><td><span class="tag tag-bool">boolean</span></td><td><span class="tag tag-intermediate">MID</span> &rarr; <span class="tag tag-gateway">GW</span></td><td>SP-PS-003</td><td><code>== true</code> &rarr; autenticado</td></tr>
+      <tr class="dir-MID"><td><code>access_level</code></td><td><span class="tag tag-string">string</span></td><td><span class="tag tag-intermediate">MID</span> &rarr; <span class="tag tag-gateway">GW</span></td><td>SP-PS-003</td><td><code>!= 'DENIED'</code> &rarr; acesso concedido</td></tr>
+      <tr class="dir-MID"><td><code>params_valid</code></td><td><span class="tag tag-bool">boolean</span></td><td><span class="tag tag-intermediate">MID</span> &rarr; <span class="tag tag-gateway">GW</span></td><td>SP-PS-004</td><td><code>== true</code> &rarr; configuracao valida</td></tr>
+      <tr class="dir-MID"><td><code>health_status</code></td><td><span class="tag tag-string">string</span></td><td><span class="tag tag-intermediate">MID</span> &rarr; <span class="tag tag-gateway">GW</span></td><td>SP-PS-004</td><td><code>== 'HEALTHY'</code> &rarr; sucesso | outro &rarr; rollback</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<footer style="text-align:center;padding:2rem;color:var(--text-muted);font-size:.75rem;border-top:1px solid var(--surface2);">
+  MAEZO Healthcare Platform - Data Mapping Document | Gerado automaticamente via analise de BPMN, Workers Python e DMN files<br>
+  4 dominios | ~210 workers | ~1200 DMNs | 35 fluxos BPMN | 98 topics | 19 mensagens | 37 timers
+</footer>
+
+<script>
+function toggleFlow(header) {
+  const body = header.nextElementSibling;
+  const toggle = header.querySelector('.toggle');
+  body.classList.toggle('open');
+  toggle.classList.toggle('open');
+}
+
+function toggleAllFlows(domain) {
+  const cards = domain ? document.querySelectorAll(`[data-domain="${domain}"] .flow-body`) : document.querySelectorAll('.flow-body');
+  const allOpen = Array.from(cards).every(c => c.classList.contains('open'));
+  cards.forEach(body => {
+    const toggle = body.previousElementSibling.querySelector('.toggle');
+    if (allOpen) { body.classList.remove('open'); toggle && toggle.classList.remove('open'); }
+    else { body.classList.add('open'); toggle && toggle.classList.add('open'); }
+  });
+}
+
+function filterFlows(domain) {
+  const search = document.getElementById(domain + 'Search').value.toLowerCase();
+  const cards = document.querySelectorAll(`[data-domain="${domain}"]`);
+  cards.forEach(card => {
+    const text = card.textContent.toLowerCase();
+    card.style.display = text.includes(search) ? '' : 'none';
+  });
+}
+
+function filterWorkers() {
+  const search = document.getElementById('workerSearch').value.toLowerCase();
+  const cards = document.querySelectorAll('.worker-card');
+  cards.forEach(card => {
+    const text = card.textContent.toLowerCase();
+    card.style.display = text.includes(search) ? '' : 'none';
+  });
+}
+
+// Smooth scroll for nav
+document.querySelectorAll('.nav a').forEach(a => {
+  a.addEventListener('click', function(e) {
+    e.preventDefault();
+    const target = document.querySelector(this.getAttribute('href'));
+    if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    document.querySelectorAll('.nav a').forEach(n => n.classList.remove('active'));
+    this.classList.add('active');
+  });
+});
+
+// Highlight active nav on scroll
+window.addEventListener('scroll', () => {
+  const sections = document.querySelectorAll('.section');
+  let current = '';
+  sections.forEach(s => {
+    if (window.scrollY >= s.offsetTop - 100) current = s.id;
+  });
+  document.querySelectorAll('.nav a').forEach(a => {
+    a.classList.remove('active');
+    if (a.getAttribute('href') === '#' + current) a.classList.add('active');
+  });
+});
+
+// Master Table: search filter
+function filterMaster() {
+  const search = document.getElementById('masterSearch').value.toLowerCase();
+  const rows = document.querySelectorAll('.master-var-table tbody tr');
+  rows.forEach(row => {
+    const text = row.textContent.toLowerCase();
+    row.style.display = text.includes(search) ? '' : 'none';
+  });
+}
+
+// Master Table: filter by direction (IN/OUT/MID/all)
+let activeDir = 'all';
+function filterByDir(dir) {
+  activeDir = dir;
+  const rows = document.querySelectorAll('.master-var-table tbody tr');
+  rows.forEach(row => {
+    if (dir === 'all') {
+      row.style.display = '';
+    } else {
+      row.style.display = row.classList.contains('dir-' + dir) ? '' : 'none';
+    }
+  });
+  // Update active button state
+  document.querySelectorAll('#btn-all, #btn-in, #btn-out, #btn-mid').forEach(btn => btn.classList.remove('active'));
+  const activeBtn = document.getElementById('btn-' + dir.toLowerCase());
+  if (activeBtn) activeBtn.classList.add('active');
+  // Re-apply text search on top of direction filter
+  const search = document.getElementById('masterSearch').value.toLowerCase();
+  if (search) {
+    rows.forEach(row => {
+      if (row.style.display !== 'none') {
+        const text = row.textContent.toLowerCase();
+        if (!text.includes(search)) row.style.display = 'none';
+      }
+    });
+  }
+}
+</script>
+</body>
+</html>

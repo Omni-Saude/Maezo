@@ -1,0 +1,535 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" xmlns:camunda="http://camunda.org/schema/1.0/bpmn" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:bioc="http://bpmn.io/schema/bpmn/biocolor/1.0" xmlns:color="http://www.omg.org/spec/BPMN/non-normative/color/1.0" id="Definitions_RC009" targetNamespace="http://cib7.healthcare/revenue-cycle" exporter="Camunda Modeler" exporterVersion="5.42.0">
+  <bpmn:process id="SP_RC_009_Collection_Management" name="Gestão de Cobrança" isExecutable="true" camunda:historyTimeToLive="30">
+    <bpmn:startEvent id="start_collection_mgmt" name="Início Gestão de Cobrança">
+      <bpmn:outgoing>flow_to_prioritize</bpmn:outgoing>
+    </bpmn:startEvent>
+    <bpmn:serviceTask id="task_prioritize_collection" name="Priorizar Cobrança" camunda:type="external" camunda:topic="collection.prioritize_collection">
+      <bpmn:extensionElements>
+        <camunda:inputOutput>
+          <camunda:inputParameter name="overdueAccounts">${accounts}</camunda:inputParameter>
+          <camunda:inputParameter name="agingBuckets">${aging}</camunda:inputParameter>
+          <camunda:outputParameter name="prioritizedItems">${priorityList}</camunda:outputParameter>
+          <camunda:outputParameter name="priorityLevel">${priority}</camunda:outputParameter>
+        </camunda:inputOutput>
+      </bpmn:extensionElements>
+      <bpmn:incoming>flow_to_prioritize</bpmn:incoming>
+      <bpmn:outgoing>flow_to_priority_gateway</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:boundaryEvent id="error_payment_not_found" name="Pagamento Não Encontrado" attachedToRef="task_prioritize_collection">
+      <bpmn:outgoing>flow_to_end_error_payment</bpmn:outgoing>
+      <bpmn:errorEventDefinition errorRef="Error_PaymentNotFound" />
+    </bpmn:boundaryEvent>
+    <bpmn:exclusiveGateway id="gateway_priority" name="Nível de Prioridade?" default="flow_low">
+      <bpmn:incoming>flow_to_priority_gateway</bpmn:incoming>
+      <bpmn:outgoing>flow_critical</bpmn:outgoing>
+      <bpmn:outgoing>flow_high</bpmn:outgoing>
+      <bpmn:outgoing>flow_medium</bpmn:outgoing>
+      <bpmn:outgoing>flow_low</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:serviceTask id="task_escalate_to_legal_critical" name="Escalar para Jurídico" camunda:type="external" camunda:topic="collection.escalate_to_legal">
+      <bpmn:extensionElements>
+        <camunda:inputOutput>
+          <camunda:inputParameter name="collectionItem">${prioritizedItems}</camunda:inputParameter>
+          <camunda:inputParameter name="priority">critical</camunda:inputParameter>
+          <camunda:outputParameter name="legalCaseId">${caseId}</camunda:outputParameter>
+          <camunda:outputParameter name="legalStatus">${legalResult}</camunda:outputParameter>
+        </camunda:inputOutput>
+      </bpmn:extensionElements>
+      <bpmn:incoming>flow_critical</bpmn:incoming>
+      <bpmn:outgoing>flow_to_end_critical</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:boundaryEvent id="error_legal_escalation" name="Escalação Jurídica Requerida" attachedToRef="task_escalate_to_legal_critical">
+      <bpmn:outgoing>flow_to_end_error_legal</bpmn:outgoing>
+      <bpmn:errorEventDefinition errorRef="Error_LegalEscalationRequired" />
+    </bpmn:boundaryEvent>
+    <bpmn:serviceTask id="task_generate_collection_letter_high" name="Gerar Carta de Cobrança" camunda:type="external" camunda:topic="collection.generate_collection_letter">
+      <bpmn:extensionElements>
+        <camunda:inputOutput>
+          <camunda:inputParameter name="collectionItem">${prioritizedItems}</camunda:inputParameter>
+          <camunda:inputParameter name="priority">high</camunda:inputParameter>
+          <camunda:outputParameter name="letterId">${letter}</camunda:outputParameter>
+          <camunda:outputParameter name="deliveryStatus">${sent}</camunda:outputParameter>
+        </camunda:inputOutput>
+      </bpmn:extensionElements>
+      <bpmn:incoming>flow_high</bpmn:incoming>
+      <bpmn:outgoing>flow_to_schedule_call_high</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:serviceTask id="task_schedule_collection_call_high" name="Agendar Chamada de Cobrança" camunda:type="external" camunda:topic="collection.schedule_collection_call">
+      <bpmn:extensionElements>
+        <camunda:inputOutput>
+          <camunda:inputParameter name="collectionItem">${prioritizedItems}</camunda:inputParameter>
+          <camunda:inputParameter name="letter">${letterId}</camunda:inputParameter>
+          <camunda:outputParameter name="callScheduled">${scheduled}</camunda:outputParameter>
+          <camunda:outputParameter name="callDate">${callTime}</camunda:outputParameter>
+        </camunda:inputOutput>
+      </bpmn:extensionElements>
+      <bpmn:incoming>flow_to_schedule_call_high</bpmn:incoming>
+      <bpmn:outgoing>flow_to_timer_high</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:intermediateCatchEvent id="timer_high_followup" name="Aguardar 7 dias">
+      <bpmn:incoming>flow_to_timer_high</bpmn:incoming>
+      <bpmn:outgoing>flow_to_resolved_gateway_high</bpmn:outgoing>
+      <bpmn:timerEventDefinition>
+        <bpmn:timeDuration xsi:type="bpmn:tFormalExpression">P7D</bpmn:timeDuration>
+      </bpmn:timerEventDefinition>
+    </bpmn:intermediateCatchEvent>
+    <bpmn:exclusiveGateway id="gateway_resolved_high" name="Resolvido?" default="flow_high_not_resolved">
+      <bpmn:incoming>flow_to_resolved_gateway_high</bpmn:incoming>
+      <bpmn:outgoing>flow_high_resolved</bpmn:outgoing>
+      <bpmn:outgoing>flow_high_not_resolved</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:serviceTask id="task_escalate_to_legal_high" name="Escalar para Jurídico" camunda:type="external" camunda:topic="collection.escalate_to_legal">
+      <bpmn:extensionElements>
+        <camunda:inputOutput>
+          <camunda:inputParameter name="collectionItem">${prioritizedItems}</camunda:inputParameter>
+          <camunda:inputParameter name="priority">high</camunda:inputParameter>
+          <camunda:outputParameter name="legalCaseId">${caseId}</camunda:outputParameter>
+        </camunda:inputOutput>
+      </bpmn:extensionElements>
+      <bpmn:incoming>flow_high_not_resolved</bpmn:incoming>
+      <bpmn:outgoing>flow_to_end_high_legal</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:serviceTask id="task_generate_collection_letter_medium" name="Gerar Carta de Cobrança" camunda:type="external" camunda:topic="collection.generate_collection_letter">
+      <bpmn:extensionElements>
+        <camunda:inputOutput>
+          <camunda:inputParameter name="collectionItem">${prioritizedItems}</camunda:inputParameter>
+          <camunda:inputParameter name="priority">medium</camunda:inputParameter>
+          <camunda:outputParameter name="letterId">${letter}</camunda:outputParameter>
+        </camunda:inputOutput>
+      </bpmn:extensionElements>
+      <bpmn:incoming>flow_medium</bpmn:incoming>
+      <bpmn:outgoing>flow_to_timer_medium</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:intermediateCatchEvent id="timer_medium_followup" name="Aguardar 14 dias">
+      <bpmn:incoming>flow_to_timer_medium</bpmn:incoming>
+      <bpmn:outgoing>flow_to_resolved_gateway_medium</bpmn:outgoing>
+      <bpmn:timerEventDefinition>
+        <bpmn:timeDuration xsi:type="bpmn:tFormalExpression">P14D</bpmn:timeDuration>
+      </bpmn:timerEventDefinition>
+    </bpmn:intermediateCatchEvent>
+    <bpmn:exclusiveGateway id="gateway_resolved_medium" name="Resolvido?" default="flow_medium_not_resolved">
+      <bpmn:incoming>flow_to_resolved_gateway_medium</bpmn:incoming>
+      <bpmn:outgoing>flow_medium_resolved</bpmn:outgoing>
+      <bpmn:outgoing>flow_medium_not_resolved</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:serviceTask id="task_negotiate_payment_plan_medium" name="Negociar Plano de Pagamento" camunda:type="external" camunda:topic="collection.negotiate_payment_plan">
+      <bpmn:extensionElements>
+        <camunda:inputOutput>
+          <camunda:inputParameter name="collectionItem">${prioritizedItems}</camunda:inputParameter>
+          <camunda:inputParameter name="priority">medium</camunda:inputParameter>
+          <camunda:outputParameter name="paymentPlanId">${planId}</camunda:outputParameter>
+          <camunda:outputParameter name="planStatus">${negotiated}</camunda:outputParameter>
+        </camunda:inputOutput>
+      </bpmn:extensionElements>
+      <bpmn:incoming>flow_medium_not_resolved</bpmn:incoming>
+      <bpmn:outgoing>flow_to_end_medium_plan</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:serviceTask id="task_schedule_collection_call_low" name="Agendar Chamada de Cobrança" camunda:type="external" camunda:topic="collection.schedule_collection_call">
+      <bpmn:extensionElements>
+        <camunda:inputOutput>
+          <camunda:inputParameter name="collectionItem">${prioritizedItems}</camunda:inputParameter>
+          <camunda:inputParameter name="priority">low</camunda:inputParameter>
+          <camunda:outputParameter name="callScheduled">${scheduled}</camunda:outputParameter>
+        </camunda:inputOutput>
+      </bpmn:extensionElements>
+      <bpmn:incoming>flow_low</bpmn:incoming>
+      <bpmn:outgoing>flow_to_timer_low</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:intermediateCatchEvent id="timer_low_followup" name="Aguardar 30 dias">
+      <bpmn:incoming>flow_to_timer_low</bpmn:incoming>
+      <bpmn:outgoing>flow_to_resolved_gateway_low</bpmn:outgoing>
+      <bpmn:timerEventDefinition>
+        <bpmn:timeDuration xsi:type="bpmn:tFormalExpression">P30D</bpmn:timeDuration>
+      </bpmn:timerEventDefinition>
+    </bpmn:intermediateCatchEvent>
+    <bpmn:exclusiveGateway id="gateway_resolved_low" name="Resolvido?" default="flow_low_not_resolved">
+      <bpmn:incoming>flow_to_resolved_gateway_low</bpmn:incoming>
+      <bpmn:outgoing>flow_low_resolved</bpmn:outgoing>
+      <bpmn:outgoing>flow_low_not_resolved</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:boundaryEvent id="error_writeoff_rejected" name="Baixa Rejeitada" attachedToRef="task_write_off_bad_debt_low">
+      <bpmn:outgoing>flow_to_end_error_writeoff</bpmn:outgoing>
+      <bpmn:errorEventDefinition errorRef="Error_WriteOffRejected" />
+    </bpmn:boundaryEvent>
+    <bpmn:endEvent id="end_critical" name="Escalado para Jurídico">
+      <bpmn:incoming>flow_to_end_critical</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:endEvent id="end_high_resolved" name="Resolvido - Alta Prioridade">
+      <bpmn:incoming>flow_high_resolved</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:endEvent id="end_high_legal" name="Escalado para Jurídico">
+      <bpmn:incoming>flow_to_end_high_legal</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:endEvent id="end_medium_resolved" name="Resolvido - Média Prioridade">
+      <bpmn:incoming>flow_medium_resolved</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:endEvent id="end_medium_plan" name="Plano Negociado">
+      <bpmn:incoming>flow_to_end_medium_plan</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:endEvent id="end_low_resolved" name="Resolvido - Baixa Prioridade">
+      <bpmn:incoming>flow_low_resolved</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:endEvent id="end_low_writeoff" name="Baixado Inadimplência">
+      <bpmn:incoming>flow_to_end_low_writeoff</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:endEvent id="end_error_payment" name="Erro: Pagamento Não Encontrado">
+      <bpmn:incoming>flow_to_end_error_payment</bpmn:incoming>
+      <bpmn:errorEventDefinition errorRef="Error_PaymentNotFound" />
+    </bpmn:endEvent>
+    <bpmn:endEvent id="end_error_legal" name="Erro: Escalação Jurídica">
+      <bpmn:incoming>flow_to_end_error_legal</bpmn:incoming>
+      <bpmn:errorEventDefinition errorRef="Error_LegalEscalationRequired" />
+    </bpmn:endEvent>
+    <bpmn:endEvent id="end_error_writeoff" name="Erro: Baixa Rejeitada">
+      <bpmn:incoming>flow_to_end_error_writeoff</bpmn:incoming>
+      <bpmn:errorEventDefinition errorRef="Error_WriteOffRejected" />
+    </bpmn:endEvent>
+    <bpmn:sequenceFlow id="flow_to_prioritize" sourceRef="start_collection_mgmt" targetRef="task_prioritize_collection" />
+    <bpmn:sequenceFlow id="flow_to_priority_gateway" sourceRef="task_prioritize_collection" targetRef="gateway_priority" />
+    <bpmn:sequenceFlow id="flow_critical" name="Crítico" sourceRef="gateway_priority" targetRef="task_escalate_to_legal_critical">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${priority == 'critical'}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="flow_to_end_critical" sourceRef="task_escalate_to_legal_critical" targetRef="end_critical" />
+    <bpmn:sequenceFlow id="flow_high" name="Alto" sourceRef="gateway_priority" targetRef="task_generate_collection_letter_high">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${priority == 'high'}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="flow_to_schedule_call_high" sourceRef="task_generate_collection_letter_high" targetRef="task_schedule_collection_call_high" />
+    <bpmn:sequenceFlow id="flow_to_timer_high" sourceRef="task_schedule_collection_call_high" targetRef="timer_high_followup" />
+    <bpmn:sequenceFlow id="flow_to_resolved_gateway_high" sourceRef="timer_high_followup" targetRef="gateway_resolved_high" />
+    <bpmn:sequenceFlow id="flow_high_resolved" name="Sim" sourceRef="gateway_resolved_high" targetRef="end_high_resolved">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${resolved == true}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="flow_high_not_resolved" name="Não" sourceRef="gateway_resolved_high" targetRef="task_escalate_to_legal_high" />
+    <bpmn:sequenceFlow id="flow_to_end_high_legal" sourceRef="task_escalate_to_legal_high" targetRef="end_high_legal" />
+    <bpmn:sequenceFlow id="flow_medium" name="Médio" sourceRef="gateway_priority" targetRef="task_generate_collection_letter_medium">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${priority == 'medium'}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="flow_to_timer_medium" sourceRef="task_generate_collection_letter_medium" targetRef="timer_medium_followup" />
+    <bpmn:sequenceFlow id="flow_to_resolved_gateway_medium" sourceRef="timer_medium_followup" targetRef="gateway_resolved_medium" />
+    <bpmn:sequenceFlow id="flow_medium_resolved" name="Sim" sourceRef="gateway_resolved_medium" targetRef="end_medium_resolved">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${resolved == true}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="flow_medium_not_resolved" name="Não" sourceRef="gateway_resolved_medium" targetRef="task_negotiate_payment_plan_medium" />
+    <bpmn:sequenceFlow id="flow_to_end_medium_plan" sourceRef="task_negotiate_payment_plan_medium" targetRef="end_medium_plan" />
+    <bpmn:sequenceFlow id="flow_low" name="Baixo" sourceRef="gateway_priority" targetRef="task_schedule_collection_call_low" />
+    <bpmn:sequenceFlow id="flow_to_timer_low" sourceRef="task_schedule_collection_call_low" targetRef="timer_low_followup" />
+    <bpmn:sequenceFlow id="flow_to_resolved_gateway_low" sourceRef="timer_low_followup" targetRef="gateway_resolved_low" />
+    <bpmn:sequenceFlow id="flow_low_resolved" name="Sim" sourceRef="gateway_resolved_low" targetRef="end_low_resolved">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${resolved == true}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="flow_low_not_resolved" name="Não" sourceRef="gateway_resolved_low" targetRef="task_write_off_bad_debt_low" />
+    <bpmn:sequenceFlow id="flow_to_end_low_writeoff" sourceRef="task_write_off_bad_debt_low" targetRef="end_low_writeoff" />
+    <bpmn:sequenceFlow id="flow_to_end_error_payment" sourceRef="error_payment_not_found" targetRef="end_error_payment" />
+    <bpmn:sequenceFlow id="flow_to_end_error_legal" sourceRef="error_legal_escalation" targetRef="end_error_legal" />
+    <bpmn:sequenceFlow id="flow_to_end_error_writeoff" sourceRef="error_writeoff_rejected" targetRef="end_error_writeoff" />
+    <bpmn:task id="task_write_off_bad_debt_low" name="Baixar Inadimplência">
+      <bpmn:extensionElements>
+        <camunda:inputOutput>
+          <camunda:outputParameter name="writeOffId">${writeOff}</camunda:outputParameter>
+          <camunda:outputParameter name="writeOffAmount">${amount}</camunda:outputParameter>
+        </camunda:inputOutput>
+      </bpmn:extensionElements>
+      <bpmn:incoming>flow_low_not_resolved</bpmn:incoming>
+      <bpmn:outgoing>flow_to_end_low_writeoff</bpmn:outgoing>
+    </bpmn:task>
+  </bpmn:process>
+  <bpmn:error id="Error_PaymentNotFound" name="PaymentNotFound" errorCode="ERR_PAYMENT_001" />
+  <bpmn:error id="Error_LegalEscalationRequired" name="LegalEscalationRequired" errorCode="ERR_LEGAL_001" />
+  <bpmn:error id="Error_WriteOffRejected" name="WriteOffRejected" errorCode="ERR_WRITEOFF_001" />
+  <bpmndi:BPMNDiagram id="BPMNDiagram_RC009">
+    <bpmndi:BPMNPlane id="BPMNPlane_RC009" bpmnElement="SP_RC_009_Collection_Management">
+      <bpmndi:BPMNShape id="shape_start_collection_mgmt" bpmnElement="start_collection_mgmt" bioc:stroke="#0d4372" bioc:fill="#bbdefb" color:background-color="#bbdefb" color:border-color="#0d4372">
+        <dc:Bounds x="150" y="480" width="36" height="36" />
+        <bpmndi:BPMNLabel color:color="#0d4372">
+          <dc:Bounds x="128" y="516" width="81" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="shape_task_prioritize_collection" bpmnElement="task_prioritize_collection" bioc:stroke="#0d4372" bioc:fill="#bbdefb" color:background-color="#bbdefb" color:border-color="#0d4372">
+        <dc:Bounds x="250" y="458" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="shape_gateway_priority" bpmnElement="gateway_priority" isMarkerVisible="true" bioc:stroke="#0d4372" bioc:fill="#bbdefb" color:background-color="#bbdefb" color:border-color="#0d4372">
+        <dc:Bounds x="400" y="473" width="50" height="50" />
+        <bpmndi:BPMNLabel color:color="#0d4372">
+          <dc:Bounds x="397" y="523" width="57" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="shape_task_escalate_to_legal_critical" bpmnElement="task_escalate_to_legal_critical" bioc:stroke="#0d4372" bioc:fill="#bbdefb" color:background-color="#bbdefb" color:border-color="#0d4372">
+        <dc:Bounds x="550" y="258" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="shape_task_generate_collection_letter_high" bpmnElement="task_generate_collection_letter_high" bioc:stroke="#0d4372" bioc:fill="#bbdefb" color:background-color="#bbdefb" color:border-color="#0d4372">
+        <dc:Bounds x="550" y="380" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="shape_task_schedule_collection_call_high" bpmnElement="task_schedule_collection_call_high" bioc:stroke="#0d4372" bioc:fill="#bbdefb" color:background-color="#bbdefb" color:border-color="#0d4372">
+        <dc:Bounds x="700" y="380" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="shape_timer_high_followup" bpmnElement="timer_high_followup" bioc:stroke="#0d4372" bioc:fill="#bbdefb" color:background-color="#bbdefb" color:border-color="#0d4372">
+        <dc:Bounds x="850" y="402" width="36" height="36" />
+        <bpmndi:BPMNLabel color:color="#0d4372">
+          <dc:Bounds x="830" y="438" width="77" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="shape_gateway_resolved_high" bpmnElement="gateway_resolved_high" isMarkerVisible="true" bioc:stroke="#0d4372" bioc:fill="#bbdefb" color:background-color="#bbdefb" color:border-color="#0d4372">
+        <dc:Bounds x="936" y="395" width="50" height="50" />
+        <bpmndi:BPMNLabel color:color="#0d4372">
+          <dc:Bounds x="934" y="445" width="55" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="shape_task_escalate_to_legal_high" bpmnElement="task_escalate_to_legal_high" bioc:stroke="#0d4372" bioc:fill="#bbdefb" color:background-color="#bbdefb" color:border-color="#0d4372">
+        <dc:Bounds x="911" y="258" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="shape_task_generate_collection_letter_medium" bpmnElement="task_generate_collection_letter_medium" bioc:stroke="#0d4372" bioc:fill="#bbdefb" color:background-color="#bbdefb" color:border-color="#0d4372">
+        <dc:Bounds x="550" y="500" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="shape_timer_medium_followup" bpmnElement="timer_medium_followup" bioc:stroke="#0d4372" bioc:fill="#bbdefb" color:background-color="#bbdefb" color:border-color="#0d4372">
+        <dc:Bounds x="732" y="522" width="36" height="36" />
+        <bpmndi:BPMNLabel color:color="#0d4372">
+          <dc:Bounds x="708" y="558" width="84" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="shape_gateway_resolved_medium" bpmnElement="gateway_resolved_medium" isMarkerVisible="true" bioc:stroke="#0d4372" bioc:fill="#bbdefb" color:background-color="#bbdefb" color:border-color="#0d4372">
+        <dc:Bounds x="843" y="515" width="50" height="50" />
+        <bpmndi:BPMNLabel color:color="#0d4372">
+          <dc:Bounds x="840" y="491" width="55" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="shape_task_negotiate_payment_plan_medium" bpmnElement="task_negotiate_payment_plan_medium" bioc:stroke="#0d4372" bioc:fill="#bbdefb" color:background-color="#bbdefb" color:border-color="#0d4372">
+        <dc:Bounds x="818" y="620" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="shape_task_schedule_collection_call_low" bpmnElement="task_schedule_collection_call_low" bioc:stroke="#0d4372" bioc:fill="#bbdefb" color:background-color="#bbdefb" color:border-color="#0d4372">
+        <dc:Bounds x="550" y="740" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="shape_timer_low_followup" bpmnElement="timer_low_followup" bioc:stroke="#0d4372" bioc:fill="#bbdefb" color:background-color="#bbdefb" color:border-color="#0d4372">
+        <dc:Bounds x="732" y="762" width="36" height="36" />
+        <bpmndi:BPMNLabel color:color="#0d4372">
+          <dc:Bounds x="708" y="798" width="84" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="shape_gateway_resolved_low" bpmnElement="gateway_resolved_low" isMarkerVisible="true" bioc:stroke="#0d4372" bioc:fill="#bbdefb" color:background-color="#bbdefb" color:border-color="#0d4372">
+        <dc:Bounds x="843" y="755" width="50" height="50" />
+        <bpmndi:BPMNLabel color:color="#0d4372">
+          <dc:Bounds x="840" y="731" width="55" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="shape_end_critical" bpmnElement="end_critical" bioc:stroke="#0d4372" bioc:fill="#bbdefb" color:background-color="#bbdefb" color:border-color="#0d4372">
+        <dc:Bounds x="732" y="280" width="36" height="36" />
+        <bpmndi:BPMNLabel color:color="#0d4372">
+          <dc:Bounds x="715" y="316" width="71" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="shape_end_high_resolved" bpmnElement="end_high_resolved" bioc:stroke="#0d4372" bioc:fill="#bbdefb" color:background-color="#bbdefb" color:border-color="#0d4372">
+        <dc:Bounds x="1061" y="402" width="36" height="36" />
+        <bpmndi:BPMNLabel color:color="#0d4372">
+          <dc:Bounds x="1040" y="438" width="79" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="shape_end_high_legal" bpmnElement="end_high_legal" bioc:stroke="#0d4372" bioc:fill="#bbdefb" color:background-color="#bbdefb" color:border-color="#0d4372">
+        <dc:Bounds x="1061" y="280" width="36" height="36" />
+        <bpmndi:BPMNLabel color:color="#0d4372">
+          <dc:Bounds x="1044" y="316" width="71" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="shape_end_medium_resolved" bpmnElement="end_medium_resolved" bioc:stroke="#0d4372" bioc:fill="#bbdefb" color:background-color="#bbdefb" color:border-color="#0d4372">
+        <dc:Bounds x="1061" y="522" width="36" height="36" />
+        <bpmndi:BPMNLabel color:color="#0d4372">
+          <dc:Bounds x="1038" y="558" width="85" height="40" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="shape_end_medium_plan" bpmnElement="end_medium_plan" bioc:stroke="#0d4372" bioc:fill="#bbdefb" color:background-color="#bbdefb" color:border-color="#0d4372">
+        <dc:Bounds x="1061" y="642" width="36" height="36" />
+        <bpmndi:BPMNLabel color:color="#0d4372">
+          <dc:Bounds x="1038" y="678" width="85" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="shape_end_low_resolved" bpmnElement="end_low_resolved" bioc:stroke="#0d4372" bioc:fill="#bbdefb" color:background-color="#bbdefb" color:border-color="#0d4372">
+        <dc:Bounds x="1061" y="762" width="36" height="36" />
+        <bpmndi:BPMNLabel color:color="#0d4372">
+          <dc:Bounds x="1035" y="798" width="88" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="shape_end_low_writeoff" bpmnElement="end_low_writeoff">
+        <dc:Bounds x="1061" y="902" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1046" y="938" width="69" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="shape_end_error_payment" bpmnElement="end_error_payment" bioc:stroke="#0d4372" bioc:fill="#bbdefb" color:background-color="#bbdefb" color:border-color="#0d4372">
+        <dc:Bounds x="282" y="600" width="36" height="36" />
+        <bpmndi:BPMNLabel color:color="#0d4372">
+          <dc:Bounds x="258" y="636" width="84" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="shape_end_error_legal" bpmnElement="end_error_legal" bioc:stroke="#0d4372" bioc:fill="#bbdefb" color:background-color="#bbdefb" color:border-color="#0d4372">
+        <dc:Bounds x="582" y="122" width="36" height="36" />
+        <bpmndi:BPMNLabel color:color="#0d4372">
+          <dc:Bounds x="561" y="85" width="78" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Activity_1d6s8yo_di" bpmnElement="task_write_off_bad_debt_low">
+        <dc:Bounds x="818" y="880" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="shape_end_error_writeoff" bpmnElement="end_error_writeoff">
+        <dc:Bounds x="702" y="902" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="692" y="864.5" width="55" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="shape_error_legal_escalation" bpmnElement="error_legal_escalation" bioc:stroke="#0d4372" bioc:fill="#bbdefb" color:background-color="#bbdefb" color:border-color="#0d4372">
+        <dc:Bounds x="582" y="240" width="36" height="36" />
+        <bpmndi:BPMNLabel color:color="#0d4372">
+          <dc:Bounds x="604" y="180" width="52" height="40" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="shape_error_payment_not_found" bpmnElement="error_payment_not_found" bioc:stroke="#0d4372" bioc:fill="#bbdefb" color:background-color="#bbdefb" color:border-color="#0d4372">
+        <dc:Bounds x="282" y="520" width="36" height="36" />
+        <bpmndi:BPMNLabel color:color="#0d4372">
+          <dc:Bounds x="260" y="556" width="80" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="shape_error_writeoff_rejected" bpmnElement="error_writeoff_rejected">
+        <dc:Bounds x="800" y="902" width="36" height="36" />
+        <bpmndi:BPMNLabel color:color="#0d4372">
+          <dc:Bounds x="831" y="953" width="78" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="edge_flow_to_prioritize" bpmnElement="flow_to_prioritize" bioc:stroke="#0d4372" color:border-color="#0d4372">
+        <di:waypoint x="186" y="498" />
+        <di:waypoint x="250" y="498" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="edge_flow_to_priority_gateway" bpmnElement="flow_to_priority_gateway" bioc:stroke="#0d4372" color:border-color="#0d4372">
+        <di:waypoint x="350" y="498" />
+        <di:waypoint x="400" y="498" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="edge_flow_critical" bpmnElement="flow_critical" bioc:stroke="#0d4372" color:border-color="#0d4372">
+        <di:waypoint x="425" y="473" />
+        <di:waypoint x="425" y="298" />
+        <di:waypoint x="550" y="298" />
+        <bpmndi:BPMNLabel color:color="#0d4372">
+          <dc:Bounds x="483" y="273" width="33" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="edge_flow_to_end_critical" bpmnElement="flow_to_end_critical" bioc:stroke="#0d4372" color:border-color="#0d4372">
+        <di:waypoint x="650" y="298" />
+        <di:waypoint x="732" y="298" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="edge_flow_high" bpmnElement="flow_high" bioc:stroke="#0d4372" color:border-color="#0d4372">
+        <di:waypoint x="425" y="473" />
+        <di:waypoint x="425" y="420" />
+        <di:waypoint x="550" y="420" />
+        <bpmndi:BPMNLabel color:color="#0d4372">
+          <dc:Bounds x="480" y="403" width="19" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="edge_flow_to_schedule_call_high" bpmnElement="flow_to_schedule_call_high" bioc:stroke="#0d4372" color:border-color="#0d4372">
+        <di:waypoint x="650" y="420" />
+        <di:waypoint x="700" y="420" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="edge_flow_to_timer_high" bpmnElement="flow_to_timer_high" bioc:stroke="#0d4372" color:border-color="#0d4372">
+        <di:waypoint x="800" y="420" />
+        <di:waypoint x="850" y="420" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="edge_flow_to_resolved_gateway_high" bpmnElement="flow_to_resolved_gateway_high" bioc:stroke="#0d4372" color:border-color="#0d4372">
+        <di:waypoint x="886" y="420" />
+        <di:waypoint x="936" y="420" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="edge_flow_high_resolved" bpmnElement="flow_high_resolved" bioc:stroke="#0d4372" color:border-color="#0d4372">
+        <di:waypoint x="986" y="420" />
+        <di:waypoint x="1061" y="420" />
+        <bpmndi:BPMNLabel color:color="#0d4372">
+          <dc:Bounds x="1015" y="395" width="20" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="edge_flow_high_not_resolved" bpmnElement="flow_high_not_resolved" bioc:stroke="#0d4372" color:border-color="#0d4372">
+        <di:waypoint x="961" y="395" />
+        <di:waypoint x="961" y="338" />
+        <bpmndi:BPMNLabel color:color="#0d4372">
+          <dc:Bounds x="966" y="357" width="21" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="edge_flow_to_end_high_legal" bpmnElement="flow_to_end_high_legal" bioc:stroke="#0d4372" color:border-color="#0d4372">
+        <di:waypoint x="1011" y="298" />
+        <di:waypoint x="1061" y="298" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="edge_flow_medium" bpmnElement="flow_medium" bioc:stroke="#0d4372" color:border-color="#0d4372">
+        <di:waypoint x="425" y="523" />
+        <di:waypoint x="425" y="540" />
+        <di:waypoint x="550" y="540" />
+        <bpmndi:BPMNLabel color:color="#0d4372">
+          <dc:Bounds x="474" y="523" width="31" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="edge_flow_to_timer_medium" bpmnElement="flow_to_timer_medium" bioc:stroke="#0d4372" color:border-color="#0d4372">
+        <di:waypoint x="650" y="540" />
+        <di:waypoint x="732" y="540" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="edge_flow_to_resolved_gateway_medium" bpmnElement="flow_to_resolved_gateway_medium" bioc:stroke="#0d4372" color:border-color="#0d4372">
+        <di:waypoint x="768" y="540" />
+        <di:waypoint x="843" y="540" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="edge_flow_medium_resolved" bpmnElement="flow_medium_resolved" bioc:stroke="#0d4372" color:border-color="#0d4372">
+        <di:waypoint x="893" y="540" />
+        <di:waypoint x="1061" y="540" />
+        <bpmndi:BPMNLabel color:color="#0d4372">
+          <dc:Bounds x="970" y="515" width="20" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="edge_flow_medium_not_resolved" bpmnElement="flow_medium_not_resolved" bioc:stroke="#0d4372" color:border-color="#0d4372">
+        <di:waypoint x="868" y="565" />
+        <di:waypoint x="868" y="620" />
+        <bpmndi:BPMNLabel color:color="#0d4372">
+          <dc:Bounds x="873" y="582" width="21" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="edge_flow_to_end_medium_plan" bpmnElement="flow_to_end_medium_plan" bioc:stroke="#0d4372" color:border-color="#0d4372">
+        <di:waypoint x="918" y="660" />
+        <di:waypoint x="1061" y="660" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="edge_flow_low" bpmnElement="flow_low" bioc:stroke="#0d4372" color:border-color="#0d4372">
+        <di:waypoint x="425" y="523" />
+        <di:waypoint x="425" y="780" />
+        <di:waypoint x="550" y="780" />
+        <bpmndi:BPMNLabel color:color="#0d4372">
+          <dc:Bounds x="476" y="755" width="28" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="edge_flow_to_timer_low" bpmnElement="flow_to_timer_low" bioc:stroke="#0d4372" color:border-color="#0d4372">
+        <di:waypoint x="650" y="780" />
+        <di:waypoint x="732" y="780" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="edge_flow_to_resolved_gateway_low" bpmnElement="flow_to_resolved_gateway_low" bioc:stroke="#0d4372" color:border-color="#0d4372">
+        <di:waypoint x="768" y="780" />
+        <di:waypoint x="843" y="780" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="edge_flow_low_resolved" bpmnElement="flow_low_resolved" bioc:stroke="#0d4372" color:border-color="#0d4372">
+        <di:waypoint x="893" y="780" />
+        <di:waypoint x="1061" y="780" />
+        <bpmndi:BPMNLabel color:color="#0d4372">
+          <dc:Bounds x="970" y="755" width="20" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="edge_flow_low_not_resolved" bpmnElement="flow_low_not_resolved" bioc:stroke="#0d4372" color:border-color="#0d4372">
+        <di:waypoint x="868" y="805" />
+        <di:waypoint x="868" y="880" />
+        <bpmndi:BPMNLabel color:color="#0d4372">
+          <dc:Bounds x="873" y="831" width="21" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="edge_flow_to_end_low_writeoff" bpmnElement="flow_to_end_low_writeoff">
+        <di:waypoint x="918" y="920" />
+        <di:waypoint x="1061" y="920" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="edge_flow_to_end_error_payment" bpmnElement="flow_to_end_error_payment" bioc:stroke="#0d4372" color:border-color="#0d4372">
+        <di:waypoint x="300" y="556" />
+        <di:waypoint x="300" y="600" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="edge_flow_to_end_error_legal" bpmnElement="flow_to_end_error_legal" bioc:stroke="#0d4372" color:border-color="#0d4372">
+        <di:waypoint x="600" y="240" />
+        <di:waypoint x="600" y="158" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="edge_flow_to_end_error_writeoff" bpmnElement="flow_to_end_error_writeoff">
+        <di:waypoint x="800" y="920" />
+        <di:waypoint x="738" y="920" />
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>
