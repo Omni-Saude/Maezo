@@ -1,0 +1,274 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" xmlns:camunda="http://camunda.org/schema/1.0/bpmn" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:bioc="http://bpmn.io/schema/bpmn/biocolor/1.0" xmlns:color="http://www.omg.org/spec/BPMN/non-normative/color/1.0" id="Definitions_RC008" targetNamespace="http://cib7.healthcare/revenue-cycle" exporter="Camunda Modeler" exporterVersion="5.42.0">
+  <bpmn:process id="SP_RC_008_Revenue_Collection" name="Cobrança e Recebimento" isExecutable="true" camunda:historyTimeToLive="30">
+    <bpmn:startEvent id="start_collection" name="Início Cobrança">
+      <bpmn:outgoing>flow_to_identify_overdue</bpmn:outgoing>
+    </bpmn:startEvent>
+    <bpmn:serviceTask id="task_prioritize_collection" name="Priorizar Cobrança" camunda:type="external" camunda:topic="collection.prioritize_collection">
+      <bpmn:extensionElements>
+        <camunda:inputOutput>
+          <camunda:inputParameter name="accounts">${accountsOverdue}</camunda:inputParameter>
+          <camunda:outputParameter name="accountsByPriority">${prioritizedAccounts}</camunda:outputParameter>
+          <camunda:outputParameter name="urgentCount">${highPriorityCount}</camunda:outputParameter>
+        </camunda:inputOutput>
+      </bpmn:extensionElements>
+      <bpmn:incoming>flow_to_prioritize</bpmn:incoming>
+      <bpmn:outgoing>flow_to_dmn_payment</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:businessRuleTask id="dmn_payment_method" name="Método de Pagamento" camunda:resultVariable="paymentMethodRules" camunda:decisionRef="cash_operations_payment_method" camunda:mapDecisionResult="singleResult">
+      <bpmn:incoming>flow_to_dmn_payment</bpmn:incoming>
+      <bpmn:outgoing>flow_to_dmn_discount</bpmn:outgoing>
+    </bpmn:businessRuleTask>
+    <bpmn:businessRuleTask id="dmn_discount_rules" name="Regras de Desconto" camunda:resultVariable="discountRules" camunda:decisionRef="cash_operations_discount" camunda:mapDecisionResult="singleResult">
+      <bpmn:incoming>flow_to_dmn_discount</bpmn:incoming>
+      <bpmn:outgoing>flow_to_receive_payment</bpmn:outgoing>
+    </bpmn:businessRuleTask>
+    <bpmn:serviceTask id="task_receive_payment_notification" name="Receber Notificação de Pagamento" camunda:type="external" camunda:topic="revenue_cycle.receive_payment_notification">
+      <bpmn:extensionElements>
+        <camunda:inputOutput>
+          <camunda:inputParameter name="accounts">${accountsByPriority}</camunda:inputParameter>
+          <camunda:outputParameter name="receivedPayments">${payments}</camunda:outputParameter>
+          <camunda:outputParameter name="receiptDate">${paymentDate}</camunda:outputParameter>
+        </camunda:inputOutput>
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_1wa311o</bpmn:incoming>
+      <bpmn:outgoing>Flow_074gphk</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:boundaryEvent id="timer_payment_followup" name="após 7d" attachedToRef="task_receive_payment_notification">
+      <bpmn:outgoing>flow_to_followup</bpmn:outgoing>
+      <bpmn:timerEventDefinition>
+        <bpmn:timeDuration xsi:type="bpmn:tFormalExpression">P7D</bpmn:timeDuration>
+      </bpmn:timerEventDefinition>
+    </bpmn:boundaryEvent>
+    <bpmn:userTask id="task_manual_matching" name="Notificar&#10;pendência">
+      <bpmn:incoming>Flow_0cwti5n</bpmn:incoming>
+      <bpmn:outgoing>Flow_14scllb</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:endEvent id="end_success" name="Recebimento Concluído">
+      <bpmn:incoming>flow_to_end_success</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:endEvent id="end_followup" name="Seguimento Necessário">
+      <bpmn:incoming>flow_to_end_followup</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:sequenceFlow id="flow_to_identify_overdue" sourceRef="start_collection" targetRef="task_identify_overdue" />
+    <bpmn:sequenceFlow id="flow_to_prioritize" sourceRef="task_identify_overdue" targetRef="task_prioritize_collection" />
+    <bpmn:sequenceFlow id="flow_to_dmn_payment" sourceRef="task_prioritize_collection" targetRef="dmn_payment_method" />
+    <bpmn:sequenceFlow id="flow_to_dmn_discount" sourceRef="dmn_payment_method" targetRef="dmn_discount_rules" />
+    <bpmn:sequenceFlow id="flow_to_receive_payment" sourceRef="dmn_discount_rules" targetRef="Activity_1xuuwke" />
+    <bpmn:sequenceFlow id="flow_to_matching_gateway" sourceRef="task_auto_matching" targetRef="Gateway_0crumd0" />
+    <bpmn:sequenceFlow id="flow_to_followup" sourceRef="timer_payment_followup" targetRef="task_payment_followup" />
+    <bpmn:sequenceFlow id="flow_to_end_success" sourceRef="task_update_ar" targetRef="end_success" />
+    <bpmn:sequenceFlow id="flow_to_end_followup" sourceRef="task_payment_followup" targetRef="end_followup" />
+    <bpmn:task id="task_identify_overdue" name="Identificar Contas Vencidas">
+      <bpmn:extensionElements>
+        <camunda:inputOutput>
+          <camunda:outputParameter name="accountsOverdue">${overdueAccounts}</camunda:outputParameter>
+          <camunda:outputParameter name="overdueAmount">${totalOverdue}</camunda:outputParameter>
+        </camunda:inputOutput>
+      </bpmn:extensionElements>
+      <bpmn:incoming>flow_to_identify_overdue</bpmn:incoming>
+      <bpmn:outgoing>flow_to_prioritize</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:task id="task_update_ar" name="Atualizar&#10;CR">
+      <bpmn:extensionElements>
+        <camunda:inputOutput>
+          <camunda:outputParameter name="currentAR">${updatedAR}</camunda:outputParameter>
+        </camunda:inputOutput>
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_0s44vy5</bpmn:incoming>
+      <bpmn:outgoing>flow_to_end_success</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:businessRuleTask id="Activity_1xuuwke" name="Estimar Recebimento" camunda:resultVariable="paymentEstimate" camunda:decisionRef="cash_operations_estimate" camunda:mapDecisionResult="singleResult">
+      <bpmn:incoming>flow_to_receive_payment</bpmn:incoming>
+      <bpmn:outgoing>Flow_1wa311o</bpmn:outgoing>
+    </bpmn:businessRuleTask>
+    <bpmn:sequenceFlow id="Flow_1wa311o" sourceRef="Activity_1xuuwke" targetRef="task_receive_payment_notification" />
+    <bpmn:boundaryEvent id="Event_1i38a2s" attachedToRef="task_auto_matching">
+      <bpmn:outgoing>Flow_0cwti5n</bpmn:outgoing>
+      <bpmn:errorEventDefinition id="ErrorEventDefinition_1dampiy" />
+    </bpmn:boundaryEvent>
+    <bpmn:sequenceFlow id="Flow_0cwti5n" name="erro na&#10;conciliação" sourceRef="Event_1i38a2s" targetRef="task_manual_matching" />
+    <bpmn:intermediateThrowEvent id="Event_0910zjh" name="concliação&#10;manual">
+      <bpmn:incoming>Flow_14scllb</bpmn:incoming>
+      <bpmn:outgoing>Flow_1t6ezni</bpmn:outgoing>
+    </bpmn:intermediateThrowEvent>
+    <bpmn:sequenceFlow id="Flow_14scllb" sourceRef="task_manual_matching" targetRef="Event_0910zjh" />
+    <bpmn:sequenceFlow id="Flow_074gphk" sourceRef="task_receive_payment_notification" targetRef="task_auto_matching" />
+    <bpmn:exclusiveGateway id="Gateway_0crumd0">
+      <bpmn:incoming>flow_to_matching_gateway</bpmn:incoming>
+      <bpmn:incoming>Flow_1t6ezni</bpmn:incoming>
+      <bpmn:outgoing>Flow_0s44vy5</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:sequenceFlow id="Flow_0s44vy5" sourceRef="Gateway_0crumd0" targetRef="task_update_ar" />
+    <bpmn:sequenceFlow id="Flow_1t6ezni" sourceRef="Event_0910zjh" targetRef="Gateway_0crumd0" />
+    <bpmn:task id="task_payment_followup" name="Seguimento de Pagamento">
+      <bpmn:incoming>flow_to_followup</bpmn:incoming>
+      <bpmn:outgoing>flow_to_end_followup</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:callActivity id="task_auto_matching" name="Conciliação Automática" calledElement="SP_RC_008B_Payment_Reconciliation">
+      <bpmn:extensionElements>
+        <camunda:in source="receivedPayments" target="payments" />
+        <camunda:in source="accountsOverdue" target="openAccounts" />
+        <camunda:out source="matchedPayments" target="reconciledPayments" />
+        <camunda:out source="unmatchedPayments" target="pendingReconciliation" />
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_074gphk</bpmn:incoming>
+      <bpmn:outgoing>flow_to_matching_gateway</bpmn:outgoing>
+    </bpmn:callActivity>
+    <bpmn:textAnnotation id="TextAnnotation_1wenlx5">
+      <bpmn:text>SP-RC-008B</bpmn:text>
+    </bpmn:textAnnotation>
+    <bpmn:association id="Association_0oax7jp" associationDirection="None" sourceRef="task_auto_matching" targetRef="TextAnnotation_1wenlx5" />
+  </bpmn:process>
+  <bpmn:error id="Error_MatchingFailed" name="MatchingFailed" errorCode="ERR_MATCHING_001" />
+  <bpmndi:BPMNDiagram id="BPMNDiagram_RC008">
+    <bpmndi:BPMNPlane id="BPMNPlane_RC008" bpmnElement="SP_RC_008_Revenue_Collection">
+      <bpmndi:BPMNShape id="Shape_start_collection" bpmnElement="start_collection" bioc:stroke="#0d4372" bioc:fill="#bbdefb" color:background-color="#bbdefb" color:border-color="#0d4372">
+        <dc:Bounds x="142" y="182" width="36" height="36" />
+        <bpmndi:BPMNLabel color:color="#0d4372">
+          <dc:Bounds x="121" y="225" width="78" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_task_prioritize_collection" bpmnElement="task_prioritize_collection" bioc:stroke="#0d4372" bioc:fill="#bbdefb" color:background-color="#bbdefb" color:border-color="#0d4372">
+        <dc:Bounds x="360" y="160" width="100" height="80" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_dmn_payment_method" bpmnElement="dmn_payment_method" bioc:stroke="#0d4372" bioc:fill="#bbdefb" color:background-color="#bbdefb" color:border-color="#0d4372">
+        <dc:Bounds x="500" y="160" width="100" height="80" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_dmn_discount_rules" bpmnElement="dmn_discount_rules" bioc:stroke="#0d4372" bioc:fill="#bbdefb" color:background-color="#bbdefb" color:border-color="#0d4372">
+        <dc:Bounds x="630" y="160" width="100" height="80" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_task_receive_payment_notification" bpmnElement="task_receive_payment_notification" bioc:stroke="#0d4372" bioc:fill="#bbdefb" color:background-color="#bbdefb" color:border-color="#0d4372">
+        <dc:Bounds x="910" y="160" width="100" height="80" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_task_manual_matching" bpmnElement="task_manual_matching" bioc:stroke="#0d4372" bioc:fill="#bbdefb" color:background-color="#bbdefb" color:border-color="#0d4372">
+        <dc:Bounds x="1040" y="320" width="100" height="80" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_end_success" bpmnElement="end_success">
+        <dc:Bounds x="1392" y="182" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1378" y="225" width="65" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_end_followup" bpmnElement="end_followup">
+        <dc:Bounds x="942" y="452" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="931" y="495" width="59" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Activity_0z8adsv_di" bpmnElement="task_identify_overdue">
+        <dc:Bounds x="220" y="160" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Activity_0xwz3g7_di" bpmnElement="task_update_ar">
+        <dc:Bounds x="1260" y="160" width="100" height="80" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="BPMNShape_0d6muio" bpmnElement="Activity_1xuuwke" bioc:stroke="#0d4372" bioc:fill="#bbdefb" color:background-color="#bbdefb" color:border-color="#0d4372">
+        <dc:Bounds x="770" y="160" width="100" height="80" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Event_0910zjh_di" bpmnElement="Event_0910zjh">
+        <dc:Bounds x="1192" y="342" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1185" y="385" width="52" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Gateway_0crumd0_di" bpmnElement="Gateway_0crumd0" isMarkerVisible="true">
+        <dc:Bounds x="1185" y="175" width="50" height="50" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Activity_108sq4d_di" bpmnElement="task_payment_followup">
+        <dc:Bounds x="910" y="320" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Activity_19gt69s_di" bpmnElement="task_auto_matching" bioc:stroke="#0d4372" bioc:fill="#bbdefb" color:background-color="#bbdefb" color:border-color="#0d4372">
+        <dc:Bounds x="1040" y="160" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Event_1i38a2s_di" bpmnElement="Event_1i38a2s" bioc:stroke="#0d4372" bioc:fill="#bbdefb" color:background-color="#bbdefb" color:border-color="#0d4372">
+        <dc:Bounds x="1022" y="222" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="TextAnnotation_1wenlx5_di" bpmnElement="TextAnnotation_1wenlx5">
+        <dc:Bounds x="1140" y="80" width="100" height="30" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_timer_payment_followup" bpmnElement="timer_payment_followup">
+        <dc:Bounds x="942" y="222" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="970" y="280" width="40" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Edge_flow_to_identify_overdue" bpmnElement="flow_to_identify_overdue" bioc:stroke="#0d4372" color:border-color="#0d4372">
+        <di:waypoint x="178" y="200" />
+        <di:waypoint x="220" y="200" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_flow_to_prioritize" bpmnElement="flow_to_prioritize">
+        <di:waypoint x="320" y="200" />
+        <di:waypoint x="360" y="200" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_flow_to_dmn_payment" bpmnElement="flow_to_dmn_payment" bioc:stroke="#0d4372" color:border-color="#0d4372">
+        <di:waypoint x="460" y="200" />
+        <di:waypoint x="500" y="200" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_flow_to_dmn_discount" bpmnElement="flow_to_dmn_discount" bioc:stroke="#0d4372" color:border-color="#0d4372">
+        <di:waypoint x="600" y="200" />
+        <di:waypoint x="630" y="200" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_flow_to_receive_payment" bpmnElement="flow_to_receive_payment" bioc:stroke="#0d4372" color:border-color="#0d4372">
+        <di:waypoint x="730" y="200" />
+        <di:waypoint x="770" y="200" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_flow_to_matching_gateway" bpmnElement="flow_to_matching_gateway">
+        <di:waypoint x="1140" y="200" />
+        <di:waypoint x="1185" y="200" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_flow_to_followup" bpmnElement="flow_to_followup">
+        <di:waypoint x="960" y="258" />
+        <di:waypoint x="960" y="320" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_flow_to_end_success" bpmnElement="flow_to_end_success">
+        <di:waypoint x="1360" y="200" />
+        <di:waypoint x="1392" y="200" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_flow_to_end_followup" bpmnElement="flow_to_end_followup">
+        <di:waypoint x="960" y="400" />
+        <di:waypoint x="960" y="452" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_1wa311o_di" bpmnElement="Flow_1wa311o">
+        <di:waypoint x="870" y="200" />
+        <di:waypoint x="910" y="200" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_0cwti5n_di" bpmnElement="Flow_0cwti5n" bioc:stroke="#0d4372" color:border-color="#0d4372">
+        <di:waypoint x="1040" y="258" />
+        <di:waypoint x="1040" y="280" />
+        <di:waypoint x="1090" y="280" />
+        <di:waypoint x="1090" y="320" />
+        <bpmndi:BPMNLabel color:color="#0d4372">
+          <dc:Bounds x="1102" y="285" width="55" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_14scllb_di" bpmnElement="Flow_14scllb">
+        <di:waypoint x="1140" y="360" />
+        <di:waypoint x="1192" y="360" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_074gphk_di" bpmnElement="Flow_074gphk">
+        <di:waypoint x="1010" y="200" />
+        <di:waypoint x="1040" y="200" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_0s44vy5_di" bpmnElement="Flow_0s44vy5">
+        <di:waypoint x="1235" y="200" />
+        <di:waypoint x="1260" y="200" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_1t6ezni_di" bpmnElement="Flow_1t6ezni">
+        <di:waypoint x="1210" y="342" />
+        <di:waypoint x="1210" y="225" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Association_0oax7jp_di" bpmnElement="Association_0oax7jp">
+        <di:waypoint x="1128" y="160" />
+        <di:waypoint x="1176" y="110" />
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>

@@ -9,7 +9,7 @@ from healthcare_platform.revenue_cycle.coding.workers import (
     SuggestTussWorker,
     register_worker,
 )
-from healthcare_platform.revenue_cycle.coding.workers.suggest_tuss_worker_v2 import (
+from healthcare_platform.revenue_cycle.coding.workers.suggest_tuss_worker import (
     SuggestTussInput,
     SuggestTussOutput,
 )

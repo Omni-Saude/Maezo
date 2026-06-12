@@ -1,0 +1,94 @@
+# =============================================================================
+# Dockerfile.worker — Parametric worker image (one per domain)
+#
+# Build args:
+#   DOMAIN  — target domain (revenue_cycle, clinical_operations, etc.)
+#
+# Each image contains ONLY shared/ + the target domain.
+# Never copies all domains into a single image.
+#
+# Usage:
+#   docker build -f Dockerfile.worker --build-arg DOMAIN=revenue_cycle -t maestro-rc .
+#   docker build -f Dockerfile.worker --build-arg DOMAIN=clinical_operations -t maestro-co .
+#   docker build -f Dockerfile.worker --build-arg DOMAIN=patient_access -t maestro-pa .
+#   docker build -f Dockerfile.worker --build-arg DOMAIN=platform_services -t maestro-ps .
+# =============================================================================
+
+FROM python:3.11-slim AS base
+
+ARG DOMAIN=revenue_cycle
+
+WORKDIR /app
+
+# System deps (cached layer)
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    curl \
+    tzdata \
+    && rm -rf /var/lib/apt/lists/*
+
+# Timezone padrão: America/Sao_Paulo (sobrescrevível via TZ env var)
+ENV TZ=America/Sao_Paulo
+RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
+
+# ---------------------------------------------------------------------------
+# Dependencies layer (rebuild ONLY when pyproject.toml changes)
+# Uses tomllib to extract deps without installing the package itself
+# ---------------------------------------------------------------------------
+COPY pyproject.toml ./
+RUN python -c "\
+import tomllib, pathlib; \
+cfg = tomllib.loads(pathlib.Path('pyproject.toml').read_text()); \
+deps = cfg['project']['dependencies']; \
+pathlib.Path('/tmp/requirements.txt').write_text('\n'.join(deps))" && \
+    pip install --no-cache-dir -r /tmp/requirements.txt && \
+    rm -f /tmp/requirements.txt pyproject.toml
+
+# ---------------------------------------------------------------------------
+# Code: shared + 1 domain ONLY (Principle 3 — never all domains)
+#
+# Migração completa para src/healthcare_platform/ — não existe mais
+# healthcare_platform/ na raiz do projeto (dual-layer eliminado).
+# ---------------------------------------------------------------------------
+COPY src/healthcare_platform/__init__.py ./healthcare_platform/__init__.py
+COPY src/healthcare_platform/shared/     ./healthcare_platform/shared/
+COPY src/healthcare_platform/${DOMAIN}/  ./healthcare_platform/${DOMAIN}/
+
+# Dependência cross-domínio: decorador @worker definido em revenue_cycle.billing.workers.base
+# Usado pelos workers de patient_access (pendência de migração para shared/).
+# Copiamos apenas o arquivo base.py (sem os outros workers de billing).
+COPY src/healthcare_platform/revenue_cycle/__init__.py ./healthcare_platform/revenue_cycle/__init__.py
+COPY src/healthcare_platform/revenue_cycle/billing/workers/base.py ./healthcare_platform/revenue_cycle/billing/workers/base.py
+
+ENV PYTHONPATH=/app
+ENV DOMAIN=${DOMAIN}
+
+# ---------------------------------------------------------------------------
+# Health check (liveness probe — workers expose /health on port 8000)
+# ---------------------------------------------------------------------------
+HEALTHCHECK --interval=30s --timeout=5s --retries=3 \
+    CMD curl -f http://localhost:8000/health || exit 1
+
+EXPOSE 8000
+
+# ---------------------------------------------------------------------------
+# Non-root user (security)
+# ---------------------------------------------------------------------------
+RUN useradd -m -u 1000 worker && chown -R worker:worker /app
+USER worker
+
+# ---------------------------------------------------------------------------
+# Entrypoint: worker runner with domain/subdomain filtering
+#
+# Container mode (1 subdomain):
+#   CMD ["--domain", "revenue_cycle", "--subdomain", "billing"]
+#
+# Swarm mode (entire domain):
+#   CMD ["--domain", "revenue_cycle"]
+#
+# Dev mode (specific topics):
+#   CMD ["--topics", "billing-calculate-charges,identify-glosa"]
+# ---------------------------------------------------------------------------
+# Shell form CMD para expandir $DOMAIN em tempo de execução.
+# JSON array form não expande variáveis de ambiente.
+ENTRYPOINT []
+CMD python -m healthcare_platform.shared.runtime.worker_runner --domain ${DOMAIN}

@@ -1,0 +1,813 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+                   xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+                   xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+                   xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
+                   xmlns:camunda="http://camunda.org/schema/1.0/bpmn"
+                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                   id="Definitions_clinical_ops_main"
+                   targetNamespace="http://cib7.healthcare/clinical-operations"
+                   exporter="CIB Seven 2.1.3"
+                   exporterVersion="1.0">
+
+  <!-- Error Definitions -->
+  <bpmn:error id="Error_ClinicalOps" name="CLINICAL_OPS_ERROR" errorCode="CO_ERROR"/>
+  <bpmn:error id="Error_SurgicalTimeout" name="SURGICAL_TIMEOUT" errorCode="CO_SURGICAL_TIMEOUT"/>
+
+  <!-- Message Definitions -->
+  <bpmn:message id="msg_patient_ready_for_care" name="msg_patient_ready_for_care"/>
+  <bpmn:message id="msg_clinical_documentation_ready" name="msg_clinical_documentation_ready"/>
+  <bpmn:message id="msg_discharge_completed" name="msg_discharge_completed"/>
+  <bpmn:message id="msg_lab_results_ready" name="msg_lab_results_ready"/>
+  <bpmn:message id="msg_sepsis_alert" name="msg_sepsis_alert"/>
+  <bpmn:message id="msg_procedures_completed" name="msg_procedures_completed"/>
+
+  <!-- Main Process -->
+  <bpmn:process id="clinical_ops_main" name="Clinical Operations Orchestrator" isExecutable="true" camunda:historyTimeToLive="30">
+
+    <!-- Start Event -->
+    <bpmn:startEvent id="start_patient_ready" name="Patient Ready for Care">
+      <bpmn:outgoing>flow_to_triage</bpmn:outgoing>
+      <bpmn:messageEventDefinition id="msgEvtDef_start" messageRef="msg_patient_ready_for_care"/>
+    </bpmn:startEvent>
+
+    <!-- Call Activity: Triage & Routing -->
+    <bpmn:callActivity id="call_SP_CO_001" name="Executar Triagem e Roteamento Clínico" calledElement="SP_CO_001_Triage_Routing">
+      <bpmn:extensionElements>
+        <camunda:in source="tenantId" target="tenantId"/>
+        <camunda:in source="encounterFhirId" target="encounterFhirId"/>
+        <camunda:in source="patientFhirId" target="patientFhirId"/>
+        <camunda:out source="triageCategory" target="triageCategory"/>
+        <camunda:out source="assignedLocation" target="assignedLocation"/>
+      </bpmn:extensionElements>
+      <bpmn:incoming>flow_to_triage</bpmn:incoming>
+      <bpmn:outgoing>flow_to_admission_gateway</bpmn:outgoing>
+    </bpmn:callActivity>
+
+    <!-- Error Boundary: Triage -->
+    <bpmn:boundaryEvent id="error_SP_CO_001" name="Triage Error" attachedToRef="call_SP_CO_001">
+      <bpmn:outgoing>flow_to_error_end_1</bpmn:outgoing>
+      <bpmn:errorEventDefinition id="errDef_CO_001" errorRef="Error_ClinicalOps"/>
+    </bpmn:boundaryEvent>
+
+    <!-- Exclusive Gateway: Admission Required? -->
+    <bpmn:exclusiveGateway id="gateway_admission_required" name="Admission required?" default="flow_admission_no">
+      <bpmn:incoming>flow_to_admission_gateway</bpmn:incoming>
+      <bpmn:outgoing>flow_admission_yes</bpmn:outgoing>
+      <bpmn:outgoing>flow_admission_no</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+
+    <!-- Call Activity: Admission & Beds (Inpatient) -->
+    <bpmn:callActivity id="call_SP_CO_002" name="Gerenciar Admissão e Alocação de Leitos" calledElement="SP_CO_002_Admission_Beds">
+      <bpmn:extensionElements>
+        <camunda:in source="tenantId" target="tenantId"/>
+        <camunda:in source="encounterFhirId" target="encounterFhirId"/>
+        <camunda:in source="patientFhirId" target="patientFhirId"/>
+        <camunda:in source="triageCategory" target="triageCategory"/>
+        <camunda:out source="bedFhirId" target="bedFhirId"/>
+        <camunda:out source="admissionComplete" target="admissionComplete"/>
+      </bpmn:extensionElements>
+      <bpmn:incoming>flow_admission_yes</bpmn:incoming>
+      <bpmn:outgoing>flow_to_merge_admission</bpmn:outgoing>
+    </bpmn:callActivity>
+
+    <!-- Error Boundary: Admission -->
+    <bpmn:boundaryEvent id="error_SP_CO_002" name="Admission Error" attachedToRef="call_SP_CO_002">
+      <bpmn:outgoing>flow_to_error_end_2</bpmn:outgoing>
+      <bpmn:errorEventDefinition id="errDef_CO_002" errorRef="Error_ClinicalOps"/>
+    </bpmn:boundaryEvent>
+
+    <!-- Exclusive Gateway: Merge Admission -->
+    <bpmn:exclusiveGateway id="gateway_merge_admission" name="Merge">
+      <bpmn:incoming>flow_to_merge_admission</bpmn:incoming>
+      <bpmn:incoming>flow_admission_no</bpmn:incoming>
+      <bpmn:outgoing>flow_to_care_team</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+
+    <!-- Call Activity: Care Team Orchestration -->
+    <bpmn:callActivity id="call_SP_CO_003" name="Orquestrar Equipe de Cuidado e Tarefas" calledElement="SP_CO_003_Care_Team">
+      <bpmn:extensionElements>
+        <camunda:in source="tenantId" target="tenantId"/>
+        <camunda:in source="encounterFhirId" target="encounterFhirId"/>
+        <camunda:in source="patientFhirId" target="patientFhirId"/>
+        <camunda:in source="triageCategory" target="triageCategory"/>
+        <camunda:out source="careTeamFhirId" target="careTeamFhirId"/>
+        <camunda:out source="carePlanFhirId" target="carePlanFhirId"/>
+      </bpmn:extensionElements>
+      <bpmn:incoming>flow_to_care_team</bpmn:incoming>
+      <bpmn:outgoing>flow_to_parallel_fork</bpmn:outgoing>
+    </bpmn:callActivity>
+
+    <!-- Error Boundary: Care Team -->
+    <bpmn:boundaryEvent id="error_SP_CO_003" name="Care Team Error" attachedToRef="call_SP_CO_003">
+      <bpmn:outgoing>flow_to_error_end_3</bpmn:outgoing>
+      <bpmn:errorEventDefinition id="errDef_CO_003" errorRef="Error_ClinicalOps"/>
+    </bpmn:boundaryEvent>
+
+    <!-- MSG-003: SepsisAlert catch (interrupting) - activates sepsis protocol -->
+    <bpmn:boundaryEvent id="catch_sepsis_alert" name="Sepsis Alert" cancelActivity="true" attachedToRef="call_SP_CO_003">
+      <bpmn:outgoing>flow_sepsis_alert_to_handler</bpmn:outgoing>
+      <bpmn:messageEventDefinition id="msgEvtDef_sepsis_alert" messageRef="msg_sepsis_alert"/>
+    </bpmn:boundaryEvent>
+
+    <!-- Service Task: Activate Sepsis Protocol -->
+    <bpmn:serviceTask id="task_activate_sepsis_protocol" name="Activate Sepsis Protocol (Hour-1 Bundle)" camunda:class="com.cib7.healthcare.delegates.SepsisProtocolDelegate">
+      <bpmn:incoming>flow_sepsis_alert_to_handler</bpmn:incoming>
+      <bpmn:outgoing>flow_sepsis_protocol_to_end</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- End Event: Sepsis Protocol Activated -->
+    <bpmn:endEvent id="end_sepsis_protocol" name="Sepsis Protocol Activated">
+      <bpmn:incoming>flow_sepsis_protocol_to_end</bpmn:incoming>
+    </bpmn:endEvent>
+
+    <!-- Parallel Gateway: Fork Clinical Activities -->
+    <bpmn:parallelGateway id="gateway_parallel_fork" name="Fork Clinical Activities">
+      <bpmn:incoming>flow_to_parallel_fork</bpmn:incoming>
+      <bpmn:outgoing>flow_to_prescriptions</bpmn:outgoing>
+      <bpmn:outgoing>flow_to_diagnostics</bpmn:outgoing>
+      <bpmn:outgoing>flow_to_medication</bpmn:outgoing>
+    </bpmn:parallelGateway>
+
+    <!-- Call Activity: Prescriptions & CDS (Multi-Instance Sequential) -->
+    <bpmn:callActivity id="call_SP_CO_004" name="Processar Prescrições e Suporte à Decisão" calledElement="SP_CO_004_Prescriptions_CDS">
+      <bpmn:extensionElements>
+        <camunda:in source="tenantId" target="tenantId"/>
+        <camunda:in source="encounterFhirId" target="encounterFhirId"/>
+        <camunda:in source="patientFhirId" target="patientFhirId"/>
+        <camunda:in source="carePlanFhirId" target="carePlanFhirId"/>
+        <camunda:out source="prescriptionFhirId" target="prescriptionFhirId"/>
+        <camunda:out source="cdsAlerts" target="cdsAlerts"/>
+      </bpmn:extensionElements>
+      <bpmn:incoming>flow_to_prescriptions</bpmn:incoming>
+      <bpmn:outgoing>flow_prescriptions_to_join</bpmn:outgoing>
+      <bpmn:multiInstanceLoopCharacteristics isSequential="true">
+        <bpmn:loopCardinality xsi:type="bpmn:tFormalExpression">${prescriptionCount}</bpmn:loopCardinality>
+      </bpmn:multiInstanceLoopCharacteristics>
+    </bpmn:callActivity>
+
+    <!-- Error Boundary: Prescriptions -->
+    <bpmn:boundaryEvent id="error_SP_CO_004" name="Prescription Error" attachedToRef="call_SP_CO_004">
+      <bpmn:outgoing>flow_to_error_end_4</bpmn:outgoing>
+      <bpmn:errorEventDefinition id="errDef_CO_004" errorRef="Error_ClinicalOps"/>
+    </bpmn:boundaryEvent>
+
+    <!-- Intermediate Message Catch: Lab Results Ready -->
+    <bpmn:intermediateCatchEvent id="event_lab_results_ready" name="Lab Results Ready">
+      <bpmn:incoming>flow_to_diagnostics</bpmn:incoming>
+      <bpmn:outgoing>flow_lab_to_diagnostics</bpmn:outgoing>
+      <bpmn:messageEventDefinition id="msgEvtDef_lab" messageRef="msg_lab_results_ready"/>
+    </bpmn:intermediateCatchEvent>
+
+    <!-- Call Activity: Diagnostics & Results (Multi-Instance Parallel) -->
+    <bpmn:callActivity id="call_SP_CO_005" name="Gerenciar Diagnósticos e Resultados" calledElement="SP_CO_005_Diagnostics_Results">
+      <bpmn:extensionElements>
+        <camunda:in source="tenantId" target="tenantId"/>
+        <camunda:in source="encounterFhirId" target="encounterFhirId"/>
+        <camunda:in source="patientFhirId" target="patientFhirId"/>
+        <camunda:in source="carePlanFhirId" target="carePlanFhirId"/>
+        <camunda:out source="diagnosticReportFhirId" target="diagnosticReportFhirId"/>
+        <camunda:out source="observationFhirIds" target="observationFhirIds"/>
+      </bpmn:extensionElements>
+      <bpmn:incoming>flow_lab_to_diagnostics</bpmn:incoming>
+      <bpmn:outgoing>flow_diagnostics_to_join</bpmn:outgoing>
+      <bpmn:multiInstanceLoopCharacteristics isSequential="false">
+        <bpmn:loopCardinality xsi:type="bpmn:tFormalExpression">${diagnosticOrderCount}</bpmn:loopCardinality>
+      </bpmn:multiInstanceLoopCharacteristics>
+    </bpmn:callActivity>
+
+    <!-- Error Boundary: Diagnostics -->
+    <bpmn:boundaryEvent id="error_SP_CO_005" name="Diagnostics Error" attachedToRef="call_SP_CO_005">
+      <bpmn:outgoing>flow_to_error_end_5</bpmn:outgoing>
+      <bpmn:errorEventDefinition id="errDef_CO_005" errorRef="Error_ClinicalOps"/>
+    </bpmn:boundaryEvent>
+
+    <!-- Call Activity: Medication Management -->
+    <bpmn:callActivity id="call_SP_CO_006" name="Executar Gestão de Medicamentos" calledElement="SP_CO_006_Medication_Management">
+      <bpmn:extensionElements>
+        <camunda:in source="tenantId" target="tenantId"/>
+        <camunda:in source="encounterFhirId" target="encounterFhirId"/>
+        <camunda:in source="patientFhirId" target="patientFhirId"/>
+        <camunda:in source="prescriptionFhirId" target="prescriptionFhirId"/>
+        <camunda:out source="medicationAdministrationFhirId" target="medicationAdministrationFhirId"/>
+        <camunda:out source="dispensingStatus" target="dispensingStatus"/>
+      </bpmn:extensionElements>
+      <bpmn:incoming>flow_to_medication</bpmn:incoming>
+      <bpmn:outgoing>flow_medication_to_join</bpmn:outgoing>
+    </bpmn:callActivity>
+
+    <!-- Error Boundary: Medication -->
+    <bpmn:boundaryEvent id="error_SP_CO_006" name="Medication Error" attachedToRef="call_SP_CO_006">
+      <bpmn:outgoing>flow_to_error_end_6</bpmn:outgoing>
+      <bpmn:errorEventDefinition id="errDef_CO_006" errorRef="Error_ClinicalOps"/>
+    </bpmn:boundaryEvent>
+
+    <!-- Parallel Gateway: Join Clinical Activities -->
+    <bpmn:parallelGateway id="gateway_parallel_join" name="Join Clinical Activities">
+      <bpmn:incoming>flow_prescriptions_to_join</bpmn:incoming>
+      <bpmn:incoming>flow_diagnostics_to_join</bpmn:incoming>
+      <bpmn:incoming>flow_medication_to_join</bpmn:incoming>
+      <bpmn:outgoing>flow_to_surgical_gateway</bpmn:outgoing>
+    </bpmn:parallelGateway>
+
+    <!-- Exclusive Gateway: Surgical Procedure Needed? -->
+    <bpmn:exclusiveGateway id="gateway_surgical_required" name="Surgical procedure needed?" default="flow_surgical_no">
+      <bpmn:incoming>flow_to_surgical_gateway</bpmn:incoming>
+      <bpmn:outgoing>flow_surgical_yes</bpmn:outgoing>
+      <bpmn:outgoing>flow_surgical_no</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+
+    <!-- Call Activity: Surgical Services -->
+    <bpmn:callActivity id="call_SP_CO_007" name="Coordenar Serviços Cirúrgicos" calledElement="SP_CO_007_Surgical_Services">
+      <bpmn:extensionElements>
+        <camunda:in source="tenantId" target="tenantId"/>
+        <camunda:in source="encounterFhirId" target="encounterFhirId"/>
+        <camunda:in source="patientFhirId" target="patientFhirId"/>
+        <camunda:in source="carePlanFhirId" target="carePlanFhirId"/>
+        <camunda:out source="procedureFhirId" target="procedureFhirId"/>
+        <camunda:out source="surgicalOutcome" target="surgicalOutcome"/>
+      </bpmn:extensionElements>
+      <bpmn:incoming>flow_surgical_yes</bpmn:incoming>
+      <bpmn:outgoing>flow_to_merge_surgical</bpmn:outgoing>
+    </bpmn:callActivity>
+
+    <!-- Timer Boundary: Surgical OR Scheduling SLA (30 minutes) -->
+    <bpmn:boundaryEvent id="timer_SP_CO_007" name="OR Scheduling SLA" cancelActivity="true" attachedToRef="call_SP_CO_007">
+      <bpmn:outgoing>flow_to_surgical_timeout_end</bpmn:outgoing>
+      <bpmn:timerEventDefinition id="timerDef_CO_007">
+        <bpmn:timeDuration xsi:type="bpmn:tFormalExpression">PT30M</bpmn:timeDuration>
+      </bpmn:timerEventDefinition>
+    </bpmn:boundaryEvent>
+
+    <!-- Error Boundary: Surgical -->
+    <bpmn:boundaryEvent id="error_SP_CO_007" name="Surgical Error" attachedToRef="call_SP_CO_007">
+      <bpmn:outgoing>flow_to_error_end_7</bpmn:outgoing>
+      <bpmn:errorEventDefinition id="errDef_CO_007" errorRef="Error_ClinicalOps"/>
+    </bpmn:boundaryEvent>
+
+    <!-- Exclusive Gateway: Merge Surgical -->
+    <bpmn:exclusiveGateway id="gateway_merge_surgical" name="Merge">
+      <bpmn:incoming>flow_to_merge_surgical</bpmn:incoming>
+      <bpmn:incoming>flow_surgical_no</bpmn:incoming>
+      <bpmn:outgoing>flow_to_documentation_message</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+
+    <!-- MSG-002: ProceduresCompleted throw (Clinical Ops → Revenue Cycle) -->
+    <bpmn:intermediateThrowEvent id="throw_procedures_completed" name="Procedures Completed">
+      <bpmn:incoming>flow_to_documentation_message</bpmn:incoming>
+      <bpmn:outgoing>flow_procedures_to_documentation</bpmn:outgoing>
+      <bpmn:messageEventDefinition id="msgEvtDef_procedures_completed" messageRef="msg_procedures_completed"/>
+    </bpmn:intermediateThrowEvent>
+
+    <!-- Intermediate Message Throw: Clinical Documentation Ready -->
+    <bpmn:intermediateThrowEvent id="event_documentation_ready" name="Clinical Documentation Ready">
+      <bpmn:incoming>flow_procedures_to_documentation</bpmn:incoming>
+      <bpmn:outgoing>flow_to_discharge_message</bpmn:outgoing>
+      <bpmn:messageEventDefinition id="msgEvtDef_documentation" messageRef="msg_clinical_documentation_ready"/>
+    </bpmn:intermediateThrowEvent>
+
+    <!-- Intermediate Message Throw: Discharge Completed -->
+    <bpmn:intermediateThrowEvent id="event_discharge_completed" name="Discharge Completed">
+      <bpmn:incoming>flow_to_discharge_message</bpmn:incoming>
+      <bpmn:outgoing>flow_to_end</bpmn:outgoing>
+      <bpmn:messageEventDefinition id="msgEvtDef_discharge" messageRef="msg_discharge_completed"/>
+    </bpmn:intermediateThrowEvent>
+
+    <!-- End Event: Success -->
+    <bpmn:endEvent id="end_success" name="Clinical Operations Complete">
+      <bpmn:incoming>flow_to_end</bpmn:incoming>
+    </bpmn:endEvent>
+
+    <!-- End Events: Errors -->
+    <bpmn:endEvent id="error_end_1" name="Triage Error">
+      <bpmn:incoming>flow_to_error_end_1</bpmn:incoming>
+      <bpmn:errorEventDefinition id="errEvtDef_end_1" errorRef="Error_ClinicalOps"/>
+    </bpmn:endEvent>
+
+    <bpmn:endEvent id="error_end_2" name="Admission Error">
+      <bpmn:incoming>flow_to_error_end_2</bpmn:incoming>
+      <bpmn:errorEventDefinition id="errEvtDef_end_2" errorRef="Error_ClinicalOps"/>
+    </bpmn:endEvent>
+
+    <bpmn:endEvent id="error_end_3" name="Care Team Error">
+      <bpmn:incoming>flow_to_error_end_3</bpmn:incoming>
+      <bpmn:errorEventDefinition id="errEvtDef_end_3" errorRef="Error_ClinicalOps"/>
+    </bpmn:endEvent>
+
+    <bpmn:endEvent id="error_end_4" name="Prescription Error">
+      <bpmn:incoming>flow_to_error_end_4</bpmn:incoming>
+      <bpmn:errorEventDefinition id="errEvtDef_end_4" errorRef="Error_ClinicalOps"/>
+    </bpmn:endEvent>
+
+    <bpmn:endEvent id="error_end_5" name="Diagnostics Error">
+      <bpmn:incoming>flow_to_error_end_5</bpmn:incoming>
+      <bpmn:errorEventDefinition id="errEvtDef_end_5" errorRef="Error_ClinicalOps"/>
+    </bpmn:endEvent>
+
+    <bpmn:endEvent id="error_end_6" name="Medication Error">
+      <bpmn:incoming>flow_to_error_end_6</bpmn:incoming>
+      <bpmn:errorEventDefinition id="errEvtDef_end_6" errorRef="Error_ClinicalOps"/>
+    </bpmn:endEvent>
+
+    <bpmn:endEvent id="error_end_7" name="Surgical Error">
+      <bpmn:incoming>flow_to_error_end_7</bpmn:incoming>
+      <bpmn:errorEventDefinition id="errEvtDef_end_7" errorRef="Error_ClinicalOps"/>
+    </bpmn:endEvent>
+
+    <bpmn:endEvent id="surgical_timeout_end" name="Surgical Timeout">
+      <bpmn:incoming>flow_to_surgical_timeout_end</bpmn:incoming>
+      <bpmn:errorEventDefinition id="errEvtDef_timeout" errorRef="Error_SurgicalTimeout"/>
+    </bpmn:endEvent>
+
+    <!-- Sequence Flows -->
+    <bpmn:sequenceFlow id="flow_to_triage" sourceRef="start_patient_ready" targetRef="call_SP_CO_001"/>
+    <bpmn:sequenceFlow id="flow_to_admission_gateway" sourceRef="call_SP_CO_001" targetRef="gateway_admission_required"/>
+    <bpmn:sequenceFlow id="flow_admission_yes" name="Yes (Inpatient)" sourceRef="gateway_admission_required" targetRef="call_SP_CO_002">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${triageCategory == 'inpatient' || triageCategory == 'emergency_admission'}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="flow_admission_no" name="No (Outpatient)" sourceRef="gateway_admission_required" targetRef="gateway_merge_admission">
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="flow_to_merge_admission" sourceRef="call_SP_CO_002" targetRef="gateway_merge_admission"/>
+    <bpmn:sequenceFlow id="flow_to_care_team" sourceRef="gateway_merge_admission" targetRef="call_SP_CO_003"/>
+    <bpmn:sequenceFlow id="flow_to_parallel_fork" sourceRef="call_SP_CO_003" targetRef="gateway_parallel_fork"/>
+    <bpmn:sequenceFlow id="flow_to_prescriptions" sourceRef="gateway_parallel_fork" targetRef="call_SP_CO_004"/>
+    <bpmn:sequenceFlow id="flow_to_diagnostics" sourceRef="gateway_parallel_fork" targetRef="event_lab_results_ready"/>
+    <bpmn:sequenceFlow id="flow_lab_to_diagnostics" sourceRef="event_lab_results_ready" targetRef="call_SP_CO_005"/>
+    <bpmn:sequenceFlow id="flow_to_medication" sourceRef="gateway_parallel_fork" targetRef="call_SP_CO_006"/>
+    <bpmn:sequenceFlow id="flow_prescriptions_to_join" sourceRef="call_SP_CO_004" targetRef="gateway_parallel_join"/>
+    <bpmn:sequenceFlow id="flow_diagnostics_to_join" sourceRef="call_SP_CO_005" targetRef="gateway_parallel_join"/>
+    <bpmn:sequenceFlow id="flow_medication_to_join" sourceRef="call_SP_CO_006" targetRef="gateway_parallel_join"/>
+    <bpmn:sequenceFlow id="flow_to_surgical_gateway" sourceRef="gateway_parallel_join" targetRef="gateway_surgical_required"/>
+    <bpmn:sequenceFlow id="flow_surgical_yes" name="Yes" sourceRef="gateway_surgical_required" targetRef="call_SP_CO_007">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${surgicalRequired == true}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="flow_surgical_no" name="No" sourceRef="gateway_surgical_required" targetRef="gateway_merge_surgical">
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="flow_to_merge_surgical" sourceRef="call_SP_CO_007" targetRef="gateway_merge_surgical"/>
+    <bpmn:sequenceFlow id="flow_to_documentation_message" sourceRef="gateway_merge_surgical" targetRef="throw_procedures_completed"/>
+    <bpmn:sequenceFlow id="flow_procedures_to_documentation" sourceRef="throw_procedures_completed" targetRef="event_documentation_ready"/>
+    <bpmn:sequenceFlow id="flow_to_discharge_message" sourceRef="event_documentation_ready" targetRef="event_discharge_completed"/>
+
+    <!-- Sepsis Alert flows -->
+    <bpmn:sequenceFlow id="flow_sepsis_alert_to_handler" sourceRef="catch_sepsis_alert" targetRef="task_activate_sepsis_protocol"/>
+    <bpmn:sequenceFlow id="flow_sepsis_protocol_to_end" sourceRef="task_activate_sepsis_protocol" targetRef="end_sepsis_protocol"/>
+    <bpmn:sequenceFlow id="flow_to_end" sourceRef="event_discharge_completed" targetRef="end_success"/>
+
+    <!-- Error Flows -->
+    <bpmn:sequenceFlow id="flow_to_error_end_1" sourceRef="error_SP_CO_001" targetRef="error_end_1"/>
+    <bpmn:sequenceFlow id="flow_to_error_end_2" sourceRef="error_SP_CO_002" targetRef="error_end_2"/>
+    <bpmn:sequenceFlow id="flow_to_error_end_3" sourceRef="error_SP_CO_003" targetRef="error_end_3"/>
+    <bpmn:sequenceFlow id="flow_to_error_end_4" sourceRef="error_SP_CO_004" targetRef="error_end_4"/>
+    <bpmn:sequenceFlow id="flow_to_error_end_5" sourceRef="error_SP_CO_005" targetRef="error_end_5"/>
+    <bpmn:sequenceFlow id="flow_to_error_end_6" sourceRef="error_SP_CO_006" targetRef="error_end_6"/>
+    <bpmn:sequenceFlow id="flow_to_error_end_7" sourceRef="error_SP_CO_007" targetRef="error_end_7"/>
+    <bpmn:sequenceFlow id="flow_to_surgical_timeout_end" sourceRef="timer_SP_CO_007" targetRef="surgical_timeout_end"/>
+
+  </bpmn:process>
+
+  <!-- BPMN Diagram -->
+  <bpmndi:BPMNDiagram id="BPMNDiagram_clinical_ops_main">
+    <bpmndi:BPMNPlane id="BPMNPlane_clinical_ops_main" bpmnElement="clinical_ops_main">
+
+      <!-- Start Event -->
+      <bpmndi:BPMNShape id="shape_start_patient_ready" bpmnElement="start_patient_ready">
+        <dc:Bounds x="152" y="192" width="36" height="36"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="135" y="235" width="70" height="27"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+
+      <!-- Call Activity: Triage -->
+      <bpmndi:BPMNShape id="shape_call_SP_CO_001" bpmnElement="call_SP_CO_001">
+        <dc:Bounds x="240" y="170" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <!-- Error Boundary: Triage -->
+      <bpmndi:BPMNShape id="shape_error_SP_CO_001" bpmnElement="error_SP_CO_001">
+        <dc:Bounds x="322" y="232" width="36" height="36"/>
+      </bpmndi:BPMNShape>
+
+      <!-- Gateway: Admission Required -->
+      <bpmndi:BPMNShape id="shape_gateway_admission_required" bpmnElement="gateway_admission_required" isMarkerVisible="true">
+        <dc:Bounds x="395" y="185" width="50" height="50"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="388" y="155" width="64" height="27"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+
+      <!-- Call Activity: Admission -->
+      <bpmndi:BPMNShape id="shape_call_SP_CO_002" bpmnElement="call_SP_CO_002">
+        <dc:Bounds x="500" y="90" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <!-- Error Boundary: Admission -->
+      <bpmndi:BPMNShape id="shape_error_SP_CO_002" bpmnElement="error_SP_CO_002">
+        <dc:Bounds x="582" y="152" width="36" height="36"/>
+      </bpmndi:BPMNShape>
+
+      <!-- Gateway: Merge Admission -->
+      <bpmndi:BPMNShape id="shape_gateway_merge_admission" bpmnElement="gateway_merge_admission" isMarkerVisible="true">
+        <dc:Bounds x="655" y="185" width="50" height="50"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="666" y="163" width="29" height="14"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+
+      <!-- Call Activity: Care Team -->
+      <bpmndi:BPMNShape id="shape_call_SP_CO_003" bpmnElement="call_SP_CO_003">
+        <dc:Bounds x="760" y="170" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <!-- Error Boundary: Care Team -->
+      <bpmndi:BPMNShape id="shape_error_SP_CO_003" bpmnElement="error_SP_CO_003">
+        <dc:Bounds x="842" y="232" width="36" height="36"/>
+      </bpmndi:BPMNShape>
+
+      <!-- Sepsis Alert Boundary Event -->
+      <bpmndi:BPMNShape id="shape_catch_sepsis_alert" bpmnElement="catch_sepsis_alert">
+        <dc:Bounds x="792" y="232" width="36" height="36"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="828" y="243" width="60" height="14"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+
+      <!-- Service Task: Activate Sepsis Protocol -->
+      <bpmndi:BPMNShape id="shape_task_activate_sepsis_protocol" bpmnElement="task_activate_sepsis_protocol">
+        <dc:Bounds x="760" y="310" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <!-- End Event: Sepsis Protocol Activated -->
+      <bpmndi:BPMNShape id="shape_end_sepsis_protocol" bpmnElement="end_sepsis_protocol">
+        <dc:Bounds x="792" y="440" width="36" height="36"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="770" y="483" width="80" height="27"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+
+      <!-- Gateway: Parallel Fork -->
+      <bpmndi:BPMNShape id="shape_gateway_parallel_fork" bpmnElement="gateway_parallel_fork">
+        <dc:Bounds x="915" y="185" width="50" height="50"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="902" y="155" width="76" height="27"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+
+      <!-- Call Activity: Prescriptions -->
+      <bpmndi:BPMNShape id="shape_call_SP_CO_004" bpmnElement="call_SP_CO_004">
+        <dc:Bounds x="1020" y="40" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <!-- Error Boundary: Prescriptions -->
+      <bpmndi:BPMNShape id="shape_error_SP_CO_004" bpmnElement="error_SP_CO_004">
+        <dc:Bounds x="1102" y="102" width="36" height="36"/>
+      </bpmndi:BPMNShape>
+
+      <!-- Intermediate Message: Lab Results -->
+      <bpmndi:BPMNShape id="shape_event_lab_results_ready" bpmnElement="event_lab_results_ready">
+        <dc:Bounds x="1022" y="192" width="36" height="36"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1010" y="235" width="60" height="27"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+
+      <!-- Call Activity: Diagnostics -->
+      <bpmndi:BPMNShape id="shape_call_SP_CO_005" bpmnElement="call_SP_CO_005">
+        <dc:Bounds x="1110" y="170" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <!-- Error Boundary: Diagnostics -->
+      <bpmndi:BPMNShape id="shape_error_SP_CO_005" bpmnElement="error_SP_CO_005">
+        <dc:Bounds x="1192" y="232" width="36" height="36"/>
+      </bpmndi:BPMNShape>
+
+      <!-- Call Activity: Medication -->
+      <bpmndi:BPMNShape id="shape_call_SP_CO_006" bpmnElement="call_SP_CO_006">
+        <dc:Bounds x="1020" y="300" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <!-- Error Boundary: Medication -->
+      <bpmndi:BPMNShape id="shape_error_SP_CO_006" bpmnElement="error_SP_CO_006">
+        <dc:Bounds x="1102" y="362" width="36" height="36"/>
+      </bpmndi:BPMNShape>
+
+      <!-- Gateway: Parallel Join -->
+      <bpmndi:BPMNShape id="shape_gateway_parallel_join" bpmnElement="gateway_parallel_join">
+        <dc:Bounds x="1275" y="185" width="50" height="50"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1262" y="155" width="76" height="27"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+
+      <!-- Gateway: Surgical Required -->
+      <bpmndi:BPMNShape id="shape_gateway_surgical_required" bpmnElement="gateway_surgical_required" isMarkerVisible="true">
+        <dc:Bounds x="1385" y="185" width="50" height="50"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1373" y="148" width="75" height="27"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+
+      <!-- Call Activity: Surgical -->
+      <bpmndi:BPMNShape id="shape_call_SP_CO_007" bpmnElement="call_SP_CO_007">
+        <dc:Bounds x="1490" y="90" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <!-- Timer Boundary: Surgical -->
+      <bpmndi:BPMNShape id="shape_timer_SP_CO_007" bpmnElement="timer_SP_CO_007">
+        <dc:Bounds x="1522" y="152" width="36" height="36"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1560" y="163" width="60" height="27"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+
+      <!-- Error Boundary: Surgical -->
+      <bpmndi:BPMNShape id="shape_error_SP_CO_007" bpmnElement="error_SP_CO_007">
+        <dc:Bounds x="1572" y="152" width="36" height="36"/>
+      </bpmndi:BPMNShape>
+
+      <!-- Gateway: Merge Surgical -->
+      <bpmndi:BPMNShape id="shape_gateway_merge_surgical" bpmnElement="gateway_merge_surgical" isMarkerVisible="true">
+        <dc:Bounds x="1645" y="185" width="50" height="50"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1656" y="163" width="29" height="14"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+
+      <!-- Intermediate Message: Documentation Ready -->
+      <bpmndi:BPMNShape id="shape_event_documentation_ready" bpmnElement="event_documentation_ready">
+        <dc:Bounds x="1752" y="192" width="36" height="36"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1730" y="235" width="80" height="40"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+
+      <!-- Intermediate Message: Discharge -->
+      <bpmndi:BPMNShape id="shape_event_discharge_completed" bpmnElement="event_discharge_completed">
+        <dc:Bounds x="1842" y="192" width="36" height="36"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1826" y="235" width="68" height="27"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+
+      <!-- End Event: Success -->
+      <bpmndi:BPMNShape id="shape_end_success" bpmnElement="end_success">
+        <dc:Bounds x="1932" y="192" width="36" height="36"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1910" y="235" width="80" height="27"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+
+      <!-- Error End Events -->
+      <bpmndi:BPMNShape id="shape_error_end_1" bpmnElement="error_end_1">
+        <dc:Bounds x="322" y="302" width="36" height="36"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="306" y="345" width="68" height="14"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="shape_error_end_2" bpmnElement="error_end_2">
+        <dc:Bounds x="582" y="42" width="36" height="36"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="558" y="85" width="84" height="14"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="shape_error_end_3" bpmnElement="error_end_3">
+        <dc:Bounds x="842" y="302" width="36" height="36"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="818" y="345" width="84" height="14"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="shape_error_end_4" bpmnElement="error_end_4">
+        <dc:Bounds x="1192" y="42" width="36" height="36"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1163" y="85" width="94" height="14"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="shape_error_end_5" bpmnElement="error_end_5">
+        <dc:Bounds x="1282" y="302" width="36" height="36"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1254" y="345" width="92" height="14"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="shape_error_end_6" bpmnElement="error_end_6">
+        <dc:Bounds x="1102" y="442" width="36" height="36"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1073" y="485" width="94" height="14"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="shape_error_end_7" bpmnElement="error_end_7">
+        <dc:Bounds x="1652" y="42" width="36" height="36"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1631" y="85" width="78" height="14"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="shape_surgical_timeout_end" bpmnElement="surgical_timeout_end">
+        <dc:Bounds x="1522" y="42" width="36" height="36"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1499" y="85" width="82" height="14"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+
+      <!-- Sequence Flow Edges -->
+      <bpmndi:BPMNEdge id="edge_flow_to_triage" bpmnElement="flow_to_triage">
+        <di:waypoint x="188" y="210"/>
+        <di:waypoint x="240" y="210"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="edge_flow_to_admission_gateway" bpmnElement="flow_to_admission_gateway">
+        <di:waypoint x="340" y="210"/>
+        <di:waypoint x="395" y="210"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="edge_flow_admission_yes" bpmnElement="flow_admission_yes">
+        <di:waypoint x="420" y="185"/>
+        <di:waypoint x="420" y="130"/>
+        <di:waypoint x="500" y="130"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="425" y="113" width="70" height="14"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="edge_flow_admission_no" bpmnElement="flow_admission_no">
+        <di:waypoint x="445" y="210"/>
+        <di:waypoint x="655" y="210"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="513" y="192" width="74" height="14"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="edge_flow_to_merge_admission" bpmnElement="flow_to_merge_admission">
+        <di:waypoint x="600" y="130"/>
+        <di:waypoint x="680" y="130"/>
+        <di:waypoint x="680" y="185"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="edge_flow_to_care_team" bpmnElement="flow_to_care_team">
+        <di:waypoint x="705" y="210"/>
+        <di:waypoint x="760" y="210"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="edge_flow_to_parallel_fork" bpmnElement="flow_to_parallel_fork">
+        <di:waypoint x="860" y="210"/>
+        <di:waypoint x="915" y="210"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="edge_flow_to_prescriptions" bpmnElement="flow_to_prescriptions">
+        <di:waypoint x="940" y="185"/>
+        <di:waypoint x="940" y="80"/>
+        <di:waypoint x="1020" y="80"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="edge_flow_to_diagnostics" bpmnElement="flow_to_diagnostics">
+        <di:waypoint x="965" y="210"/>
+        <di:waypoint x="1022" y="210"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="edge_flow_lab_to_diagnostics" bpmnElement="flow_lab_to_diagnostics">
+        <di:waypoint x="1058" y="210"/>
+        <di:waypoint x="1110" y="210"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="edge_flow_to_medication" bpmnElement="flow_to_medication">
+        <di:waypoint x="940" y="235"/>
+        <di:waypoint x="940" y="340"/>
+        <di:waypoint x="1020" y="340"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="edge_flow_prescriptions_to_join" bpmnElement="flow_prescriptions_to_join">
+        <di:waypoint x="1120" y="80"/>
+        <di:waypoint x="1300" y="80"/>
+        <di:waypoint x="1300" y="185"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="edge_flow_diagnostics_to_join" bpmnElement="flow_diagnostics_to_join">
+        <di:waypoint x="1210" y="210"/>
+        <di:waypoint x="1275" y="210"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="edge_flow_medication_to_join" bpmnElement="flow_medication_to_join">
+        <di:waypoint x="1120" y="340"/>
+        <di:waypoint x="1300" y="340"/>
+        <di:waypoint x="1300" y="235"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="edge_flow_to_surgical_gateway" bpmnElement="flow_to_surgical_gateway">
+        <di:waypoint x="1325" y="210"/>
+        <di:waypoint x="1385" y="210"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="edge_flow_surgical_yes" bpmnElement="flow_surgical_yes">
+        <di:waypoint x="1410" y="185"/>
+        <di:waypoint x="1410" y="130"/>
+        <di:waypoint x="1490" y="130"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1416" y="113" width="18" height="14"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="edge_flow_surgical_no" bpmnElement="flow_surgical_no">
+        <di:waypoint x="1435" y="210"/>
+        <di:waypoint x="1645" y="210"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1534" y="192" width="15" height="14"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="edge_flow_to_merge_surgical" bpmnElement="flow_to_merge_surgical">
+        <di:waypoint x="1590" y="130"/>
+        <di:waypoint x="1670" y="130"/>
+        <di:waypoint x="1670" y="185"/>
+      </bpmndi:BPMNEdge>
+
+      <!-- Intermediate Throw Event: Procedures Completed -->
+      <bpmndi:BPMNShape id="shape_throw_procedures_completed" bpmnElement="throw_procedures_completed">
+        <dc:Bounds x="1722" y="192" width="36" height="36"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1702" y="235" width="76" height="27"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNEdge id="edge_flow_to_documentation_message" bpmnElement="flow_to_documentation_message">
+        <di:waypoint x="1695" y="210"/>
+        <di:waypoint x="1722" y="210"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="edge_flow_procedures_to_documentation" bpmnElement="flow_procedures_to_documentation">
+        <di:waypoint x="1758" y="210"/>
+        <di:waypoint x="1752" y="210"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="edge_flow_to_discharge_message" bpmnElement="flow_to_discharge_message">
+        <di:waypoint x="1788" y="210"/>
+        <di:waypoint x="1842" y="210"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="edge_flow_to_end" bpmnElement="flow_to_end">
+        <di:waypoint x="1878" y="210"/>
+        <di:waypoint x="1932" y="210"/>
+      </bpmndi:BPMNEdge>
+
+      <!-- Error Flow Edges -->
+      <bpmndi:BPMNEdge id="edge_flow_to_error_end_1" bpmnElement="flow_to_error_end_1">
+        <di:waypoint x="340" y="268"/>
+        <di:waypoint x="340" y="302"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="edge_flow_to_error_end_2" bpmnElement="flow_to_error_end_2">
+        <di:waypoint x="600" y="152"/>
+        <di:waypoint x="600" y="78"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="edge_flow_to_error_end_3" bpmnElement="flow_to_error_end_3">
+        <di:waypoint x="860" y="268"/>
+        <di:waypoint x="860" y="302"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="edge_flow_to_error_end_4" bpmnElement="flow_to_error_end_4">
+        <di:waypoint x="1120" y="102"/>
+        <di:waypoint x="1120" y="60"/>
+        <di:waypoint x="1192" y="60"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="edge_flow_to_error_end_5" bpmnElement="flow_to_error_end_5">
+        <di:waypoint x="1210" y="268"/>
+        <di:waypoint x="1210" y="320"/>
+        <di:waypoint x="1282" y="320"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="edge_flow_to_error_end_6" bpmnElement="flow_to_error_end_6">
+        <di:waypoint x="1120" y="398"/>
+        <di:waypoint x="1120" y="442"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="edge_flow_to_error_end_7" bpmnElement="flow_to_error_end_7">
+        <di:waypoint x="1590" y="152"/>
+        <di:waypoint x="1590" y="60"/>
+        <di:waypoint x="1652" y="60"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="edge_flow_to_surgical_timeout_end" bpmnElement="flow_to_surgical_timeout_end">
+        <di:waypoint x="1540" y="152"/>
+        <di:waypoint x="1540" y="78"/>
+      </bpmndi:BPMNEdge>
+
+      <!-- Sepsis Alert Flow Edges -->
+      <bpmndi:BPMNEdge id="edge_flow_sepsis_alert_to_handler" bpmnElement="flow_sepsis_alert_to_handler">
+        <di:waypoint x="810" y="268"/>
+        <di:waypoint x="810" y="310"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="edge_flow_sepsis_protocol_to_end" bpmnElement="flow_sepsis_protocol_to_end">
+        <di:waypoint x="810" y="390"/>
+        <di:waypoint x="810" y="440"/>
+      </bpmndi:BPMNEdge>
+
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+
+</bpmn:definitions>

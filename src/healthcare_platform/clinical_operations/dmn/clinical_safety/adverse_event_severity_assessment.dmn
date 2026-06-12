@@ -1,0 +1,236 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/"
+             xmlns:dc="http://www.omg.org/spec/DMN/20180521/DC/"
+             xmlns:di="http://www.omg.org/spec/DMN/20180521/DI/"
+             xmlns:camunda="http://camunda.org/schema/1.0/dmn"
+             id="Definitions_AdverseEventSeverityAssessment"
+             name="Adverse Event Severity Assessment"
+             namespace="http://camunda.org/schema/1.0/dmn">
+
+  <!-- 
+    DMN: adverse_event_severity_assessment
+    Generated from: TEMPLATE clinical_alert.dmn
+    Archetype: CLINICAL_ALERT
+    
+    Purpose: Classify adverse events and determine required actions
+    
+    Inputs:
+    - eventType: medication_error|fall|infection|surgical_complication|equipment_failure|other
+    - severity: mild|moderate|severe|life_threatening|fatal
+    - patientOutcome: no_harm|temporary_harm|permanent_harm|intervention_required|death
+    
+    Outputs:
+    - nivelAlerta: CRITICO|ALTO|MEDIO|BAIXO|OK
+    - acaoRequerida: Required action string
+    - justificativa: Clinical justification
+    - eventClassification: preventable|non_preventable|unavoidable
+    - rcaRequired: Root cause analysis required
+    - regulatoryReporting: ANVISA/regulatory reporting required
+    
+    Hit Policy: FIRST (most severe match wins)
+    
+    References:
+    - RDC ANVISA 36/2013 (Patient Safety)
+    - PNSP (Programa Nacional de Segurança do Paciente)
+    - ONA (Organização Nacional de Acreditação)
+  -->
+
+  <decision id="Decision_adverse_event_severity_assessment" name="[SP-CO-004 | clinical_safety] Avaliação de Gravidade de Evento Adverso" camunda:historyTimeToLive="180">
+    <decisionTable id="DecisionTable_adverse_event_severity" hitPolicy="FIRST">
+
+      <!-- === INPUTS === -->
+
+      <input id="Input_eventType_adverse_event_severity_assessment" label="Tipo de Evento">
+        <inputExpression id="InputExpr_eventType_adverse_event_severity_assessment" typeRef="string">
+          <text>eventType</text>
+        </inputExpression>
+        <inputValues><text>"medication_error","fall","infection","surgical_complication","equipment_failure","other"</text></inputValues>
+      </input>
+
+      <input id="Input_severity_adverse_event_severity_assessment" label="Gravidade Reportada">
+        <inputExpression id="InputExpr_severity_adverse_event_severity_assessment" typeRef="string">
+          <text>severity</text>
+        </inputExpression>
+        <inputValues><text>"fatal","life_threatening","severe","moderate","mild"</text></inputValues>
+      </input>
+
+      <input id="Input_patientOutcome_adverse_event_severity_assessment" label="Desfecho do Paciente">
+        <inputExpression id="InputExpr_patientOutcome_adverse_event_severity_assessment" typeRef="string">
+          <text>patientOutcome</text>
+        </inputExpression>
+        <inputValues><text>"death","intervention_required","permanent_harm","temporary_harm","no_harm"</text></inputValues>
+      </input>
+
+      <!-- === OUTPUTS === -->
+
+      <output id="Output_nivelAlerta_adverse_event_severity_assessment" label="Nível de Alerta" name="nivelAlerta" typeRef="string">
+        <outputValues><text>"CRITICO","ALTO","MEDIO","BAIXO","OK"</text></outputValues>
+      </output>
+
+      <output id="Output_acaoRequerida_adverse_event_severity_assessment" label="Ação Requerida" name="acaoRequerida" typeRef="string"/>
+
+      <output id="Output_justificativa_adverse_event_severity_assessment" label="Justificativa" name="justificativa" typeRef="string"/>
+
+      <output id="Output_eventClassification_adverse_event_severity_assessment" label="Classificação" name="eventClassification" typeRef="string">
+        <outputValues><text>"preventable","non_preventable","unavoidable"</text></outputValues>
+      </output>
+
+      <output id="Output_rcaRequired_adverse_event_severity_assessment" label="RCA Necessária" name="rcaRequired" typeRef="boolean"/>
+
+      <output id="Output_regulatoryReporting_adverse_event_severity_assessment" label="Notificação Regulatória" name="regulatoryReporting" typeRef="boolean"/>
+
+      <!-- === RULES (ordered by severity: critical first) === -->
+
+      <!-- Rule 1: Fatal - Any event type with fatal outcome -->
+      <rule id="Rule_fatal_outcome_adverse_event_severity_assessment">
+        <description>Óbito - Notificação ANVISA obrigatória em 72h</description>
+        <inputEntry id="IE_fatal_event_adverse_event_severity_assessment"><text>-</text></inputEntry>
+        <inputEntry id="IE_fatal_severity_adverse_event_severity_assessment"><text>"fatal"</text></inputEntry>
+        <inputEntry id="IE_fatal_outcome_adverse_event_severity_assessment"><text>"death"</text></inputEntry>
+        <outputEntry id="OE_fatal_nivel_adverse_event_severity_assessment"><text>"CRITICO"</text></outputEntry>
+        <outputEntry id="OE_fatal_acao_adverse_event_severity_assessment"><text>"Notificar ANVISA em 72h. Acionar Comitê de Óbitos. Preservar evidências."</text></outputEntry>
+        <outputEntry id="OE_fatal_just_adverse_event_severity_assessment"><text>"[RDC 36/2013 Art. 8] Evento adverso com óbito requer notificação obrigatória à ANVISA"</text></outputEntry>
+        <outputEntry id="OE_fatal_class_adverse_event_severity_assessment"><text>"preventable"</text></outputEntry>
+        <outputEntry id="OE_fatal_rca_adverse_event_severity_assessment"><text>true</text></outputEntry>
+        <outputEntry id="OE_fatal_reg_adverse_event_severity_assessment"><text>true</text></outputEntry>
+      </rule>
+
+      <!-- Rule 2: Life-threatening - Requires immediate intervention -->
+      <rule id="Rule_life_threatening_adverse_event_severity_assessment">
+        <description>Risco de vida - Ação imediata necessária</description>
+        <inputEntry id="IE_lt_event_adverse_event_severity_assessment"><text>-</text></inputEntry>
+        <inputEntry id="IE_lt_severity_adverse_event_severity_assessment"><text>"life_threatening"</text></inputEntry>
+        <inputEntry id="IE_lt_outcome_adverse_event_severity_assessment"><text>"intervention_required","death"</text></inputEntry>
+        <outputEntry id="OE_lt_nivel_adverse_event_severity_assessment"><text>"CRITICO"</text></outputEntry>
+        <outputEntry id="OE_lt_acao_adverse_event_severity_assessment"><text>"Avaliação médica imediata. Monitoramento contínuo. Acionar equipe de resposta rápida."</text></outputEntry>
+        <outputEntry id="OE_lt_just_adverse_event_severity_assessment"><text>"[PNSP] Evento com risco de vida requer resposta imediata e escalonamento"</text></outputEntry>
+        <outputEntry id="OE_lt_class_adverse_event_severity_assessment"><text>"preventable"</text></outputEntry>
+        <outputEntry id="OE_lt_rca_adverse_event_severity_assessment"><text>true</text></outputEntry>
+        <outputEntry id="OE_lt_reg_adverse_event_severity_assessment"><text>true</text></outputEntry>
+      </rule>
+
+      <!-- Rule 3: Medication error - Severe -->
+      <rule id="Rule_medication_severe_adverse_event_severity_assessment">
+        <description>Erro de medicação grave - Alto risco de recorrência</description>
+        <inputEntry id="IE_med_event_adverse_event_severity_assessment"><text>"medication_error"</text></inputEntry>
+        <inputEntry id="IE_med_severity_adverse_event_severity_assessment"><text>"severe","life_threatening"</text></inputEntry>
+        <inputEntry id="IE_med_outcome_adverse_event_severity_assessment"><text>-</text></inputEntry>
+        <outputEntry id="OE_med_nivel_adverse_event_severity_assessment"><text>"CRITICO"</text></outputEntry>
+        <outputEntry id="OE_med_acao_adverse_event_severity_assessment"><text>"Suspender medicação. Notificar farmácia e médico prescritor. Revisar protocolo de dupla checagem."</text></outputEntry>
+        <outputEntry id="OE_med_just_adverse_event_severity_assessment"><text>"[ONA] Erro de medicação grave requer análise de processo e notificação imediata"</text></outputEntry>
+        <outputEntry id="OE_med_class_adverse_event_severity_assessment"><text>"preventable"</text></outputEntry>
+        <outputEntry id="OE_med_rca_adverse_event_severity_assessment"><text>true</text></outputEntry>
+        <outputEntry id="OE_med_reg_adverse_event_severity_assessment"><text>true</text></outputEntry>
+      </rule>
+
+      <!-- Rule 4: Infection (HAI) - Any severity -->
+      <rule id="Rule_infection_hai_adverse_event_severity_assessment">
+        <description>Infecção hospitalar - Notificação IRAS obrigatória</description>
+        <inputEntry id="IE_inf_event_adverse_event_severity_assessment"><text>"infection"</text></inputEntry>
+        <inputEntry id="IE_inf_severity_adverse_event_severity_assessment"><text>"severe","life_threatening","moderate"</text></inputEntry>
+        <inputEntry id="IE_inf_outcome_adverse_event_severity_assessment"><text>-</text></inputEntry>
+        <outputEntry id="OE_inf_nivel_adverse_event_severity_assessment"><text>"ALTO"</text></outputEntry>
+        <outputEntry id="OE_inf_acao_adverse_event_severity_assessment"><text>"Coletar culturas. Iniciar isolamento se indicado. Notificar CCIH em 24h."</text></outputEntry>
+        <outputEntry id="OE_inf_just_adverse_event_severity_assessment"><text>"[Portaria 2616/98] IRAS requer notificação à CCIH e vigilância epidemiológica"</text></outputEntry>
+        <outputEntry id="OE_inf_class_adverse_event_severity_assessment"><text>"non_preventable"</text></outputEntry>
+        <outputEntry id="OE_inf_rca_adverse_event_severity_assessment"><text>true</text></outputEntry>
+        <outputEntry id="OE_inf_reg_adverse_event_severity_assessment"><text>true</text></outputEntry>
+      </rule>
+
+      <!-- Rule 5: Fall with injury -->
+      <rule id="Rule_fall_severe_adverse_event_severity_assessment">
+        <description>Queda com lesão grave</description>
+        <inputEntry id="IE_fall_event_adverse_event_severity_assessment"><text>"fall"</text></inputEntry>
+        <inputEntry id="IE_fall_severity_adverse_event_severity_assessment"><text>"severe","life_threatening"</text></inputEntry>
+        <inputEntry id="IE_fall_outcome_adverse_event_severity_assessment"><text>"permanent_harm","intervention_required"</text></inputEntry>
+        <outputEntry id="OE_fall_nivel_adverse_event_severity_assessment"><text>"ALTO"</text></outputEntry>
+        <outputEntry id="OE_fall_acao_adverse_event_severity_assessment"><text>"Avaliação neurológica e ortopédica. Implementar protocolo de prevenção de quedas. Notificar coordenação de enfermagem."</text></outputEntry>
+        <outputEntry id="OE_fall_just_adverse_event_severity_assessment"><text>"[PNSP] Queda com dano requer revisão de riscos e medidas preventivas"</text></outputEntry>
+        <outputEntry id="OE_fall_class_adverse_event_severity_assessment"><text>"preventable"</text></outputEntry>
+        <outputEntry id="OE_fall_rca_adverse_event_severity_assessment"><text>true</text></outputEntry>
+        <outputEntry id="OE_fall_reg_adverse_event_severity_assessment"><text>false</text></outputEntry>
+      </rule>
+
+      <!-- Rule 6: Surgical complication - Severe -->
+      <rule id="Rule_surgical_severe_adverse_event_severity_assessment">
+        <description>Complicação cirúrgica grave</description>
+        <inputEntry id="IE_surg_event_adverse_event_severity_assessment"><text>"surgical_complication"</text></inputEntry>
+        <inputEntry id="IE_surg_severity_adverse_event_severity_assessment"><text>"severe","life_threatening"</text></inputEntry>
+        <inputEntry id="IE_surg_outcome_adverse_event_severity_assessment"><text>-</text></inputEntry>
+        <outputEntry id="OE_surg_nivel_adverse_event_severity_assessment"><text>"ALTO"</text></outputEntry>
+        <outputEntry id="OE_surg_acao_adverse_event_severity_assessment"><text>"Revisar prontuário cirúrgico. Notificar cirurgião responsável. Avaliar necessidade de reintervenção."</text></outputEntry>
+        <outputEntry id="OE_surg_just_adverse_event_severity_assessment"><text>"[ONA] Complicação cirúrgica grave requer análise técnica e revisão de protocolo"</text></outputEntry>
+        <outputEntry id="OE_surg_class_adverse_event_severity_assessment"><text>"unavoidable"</text></outputEntry>
+        <outputEntry id="OE_surg_rca_adverse_event_severity_assessment"><text>true</text></outputEntry>
+        <outputEntry id="OE_surg_reg_adverse_event_severity_assessment"><text>false</text></outputEntry>
+      </rule>
+
+      <!-- Rule 7: Equipment failure with harm -->
+      <rule id="Rule_equipment_severe_adverse_event_severity_assessment">
+        <description>Falha de equipamento com dano</description>
+        <inputEntry id="IE_equip_event_adverse_event_severity_assessment"><text>"equipment_failure"</text></inputEntry>
+        <inputEntry id="IE_equip_severity_adverse_event_severity_assessment"><text>"severe","life_threatening"</text></inputEntry>
+        <inputEntry id="IE_equip_outcome_adverse_event_severity_assessment"><text>-</text></inputEntry>
+        <outputEntry id="OE_equip_nivel_adverse_event_severity_assessment"><text>"ALTO"</text></outputEntry>
+        <outputEntry id="OE_equip_acao_adverse_event_severity_assessment"><text>"Isolar equipamento. Notificar engenharia clínica. Reportar ao fabricante e ANVISA se aplicável."</text></outputEntry>
+        <outputEntry id="OE_equip_just_adverse_event_severity_assessment"><text>"[RDC 36/2013] Falha de equipamento médico com dano requer notificação"</text></outputEntry>
+        <outputEntry id="OE_equip_class_adverse_event_severity_assessment"><text>"non_preventable"</text></outputEntry>
+        <outputEntry id="OE_equip_rca_adverse_event_severity_assessment"><text>true</text></outputEntry>
+        <outputEntry id="OE_equip_reg_adverse_event_severity_assessment"><text>true</text></outputEntry>
+      </rule>
+
+      <!-- Rule 8: Moderate events - Standard follow-up -->
+      <rule id="Rule_moderate_adverse_event_severity_assessment">
+        <description>Evento moderado - Seguimento padrão</description>
+        <inputEntry id="IE_mod_event_adverse_event_severity_assessment"><text>-</text></inputEntry>
+        <inputEntry id="IE_mod_severity_adverse_event_severity_assessment"><text>"moderate"</text></inputEntry>
+        <inputEntry id="IE_mod_outcome_adverse_event_severity_assessment"><text>"temporary_harm"</text></inputEntry>
+        <outputEntry id="OE_mod_nivel_adverse_event_severity_assessment"><text>"MEDIO"</text></outputEntry>
+        <outputEntry id="OE_mod_acao_adverse_event_severity_assessment"><text>"Registrar em prontuário. Incluir em reunião de segurança do paciente. Monitorar evolução."</text></outputEntry>
+        <outputEntry id="OE_mod_just_adverse_event_severity_assessment"><text>"[PNSP] Evento moderado requer registro e acompanhamento"</text></outputEntry>
+        <outputEntry id="OE_mod_class_adverse_event_severity_assessment"><text>"preventable"</text></outputEntry>
+        <outputEntry id="OE_mod_rca_adverse_event_severity_assessment"><text>false</text></outputEntry>
+        <outputEntry id="OE_mod_reg_adverse_event_severity_assessment"><text>false</text></outputEntry>
+      </rule>
+
+      <!-- Rule 9: Mild events - Log only -->
+      <rule id="Rule_mild_adverse_event_severity_assessment">
+        <description>Evento leve - Registro somente</description>
+        <inputEntry id="IE_mild_event_adverse_event_severity_assessment"><text>-</text></inputEntry>
+        <inputEntry id="IE_mild_severity_adverse_event_severity_assessment"><text>"mild"</text></inputEntry>
+        <inputEntry id="IE_mild_outcome_adverse_event_severity_assessment"><text>"no_harm","temporary_harm"</text></inputEntry>
+        <outputEntry id="OE_mild_nivel_adverse_event_severity_assessment"><text>"BAIXO"</text></outputEntry>
+        <outputEntry id="OE_mild_acao_adverse_event_severity_assessment"><text>"Registrar evento. Nenhuma ação imediata necessária."</text></outputEntry>
+        <outputEntry id="OE_mild_just_adverse_event_severity_assessment"><text>"Evento sem dano significativo"</text></outputEntry>
+        <outputEntry id="OE_mild_class_adverse_event_severity_assessment"><text>"non_preventable"</text></outputEntry>
+        <outputEntry id="OE_mild_rca_adverse_event_severity_assessment"><text>false</text></outputEntry>
+        <outputEntry id="OE_mild_reg_adverse_event_severity_assessment"><text>false</text></outputEntry>
+      </rule>
+
+      <!-- Rule 10: Fallback - No action required -->
+      <rule id="Rule_fallback_adverse_event_severity_assessment">
+        <description>Nenhuma condição de alerta</description>
+        <inputEntry id="IE_fb_event_adverse_event_severity_assessment"><text>-</text></inputEntry>
+        <inputEntry id="IE_fb_severity_adverse_event_severity_assessment"><text>-</text></inputEntry>
+        <inputEntry id="IE_fb_outcome_adverse_event_severity_assessment"><text>-</text></inputEntry>
+        <outputEntry id="OE_fb_nivel_adverse_event_severity_assessment"><text>"OK"</text></outputEntry>
+        <outputEntry id="OE_fb_acao_adverse_event_severity_assessment"><text>"Nenhuma ação requerida"</text></outputEntry>
+        <outputEntry id="OE_fb_just_adverse_event_severity_assessment"><text>""</text></outputEntry>
+        <outputEntry id="OE_fb_class_adverse_event_severity_assessment"><text>"non_preventable"</text></outputEntry>
+        <outputEntry id="OE_fb_rca_adverse_event_severity_assessment"><text>false</text></outputEntry>
+        <outputEntry id="OE_fb_reg_adverse_event_severity_assessment"><text>false</text></outputEntry>
+      </rule>
+
+    </decisionTable>
+  </decision>
+
+  <dmndi:DMNDI>
+    <dmndi:DMNDiagram id="DMNDiagram_AdverseEvent_adverse_event_severity_assessment">
+      <dmndi:DMNShape id="DMNShape_Decision_adverse_adverse_event_severity_assessment" dmnElementRef="Decision_adverse_event_severity_assessment">
+        <dc:Bounds height="80" width="180" x="160" y="100"/>
+      </dmndi:DMNShape>
+    </dmndi:DMNDiagram>
+  </dmndi:DMNDI>
+
+</definitions>

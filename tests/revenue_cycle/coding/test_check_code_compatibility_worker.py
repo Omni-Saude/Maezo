@@ -9,8 +9,8 @@ from healthcare_platform.revenue_cycle.coding.workers import (
     CheckCodeCompatibilityWorker,
     register_worker,
 )
-from healthcare_platform.revenue_cycle.coding.workers.check_code_compatibility_worker_v2 import (
-    CheckCodeCompatibilityOutputV2 as CheckCodeCompatibilityOutput,
+from healthcare_platform.revenue_cycle.coding.workers.check_code_compatibility_worker import (
+    CheckCodeCompatibilityOutput,
 )
 
 
@@ -33,7 +33,7 @@ class TestCheckCodeCompatibilityWorker:
 
     @pytest.fixture
     def worker(self, mock_compatibility_engine, mock_ans_client):
-        # V2 worker creates its own DMN service, we'll need to patch it
+        # Worker creates its own DMN service, we'll need to patch it
         return CheckCodeCompatibilityWorker(
             compatibility_engine=mock_compatibility_engine,
             ans_client=mock_ans_client,
@@ -141,10 +141,10 @@ class TestCheckCodeCompatibilityWorker:
 
 
 class TestCheckCodeCompatibilityInput:
-    """Tests for input model - removed as V2 worker doesn't export Input model."""
+    """Tests for input model - removed as worker doesn't export Input model."""
 
     def test_valid_input(self):
-        # V2 worker doesn't export an Input model, it uses dict directly
+        # Worker doesn't export an Input model, it uses dict directly
         # This test is for backward compatibility only
         pass
 

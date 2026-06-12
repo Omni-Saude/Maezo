@@ -1,0 +1,92 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/"
+             xmlns:dc="http://www.omg.org/spec/DMN/20180521/DC/"
+             xmlns:di="http://www.omg.org/spec/DMN/20180521/DI/"
+             xmlns:camunda="http://camunda.org/schema/1.0/dmn"
+             id="hemodialysis_pricing_def"
+             name="Hemodialysis Pricing"
+             namespace="http://camunda.org/schema/1.0/dmn">
+  <!--
+    Session types and SIGTAP codes from Apendice VIII (Terapia Renal Substitutiva):
+    - CONTINUA (both): SIGTAP 03.05.01.004-2 (Hemodialise Continua Hospitalar)
+    - INTERMITENTE and INTERMITENTE_ESTENDIDA: SIGTAP 03.05.01.013-1
+    - DIALISE_PERITONEAL: SIGTAP 03.05.01.003-4
+
+    Kit inclusion rules:
+    - Continua primeiras 24h: kit incluido (materials at 72h intervals including kit especifico)
+    - Continua 24h subsequentes: kit EXCLUIDO (kit especifico para maquina excluido)
+    - Intermitente (<=4h): capilar, linhas e materiais incluidos
+    - Intermitente Estendida (6-8h): capilar, linhas e materiais incluidos
+  -->
+  <decision id="decision_hemodialysis_pricing" name="Hemodialysis Pricing" camunda:historyTimeToLive="180">
+    <decisionTable id="dt_hemodialysis_pricing" hitPolicy="FIRST">
+      <input id="in_session_type_hp_hemodialysis_pricing" label="Session Type">
+        <inputExpression id="inExpr_session_type_hp_hemodialysis_pricing" typeRef="string">
+          <text>session_type</text>
+        </inputExpression>
+      </input>
+      <input id="in_hour_in_treatment_hemodialysis_pricing" label="Hour in Treatment Cycle">
+        <inputExpression id="inExpr_hour_in_treatment_hemodialysis_pricing" typeRef="number">
+          <text>hour_in_treatment</text>
+        </inputExpression>
+      </input>
+      <output id="out_kit_included_hemodialysis_pricing" label="Kit Included" name="kit_included" typeRef="boolean"/>
+      <output id="out_package_code_hemodialysis_pricing" label="Package SIGTAP Code" name="package_code" typeRef="string"/>
+      <output id="out_billing_basis_hd_hemodialysis_pricing" label="Billing Basis" name="billing_basis" typeRef="string"/>
+      <!-- Rule 1: Continuous Hemodialysis - First 24 hours (kit included) -->
+      <rule id="r_hd_continua_first24_hemodialysis_pricing">
+        <description>Hemodiálise Contínua - Primeiras 24h: kit especifico incluido, materiais a cada 72h (Apendice VIII)</description>
+        <inputEntry id="ie_hcf_1_hemodialysis_pricing"><text>"CONTINUA_PRIMEIRAS_24H"</text></inputEntry>
+        <inputEntry id="ie_hcf_2_hemodialysis_pricing"><text>[0..24]</text></inputEntry>
+        <outputEntry id="oe_hcf_1_hemodialysis_pricing"><text>true</text></outputEntry>
+        <outputEntry id="oe_hcf_2_hemodialysis_pricing"><text>"03.05.01.004-2"</text></outputEntry>
+        <outputEntry id="oe_hcf_3_hemodialysis_pricing"><text>"Hemodiálise Contínua Hospitalar - primeiras 24h com kit especifico para maquina incluido (materiais a cada 72h). Inclui: enfermagem 24h, equipamentos, kit maquina, bolsas eletrolíticas, citrato sodio, heparina, seringas, luvas (Apendice VIII)"</text></outputEntry>
+      </rule>
+      <!-- Rule 2: Continuous Hemodialysis - Subsequent 24h periods (kit NOT included) -->
+      <rule id="r_hd_continua_subsequent_hemodialysis_pricing">
+        <description>Hemodiálise Contínua - 24h Subsequentes: kit especifico EXCLUIDO (Apendice VIII)</description>
+        <inputEntry id="ie_hcs_1_hemodialysis_pricing"><text>"CONTINUA_SUBSEQUENTE"</text></inputEntry>
+        <inputEntry id="ie_hcs_2_hemodialysis_pricing"><text></text></inputEntry>
+        <outputEntry id="oe_hcs_1_hemodialysis_pricing"><text>false</text></outputEntry>
+        <outputEntry id="oe_hcs_2_hemodialysis_pricing"><text>"03.05.01.004-2"</text></outputEntry>
+        <outputEntry id="oe_hcs_3_hemodialysis_pricing"><text>"Hemodiálise Contínua Hospitalar - 24h subsequentes: kit especifico para maquina EXCLUIDO do pacote. Inclui: enfermagem 24h, equipamentos, bolsas eletrolíticas diarias, citrato sodio, heparina, seringas, luvas (Apendice VIII)"</text></outputEntry>
+      </rule>
+      <!-- Rule 3: Intermittent Hemodialysis (up to 4 hours) - kit included -->
+      <rule id="r_hd_intermitente_hemodialysis_pricing">
+        <description>Hemodiálise Intermitente - ate 4 horas: capilar, linhas, agulhas, concentrados incluidos (Apendice VIII)</description>
+        <inputEntry id="ie_hi_1_hemodialysis_pricing"><text>"INTERMITENTE"</text></inputEntry>
+        <inputEntry id="ie_hi_2_hemodialysis_pricing"><text>[0..4]</text></inputEntry>
+        <outputEntry id="oe_hi_1_hemodialysis_pricing"><text>true</text></outputEntry>
+        <outputEntry id="oe_hi_2_hemodialysis_pricing"><text>"03.05.01.013-1"</text></outputEntry>
+        <outputEntry id="oe_hi_3_hemodialysis_pricing"><text>"Hemodiálise Intermitente - ate 4h: inclui capilar, linha arterial, linha venosa, agulhas fistula, isoladores pressao, solucao acida, solucao basica, seringas, gaze, heparina, luvas, SF 0,9%. Sem reuso capilares/linhas (Apendice VIII)"</text></outputEntry>
+      </rule>
+      <!-- Rule 4: Extended Intermittent Hemodialysis (6-8 hours) - kit included -->
+      <rule id="r_hd_intermitente_estendida_hemodialysis_pricing">
+        <description>Hemodiálise Intermitente Estendida - 6 a 8 horas: capilar, linhas, concentrados extra incluidos (Apendice VIII)</description>
+        <inputEntry id="ie_hie_1_hemodialysis_pricing"><text>"INTERMITENTE_ESTENDIDA"</text></inputEntry>
+        <inputEntry id="ie_hie_2_hemodialysis_pricing"><text>[6..8]</text></inputEntry>
+        <outputEntry id="oe_hie_1_hemodialysis_pricing"><text>true</text></outputEntry>
+        <outputEntry id="oe_hie_2_hemodialysis_pricing"><text>"03.05.01.013-1"</text></outputEntry>
+        <outputEntry id="oe_hie_3_hemodialysis_pricing"><text>"Hemodiálise Intermitente Estendida - 6 a 8h: inclui capilar, linha arterial, linha venosa, agulhas fistula, 2 isoladores pressao, 2 frascos solucao acida, 3 frascos solucao basica, seringas, gaze, heparina, luvas, SF 0,9%. Sem reuso capilares/linhas (Apendice VIII)"</text></outputEntry>
+      </rule>
+      <!-- Rule 5: Peritoneal Dialysis -->
+      <rule id="r_dialise_peritoneal_hemodialysis_pricing">
+        <description>Diálise Peritoneal - inclui materiais, equipe enfermagem especializada, equipamentos e aluguel maquina (Apendice VIII)</description>
+        <inputEntry id="ie_dp_1_hemodialysis_pricing"><text>"DIALISE_PERITONEAL"</text></inputEntry>
+        <inputEntry id="ie_dp_2_hemodialysis_pricing"><text></text></inputEntry>
+        <outputEntry id="oe_dp_1_hemodialysis_pricing"><text>true</text></outputEntry>
+        <outputEntry id="oe_dp_2_hemodialysis_pricing"><text>"03.05.01.003-4"</text></outputEntry>
+        <outputEntry id="oe_dp_3_hemodialysis_pricing"><text>"Dialise Peritoneal Intermitente - inclui enfermagem Nefrologia, equipamentos, bolsas solucao, mascara, clamps, equipo cassete, prep kit, alcool, mini caps, luvas, compressas. Exclui cateter Tenckhoff e visita medica (Apendice VIII)"</text></outputEntry>
+      </rule>
+    </decisionTable>
+  </decision>
+
+  <dmndi:DMNDI>
+    <dmndi:DMNDiagram id="DMNDiagram_decision_hemodialysis_pricing">
+      <dmndi:DMNShape id="DMNShape_decision_hemodialysis_pricing" dmnElementRef="decision_hemodialysis_pricing">
+        <dc:Bounds height="80" width="180" x="160" y="100" />
+      </dmndi:DMNShape>
+    </dmndi:DMNDiagram>
+  </dmndi:DMNDI>
+</definitions>

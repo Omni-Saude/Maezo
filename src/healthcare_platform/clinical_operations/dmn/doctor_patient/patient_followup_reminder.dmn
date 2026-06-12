@@ -1,0 +1,111 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  ============================================================================
+  PATIENT-FOLLOWUP-REMINDER - Lembrete de Consulta de Retorno ao Paciente
+  ============================================================================
+  Versao: 1.0.0 (2026-02-16)
+  Categoria: DOCTOR-PATIENT
+  Perspectiva: PACIENTE (Operacional)
+  ============================================================================
+-->
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/"
+             xmlns:dc="http://www.omg.org/spec/DMN/20180521/DC/"
+             xmlns:di="http://www.omg.org/spec/DMN/20180521/DI/"
+             xmlns:camunda="http://camunda.org/schema/1.0/dmn"
+             id="Definitions_PatientFollowupReminder"
+             name="Lembrete de Consulta de Retorno ao Paciente"
+             namespace="http://camunda.org/schema/1.0/dmn">
+
+  <decision id="Decision_PatientFollowupReminder" name="[SP-CO-003 | doctor_patient] Decisao Followup Reminder" camunda:historyTimeToLive="180">
+    <decisionTable id="DecisionTable_PatientFollowupReminder" hitPolicy="FIRST">
+
+      <input id="Input_daysSinceVisit_PatientFollowupReminder" label="Dias Desde Ultima Consulta">
+        <inputExpression id="InputExpr_daysSinceVisit_PatientFollowupReminder" typeRef="number">
+          <text>daysSinceVisit</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_appointmentType_PatientFollowupReminder" label="Tipo de Consulta">
+        <inputExpression id="InputExpr_appointmentType_PatientFollowupReminder" typeRef="string">
+          <text>appointmentType</text>
+        </inputExpression>
+        <inputValues><text>"POS_CIRURGIA","CRONICO","PREVENTIVO","AGUDO"</text></inputValues>
+      </input>
+
+      <input id="Input_noShowHistory_PatientFollowupReminder" label="Historico de Faltas">
+        <inputExpression id="InputExpr_noShowHistory_PatientFollowupReminder" typeRef="number">
+          <text>noShowHistory</text>
+        </inputExpression>
+      </input>
+
+      <output id="Output_resultado_PatientFollowupReminder" label="Resultado" name="resultado" typeRef="string">
+        <outputValues><text>"PROSSEGUIR","BLOQUEAR","REVISAR"</text></outputValues>
+      </output>
+      <output id="Output_acao_PatientFollowupReminder" label="Ação" name="acao" typeRef="string"/>
+      <output id="Output_risco_PatientFollowupReminder" label="Risco" name="risco" typeRef="string">
+        <outputValues><text>"BAIXO","MEDIO","ALTO"</text></outputValues>
+      </output>
+
+      <rule id="Rule_FollowRem_1_PatientFollowupReminder">
+        <description>Bloqueio: Pós-cirurgia sem retorno</description>
+        <inputEntry id="InputEntry_FollowRem_1_1_PatientFollowupReminder"><text>&gt; 14</text></inputEntry>
+        <inputEntry id="InputEntry_FollowRem_1_2_PatientFollowupReminder"><text>"POS_CIRURGIA"</text></inputEntry>
+        <inputEntry id="InputEntry_FollowRem_1_3_PatientFollowupReminder"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_FollowRem_1_resultado_PatientFollowupReminder"><text>"BLOQUEAR"</text></outputEntry>
+        <outputEntry id="OutputEntry_FollowRem_1_acao_PatientFollowupReminder"><text>"URGENTE: Pós-cirurgia sem retorno há &gt;14 dias. Contatar paciente imediatamente."</text></outputEntry>
+        <outputEntry id="OutputEntry_FollowRem_1_risco_PatientFollowupReminder"><text>"ALTO"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_FollowRem_2_PatientFollowupReminder">
+        <description>Alerta: Paciente com histórico de faltas</description>
+        <inputEntry id="InputEntry_FollowRem_2_1_PatientFollowupReminder"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_FollowRem_2_2_PatientFollowupReminder"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_FollowRem_2_3_PatientFollowupReminder"><text>&gt; 2</text></inputEntry>
+        <outputEntry id="OutputEntry_FollowRem_2_resultado_PatientFollowupReminder"><text>"REVISAR"</text></outputEntry>
+        <outputEntry id="OutputEntry_FollowRem_2_acao_PatientFollowupReminder"><text>"Paciente com histórico de faltas. Enviar múltiplos lembretes (SMS + WhatsApp + ligação)."</text></outputEntry>
+        <outputEntry id="OutputEntry_FollowRem_2_risco_PatientFollowupReminder"><text>"MEDIO"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_FollowRem_3_PatientFollowupReminder">
+        <description>Alerta: Crônico atrasado</description>
+        <inputEntry id="InputEntry_FollowRem_3_1_PatientFollowupReminder"><text>&gt; 90</text></inputEntry>
+        <inputEntry id="InputEntry_FollowRem_3_2_PatientFollowupReminder"><text>"CRONICO"</text></inputEntry>
+        <inputEntry id="InputEntry_FollowRem_3_3_PatientFollowupReminder"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_FollowRem_3_resultado_PatientFollowupReminder"><text>"REVISAR"</text></outputEntry>
+        <outputEntry id="OutputEntry_FollowRem_3_acao_PatientFollowupReminder"><text>"Paciente crônico sem retorno há &gt;90 dias. Contatar e agendar consulta."</text></outputEntry>
+        <outputEntry id="OutputEntry_FollowRem_3_risco_PatientFollowupReminder"><text>"MEDIO"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_FollowRem_4_PatientFollowupReminder">
+        <description>Aprovado: Lembrete de rotina</description>
+        <inputEntry id="InputEntry_FollowRem_4_1_PatientFollowupReminder"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_FollowRem_4_2_PatientFollowupReminder"><text>"PREVENTIVO","AGUDO"</text></inputEntry>
+        <inputEntry id="InputEntry_FollowRem_4_3_PatientFollowupReminder"><text>&lt;= 1</text></inputEntry>
+        <outputEntry id="OutputEntry_FollowRem_4_resultado_PatientFollowupReminder"><text>"PROSSEGUIR"</text></outputEntry>
+        <outputEntry id="OutputEntry_FollowRem_4_acao_PatientFollowupReminder"><text>"Enviar lembrete de retorno por canal preferencial do paciente."</text></outputEntry>
+        <outputEntry id="OutputEntry_FollowRem_4_risco_PatientFollowupReminder"><text>"BAIXO"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_FollowRem_Fallback_PatientFollowupReminder">
+        <description>Regra padrão</description>
+        <inputEntry id="InputEntry_FollowRem_F_1_PatientFollowupReminder"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_FollowRem_F_2_PatientFollowupReminder"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_FollowRem_F_3_PatientFollowupReminder"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_FollowRem_F_resultado_PatientFollowupReminder"><text>"REVISAR"</text></outputEntry>
+        <outputEntry id="OutputEntry_FollowRem_F_acao_PatientFollowupReminder"><text>"Avaliar necessidade de lembrete de retorno."</text></outputEntry>
+        <outputEntry id="OutputEntry_FollowRem_F_risco_PatientFollowupReminder"><text>"BAIXO"</text></outputEntry>
+      </rule>
+
+    </decisionTable>
+  </decision>
+
+  <dmndi:DMNDI>
+    <dmndi:DMNDiagram id="DMNDiagram_PatientFollowupReminder">
+      <dmndi:DMNShape id="DMNShape_Decision_PatientFollowupReminder" dmnElementRef="Decision_PatientFollowupReminder">
+        <dc:Bounds height="80" width="180" x="160" y="100" />
+      </dmndi:DMNShape>
+    </dmndi:DMNDiagram>
+  </dmndi:DMNDI>
+
+</definitions>

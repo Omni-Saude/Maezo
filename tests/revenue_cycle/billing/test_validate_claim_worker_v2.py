@@ -4,7 +4,7 @@ from __future__ import annotations
 import pytest
 from unittest.mock import MagicMock
 from healthcare_platform.shared.workers.base import TaskContext, TaskResult, TaskStatus
-from healthcare_platform.revenue_cycle.billing.workers.validate_claim_worker_v2 import ValidateClaimWorker
+from healthcare_platform.revenue_cycle.billing.workers.validate_claim_worker import ValidateClaimWorker
 
 from tests.fixtures.workers import *
 
@@ -23,19 +23,17 @@ class TestValidateClaimWorkerV2:
         }
         worker = ValidateClaimWorker(dmn_service=mock_dmn_service, metrics=mock_metrics)
         result = worker.execute(self._make_context({
-            "claim_id": "CLM123",
-            "claim": {
-                "patient_id": "PAT001",
-                "payer_id": "PAYER001",
-                "items": [
-                    {"procedure_code": "CODE001", "quantity": 1}
-                ],
-                "total": {"amount": 100.0}
-            }
+            "encounter": "ENC123",
+            "patient": "PAT001",
+            "payer": "PAYER001",
+            "procedureList": [
+                {"procedure_code": "CODE001", "quantity": 1}
+            ],
         }))
         assert result.status == TaskStatus.SUCCESS
         assert result.variables.get("validation_passed") is True
         assert result.variables.get("claim_ready_for_submission") is True
+        assert result.variables.get("validationResult") is True
 
     def test_prosseguir_with_errors(self, mock_dmn_service, mock_metrics):
         mock_dmn_service.evaluate.return_value = {
@@ -43,13 +41,10 @@ class TestValidateClaimWorkerV2:
         }
         worker = ValidateClaimWorker(dmn_service=mock_dmn_service, metrics=mock_metrics)
         result = worker.execute(self._make_context({
-            "claim_id": "CLM123",
-            "claim": {
-                "patient_id": "PAT001",
-                "payer_id": "PAYER001",
-                "items": [],  # Empty items - validation error
-                "total": {"amount": 0.0}
-            }
+            "encounter": "ENC123",
+            "patient": "PAT001",
+            "payer": "PAYER001",
+            "procedureList": [],
         }))
         assert result.status == TaskStatus.SUCCESS
         # Should have validation errors
@@ -61,8 +56,10 @@ class TestValidateClaimWorkerV2:
         }
         worker = ValidateClaimWorker(dmn_service=mock_dmn_service, metrics=mock_metrics)
         result = worker.execute(self._make_context({
-            "claim_id": "CLM123",
-            "claim": {"items": []}
+            "encounter": "ENC123",
+            "patient": "PAT001",
+            "payer": "PAYER001",
+            "procedureList": [{"procedure_code": "CODE001", "quantity": 1}],
         }))
         assert result.status == TaskStatus.BPMN_ERROR
         assert result.error_code == "ERR_VALIDATION_FAILED"
@@ -73,13 +70,10 @@ class TestValidateClaimWorkerV2:
         }
         worker = ValidateClaimWorker(dmn_service=mock_dmn_service, metrics=mock_metrics)
         result = worker.execute(self._make_context({
-            "claim_id": "CLM123",
-            "claim": {
-                "patient_id": "PAT001",
-                "payer_id": "PAYER001",
-                "items": [{"procedure_code": "CODE001"}],
-                "total": {"amount": 100.0}
-            }
+            "encounter": "ENC123",
+            "patient": "PAT001",
+            "payer": "PAYER001",
+            "procedureList": [{"procedure_code": "CODE001"}],
         }))
         assert result.status == TaskStatus.SUCCESS
         assert result.variables.get("requiresReview") is True
@@ -88,8 +82,9 @@ class TestValidateClaimWorkerV2:
         mock_dmn_service.evaluate.side_effect = RuntimeError("DMN failed")
         worker = ValidateClaimWorker(dmn_service=mock_dmn_service, metrics=mock_metrics)
         result = worker.execute(self._make_context({
-            "claim_id": "CLM123",
-            "claim": {"patient_id": "PAT001"}
+            "encounter": "ENC123",
+            "patient": "PAT001",
+            "procedureList": [],
         }))
         assert result.status == TaskStatus.BPMN_ERROR
         assert result.error_code == "ERR_VALIDATION_EXCEPTION"
@@ -104,12 +99,9 @@ class TestValidateClaimWorkerV2:
         }
         worker = ValidateClaimWorker(dmn_service=mock_dmn_service, metrics=mock_metrics)
         result = worker.execute(self._make_context({
-            "claim_id": "CLM123",
-            "claim": {
-                "patient_id": "PAT001",
-                "payer_id": "PAYER001",
-                "items": [{"procedure_code": "CODE001", "quantity": 1}],
-                "total": {"amount": 100.0}
-            }
+            "encounter": "ENC123",
+            "patient": "PAT001",
+            "payer": "PAYER001",
+            "procedureList": [{"procedure_code": "CODE001", "quantity": 1}],
         }))
         assert result.status == TaskStatus.SUCCESS

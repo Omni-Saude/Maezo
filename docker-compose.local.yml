@@ -1,0 +1,499 @@
+version: "3.9"
+
+# =============================================================================
+# MAEZO — Stack LOCAL (desenvolvimento / validação)
+#
+# Diferenças em relação ao docker-compose.swarm.yml (produção):
+#   + PostgreSQL 16 incluso (simula AWS RDS)
+#   + Prometheus + Grafana incluso (observabilidade local)
+#   + kafka-exporter + postgres-exporter (métricas de infra)
+#   - Sem Traefik/TLS (portas diretas via localhost)
+#   - Sem Docker Swarm Secrets (variáveis de ambiente simples)
+#   - Sem replicas / deploy configs (modo compose padrão)
+#   - Workers buildados do código local (build:)
+#   - Debezium sem Oracle (sem conector registrado automaticamente)
+#
+# ── Profiles (grupos de serviços) ──────────────────────────────────────────
+#
+#   CORE (sempre sobe, sem profile):
+#     postgres, kafka
+#
+#   bpm          → CIB Seven BPM Engine
+#   fhir         → HAPI FHIR R4
+#   integration  → Debezium CDC
+#   workers      → 4 Workers Python (rc, co, pa, ps) + CIB Seven
+#   api          → Contract Extraction API + CIB Seven
+#   observability→ kafka-exporter + postgres-exporter + Prometheus + Grafana
+#   full         → toda a stack (todos os grupos acima)
+#
+# ── Uso rápido (via Makefile) ───────────────────────────────────────────────
+#   make up-full          # sobe tudo
+#   make up-workers       # sobe workers (core + BPM + 4 workers)
+#   make up-observability # sobe monitoramento (core + Prometheus + Grafana)
+#   make up-bpm           # sobe BPM engine (core + CIB Seven)
+#   make down             # para tudo
+#   make ps               # status dos containers
+#   make logs SERVICE=workers_rc
+#   make test-e2e         # roda suite E2E completa
+#
+# ── Uso manual (sem Makefile) ───────────────────────────────────────────────
+#   docker compose -f docker-compose.local.yml --profile full up -d
+#   docker compose -f docker-compose.local.yml --profile workers up -d
+#   docker compose -f docker-compose.local.yml --profile observability up -d
+#   docker compose -f docker-compose.local.yml --profile full down -v
+#
+# URLs locais:
+#   CIB Seven Cockpit: http://localhost:8085/cibseven/app/cockpit
+#   HAPI FHIR:         http://localhost:8082/fhir/metadata
+#   FHIR Dashboard:    http://localhost:8090
+#   CE API docs:       http://localhost:8000/docs
+#   Debezium:          http://localhost:8083/connectors
+#   S3 Sink Connect:   http://localhost:8084/connectors
+#   PostgreSQL:        localhost:5432 (user: maestro / pass: maestro_local)
+#   Kafka:             localhost:9092
+#   Prometheus:        http://localhost:9090
+#   Grafana:           http://localhost:3000 (admin/admin)
+# =============================================================================
+
+networks:
+  maestro_local:
+    driver: bridge
+    name: maestro_local          # força o mesmo nome independente do project name
+    ipam:
+      config:
+        - subnet: 172.30.0.0/16  # evita conflito com 172.20.0.0/16 (Oracle/Tasy)
+
+volumes:
+  pg_data:
+  kafka_data:
+  prometheus_data:
+  grafana_data:
+
+# ── Extensões YAML (anchors para reuso entre workers) ──────────────────────
+x-worker-common: &worker-common
+  build:
+    context: .
+    dockerfile: Dockerfile.worker
+  environment: &worker-env
+    TZ: America/Sao_Paulo
+    # External Task Engine URL (usado pelo worker_runner para polling CIB Seven)
+    CIBSEVEN_ENGINE_URL: http://cib7:8080/engine-rest
+    # URL da REST API do CIB Seven (usado pela lógica de negócio)
+    CIB7_BASE_URL: http://cib7:8080/engine-rest
+    CIB7_USER: admin
+    CIB7_PASSWORD: admin
+    FHIR_BASE_URL: http://hapi_fhir:8080/fhir
+    DATABASE_URL: postgresql://maestro:maestro_local@postgres:5432/maestro
+    KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+    LOG_LEVEL: DEBUG
+  restart: unless-stopped
+  networks: [maestro_local]
+  depends_on:
+    cib7:
+      condition: service_healthy
+    hapi_fhir:
+      condition: service_healthy
+
+services:
+
+  # ── 0. PostgreSQL 16 (simula AWS RDS) ─────────────────────────────────────
+  postgres:
+    image: postgres:16
+    environment:
+      TZ: America/Sao_Paulo
+      POSTGRES_USER: maestro
+      POSTGRES_PASSWORD: maestro_local
+      POSTGRES_DB: cibseven
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+      - ./config/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    ports:
+      - "5435:5432"
+    networks: [maestro_local]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U maestro -d cibseven"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+    restart: unless-stopped
+
+  # ── 1. CIB Seven BPM Engine ───────────────────────────────────────────────
+  # Imagem community CIB Seven (Run/Spring Boot) — mesma usada em produção (Swarm).
+  cib7:
+    profiles: [bpm, workers, api, full]
+    image: cibseven/cibseven:run-latest
+    environment:
+      TZ: America/Sao_Paulo
+      # Camunda Run (Spring Boot) usa SPRING_ env vars para datasource
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/cibseven
+      SPRING_DATASOURCE_USERNAME: maestro
+      SPRING_DATASOURCE_PASSWORD: maestro_local
+      SPRING_DATASOURCE_DRIVER_CLASS_NAME: org.postgresql.Driver
+      # Admin padrão do Camunda Run: admin/admin (via Camunda Run config)
+      CAMUNDA_BPM_ADMIN_USER_ID: admin
+      CAMUNDA_BPM_ADMIN_USER_PASSWORD: admin
+      CAMUNDA_BPM_MULTITENANCY_TENANTS_CHECKED: "false"
+    volumes:
+      - ./config/cib7/default.yml:/camunda/configuration/default.yml:ro
+    ports:
+      - "8085:8080"
+    networks: [maestro_local]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/engine-rest/engine"]
+      interval: 30s
+      timeout: 10s
+      retries: 10
+      start_period: 90s
+    restart: unless-stopped
+
+  # ── 2. HAPI FHIR R4 ───────────────────────────────────────────────────────
+  # NOTA: hapiproject/hapi:v7.4.0 é uma imagem distroless (sem curl/wget/shell).
+  # A configuração do PostgreSQL é feita via application.yaml montado em
+  # /app/config/application.yaml (Spring Boot config override) — mais confiável
+  # do que env vars para propriedades Hibernate aninhadas (hibernate.dialect).
+  hapi_fhir:
+    profiles: [fhir, workers, full]
+    build:
+      context: .
+      dockerfile: Dockerfile.hapi-fhir
+    volumes:
+      - ./config/hapi-fhir/application.yaml:/app/config/application.yaml:ro
+    ports:
+      - "8082:8080"
+    networks: [maestro_local]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-fs", "http://localhost:8080/fhir/metadata"]
+      interval: 30s
+      timeout: 30s
+      retries: 15
+      start_period: 120s
+    restart: unless-stopped
+
+  # ── 3. FHIR Dashboard (nginx serving ignorar/hapifhir/dashboard.html) ───────
+  fhir_dashboard:
+    profiles: [fhir, full]
+    image: nginx:alpine
+    volumes:
+      - ./ignorar/hapifhir/dashboard.html:/usr/share/nginx/html/index.html:ro
+    ports:
+      - "8090:80"
+    networks: [maestro_local]
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "-", "http://localhost/"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  # ── 4. Apache Kafka KRaft (sem ZooKeeper) ─────────────────────────────────
+  kafka:
+    image: confluentinc/cp-kafka:7.7.0
+    environment:
+      KAFKA_NODE_ID: "1"
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092,CONTROLLER://0.0.0.0:9093
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,CONTROLLER:PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: "1"
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: "1"
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: "1"
+      KAFKA_LOG_RETENTION_HOURS: "24"
+      # CLUSTER_ID fixo para dev (não precisa ser gerado)
+      CLUSTER_ID: local-dev-cluster-id-maezo-01
+    volumes:
+      - kafka_data:/var/lib/kafka/data
+    ports:
+      - "9092:9092"
+    networks: [maestro_local]
+    healthcheck:
+      test: ["CMD", "kafka-topics", "--bootstrap-server", "localhost:9092", "--list"]
+      interval: 30s
+      timeout: 10s
+      retries: 10
+      start_period: 30s
+    restart: unless-stopped
+
+  # ── 5. Debezium Connect (sem conector Oracle registrado em dev) ────────────
+  debezium:
+    profiles: [integration, full]
+    image: debezium/connect:2.6
+    environment:
+      BOOTSTRAP_SERVERS: kafka:9092
+      GROUP_ID: debezium-maestro-local
+      CONFIG_STORAGE_TOPIC: _debezium.config
+      OFFSET_STORAGE_TOPIC: _debezium.offsets
+      STATUS_STORAGE_TOPIC: _debezium.status
+      KEY_CONVERTER: org.apache.kafka.connect.json.JsonConverter
+      VALUE_CONVERTER: org.apache.kafka.connect.json.JsonConverter
+      KEY_CONVERTER_SCHEMAS_ENABLE: "false"
+      VALUE_CONVERTER_SCHEMAS_ENABLE: "false"
+    ports:
+      - "8083:8083"
+    networks: [maestro_local]
+    depends_on:
+      kafka:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8083/connectors"]
+      interval: 30s
+      timeout: 10s
+      retries: 10
+      start_period: 30s
+    restart: unless-stopped
+
+  # ── 5b. Kafka Connect S3 Sink (Confluent) ─────────────────────────────────
+  kafka-connect-s3:
+    profiles: [integration, full]
+    image: confluentinc/cp-kafka-connect:7.7.0
+    environment:
+      CONNECT_BOOTSTRAP_SERVERS: kafka:9092
+      CONNECT_REST_PORT: 8084
+      CONNECT_REST_ADVERTISED_HOST_NAME: kafka-connect-s3
+      CONNECT_GROUP_ID: connect-s3-sink
+      CONNECT_CONFIG_STORAGE_TOPIC: _connect-s3.config
+      CONNECT_OFFSET_STORAGE_TOPIC: _connect-s3.offsets
+      CONNECT_STATUS_STORAGE_TOPIC: _connect-s3.status
+      CONNECT_CONFIG_STORAGE_REPLICATION_FACTOR: "1"
+      CONNECT_OFFSET_STORAGE_REPLICATION_FACTOR: "1"
+      CONNECT_STATUS_STORAGE_REPLICATION_FACTOR: "1"
+      CONNECT_KEY_CONVERTER: org.apache.kafka.connect.storage.StringConverter
+      CONNECT_VALUE_CONVERTER: org.apache.kafka.connect.json.JsonConverter
+      CONNECT_VALUE_CONVERTER_SCHEMAS_ENABLE: "false"
+      CONNECT_PLUGIN_PATH: /usr/share/confluent-hub-components
+      AWS_DEFAULT_REGION: us-east-1
+    command:
+      - bash
+      - -c
+      - |
+        confluent-hub install --no-prompt confluentinc/kafka-connect-s3:latest
+        /etc/confluent/docker/run
+    ports:
+      - "8084:8084"
+    networks: [maestro_local]
+    depends_on:
+      kafka:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8084/connectors"]
+      interval: 30s
+      timeout: 10s
+      retries: 10
+      start_period: 60s
+    restart: unless-stopped
+
+  # ── 6-9. Workers Python por domínio (build local) ─────────────────────────
+  # Anchor definido no nível raiz (x-worker-common) — compartilha build/env/deps
+
+  workers_rc:
+    <<: *worker-common
+    profiles: [workers, full]
+    build:
+      context: .
+      dockerfile: Dockerfile.worker
+      args:
+        DOMAIN: revenue_cycle
+    environment:
+      <<: *worker-env
+      WORKER_DOMAIN: revenue_cycle
+      RPA_UNIMED_URL: http://host.docker.internal:8000
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    ports:
+      - "8100:8000"
+
+  workers_co:
+    <<: *worker-common
+    profiles: [workers, full]
+    build:
+      context: .
+      dockerfile: Dockerfile.worker
+      args:
+        DOMAIN: clinical_operations
+    environment:
+      <<: *worker-env
+      WORKER_DOMAIN: clinical_operations
+    ports:
+      - "8101:8000"
+
+  workers_pa:
+    <<: *worker-common
+    profiles: [workers, full]
+    build:
+      context: .
+      dockerfile: Dockerfile.worker
+      args:
+        DOMAIN: patient_access
+    environment:
+      <<: *worker-env
+      WORKER_DOMAIN: patient_access
+    ports:
+      - "8102:8000"
+
+  workers_ps:
+    <<: *worker-common
+    profiles: [workers, full]
+    build:
+      context: .
+      dockerfile: Dockerfile.worker
+      args:
+        DOMAIN: platform_services
+    environment:
+      <<: *worker-env
+      WORKER_DOMAIN: platform_services
+    ports:
+      - "8103:8000"
+
+  # ── 10. Contract Extraction API ───────────────────────────────────────────
+  ce_api:
+    profiles: [api, full]
+    build:
+      context: .
+      dockerfile: Dockerfile.contract-extraction
+    environment:
+      DATABASE_URL: postgresql://maestro:maestro_local@postgres:5432/maestro
+      CIB7_BASE_URL: http://cib7:8080/engine-rest
+      CIB7_USER: admin
+      CIB7_PASSWORD: admin
+      LOG_LEVEL: DEBUG
+    ports:
+      - "8000:8000"
+    networks: [maestro_local]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 15s
+    restart: unless-stopped
+
+  # ── 10b. CIB Seven JSON Exporter (métricas BPM Engine → Prometheus) ──────
+  cib7_exporter:
+    profiles: [observability, full]
+    image: prometheuscommunity/json-exporter:v0.6.0
+    command:
+      - "--config.file=/etc/json-exporter/cib7.yml"
+    volumes:
+      - ./config/json-exporter/cib7.yml:/etc/json-exporter/cib7.yml:ro
+    ports:
+      - "7979:7979"
+    networks: [maestro_local]
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "-", "http://localhost:7979/probe?target=http://cib7:8080/engine-rest/metrics"]
+      interval: 30s
+      timeout: 15s
+      retries: 5
+      start_period: 20s
+
+  # ── 11. Kafka Exporter (métricas Kafka → Prometheus) ──────────────────────
+  kafka_exporter:
+    profiles: [observability, full]
+    image: danielqsj/kafka-exporter:v1.7.0
+    command:
+      - "--kafka.server=kafka:9092"
+      - "--kafka.version=3.7.0"
+    ports:
+      - "9308:9308"
+    networks: [maestro_local]
+    depends_on:
+      kafka:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "-", "http://localhost:9308/metrics"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 15s
+
+  # ── 12. PostgreSQL Exporter (métricas Postgres → Prometheus) ─────────────
+  postgres_exporter:
+    profiles: [observability, full]
+    image: prometheuscommunity/postgres-exporter:v0.15.0
+    environment:
+      DATA_SOURCE_NAME: "postgresql://maestro:maestro_local@postgres:5432/cibseven?sslmode=disable"
+      PG_EXPORTER_AUTO_DISCOVER_DATABASES: "true"
+    ports:
+      - "9187:9187"
+    networks: [maestro_local]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "-", "http://localhost:9187/metrics"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 10s
+
+  # ── 13. Prometheus (coleta métricas de todos os serviços) ─────────────────
+  prometheus:
+    profiles: [observability, full]
+    image: prom/prometheus:v2.54.0
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.path=/prometheus"
+      - "--storage.tsdb.retention.time=15d"
+      - "--web.console.libraries=/usr/share/prometheus/console_libraries"
+      - "--web.console.templates=/usr/share/prometheus/consoles"
+      - "--web.enable-lifecycle"
+    volumes:
+      - ./config/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    ports:
+      - "9090:9090"
+    networks: [maestro_local]
+    depends_on:
+      - kafka_exporter
+      - postgres_exporter
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "-", "http://localhost:9090/-/healthy"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 10s
+
+  # ── 14. Grafana (dashboards de observabilidade) ───────────────────────────
+  grafana:
+    profiles: [observability, full]
+    image: grafana/grafana:11.2.0
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: admin
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_AUTH_ANONYMOUS_ENABLED: "false"
+      # Reduz logs em dev
+      GF_LOG_LEVEL: warn
+      # Desabilita telemetria
+      GF_ANALYTICS_REPORTING_ENABLED: "false"
+      GF_ANALYTICS_CHECK_FOR_UPDATES: "false"
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./config/grafana/provisioning:/etc/grafana/provisioning:ro
+    ports:
+      - "3000:3000"
+    networks: [maestro_local]
+    depends_on:
+      prometheus:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "-", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 15s

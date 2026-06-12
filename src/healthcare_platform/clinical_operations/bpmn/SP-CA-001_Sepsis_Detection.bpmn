@@ -1,0 +1,325 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+                  xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+                  xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+                  xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
+                  xmlns:camunda="http://camunda.org/schema/1.0/bpmn"
+                  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                  id="Definitions_SepsisDetection"
+                  targetNamespace="http://cib7.health/clinical/sepsis"
+                  exporter="Claude Code"
+                  exporterVersion="1.0">
+
+  <bpmn:process id="Process_SepsisDetection" name="SP-CA-001 Sepsis Detection and Response" isExecutable="true" camunda:historyTimeToLive="30">
+
+    <bpmn:startEvent id="Start_SepsisScreening" name="Sepsis Screening Triggered">
+      <bpmn:outgoing>Flow_ToCollectVitals</bpmn:outgoing>
+    </bpmn:startEvent>
+
+    <!-- Collect vital signs -->
+    <bpmn:serviceTask id="Task_CollectVitals" name="Collect Vital Signs"
+                      camunda:type="external" camunda:topic="clinical.vital_signs">
+      <bpmn:incoming>Flow_ToCollectVitals</bpmn:incoming>
+      <bpmn:outgoing>Flow_ToQSOFA</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Calculate qSOFA score -->
+    <bpmn:businessRuleTask id="Task_QSOFA" name="Evaluate qSOFA Score"
+                           camunda:decisionRef="ews_qsofa_001"
+                           camunda:mapDecisionResult="singleResult">
+      <bpmn:incoming>Flow_ToQSOFA</bpmn:incoming>
+      <bpmn:outgoing>Flow_ToQSOFAGateway</bpmn:outgoing>
+    </bpmn:businessRuleTask>
+
+    <!-- qSOFA decision gateway -->
+    <bpmn:exclusiveGateway id="Gateway_QSOFA" name="qSOFA >= 2?" default="Flow_QSOFANegative">
+      <bpmn:incoming>Flow_ToQSOFAGateway</bpmn:incoming>
+      <bpmn:outgoing>Flow_QSOFAPositive</bpmn:outgoing>
+      <bpmn:outgoing>Flow_QSOFANegative</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+
+    <!-- Order SOFA labs -->
+    <bpmn:serviceTask id="Task_OrderLabs" name="Order SOFA Labs"
+                      camunda:type="external" camunda:topic="clinical.lab_results">
+      <bpmn:incoming>Flow_QSOFAPositive</bpmn:incoming>
+      <bpmn:outgoing>Flow_ToSOFACalculation</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Timer boundary event: 5 min SLA for lab results -->
+    <bpmn:boundaryEvent id="Event_LabSLA" name="5 min SLA" attachedToRef="Task_OrderLabs">
+      <bpmn:outgoing>Flow_LabTimeout</bpmn:outgoing>
+      <bpmn:timerEventDefinition>
+        <bpmn:timeDuration xsi:type="bpmn:tFormalExpression">PT5M</bpmn:timeDuration>
+      </bpmn:timerEventDefinition>
+    </bpmn:boundaryEvent>
+
+    <!-- Calculate full SOFA score -->
+    <bpmn:businessRuleTask id="Task_SOFA" name="Calculate SOFA Score"
+                           camunda:decisionRef="ews_sofa_001"
+                           camunda:mapDecisionResult="singleResult">
+      <bpmn:incoming>Flow_ToSOFACalculation</bpmn:incoming>
+      <bpmn:outgoing>Flow_ToSOFAGateway</bpmn:outgoing>
+    </bpmn:businessRuleTask>
+
+    <!-- SOFA decision gateway -->
+    <bpmn:exclusiveGateway id="Gateway_SOFA" name="SOFA >= 2 AND delta >= 2?" default="Flow_SepsisNegative">
+      <bpmn:incoming>Flow_ToSOFAGateway</bpmn:incoming>
+      <bpmn:outgoing>Flow_SepsisConfirmed</bpmn:outgoing>
+      <bpmn:outgoing>Flow_SepsisNegative</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+
+    <!-- Activate sepsis bundle (Hour-1) -->
+    <bpmn:serviceTask id="Task_SepsisBundle" name="Activate Sepsis Bundle (Hour-1)"
+                      camunda:type="external" camunda:topic="clinical.care_team">
+      <bpmn:incoming>Flow_SepsisConfirmed</bpmn:incoming>
+      <bpmn:outgoing>Flow_ToAntibiotics</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Start empiric antibiotics -->
+    <bpmn:serviceTask id="Task_Antibiotics" name="Start Empiric Antibiotics"
+                      camunda:type="external" camunda:topic="clinical.medication">
+      <bpmn:incoming>Flow_ToAntibiotics</bpmn:incoming>
+      <bpmn:outgoing>Flow_ToDocumentPositive</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Document screening negative (qSOFA) -->
+    <bpmn:serviceTask id="Task_DocumentQSOFANeg" name="Document qSOFA Negative"
+                      camunda:type="external" camunda:topic="clinical.documentation">
+      <bpmn:incoming>Flow_QSOFANegative</bpmn:incoming>
+      <bpmn:outgoing>Flow_ToEnd</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Document screening negative (SOFA) -->
+    <bpmn:serviceTask id="Task_DocumentSOFANeg" name="Document SOFA Negative"
+                      camunda:type="external" camunda:topic="clinical.documentation">
+      <bpmn:incoming>Flow_SepsisNegative</bpmn:incoming>
+      <bpmn:outgoing>Flow_ToEnd</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Document sepsis response -->
+    <bpmn:serviceTask id="Task_DocumentPositive" name="Document Sepsis Response"
+                      camunda:type="external" camunda:topic="clinical.documentation">
+      <bpmn:incoming>Flow_ToDocumentPositive</bpmn:incoming>
+      <bpmn:outgoing>Flow_ToEnd</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Handle lab timeout -->
+    <bpmn:serviceTask id="Task_LabTimeout" name="Escalate Lab Delay"
+                      camunda:type="external" camunda:topic="clinical.care_team">
+      <bpmn:incoming>Flow_LabTimeout</bpmn:incoming>
+      <bpmn:outgoing>Flow_TimeoutToEnd</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <bpmn:endEvent id="End_ScreeningComplete" name="Screening Complete">
+      <bpmn:incoming>Flow_ToEnd</bpmn:incoming>
+      <bpmn:incoming>Flow_TimeoutToEnd</bpmn:incoming>
+    </bpmn:endEvent>
+
+    <!-- Sequence Flows -->
+    <bpmn:sequenceFlow id="Flow_ToCollectVitals" sourceRef="Start_SepsisScreening" targetRef="Task_CollectVitals"/>
+    <bpmn:sequenceFlow id="Flow_ToQSOFA" sourceRef="Task_CollectVitals" targetRef="Task_QSOFA"/>
+    <bpmn:sequenceFlow id="Flow_ToQSOFAGateway" sourceRef="Task_QSOFA" targetRef="Gateway_QSOFA"/>
+    <bpmn:sequenceFlow id="Flow_QSOFAPositive" sourceRef="Gateway_QSOFA" targetRef="Task_OrderLabs">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${qsofa_score >= 2}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_QSOFANegative" sourceRef="Gateway_QSOFA" targetRef="Task_DocumentQSOFANeg"/>
+    <bpmn:sequenceFlow id="Flow_ToSOFACalculation" sourceRef="Task_OrderLabs" targetRef="Task_SOFA"/>
+    <bpmn:sequenceFlow id="Flow_ToSOFAGateway" sourceRef="Task_SOFA" targetRef="Gateway_SOFA"/>
+    <bpmn:sequenceFlow id="Flow_SepsisConfirmed" sourceRef="Gateway_SOFA" targetRef="Task_SepsisBundle">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${sofa_score >= 2 &amp;&amp; sofa_delta >= 2}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_SepsisNegative" sourceRef="Gateway_SOFA" targetRef="Task_DocumentSOFANeg"/>
+    <bpmn:sequenceFlow id="Flow_ToAntibiotics" sourceRef="Task_SepsisBundle" targetRef="Task_Antibiotics"/>
+    <bpmn:sequenceFlow id="Flow_ToDocumentPositive" sourceRef="Task_Antibiotics" targetRef="Task_DocumentPositive"/>
+    <bpmn:sequenceFlow id="Flow_ToEnd" sourceRef="Task_DocumentQSOFANeg" targetRef="End_ScreeningComplete"/>
+    <bpmn:sequenceFlow id="Flow_LabTimeout" sourceRef="Event_LabSLA" targetRef="Task_LabTimeout"/>
+    <bpmn:sequenceFlow id="Flow_TimeoutToEnd" sourceRef="Task_LabTimeout" targetRef="End_ScreeningComplete"/>
+
+  </bpmn:process>
+
+  <!-- Diagram Interchange -->
+  <bpmndi:BPMNDiagram id="BPMNDiagram_SepsisDetection">
+    <bpmndi:BPMNPlane id="BPMNPlane_SepsisDetection" bpmnElement="Process_SepsisDetection">
+
+      <!-- Start Event -->
+      <bpmndi:BPMNShape id="Shape_Start_SepsisScreening" bpmnElement="Start_SepsisScreening">
+        <dc:Bounds x="152" y="102" width="36" height="36"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="131" y="145" width="78" height="27"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+
+      <!-- Collect Vitals -->
+      <bpmndi:BPMNShape id="Shape_Task_CollectVitals" bpmnElement="Task_CollectVitals">
+        <dc:Bounds x="240" y="80" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <!-- qSOFA Task -->
+      <bpmndi:BPMNShape id="Shape_Task_QSOFA" bpmnElement="Task_QSOFA">
+        <dc:Bounds x="390" y="80" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <!-- qSOFA Gateway -->
+      <bpmndi:BPMNShape id="Shape_Gateway_QSOFA" bpmnElement="Gateway_QSOFA" isMarkerVisible="true">
+        <dc:Bounds x="545" y="95" width="50" height="50"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="536" y="65" width="68" height="14"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+
+      <!-- Order Labs -->
+      <bpmndi:BPMNShape id="Shape_Task_OrderLabs" bpmnElement="Task_OrderLabs">
+        <dc:Bounds x="650" y="80" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <!-- Timer Boundary Event -->
+      <bpmndi:BPMNShape id="Shape_Event_LabSLA" bpmnElement="Event_LabSLA">
+        <dc:Bounds x="682" y="142" width="36" height="36"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="715" y="173" width="50" height="14"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+
+      <!-- Lab Timeout Task -->
+      <bpmndi:BPMNShape id="Shape_Task_LabTimeout" bpmnElement="Task_LabTimeout">
+        <dc:Bounds x="650" y="220" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <!-- SOFA Task -->
+      <bpmndi:BPMNShape id="Shape_Task_SOFA" bpmnElement="Task_SOFA">
+        <dc:Bounds x="800" y="80" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <!-- SOFA Gateway -->
+      <bpmndi:BPMNShape id="Shape_Gateway_SOFA" bpmnElement="Gateway_SOFA" isMarkerVisible="true">
+        <dc:Bounds x="955" y="95" width="50" height="50"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="937" y="58" width="86" height="27"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+
+      <!-- Sepsis Bundle -->
+      <bpmndi:BPMNShape id="Shape_Task_SepsisBundle" bpmnElement="Task_SepsisBundle">
+        <dc:Bounds x="1060" y="80" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <!-- Antibiotics -->
+      <bpmndi:BPMNShape id="Shape_Task_Antibiotics" bpmnElement="Task_Antibiotics">
+        <dc:Bounds x="1210" y="80" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <!-- Document Positive -->
+      <bpmndi:BPMNShape id="Shape_Task_DocumentPositive" bpmnElement="Task_DocumentPositive">
+        <dc:Bounds x="1360" y="80" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <!-- Document qSOFA Negative -->
+      <bpmndi:BPMNShape id="Shape_Task_DocumentQSOFANeg" bpmnElement="Task_DocumentQSOFANeg">
+        <dc:Bounds x="650" y="360" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <!-- Document SOFA Negative -->
+      <bpmndi:BPMNShape id="Shape_Task_DocumentSOFANeg" bpmnElement="Task_DocumentSOFANeg">
+        <dc:Bounds x="1060" y="360" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <!-- End Event -->
+      <bpmndi:BPMNShape id="Shape_End_ScreeningComplete" bpmnElement="End_ScreeningComplete">
+        <dc:Bounds x="1392" y="382" width="36" height="36"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1383" y="425" width="54" height="27"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+
+      <!-- Sequence Flow Edges -->
+      <bpmndi:BPMNEdge id="Edge_Flow_ToCollectVitals" bpmnElement="Flow_ToCollectVitals">
+        <di:waypoint x="188" y="120"/>
+        <di:waypoint x="240" y="120"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_Flow_ToQSOFA" bpmnElement="Flow_ToQSOFA">
+        <di:waypoint x="340" y="120"/>
+        <di:waypoint x="390" y="120"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_Flow_ToQSOFAGateway" bpmnElement="Flow_ToQSOFAGateway">
+        <di:waypoint x="490" y="120"/>
+        <di:waypoint x="545" y="120"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_Flow_QSOFAPositive" bpmnElement="Flow_QSOFAPositive">
+        <di:waypoint x="595" y="120"/>
+        <di:waypoint x="650" y="120"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="600" y="102" width="45" height="14"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_Flow_QSOFANegative" bpmnElement="Flow_QSOFANegative">
+        <di:waypoint x="570" y="145"/>
+        <di:waypoint x="570" y="400"/>
+        <di:waypoint x="650" y="400"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="580" y="383" width="51" height="14"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_Flow_ToSOFACalculation" bpmnElement="Flow_ToSOFACalculation">
+        <di:waypoint x="750" y="120"/>
+        <di:waypoint x="800" y="120"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_Flow_ToSOFAGateway" bpmnElement="Flow_ToSOFAGateway">
+        <di:waypoint x="900" y="120"/>
+        <di:waypoint x="955" y="120"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_Flow_SepsisConfirmed" bpmnElement="Flow_SepsisConfirmed">
+        <di:waypoint x="1005" y="120"/>
+        <di:waypoint x="1060" y="120"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1010" y="102" width="45" height="14"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_Flow_SepsisNegative" bpmnElement="Flow_SepsisNegative">
+        <di:waypoint x="980" y="145"/>
+        <di:waypoint x="980" y="400"/>
+        <di:waypoint x="1060" y="400"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="990" y="383" width="51" height="14"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_Flow_ToAntibiotics" bpmnElement="Flow_ToAntibiotics">
+        <di:waypoint x="1160" y="120"/>
+        <di:waypoint x="1210" y="120"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_Flow_ToDocumentPositive" bpmnElement="Flow_ToDocumentPositive">
+        <di:waypoint x="1310" y="120"/>
+        <di:waypoint x="1360" y="120"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_Flow_ToEnd" bpmnElement="Flow_ToEnd">
+        <di:waypoint x="1460" y="120"/>
+        <di:waypoint x="1510" y="120"/>
+        <di:waypoint x="1510" y="400"/>
+        <di:waypoint x="1428" y="400"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_Flow_LabTimeout" bpmnElement="Flow_LabTimeout">
+        <di:waypoint x="700" y="178"/>
+        <di:waypoint x="700" y="220"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_Flow_TimeoutToEnd" bpmnElement="Flow_TimeoutToEnd">
+        <di:waypoint x="750" y="260"/>
+        <di:waypoint x="1410" y="260"/>
+        <di:waypoint x="1410" y="382"/>
+      </bpmndi:BPMNEdge>
+
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+
+</bpmn:definitions>

@@ -1,11 +1,11 @@
-"""Tests for DetectFraudWorkerV2 (thin DMN-federated worker)."""
+"""Tests for DetectFraudWorker (thin DMN-federated worker)."""
 from __future__ import annotations
 
 from unittest.mock import MagicMock
 
 import pytest
 
-from healthcare_platform.revenue_cycle.coding.workers import DetectFraudWorkerV2
+from healthcare_platform.revenue_cycle.coding.workers import DetectFraudWorker
 from healthcare_platform.shared.domain.exceptions import BpmnErrorException, CodingException
 from tests.fixtures.workers import mock_dmn_service
 
@@ -13,7 +13,7 @@ from tests.fixtures.workers import mock_dmn_service
 @pytest.fixture
 def worker(mock_dmn_service):
     """Create worker with mocked DMN service."""
-    return DetectFraudWorkerV2(dmn_service=mock_dmn_service)
+    return DetectFraudWorker(dmn_service=mock_dmn_service)
 
 
 @pytest.fixture

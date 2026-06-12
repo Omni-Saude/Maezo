@@ -1,0 +1,107 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/"
+             xmlns:dc="http://www.omg.org/spec/DMN/20180521/DC/"
+             xmlns:di="http://www.omg.org/spec/DMN/20180521/DI/"
+             xmlns:camunda="http://camunda.org/schema/1.0/dmn"
+             id="Definitions_TUSS_CID10_Requirements"
+             name="TUSS-CID10 Requirements Decision"
+             namespace="http://camunda.org/schema/1.0/dmn">
+  <!-- Archetype: ADMIN_ADJUDICATION | Source: tuss_cid10_requirements_worker.py -->
+
+  <!-- DMN: TUSS-CID10 Requirements
+       Based on: validate_codes_worker.py lines 41-43, 432-461
+       Rule: TUSS codes requiring specific CID-10 diagnoses
+  -->
+
+  <decision id="Decision_TUSS_CID10_Requirements" name="[SP-RC-005 | coding_audit/code_validation] TUSS-CID10 Requirements" camunda:historyTimeToLive="180">
+    <decisionTable id="DecisionTable_TUSS_CID10_Requirements" hitPolicy="FIRST">
+
+      <!-- === INPUTS === -->
+      <input id="Input_tussCodePrefix_TUSS_CID10_Requirements" label="TUSS Code Prefix">
+        <inputExpression id="InputExpr_tussCodePrefix_TUSS_CID10_Requirements" typeRef="string">
+          <text>tuss_code_prefix</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_hasRequiredCid10_TUSS_CID10_Requirements" label="Has Required CID-10">
+        <inputExpression id="InputExpr_hasRequiredCid10_TUSS_CID10_Requirements" typeRef="boolean">
+          <text>has_required_cid10</text>
+        </inputExpression>
+      </input>
+
+      <!-- === OUTPUTS === -->
+      <output id="Output_resultado_TUSS_CID10_Requirements" label="Resultado" name="resultado" typeRef="string">
+        <outputValues><text>"PROSSEGUIR","BLOQUEAR","REVISAR"</text></outputValues>
+      </output>
+
+      <output id="Output_acao_TUSS_CID10_Requirements" label="Acao" name="acao" typeRef="string"/>
+
+      <output id="Output_risco_TUSS_CID10_Requirements" label="Risco" name="risco" typeRef="string">
+        <outputValues><text>"CRITICO","ALTO","MEDIO","BAIXO"</text></outputValues>
+      </output>
+
+      <!-- === RULES === -->
+
+      <!-- Rule 1: Surgical TUSS (31003036 Apendicectomia) without required CID-10 K35 → BLOCK HIGH -->
+      <rule id="Rule_Appendectomy_No_Diagnosis_TUSS_CID10_Requirements">
+        <description>Apendicectomia sem diagnostico de apendicite</description>
+        <inputEntry id="IE_App_1_TUSS_CID10_Requirements"><text>"31003036"</text></inputEntry>
+        <inputEntry id="IE_App_2_TUSS_CID10_Requirements"><text>false</text></inputEntry>
+        <outputEntry id="OE_App_res_TUSS_CID10_Requirements"><text>"BLOQUEAR"</text></outputEntry>
+        <outputEntry id="OE_App_acao_TUSS_CID10_Requirements"><text>"Procedimento TUSS 31003036 (Apendicectomia) requer diagnostico CID-10 K35 (Apendicite)"</text></outputEntry>
+        <outputEntry id="OE_App_risco_TUSS_CID10_Requirements"><text>"ALTO"</text></outputEntry>
+      </rule>
+
+      <!-- Rule 2: Surgical TUSS prefix 3xxxx without diagnosis → BLOCK HIGH -->
+      <rule id="Rule_Surgical_No_Diagnosis_TUSS_CID10_Requirements">
+        <description>Procedimento cirurgico sem diagnostico correspondente</description>
+        <inputEntry id="IE_Surg_1_TUSS_CID10_Requirements"><text>starts with(tuss_code_prefix, "3")</text></inputEntry>
+        <inputEntry id="IE_Surg_2_TUSS_CID10_Requirements"><text>false</text></inputEntry>
+        <outputEntry id="OE_Surg_res_TUSS_CID10_Requirements"><text>"BLOQUEAR"</text></outputEntry>
+        <outputEntry id="OE_Surg_acao_TUSS_CID10_Requirements"><text>"Procedimento cirurgico TUSS requer diagnostico CID-10 correspondente"</text></outputEntry>
+        <outputEntry id="OE_Surg_risco_TUSS_CID10_Requirements"><text>"ALTO"</text></outputEntry>
+      </rule>
+
+      <!-- Rule 3: Diagnostic TUSS prefix 4xxxx without diagnosis → REVIEW MEDIUM -->
+      <rule id="Rule_Diagnostic_No_Diagnosis_TUSS_CID10_Requirements">
+        <description>Procedimento diagnostico sem CID-10 - requer revisao</description>
+        <inputEntry id="IE_Diag_1_TUSS_CID10_Requirements"><text>starts with(tuss_code_prefix, "4")</text></inputEntry>
+        <inputEntry id="IE_Diag_2_TUSS_CID10_Requirements"><text>false</text></inputEntry>
+        <outputEntry id="OE_Diag_res_TUSS_CID10_Requirements"><text>"REVISAR"</text></outputEntry>
+        <outputEntry id="OE_Diag_acao_TUSS_CID10_Requirements"><text>"Procedimento diagnostico TUSS sem CID-10 associado - verificar necessidade clinica"</text></outputEntry>
+        <outputEntry id="OE_Diag_risco_TUSS_CID10_Requirements"><text>"MEDIO"</text></outputEntry>
+      </rule>
+
+      <!-- Rule 4: Has required CID-10 → PROCEED LOW -->
+      <rule id="Rule_Has_Required_Diagnosis_TUSS_CID10_Requirements">
+        <description>Procedimento TUSS com diagnostico CID-10 correspondente</description>
+        <inputEntry id="IE_Req_1_TUSS_CID10_Requirements"><text>-</text></inputEntry>
+        <inputEntry id="IE_Req_2_TUSS_CID10_Requirements"><text>true</text></inputEntry>
+        <outputEntry id="OE_Req_res_TUSS_CID10_Requirements"><text>"PROSSEGUIR"</text></outputEntry>
+        <outputEntry id="OE_Req_acao_TUSS_CID10_Requirements"><text>"Procedimento TUSS possui diagnostico CID-10 correspondente aprovado"</text></outputEntry>
+        <outputEntry id="OE_Req_risco_TUSS_CID10_Requirements"><text>"BAIXO"</text></outputEntry>
+      </rule>
+
+      <!-- Fallback: Other TUSS codes without specific requirements → PROCEED LOW -->
+      <rule id="Rule_No_Requirement_TUSS_CID10_Requirements">
+        <description>Procedimento TUSS sem requisito especifico de CID-10</description>
+        <inputEntry id="IE_NR_1_TUSS_CID10_Requirements"><text>-</text></inputEntry>
+        <inputEntry id="IE_NR_2_TUSS_CID10_Requirements"><text>-</text></inputEntry>
+        <outputEntry id="OE_NR_res_TUSS_CID10_Requirements"><text>"PROSSEGUIR"</text></outputEntry>
+        <outputEntry id="OE_NR_acao_TUSS_CID10_Requirements"><text>"Procedimento TUSS sem requisito obrigatorio de diagnostico CID-10"</text></outputEntry>
+        <outputEntry id="OE_NR_risco_TUSS_CID10_Requirements"><text>"BAIXO"</text></outputEntry>
+      </rule>
+
+    </decisionTable>
+  </decision>
+
+  <dmndi:DMNDI>
+    <dmndi:DMNDiagram id="DMNDiagram_TUSS_CID10_Requirements">
+      <dmndi:DMNShape id="DMNShape_Decision_TUSS_CID10_Requirements" dmnElementRef="Decision_TUSS_CID10_Requirements">
+        <dc:Bounds height="80" width="180" x="160" y="100"/>
+      </dmndi:DMNShape>
+    </dmndi:DMNDiagram>
+  </dmndi:DMNDI>
+
+</definitions>

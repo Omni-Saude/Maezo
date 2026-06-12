@@ -6,7 +6,7 @@ from datetime import datetime
 
 import pytest
 
-from healthcare_platform.revenue_cycle.billing.workers.submit_to_payer_worker_v2 import SubmitToPayerWorker
+from healthcare_platform.revenue_cycle.billing.workers.submit_to_payer_worker import SubmitToPayerWorker
 from healthcare_platform.shared.domain.exceptions import ClaimSubmissionError
 from healthcare_platform.shared.integrations.tiss_client import StubTISSClient, TISSSubmissionResult
 from healthcare_platform.shared.workers.base import TaskStatus
@@ -102,19 +102,18 @@ async def test_missing_payer_id(worker, tiss_client):
 
 @pytest.mark.asyncio
 async def test_missing_claim_id(worker, tiss_client):
-    """Test error when claim ID is missing."""
+    """Test that missing claim_id is allowed (claim_id is optional in refactored worker)."""
     job = types.SimpleNamespace(
         variables={
-            "tiss_xml": "<tiss><guide>Test</guide></tiss>",
-            "payer_id": "PAYER-001"
+            "tissXml": "<tiss><guide>Test</guide></tiss>",
+            "payer": "PAYER-001"
         }
     )
 
     result = await worker.execute(job)
 
-    assert result.status == TaskStatus.BPMN_ERROR
-    assert result.error_code == "MISSING_CLAIM_ID"
-    assert "fatura" in result.error_message.lower()
+    # claim_id is optional; submission proceeds if tissXml and payer are present
+    assert result.status == TaskStatus.SUCCESS
 
 
 @pytest.mark.asyncio

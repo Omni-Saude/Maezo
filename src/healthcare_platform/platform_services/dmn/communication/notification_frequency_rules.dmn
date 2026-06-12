@@ -1,0 +1,435 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/"
+             xmlns:dc="http://www.omg.org/spec/DMN/20180521/DC/"
+             xmlns:camunda="http://camunda.org/schema/1.0/dmn"
+             xmlns:biodi="http://bpmn.io/schema/dmn/biodi/2.0"
+             xmlns:di="http://www.omg.org/spec/DMN/20180521/DI/"
+             id="Definitions_notification_frequency"
+             name="Notification Frequency Rules"
+             namespace="http://camunda.org/schema/1.0/dmn">
+
+  <decision id="notification_frequency_rules" name="[SP-PS-004 | communication] Notification Frequency Rules" camunda:historyTimeToLive="180">
+    <informationRequirement>
+      <requiredInput href="#InputData_recipientId"/>
+    </informationRequirement>
+    <informationRequirement>
+      <requiredInput href="#InputData_messagesLast24h"/>
+    </informationRequirement>
+    <informationRequirement>
+      <requiredInput href="#InputData_lastMessageMinutes"/>
+    </informationRequirement>
+    <informationRequirement>
+      <requiredInput href="#InputData_urgencyLevel"/>
+    </informationRequirement>
+    <informationRequirement>
+      <requiredInput href="#InputData_messageCategory"/>
+    </informationRequirement>
+
+    <decisionTable id="DecisionTable_frequency" hitPolicy="FIRST">
+      <input id="Input_recipientId_notification_frequency_rules" label="Recipient ID" camunda:inputVariable="recipientId">
+        <inputExpression id="InputExpression_recipientId_notification_frequency_rules" typeRef="string">
+          <text>recipientId</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_messagesLast24h_notification_frequency_rules" label="Messages Last 24h" camunda:inputVariable="messagesLast24h">
+        <inputExpression id="InputExpression_messagesLast24h_notification_frequency_rules" typeRef="integer">
+          <text>messagesLast24h</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_lastMessageMinutes_notification_frequency_rules" label="Last Message Minutes" camunda:inputVariable="lastMessageMinutes">
+        <inputExpression id="InputExpression_lastMessageMinutes_notification_frequency_rules" typeRef="integer">
+          <text>lastMessageMinutes</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_urgencyLevel_notification_frequency_rules" label="Urgency Level" camunda:inputVariable="urgencyLevel">
+        <inputExpression id="InputExpression_urgencyLevel_notification_frequency_rules" typeRef="string">
+          <text>urgencyLevel</text>
+        </inputExpression>
+        <inputValues id="UnaryTests_urgencyLevel_notification_frequency_rules">
+          <text>"low","medium","high","critical"</text>
+        </inputValues>
+      </input>
+
+      <input id="Input_messageCategory_notification_frequency_rules" label="Message Category" camunda:inputVariable="messageCategory">
+        <inputExpression id="InputExpression_messageCategory_notification_frequency_rules" typeRef="string">
+          <text>messageCategory</text>
+        </inputExpression>
+        <inputValues id="UnaryTests_messageCategory_notification_frequency_rules">
+          <text>"appointment","medication","billing","general"</text>
+        </inputValues>
+      </input>
+
+      <output id="Output_allowMessage_notification_frequency_rules" label="Allow Message" name="allowMessage" typeRef="boolean"/>
+      <output id="Output_delayUntil_notification_frequency_rules" label="Delay Until (minutes)" name="delayUntil" typeRef="integer"/>
+      <output id="Output_consolidateWith_notification_frequency_rules" label="Consolidate With" name="consolidateWith" typeRef="string"/>
+
+      <!-- Rule 1: Critical always sends immediately -->
+      <rule id="Rule_critical_immediate_notification_frequency_rules">
+        <description>Critical urgency: always send immediately regardless of frequency limits</description>
+        <inputEntry id="InputEntry_r1_recipientId_notification_frequency_rules">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_r1_messagesLast24h_notification_frequency_rules">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_r1_lastMessageMinutes_notification_frequency_rules">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_r1_urgencyLevel_notification_frequency_rules">
+          <text>"critical"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_r1_messageCategory_notification_frequency_rules">
+          <text>-</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_r1_allowMessage_notification_frequency_rules">
+          <text>true</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_r1_delayUntil_notification_frequency_rules">
+          <text>0</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_r1_consolidateWith_notification_frequency_rules">
+          <text>"none"</text>
+        </outputEntry>
+      </rule>
+
+      <!-- Rule 2: High urgency with high volume still goes through -->
+      <rule id="Rule_high_high_volume_notification_frequency_rules">
+        <description>High urgency with more than 10 messages in 24h: still send immediately (important)</description>
+        <inputEntry id="InputEntry_r2_recipientId_notification_frequency_rules">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_r2_messagesLast24h_notification_frequency_rules">
+          <text>&gt; 10</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_r2_lastMessageMinutes_notification_frequency_rules">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_r2_urgencyLevel_notification_frequency_rules">
+          <text>"high"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_r2_messageCategory_notification_frequency_rules">
+          <text>-</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_r2_allowMessage_notification_frequency_rules">
+          <text>true</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_r2_delayUntil_notification_frequency_rules">
+          <text>0</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_r2_consolidateWith_notification_frequency_rules">
+          <text>"none"</text>
+        </outputEntry>
+      </rule>
+
+      <!-- Rule 3: High urgency with recent message - slight delay -->
+      <rule id="Rule_high_recent_notification_frequency_rules">
+        <description>High urgency sent within last 15 minutes: add 15 minute delay to avoid immediate duplicate</description>
+        <inputEntry id="InputEntry_r3_recipientId_notification_frequency_rules">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_r3_messagesLast24h_notification_frequency_rules">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_r3_lastMessageMinutes_notification_frequency_rules">
+          <text>&lt; 15</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_r3_urgencyLevel_notification_frequency_rules">
+          <text>"high"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_r3_messageCategory_notification_frequency_rules">
+          <text>-</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_r3_allowMessage_notification_frequency_rules">
+          <text>true</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_r3_delayUntil_notification_frequency_rules">
+          <text>15</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_r3_consolidateWith_notification_frequency_rules">
+          <text>"none"</text>
+        </outputEntry>
+      </rule>
+
+      <!-- Rule 4: Medium urgency with moderate volume - consolidate -->
+      <rule id="Rule_medium_moderate_volume_notification_frequency_rules">
+        <description>Medium urgency with more than 5 messages in 24h: delay and consolidate similar messages</description>
+        <inputEntry id="InputEntry_r4_recipientId_notification_frequency_rules">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_r4_messagesLast24h_notification_frequency_rules">
+          <text>&gt; 5</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_r4_lastMessageMinutes_notification_frequency_rules">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_r4_urgencyLevel_notification_frequency_rules">
+          <text>"medium"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_r4_messageCategory_notification_frequency_rules">
+          <text>-</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_r4_allowMessage_notification_frequency_rules">
+          <text>false</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_r4_delayUntil_notification_frequency_rules">
+          <text>60</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_r4_consolidateWith_notification_frequency_rules">
+          <text>messageCategory</text>
+        </outputEntry>
+      </rule>
+
+      <!-- Rule 5: Medium urgency same category recent - consolidate -->
+      <rule id="Rule_medium_same_category_recent_notification_frequency_rules">
+        <description>Medium urgency with same category sent within 30 minutes: consolidate to reduce noise</description>
+        <inputEntry id="InputEntry_r5_recipientId_notification_frequency_rules">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_r5_messagesLast24h_notification_frequency_rules">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_r5_lastMessageMinutes_notification_frequency_rules">
+          <text>&lt; 30</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_r5_urgencyLevel_notification_frequency_rules">
+          <text>"medium"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_r5_messageCategory_notification_frequency_rules">
+          <text>-</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_r5_allowMessage_notification_frequency_rules">
+          <text>false</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_r5_delayUntil_notification_frequency_rules">
+          <text>30</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_r5_consolidateWith_notification_frequency_rules">
+          <text>messageCategory</text>
+        </outputEntry>
+      </rule>
+
+      <!-- Rule 6: Medium urgency normal conditions -->
+      <rule id="Rule_medium_normal_notification_frequency_rules">
+        <description>Medium urgency under normal conditions (not recent, low volume): send immediately</description>
+        <inputEntry id="InputEntry_r6_recipientId_notification_frequency_rules">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_r6_messagesLast24h_notification_frequency_rules">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_r6_lastMessageMinutes_notification_frequency_rules">
+          <text>&gt;= 30</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_r6_urgencyLevel_notification_frequency_rules">
+          <text>"medium"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_r6_messageCategory_notification_frequency_rules">
+          <text>-</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_r6_allowMessage_notification_frequency_rules">
+          <text>true</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_r6_delayUntil_notification_frequency_rules">
+          <text>0</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_r6_consolidateWith_notification_frequency_rules">
+          <text>"none"</text>
+        </outputEntry>
+      </rule>
+
+      <!-- Rule 7: Low urgency moderate volume - consolidate all -->
+      <rule id="Rule_low_moderate_volume_notification_frequency_rules">
+        <description>Low urgency with more than 5 messages in 24h: delay and consolidate all low priority</description>
+        <inputEntry id="InputEntry_r7_recipientId_notification_frequency_rules">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_r7_messagesLast24h_notification_frequency_rules">
+          <text>&gt; 5</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_r7_lastMessageMinutes_notification_frequency_rules">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_r7_urgencyLevel_notification_frequency_rules">
+          <text>"low"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_r7_messageCategory_notification_frequency_rules">
+          <text>-</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_r7_allowMessage_notification_frequency_rules">
+          <text>false</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_r7_delayUntil_notification_frequency_rules">
+          <text>120</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_r7_consolidateWith_notification_frequency_rules">
+          <text>"general"</text>
+        </outputEntry>
+      </rule>
+
+      <!-- Rule 8: Low urgency recent message - delay -->
+      <rule id="Rule_low_recent_notification_frequency_rules">
+        <description>Low urgency with message sent within 60 minutes: delay to reduce frequency</description>
+        <inputEntry id="InputEntry_r8_recipientId_notification_frequency_rules">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_r8_messagesLast24h_notification_frequency_rules">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_r8_lastMessageMinutes_notification_frequency_rules">
+          <text>&lt; 60</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_r8_urgencyLevel_notification_frequency_rules">
+          <text>"low"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_r8_messageCategory_notification_frequency_rules">
+          <text>-</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_r8_allowMessage_notification_frequency_rules">
+          <text>false</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_r8_delayUntil_notification_frequency_rules">
+          <text>60</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_r8_consolidateWith_notification_frequency_rules">
+          <text>messageCategory</text>
+        </outputEntry>
+      </rule>
+
+      <!-- Rule 9: Low urgency minimal volume - send -->
+      <rule id="Rule_low_minimal_volume_notification_frequency_rules">
+        <description>Low urgency with 3 or fewer messages in 24h: send immediately (minimal impact)</description>
+        <inputEntry id="InputEntry_r9_recipientId_notification_frequency_rules">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_r9_messagesLast24h_notification_frequency_rules">
+          <text>&lt;= 3</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_r9_lastMessageMinutes_notification_frequency_rules">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_r9_urgencyLevel_notification_frequency_rules">
+          <text>"low"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_r9_messageCategory_notification_frequency_rules">
+          <text>-</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_r9_allowMessage_notification_frequency_rules">
+          <text>true</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_r9_delayUntil_notification_frequency_rules">
+          <text>0</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_r9_consolidateWith_notification_frequency_rules">
+          <text>"none"</text>
+        </outputEntry>
+      </rule>
+
+      <!-- Rule 10: Low urgency low volume - send with delay -->
+      <rule id="Rule_low_low_volume_notification_frequency_rules">
+        <description>Low urgency with 4-5 messages in 24h: send with 30 minute delay</description>
+        <inputEntry id="InputEntry_r10_recipientId_notification_frequency_rules">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_r10_messagesLast24h_notification_frequency_rules">
+          <text>[4..5]</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_r10_lastMessageMinutes_notification_frequency_rules">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_r10_urgencyLevel_notification_frequency_rules">
+          <text>"low"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_r10_messageCategory_notification_frequency_rules">
+          <text>-</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_r10_allowMessage_notification_frequency_rules">
+          <text>true</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_r10_delayUntil_notification_frequency_rules">
+          <text>30</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_r10_consolidateWith_notification_frequency_rules">
+          <text>"none"</text>
+        </outputEntry>
+      </rule>
+
+      <!-- Rule 11: Rate limit - too many messages -->
+      <rule id="Rule_rate_limit_notification_frequency_rules">
+        <description>More than 15 messages in 24h (non-critical): rate limit with 4 hour delay and consolidate</description>
+        <inputEntry id="InputEntry_r11_recipientId_notification_frequency_rules">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_r11_messagesLast24h_notification_frequency_rules">
+          <text>&gt; 15</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_r11_lastMessageMinutes_notification_frequency_rules">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_r11_urgencyLevel_notification_frequency_rules">
+          <text>"low","medium","high"</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_r11_messageCategory_notification_frequency_rules">
+          <text>-</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_r11_allowMessage_notification_frequency_rules">
+          <text>false</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_r11_delayUntil_notification_frequency_rules">
+          <text>240</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_r11_consolidateWith_notification_frequency_rules">
+          <text>"general"</text>
+        </outputEntry>
+      </rule>
+
+      <!-- Rule 12: Default case - allow -->
+      <rule id="Rule_default_allow_notification_frequency_rules">
+        <description>Default case: allow message with no delay or consolidation</description>
+        <inputEntry id="InputEntry_r12_recipientId_notification_frequency_rules">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_r12_messagesLast24h_notification_frequency_rules">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_r12_lastMessageMinutes_notification_frequency_rules">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_r12_urgencyLevel_notification_frequency_rules">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="InputEntry_r12_messageCategory_notification_frequency_rules">
+          <text>-</text>
+        </inputEntry>
+        <outputEntry id="OutputEntry_r12_allowMessage_notification_frequency_rules">
+          <text>true</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_r12_delayUntil_notification_frequency_rules">
+          <text>0</text>
+        </outputEntry>
+        <outputEntry id="OutputEntry_r12_consolidateWith_notification_frequency_rules">
+          <text>"none"</text>
+        </outputEntry>
+      </rule>
+
+    </decisionTable>
+  </decision>
+
+  <inputData id="InputData_recipientId_notification_frequency_rules" name="Recipient ID"/>
+  <inputData id="InputData_messagesLast24h_notification_frequency_rules" name="Messages Last 24h"/>
+  <inputData id="InputData_lastMessageMinutes_notification_frequency_rules" name="Last Message Minutes"/>
+  <inputData id="InputData_urgencyLevel_notification_frequency_rules" name="Urgency Level"/>
+  <inputData id="InputData_messageCategory_notification_frequency_rules" name="Message Category"/>
+
+
+  <dmndi:DMNDI>
+    <dmndi:DMNDiagram id="DMNDiagram_notification_frequency_rules">
+      <dmndi:DMNShape id="DMNShape_notification_frequency_rules" dmnElementRef="notification_frequency_rules">
+        <dc:Bounds height="80" width="180" x="160" y="100" />
+      </dmndi:DMNShape>
+    </dmndi:DMNDiagram>
+  </dmndi:DMNDI>
+</definitions>

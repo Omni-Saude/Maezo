@@ -1,0 +1,558 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" xmlns:camunda="http://camunda.org/schema/1.0/bpmn" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:bioc="http://bpmn.io/schema/bpmn/biocolor/1.0" xmlns:color="http://www.omg.org/spec/BPMN/non-normative/color/1.0" id="Definitions_RC006" targetNamespace="http://cib7.healthcare/revenue-cycle" exporter="Camunda Modeler" exporterVersion="5.35.0">
+  <bpmn:process id="SP_RC_006_Billing_Submission" name="Faturamento e Envio TISS" isExecutable="true" camunda:historyTimeToLive="30">
+    <bpmn:startEvent id="start_billing" name="Início Faturamento">
+      <bpmn:outgoing>flow_to_validate_claim</bpmn:outgoing>
+    </bpmn:startEvent>
+    <bpmn:exclusiveGateway id="gateway_validation" name="Validação OK?" default="flow_invalid">
+      <bpmn:incoming>flow_to_validation_gateway</bpmn:incoming>
+      <bpmn:outgoing>flow_valid</bpmn:outgoing>
+      <bpmn:outgoing>flow_invalid</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:businessRuleTask id="dmn_quantity_validation" name="Validar Quantidades" camunda:resultVariable="quantityCheck" camunda:decisionRef="billing_quantity_validation" camunda:mapDecisionResult="singleResult">
+      <bpmn:incoming>flow_valid</bpmn:incoming>
+      <bpmn:outgoing>flow_to_calculate_charges</bpmn:outgoing>
+    </bpmn:businessRuleTask>
+    <bpmn:businessRuleTask id="dmn_modifier_rules" name="Aplicar Modificadores" camunda:resultVariable="modifiers" camunda:decisionRef="billing_modifier_rules" camunda:mapDecisionResult="singleResult">
+      <bpmn:incoming>flow_to_dmn_modifier</bpmn:incoming>
+      <bpmn:outgoing>flow_to_dmn_bundle</bpmn:outgoing>
+    </bpmn:businessRuleTask>
+    <bpmn:businessRuleTask id="dmn_bundle_rules" name="Regras de Pacotes" camunda:resultVariable="bundleRules" camunda:decisionRef="billing_bundle_rules" camunda:mapDecisionResult="singleResult">
+      <bpmn:incoming>flow_to_dmn_bundle</bpmn:incoming>
+      <bpmn:outgoing>flow_to_apply_contract</bpmn:outgoing>
+    </bpmn:businessRuleTask>
+    <bpmn:businessRuleTask id="dmn_tax_calculation" name="Calcular Taxas" camunda:resultVariable="taxes" camunda:decisionRef="billing_tax_calculation" camunda:mapDecisionResult="singleResult">
+      <bpmn:incoming>flow_to_dmn_taxa</bpmn:incoming>
+      <bpmn:outgoing>flow_to_dmn_opme</bpmn:outgoing>
+    </bpmn:businessRuleTask>
+    <bpmn:businessRuleTask id="dmn_opme_rules" name="Aplicar Regras OPME" camunda:resultVariable="opmeRules" camunda:decisionRef="billing_opme_rules" camunda:mapDecisionResult="singleResult">
+      <bpmn:incoming>flow_to_dmn_opme</bpmn:incoming>
+      <bpmn:outgoing>flow_to_generate_tiss</bpmn:outgoing>
+    </bpmn:businessRuleTask>
+    <bpmn:serviceTask id="task_generate_tiss_xml" name="Gerar XML TISS" camunda:type="external" camunda:topic="billing.generate_tiss_xml">
+      <bpmn:extensionElements>
+        <camunda:inputOutput>
+          <camunda:inputParameter name="charges">${finalCharges}</camunda:inputParameter>
+          <camunda:inputParameter name="taxDetails">${taxes}</camunda:inputParameter>
+          <camunda:inputParameter name="opme">${opmeRules}</camunda:inputParameter>
+          <camunda:inputParameter name="encounter">${encounterId}</camunda:inputParameter>
+          <camunda:outputParameter name="generatedXml">${tissXml}</camunda:outputParameter>
+        </camunda:inputOutput>
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_113i7r0</bpmn:incoming>
+      <bpmn:outgoing>flow_to_validate_schema</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:boundaryEvent id="error_tiss_generation" name="Erro TISS" attachedToRef="task_generate_tiss_xml">
+      <bpmn:outgoing>flow_to_manual_tiss</bpmn:outgoing>
+      <bpmn:errorEventDefinition errorRef="Error_TissGenerationFailed" />
+    </bpmn:boundaryEvent>
+    <bpmn:exclusiveGateway id="gateway_schema" name="Schema Válido?" default="flow_schema_valid">
+      <bpmn:incoming>flow_to_schema_gateway</bpmn:incoming>
+      <bpmn:outgoing>flow_schema_valid</bpmn:outgoing>
+      <bpmn:outgoing>flow_schema_invalid</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:serviceTask id="task_submit_to_payer" name="Enviar para Operadora" camunda:type="external" camunda:topic="billing.submit_to_payer">
+      <bpmn:extensionElements>
+        <camunda:inputOutput>
+          <camunda:inputParameter name="tissXml">${generatedXml}</camunda:inputParameter>
+          <camunda:inputParameter name="payer">${payerId}</camunda:inputParameter>
+          <camunda:outputParameter name="batchId">${submissionId}</camunda:outputParameter>
+          <camunda:outputParameter name="status">${submissionStatus}</camunda:outputParameter>
+        </camunda:inputOutput>
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_03vhw0f</bpmn:incoming>
+      <bpmn:outgoing>flow_to_end_success</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:endEvent id="end_success" name="Enviado com Sucesso">
+      <bpmn:incoming>flow_to_end_success</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:endEvent id="end_corrections" name="Correções Necessárias">
+      <bpmn:incoming>flow_to_end_corrections</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:sequenceFlow id="flow_to_validate_claim" sourceRef="start_billing" targetRef="task_validate_claim" />
+    <bpmn:sequenceFlow id="flow_to_validation_gateway" sourceRef="task_validate_claim" targetRef="gateway_validation" />
+    <bpmn:sequenceFlow id="flow_valid" name="Sim" sourceRef="gateway_validation" targetRef="dmn_quantity_validation">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">=claimValidated = true</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="flow_invalid" name="Não" sourceRef="gateway_validation" targetRef="task_correct_errors" />
+    <bpmn:sequenceFlow id="flow_to_calculate_charges" sourceRef="dmn_quantity_validation" targetRef="task_calculate_charges" />
+    <bpmn:sequenceFlow id="flow_to_dmn_modifier" sourceRef="task_calculate_charges" targetRef="dmn_modifier_rules" />
+    <bpmn:sequenceFlow id="flow_to_dmn_bundle" sourceRef="dmn_modifier_rules" targetRef="dmn_bundle_rules" />
+    <bpmn:sequenceFlow id="flow_to_apply_contract" sourceRef="dmn_bundle_rules" targetRef="task_apply_contract_rules" />
+    <bpmn:sequenceFlow id="flow_to_dmn_taxa" sourceRef="task_apply_contract_rules" targetRef="dmn_tax_calculation" />
+    <bpmn:sequenceFlow id="flow_to_dmn_opme" sourceRef="dmn_tax_calculation" targetRef="dmn_opme_rules" />
+    <bpmn:sequenceFlow id="flow_to_generate_tiss" sourceRef="dmn_opme_rules" targetRef="Activity_0yeaydo" />
+    <bpmn:sequenceFlow id="flow_to_validate_schema" sourceRef="task_generate_tiss_xml" targetRef="task_validate_tiss_schema" />
+    <bpmn:sequenceFlow id="flow_to_schema_gateway" sourceRef="task_validate_tiss_schema" targetRef="gateway_schema" />
+    <bpmn:sequenceFlow id="flow_schema_valid" name="Sim" sourceRef="gateway_schema" targetRef="Gateway_1g8qr0a" />
+    <bpmn:sequenceFlow id="flow_schema_invalid" name="Não" sourceRef="gateway_schema" targetRef="task_fix_schema">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${schemaValid == false}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="flow_to_manual_tiss" sourceRef="error_tiss_generation" targetRef="task_manual_tiss" />
+    <bpmn:sequenceFlow id="flow_to_escalate_submission" sourceRef="timer_submission_sla" targetRef="task_escalate_submission" />
+    <bpmn:sequenceFlow id="flow_to_end_success" sourceRef="task_submit_to_payer" targetRef="end_success" />
+    <bpmn:sequenceFlow id="flow_to_end_corrections" sourceRef="task_correct_errors" targetRef="end_corrections" />
+    <bpmn:sequenceFlow id="Flow_0e1taz1" sourceRef="Activity_0yeaydo" targetRef="Activity_0fi22n9" />
+    <bpmn:sequenceFlow id="Flow_0hu85jy" sourceRef="Activity_0fi22n9" targetRef="Activity_0lt08hn" />
+    <bpmn:sequenceFlow id="Flow_1samn4d" sourceRef="Activity_0lt08hn" targetRef="Gateway_0q37jwx" />
+    <bpmn:exclusiveGateway id="Gateway_0q37jwx">
+      <bpmn:incoming>Flow_1samn4d</bpmn:incoming>
+      <bpmn:incoming>Flow_0i3kylf</bpmn:incoming>
+      <bpmn:outgoing>Flow_113i7r0</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:sequenceFlow id="Flow_113i7r0" sourceRef="Gateway_0q37jwx" targetRef="task_generate_tiss_xml" />
+    <bpmn:sequenceFlow id="Flow_1600s33" sourceRef="task_manual_tiss" targetRef="Event_1ropo18" />
+    <bpmn:serviceTask id="Activity_0fi22n9" name="Fechar&#10;conta" camunda:type="external" camunda:topic="billing.close_account">
+      <bpmn:incoming>Flow_0e1taz1</bpmn:incoming>
+      <bpmn:outgoing>Flow_0hu85jy</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:serviceTask id="Activity_0lt08hn" name="Incluir conta em Protocolo" camunda:type="external" camunda:topic="IncluirContaProtocolo">
+      <bpmn:incoming>Flow_0hu85jy</bpmn:incoming>
+      <bpmn:outgoing>Flow_1samn4d</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:serviceTask id="task_manual_tiss" name="Notificar&#10;pendência" camunda:type="external" camunda:topic="NotificarPendencia">
+      <bpmn:incoming>flow_to_manual_tiss</bpmn:incoming>
+      <bpmn:outgoing>Flow_1600s33</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:sequenceFlow id="Flow_0i3kylf" sourceRef="Event_1ropo18" targetRef="Gateway_0q37jwx" />
+    <bpmn:intermediateCatchEvent id="Event_1ropo18" name="após 24 horas">
+      <bpmn:incoming>Flow_1600s33</bpmn:incoming>
+      <bpmn:outgoing>Flow_0i3kylf</bpmn:outgoing>
+      <bpmn:timerEventDefinition id="TimerEventDefinition_17nsog7">
+        <bpmn:timeDuration xsi:type="bpmn:tFormalExpression">PT24H</bpmn:timeDuration>
+      </bpmn:timerEventDefinition>
+    </bpmn:intermediateCatchEvent>
+    <bpmn:endEvent id="end_schema_fix" name="Correção de Schema">
+      <bpmn:incoming>flow_to_end_schema_fix</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:sequenceFlow id="flow_to_end_schema_fix" sourceRef="task_fix_schema" targetRef="end_schema_fix" />
+    <bpmn:sequenceFlow id="Flow_0qz6nw7" sourceRef="task_escalate_submission" targetRef="Event_1bx26xi" />
+    <bpmn:intermediateCatchEvent id="Event_1bx26xi" name="após 24 horas">
+      <bpmn:incoming>Flow_0qz6nw7</bpmn:incoming>
+      <bpmn:outgoing>Flow_0qdhj6v</bpmn:outgoing>
+      <bpmn:timerEventDefinition id="TimerEventDefinition_1bnek45">
+        <bpmn:timeDuration xsi:type="bpmn:tFormalExpression">PT24H</bpmn:timeDuration>
+      </bpmn:timerEventDefinition>
+    </bpmn:intermediateCatchEvent>
+    <bpmn:exclusiveGateway id="Gateway_1g8qr0a">
+      <bpmn:incoming>flow_schema_valid</bpmn:incoming>
+      <bpmn:incoming>Flow_0qdhj6v</bpmn:incoming>
+      <bpmn:outgoing>Flow_03vhw0f</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:sequenceFlow id="Flow_03vhw0f" sourceRef="Gateway_1g8qr0a" targetRef="task_submit_to_payer" />
+    <bpmn:sequenceFlow id="Flow_0qdhj6v" sourceRef="Event_1bx26xi" targetRef="Gateway_1g8qr0a" />
+    <bpmn:serviceTask id="task_escalate_submission" name="Notificar&#10;pendência" camunda:type="external" camunda:topic="NotificarPendencia">
+      <bpmn:incoming>flow_to_escalate_submission</bpmn:incoming>
+      <bpmn:outgoing>Flow_0qz6nw7</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:boundaryEvent id="timer_submission_sla" name="Erro&#10;Operadora" attachedToRef="task_submit_to_payer">
+      <bpmn:outgoing>flow_to_escalate_submission</bpmn:outgoing>
+      <bpmn:errorEventDefinition id="ErrorEventDefinition_1sy6wve" errorRef="Error_1xp6ciu" />
+    </bpmn:boundaryEvent>
+    <bpmn:task id="Activity_0yeaydo" name="Verificar consistências das contas e TISS">
+      <bpmn:incoming>flow_to_generate_tiss</bpmn:incoming>
+      <bpmn:outgoing>Flow_0e1taz1</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:task id="task_apply_contract_rules" name="Aplicar Regras de Pacotes">
+      <bpmn:extensionElements>
+        <camunda:inputOutput>
+          <camunda:outputParameter name="finalCharges">${adjustedCharges}</camunda:outputParameter>
+        </camunda:inputOutput>
+      </bpmn:extensionElements>
+      <bpmn:incoming>flow_to_apply_contract</bpmn:incoming>
+      <bpmn:outgoing>flow_to_dmn_taxa</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:task id="task_calculate_charges" name="Calcular Valores">
+      <bpmn:extensionElements>
+        <camunda:inputOutput>
+          <camunda:outputParameter name="billingTotal">${totalCharges}</camunda:outputParameter>
+          <camunda:outputParameter name="breakdown">${chargeBreakdown}</camunda:outputParameter>
+        </camunda:inputOutput>
+      </bpmn:extensionElements>
+      <bpmn:incoming>flow_to_calculate_charges</bpmn:incoming>
+      <bpmn:outgoing>flow_to_dmn_modifier</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:task id="task_correct_errors" name="Corrigir Erros de Validação">
+      <bpmn:incoming>flow_invalid</bpmn:incoming>
+      <bpmn:outgoing>flow_to_end_corrections</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:task id="task_validate_claim" name="Validar Dados da Conta">
+      <bpmn:extensionElements>
+        <camunda:inputOutput>
+          <camunda:outputParameter name="claimValidated">${validationResult}</camunda:outputParameter>
+          <camunda:outputParameter name="errors">${validationErrors}</camunda:outputParameter>
+        </camunda:inputOutput>
+      </bpmn:extensionElements>
+      <bpmn:incoming>flow_to_validate_claim</bpmn:incoming>
+      <bpmn:outgoing>flow_to_validation_gateway</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:task id="task_validate_tiss_schema" name="Validar Schema TISS">
+      <bpmn:extensionElements>
+        <camunda:inputOutput>
+          <camunda:outputParameter name="isSchemaValid">${schemaValid}</camunda:outputParameter>
+          <camunda:outputParameter name="schemaValidationErrors">${schemaErrors}</camunda:outputParameter>
+        </camunda:inputOutput>
+      </bpmn:extensionElements>
+      <bpmn:incoming>flow_to_validate_schema</bpmn:incoming>
+      <bpmn:outgoing>flow_to_schema_gateway</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:task id="task_fix_schema" name="Corrigir Erros de Schema">
+      <bpmn:incoming>flow_schema_invalid</bpmn:incoming>
+      <bpmn:outgoing>flow_to_end_schema_fix</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:textAnnotation id="TextAnnotation_1lnuurq">
+      <bpmn:text>validar dados do atendimento</bpmn:text>
+    </bpmn:textAnnotation>
+    <bpmn:association id="Association_0a0x0th" associationDirection="None" sourceRef="task_validate_claim" targetRef="TextAnnotation_1lnuurq" />
+    <bpmn:textAnnotation id="TextAnnotation_1aswfkn">
+      <bpmn:text>substituição de itens e codificação?</bpmn:text>
+    </bpmn:textAnnotation>
+    <bpmn:association id="Association_0nir0nh" associationDirection="None" sourceRef="dmn_modifier_rules" targetRef="TextAnnotation_1aswfkn" />
+    <bpmn:textAnnotation id="TextAnnotation_0zo15cg">
+      <bpmn:text>diárias e taxas
+itens</bpmn:text>
+    </bpmn:textAnnotation>
+    <bpmn:association id="Association_1o8fjgv" associationDirection="None" sourceRef="dmn_bundle_rules" targetRef="TextAnnotation_0zo15cg" />
+    <bpmn:textAnnotation id="TextAnnotation_0ihrjfu">
+      <bpmn:text>quando não existir pacote</bpmn:text>
+    </bpmn:textAnnotation>
+    <bpmn:association id="Association_0w6dx2j" associationDirection="None" sourceRef="dmn_tax_calculation" targetRef="TextAnnotation_0ihrjfu" />
+    <bpmn:textAnnotation id="TextAnnotation_0iob7zm">
+      <bpmn:text>Validar se os pcts fazem sentido</bpmn:text>
+    </bpmn:textAnnotation>
+    <bpmn:association id="Association_04x8aal" associationDirection="None" sourceRef="dmn_bundle_rules" targetRef="TextAnnotation_0iob7zm" />
+    <bpmn:textAnnotation id="TextAnnotation_18kdhp7">
+      <bpmn:text>RPA</bpmn:text>
+    </bpmn:textAnnotation>
+    <bpmn:association id="Association_1h6gprz" associationDirection="None" sourceRef="Activity_0fi22n9" targetRef="TextAnnotation_18kdhp7" />
+    <bpmn:textAnnotation id="TextAnnotation_1ewk36h">
+      <bpmn:text>RPA</bpmn:text>
+    </bpmn:textAnnotation>
+    <bpmn:association id="Association_0nm04yn" associationDirection="None" sourceRef="task_generate_tiss_xml" targetRef="TextAnnotation_1ewk36h" />
+    <bpmn:textAnnotation id="TextAnnotation_1i41ify">
+      <bpmn:text>RPA</bpmn:text>
+    </bpmn:textAnnotation>
+    <bpmn:association id="Association_13ve4ej" associationDirection="None" sourceRef="task_submit_to_payer" targetRef="TextAnnotation_1i41ify" />
+  </bpmn:process>
+  <bpmn:error id="Error_TissGenerationFailed" name="TissGenerationFailed" errorCode="ERR_TISS_001" />
+  <bpmn:error id="Error_1jul0fk" name="Erro" />
+  <bpmn:error id="Error_1xp6ciu" name="Error_3u9n6im" />
+  <bpmndi:BPMNDiagram id="BPMNDiagram_RC006">
+    <bpmndi:BPMNPlane id="BPMNPlane_RC006" bpmnElement="SP_RC_006_Billing_Submission">
+      <bpmndi:BPMNShape id="Shape_start_billing" bpmnElement="start_billing" bioc:stroke="#0d4372" bioc:fill="#bbdefb" color:background-color="#bbdefb" color:border-color="#0d4372">
+        <dc:Bounds x="152" y="282" width="36" height="36" />
+        <bpmndi:BPMNLabel color:color="#0d4372">
+          <dc:Bounds x="139" y="325" width="63" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_gateway_validation" bpmnElement="gateway_validation" isMarkerVisible="true">
+        <dc:Bounds x="383" y="275" width="50" height="50" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="371" y="251" width="73" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_dmn_quantity_validation" bpmnElement="dmn_quantity_validation" bioc:stroke="#0d4372" bioc:fill="#bbdefb" color:background-color="#bbdefb" color:border-color="#0d4372">
+        <dc:Bounds x="483" y="260" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_dmn_modifier_rules" bpmnElement="dmn_modifier_rules" bioc:stroke="#0d4372" bioc:fill="#bbdefb" color:background-color="#bbdefb" color:border-color="#0d4372">
+        <dc:Bounds x="763" y="260" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_dmn_bundle_rules" bpmnElement="dmn_bundle_rules" bioc:stroke="#0d4372" bioc:fill="#bbdefb" color:background-color="#bbdefb" color:border-color="#0d4372">
+        <dc:Bounds x="890" y="260" width="100" height="80" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_dmn_tax_calculation" bpmnElement="dmn_tax_calculation" bioc:stroke="#0d4372" bioc:fill="#bbdefb" color:background-color="#bbdefb" color:border-color="#0d4372">
+        <dc:Bounds x="1183" y="260" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_dmn_opme_rules" bpmnElement="dmn_opme_rules" bioc:stroke="#0d4372" bioc:fill="#bbdefb" color:background-color="#bbdefb" color:border-color="#0d4372">
+        <dc:Bounds x="1323" y="260" width="100" height="80" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_task_generate_tiss_xml" bpmnElement="task_generate_tiss_xml" bioc:stroke="#0d4372" bioc:fill="#bbdefb" color:background-color="#bbdefb" color:border-color="#0d4372">
+        <dc:Bounds x="2013" y="260" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_gateway_schema" bpmnElement="gateway_schema" isMarkerVisible="true">
+        <dc:Bounds x="2298" y="275" width="50" height="50" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="2282" y="335" width="81" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_task_submit_to_payer" bpmnElement="task_submit_to_payer" bioc:stroke="#0d4372" bioc:fill="#bbdefb" color:background-color="#bbdefb" color:border-color="#0d4372">
+        <dc:Bounds x="2528" y="260" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_end_success" bpmnElement="end_success" bioc:stroke="#0d4372" bioc:fill="#bbdefb" color:background-color="#bbdefb" color:border-color="#0d4372">
+        <dc:Bounds x="2678" y="282" width="36" height="36" />
+        <bpmndi:BPMNLabel color:color="#0d4372">
+          <dc:Bounds x="2664" y="325" width="65" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_end_corrections" bpmnElement="end_corrections">
+        <dc:Bounds x="390" y="612" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="378" y="655" width="61" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Gateway_0q37jwx_di" bpmnElement="Gateway_0q37jwx" isMarkerVisible="true" bioc:stroke="#0d4372" bioc:fill="#bbdefb" color:background-color="#bbdefb" color:border-color="#0d4372">
+        <dc:Bounds x="1895" y="275" width="50" height="50" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Activity_1nr5idk_di" bpmnElement="Activity_0fi22n9" bioc:stroke="#0d4372" bioc:fill="#bbdefb" color:background-color="#bbdefb" color:border-color="#0d4372">
+        <dc:Bounds x="1590" y="260" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Activity_11jc1fc_di" bpmnElement="Activity_0lt08hn" bioc:stroke="#0d4372" bioc:fill="#bbdefb" color:background-color="#bbdefb" color:border-color="#0d4372">
+        <dc:Bounds x="1730" y="260" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Activity_1g3nwlg_di" bpmnElement="task_manual_tiss" bioc:stroke="#0d4372" bioc:fill="#bbdefb" color:background-color="#bbdefb" color:border-color="#0d4372">
+        <dc:Bounds x="2013" y="438" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Event_19ji7op_di" bpmnElement="Event_1ropo18" bioc:stroke="#0d4372" bioc:fill="#bbdefb" color:background-color="#bbdefb" color:border-color="#0d4372">
+        <dc:Bounds x="1902" y="460" width="36" height="36" />
+        <bpmndi:BPMNLabel color:color="#0d4372">
+          <dc:Bounds x="1885" y="503" width="70" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_end_schema_fix" bpmnElement="end_schema_fix">
+        <dc:Bounds x="2422" y="102" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="2410" y="145" width="61" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Event_1qgh2oj_di" bpmnElement="Event_1bx26xi" bioc:stroke="#0d4372" bioc:fill="#bbdefb" color:background-color="#bbdefb" color:border-color="#0d4372">
+        <dc:Bounds x="2422" y="460" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="2405" y="503" width="70" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Gateway_1g8qr0a_di" bpmnElement="Gateway_1g8qr0a" isMarkerVisible="true" bioc:stroke="#0d4372" bioc:fill="#bbdefb" color:background-color="#bbdefb" color:border-color="#0d4372">
+        <dc:Bounds x="2415" y="275" width="50" height="50" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Activity_0wrrxn4_di" bpmnElement="task_escalate_submission" bioc:stroke="#0d4372" bioc:fill="#bbdefb" color:background-color="#bbdefb" color:border-color="#0d4372">
+        <dc:Bounds x="2528" y="438" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Activity_1anxepc_di" bpmnElement="Activity_0yeaydo">
+        <dc:Bounds x="1460" y="260" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Activity_0t02blw_di" bpmnElement="task_apply_contract_rules">
+        <dc:Bounds x="1043" y="260" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Activity_0lh44gh_di" bpmnElement="task_calculate_charges">
+        <dc:Bounds x="623" y="260" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Activity_0hpevtm_di" bpmnElement="task_correct_errors">
+        <dc:Bounds x="358" y="470" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Activity_1k83q86_di" bpmnElement="task_validate_claim">
+        <dc:Bounds x="238" y="260" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Activity_0jpvm3q_di" bpmnElement="task_validate_tiss_schema">
+        <dc:Bounds x="2153" y="260" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Activity_12h252t_di" bpmnElement="task_fix_schema">
+        <dc:Bounds x="2273" y="80" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Association_1o8fjgv_di" bpmnElement="Association_1o8fjgv" bioc:stroke="#0d4372" color:border-color="#0d4372">
+        <di:waypoint x="940" y="260" />
+        <di:waypoint x="940" y="215" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape id="TextAnnotation_1lnuurq_di" bpmnElement="TextAnnotation_1lnuurq">
+        <dc:Bounds x="238" y="370" width="100" height="41" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="TextAnnotation_1aswfkn_di" bpmnElement="TextAnnotation_1aswfkn" bioc:stroke="#0d4372" bioc:fill="#bbdefb" color:background-color="#bbdefb" color:border-color="#0d4372">
+        <dc:Bounds x="720" y="375" width="207" height="27" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="TextAnnotation_0ihrjfu_di" bpmnElement="TextAnnotation_0ihrjfu" bioc:stroke="#0d4372" bioc:fill="#bbdefb" color:background-color="#bbdefb" color:border-color="#0d4372">
+        <dc:Bounds x="1183" y="373" width="100" height="41" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="TextAnnotation_0iob7zm_di" bpmnElement="TextAnnotation_0iob7zm" bioc:stroke="#0d4372" bioc:fill="#bbdefb" color:background-color="#bbdefb" color:border-color="#0d4372">
+        <dc:Bounds x="885" y="450" width="100" height="55" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="TextAnnotation_18kdhp7_di" bpmnElement="TextAnnotation_18kdhp7" bioc:stroke="#0d4372" bioc:fill="#bbdefb" color:background-color="#bbdefb" color:border-color="#0d4372">
+        <dc:Bounds x="1590" y="180" width="100" height="30" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="TextAnnotation_1ewk36h_di" bpmnElement="TextAnnotation_1ewk36h" bioc:stroke="#0d4372" bioc:fill="#bbdefb" color:background-color="#bbdefb" color:border-color="#0d4372">
+        <dc:Bounds x="2013" y="190" width="100" height="30" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="TextAnnotation_1i41ify_di" bpmnElement="TextAnnotation_1i41ify" bioc:stroke="#0d4372" bioc:fill="#bbdefb" color:background-color="#bbdefb" color:border-color="#0d4372">
+        <dc:Bounds x="2528" y="196" width="100" height="30" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Event_05lsei9_di" bpmnElement="timer_submission_sla" bioc:stroke="#0d4372" bioc:fill="#bbdefb" color:background-color="#bbdefb" color:border-color="#0d4372">
+        <dc:Bounds x="2560" y="322" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="2584" y="377" width="53" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_error_tiss_generation" bpmnElement="error_tiss_generation" bioc:stroke="#0d4372" bioc:fill="#bbdefb" color:background-color="#bbdefb" color:border-color="#0d4372">
+        <dc:Bounds x="2045" y="322" width="36" height="36" />
+        <bpmndi:BPMNLabel color:color="#0d4372">
+          <dc:Bounds x="2039" y="382" width="49" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Edge_flow_to_validate_claim" bpmnElement="flow_to_validate_claim">
+        <di:waypoint x="188" y="300" />
+        <di:waypoint x="238" y="300" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_flow_to_validation_gateway" bpmnElement="flow_to_validation_gateway">
+        <di:waypoint x="338" y="300" />
+        <di:waypoint x="383" y="300" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_flow_valid" bpmnElement="flow_valid">
+        <di:waypoint x="433" y="300" />
+        <di:waypoint x="483" y="300" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="448" y="282" width="20" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_flow_invalid" bpmnElement="flow_invalid">
+        <di:waypoint x="408" y="325" />
+        <di:waypoint x="408" y="470" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="417" y="390" width="21" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_flow_to_calculate_charges" bpmnElement="flow_to_calculate_charges">
+        <di:waypoint x="583" y="300" />
+        <di:waypoint x="623" y="300" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_flow_to_dmn_modifier" bpmnElement="flow_to_dmn_modifier" bioc:stroke="#0d4372" color:border-color="#0d4372">
+        <di:waypoint x="723" y="300" />
+        <di:waypoint x="763" y="300" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_flow_to_dmn_bundle" bpmnElement="flow_to_dmn_bundle" bioc:stroke="#0d4372" color:border-color="#0d4372">
+        <di:waypoint x="863" y="300" />
+        <di:waypoint x="890" y="300" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_flow_to_apply_contract" bpmnElement="flow_to_apply_contract" bioc:stroke="#0d4372" color:border-color="#0d4372">
+        <di:waypoint x="990" y="300" />
+        <di:waypoint x="1043" y="300" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_flow_to_dmn_taxa" bpmnElement="flow_to_dmn_taxa" bioc:stroke="#0d4372" color:border-color="#0d4372">
+        <di:waypoint x="1143" y="300" />
+        <di:waypoint x="1183" y="300" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_flow_to_dmn_opme" bpmnElement="flow_to_dmn_opme" bioc:stroke="#0d4372" color:border-color="#0d4372">
+        <di:waypoint x="1283" y="300" />
+        <di:waypoint x="1323" y="300" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_flow_to_generate_tiss" bpmnElement="flow_to_generate_tiss" bioc:stroke="#0d4372" color:border-color="#0d4372">
+        <di:waypoint x="1423" y="300" />
+        <di:waypoint x="1460" y="300" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_flow_to_validate_schema" bpmnElement="flow_to_validate_schema">
+        <di:waypoint x="2113" y="300" />
+        <di:waypoint x="2153" y="300" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_flow_to_schema_gateway" bpmnElement="flow_to_schema_gateway">
+        <di:waypoint x="2253" y="300" />
+        <di:waypoint x="2298" y="300" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_flow_schema_valid" bpmnElement="flow_schema_valid">
+        <di:waypoint x="2348" y="300" />
+        <di:waypoint x="2415" y="300" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="2364" y="282" width="20" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_flow_schema_invalid" bpmnElement="flow_schema_invalid">
+        <di:waypoint x="2323" y="275" />
+        <di:waypoint x="2323" y="160" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="2339" y="211" width="21" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_flow_to_manual_tiss" bpmnElement="flow_to_manual_tiss" bioc:stroke="#0d4372" color:border-color="#0d4372">
+        <di:waypoint x="2063" y="358" />
+        <di:waypoint x="2063" y="438" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_flow_to_escalate_submission" bpmnElement="flow_to_escalate_submission" bioc:stroke="#0d4372" color:border-color="#0d4372">
+        <di:waypoint x="2578" y="358" />
+        <di:waypoint x="2578" y="438" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_flow_to_end_success" bpmnElement="flow_to_end_success" bioc:stroke="#0d4372" color:border-color="#0d4372">
+        <di:waypoint x="2628" y="300" />
+        <di:waypoint x="2678" y="300" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_flow_to_end_corrections" bpmnElement="flow_to_end_corrections">
+        <di:waypoint x="408" y="550" />
+        <di:waypoint x="408" y="612" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_0e1taz1_di" bpmnElement="Flow_0e1taz1" bioc:stroke="#0d4372" color:border-color="#0d4372">
+        <di:waypoint x="1560" y="300" />
+        <di:waypoint x="1590" y="300" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_0hu85jy_di" bpmnElement="Flow_0hu85jy" bioc:stroke="#0d4372" color:border-color="#0d4372">
+        <di:waypoint x="1690" y="300" />
+        <di:waypoint x="1730" y="300" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_1samn4d_di" bpmnElement="Flow_1samn4d">
+        <di:waypoint x="1830" y="300" />
+        <di:waypoint x="1895" y="300" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_113i7r0_di" bpmnElement="Flow_113i7r0" bioc:stroke="#0d4372" color:border-color="#0d4372">
+        <di:waypoint x="1945" y="300" />
+        <di:waypoint x="2013" y="300" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_1600s33_di" bpmnElement="Flow_1600s33" bioc:stroke="#0d4372" color:border-color="#0d4372">
+        <di:waypoint x="2013" y="478" />
+        <di:waypoint x="1938" y="478" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_0i3kylf_di" bpmnElement="Flow_0i3kylf" bioc:stroke="#0d4372" color:border-color="#0d4372">
+        <di:waypoint x="1920" y="460" />
+        <di:waypoint x="1920" y="325" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_flow_to_end_schema_fix" bpmnElement="flow_to_end_schema_fix">
+        <di:waypoint x="2373" y="120" />
+        <di:waypoint x="2422" y="120" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_0qz6nw7_di" bpmnElement="Flow_0qz6nw7" bioc:stroke="#0d4372" color:border-color="#0d4372">
+        <di:waypoint x="2528" y="478" />
+        <di:waypoint x="2458" y="478" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_03vhw0f_di" bpmnElement="Flow_03vhw0f" bioc:stroke="#0d4372" color:border-color="#0d4372">
+        <di:waypoint x="2465" y="300" />
+        <di:waypoint x="2528" y="300" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_0qdhj6v_di" bpmnElement="Flow_0qdhj6v" bioc:stroke="#0d4372" color:border-color="#0d4372">
+        <di:waypoint x="2440" y="460" />
+        <di:waypoint x="2440" y="325" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Association_0a0x0th_di" bpmnElement="Association_0a0x0th">
+        <di:waypoint x="288" y="340" />
+        <di:waypoint x="288" y="370" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Association_0nir0nh_di" bpmnElement="Association_0nir0nh" bioc:stroke="#0d4372" color:border-color="#0d4372">
+        <di:waypoint x="813" y="340" />
+        <di:waypoint x="813" y="375" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Association_0w6dx2j_di" bpmnElement="Association_0w6dx2j" bioc:stroke="#0d4372" color:border-color="#0d4372">
+        <di:waypoint x="1233" y="340" />
+        <di:waypoint x="1233" y="373" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Association_04x8aal_di" bpmnElement="Association_04x8aal" bioc:stroke="#0d4372" color:border-color="#0d4372">
+        <di:waypoint x="940" y="340" />
+        <di:waypoint x="940" y="450" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Association_1h6gprz_di" bpmnElement="Association_1h6gprz" bioc:stroke="#0d4372" color:border-color="#0d4372">
+        <di:waypoint x="1640" y="260" />
+        <di:waypoint x="1640" y="210" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Association_0nm04yn_di" bpmnElement="Association_0nm04yn" bioc:stroke="#0d4372" color:border-color="#0d4372">
+        <di:waypoint x="2063" y="260" />
+        <di:waypoint x="2063" y="220" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Association_13ve4ej_di" bpmnElement="Association_13ve4ej" bioc:stroke="#0d4372" color:border-color="#0d4372">
+        <di:waypoint x="2578" y="260" />
+        <di:waypoint x="2578" y="226" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape id="TextAnnotation_0zo15cg_di" bpmnElement="TextAnnotation_0zo15cg" bioc:stroke="#0d4372" bioc:fill="#bbdefb" color:background-color="#bbdefb" color:border-color="#0d4372">
+        <dc:Bounds x="890" y="174" width="100" height="41" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>

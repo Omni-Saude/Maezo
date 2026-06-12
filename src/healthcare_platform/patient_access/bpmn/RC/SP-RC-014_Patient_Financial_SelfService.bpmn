@@ -1,0 +1,476 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" xmlns:camunda="http://camunda.org/schema/1.0/bpmn" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" id="Definitions_SP_RC_014" targetNamespace="http://cib7.healthcare/revenue-cycle/financial-selfservice" exporter="Camunda Modeler" exporterVersion="5.35.0">
+  <bpmn:collaboration id="Collaboration_PatientFinancialSelfService">
+    <bpmn:participant id="Participant_PatientSelfService" name="AUTOATENDIMENTO FINANCEIRO PARA PACIENTES" processRef="SP_RC_014_Patient_Financial_SelfService" />
+    <bpmn:textAnnotation id="TextAnnotation_1a917xf">
+      <bpmn:text>qual o gatilho real para dar início a esse processo?</bpmn:text>
+    </bpmn:textAnnotation>
+    <bpmn:textAnnotation id="TextAnnotation_0loiqwi">
+      <bpmn:text>Falta BPMN dedicado para cancelamento de cobrança, estorno de pagamento e chargeback. Para o portal, criar:
+(1) Processo de cancelamento de cobrança (antes do pagamento),
+(2) Processo de estorno/reembolso (após pagamento),
+(3) Processo de chargeback de cartão de crédito,</bpmn:text>
+    </bpmn:textAnnotation>
+    <bpmn:textAnnotation id="TextAnnotation_0koqwka">
+      <bpmn:text>coletar justificativa junto ao Pós-Venda</bpmn:text>
+    </bpmn:textAnnotation>
+    <bpmn:association id="Association_1cr6rkx" associationDirection="None" sourceRef="Activity_1vwhrk4" targetRef="TextAnnotation_0koqwka" />
+    <bpmn:association id="Association_19n7dcr" associationDirection="None" sourceRef="StartEvent_FinancialServiceTriggered" targetRef="TextAnnotation_1a917xf" />
+  </bpmn:collaboration>
+  <bpmn:process id="SP_RC_014_Patient_Financial_SelfService" name="Autoatendimento Financeiro do Paciente" isExecutable="true" camunda:versionTag="1.0.0" camunda:historyTimeToLive="30">
+    <bpmn:sequenceFlow id="Flow_PreVisitEstimate" name="Orçamento" sourceRef="Gateway_ServiceType" targetRef="Task_CalculateCopayEstimate">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${serviceType == 'PRE_VISIT_ESTIMATE'}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_1y8re44" sourceRef="Activity_1lkmtbn" targetRef="Gateway_1ukgpvb" />
+    <bpmn:sequenceFlow id="Flow_1mrb90a" sourceRef="Activity_1vwhrk4" targetRef="Gateway_1lv6ayl" />
+    <bpmn:sequenceFlow id="Flow_ToPatientAction" sourceRef="Task_SendBillNotification" targetRef="Gateway_PatientAction" />
+    <bpmn:sequenceFlow id="Flow_QuestionBill" name="dúvida" sourceRef="Gateway_PatientAction" targetRef="Task_RouteBillingSupport" />
+    <bpmn:sequenceFlow id="Flow_ViewBill" name="visualização" sourceRef="Gateway_PatientAction" targetRef="Task_SendDetailedBill">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${patientAction == 'VIEW'}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_PayBill" name="pagamento" sourceRef="Gateway_PatientAction" targetRef="Gateway_1ukgpvb">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${patientAction == 'PAY'}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_ToSendBillNotification" sourceRef="Task_GenerateBillDetails" targetRef="Task_SendBillNotification" />
+    <bpmn:sequenceFlow id="Flow_BillReady" name="conta pronta" sourceRef="Gateway_ServiceType" targetRef="Task_GenerateBillDetails">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${serviceType == 'BILL_READY'}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_ToServiceTypeGateway" sourceRef="StartEvent_FinancialServiceTriggered" targetRef="Gateway_ServiceType" />
+    <bpmn:sequenceFlow id="Flow_InsuranceUpdate" name="Informações&#10;sobre o plano" sourceRef="Gateway_ServiceType" targetRef="Task_RequestInsuranceInfo" />
+    <bpmn:sequenceFlow id="Flow_ViewToMerge" sourceRef="Task_SendDetailedBill" targetRef="Gateway_1fs6ggx" />
+    <bpmn:sequenceFlow id="Flow_PaymentToMerge" sourceRef="Activity_1nfug9a" targetRef="Gateway_1lv6ayl" />
+    <bpmn:sequenceFlow id="Flow_0rhe02j" sourceRef="Gateway_1lv6ayl" targetRef="Gateway_1c9m4ve" />
+    <bpmn:sequenceFlow id="Flow_1ppyxnl" sourceRef="Gateway_03wtcaa" targetRef="Gateway_1fs6ggx" />
+    <bpmn:sequenceFlow id="Flow_1u45hjv" sourceRef="Gateway_1fs6ggx" targetRef="Task_UpdateFinancialRecord" />
+    <bpmn:sequenceFlow id="Flow_1lrxl3r" sourceRef="Task_RouteBillingSupport" targetRef="Gateway_03wtcaa" />
+    <bpmn:sequenceFlow id="Flow_ToInsuranceResponse" sourceRef="Task_RequestInsuranceInfo" targetRef="Event_InsuranceResponse" />
+    <bpmn:sequenceFlow id="Flow_ToVerifyCoverage" sourceRef="Event_InsuranceResponse" targetRef="Task_VerifyCoverage" />
+    <bpmn:sequenceFlow id="Flow_ToEnd" sourceRef="Task_UpdateFinancialRecord" targetRef="EndEvent_FinancialServiceComplete" />
+    <bpmn:serviceTask id="Task_SendEstimate" name="Enviar orçamento" camunda:type="external" camunda:topic="financial.send_estimate">
+      <bpmn:incoming>Flow_ToSendEstimate</bpmn:incoming>
+      <bpmn:outgoing>Flow_ToPatientAck</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:serviceTask id="Task_CalculateCopayEstimate" name="Realizar&#10;orçamento" camunda:type="external" camunda:topic="financial.copay_estimate">
+      <bpmn:incoming>Flow_PreVisitEstimate</bpmn:incoming>
+      <bpmn:outgoing>Flow_ToSendEstimate</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:serviceTask id="Activity_1lkmtbn" name="Obter ciência do paciente" camunda:type="external" camunda:topic="financial.patient_acknowledgment">
+      <bpmn:incoming>Flow_ToPatientAck</bpmn:incoming>
+      <bpmn:outgoing>Flow_1y8re44</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:boundaryEvent id="BoundaryEvent_AckTimeout" name="após 24h&#10;sem retorno" attachedToRef="Activity_1lkmtbn">
+      <bpmn:outgoing>Flow_AckTimeoutToMerge</bpmn:outgoing>
+      <bpmn:timerEventDefinition id="TimerEventDefinition_1f3sz9d">
+        <bpmn:timeDuration xsi:type="bpmn:tFormalExpression">P3D</bpmn:timeDuration>
+      </bpmn:timerEventDefinition>
+    </bpmn:boundaryEvent>
+    <bpmn:sequenceFlow id="Flow_ToSendEstimate" sourceRef="Task_CalculateCopayEstimate" targetRef="Task_SendEstimate" />
+    <bpmn:sequenceFlow id="Flow_ToPatientAck" sourceRef="Task_SendEstimate" targetRef="Activity_1lkmtbn" />
+    <bpmn:sequenceFlow id="Flow_AckTimeoutToMerge" sourceRef="BoundaryEvent_AckTimeout" targetRef="Activity_1vwhrk4" />
+    <bpmn:exclusiveGateway id="Gateway_PatientAction" name="Ação do&#10;paciente" default="Flow_QuestionBill">
+      <bpmn:incoming>Flow_ToPatientAction</bpmn:incoming>
+      <bpmn:outgoing>Flow_ViewBill</bpmn:outgoing>
+      <bpmn:outgoing>Flow_PayBill</bpmn:outgoing>
+      <bpmn:outgoing>Flow_QuestionBill</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:serviceTask id="Task_SendBillNotification" name="Enviar aviso de cobrança" camunda:type="external" camunda:topic="financial.bill_notification">
+      <bpmn:incoming>Flow_ToSendBillNotification</bpmn:incoming>
+      <bpmn:outgoing>Flow_ToPatientAction</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:serviceTask id="Task_GenerateBillDetails" name="Gerar detalhes da fatura" camunda:type="external" camunda:topic="financial.bill_ready">
+      <bpmn:incoming>Flow_BillReady</bpmn:incoming>
+      <bpmn:outgoing>Flow_ToSendBillNotification</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:exclusiveGateway id="Gateway_ServiceType" name="tipo de serviço" default="Flow_InsuranceUpdate">
+      <bpmn:incoming>Flow_ToServiceTypeGateway</bpmn:incoming>
+      <bpmn:outgoing>Flow_PreVisitEstimate</bpmn:outgoing>
+      <bpmn:outgoing>Flow_BillReady</bpmn:outgoing>
+      <bpmn:outgoing>Flow_InsuranceUpdate</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:serviceTask id="Task_RequestInsuranceInfo" name="Solicitar informações" camunda:type="external" camunda:topic="financial.insurance_request">
+      <bpmn:incoming>Flow_InsuranceUpdate</bpmn:incoming>
+      <bpmn:outgoing>Flow_ToInsuranceResponse</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:exclusiveGateway id="Gateway_1fs6ggx">
+      <bpmn:incoming>Flow_ViewToMerge</bpmn:incoming>
+      <bpmn:incoming>Flow_1ppyxnl</bpmn:incoming>
+      <bpmn:incoming>Flow_0l5guoa</bpmn:incoming>
+      <bpmn:outgoing>Flow_1u45hjv</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:serviceTask id="Task_SendDetailedBill" name="Enviar fatura detalhada" camunda:type="external" camunda:topic="financial.bill_detail">
+      <bpmn:incoming>Flow_ViewBill</bpmn:incoming>
+      <bpmn:outgoing>Flow_ViewToMerge</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:sequenceFlow id="Flow_14ddlj2" sourceRef="Gateway_1ukgpvb" targetRef="Activity_1nfug9a" />
+    <bpmn:manualTask id="Activity_1vwhrk4" name="Cancelar&#10;orçamento">
+      <bpmn:incoming>Flow_AckTimeoutToMerge</bpmn:incoming>
+      <bpmn:outgoing>Flow_1mrb90a</bpmn:outgoing>
+    </bpmn:manualTask>
+    <bpmn:serviceTask id="Task_RouteBillingSupport" name="Enviar suporte&#10;de cobrança" camunda:type="external" camunda:topic="financial.billing_support">
+      <bpmn:incoming>Flow_QuestionBill</bpmn:incoming>
+      <bpmn:outgoing>Flow_1lrxl3r</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:serviceTask id="Task_VerifyCoverage" name="Validar cobertura" camunda:type="external" camunda:topic="financial.verify_coverage">
+      <bpmn:incoming>Flow_ToVerifyCoverage</bpmn:incoming>
+    </bpmn:serviceTask>
+    <bpmn:boundaryEvent id="BoundaryEvent_InsuranceTimeout" name="após 7 dias&#10;sem validação" attachedToRef="Task_VerifyCoverage">
+      <bpmn:outgoing>Flow_07utwp4</bpmn:outgoing>
+      <bpmn:timerEventDefinition id="TimerEventDefinition_InsuranceTimeout">
+        <bpmn:timeDuration xsi:type="bpmn:tFormalExpression">P7D</bpmn:timeDuration>
+      </bpmn:timerEventDefinition>
+    </bpmn:boundaryEvent>
+    <bpmn:exclusiveGateway id="Gateway_03wtcaa">
+      <bpmn:incoming>Flow_1lrxl3r</bpmn:incoming>
+      <bpmn:incoming>Flow_07utwp4</bpmn:incoming>
+      <bpmn:outgoing>Flow_1ppyxnl</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:intermediateCatchEvent id="Event_InsuranceResponse" name="resposta do&#10;convênio">
+      <bpmn:incoming>Flow_ToInsuranceResponse</bpmn:incoming>
+      <bpmn:outgoing>Flow_ToVerifyCoverage</bpmn:outgoing>
+      <bpmn:messageEventDefinition id="MessageEventDefinition_InsuranceResponse" messageRef="Message_InsuranceResponse" />
+    </bpmn:intermediateCatchEvent>
+    <bpmn:startEvent id="StartEvent_FinancialServiceTriggered" name="disparo de serviço financeiro">
+      <bpmn:outgoing>Flow_ToServiceTypeGateway</bpmn:outgoing>
+    </bpmn:startEvent>
+    <bpmn:sequenceFlow id="Flow_07utwp4" sourceRef="BoundaryEvent_InsuranceTimeout" targetRef="Gateway_03wtcaa" />
+    <bpmn:endEvent id="EndEvent_FinancialServiceComplete" name="Serviço financeiro concluído">
+      <bpmn:incoming>Flow_ToEnd</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:serviceTask id="Task_UpdateFinancialRecord" name="Atualizar registro no TASY" camunda:type="external" camunda:topic="financial.update_record">
+      <bpmn:incoming>Flow_1u45hjv</bpmn:incoming>
+      <bpmn:outgoing>Flow_ToEnd</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:sequenceFlow id="Flow_19ow8z6" name="desistência" sourceRef="Event_10hpvcr" targetRef="Activity_0nhfqoh" />
+    <bpmn:sequenceFlow id="Flow_0l5guoa" sourceRef="Gateway_1c9m4ve" targetRef="Gateway_1fs6ggx" />
+    <bpmn:sequenceFlow id="Flow_1bbahp8" sourceRef="Activity_0nhfqoh" targetRef="Gateway_1c9m4ve" />
+    <bpmn:exclusiveGateway id="Gateway_1ukgpvb">
+      <bpmn:incoming>Flow_PayBill</bpmn:incoming>
+      <bpmn:incoming>Flow_1y8re44</bpmn:incoming>
+      <bpmn:outgoing>Flow_14ddlj2</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:subProcess id="Activity_1nfug9a" name="SP-RC-015&#10;Pagamento">
+      <bpmn:incoming>Flow_14ddlj2</bpmn:incoming>
+      <bpmn:outgoing>Flow_PaymentToMerge</bpmn:outgoing>
+      <bpmn:startEvent id="StartEvent_Activity_1nfug9a" name="Start">
+        <bpmn:outgoing>Flow_internal_Activity_1nfug9a</bpmn:outgoing>
+      </bpmn:startEvent>
+      <bpmn:endEvent id="EndEvent_Activity_1nfug9a" name="End">
+        <bpmn:incoming>Flow_internal_Activity_1nfug9a</bpmn:incoming>
+      </bpmn:endEvent>
+      <bpmn:sequenceFlow id="Flow_internal_Activity_1nfug9a" sourceRef="StartEvent_Activity_1nfug9a" targetRef="EndEvent_Activity_1nfug9a" />
+    </bpmn:subProcess>
+    <bpmn:exclusiveGateway id="Gateway_1lv6ayl">
+      <bpmn:incoming>Flow_1mrb90a</bpmn:incoming>
+      <bpmn:incoming>Flow_PaymentToMerge</bpmn:incoming>
+      <bpmn:outgoing>Flow_0rhe02j</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:exclusiveGateway id="Gateway_1c9m4ve">
+      <bpmn:incoming>Flow_0rhe02j</bpmn:incoming>
+      <bpmn:incoming>Flow_1bbahp8</bpmn:incoming>
+      <bpmn:outgoing>Flow_0l5guoa</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:boundaryEvent id="Event_10hpvcr" attachedToRef="Activity_1nfug9a">
+      <bpmn:outgoing>Flow_19ow8z6</bpmn:outgoing>
+      <bpmn:errorEventDefinition id="ErrorEventDefinition_0h13s2x" />
+    </bpmn:boundaryEvent>
+    <bpmn:subProcess id="Activity_0nhfqoh" name="SP-RC_016&#10;Restituição">
+      <bpmn:incoming>Flow_19ow8z6</bpmn:incoming>
+      <bpmn:outgoing>Flow_1bbahp8</bpmn:outgoing>
+      <bpmn:startEvent id="StartEvent_Activity_0nhfqoh" name="Start">
+        <bpmn:outgoing>Flow_internal_Activity_0nhfqoh</bpmn:outgoing>
+      </bpmn:startEvent>
+      <bpmn:endEvent id="EndEvent_Activity_0nhfqoh" name="End">
+        <bpmn:incoming>Flow_internal_Activity_0nhfqoh</bpmn:incoming>
+      </bpmn:endEvent>
+      <bpmn:sequenceFlow id="Flow_internal_Activity_0nhfqoh" sourceRef="StartEvent_Activity_0nhfqoh" targetRef="EndEvent_Activity_0nhfqoh" />
+    </bpmn:subProcess>
+  </bpmn:process>
+  <bpmn:message id="Message_PatientAck" name="msg_patient_ack" />
+  <bpmn:message id="Message_PaymentResponse" name="msg_payment_response" />
+  <bpmn:message id="Message_InsuranceResponse" name="msg_insurance_response" />
+  <bpmn:error id="Error_FinancialPayment" name="FINANCIAL_PAYMENT_ERROR" errorCode="FIN_PAYMENT" />
+  <bpmn:error id="Error_FinancialEstimate" name="FINANCIAL_ESTIMATE_ERROR" errorCode="FIN_ESTIMATE" />
+  <bpmndi:BPMNDiagram id="BPMNDiagram_SP_RC_014">
+    <bpmndi:BPMNPlane id="BPMNPlane_SP_RC_014" bpmnElement="Collaboration_PatientFinancialSelfService">
+      <bpmndi:BPMNShape id="Participant_PatientSelfService_di" bpmnElement="Participant_PatientSelfService" isHorizontal="true">
+        <dc:Bounds x="130" y="80" width="1760" height="1170" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_SendEstimate_di" bpmnElement="Task_SendEstimate">
+        <dc:Bounds x="809" y="240" width="100" height="80" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_CalculateCopayEstimate_di" bpmnElement="Task_CalculateCopayEstimate">
+        <dc:Bounds x="649" y="240" width="100" height="80" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Activity_172ga3g_di" bpmnElement="Activity_1lkmtbn">
+        <dc:Bounds x="999" y="240" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Gateway_PatientAction_di" bpmnElement="Gateway_PatientAction" isMarkerVisible="true">
+        <dc:Bounds x="834" y="625" width="50" height="50" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="839" y="696" width="42" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_SendBillNotification_di" bpmnElement="Task_SendBillNotification">
+        <dc:Bounds x="699" y="610" width="100" height="80" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_GenerateBillDetails_di" bpmnElement="Task_GenerateBillDetails">
+        <dc:Bounds x="549" y="610" width="100" height="80" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Gateway_ServiceType_di" bpmnElement="Gateway_ServiceType" isMarkerVisible="true">
+        <dc:Bounds x="424" y="625" width="50" height="50" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="323.5" y="625" width="71" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_RequestInsuranceInfo_di" bpmnElement="Task_RequestInsuranceInfo">
+        <dc:Bounds x="570" y="1110" width="100" height="80" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Gateway_1fs6ggx_di" bpmnElement="Gateway_1fs6ggx" isMarkerVisible="true">
+        <dc:Bounds x="1414" y="625" width="50" height="50" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_SendDetailedBill_di" bpmnElement="Task_SendDetailedBill">
+        <dc:Bounds x="999" y="610" width="100" height="80" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Activity_1vwhrk4_di" bpmnElement="Activity_1vwhrk4">
+        <dc:Bounds x="1220" y="240" width="100" height="80" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_RouteBillingSupport_di" bpmnElement="Task_RouteBillingSupport">
+        <dc:Bounds x="999" y="810" width="100" height="80" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_VerifyCoverage_di" bpmnElement="Task_VerifyCoverage">
+        <dc:Bounds x="999" y="1110" width="100" height="80" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Gateway_03wtcaa_di" bpmnElement="Gateway_03wtcaa" isMarkerVisible="true">
+        <dc:Bounds x="1024" y="956" width="50" height="50" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Event_InsuranceResponse_di" bpmnElement="Event_InsuranceResponse">
+        <dc:Bounds x="841" y="1132" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="830" y="1176" width="58" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="StartEvent_FinancialServiceTriggered_di" bpmnElement="StartEvent_FinancialServiceTriggered">
+        <dc:Bounds x="282" y="632" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="255" y="595" width="90" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="EndEvent_FinancialServiceComplete_di" bpmnElement="EndEvent_FinancialServiceComplete">
+        <dc:Bounds x="1712" y="632" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1686" y="686" width="88" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_UpdateFinancialRecord_di" bpmnElement="Task_UpdateFinancialRecord">
+        <dc:Bounds x="1540" y="610" width="100" height="80" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Gateway_1ukgpvb_di" bpmnElement="Gateway_1ukgpvb" isMarkerVisible="true">
+        <dc:Bounds x="1024" y="375" width="50" height="50" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Activity_0rs0osh_di" bpmnElement="Activity_1nfug9a">
+        <dc:Bounds x="1220" y="360" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Gateway_1lv6ayl_di" bpmnElement="Gateway_1lv6ayl" isMarkerVisible="true">
+        <dc:Bounds x="1414" y="375" width="50" height="50" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Gateway_1c9m4ve_di" bpmnElement="Gateway_1c9m4ve" isMarkerVisible="true">
+        <dc:Bounds x="1414" y="515" width="50" height="50" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="BPMNShape_0f1q8t7" bpmnElement="Activity_0nhfqoh">
+        <dc:Bounds x="1270" y="500" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Event_10hpvcr_di" bpmnElement="Event_10hpvcr">
+        <dc:Bounds x="1202" y="422" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="BoundaryEvent_InsuranceTimeout_di" bpmnElement="BoundaryEvent_InsuranceTimeout">
+        <dc:Bounds x="1031" y="1092" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1104" y="967" width="71" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Event_1sriif5_di" bpmnElement="BoundaryEvent_AckTimeout">
+        <dc:Bounds x="1081" y="262" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1140" y="266" width="59" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Flow_PreVisitEstimate_di" bpmnElement="Flow_PreVisitEstimate">
+        <di:waypoint x="449" y="625" />
+        <di:waypoint x="449" y="280" />
+        <di:waypoint x="649" y="280" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="522" y="323" width="55" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_1y8re44_di" bpmnElement="Flow_1y8re44">
+        <di:waypoint x="1049" y="320" />
+        <di:waypoint x="1049" y="375" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_1mrb90a_di" bpmnElement="Flow_1mrb90a">
+        <di:waypoint x="1320" y="280" />
+        <di:waypoint x="1439" y="280" />
+        <di:waypoint x="1439" y="375" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_ToPatientAction_di" bpmnElement="Flow_ToPatientAction">
+        <di:waypoint x="799" y="650" />
+        <di:waypoint x="834" y="650" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_QuestionBill_di" bpmnElement="Flow_QuestionBill">
+        <di:waypoint x="859" y="675" />
+        <di:waypoint x="859" y="850" />
+        <di:waypoint x="999" y="850" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="883" y="823" width="33" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_ViewBill_di" bpmnElement="Flow_ViewBill">
+        <di:waypoint x="884" y="650" />
+        <di:waypoint x="999" y="650" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="890" y="625" width="60" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_PayBill_di" bpmnElement="Flow_PayBill">
+        <di:waypoint x="859" y="625" />
+        <di:waypoint x="859" y="400" />
+        <di:waypoint x="1024" y="400" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="892" y="375" width="56" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_ToSendBillNotification_di" bpmnElement="Flow_ToSendBillNotification">
+        <di:waypoint x="649" y="650" />
+        <di:waypoint x="699" y="650" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_BillReady_di" bpmnElement="Flow_BillReady">
+        <di:waypoint x="474" y="650" />
+        <di:waypoint x="549" y="650" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="475" y="625" width="62" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_ToServiceTypeGateway_di" bpmnElement="Flow_ToServiceTypeGateway">
+        <di:waypoint x="318" y="650" />
+        <di:waypoint x="424" y="650" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_InsuranceUpdate_di" bpmnElement="Flow_InsuranceUpdate">
+        <di:waypoint x="449" y="675" />
+        <di:waypoint x="449" y="1150" />
+        <di:waypoint x="570" y="1150" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="450" y="992" width="67" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_ViewToMerge_di" bpmnElement="Flow_ViewToMerge">
+        <di:waypoint x="1099" y="650" />
+        <di:waypoint x="1414" y="650" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_PaymentToMerge_di" bpmnElement="Flow_PaymentToMerge">
+        <di:waypoint x="1320" y="400" />
+        <di:waypoint x="1414" y="400" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_0rhe02j_di" bpmnElement="Flow_0rhe02j">
+        <di:waypoint x="1439" y="425" />
+        <di:waypoint x="1439" y="515" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_1ppyxnl_di" bpmnElement="Flow_1ppyxnl">
+        <di:waypoint x="1074" y="981" />
+        <di:waypoint x="1439" y="981" />
+        <di:waypoint x="1439" y="675" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_1u45hjv_di" bpmnElement="Flow_1u45hjv">
+        <di:waypoint x="1464" y="650" />
+        <di:waypoint x="1540" y="650" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_1lrxl3r_di" bpmnElement="Flow_1lrxl3r">
+        <di:waypoint x="1049" y="890" />
+        <di:waypoint x="1049" y="956" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_ToInsuranceResponse_di" bpmnElement="Flow_ToInsuranceResponse">
+        <di:waypoint x="670" y="1150" />
+        <di:waypoint x="841" y="1150" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_ToVerifyCoverage_di" bpmnElement="Flow_ToVerifyCoverage">
+        <di:waypoint x="877" y="1150" />
+        <di:waypoint x="999" y="1150" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_ToEnd_di" bpmnElement="Flow_ToEnd">
+        <di:waypoint x="1640" y="650" />
+        <di:waypoint x="1712" y="650" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_ToSendEstimate_di" bpmnElement="Flow_ToSendEstimate">
+        <di:waypoint x="749" y="280" />
+        <di:waypoint x="809" y="280" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_ToPatientAck_di" bpmnElement="Flow_ToPatientAck">
+        <di:waypoint x="909" y="280" />
+        <di:waypoint x="999" y="280" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_AckTimeoutToMerge_di" bpmnElement="Flow_AckTimeoutToMerge">
+        <di:waypoint x="1117" y="280" />
+        <di:waypoint x="1220" y="280" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_14ddlj2_di" bpmnElement="Flow_14ddlj2">
+        <di:waypoint x="1074" y="400" />
+        <di:waypoint x="1220" y="400" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_07utwp4_di" bpmnElement="Flow_07utwp4">
+        <di:waypoint x="1049" y="1092" />
+        <di:waypoint x="1049" y="1006" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_19ow8z6_di" bpmnElement="Flow_19ow8z6">
+        <di:waypoint x="1220" y="458" />
+        <di:waypoint x="1220" y="540" />
+        <di:waypoint x="1270" y="540" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1232" y="473" width="56" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_0l5guoa_di" bpmnElement="Flow_0l5guoa">
+        <di:waypoint x="1439" y="565" />
+        <di:waypoint x="1439" y="625" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_1bbahp8_di" bpmnElement="Flow_1bbahp8">
+        <di:waypoint x="1370" y="540" />
+        <di:waypoint x="1414" y="540" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape id="TextAnnotation_1a917xf_di" bpmnElement="TextAnnotation_1a917xf">
+        <dc:Bounds x="235" y="750" width="145" height="70" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="TextAnnotation_0loiqwi_di" bpmnElement="TextAnnotation_0loiqwi">
+        <dc:Bounds x="1410" y="1110" width="420" height="101" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="BPMNShape_0qfeuzo" bpmnElement="TextAnnotation_0koqwka">
+        <dc:Bounds x="1205" y="140" width="130" height="60" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Association_1cr6rkx_di" bpmnElement="Association_1cr6rkx">
+        <di:waypoint x="1271" y="240" />
+        <di:waypoint x="1270" y="200" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Association_19n7dcr_di" bpmnElement="Association_19n7dcr">
+        <di:waypoint x="300" y="668" />
+        <di:waypoint x="300" y="750" />
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+  <bpmndi:BPMNDiagram id="BPMNDiagram_0mj78wy">
+    <bpmndi:BPMNPlane id="BPMNPlane_1683qeb" bpmnElement="Activity_0nhfqoh" />
+  </bpmndi:BPMNDiagram>
+  <bpmndi:BPMNDiagram id="BPMNDiagram_0wt5q2h">
+    <bpmndi:BPMNPlane id="BPMNPlane_1rs9c0p" bpmnElement="Activity_1nfug9a" />
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>

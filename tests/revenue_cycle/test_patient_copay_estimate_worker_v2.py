@@ -49,12 +49,12 @@ def base_context():
         process_instance_id="proc_005",
         tenant_id="HOSPITAL_TEST",
         variables={
-            "patient_id": "pat_202",
-            "phone_number": "+5511955555555",
-            "appointment_id": "appt_789",
-            "estimated_copay": 150.00,
-            "insurance_coverage": 80.0,
-            "appointment_date": "2026-03-15",
+            "patientId": "pat_202",
+            "phoneNumber": "+5511955555555",
+            "appointmentId": "appt_789",
+            "estimatedCopay": 150.00,
+            "insuranceCoverage": 80.0,
+            "appointmentDate": "2026-03-15",
         },
         worker_id="financial.copay_estimate",
     )
@@ -62,7 +62,7 @@ def base_context():
 
 @pytest.fixture
 def worker(mock_dmn_service, mock_whatsapp_client, mock_metrics):
-    from healthcare_platform.revenue_cycle.workers.patient_copay_estimate_worker_v2 import (
+    from healthcare_platform.revenue_cycle.billing.workers.patient_copay_estimate_worker import (
         PatientCopayEstimateWorker,
     )
     return PatientCopayEstimateWorker(
@@ -78,14 +78,14 @@ class TestPatientCopayEstimateV2:
         result = worker.execute(base_context)
 
         assert result.status == TaskStatus.SUCCESS
-        assert result.variables["notification_sent"] is True
+        assert result.variables["notificationSent"] is True
         assert result.variables["resultado"] == "PROSSEGUIR"
-        assert result.variables["formatted_copay"] == "R$ 150,00"
+        assert result.variables["formattedCopay"] == "R$ 150,00"
         mock_whatsapp_client.send_template.assert_called_once()
 
     def test_bloquear_invalid_phone(self, worker, base_context, mock_dmn_service):
         """BLOQUEAR: invalid phone format returns BPMN error."""
-        base_context.variables["phone_number"] = "11999999999"  # missing +
+        base_context.variables["phoneNumber"] = "11999999999"  # missing +
         mock_dmn_service.evaluate.return_value = {
             "resultado": "BLOQUEAR",
             "acao": "Invalid phone format",
@@ -109,12 +109,12 @@ class TestPatientCopayEstimateV2:
         result = worker.execute(base_context)
 
         assert result.status == TaskStatus.SUCCESS
-        assert result.variables["notification_sent"] is False
-        assert result.variables["requires_review"] is True
+        assert result.variables["notificationSent"] is False
+        assert result.variables["requiresReview"] is True
 
     def test_missing_appointment_id_returns_bpmn_error(self, worker, base_context):
         """Missing appointment_id should return BPMN error."""
-        base_context.variables["appointment_id"] = ""
+        base_context.variables["appointmentId"] = ""
 
         result = worker.execute(base_context)
 
@@ -132,7 +132,7 @@ class TestPatientCopayEstimateV2:
 
     def test_invalid_coverage_blocked_by_dmn(self, worker, base_context, mock_dmn_service):
         """Coverage > 100 should be blocked by DMN."""
-        base_context.variables["insurance_coverage"] = 150.0
+        base_context.variables["insuranceCoverage"] = 150.0
         mock_dmn_service.evaluate.return_value = {
             "resultado": "BLOQUEAR",
             "acao": "Invalid coverage percentage",

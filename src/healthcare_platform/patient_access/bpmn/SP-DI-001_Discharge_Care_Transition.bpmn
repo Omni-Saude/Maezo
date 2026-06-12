@@ -1,0 +1,286 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+                  xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+                  xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+                  xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
+                  xmlns:camunda="http://camunda.org/schema/1.0/bpmn"
+                  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                  id="Definitions_SP_DI_001"
+                  targetNamespace="http://cib7.healthcare/patient-access/discharge"
+                  exporter="CIB Seven 2.1.3"
+                  exporterVersion="2.1.3"><bpmn:process id="SP_DI_001_Discharge_Care_Transition" name="Alta e Transição do Cuidado" isExecutable="true" camunda:historyTimeToLive="30">
+
+    <!-- Start Event: Discharge Requested -->
+    <bpmn:startEvent id="Start_DischargeRequested" name="Solicitação de Alta Recebida">
+      <bpmn:outgoing>Flow_ToVerifyCriteria</bpmn:outgoing>
+      <bpmn:messageEventDefinition messageRef="Message_DischargeRequested"/>
+    </bpmn:startEvent>
+
+    <!-- Task 1: Verify Discharge Criteria -->
+    <bpmn:serviceTask id="Task_VerifyDischargeCriteria" name="Verificar Critérios de Alta"
+                      camunda:type="external" camunda:topic="discharge.verify_discharge_criteria">
+      <bpmn:incoming>Flow_ToVerifyCriteria</bpmn:incoming>
+      <bpmn:outgoing>Flow_ToGatewayCriteria</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Timer Boundary: 24h SLA for discharge completion -->
+    <bpmn:boundaryEvent id="Timer_DischargeSLA" name="24h SLA" attachedToRef="Task_VerifyDischargeCriteria">
+      <bpmn:outgoing>Flow_SLATimeout</bpmn:outgoing>
+      <bpmn:timerEventDefinition>
+        <bpmn:timeDuration xsi:type="bpmn:tFormalExpression">PT24H</bpmn:timeDuration>
+      </bpmn:timerEventDefinition>
+    </bpmn:boundaryEvent>
+
+    <!-- Gateway: Criteria Met? -->
+    <bpmn:exclusiveGateway id="Gateway_CriteriaMet" name="Critérios Atendidos?" default="Flow_CriteriaNo">
+      <bpmn:incoming>Flow_ToGatewayCriteria</bpmn:incoming>
+      <bpmn:outgoing>Flow_CriteriaYes</bpmn:outgoing>
+      <bpmn:outgoing>Flow_CriteriaNo</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+
+    <!-- Task 2: Generate Discharge Summary -->
+    <bpmn:serviceTask id="Task_GenerateDischargeSummary" name="Gerar Sumário de Alta"
+                      camunda:type="external" camunda:topic="discharge.generate_discharge_summary">
+      <bpmn:incoming>Flow_CriteriaYes</bpmn:incoming>
+      <bpmn:outgoing>Flow_ToCoordinateTransition</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Error Boundary: Failed transition -->
+    <bpmn:boundaryEvent id="Error_TransitionFailed" name="Falha na Transição" attachedToRef="Task_GenerateDischargeSummary">
+      <bpmn:outgoing>Flow_ErrorToEnd</bpmn:outgoing>
+      <bpmn:errorEventDefinition errorRef="Error_DischargeTransition"/>
+    </bpmn:boundaryEvent>
+
+    <!-- Task 3: Coordinate Care Transition -->
+    <bpmn:serviceTask id="Task_CoordinateCareTransition" name="Coordenar Transição do Cuidado"
+                      camunda:type="external" camunda:topic="discharge.coordinate_care_transition">
+      <bpmn:incoming>Flow_ToCoordinateTransition</bpmn:incoming>
+      <bpmn:outgoing>Flow_ToScheduleFollowup</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Task 4: Schedule Follow-up -->
+    <bpmn:serviceTask id="Task_ScheduleFollowup" name="Agendar Retorno"
+                      camunda:type="external" camunda:topic="discharge.schedule_followup">
+      <bpmn:incoming>Flow_ToScheduleFollowup</bpmn:incoming>
+      <bpmn:outgoing>Flow_ToNotifyCareTeam</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Task 5: Notify Care Team -->
+    <bpmn:serviceTask id="Task_NotifyCareTeam" name="Notificar Equipe de Cuidado"
+                      camunda:type="external" camunda:topic="discharge.notify_care_team">
+      <bpmn:incoming>Flow_ToNotifyCareTeam</bpmn:incoming>
+      <bpmn:outgoing>Flow_ToSendWhatsApp</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Task 6: Send WhatsApp Notification -->
+    <bpmn:serviceTask id="Task_SendWhatsApp" name="Enviar Notificação WhatsApp"
+                      camunda:type="external" camunda:topic="platform.send_whatsapp">
+      <bpmn:incoming>Flow_ToSendWhatsApp</bpmn:incoming>
+      <bpmn:outgoing>Flow_ToEnd</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Handle Criteria Not Met -->
+    <bpmn:serviceTask id="Task_HandleCriteriaNotMet" name="Registrar Pendência de Critérios"
+                      camunda:type="external" camunda:topic="discharge.notify_care_team">
+      <bpmn:incoming>Flow_CriteriaNo</bpmn:incoming>
+      <bpmn:outgoing>Flow_CriteriaNotMetToEnd</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Handle SLA Timeout -->
+    <bpmn:serviceTask id="Task_HandleSLATimeout" name="Escalar Timeout de Alta"
+                      camunda:type="external" camunda:topic="discharge.notify_care_team">
+      <bpmn:incoming>Flow_SLATimeout</bpmn:incoming>
+      <bpmn:outgoing>Flow_SLAToEnd</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Handle Error -->
+    <bpmn:serviceTask id="Task_HandleError" name="Tratar Erro de Transição"
+                      camunda:type="external" camunda:topic="discharge.notify_care_team">
+      <bpmn:incoming>Flow_ErrorToEnd</bpmn:incoming>
+      <bpmn:outgoing>Flow_ErrorHandledToEnd</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- End Event -->
+    <bpmn:endEvent id="End_DischargeComplete" name="Alta Concluída">
+      <bpmn:incoming>Flow_ToEnd</bpmn:incoming>
+      <bpmn:incoming>Flow_CriteriaNotMetToEnd</bpmn:incoming>
+      <bpmn:incoming>Flow_SLAToEnd</bpmn:incoming>
+      <bpmn:incoming>Flow_ErrorHandledToEnd</bpmn:incoming>
+    </bpmn:endEvent>
+
+    <!-- Sequence Flows -->
+    <bpmn:sequenceFlow id="Flow_ToVerifyCriteria" sourceRef="Start_DischargeRequested" targetRef="Task_VerifyDischargeCriteria"/>
+    <bpmn:sequenceFlow id="Flow_ToGatewayCriteria" sourceRef="Task_VerifyDischargeCriteria" targetRef="Gateway_CriteriaMet"/>
+    <bpmn:sequenceFlow id="Flow_CriteriaYes" sourceRef="Gateway_CriteriaMet" targetRef="Task_GenerateDischargeSummary">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${discharge_criteria_met == true}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_CriteriaNo" sourceRef="Gateway_CriteriaMet" targetRef="Task_HandleCriteriaNotMet">
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_ToCoordinateTransition" sourceRef="Task_GenerateDischargeSummary" targetRef="Task_CoordinateCareTransition"/>
+    <bpmn:sequenceFlow id="Flow_ToScheduleFollowup" sourceRef="Task_CoordinateCareTransition" targetRef="Task_ScheduleFollowup"/>
+    <bpmn:sequenceFlow id="Flow_ToNotifyCareTeam" sourceRef="Task_ScheduleFollowup" targetRef="Task_NotifyCareTeam"/>
+    <bpmn:sequenceFlow id="Flow_ToSendWhatsApp" sourceRef="Task_NotifyCareTeam" targetRef="Task_SendWhatsApp"/>
+    <bpmn:sequenceFlow id="Flow_ToEnd" sourceRef="Task_SendWhatsApp" targetRef="End_DischargeComplete"/>
+    <bpmn:sequenceFlow id="Flow_CriteriaNotMetToEnd" sourceRef="Task_HandleCriteriaNotMet" targetRef="End_DischargeComplete"/>
+    <bpmn:sequenceFlow id="Flow_SLATimeout" sourceRef="Timer_DischargeSLA" targetRef="Task_HandleSLATimeout"/>
+    <bpmn:sequenceFlow id="Flow_SLAToEnd" sourceRef="Task_HandleSLATimeout" targetRef="End_DischargeComplete"/>
+    <bpmn:sequenceFlow id="Flow_ErrorToEnd" sourceRef="Error_TransitionFailed" targetRef="Task_HandleError"/>
+    <bpmn:sequenceFlow id="Flow_ErrorHandledToEnd" sourceRef="Task_HandleError" targetRef="End_DischargeComplete"/>
+
+  </bpmn:process>
+
+  <!-- Diagram Interchange -->
+    <bpmn:error id="Error_DischargeTransition" name="DISCHARGE_TRANSITION_ERROR" errorCode="DISCHARGE_TRANSITION_ERROR"/>
+  <bpmn:message id="Message_DischargeRequested" name="msg_discharge_requested"/>
+
+  <bpmndi:BPMNDiagram id="BPMNDiagram_SP_DI_001">
+    <bpmndi:BPMNPlane id="BPMNPlane_SP_DI_001" bpmnElement="SP_DI_001_Discharge_Care_Transition">
+
+      <bpmndi:BPMNShape id="Shape_Start_DischargeRequested" bpmnElement="Start_DischargeRequested">
+        <dc:Bounds x="152" y="102" width="36" height="36"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="131" y="145" width="78" height="27"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Shape_Task_VerifyDischargeCriteria" bpmnElement="Task_VerifyDischargeCriteria">
+        <dc:Bounds x="240" y="80" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Shape_Timer_DischargeSLA" bpmnElement="Timer_DischargeSLA">
+        <dc:Bounds x="272" y="142" width="36" height="36"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="308" y="173" width="50" height="14"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Shape_Gateway_CriteriaMet" bpmnElement="Gateway_CriteriaMet" isMarkerVisible="true">
+        <dc:Bounds x="395" y="95" width="50" height="50"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="380" y="65" width="80" height="14"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Shape_Task_GenerateDischargeSummary" bpmnElement="Task_GenerateDischargeSummary">
+        <dc:Bounds x="500" y="80" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Shape_Error_TransitionFailed" bpmnElement="Error_TransitionFailed">
+        <dc:Bounds x="532" y="142" width="36" height="36"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="568" y="173" width="60" height="14"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Shape_Task_CoordinateCareTransition" bpmnElement="Task_CoordinateCareTransition">
+        <dc:Bounds x="650" y="80" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Shape_Task_ScheduleFollowup" bpmnElement="Task_ScheduleFollowup">
+        <dc:Bounds x="800" y="80" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Shape_Task_NotifyCareTeam" bpmnElement="Task_NotifyCareTeam">
+        <dc:Bounds x="950" y="80" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Shape_Task_SendWhatsApp" bpmnElement="Task_SendWhatsApp">
+        <dc:Bounds x="1100" y="80" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Shape_Task_HandleCriteriaNotMet" bpmnElement="Task_HandleCriteriaNotMet">
+        <dc:Bounds x="500" y="280" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Shape_Task_HandleSLATimeout" bpmnElement="Task_HandleSLATimeout">
+        <dc:Bounds x="240" y="220" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Shape_Task_HandleError" bpmnElement="Task_HandleError">
+        <dc:Bounds x="500" y="220" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Shape_End_DischargeComplete" bpmnElement="End_DischargeComplete">
+        <dc:Bounds x="1262" y="102" width="36" height="36"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1240" y="145" width="80" height="14"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+
+      <!-- Edges -->
+      <bpmndi:BPMNEdge id="Edge_Flow_ToVerifyCriteria" bpmnElement="Flow_ToVerifyCriteria">
+        <di:waypoint x="188" y="120"/>
+        <di:waypoint x="240" y="120"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_Flow_ToGatewayCriteria" bpmnElement="Flow_ToGatewayCriteria">
+        <di:waypoint x="340" y="120"/>
+        <di:waypoint x="395" y="120"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_Flow_CriteriaYes" bpmnElement="Flow_CriteriaYes">
+        <di:waypoint x="445" y="120"/>
+        <di:waypoint x="500" y="120"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_Flow_CriteriaNo" bpmnElement="Flow_CriteriaNo">
+        <di:waypoint x="420" y="145"/>
+        <di:waypoint x="420" y="320"/>
+        <di:waypoint x="500" y="320"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_Flow_ToCoordinateTransition" bpmnElement="Flow_ToCoordinateTransition">
+        <di:waypoint x="600" y="120"/>
+        <di:waypoint x="650" y="120"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_Flow_ToScheduleFollowup" bpmnElement="Flow_ToScheduleFollowup">
+        <di:waypoint x="750" y="120"/>
+        <di:waypoint x="800" y="120"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_Flow_ToNotifyCareTeam" bpmnElement="Flow_ToNotifyCareTeam">
+        <di:waypoint x="900" y="120"/>
+        <di:waypoint x="950" y="120"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_Flow_ToSendWhatsApp" bpmnElement="Flow_ToSendWhatsApp">
+        <di:waypoint x="1050" y="120"/>
+        <di:waypoint x="1100" y="120"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_Flow_ToEnd" bpmnElement="Flow_ToEnd">
+        <di:waypoint x="1200" y="120"/>
+        <di:waypoint x="1262" y="120"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_Flow_CriteriaNotMetToEnd" bpmnElement="Flow_CriteriaNotMetToEnd">
+        <di:waypoint x="600" y="320"/>
+        <di:waypoint x="1280" y="320"/>
+        <di:waypoint x="1280" y="138"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_Flow_SLATimeout" bpmnElement="Flow_SLATimeout">
+        <di:waypoint x="290" y="178"/>
+        <di:waypoint x="290" y="220"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_Flow_SLAToEnd" bpmnElement="Flow_SLAToEnd">
+        <di:waypoint x="340" y="260"/>
+        <di:waypoint x="1280" y="260"/>
+        <di:waypoint x="1280" y="138"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_Flow_ErrorToEnd" bpmnElement="Flow_ErrorToEnd">
+        <di:waypoint x="550" y="178"/>
+        <di:waypoint x="550" y="220"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_Flow_ErrorHandledToEnd" bpmnElement="Flow_ErrorHandledToEnd">
+        <di:waypoint x="600" y="260"/>
+        <di:waypoint x="1280" y="260"/>
+        <di:waypoint x="1280" y="138"/>
+      </bpmndi:BPMNEdge>
+
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram></bpmn:definitions>

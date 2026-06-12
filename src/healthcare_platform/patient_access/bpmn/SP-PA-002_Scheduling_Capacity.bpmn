@@ -1,0 +1,214 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+                  xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+                  xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+                  xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
+                  xmlns:camunda="http://camunda.org/schema/1.0/bpmn"
+                  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                  id="Definitions_SchedulingCapacity"
+                  targetNamespace="http://cib7.health/patient/scheduling"
+                  exporter="Claude Code"
+                  exporterVersion="1.0">
+
+  <bpmn:process id="Process_SchedulingCapacity" name="SP-PA-002 Scheduling Capacity" isExecutable="true" camunda:historyTimeToLive="30">
+
+    <!-- Start Event: Demand Captured Signal -->
+    <bpmn:startEvent id="Start_DemandCaptured" name="Demand Captured">
+      <bpmn:outgoing>Flow_ToCheckAvailability</bpmn:outgoing>
+      <bpmn:signalEventDefinition signalRef="Signal_DemandCaptured"/>
+    </bpmn:startEvent>
+
+    <!-- Task 1: Check Availability -->
+    <bpmn:serviceTask id="Task_CheckAvailability" name="Check Availability"
+                      camunda:type="external" camunda:topic="scheduling.check_availability">
+      <bpmn:incoming>Flow_ToCheckAvailability</bpmn:incoming>
+      <bpmn:outgoing>Flow_ToBusinessRule</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Business Rule Task: Scheduling Rules -->
+    <bpmn:businessRuleTask id="Task_SchedulingRules" name="Apply Scheduling Rules"
+                           camunda:decisionRef="auth_timing_001"
+                           camunda:mapDecisionResult="singleResult">
+      <bpmn:incoming>Flow_ToBusinessRule</bpmn:incoming>
+      <bpmn:outgoing>Flow_ToCreateAppointment</bpmn:outgoing>
+    </bpmn:businessRuleTask>
+
+    <!-- Task 2: Create Appointment -->
+    <bpmn:serviceTask id="Task_CreateAppointment" name="Create Appointment"
+                      camunda:type="external" camunda:topic="scheduling.create_appointment">
+      <bpmn:incoming>Flow_ToCreateAppointment</bpmn:incoming>
+      <bpmn:outgoing>Flow_ToAssignResources</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Task 3: Assign Resources -->
+    <bpmn:serviceTask id="Task_AssignResources" name="Assign Resources"
+                      camunda:type="external" camunda:topic="scheduling.assign_resources">
+      <bpmn:incoming>Flow_ToAssignResources</bpmn:incoming>
+      <bpmn:outgoing>Flow_ToCalculateDuration</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Task 4: Calculate Estimated Duration -->
+    <bpmn:serviceTask id="Task_CalculateEstimatedDuration" name="Calculate Estimated Duration"
+                      camunda:type="external" camunda:topic="scheduling.calculate_estimated_duration">
+      <bpmn:incoming>Flow_ToCalculateDuration</bpmn:incoming>
+      <bpmn:outgoing>Flow_ToUpdateSystem</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Task 5: Update Scheduling System -->
+    <bpmn:serviceTask id="Task_UpdateSchedulingSystem" name="Update Scheduling System"
+                      camunda:type="external" camunda:topic="scheduling.update_scheduling_system">
+      <bpmn:incoming>Flow_ToUpdateSystem</bpmn:incoming>
+      <bpmn:outgoing>Flow_ToEnd</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Timer Boundary Event: 48h SLA -->
+    <bpmn:boundaryEvent id="Timer_48hSLA" name="48h SLA Exceeded" attachedToRef="Task_CreateAppointment" cancelActivity="true">
+      <bpmn:outgoing>Flow_SLAToEscalation</bpmn:outgoing>
+      <bpmn:timerEventDefinition>
+        <bpmn:timeDuration xsi:type="bpmn:tFormalExpression">PT48H</bpmn:timeDuration>
+      </bpmn:timerEventDefinition>
+    </bpmn:boundaryEvent>
+
+    <!-- Escalation Task -->
+    <bpmn:serviceTask id="Task_EscalateSLA" name="Escalate SLA Violation"
+                      camunda:type="external" camunda:topic="scheduling.escalate_sla">
+      <bpmn:incoming>Flow_SLAToEscalation</bpmn:incoming>
+      <bpmn:outgoing>Flow_EscalationToEnd</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- End Event -->
+    <bpmn:endEvent id="End_AppointmentCreated" name="Appointment Created">
+      <bpmn:incoming>Flow_ToEnd</bpmn:incoming>
+      <bpmn:incoming>Flow_EscalationToEnd</bpmn:incoming>
+    </bpmn:endEvent>
+
+    <!-- Sequence Flows -->
+    <bpmn:sequenceFlow id="Flow_ToCheckAvailability" sourceRef="Start_DemandCaptured" targetRef="Task_CheckAvailability"/>
+    <bpmn:sequenceFlow id="Flow_ToBusinessRule" sourceRef="Task_CheckAvailability" targetRef="Task_SchedulingRules"/>
+    <bpmn:sequenceFlow id="Flow_ToCreateAppointment" sourceRef="Task_SchedulingRules" targetRef="Task_CreateAppointment"/>
+    <bpmn:sequenceFlow id="Flow_ToAssignResources" sourceRef="Task_CreateAppointment" targetRef="Task_AssignResources"/>
+    <bpmn:sequenceFlow id="Flow_ToCalculateDuration" sourceRef="Task_AssignResources" targetRef="Task_CalculateEstimatedDuration"/>
+    <bpmn:sequenceFlow id="Flow_ToUpdateSystem" sourceRef="Task_CalculateEstimatedDuration" targetRef="Task_UpdateSchedulingSystem"/>
+    <bpmn:sequenceFlow id="Flow_ToEnd" sourceRef="Task_UpdateSchedulingSystem" targetRef="End_AppointmentCreated"/>
+    <bpmn:sequenceFlow id="Flow_SLAToEscalation" sourceRef="Timer_48hSLA" targetRef="Task_EscalateSLA"/>
+    <bpmn:sequenceFlow id="Flow_EscalationToEnd" sourceRef="Task_EscalateSLA" targetRef="End_AppointmentCreated"/>
+
+  </bpmn:process>
+
+  <!-- Signal Definition -->
+  <bpmn:signal id="Signal_DemandCaptured" name="DemandCapturedSignal"/>
+
+  <!-- Diagram Interchange -->
+  <bpmndi:BPMNDiagram id="BPMNDiagram_SchedulingCapacity">
+    <bpmndi:BPMNPlane id="BPMNPlane_SchedulingCapacity" bpmnElement="Process_SchedulingCapacity">
+
+      <!-- Start Event -->
+      <bpmndi:BPMNShape id="Shape_Start_DemandCaptured" bpmnElement="Start_DemandCaptured">
+        <dc:Bounds x="152" y="102" width="36" height="36"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="128" y="145" width="84" height="14"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+
+      <!-- Check Availability -->
+      <bpmndi:BPMNShape id="Shape_Task_CheckAvailability" bpmnElement="Task_CheckAvailability">
+        <dc:Bounds x="240" y="80" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <!-- Scheduling Rules -->
+      <bpmndi:BPMNShape id="Shape_Task_SchedulingRules" bpmnElement="Task_SchedulingRules">
+        <dc:Bounds x="390" y="80" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <!-- Create Appointment -->
+      <bpmndi:BPMNShape id="Shape_Task_CreateAppointment" bpmnElement="Task_CreateAppointment">
+        <dc:Bounds x="540" y="80" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <!-- Assign Resources -->
+      <bpmndi:BPMNShape id="Shape_Task_AssignResources" bpmnElement="Task_AssignResources">
+        <dc:Bounds x="690" y="80" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <!-- Calculate Duration -->
+      <bpmndi:BPMNShape id="Shape_Task_CalculateEstimatedDuration" bpmnElement="Task_CalculateEstimatedDuration">
+        <dc:Bounds x="840" y="80" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <!-- Update System -->
+      <bpmndi:BPMNShape id="Shape_Task_UpdateSchedulingSystem" bpmnElement="Task_UpdateSchedulingSystem">
+        <dc:Bounds x="990" y="80" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <!-- Escalate SLA -->
+      <bpmndi:BPMNShape id="Shape_Task_EscalateSLA" bpmnElement="Task_EscalateSLA">
+        <dc:Bounds x="540" y="220" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <!-- Timer Boundary Event -->
+      <bpmndi:BPMNShape id="Shape_Timer_48hSLA" bpmnElement="Timer_48hSLA">
+        <dc:Bounds x="572" y="142" width="36" height="36"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="600" y="175" width="80" height="14"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+
+      <!-- End Event -->
+      <bpmndi:BPMNShape id="Shape_End_AppointmentCreated" bpmnElement="End_AppointmentCreated">
+        <dc:Bounds x="1152" y="102" width="36" height="36"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1130" y="145" width="80" height="27"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+
+      <!-- Sequence Flow Edges -->
+      <bpmndi:BPMNEdge id="Edge_Flow_ToCheckAvailability" bpmnElement="Flow_ToCheckAvailability">
+        <di:waypoint x="188" y="120"/>
+        <di:waypoint x="240" y="120"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_Flow_ToBusinessRule" bpmnElement="Flow_ToBusinessRule">
+        <di:waypoint x="340" y="120"/>
+        <di:waypoint x="390" y="120"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_Flow_ToCreateAppointment" bpmnElement="Flow_ToCreateAppointment">
+        <di:waypoint x="490" y="120"/>
+        <di:waypoint x="540" y="120"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_Flow_ToAssignResources" bpmnElement="Flow_ToAssignResources">
+        <di:waypoint x="640" y="120"/>
+        <di:waypoint x="690" y="120"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_Flow_ToCalculateDuration" bpmnElement="Flow_ToCalculateDuration">
+        <di:waypoint x="790" y="120"/>
+        <di:waypoint x="840" y="120"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_Flow_ToUpdateSystem" bpmnElement="Flow_ToUpdateSystem">
+        <di:waypoint x="940" y="120"/>
+        <di:waypoint x="990" y="120"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_Flow_ToEnd" bpmnElement="Flow_ToEnd">
+        <di:waypoint x="1090" y="120"/>
+        <di:waypoint x="1152" y="120"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_Flow_SLAToEscalation" bpmnElement="Flow_SLAToEscalation">
+        <di:waypoint x="590" y="178"/>
+        <di:waypoint x="590" y="220"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_Flow_EscalationToEnd" bpmnElement="Flow_EscalationToEnd">
+        <di:waypoint x="640" y="260"/>
+        <di:waypoint x="1170" y="260"/>
+        <di:waypoint x="1170" y="138"/>
+      </bpmndi:BPMNEdge>
+
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+
+</bpmn:definitions>

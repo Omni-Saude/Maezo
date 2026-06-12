@@ -17,7 +17,7 @@
 | `pyproject.toml` | ⚠️ Requer atenção | Alto | Alinhar versão Python |
 | `config/postgres/init.sql` | 🚨 Bloqueia commit | Crítico | Tornar idempotente + fix pgaudit |
 | `config/observability/prometheus/prometheus.yml` | ⚠️ Requer atenção | Alto | Remover ref alertmanager |
-| `config/keycloak/austa-bpm-realm.json` | ⚠️ Requer atenção | Alto (prod) | OK para dev, bloqueia prod |
+| Auth: Basic Auth (CIB7_USER/CIB7_PASSWORD) | ✅ Implementado | — | ADR-020 |
 | `.env.example` | ❓ Não auditável | — | Permissão bloqueada (dotfile) |
 | `healthcare_platform/shared/runtime/registry.py` | ⚠️ Requer atenção | Médio | Adicionar validação de input |
 | `healthcare_platform/shared/runtime/worker_runner.py` | ⚠️ Requer atenção | Alto | Padronizar interface dos workers |
@@ -102,29 +102,10 @@
 |------|--------|-----------|
 | Alta | Referencia `alertmanager:9093` — serviço não existe no compose | Remover bloco `alerting` ou adicionar alertmanager |
 | Alta | `/engine-rest/metrics` no CIB Seven — endpoint pode não existir | Verificar; se 404, usar JMX exporter |
-| Média | Faltam targets: postgres, redis, kafka, elasticsearch, FHIR, keycloak | Adicionar exporters em PR futuro |
+| Média | Faltam targets: postgres, redis, kafka, elasticsearch, FHIR | Adicionar exporters em PR futuro |
 | Baixa | `rules.yml` referenciado mas fora do escopo da auditoria | Verificar se arquivo existe |
 
 **Recomendação:** Remover bloco `alerting` ou comentar; commitar com nota de que observabilidade será expandida.
-
----
-
-### 2.6 config/keycloak/austa-bpm-realm.json — ⚠️ REQUER ATENÇÃO
-
-**Resumo:** Realm Keycloak bem estruturado com 4 grupos de tenant, 8 clients, scopes granulares. Secrets placeholder e admin default.
-
-**Achados:**
-| Sev. | Achado | Mitigação |
-|------|--------|-----------|
-| **Crítica (prod)** | 8 clients com secrets `changeme-*` | OK para dev; rotacionar antes de prod |
-| **Crítica (prod)** | Admin user `admin:admin` (temporary: true) | OK para dev; remover antes de prod |
-| Alta | Sem token lifetime policies (usa defaults Keycloak) | Configurar em prod |
-| Alta | `sslRequired: "external"` — tráfego interno sem TLS | OK para dev; mudar para "all" em prod |
-| Média | Sem MFA enforcement para admins | Configurar em prod |
-| Média | Sem mapeamento explícito client→tenant group | Implementar scopes por tenant |
-| Baixa | Sem password policy configurada | Adicionar em prod |
-
-**Recomendação:** Commitar como está para dev. Criar checklist de hardening para prod.
 
 ---
 
@@ -175,15 +156,10 @@
 
 | # | Severidade | Arquivo | Achado | Status |
 |---|-----------|---------|--------|--------|
-| S1 | **Crítica** | keycloak realm | 8 secrets placeholder `changeme-*` | OK dev / Bloqueia prod |
-| S2 | **Crítica** | keycloak realm | Admin `admin:admin` | OK dev / Bloqueia prod |
 | S3 | **Crítica** | init.sql | `GRANT ALL PRIVILEGES` | Corrigir antes de prod |
 | S4 | Alta | Dockerfile | Container roda como root | Adicionar `USER` directive |
-| S5 | Alta | keycloak realm | Sem token lifetime policies | Configurar para prod |
-| S6 | Alta | keycloak realm | SSL apenas para externo | Mudar para "all" em prod |
 | S7 | Média | registry.py | Sem validação de topic names | Adicionar regex |
 | S8 | Média | registry.py | Sem validação de classe worker | Verificar BaseWorker |
-| S9 | Média | keycloak realm | Sem MFA para admins | Configurar para prod |
 | S10 | Baixa | compose | ES security disabled | OK dev / Habilitar prod |
 
 **Zero secrets em texto plano encontrados no código-fonte** (fora do .env.example que não foi auditável).
@@ -201,7 +177,7 @@ docker-compose.yml ◄──────► Dockerfile
     │  │  │                    ▼
     │  │  │              pyproject.toml
     │  │  │
-    │  │  └──────► config/keycloak/austa-bpm-realm.json
+    │  │  └──────► Basic Auth (CIB7_USER/CIB7_PASSWORD)
     │  │               (portas, hostnames, client IDs)
     │  │
     │  └─────────► config/postgres/init.sql
@@ -221,7 +197,6 @@ worker_runner.py ◄──── Dockerfile (ENTRYPOINT)
 |-----------|--------|---------|--------|
 | `POSTGRES_DB=cibseven` | compose | init.sql `\c cibseven` | ✅ |
 | `hapi_fhir` DB | init.sql | compose `spring.datasource.url` | ✅ |
-| `keycloak` DB | init.sql | compose `KC_DB_URL` | ✅ |
 | Workers `:8000` | compose `HEALTH_PORT` | prometheus scrape targets | ✅ |
 | `cib7-engine:8080` | compose | prometheus scrape | ✅ |
 | `alertmanager:9093` | prometheus.yml | compose | 🚨 FALTA |
@@ -237,7 +212,6 @@ Para evitar estado inconsistente:
 1. **pyproject.toml** — versão Python e deps (sem efeito colateral)
 2. **Dockerfile** — alinhado com pyproject.toml
 3. **config/postgres/init.sql** — idempotente antes do compose subir
-4. **config/keycloak/austa-bpm-realm.json** — realm antes do compose
 5. **config/observability/prometheus/prometheus.yml** — config antes do compose
 6. **.env.example** — variáveis documentadas
 7. **docker-compose.yml** — consome todos os anteriores
@@ -255,14 +229,12 @@ Para evitar estado inconsistente:
 | Python 3.12 vs 3.11 | Workers existentes podem quebrar | Sim (rebuild) | Alinhar versão |
 | `CREATE DATABASE` não idempotente | Falha no re-deploy | **Não** (DROP = perda de dados) | Fix antes de commit |
 | `pgaudit` em alpine | Init falha | Sim (remover) | Trocar imagem ou remover |
-| Keycloak `changeme-*` secrets | Vuln em prod | Sim (rotacionar) | OK para dev |
 | Alertmanager referenciado mas ausente | Log spam | Sim (remover ref) | Fix antes de commit |
 
 ### Impacto Multi-Tenant
 
 | Aspecto | Status | Risco |
 |---------|--------|-------|
-| Keycloak: 4 grupos de tenant definidos | ✅ | — |
 | CIB Seven: `DEFAULT_TENANT=austa-hospital` | ⚠️ | Outros tenants precisam deploy explícito |
 | PostgreSQL: sem isolamento de schema | 🚨 | Dados misturados entre tenants |
 | Workers: build único para todos | ✅ | Sem risco de tenant isolation |
@@ -276,7 +248,6 @@ Para evitar estado inconsistente:
 | pyproject.toml | Git revert + rebuild | Zero (rolling) | Não |
 | init.sql | **Impossível sem perda** | — | **Sim** |
 | prometheus.yml | ConfigMap rollback | <10s | Não |
-| keycloak realm | Export/reimport | 30-60s (sessões invalidadas) | Sessões |
 | registry.py | Git revert + rebuild | Zero (rolling) | Não |
 | worker_runner.py | Git revert + rebuild | Zero (rolling) | Não |
 
@@ -284,14 +255,12 @@ Para evitar estado inconsistente:
 
 ## 6. Checklist Pós-Deploy
 
-- [ ] PostgreSQL: `\l` confirma DBs cibseven, hapi_fhir, keycloak
+- [ ] PostgreSQL: `\l` confirma DBs cibseven, hapi_fhir, maestro
 - [ ] CIB Seven: `curl /engine-rest/engine` retorna 200
 - [ ] HAPI FHIR: `curl /fhir/metadata` retorna CapabilityStatement
-- [ ] Keycloak: realm `austa-bpm` importado com 4 grupos
 - [ ] Workers: `/health` retorna 200 em todos os 4 workers
 - [ ] Prometheus: `/targets` mostra todos os scrape targets UP
 - [ ] Grafana: dashboard "CIB7 Workers" carregado
-- [ ] Keycloak: secrets rotacionados (em prod)
 - [ ] Multi-tenant: processo deployado para cada tenant separadamente
 
 ---
@@ -329,7 +298,6 @@ Para evitar estado inconsistente:
 9. Signal handling (SIGTERM) no worker_runner.py
 10. Resource limits no docker-compose.yml
 11. Prometheus metrics endpoint nos workers
-12. Hardening Keycloak para produção
 
 ---
 
@@ -345,7 +313,6 @@ Para evitar estado inconsistente:
 3. Validar `docker compose up -d` com sucesso após os fixes
 
 **Para PRODUÇÃO:** Além dos P0, todos os items P1 e P2 devem ser endereçados, especialmente:
-- Rotação de secrets Keycloak
 - Isolamento de dados multi-tenant (RLS ou schemas)
 - Resource limits no K8s
 - Observabilidade completa (exporters para todos os serviços)

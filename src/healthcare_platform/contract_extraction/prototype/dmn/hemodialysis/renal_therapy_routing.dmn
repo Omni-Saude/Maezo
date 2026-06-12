@@ -1,0 +1,101 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/"
+             xmlns:dc="http://www.omg.org/spec/DMN/20180521/DC/"
+             xmlns:di="http://www.omg.org/spec/DMN/20180521/DI/"
+             xmlns:camunda="http://camunda.org/schema/1.0/dmn"
+             id="renal_therapy_routing_def"
+             name="Renal Therapy Routing"
+             namespace="http://camunda.org/schema/1.0/dmn">
+  <!--
+    Roteamento de terapia renal substitutiva baseado na acuidade do paciente.
+    Apendice VIII define 5 pacotes de TRS:
+    1. HD Continua Primeiras 24h (SIGTAP 03.05.01.004-2) - pacientes criticos
+    2. HD Continua 24h Subsequentes (SIGTAP 03.05.01.004-2) - continuidade
+    3. HD Intermitente ate 4h (SIGTAP 03.05.01.013-1) - pacientes moderados
+    4. HD Intermitente Estendida 6-8h (SIGTAP 03.05.01.013-1) - pacientes graves, metodos lentos
+    5. Dialise Peritoneal (SIGTAP 03.05.01.003-4) - pacientes agudos, via peritoneal
+
+    Autorizacao: HD Continua e HD Estendida requerem autorizacao medico supervisor SES/DF.
+    Referencia: Contrato 4.3.7.7, Edital 2.8.7
+  -->
+  <decision id="decision_rt_routing" name="Renal Therapy Routing" camunda:historyTimeToLive="180">
+    <decisionTable id="dt_rt_routing" hitPolicy="FIRST">
+      <input id="in_patient_acuity_rt_rt_routing" label="Patient Acuity">
+        <inputExpression id="inExpr_patient_acuity_rt_rt_routing" typeRef="string">
+          <text>patient_acuity</text>
+        </inputExpression>
+      </input>
+      <input id="in_duration_pref_rt_rt_routing" label="Session Duration Preference">
+        <inputExpression id="inExpr_duration_pref_rt_rt_routing" typeRef="string">
+          <text>session_duration_preference</text>
+        </inputExpression>
+      </input>
+      <output id="out_recommended_therapy_rt_rt_routing" label="Recommended Therapy" name="recommended_therapy" typeRef="string"/>
+      <output id="out_sigtap_code_rt_rt_routing" label="SIGTAP Code" name="sigtap_code" typeRef="string"/>
+      <output id="out_requires_auth_rt_rt_routing" label="Requires Authorization" name="requires_authorization" typeRef="boolean"/>
+      <!-- Rule 1: CRITICAL acuity - Continuous HD -->
+      <rule id="r_rt_critical_rt_routing">
+        <description>Paciente CRITICO: HD Continua Hospitalar - requer autorizacao medico supervisor SES/DF (Apendice VIII, Contrato 4.3.7.7)</description>
+        <inputEntry id="ie_rt_cr_1_rt_routing"><text>"CRITICAL"</text></inputEntry>
+        <inputEntry id="ie_rt_cr_2_rt_routing"><text></text></inputEntry>
+        <outputEntry id="oe_rt_cr_1_rt_routing"><text>"HD_CONTINUA"</text></outputEntry>
+        <outputEntry id="oe_rt_cr_2_rt_routing"><text>"03.05.01.004-2"</text></outputEntry>
+        <outputEntry id="oe_rt_cr_3_rt_routing"><text>true</text></outputEntry>
+      </rule>
+      <!-- Rule 2: SEVERE acuity + slow method preference - Extended Intermittent HD -->
+      <rule id="r_rt_severe_slow_rt_routing">
+        <description>Paciente GRAVE com preferencia metodo lento: HD Intermitente Estendida 6-8h - requer autorizacao medico supervisor SES/DF (Apendice VIII)</description>
+        <inputEntry id="ie_rt_ss_1_rt_routing"><text>"SEVERE"</text></inputEntry>
+        <inputEntry id="ie_rt_ss_2_rt_routing"><text>"SLOW"</text></inputEntry>
+        <outputEntry id="oe_rt_ss_1_rt_routing"><text>"HD_INTERMITENTE_ESTENDIDA"</text></outputEntry>
+        <outputEntry id="oe_rt_ss_2_rt_routing"><text>"03.05.01.013-1"</text></outputEntry>
+        <outputEntry id="oe_rt_ss_3_rt_routing"><text>true</text></outputEntry>
+      </rule>
+      <!-- Rule 3: SEVERE acuity without slow preference - Continuous HD -->
+      <rule id="r_rt_severe_default_rt_routing">
+        <description>Paciente GRAVE sem preferencia metodo lento: HD Continua Hospitalar - requer autorizacao (Apendice VIII)</description>
+        <inputEntry id="ie_rt_sd_1_rt_routing"><text>"SEVERE"</text></inputEntry>
+        <inputEntry id="ie_rt_sd_2_rt_routing"><text></text></inputEntry>
+        <outputEntry id="oe_rt_sd_1_rt_routing"><text>"HD_CONTINUA"</text></outputEntry>
+        <outputEntry id="oe_rt_sd_2_rt_routing"><text>"03.05.01.004-2"</text></outputEntry>
+        <outputEntry id="oe_rt_sd_3_rt_routing"><text>true</text></outputEntry>
+      </rule>
+      <!-- Rule 4: MODERATE acuity - Standard Intermittent HD -->
+      <rule id="r_rt_moderate_rt_routing">
+        <description>Paciente MODERADO: HD Intermitente ate 4h - sem autorizacao especial necessaria (Apendice VIII)</description>
+        <inputEntry id="ie_rt_mo_1_rt_routing"><text>"MODERATE"</text></inputEntry>
+        <inputEntry id="ie_rt_mo_2_rt_routing"><text></text></inputEntry>
+        <outputEntry id="oe_rt_mo_1_rt_routing"><text>"HD_INTERMITENTE"</text></outputEntry>
+        <outputEntry id="oe_rt_mo_2_rt_routing"><text>"03.05.01.013-1"</text></outputEntry>
+        <outputEntry id="oe_rt_mo_3_rt_routing"><text>false</text></outputEntry>
+      </rule>
+      <!-- Rule 5: ACUTE acuity with peritoneal preference - Peritoneal Dialysis -->
+      <rule id="r_rt_acute_peritoneal_rt_routing">
+        <description>Paciente AGUDO via peritoneal: Dialise Peritoneal DPA/CAPD - sem autorizacao especial (Apendice VIII)</description>
+        <inputEntry id="ie_rt_ap_1_rt_routing"><text>"ACUTE"</text></inputEntry>
+        <inputEntry id="ie_rt_ap_2_rt_routing"><text>"PERITONEAL"</text></inputEntry>
+        <outputEntry id="oe_rt_ap_1_rt_routing"><text>"DIALISE_PERITONEAL"</text></outputEntry>
+        <outputEntry id="oe_rt_ap_2_rt_routing"><text>"03.05.01.003-4"</text></outputEntry>
+        <outputEntry id="oe_rt_ap_3_rt_routing"><text>false</text></outputEntry>
+      </rule>
+      <!-- Rule 6: ACUTE acuity default - Standard Intermittent HD -->
+      <rule id="r_rt_acute_default_rt_routing">
+        <description>Paciente AGUDO sem preferencia peritoneal: HD Intermitente ate 4h (Apendice VIII)</description>
+        <inputEntry id="ie_rt_ad_1_rt_routing"><text>"ACUTE"</text></inputEntry>
+        <inputEntry id="ie_rt_ad_2_rt_routing"><text></text></inputEntry>
+        <outputEntry id="oe_rt_ad_1_rt_routing"><text>"HD_INTERMITENTE"</text></outputEntry>
+        <outputEntry id="oe_rt_ad_2_rt_routing"><text>"03.05.01.013-1"</text></outputEntry>
+        <outputEntry id="oe_rt_ad_3_rt_routing"><text>false</text></outputEntry>
+      </rule>
+    </decisionTable>
+  </decision>
+
+  <dmndi:DMNDI>
+    <dmndi:DMNDiagram id="DMNDiagram_decision_rt_routing">
+      <dmndi:DMNShape id="DMNShape_decision_rt_routing" dmnElementRef="decision_rt_routing">
+        <dc:Bounds height="80" width="180" x="160" y="100" />
+      </dmndi:DMNShape>
+    </dmndi:DMNDiagram>
+  </dmndi:DMNDI>
+</definitions>

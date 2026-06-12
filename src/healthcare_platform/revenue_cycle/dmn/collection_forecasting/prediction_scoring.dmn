@@ -1,0 +1,138 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  ============================================================================
+  PREDICTION-SCORING - Scoring de Predicao de Data de Cobranca
+  ============================================================================
+  Versao: 1.0.0 (2026-02-14)
+  Categoria: COLLECTION_FORECASTING
+  Archetype: CLINICAL_SCORE | Source: predict_collection_date_worker.py
+  ============================================================================
+-->
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/"
+             xmlns:dc="http://www.omg.org/spec/DMN/20180521/DC/"
+             xmlns:di="http://www.omg.org/spec/DMN/20180521/DI/"
+             xmlns:camunda="http://camunda.org/schema/1.0/dmn"
+             id="Definitions_PRED_SCORING"
+             name="Scoring de Predicao de Data de Cobranca"
+             namespace="http://camunda.org/schema/1.0/dmn">
+
+  <decision id="Decision_PRED_SCORING" name="[SP-RC-011 | collection_forecasting] Scoring de Predicao de Data de Cobranca" camunda:historyTimeToLive="180">
+    <decisionTable id="DecisionTable_PRED_SCORING" hitPolicy="FIRST">
+
+      <!-- ========== INPUTS ========== -->
+      <input id="Input_1_PRED_SCORING" label="Dias Previstos">
+        <inputExpression id="InputExpression_1_PRED_SCORING" typeRef="number">
+          <text>predictedDays</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_2_PRED_SCORING" label="Amostras Historicas">
+        <inputExpression id="InputExpression_2_PRED_SCORING" typeRef="number">
+          <text>historicalSamples</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_3_PRED_SCORING" label="Tipo Modelo">
+        <inputExpression id="InputExpression_3_PRED_SCORING" typeRef="string">
+          <text>modelType</text>
+        </inputExpression>
+        <inputValues id="InputValues_3_PRED_SCORING">
+          <text>"linear_regression","average","ensemble"</text>
+        </inputValues>
+      </input>
+
+      <input id="Input_4_PRED_SCORING" label="Valor Claim (R$)">
+        <inputExpression id="InputExpression_4_PRED_SCORING" typeRef="number">
+          <text>claimAmount</text>
+        </inputExpression>
+      </input>
+
+      <!-- ========== OUTPUTS ========== -->
+      <output id="Output_resultado_PRED_SCORING" label="Resultado" name="resultado" typeRef="string">
+        <outputValues><text>"PROSSEGUIR","BLOQUEAR","REVISAR"</text></outputValues>
+      </output>
+      <output id="Output_acao_PRED_SCORING" label="Acao" name="acao" typeRef="string"/>
+      <output id="Output_risco_PRED_SCORING" label="Risco" name="risco" typeRef="string">
+        <outputValues><text>"CRITICO","ALTO","MEDIO","BAIXO"</text></outputValues>
+      </output>
+
+      <!-- ========== RULES ========== -->
+      <rule id="Rule_1_PRED_SCORING">
+        <description>Predicao muito longa com alto valor - risco critico</description>
+        <inputEntry id="IE_1_1_PRED_SCORING"><text>&gt; 120</text></inputEntry>
+        <inputEntry id="IE_1_2_PRED_SCORING"><text>-</text></inputEntry>
+        <inputEntry id="IE_1_3_PRED_SCORING"><text>-</text></inputEntry>
+        <inputEntry id="IE_1_4_PRED_SCORING"><text>&gt; 100000</text></inputEntry>
+        <outputEntry id="OE_1_1_PRED_SCORING"><text>"BLOQUEAR"</text></outputEntry>
+        <outputEntry id="OE_1_2_PRED_SCORING"><text>"Escalar para gestao - previsao superior a 120 dias com valor alto"</text></outputEntry>
+        <outputEntry id="OE_1_3_PRED_SCORING"><text>"CRITICO"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_2_PRED_SCORING">
+        <description>Dados insuficientes para modelo confiavel</description>
+        <inputEntry id="IE_2_1_PRED_SCORING"><text>-</text></inputEntry>
+        <inputEntry id="IE_2_2_PRED_SCORING"><text>&lt; 3</text></inputEntry>
+        <inputEntry id="IE_2_3_PRED_SCORING"><text>"average"</text></inputEntry>
+        <inputEntry id="IE_2_4_PRED_SCORING"><text>-</text></inputEntry>
+        <outputEntry id="OE_2_1_PRED_SCORING"><text>"REVISAR"</text></outputEntry>
+        <outputEntry id="OE_2_2_PRED_SCORING"><text>"Amostras insuficientes - usar estimativa manual ate acumular historico"</text></outputEntry>
+        <outputEntry id="OE_2_3_PRED_SCORING"><text>"ALTO"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_3_PRED_SCORING">
+        <description>Predicao longa (90-120 dias)</description>
+        <inputEntry id="IE_3_1_PRED_SCORING"><text>[90..120]</text></inputEntry>
+        <inputEntry id="IE_3_2_PRED_SCORING"><text>&gt;= 5</text></inputEntry>
+        <inputEntry id="IE_3_3_PRED_SCORING"><text>-</text></inputEntry>
+        <inputEntry id="IE_3_4_PRED_SCORING"><text>-</text></inputEntry>
+        <outputEntry id="OE_3_1_PRED_SCORING"><text>"REVISAR"</text></outputEntry>
+        <outputEntry id="OE_3_2_PRED_SCORING"><text>"Previsao entre 90-120 dias - monitorar pagador e considerar cobranca proativa"</text></outputEntry>
+        <outputEntry id="OE_3_3_PRED_SCORING"><text>"MEDIO"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_4_PRED_SCORING">
+        <description>Predicao normal (45-90 dias) com modelo ML</description>
+        <inputEntry id="IE_4_1_PRED_SCORING"><text>[45..90]</text></inputEntry>
+        <inputEntry id="IE_4_2_PRED_SCORING"><text>&gt;= 5</text></inputEntry>
+        <inputEntry id="IE_4_3_PRED_SCORING"><text>"linear_regression"</text></inputEntry>
+        <inputEntry id="IE_4_4_PRED_SCORING"><text>-</text></inputEntry>
+        <outputEntry id="OE_4_1_PRED_SCORING"><text>"PROSSEGUIR"</text></outputEntry>
+        <outputEntry id="OE_4_2_PRED_SCORING"><text>"Previsao dentro do esperado - acompanhar normalmente"</text></outputEntry>
+        <outputEntry id="OE_4_3_PRED_SCORING"><text>"BAIXO"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_5_PRED_SCORING">
+        <description>Predicao rapida (abaixo de 45 dias)</description>
+        <inputEntry id="IE_5_1_PRED_SCORING"><text>&lt; 45</text></inputEntry>
+        <inputEntry id="IE_5_2_PRED_SCORING"><text>&gt;= 3</text></inputEntry>
+        <inputEntry id="IE_5_3_PRED_SCORING"><text>-</text></inputEntry>
+        <inputEntry id="IE_5_4_PRED_SCORING"><text>-</text></inputEntry>
+        <outputEntry id="OE_5_1_PRED_SCORING"><text>"PROSSEGUIR"</text></outputEntry>
+        <outputEntry id="OE_5_2_PRED_SCORING"><text>"Previsao otimista - pagador com bom historico"</text></outputEntry>
+        <outputEntry id="OE_5_3_PRED_SCORING"><text>"BAIXO"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Fallback_PRED_SCORING">
+        <description>Fallback - revisao manual</description>
+        <inputEntry id="IE_F_1_PRED_SCORING"><text>-</text></inputEntry>
+        <inputEntry id="IE_F_2_PRED_SCORING"><text>-</text></inputEntry>
+        <inputEntry id="IE_F_3_PRED_SCORING"><text>-</text></inputEntry>
+        <inputEntry id="IE_F_4_PRED_SCORING"><text>-</text></inputEntry>
+        <outputEntry id="OE_F_1_PRED_SCORING"><text>"REVISAR"</text></outputEntry>
+        <outputEntry id="OE_F_2_PRED_SCORING"><text>"Requer analise manual da predicao"</text></outputEntry>
+        <outputEntry id="OE_F_3_PRED_SCORING"><text>"MEDIO"</text></outputEntry>
+      </rule>
+
+    </decisionTable>
+  </decision>
+
+  <dmndi:DMNDI>
+    <dmndi:DMNDiagram id="DMNDiagram_PRED_SCORING">
+      <dmndi:DMNShape id="DMNShape_Decision_PRED_SCORING" dmnElementRef="Decision_PRED_SCORING">
+        <dc:Bounds height="80" width="180" x="160" y="100"/>
+      </dmndi:DMNShape>
+    </dmndi:DMNDiagram>
+  </dmndi:DMNDI>
+
+</definitions>

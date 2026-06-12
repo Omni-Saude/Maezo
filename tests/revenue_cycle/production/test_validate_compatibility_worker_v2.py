@@ -41,7 +41,7 @@ def test_happy_path_prosseguir(worker, context, mock_dmn):
         "risco": "BAIXO",
     }
     context.variables = {
-        "priced_procedures": [
+        "procedures": [
             {"code": "40101010"},
             {"code": "40301010"},
         ],
@@ -63,7 +63,7 @@ def test_bloquear_incompatible_codes(worker, context, mock_dmn):
         "risco": "ALTO",
     }
     context.variables = {
-        "priced_procedures": [
+        "procedures": [
             {"code": "40101010"},
             {"code": "40101028"},
         ],
@@ -83,7 +83,7 @@ def test_revisar_adds_warning(worker, context, mock_dmn):
         "risco": "MEDIO",
     }
     context.variables = {
-        "priced_procedures": [{"code": "40601013"}],
+        "procedures": [{"code": "40601013"}],
         "patient_gender": "female",
     }
 
@@ -95,7 +95,7 @@ def test_revisar_adds_warning(worker, context, mock_dmn):
 
 def test_empty_procedures_error(worker, context):
     """No procedures triggers CODING_ERROR."""
-    context.variables = {"priced_procedures": []}
+    context.variables = {"procedures": []}
 
     result = worker.execute(context)
 
@@ -107,7 +107,7 @@ def test_dmn_evaluator_failure(worker, context, mock_dmn):
     """DMN service exception is caught."""
     mock_dmn.evaluate.side_effect = RuntimeError("DMN evaluation failed")
     context.variables = {
-        "priced_procedures": [{"code": "40101010"}],
+        "procedures": [{"code": "40101010"}],
     }
 
     result = worker.execute(context)
@@ -123,7 +123,7 @@ def test_duplicate_code_warning(worker, context, mock_dmn):
         "risco": "BAIXO",
     }
     context.variables = {
-        "priced_procedures": [
+        "procedures": [
             {"code": "40101010"},
             {"code": "40101010"},
         ],
@@ -143,7 +143,7 @@ def test_no_gender_or_age(worker, context, mock_dmn):
         "risco": "BAIXO",
     }
     context.variables = {
-        "priced_procedures": [{"code": "40101010"}],
+        "procedures": [{"code": "40101010"}],
     }
 
     result = worker.execute(context)

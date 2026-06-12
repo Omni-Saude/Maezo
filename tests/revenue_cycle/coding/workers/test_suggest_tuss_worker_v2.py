@@ -1,7 +1,7 @@
 from __future__ import annotations
 from unittest.mock import patch, MagicMock
 import pytest
-from healthcare_platform.revenue_cycle.coding.workers.suggest_tuss_worker_v2 import SuggestTussWorkerV2
+from healthcare_platform.revenue_cycle.coding.workers.suggest_tuss_worker import SuggestTussWorker
 from healthcare_platform.shared.domain.exceptions import CodingException
 
 
@@ -13,7 +13,7 @@ def tenant_ctx():
 
 
 @pytest.mark.asyncio
-@patch('healthcare_platform.revenue_cycle.coding.workers.suggest_tuss_worker_v2.get_required_tenant')
+@patch('healthcare_platform.revenue_cycle.coding.workers.suggest_tuss_worker.get_required_tenant')
 async def test_happy_path(mock_get_tenant, tenant_ctx):
     mock_get_tenant.return_value = tenant_ctx
     mock_dmn = MagicMock()
@@ -22,7 +22,7 @@ async def test_happy_path(mock_get_tenant, tenant_ctx):
         {"validated_tuss": [{"code": "10101012", "description": "Consulta em consultório"}]},
     ]
 
-    worker = SuggestTussWorkerV2(dmn_service=mock_dmn)
+    worker = SuggestTussWorker(dmn_service=mock_dmn)
     result = await worker.execute({
         "extracted_procedures": [{"description": "Consulta médica"}],
         "suggested_cid10_codes": [{"code": "A01.0"}],
@@ -37,12 +37,12 @@ async def test_happy_path(mock_get_tenant, tenant_ctx):
 
 
 @pytest.mark.asyncio
-@patch('healthcare_platform.revenue_cycle.coding.workers.suggest_tuss_worker_v2.get_required_tenant')
+@patch('healthcare_platform.revenue_cycle.coding.workers.suggest_tuss_worker.get_required_tenant')
 async def test_empty_input_error(mock_get_tenant, tenant_ctx):
     mock_get_tenant.return_value = tenant_ctx
     mock_dmn = MagicMock()
 
-    worker = SuggestTussWorkerV2(dmn_service=mock_dmn)
+    worker = SuggestTussWorker(dmn_service=mock_dmn)
 
     with pytest.raises(CodingException) as exc_info:
         await worker.execute({
@@ -56,7 +56,7 @@ async def test_empty_input_error(mock_get_tenant, tenant_ctx):
 
 
 @pytest.mark.asyncio
-@patch('healthcare_platform.revenue_cycle.coding.workers.suggest_tuss_worker_v2.get_required_tenant')
+@patch('healthcare_platform.revenue_cycle.coding.workers.suggest_tuss_worker.get_required_tenant')
 async def test_dmn_orphan_fallback(mock_get_tenant, tenant_ctx):
     mock_get_tenant.return_value = tenant_ctx
     mock_dmn = MagicMock()
@@ -65,7 +65,7 @@ async def test_dmn_orphan_fallback(mock_get_tenant, tenant_ctx):
         {"validated_tuss": []},
     ]
 
-    worker = SuggestTussWorkerV2(dmn_service=mock_dmn)
+    worker = SuggestTussWorker(dmn_service=mock_dmn)
     result = await worker.execute({
         "extracted_procedures": [{"description": "Unknown procedure"}],
         "suggested_cid10_codes": [],
@@ -78,7 +78,7 @@ async def test_dmn_orphan_fallback(mock_get_tenant, tenant_ctx):
 
 
 @pytest.mark.asyncio
-@patch('healthcare_platform.revenue_cycle.coding.workers.suggest_tuss_worker_v2.get_required_tenant')
+@patch('healthcare_platform.revenue_cycle.coding.workers.suggest_tuss_worker.get_required_tenant')
 async def test_multiple_tuss_codes(mock_get_tenant, tenant_ctx):
     mock_get_tenant.return_value = tenant_ctx
     mock_dmn = MagicMock()
@@ -95,7 +95,7 @@ async def test_multiple_tuss_codes(mock_get_tenant, tenant_ctx):
         ]},
     ]
 
-    worker = SuggestTussWorkerV2(dmn_service=mock_dmn)
+    worker = SuggestTussWorker(dmn_service=mock_dmn)
     result = await worker.execute({
         "extracted_procedures": [
             {"description": "Consulta médica"},
@@ -113,7 +113,7 @@ async def test_multiple_tuss_codes(mock_get_tenant, tenant_ctx):
 
 
 @pytest.mark.asyncio
-@patch('healthcare_platform.revenue_cycle.coding.workers.suggest_tuss_worker_v2.get_required_tenant')
+@patch('healthcare_platform.revenue_cycle.coding.workers.suggest_tuss_worker.get_required_tenant')
 async def test_process_task_compat(mock_get_tenant, tenant_ctx):
     mock_get_tenant.return_value = tenant_ctx
     mock_dmn = MagicMock()
@@ -122,7 +122,7 @@ async def test_process_task_compat(mock_get_tenant, tenant_ctx):
         {"validated_tuss": [{"code": "40101039", "description": "Radiografia de tórax"}]},
     ]
 
-    worker = SuggestTussWorkerV2(dmn_service=mock_dmn)
+    worker = SuggestTussWorker(dmn_service=mock_dmn)
 
     result = await worker.process_task(variables={
         "extracted_procedures": [{"description": "Radiografia"}],
@@ -136,7 +136,7 @@ async def test_process_task_compat(mock_get_tenant, tenant_ctx):
 
 
 @pytest.mark.asyncio
-@patch('healthcare_platform.revenue_cycle.coding.workers.suggest_tuss_worker_v2.get_required_tenant')
+@patch('healthcare_platform.revenue_cycle.coding.workers.suggest_tuss_worker.get_required_tenant')
 async def test_cid10_correlation_dmn_call(mock_get_tenant, tenant_ctx):
     mock_get_tenant.return_value = tenant_ctx
     mock_dmn = MagicMock()
@@ -145,7 +145,7 @@ async def test_cid10_correlation_dmn_call(mock_get_tenant, tenant_ctx):
         {"validated_tuss": [{"code": "50101040", "description": "Procedimento cirúrgico ambulatorial"}]},
     ]
 
-    worker = SuggestTussWorkerV2(dmn_service=mock_dmn)
+    worker = SuggestTussWorker(dmn_service=mock_dmn)
     await worker.execute({
         "extracted_procedures": [{"description": "Cirurgia"}],
         "suggested_cid10_codes": [{"code": "K40.9"}],
@@ -159,7 +159,7 @@ async def test_cid10_correlation_dmn_call(mock_get_tenant, tenant_ctx):
 
 
 @pytest.mark.asyncio
-@patch('healthcare_platform.revenue_cycle.coding.workers.suggest_tuss_worker_v2.get_required_tenant')
+@patch('healthcare_platform.revenue_cycle.coding.workers.suggest_tuss_worker.get_required_tenant')
 async def test_procedures_without_cid10(mock_get_tenant, tenant_ctx):
     mock_get_tenant.return_value = tenant_ctx
     mock_dmn = MagicMock()
@@ -168,7 +168,7 @@ async def test_procedures_without_cid10(mock_get_tenant, tenant_ctx):
         {"validated_tuss": [{"code": "60101050", "description": "Hemograma completo"}]},
     ]
 
-    worker = SuggestTussWorkerV2(dmn_service=mock_dmn)
+    worker = SuggestTussWorker(dmn_service=mock_dmn)
     result = await worker.execute({
         "extracted_procedures": [{"description": "Hemograma completo"}],
         "suggested_cid10_codes": [],
@@ -181,7 +181,7 @@ async def test_procedures_without_cid10(mock_get_tenant, tenant_ctx):
 
 
 @pytest.mark.asyncio
-@patch('healthcare_platform.revenue_cycle.coding.workers.suggest_tuss_worker_v2.get_required_tenant')
+@patch('healthcare_platform.revenue_cycle.coding.workers.suggest_tuss_worker.get_required_tenant')
 async def test_format_validation_dmn_call(mock_get_tenant, tenant_ctx):
     mock_get_tenant.return_value = tenant_ctx
     mock_dmn = MagicMock()
@@ -195,7 +195,7 @@ async def test_format_validation_dmn_call(mock_get_tenant, tenant_ctx):
         ]},
     ]
 
-    worker = SuggestTussWorkerV2(dmn_service=mock_dmn)
+    worker = SuggestTussWorker(dmn_service=mock_dmn)
     result = await worker.execute({
         "extracted_procedures": [{"description": "Consulta"}],
         "suggested_cid10_codes": [{"code": "Z00.0"}],

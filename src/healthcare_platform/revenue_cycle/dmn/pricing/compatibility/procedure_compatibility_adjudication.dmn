@@ -1,0 +1,201 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/"
+             xmlns:dc="http://www.omg.org/spec/DMN/20180521/DC/"
+             xmlns:di="http://www.omg.org/spec/DMN/20180521/DI/"
+             xmlns:camunda="http://camunda.org/schema/1.0/dmn"
+             id="Definitions_ProcedureCompatibilityAdjudication"
+             name="Procedure Compatibility Adjudication"
+             namespace="http://camunda.org/schema/1.0/dmn">
+  <!-- Archetype: ADMIN_ADJUDICATION | Source: procedure_compatibility_adjudication_worker.py -->
+
+  <!-- Source: validate_compatibility_worker.py
+       Rules extracted from _INCOMPATIBLE_PAIRS, _FREQUENCY_LIMITS,
+       _GENDER_RESTRICTIONS, and _AGE_RESTRICTIONS.
+  -->
+
+  <decision id="Decision_ProcCompatAdj" name="[SP-RC-003 | pricing/compatibility] Procedure Compatibility Adjudication" camunda:historyTimeToLive="180">
+    <decisionTable id="DecisionTable_ProcCompatAdj" hitPolicy="FIRST">
+
+      <input id="Input_procedureCode1_ProcCompatAdj" label="Procedure Code 1">
+        <inputExpression id="InputExpr_procedureCode1_ProcCompatAdj" typeRef="string">
+          <text>procedureCode1</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_procedureCode2_ProcCompatAdj" label="Procedure Code 2">
+        <inputExpression id="InputExpr_procedureCode2_ProcCompatAdj" typeRef="string">
+          <text>procedureCode2</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_patientGender_ProcCompatAdj" label="Patient Gender">
+        <inputExpression id="InputExpr_patientGender_ProcCompatAdj" typeRef="string">
+          <text>patientGender</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_patientAge_ProcCompatAdj" label="Patient Age">
+        <inputExpression id="InputExpr_patientAge_ProcCompatAdj" typeRef="number">
+          <text>patientAge</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_procedureCount_ProcCompatAdj" label="Procedure Count">
+        <inputExpression id="InputExpr_procedureCount_ProcCompatAdj" typeRef="number">
+          <text>procedureCount</text>
+        </inputExpression>
+      </input>
+
+      <output id="Output_resultado_ProcCompatAdj" label="Resultado" name="resultado" typeRef="string">
+        <outputValues><text>"PROSSEGUIR","BLOQUEAR","REVISAR"</text></outputValues>
+      </output>
+
+      <output id="Output_acao_ProcCompatAdj" label="Acao" name="acao" typeRef="string"/>
+
+      <output id="Output_risco_ProcCompatAdj" label="Risco" name="risco" typeRef="string">
+        <outputValues><text>"CRITICO","ALTO","MEDIO","BAIXO"</text></outputValues>
+      </output>
+
+      <!-- R1: Incompatible pair — office visit vs telemedicine -->
+      <rule id="Rule_incompat_1_ProcCompatAdj">
+        <description>Incompatible: office visit (40101010) + telemedicine (40101028)</description>
+        <inputEntry id="IE_i1_1_ProcCompatAdj"><text>"40101010"</text></inputEntry>
+        <inputEntry id="IE_i1_2_ProcCompatAdj"><text>"40101028"</text></inputEntry>
+        <inputEntry id="IE_i1_3_ProcCompatAdj"><text>-</text></inputEntry>
+        <inputEntry id="IE_i1_4_ProcCompatAdj"><text>-</text></inputEntry>
+        <inputEntry id="IE_i1_5_ProcCompatAdj"><text>-</text></inputEntry>
+        <outputEntry id="OE_i1_res_ProcCompatAdj"><text>"BLOQUEAR"</text></outputEntry>
+        <outputEntry id="OE_i1_acao_ProcCompatAdj"><text>"Incompatible procedure pair"</text></outputEntry>
+        <outputEntry id="OE_i1_risco_ProcCompatAdj"><text>"ALTO"</text></outputEntry>
+      </rule>
+
+      <!-- R2: Incompatible pair — specialist vs follow-up -->
+      <rule id="Rule_incompat_2_ProcCompatAdj">
+        <description>Incompatible: specialist (40201010) + follow-up (40201028)</description>
+        <inputEntry id="IE_i2_1_ProcCompatAdj"><text>"40201010"</text></inputEntry>
+        <inputEntry id="IE_i2_2_ProcCompatAdj"><text>"40201028"</text></inputEntry>
+        <inputEntry id="IE_i2_3_ProcCompatAdj"><text>-</text></inputEntry>
+        <inputEntry id="IE_i2_4_ProcCompatAdj"><text>-</text></inputEntry>
+        <inputEntry id="IE_i2_5_ProcCompatAdj"><text>-</text></inputEntry>
+        <outputEntry id="OE_i2_res_ProcCompatAdj"><text>"BLOQUEAR"</text></outputEntry>
+        <outputEntry id="OE_i2_acao_ProcCompatAdj"><text>"Incompatible procedure pair"</text></outputEntry>
+        <outputEntry id="OE_i2_risco_ProcCompatAdj"><text>"ALTO"</text></outputEntry>
+      </rule>
+
+      <!-- R3: Incompatible pair — duplicate consultation types -->
+      <rule id="Rule_incompat_3_ProcCompatAdj">
+        <description>Incompatible: duplicate consultation (10101012 + 10101039)</description>
+        <inputEntry id="IE_i3_1_ProcCompatAdj"><text>"10101012"</text></inputEntry>
+        <inputEntry id="IE_i3_2_ProcCompatAdj"><text>"10101039"</text></inputEntry>
+        <inputEntry id="IE_i3_3_ProcCompatAdj"><text>-</text></inputEntry>
+        <inputEntry id="IE_i3_4_ProcCompatAdj"><text>-</text></inputEntry>
+        <inputEntry id="IE_i3_5_ProcCompatAdj"><text>-</text></inputEntry>
+        <outputEntry id="OE_i3_res_ProcCompatAdj"><text>"BLOQUEAR"</text></outputEntry>
+        <outputEntry id="OE_i3_acao_ProcCompatAdj"><text>"Incompatible procedure pair"</text></outputEntry>
+        <outputEntry id="OE_i3_risco_ProcCompatAdj"><text>"ALTO"</text></outputEntry>
+      </rule>
+
+      <!-- R4: Obstetric procedure — female only -->
+      <rule id="Rule_gender_obs_ProcCompatAdj">
+        <description>Gender restriction: obstetric procedures require female</description>
+        <inputEntry id="IE_go_1_ProcCompatAdj"><text>"40601013","40601021"</text></inputEntry>
+        <inputEntry id="IE_go_2_ProcCompatAdj"><text>-</text></inputEntry>
+        <inputEntry id="IE_go_3_ProcCompatAdj"><text>not("female")</text></inputEntry>
+        <inputEntry id="IE_go_4_ProcCompatAdj"><text>-</text></inputEntry>
+        <inputEntry id="IE_go_5_ProcCompatAdj"><text>-</text></inputEntry>
+        <outputEntry id="OE_go_res_ProcCompatAdj"><text>"BLOQUEAR"</text></outputEntry>
+        <outputEntry id="OE_go_acao_ProcCompatAdj"><text>"Gender restriction"</text></outputEntry>
+        <outputEntry id="OE_go_risco_ProcCompatAdj"><text>"ALTO"</text></outputEntry>
+      </rule>
+
+      <!-- R5: Prostate procedure — male only -->
+      <rule id="Rule_gender_prost_ProcCompatAdj">
+        <description>Gender restriction: prostate procedures require male</description>
+        <inputEntry id="IE_gp_1_ProcCompatAdj"><text>"40501020"</text></inputEntry>
+        <inputEntry id="IE_gp_2_ProcCompatAdj"><text>-</text></inputEntry>
+        <inputEntry id="IE_gp_3_ProcCompatAdj"><text>not("male")</text></inputEntry>
+        <inputEntry id="IE_gp_4_ProcCompatAdj"><text>-</text></inputEntry>
+        <inputEntry id="IE_gp_5_ProcCompatAdj"><text>-</text></inputEntry>
+        <outputEntry id="OE_gp_res_ProcCompatAdj"><text>"BLOQUEAR"</text></outputEntry>
+        <outputEntry id="OE_gp_acao_ProcCompatAdj"><text>"Gender restriction"</text></outputEntry>
+        <outputEntry id="OE_gp_risco_ProcCompatAdj"><text>"ALTO"</text></outputEntry>
+      </rule>
+
+      <!-- R6: Pediatric age restriction (0-18) -->
+      <rule id="Rule_age_pedi_ProcCompatAdj">
+        <description>Age restriction: pediatric procedures require age 0-18</description>
+        <inputEntry id="IE_ap_1_ProcCompatAdj"><text>"40401010"</text></inputEntry>
+        <inputEntry id="IE_ap_2_ProcCompatAdj"><text>-</text></inputEntry>
+        <inputEntry id="IE_ap_3_ProcCompatAdj"><text>-</text></inputEntry>
+        <inputEntry id="IE_ap_4_ProcCompatAdj"><text>&gt; 18</text></inputEntry>
+        <inputEntry id="IE_ap_5_ProcCompatAdj"><text>-</text></inputEntry>
+        <outputEntry id="OE_ap_res_ProcCompatAdj"><text>"BLOQUEAR"</text></outputEntry>
+        <outputEntry id="OE_ap_acao_ProcCompatAdj"><text>"Age restriction"</text></outputEntry>
+        <outputEntry id="OE_ap_risco_ProcCompatAdj"><text>"ALTO"</text></outputEntry>
+      </rule>
+
+      <!-- R7: Geriatric age restriction (65+) -->
+      <rule id="Rule_age_geri_ProcCompatAdj">
+        <description>Age restriction: geriatric screening requires age 65+</description>
+        <inputEntry id="IE_ag_1_ProcCompatAdj"><text>"40401028"</text></inputEntry>
+        <inputEntry id="IE_ag_2_ProcCompatAdj"><text>-</text></inputEntry>
+        <inputEntry id="IE_ag_3_ProcCompatAdj"><text>-</text></inputEntry>
+        <inputEntry id="IE_ag_4_ProcCompatAdj"><text>&lt; 65</text></inputEntry>
+        <inputEntry id="IE_ag_5_ProcCompatAdj"><text>-</text></inputEntry>
+        <outputEntry id="OE_ag_res_ProcCompatAdj"><text>"BLOQUEAR"</text></outputEntry>
+        <outputEntry id="OE_ag_acao_ProcCompatAdj"><text>"Age restriction"</text></outputEntry>
+        <outputEntry id="OE_ag_risco_ProcCompatAdj"><text>"ALTO"</text></outputEntry>
+      </rule>
+
+      <!-- R8: Frequency limit — office visit max 4/day -->
+      <rule id="Rule_freq_office_ProcCompatAdj">
+        <description>Frequency limit: office visit max 4/day</description>
+        <inputEntry id="IE_fo_1_ProcCompatAdj"><text>"40101010"</text></inputEntry>
+        <inputEntry id="IE_fo_2_ProcCompatAdj"><text>-</text></inputEntry>
+        <inputEntry id="IE_fo_3_ProcCompatAdj"><text>-</text></inputEntry>
+        <inputEntry id="IE_fo_4_ProcCompatAdj"><text>-</text></inputEntry>
+        <inputEntry id="IE_fo_5_ProcCompatAdj"><text>&gt; 4</text></inputEntry>
+        <outputEntry id="OE_fo_res_ProcCompatAdj"><text>"BLOQUEAR"</text></outputEntry>
+        <outputEntry id="OE_fo_acao_ProcCompatAdj"><text>"Frequency limit exceeded"</text></outputEntry>
+        <outputEntry id="OE_fo_risco_ProcCompatAdj"><text>"MEDIO"</text></outputEntry>
+      </rule>
+
+      <!-- R9: Frequency limit — specialist max 2/day -->
+      <rule id="Rule_freq_spec_ProcCompatAdj">
+        <description>Frequency limit: specialist consult max 2/day</description>
+        <inputEntry id="IE_fs_1_ProcCompatAdj"><text>"40201010"</text></inputEntry>
+        <inputEntry id="IE_fs_2_ProcCompatAdj"><text>-</text></inputEntry>
+        <inputEntry id="IE_fs_3_ProcCompatAdj"><text>-</text></inputEntry>
+        <inputEntry id="IE_fs_4_ProcCompatAdj"><text>-</text></inputEntry>
+        <inputEntry id="IE_fs_5_ProcCompatAdj"><text>&gt; 2</text></inputEntry>
+        <outputEntry id="OE_fs_res_ProcCompatAdj"><text>"BLOQUEAR"</text></outputEntry>
+        <outputEntry id="OE_fs_acao_ProcCompatAdj"><text>"Frequency limit exceeded"</text></outputEntry>
+        <outputEntry id="OE_fs_risco_ProcCompatAdj"><text>"MEDIO"</text></outputEntry>
+      </rule>
+
+      <!-- R10: All checks pass — proceed -->
+      <rule id="Rule_compatible_ProcCompatAdj">
+        <description>All compatibility checks passed — proceed</description>
+        <inputEntry id="IE_ok_1_ProcCompatAdj"><text>-</text></inputEntry>
+        <inputEntry id="IE_ok_2_ProcCompatAdj"><text>-</text></inputEntry>
+        <inputEntry id="IE_ok_3_ProcCompatAdj"><text>-</text></inputEntry>
+        <inputEntry id="IE_ok_4_ProcCompatAdj"><text>-</text></inputEntry>
+        <inputEntry id="IE_ok_5_ProcCompatAdj"><text>-</text></inputEntry>
+        <outputEntry id="OE_ok_res_ProcCompatAdj"><text>"PROSSEGUIR"</text></outputEntry>
+        <outputEntry id="OE_ok_acao_ProcCompatAdj"><text>"Compatible procedures"</text></outputEntry>
+        <outputEntry id="OE_ok_risco_ProcCompatAdj"><text>"BAIXO"</text></outputEntry>
+      </rule>
+
+    </decisionTable>
+  </decision>
+
+  <dmndi:DMNDI>
+    <dmndi:DMNDiagram id="DMNDiagram_1_ProcCompatAdj">
+      <dmndi:DMNShape id="DMNShape_Decision_ProcCompatAdj" dmnElementRef="Decision_ProcCompatAdj">
+        <dc:Bounds height="80" width="180" x="160" y="100"/>
+      </dmndi:DMNShape>
+    </dmndi:DMNDiagram>
+  </dmndi:DMNDI>
+
+</definitions>

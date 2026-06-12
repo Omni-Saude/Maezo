@@ -14,7 +14,6 @@
 | FHIR Read | <100ms | <250ms | <500ms |
 | FHIR Write | <200ms | <500ms | <1s |
 | Worker Task Execution | <2s | <5s | <10s |
-| Keycloak Token Issue | <100ms | <300ms | <500ms |
 
 ### Throughput
 

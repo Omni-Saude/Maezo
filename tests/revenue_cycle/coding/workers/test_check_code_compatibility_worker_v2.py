@@ -1,7 +1,7 @@
 from __future__ import annotations
 from unittest.mock import patch, MagicMock
 import pytest
-from healthcare_platform.revenue_cycle.coding.workers.check_code_compatibility_worker_v2 import CheckCodeCompatibilityWorkerV2
+from healthcare_platform.revenue_cycle.coding.workers.check_code_compatibility_worker import CheckCodeCompatibilityWorker
 from healthcare_platform.shared.domain.exceptions import CodingException, IncompatibleCodes
 
 
@@ -13,14 +13,14 @@ def tenant_ctx():
 
 
 @pytest.mark.asyncio
-@patch('healthcare_platform.revenue_cycle.coding.workers.check_code_compatibility_worker_v2.get_required_tenant')
-@patch('healthcare_platform.revenue_cycle.coding.workers.check_code_compatibility_worker_v2.FederatedDMNService')
+@patch('healthcare_platform.revenue_cycle.coding.workers.check_code_compatibility_worker.get_required_tenant')
+@patch('healthcare_platform.revenue_cycle.coding.workers.check_code_compatibility_worker.FederatedDMNService')
 async def test_happy_path_compatible(MockDMNService, mock_get_tenant, tenant_ctx):
     mock_get_tenant.return_value = tenant_ctx
     mock_dmn = MockDMNService.return_value
     mock_dmn.evaluate.return_value = {}
 
-    worker = CheckCodeCompatibilityWorkerV2()
+    worker = CheckCodeCompatibilityWorker()
     result = await worker.execute({
         'validatedCid10': ['A01.0', 'B02.1'],
         'validatedTuss': ['10101012', '20101015'],
@@ -34,13 +34,13 @@ async def test_happy_path_compatible(MockDMNService, mock_get_tenant, tenant_ctx
 
 
 @pytest.mark.asyncio
-@patch('healthcare_platform.revenue_cycle.coding.workers.check_code_compatibility_worker_v2.get_required_tenant')
-@patch('healthcare_platform.revenue_cycle.coding.workers.check_code_compatibility_worker_v2.FederatedDMNService')
+@patch('healthcare_platform.revenue_cycle.coding.workers.check_code_compatibility_worker.get_required_tenant')
+@patch('healthcare_platform.revenue_cycle.coding.workers.check_code_compatibility_worker.FederatedDMNService')
 async def test_empty_cid10_error(MockDMNService, mock_get_tenant, tenant_ctx):
     mock_get_tenant.return_value = tenant_ctx
     mock_dmn = MockDMNService.return_value
 
-    worker = CheckCodeCompatibilityWorkerV2()
+    worker = CheckCodeCompatibilityWorker()
 
     with pytest.raises(CodingException):
         await worker.execute({
@@ -51,13 +51,13 @@ async def test_empty_cid10_error(MockDMNService, mock_get_tenant, tenant_ctx):
 
 
 @pytest.mark.asyncio
-@patch('healthcare_platform.revenue_cycle.coding.workers.check_code_compatibility_worker_v2.get_required_tenant')
-@patch('healthcare_platform.revenue_cycle.coding.workers.check_code_compatibility_worker_v2.FederatedDMNService')
+@patch('healthcare_platform.revenue_cycle.coding.workers.check_code_compatibility_worker.get_required_tenant')
+@patch('healthcare_platform.revenue_cycle.coding.workers.check_code_compatibility_worker.FederatedDMNService')
 async def test_empty_tuss_error(MockDMNService, mock_get_tenant, tenant_ctx):
     mock_get_tenant.return_value = tenant_ctx
     mock_dmn = MockDMNService.return_value
 
-    worker = CheckCodeCompatibilityWorkerV2()
+    worker = CheckCodeCompatibilityWorker()
 
     with pytest.raises(CodingException):
         await worker.execute({
@@ -68,8 +68,8 @@ async def test_empty_tuss_error(MockDMNService, mock_get_tenant, tenant_ctx):
 
 
 @pytest.mark.asyncio
-@patch('healthcare_platform.revenue_cycle.coding.workers.check_code_compatibility_worker_v2.get_required_tenant')
-@patch('healthcare_platform.revenue_cycle.coding.workers.check_code_compatibility_worker_v2.FederatedDMNService')
+@patch('healthcare_platform.revenue_cycle.coding.workers.check_code_compatibility_worker.get_required_tenant')
+@patch('healthcare_platform.revenue_cycle.coding.workers.check_code_compatibility_worker.FederatedDMNService')
 async def test_dmn_block_incompatible(MockDMNService, mock_get_tenant, tenant_ctx):
     mock_get_tenant.return_value = tenant_ctx
     mock_dmn = MockDMNService.return_value
@@ -83,7 +83,7 @@ async def test_dmn_block_incompatible(MockDMNService, mock_get_tenant, tenant_ct
         {}
     ]
 
-    worker = CheckCodeCompatibilityWorkerV2()
+    worker = CheckCodeCompatibilityWorker()
 
     with pytest.raises(IncompatibleCodes):
         await worker.execute({
@@ -94,8 +94,8 @@ async def test_dmn_block_incompatible(MockDMNService, mock_get_tenant, tenant_ct
 
 
 @pytest.mark.asyncio
-@patch('healthcare_platform.revenue_cycle.coding.workers.check_code_compatibility_worker_v2.get_required_tenant')
-@patch('healthcare_platform.revenue_cycle.coding.workers.check_code_compatibility_worker_v2.FederatedDMNService')
+@patch('healthcare_platform.revenue_cycle.coding.workers.check_code_compatibility_worker.get_required_tenant')
+@patch('healthcare_platform.revenue_cycle.coding.workers.check_code_compatibility_worker.FederatedDMNService')
 async def test_dmn_review_warning(MockDMNService, mock_get_tenant, tenant_ctx):
     mock_get_tenant.return_value = tenant_ctx
     mock_dmn = MockDMNService.return_value
@@ -108,7 +108,7 @@ async def test_dmn_review_warning(MockDMNService, mock_get_tenant, tenant_ctx):
         }
     ]
 
-    worker = CheckCodeCompatibilityWorkerV2()
+    worker = CheckCodeCompatibilityWorker()
     result = await worker.execute({
         'validatedCid10': ['A01.0'],
         'validatedTuss': ['10101012', '20101015'],
@@ -121,14 +121,14 @@ async def test_dmn_review_warning(MockDMNService, mock_get_tenant, tenant_ctx):
 
 
 @pytest.mark.asyncio
-@patch('healthcare_platform.revenue_cycle.coding.workers.check_code_compatibility_worker_v2.get_required_tenant')
-@patch('healthcare_platform.revenue_cycle.coding.workers.check_code_compatibility_worker_v2.FederatedDMNService')
+@patch('healthcare_platform.revenue_cycle.coding.workers.check_code_compatibility_worker.get_required_tenant')
+@patch('healthcare_platform.revenue_cycle.coding.workers.check_code_compatibility_worker.FederatedDMNService')
 async def test_process_task_compat(MockDMNService, mock_get_tenant, tenant_ctx):
     mock_get_tenant.return_value = tenant_ctx
     mock_dmn = MockDMNService.return_value
     mock_dmn.evaluate.return_value = {}
 
-    worker = CheckCodeCompatibilityWorkerV2()
+    worker = CheckCodeCompatibilityWorker()
 
     result = await worker.process_task(variables={
         'validatedCid10': ['A01.0'],
@@ -141,8 +141,8 @@ async def test_process_task_compat(MockDMNService, mock_get_tenant, tenant_ctx):
 
 
 @pytest.mark.asyncio
-@patch('healthcare_platform.revenue_cycle.coding.workers.check_code_compatibility_worker_v2.get_required_tenant')
-@patch('healthcare_platform.revenue_cycle.coding.workers.check_code_compatibility_worker_v2.FederatedDMNService')
+@patch('healthcare_platform.revenue_cycle.coding.workers.check_code_compatibility_worker.get_required_tenant')
+@patch('healthcare_platform.revenue_cycle.coding.workers.check_code_compatibility_worker.FederatedDMNService')
 async def test_multiple_incompatibilities(MockDMNService, mock_get_tenant, tenant_ctx):
     mock_get_tenant.return_value = tenant_ctx
     mock_dmn = MockDMNService.return_value
@@ -156,7 +156,7 @@ async def test_multiple_incompatibilities(MockDMNService, mock_get_tenant, tenan
         {}
     ]
 
-    worker = CheckCodeCompatibilityWorkerV2()
+    worker = CheckCodeCompatibilityWorker()
 
     with pytest.raises(IncompatibleCodes):
         await worker.execute({
@@ -167,8 +167,8 @@ async def test_multiple_incompatibilities(MockDMNService, mock_get_tenant, tenan
 
 
 @pytest.mark.asyncio
-@patch('healthcare_platform.revenue_cycle.coding.workers.check_code_compatibility_worker_v2.get_required_tenant')
-@patch('healthcare_platform.revenue_cycle.coding.workers.check_code_compatibility_worker_v2.FederatedDMNService')
+@patch('healthcare_platform.revenue_cycle.coding.workers.check_code_compatibility_worker.get_required_tenant')
+@patch('healthcare_platform.revenue_cycle.coding.workers.check_code_compatibility_worker.FederatedDMNService')
 async def test_mixed_results_warnings_only(MockDMNService, mock_get_tenant, tenant_ctx):
     mock_get_tenant.return_value = tenant_ctx
     mock_dmn = MockDMNService.return_value
@@ -177,7 +177,7 @@ async def test_mixed_results_warnings_only(MockDMNService, mock_get_tenant, tena
         {'resultado': 'REVISAR', 'acao': 'Warning message'},
     ]
 
-    worker = CheckCodeCompatibilityWorkerV2()
+    worker = CheckCodeCompatibilityWorker()
     result = await worker.execute({
         'validatedCid10': ['A01.0', 'B02.1'],
         'validatedTuss': ['10101012', '20101015'],

@@ -1,7 +1,7 @@
 from __future__ import annotations
 from unittest.mock import patch, MagicMock
 import pytest
-from healthcare_platform.revenue_cycle.coding.workers.apply_coding_rules_worker_v2 import ApplyCodingRulesWorkerV2
+from healthcare_platform.revenue_cycle.coding.workers.apply_coding_rules_worker import ApplyCodingRulesWorker
 from healthcare_platform.shared.domain.exceptions import CodingException, BpmnErrorException
 
 
@@ -13,14 +13,14 @@ def tenant_ctx():
 
 
 @pytest.mark.asyncio
-@patch('healthcare_platform.revenue_cycle.coding.workers.apply_coding_rules_worker_v2.get_required_tenant')
-@patch('healthcare_platform.revenue_cycle.coding.workers.apply_coding_rules_worker_v2.FederatedDMNService')
+@patch('healthcare_platform.revenue_cycle.coding.workers.apply_coding_rules_worker.get_required_tenant')
+@patch('healthcare_platform.revenue_cycle.coding.workers.apply_coding_rules_worker.FederatedDMNService')
 async def test_happy_path_no_violations(MockDMNService, mock_get_tenant, tenant_ctx):
     mock_get_tenant.return_value = tenant_ctx
     mock_dmn = MockDMNService.return_value
     mock_dmn.evaluate.return_value = {}
 
-    worker = ApplyCodingRulesWorkerV2(dmn_service=mock_dmn)
+    worker = ApplyCodingRulesWorker(dmn_service=mock_dmn)
     result = await worker.execute({
         'validatedCid10': ['A01.0', 'B02.1'],
         'validatedTuss': ['10101012', '20101015'],
@@ -35,13 +35,13 @@ async def test_happy_path_no_violations(MockDMNService, mock_get_tenant, tenant_
 
 
 @pytest.mark.asyncio
-@patch('healthcare_platform.revenue_cycle.coding.workers.apply_coding_rules_worker_v2.get_required_tenant')
-@patch('healthcare_platform.revenue_cycle.coding.workers.apply_coding_rules_worker_v2.FederatedDMNService')
+@patch('healthcare_platform.revenue_cycle.coding.workers.apply_coding_rules_worker.get_required_tenant')
+@patch('healthcare_platform.revenue_cycle.coding.workers.apply_coding_rules_worker.FederatedDMNService')
 async def test_missing_cid10_error(MockDMNService, mock_get_tenant, tenant_ctx):
     mock_get_tenant.return_value = tenant_ctx
     mock_dmn = MockDMNService.return_value
 
-    worker = ApplyCodingRulesWorkerV2(dmn_service=mock_dmn)
+    worker = ApplyCodingRulesWorker(dmn_service=mock_dmn)
 
     with pytest.raises(CodingException) as exc_info:
         await worker.execute({
@@ -55,13 +55,13 @@ async def test_missing_cid10_error(MockDMNService, mock_get_tenant, tenant_ctx):
 
 
 @pytest.mark.asyncio
-@patch('healthcare_platform.revenue_cycle.coding.workers.apply_coding_rules_worker_v2.get_required_tenant')
-@patch('healthcare_platform.revenue_cycle.coding.workers.apply_coding_rules_worker_v2.FederatedDMNService')
+@patch('healthcare_platform.revenue_cycle.coding.workers.apply_coding_rules_worker.get_required_tenant')
+@patch('healthcare_platform.revenue_cycle.coding.workers.apply_coding_rules_worker.FederatedDMNService')
 async def test_missing_tuss_error(MockDMNService, mock_get_tenant, tenant_ctx):
     mock_get_tenant.return_value = tenant_ctx
     mock_dmn = MockDMNService.return_value
 
-    worker = ApplyCodingRulesWorkerV2(dmn_service=mock_dmn)
+    worker = ApplyCodingRulesWorker(dmn_service=mock_dmn)
 
     with pytest.raises(CodingException) as exc_info:
         await worker.execute({
@@ -75,8 +75,8 @@ async def test_missing_tuss_error(MockDMNService, mock_get_tenant, tenant_ctx):
 
 
 @pytest.mark.asyncio
-@patch('healthcare_platform.revenue_cycle.coding.workers.apply_coding_rules_worker_v2.get_required_tenant')
-@patch('healthcare_platform.revenue_cycle.coding.workers.apply_coding_rules_worker_v2.FederatedDMNService')
+@patch('healthcare_platform.revenue_cycle.coding.workers.apply_coding_rules_worker.get_required_tenant')
+@patch('healthcare_platform.revenue_cycle.coding.workers.apply_coding_rules_worker.FederatedDMNService')
 async def test_dmn_returns_block(MockDMNService, mock_get_tenant, tenant_ctx):
     mock_get_tenant.return_value = tenant_ctx
     mock_dmn = MockDMNService.return_value
@@ -87,7 +87,7 @@ async def test_dmn_returns_block(MockDMNService, mock_get_tenant, tenant_ctx):
         {}
     ]
 
-    worker = ApplyCodingRulesWorkerV2(dmn_service=mock_dmn)
+    worker = ApplyCodingRulesWorker(dmn_service=mock_dmn)
 
     with pytest.raises(BpmnErrorException) as exc_info:
         await worker.execute({
@@ -101,8 +101,8 @@ async def test_dmn_returns_block(MockDMNService, mock_get_tenant, tenant_ctx):
 
 
 @pytest.mark.asyncio
-@patch('healthcare_platform.revenue_cycle.coding.workers.apply_coding_rules_worker_v2.get_required_tenant')
-@patch('healthcare_platform.revenue_cycle.coding.workers.apply_coding_rules_worker_v2.FederatedDMNService')
+@patch('healthcare_platform.revenue_cycle.coding.workers.apply_coding_rules_worker.get_required_tenant')
+@patch('healthcare_platform.revenue_cycle.coding.workers.apply_coding_rules_worker.FederatedDMNService')
 async def test_dmn_returns_review_warning(MockDMNService, mock_get_tenant, tenant_ctx):
     mock_get_tenant.return_value = tenant_ctx
     mock_dmn = MockDMNService.return_value
@@ -113,7 +113,7 @@ async def test_dmn_returns_review_warning(MockDMNService, mock_get_tenant, tenan
         {}
     ]
 
-    worker = ApplyCodingRulesWorkerV2(dmn_service=mock_dmn)
+    worker = ApplyCodingRulesWorker(dmn_service=mock_dmn)
     result = await worker.execute({
         'validatedCid10': ['A01.0'],
         'validatedTuss': ['10101012'],
@@ -128,8 +128,8 @@ async def test_dmn_returns_review_warning(MockDMNService, mock_get_tenant, tenan
 
 
 @pytest.mark.asyncio
-@patch('healthcare_platform.revenue_cycle.coding.workers.apply_coding_rules_worker_v2.get_required_tenant')
-@patch('healthcare_platform.revenue_cycle.coding.workers.apply_coding_rules_worker_v2.FederatedDMNService')
+@patch('healthcare_platform.revenue_cycle.coding.workers.apply_coding_rules_worker.get_required_tenant')
+@patch('healthcare_platform.revenue_cycle.coding.workers.apply_coding_rules_worker.FederatedDMNService')
 async def test_modifier_extraction(MockDMNService, mock_get_tenant, tenant_ctx):
     mock_get_tenant.return_value = tenant_ctx
     mock_dmn = MockDMNService.return_value
@@ -140,7 +140,7 @@ async def test_modifier_extraction(MockDMNService, mock_get_tenant, tenant_ctx):
         {'acao': 'Aplicar modificador 22'}
     ]
 
-    worker = ApplyCodingRulesWorkerV2(dmn_service=mock_dmn)
+    worker = ApplyCodingRulesWorker(dmn_service=mock_dmn)
     result = await worker.execute({
         'validatedCid10': ['A01.0'],
         'validatedTuss': ['10101012', '20101015'],
@@ -154,8 +154,8 @@ async def test_modifier_extraction(MockDMNService, mock_get_tenant, tenant_ctx):
 
 
 @pytest.mark.asyncio
-@patch('healthcare_platform.revenue_cycle.coding.workers.apply_coding_rules_worker_v2.get_required_tenant')
-@patch('healthcare_platform.revenue_cycle.coding.workers.apply_coding_rules_worker_v2.FederatedDMNService')
+@patch('healthcare_platform.revenue_cycle.coding.workers.apply_coding_rules_worker.get_required_tenant')
+@patch('healthcare_platform.revenue_cycle.coding.workers.apply_coding_rules_worker.FederatedDMNService')
 async def test_multiple_violations_mixed_severity(MockDMNService, mock_get_tenant, tenant_ctx):
     mock_get_tenant.return_value = tenant_ctx
     mock_dmn = MockDMNService.return_value
@@ -166,7 +166,7 @@ async def test_multiple_violations_mixed_severity(MockDMNService, mock_get_tenan
         {}
     ]
 
-    worker = ApplyCodingRulesWorkerV2(dmn_service=mock_dmn)
+    worker = ApplyCodingRulesWorker(dmn_service=mock_dmn)
 
     with pytest.raises(BpmnErrorException) as exc_info:
         await worker.execute({

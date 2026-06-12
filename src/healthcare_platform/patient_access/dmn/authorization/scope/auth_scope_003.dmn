@@ -1,0 +1,142 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  ============================================================================
+  AUTH-SCOPE-003 - Local Atendimento Compativel (Ambulatorio vs Internacao)
+  ============================================================================
+  Versao: 1.0.0 (2026-02-08)
+  Categoria: AUTH-SCOPE
+  Perspectiva: HOSPITAL (Faturamento/Auditoria)
+
+  ============================================================================
+  INDICACOES (Quando PROSSEGUIR):
+  ============================================================================
+  - Local realizado corresponde ao autorizado
+  - Compatibilidade entre local autorizado e realizado
+  - Modalidade de atendimento adequada
+
+  ============================================================================
+  CONTRAINDICACOES (Quando BLOQUEAR):
+  ============================================================================
+  - Local realizado diferente do autorizado
+  - Internacao autorizada mas atendimento ambulatorial
+  - Incompatibilidade de modalidade
+
+  ============================================================================
+  REFERENCIAS NORMATIVAS:
+  ============================================================================
+  - RN 424/2017 (Autorizacao Previa)
+  - RN 465/2021 (Procedimentos Regulados)
+  - TISS 4.01.00 (Guia SP/SADT)
+  - Lei 9.656/1998 Art. 12 (Cobertura Obrigatoria)
+  ============================================================================
+-->
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/"
+             xmlns:dc="http://www.omg.org/spec/DMN/20180521/DC/"
+             xmlns:di="http://www.omg.org/spec/DMN/20180521/DI/"
+             xmlns:camunda="http://camunda.org/schema/1.0/dmn"
+             id="Definitions_AUTH_SCOPE_003"
+             name="Local Atendimento Compativel (Ambulatorio vs Internacao)"
+             namespace="http://camunda.org/schema/1.0/dmn">
+
+  <decision id="Decision_AUTH_SCOPE_003" name="[SP-PA-004 | authorization/scope] Verificar Local Atendimento Compativel" camunda:historyTimeToLive="180">
+    <decisionTable id="DecisionTable_AUTH_SCOPE_003" hitPolicy="FIRST">
+
+      <!-- ========== INPUTS ========== -->
+      <input id="Input_1_AUTH_SCOPE_003" label="Local Autorizado">
+        <inputExpression id="InputExpression_1_AUTH_SCOPE_003" typeRef="string">
+          <text>localAutorizado</text>
+        </inputExpression>
+        <inputValues id="InputValues_1_AUTH_SCOPE_003">
+          <text>"AMBULATORIO", "INTERNACAO", "DOMICILIAR"</text>
+        </inputValues>
+      </input>
+
+      <input id="Input_2_AUTH_SCOPE_003" label="Local Realizado">
+        <inputExpression id="InputExpression_2_AUTH_SCOPE_003" typeRef="string">
+          <text>localRealizado</text>
+        </inputExpression>
+        <inputValues id="InputValues_2_AUTH_SCOPE_003">
+          <text>"AMBULATORIO", "INTERNACAO", "DOMICILIAR"</text>
+        </inputValues>
+      </input>
+
+      <!-- ========== OUTPUTS (5 STANDARD) ========== -->
+      <output id="Output_1_AUTH_SCOPE_003" label="Resultado" name="resultado" typeRef="string">
+        <outputValues><text>"Prosseguir", "Bloquear", "Alertar", "Revisar"</text></outputValues>
+      </output>
+
+      <output id="Output_2_AUTH_SCOPE_003" label="Observacao" name="observacao" typeRef="string"/>
+
+      <output id="Output_3_AUTH_SCOPE_003" label="Acao Recomendada" name="acaoRecomendada" typeRef="string"/>
+
+      <output id="Output_4_AUTH_SCOPE_003" label="Alertas Conformidade" name="alertasConformidade" typeRef="string">
+        <outputValues><text>"NENHUM", "DUP", "FREQ", "PRAZO", "DOC", "VALOR", "CRED", "CONTRATO"</text></outputValues>
+      </output>
+
+      <output id="Output_5_AUTH_SCOPE_003" label="Risco Denial" name="riscoDenial" typeRef="string">
+        <outputValues><text>"BAIXO", "MEDIO", "ALTO", "CRITICO"</text></outputValues>
+      </output>
+
+      <!-- ========== RULES ========== -->
+
+      <!-- REGRA B1: Bloqueio - Local incompativel -->
+      <rule id="Rule_Bloqueio_1_AUTH_SCOPE_003">
+        <description>Local realizado diferente do autorizado</description>
+        <inputEntry id="InputEntry_B1_1_AUTH_SCOPE_003"><text>not("" + localRealizado = "" + localAutorizado)</text></inputEntry>
+        <inputEntry id="InputEntry_B1_2_AUTH_SCOPE_003"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_B1_1_AUTH_SCOPE_003"><text>"Bloquear"</text></outputEntry>
+        <outputEntry id="OutputEntry_B1_2_AUTH_SCOPE_003"><text>"Local de atendimento realizado difere do autorizado pela operadora. Faturamento bloqueado."</text></outputEntry>
+        <outputEntry id="OutputEntry_B1_3_AUTH_SCOPE_003"><text>"Solicitar nova autorizacao para local correto ou realizar atendimento no local autorizado."</text></outputEntry>
+        <outputEntry id="OutputEntry_B1_4_AUTH_SCOPE_003"><text>"DOC"</text></outputEntry>
+        <outputEntry id="OutputEntry_B1_5_AUTH_SCOPE_003"><text>"ALTO"</text></outputEntry>
+      </rule>
+
+      <!-- REGRA A1: Alerta - Internacao autorizada, ambulatorio realizado -->
+      <rule id="Rule_Alerta_1_AUTH_SCOPE_003">
+        <description>Autorizacao para internacao mas realizado em ambulatorio</description>
+        <inputEntry id="InputEntry_A1_1_AUTH_SCOPE_003"><text>"INTERNACAO"</text></inputEntry>
+        <inputEntry id="InputEntry_A1_2_AUTH_SCOPE_003"><text>"AMBULATORIO"</text></inputEntry>
+        <outputEntry id="OutputEntry_A1_1_AUTH_SCOPE_003"><text>"Alertar"</text></outputEntry>
+        <outputEntry id="OutputEntry_A1_2_AUTH_SCOPE_003"><text>"Procedimento autorizado para internacao mas realizado em ambulatorio. Pode gerar glosa."</text></outputEntry>
+        <outputEntry id="OutputEntry_A1_3_AUTH_SCOPE_003"><text>"Verificar justificativa clinica para alteracao. Solicitar anuencia da operadora se necessario."</text></outputEntry>
+        <outputEntry id="OutputEntry_A1_4_AUTH_SCOPE_003"><text>"DOC"</text></outputEntry>
+        <outputEntry id="OutputEntry_A1_5_AUTH_SCOPE_003"><text>"MEDIO"</text></outputEntry>
+      </rule>
+
+      <!-- REGRA P1: Aprovado - Local compativel -->
+      <rule id="Rule_Aprovado_1_AUTH_SCOPE_003">
+        <description>Local realizado identico ao autorizado</description>
+        <inputEntry id="InputEntry_P1_1_AUTH_SCOPE_003"><text>"" + localRealizado = "" + localAutorizado</text></inputEntry>
+        <inputEntry id="InputEntry_P1_2_AUTH_SCOPE_003"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_P1_1_AUTH_SCOPE_003"><text>"Prosseguir"</text></outputEntry>
+        <outputEntry id="OutputEntry_P1_2_AUTH_SCOPE_003"><text>"Local de atendimento realizado corresponde ao autorizado."</text></outputEntry>
+        <outputEntry id="OutputEntry_P1_3_AUTH_SCOPE_003"><text>"Prosseguir com faturamento conforme local autorizado."</text></outputEntry>
+        <outputEntry id="OutputEntry_P1_4_AUTH_SCOPE_003"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_P1_5_AUTH_SCOPE_003"><text>"BAIXO"</text></outputEntry>
+      </rule>
+
+      <!-- REGRA F: Fallback - Requer revisao manual -->
+      <rule id="Rule_Fallback_AUTH_SCOPE_003">
+        <description>Regra padrao - Requer avaliacao manual</description>
+        <inputEntry id="InputEntry_F_1_AUTH_SCOPE_003"><text>-</text></inputEntry>
+        <inputEntry id="InputEntry_F_2_AUTH_SCOPE_003"><text>-</text></inputEntry>
+        <outputEntry id="OutputEntry_F_1_AUTH_SCOPE_003"><text>"Revisar"</text></outputEntry>
+        <outputEntry id="OutputEntry_F_2_AUTH_SCOPE_003"><text>"Situacao de local de atendimento requer analise manual."</text></outputEntry>
+        <outputEntry id="OutputEntry_F_3_AUTH_SCOPE_003"><text>"Encaminhar para auditoria verificar compatibilidade de local de atendimento."</text></outputEntry>
+        <outputEntry id="OutputEntry_F_4_AUTH_SCOPE_003"><text>"NENHUM"</text></outputEntry>
+        <outputEntry id="OutputEntry_F_5_AUTH_SCOPE_003"><text>"MEDIO"</text></outputEntry>
+      </rule>
+
+    </decisionTable>
+  </decision>
+
+  <dmndi:DMNDI>
+    <dmndi:DMNDiagram id="DMNDiagram_AUTH_SCOPE_003">
+      <dmndi:DMNShape id="DMNShape_Decision_AUTH_SCOPE_003" dmnElementRef="Decision_AUTH_SCOPE_003">
+        <dc:Bounds height="80" width="180" x="160" y="100"/>
+      </dmndi:DMNShape>
+    </dmndi:DMNDiagram>
+  </dmndi:DMNDI>
+
+</definitions>

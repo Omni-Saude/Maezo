@@ -1,0 +1,375 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" xmlns:camunda="http://camunda.org/schema/1.0/bpmn" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" id="Definitions_RC004" targetNamespace="http://cib7.healthcare/revenue-cycle" exporter="Camunda Modeler" exporterVersion="5.35.0">
+  <bpmn:process id="SP_RC_004_Clinical_Production" name="Produção Clínica" isExecutable="true" camunda:historyTimeToLive="30">
+    <bpmn:startEvent id="start_production" name="Início Produção">
+      <bpmn:outgoing>flow_to_assign_prices</bpmn:outgoing>
+    </bpmn:startEvent>
+    <bpmn:boundaryEvent id="error_pricing_failed" name="Erro Precificação" attachedToRef="task_assign_prices">
+      <bpmn:outgoing>flow_to_manual_pricing</bpmn:outgoing>
+      <bpmn:errorEventDefinition errorRef="Error_PricingFailed" />
+    </bpmn:boundaryEvent>
+    <bpmn:exclusiveGateway id="gateway_compatibility" name="Compatível?" default="flow_incompatible">
+      <bpmn:incoming>flow_to_compatibility_gateway</bpmn:incoming>
+      <bpmn:outgoing>flow_compatible</bpmn:outgoing>
+      <bpmn:outgoing>flow_incompatible</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:exclusiveGateway id="gateway_outlier" name="É Outlier?" default="flow_is_outlier">
+      <bpmn:incoming>Flow_0dhi2w3</bpmn:incoming>
+      <bpmn:outgoing>flow_not_outlier</bpmn:outgoing>
+      <bpmn:outgoing>flow_is_outlier</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:endEvent id="end_success" name="Produção Registrada">
+      <bpmn:incoming>flow_to_end_success</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:endEvent id="end_incompatible" name="Incompatibilidade">
+      <bpmn:incoming>flow_to_end_incompatible</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:endEvent id="end_manual" name="Precificação Manual">
+      <bpmn:incoming>flow_to_end_manual</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:sequenceFlow id="flow_to_assign_prices" sourceRef="start_production" targetRef="task_assign_prices" />
+    <bpmn:sequenceFlow id="flow_to_dmn_contract" sourceRef="task_assign_prices" targetRef="dmn_contract_pricing" />
+    <bpmn:sequenceFlow id="flow_to_dmn_package" sourceRef="dmn_contract_pricing" targetRef="dmn_package_pricing" />
+    <bpmn:sequenceFlow id="flow_to_validate_compatibility" sourceRef="dmn_package_pricing" targetRef="task_validate_compatibility" />
+    <bpmn:sequenceFlow id="flow_to_compatibility_gateway" sourceRef="task_validate_compatibility" targetRef="gateway_compatibility" />
+    <bpmn:sequenceFlow id="flow_compatible" name="Sim" sourceRef="gateway_compatibility" targetRef="task_calculate_production">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${compatibilityStatus == true}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="flow_incompatible" name="Não" sourceRef="gateway_compatibility" targetRef="task_review_incompatibility" />
+    <bpmn:sequenceFlow id="flow_to_dmn_outlier" sourceRef="task_calculate_production" targetRef="Gateway_010dozk" />
+    <bpmn:sequenceFlow id="flow_to_outlier_gateway" sourceRef="dmn_outlier_detection" targetRef="Gateway_1uvv8tp" />
+    <bpmn:sequenceFlow id="flow_not_outlier" name="Não" sourceRef="gateway_outlier" targetRef="Gateway_07jleu7">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">=outlierAnalysis.isOutlier = false</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="flow_is_outlier" name="Sim" sourceRef="gateway_outlier" targetRef="task_review_outlier" />
+    <bpmn:sequenceFlow id="flow_to_manual_pricing" sourceRef="error_pricing_failed" targetRef="task_manual_pricing" />
+    <bpmn:sequenceFlow id="flow_to_end_success" sourceRef="task_record_production" targetRef="end_success" />
+    <bpmn:sequenceFlow id="flow_to_end_outlier_review" sourceRef="task_review_outlier" targetRef="Event_09wdf0a" />
+    <bpmn:sequenceFlow id="flow_to_end_incompatible" sourceRef="task_review_incompatibility" targetRef="end_incompatible" />
+    <bpmn:sequenceFlow id="flow_to_end_manual" sourceRef="task_manual_pricing" targetRef="end_manual" />
+    <bpmn:exclusiveGateway id="Gateway_1uvv8tp" name="Aceito?" default="Flow_1cbai6y">
+      <bpmn:incoming>flow_to_outlier_gateway</bpmn:incoming>
+      <bpmn:outgoing>Flow_1yix5ad</bpmn:outgoing>
+      <bpmn:outgoing>Flow_1cbai6y</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:sequenceFlow id="Flow_1yix5ad" name="não" sourceRef="Gateway_1uvv8tp" targetRef="Activity_1kmxy5n">
+      <bpmn:conditionExpression>${outlierRevisaoNecessaria == true}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_0dhi2w3" sourceRef="Activity_1kmxy5n" targetRef="gateway_outlier" />
+    <bpmn:exclusiveGateway id="Gateway_07jleu7">
+      <bpmn:incoming>flow_not_outlier</bpmn:incoming>
+      <bpmn:incoming>Flow_1cbai6y</bpmn:incoming>
+      <bpmn:outgoing>Flow_0794kov</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:sequenceFlow id="Flow_0794kov" sourceRef="Gateway_07jleu7" targetRef="task_record_production" />
+    <bpmn:sequenceFlow id="Flow_1cbai6y" name="sim" sourceRef="Gateway_1uvv8tp" targetRef="Gateway_07jleu7" />
+    <bpmn:intermediateThrowEvent id="Event_09wdf0a" name="após 24 horas">
+      <bpmn:incoming>flow_to_end_outlier_review</bpmn:incoming>
+      <bpmn:outgoing>Flow_0mol12b</bpmn:outgoing>
+    </bpmn:intermediateThrowEvent>
+    <bpmn:exclusiveGateway id="Gateway_010dozk">
+      <bpmn:incoming>flow_to_dmn_outlier</bpmn:incoming>
+      <bpmn:incoming>Flow_0mol12b</bpmn:incoming>
+      <bpmn:outgoing>Flow_07fkzvr</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:sequenceFlow id="Flow_07fkzvr" sourceRef="Gateway_010dozk" targetRef="Activity_0l4z29v" />
+    <bpmn:sequenceFlow id="Flow_0mol12b" sourceRef="Event_09wdf0a" targetRef="Gateway_010dozk" />
+    <bpmn:sequenceFlow id="Flow_0pkzbmy" sourceRef="Activity_0l4z29v" targetRef="dmn_outlier_detection" />
+    <bpmn:serviceTask id="task_assign_prices" name="Atribuir Preços" camunda:type="external" camunda:topic="revenue_cycle.production.assign_prices">
+      <bpmn:extensionElements>
+        <camunda:inputOutput>
+          <camunda:outputParameter name="proceduresWithPrices">${pricedProcedures}</camunda:outputParameter>
+        </camunda:inputOutput>
+      </bpmn:extensionElements>
+      <bpmn:incoming>flow_to_assign_prices</bpmn:incoming>
+      <bpmn:outgoing>flow_to_dmn_contract</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:userTask id="task_manual_pricing" name="Precificação Manual">
+      <bpmn:incoming>flow_to_manual_pricing</bpmn:incoming>
+      <bpmn:outgoing>flow_to_end_manual</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:businessRuleTask id="dmn_contract_pricing" name="Regras de Contrato" camunda:decisionRef="pricing_contract_rules" camunda:mapDecisionResult="singleResult" camunda:resultVariable="contractPricing">
+      <bpmn:incoming>flow_to_dmn_contract</bpmn:incoming>
+      <bpmn:outgoing>flow_to_dmn_package</bpmn:outgoing>
+    </bpmn:businessRuleTask>
+    <bpmn:businessRuleTask id="dmn_package_pricing" name="Precificação de Pacotes" camunda:decisionRef="pricing_package_rules" camunda:mapDecisionResult="singleResult" camunda:resultVariable="packagePricing">
+      <bpmn:incoming>flow_to_dmn_package</bpmn:incoming>
+      <bpmn:outgoing>flow_to_validate_compatibility</bpmn:outgoing>
+    </bpmn:businessRuleTask>
+    <bpmn:serviceTask id="task_validate_compatibility" name="Validar Compatibilidade" camunda:type="external" camunda:topic="revenue_cycle.production.validate_compatibility">
+      <bpmn:extensionElements>
+        <camunda:inputOutput>
+          <camunda:outputParameter name="compatibilityStatus">${compatibilityResult}</camunda:outputParameter>
+          <camunda:outputParameter name="incompatibilities">${incompatibleItems}</camunda:outputParameter>
+        </camunda:inputOutput>
+      </bpmn:extensionElements>
+      <bpmn:incoming>flow_to_validate_compatibility</bpmn:incoming>
+      <bpmn:outgoing>flow_to_compatibility_gateway</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:userTask id="task_review_incompatibility" name="Revisar Incompatibilidade">
+      <bpmn:incoming>flow_incompatible</bpmn:incoming>
+      <bpmn:outgoing>flow_to_end_incompatible</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:serviceTask id="task_calculate_production" name="Calcular Valor de Produção" camunda:type="external" camunda:topic="revenue_cycle.production.calculate_value">
+      <bpmn:extensionElements>
+        <camunda:inputOutput>
+          <camunda:outputParameter name="productionValue">${totalValue}</camunda:outputParameter>
+          <camunda:outputParameter name="valueBreakdown">${breakdown}</camunda:outputParameter>
+        </camunda:inputOutput>
+      </bpmn:extensionElements>
+      <bpmn:incoming>flow_compatible</bpmn:incoming>
+      <bpmn:outgoing>flow_to_dmn_outlier</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:serviceTask id="Activity_0l4z29v" name="Coletar&#10;dados" camunda:type="external" camunda:topic="revenue_cycle.production.collect_outlier_data">
+      <bpmn:incoming>Flow_07fkzvr</bpmn:incoming>
+      <bpmn:outgoing>Flow_0pkzbmy</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:businessRuleTask id="dmn_outlier_detection" name="Detecção de Outliers" camunda:decisionRef="pricing_outlier_detection" camunda:mapDecisionResult="singleResult" camunda:resultVariable="outlierAnalysis">
+      <bpmn:incoming>Flow_0pkzbmy</bpmn:incoming>
+      <bpmn:outgoing>flow_to_outlier_gateway</bpmn:outgoing>
+    </bpmn:businessRuleTask>
+    <bpmn:serviceTask id="Activity_1kmxy5n" name="Consultar preços historicos" camunda:type="external" camunda:topic="revenue_cycle.production.query_historical_prices">
+      <bpmn:incoming>Flow_1yix5ad</bpmn:incoming>
+      <bpmn:outgoing>Flow_0dhi2w3</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:serviceTask id="task_review_outlier" name="Notificar&#10;pendências" camunda:type="external" camunda:topic="revenue_cycle.production.notify_outlier_pending">
+      <bpmn:incoming>flow_is_outlier</bpmn:incoming>
+      <bpmn:outgoing>flow_to_end_outlier_review</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:serviceTask id="task_record_production" name="Registrar Produção" camunda:type="external" camunda:topic="revenue_cycle.production.record_production">
+      <bpmn:extensionElements>
+        <camunda:inputOutput>
+          <camunda:outputParameter name="recordedProductionId">${productionId}</camunda:outputParameter>
+        </camunda:inputOutput>
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_0794kov</bpmn:incoming>
+      <bpmn:outgoing>flow_to_end_success</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:textAnnotation id="TextAnnotation_1e75upa">
+      <bpmn:text>Avalia se o tipo de atendimento vai ser contemplado pelo outlier</bpmn:text>
+    </bpmn:textAnnotation>
+    <bpmn:association id="Association_1po3j3a" associationDirection="None" sourceRef="dmn_outlier_detection" targetRef="TextAnnotation_1e75upa" />
+  </bpmn:process>
+  <bpmn:error id="Error_PricingFailed" name="PricingFailed" errorCode="ERR_PRICING_001" />
+  <bpmndi:BPMNDiagram id="BPMNDiagram_RC004">
+    <bpmndi:BPMNPlane id="BPMNPlane_RC004" bpmnElement="SP_RC_004_Clinical_Production">
+      <bpmndi:BPMNShape id="Shape_start_production" bpmnElement="start_production">
+        <dc:Bounds x="180" y="402" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="160" y="445" width="77" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_gateway_compatibility" bpmnElement="gateway_compatibility" isMarkerVisible="true">
+        <dc:Bounds x="905" y="395" width="50" height="50" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="898" y="455" width="63" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_gateway_outlier" bpmnElement="gateway_outlier" isMarkerVisible="true">
+        <dc:Bounds x="1775" y="395" width="50" height="50" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1776" y="373" width="50" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_end_success" bpmnElement="end_success">
+        <dc:Bounds x="2122" y="402" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="2113" y="445" width="54" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_end_incompatible" bpmnElement="end_incompatible">
+        <dc:Bounds x="912" y="102" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="887" y="78" width="86" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_end_manual" bpmnElement="end_manual">
+        <dc:Bounds x="302" y="672" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="290" y="715" width="61" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Gateway_1uvv8tp_di" bpmnElement="Gateway_1uvv8tp" isMarkerVisible="true">
+        <dc:Bounds x="1525" y="395" width="50" height="50" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1531" y="455" width="37" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Gateway_07jleu7_di" bpmnElement="Gateway_07jleu7" isMarkerVisible="true">
+        <dc:Bounds x="1885" y="395" width="50" height="50" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Event_09wdf0a_di" bpmnElement="Event_09wdf0a">
+        <dc:Bounds x="1532" y="562" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1515" y="605" width="70" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Gateway_010dozk_di" bpmnElement="Gateway_010dozk" isMarkerVisible="true">
+        <dc:Bounds x="1155" y="395" width="50" height="50" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Activity_0iyw586_di" bpmnElement="task_assign_prices">
+        <dc:Bounds x="270" y="380" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Activity_1uzsi4m_di" bpmnElement="task_manual_pricing">
+        <dc:Bounds x="270" y="540" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Activity_1gvsm1r_di" bpmnElement="dmn_contract_pricing">
+        <dc:Bounds x="430" y="380" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Activity_12iqeh0_di" bpmnElement="dmn_package_pricing">
+        <dc:Bounds x="590" y="380" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Activity_0cy8v6p_di" bpmnElement="task_validate_compatibility">
+        <dc:Bounds x="750" y="380" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Activity_17ivlz2_di" bpmnElement="task_review_incompatibility">
+        <dc:Bounds x="880" y="210" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Activity_1b53a4m_di" bpmnElement="task_calculate_production">
+        <dc:Bounds x="1010" y="380" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Activity_1hjjggl_di" bpmnElement="Activity_0l4z29v">
+        <dc:Bounds x="1240" y="380" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Activity_0i8t0j7_di" bpmnElement="dmn_outlier_detection">
+        <dc:Bounds x="1380" y="380" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Activity_1jn859m_di" bpmnElement="Activity_1kmxy5n">
+        <dc:Bounds x="1630" y="380" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Activity_0t5tupt_di" bpmnElement="task_review_outlier">
+        <dc:Bounds x="1750" y="540" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Activity_1x9a5q5_di" bpmnElement="task_record_production">
+        <dc:Bounds x="1980" y="380" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_error_pricing_failed" bpmnElement="error_pricing_failed">
+        <dc:Bounds x="302" y="442" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="278" y="485" width="85" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="TextAnnotation_1e75upa_di" bpmnElement="TextAnnotation_1e75upa">
+        <dc:Bounds x="1355" y="260" width="150.00000205921577" height="55.330634278002705" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Edge_flow_to_assign_prices" bpmnElement="flow_to_assign_prices">
+        <di:waypoint x="216" y="420" />
+        <di:waypoint x="270" y="420" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_flow_to_dmn_contract" bpmnElement="flow_to_dmn_contract">
+        <di:waypoint x="370" y="420" />
+        <di:waypoint x="430" y="420" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_flow_to_dmn_package" bpmnElement="flow_to_dmn_package">
+        <di:waypoint x="530" y="420" />
+        <di:waypoint x="590" y="420" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_flow_to_validate_compatibility" bpmnElement="flow_to_validate_compatibility">
+        <di:waypoint x="690" y="420" />
+        <di:waypoint x="750" y="420" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_flow_to_compatibility_gateway" bpmnElement="flow_to_compatibility_gateway">
+        <di:waypoint x="850" y="420" />
+        <di:waypoint x="905" y="420" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_flow_compatible" bpmnElement="flow_compatible">
+        <di:waypoint x="955" y="420" />
+        <di:waypoint x="1010" y="420" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="974" y="402" width="20" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_flow_incompatible" bpmnElement="flow_incompatible">
+        <di:waypoint x="930" y="395" />
+        <di:waypoint x="930" y="290" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="949" y="337" width="21" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_flow_to_dmn_outlier" bpmnElement="flow_to_dmn_outlier">
+        <di:waypoint x="1110" y="420" />
+        <di:waypoint x="1155" y="420" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_flow_to_outlier_gateway" bpmnElement="flow_to_outlier_gateway">
+        <di:waypoint x="1480" y="420" />
+        <di:waypoint x="1525" y="420" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_flow_not_outlier" bpmnElement="flow_not_outlier">
+        <di:waypoint x="1825" y="420" />
+        <di:waypoint x="1885" y="420" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1837" y="402" width="21" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_flow_is_outlier" bpmnElement="flow_is_outlier">
+        <di:waypoint x="1800" y="445" />
+        <di:waypoint x="1800" y="540" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1806" y="484" width="20" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_flow_to_manual_pricing" bpmnElement="flow_to_manual_pricing">
+        <di:waypoint x="320" y="478" />
+        <di:waypoint x="320" y="540" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_flow_to_end_success" bpmnElement="flow_to_end_success">
+        <di:waypoint x="2080" y="420" />
+        <di:waypoint x="2122" y="420" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_flow_to_end_outlier_review" bpmnElement="flow_to_end_outlier_review">
+        <di:waypoint x="1750" y="580" />
+        <di:waypoint x="1568" y="580" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_flow_to_end_incompatible" bpmnElement="flow_to_end_incompatible">
+        <di:waypoint x="930" y="210" />
+        <di:waypoint x="930" y="138" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_flow_to_end_manual" bpmnElement="flow_to_end_manual">
+        <di:waypoint x="320" y="620" />
+        <di:waypoint x="320" y="672" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_1yix5ad_di" bpmnElement="Flow_1yix5ad">
+        <di:waypoint x="1575" y="420" />
+        <di:waypoint x="1630" y="420" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1586" y="403" width="19" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_0dhi2w3_di" bpmnElement="Flow_0dhi2w3">
+        <di:waypoint x="1730" y="420" />
+        <di:waypoint x="1775" y="420" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_0794kov_di" bpmnElement="Flow_0794kov">
+        <di:waypoint x="1935" y="420" />
+        <di:waypoint x="1980" y="420" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_1cbai6y_di" bpmnElement="Flow_1cbai6y">
+        <di:waypoint x="1550" y="395" />
+        <di:waypoint x="1550" y="310" />
+        <di:waypoint x="1910" y="310" />
+        <di:waypoint x="1910" y="395" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1585" y="295" width="18" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_07fkzvr_di" bpmnElement="Flow_07fkzvr">
+        <di:waypoint x="1205" y="420" />
+        <di:waypoint x="1240" y="420" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_0mol12b_di" bpmnElement="Flow_0mol12b">
+        <di:waypoint x="1532" y="580" />
+        <di:waypoint x="1180" y="580" />
+        <di:waypoint x="1180" y="445" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_0pkzbmy_di" bpmnElement="Flow_0pkzbmy">
+        <di:waypoint x="1340" y="420" />
+        <di:waypoint x="1380" y="420" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Association_1po3j3a_di" bpmnElement="Association_1po3j3a">
+        <di:waypoint x="1430" y="380" />
+        <di:waypoint x="1430" y="315" />
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>

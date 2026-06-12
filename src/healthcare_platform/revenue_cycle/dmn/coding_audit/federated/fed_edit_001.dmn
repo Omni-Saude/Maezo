@@ -1,0 +1,360 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/"
+             xmlns:dc="http://www.omg.org/spec/DMN/20180521/DC/"
+             xmlns:camunda="http://camunda.org/schema/1.0/dmn"
+             xmlns:di="http://www.omg.org/spec/DMN/20180521/DI/"
+             id="coding-validation-definitions"
+             name="Coding Validation Decision"
+             namespace="http://camunda.org/schema/1.0/dmn"
+             exporter="Camunda Modeler"
+             exporterVersion="5.20.0">
+
+  <decision id="coding-validation" name="[SP-RC-005 | coding_audit/federated] Validação de Codificação Médica" camunda:historyTimeToLive="180">
+
+    <decisionTable id="coding-table" hitPolicy="FIRST">
+
+      <!-- ===== INPUT DEFINITIONS ===== -->
+      <input id="input-procedure-code_coding-validation" label="Código TUSS" camunda:inputVariable="procedureCode">
+        <inputExpression id="input-expr-1_coding-validation" typeRef="string">
+          <text>procedureCode</text>
+        </inputExpression>
+      </input>
+
+      <input id="input-diagnosis-code_coding-validation" label="Código CID-10" camunda:inputVariable="diagnosisCode">
+        <inputExpression id="input-expr-2_coding-validation" typeRef="string">
+          <text>diagnosisCode</text>
+        </inputExpression>
+      </input>
+
+      <input id="input-patient-age_coding-validation" label="Idade do Paciente" camunda:inputVariable="patientAge">
+        <inputExpression id="input-expr-3_coding-validation" typeRef="integer">
+          <text>patientAge</text>
+        </inputExpression>
+      </input>
+
+      <input id="input-is-surgical_coding-validation" label="Procedimento Cirúrgico" camunda:inputVariable="isSurgical">
+        <inputExpression id="input-expr-4_coding-validation" typeRef="boolean">
+          <text>isSurgical</text>
+        </inputExpression>
+      </input>
+
+      <input id="input-patient-gender_coding-validation" label="Gênero do Paciente" camunda:inputVariable="patientGender">
+        <inputExpression id="input-expr-5_coding-validation" typeRef="string">
+          <text>patientGender</text>
+        </inputExpression>
+        <inputValues id="input-values-1_coding-validation">
+          <text>"M","F","OTHER"</text>
+        </inputValues>
+      </input>
+
+      <!-- ===== OUTPUT DEFINITIONS ===== -->
+      <output id="output-is-valid_coding-validation" label="Válido" name="isValid" typeRef="boolean" />
+
+      <output id="output-validation-message_coding-validation" label="Mensagem de Validação" name="validationMessage" typeRef="string" />
+
+      <output id="output-requires-justification_coding-validation" label="Requer Justificativa" name="requiresJustification" typeRef="boolean" />
+
+      <output id="output-coding-quality-score_coding-validation" label="Score de Qualidade" name="codingQualityScore" typeRef="integer">
+        <outputValues id="output-values-1_coding-validation">
+          <text>1,2,3,4,5</text>
+        </outputValues>
+      </output>
+
+      <output id="output-suggested-alternative_coding-validation" label="Código Alternativo Sugerido" name="suggestedAlternative" typeRef="string" />
+
+      <!-- ===== DECISION RULES ===== -->
+
+      <!-- RULE 1: Procedimento pediátrico em adulto -->
+      <rule id="rule-pediatric-adult_coding-validation">
+        <description>Procedimento pediátrico não pode ser aplicado em adultos</description>
+        <inputEntry id="rule1-input1_coding-validation">
+          <text>starts with(procedureCode, "PED-")</text>
+        </inputEntry>
+        <inputEntry id="rule1-input2_coding-validation">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="rule1-input3_coding-validation">
+          <text>&gt; 18</text>
+        </inputEntry>
+        <inputEntry id="rule1-input4_coding-validation">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="rule1-input5_coding-validation">
+          <text>-</text>
+        </inputEntry>
+        <outputEntry id="rule1-output1_coding-validation">
+          <text>false</text>
+        </outputEntry>
+        <outputEntry id="rule1-output2_coding-validation">
+          <text>"Pediatric procedure code used for adult patient"</text>
+        </outputEntry>
+        <outputEntry id="rule1-output3_coding-validation">
+          <text>false</text>
+        </outputEntry>
+        <outputEntry id="rule1-output4_coding-validation">
+          <text>1</text>
+        </outputEntry>
+        <outputEntry id="rule1-output5_coding-validation">
+          <text>"Use adult equivalent procedure code"</text>
+        </outputEntry>
+      </rule>
+
+      <!-- RULE 2: Procedimento geriátrico em jovem -->
+      <rule id="rule-geriatric-young_coding-validation">
+        <description>Procedimento geriátrico em paciente jovem requer justificativa</description>
+        <inputEntry id="rule2-input1_coding-validation">
+          <text>starts with(procedureCode, "GER-")</text>
+        </inputEntry>
+        <inputEntry id="rule2-input2_coding-validation">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="rule2-input3_coding-validation">
+          <text>&lt; 60</text>
+        </inputEntry>
+        <inputEntry id="rule2-input4_coding-validation">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="rule2-input5_coding-validation">
+          <text>-</text>
+        </inputEntry>
+        <outputEntry id="rule2-output1_coding-validation">
+          <text>true</text>
+        </outputEntry>
+        <outputEntry id="rule2-output2_coding-validation">
+          <text>"Geriatric procedure for non-elderly patient - requires justification"</text>
+        </outputEntry>
+        <outputEntry id="rule2-output3_coding-validation">
+          <text>true</text>
+        </outputEntry>
+        <outputEntry id="rule2-output4_coding-validation">
+          <text>3</text>
+        </outputEntry>
+        <outputEntry id="rule2-output5_coding-validation">
+          <text>""</text>
+        </outputEntry>
+      </rule>
+
+      <!-- RULE 3: Procedimento obstétrico em homem -->
+      <rule id="rule-obstetric-male_coding-validation">
+        <description>Procedimento obstétrico não pode ser aplicado em paciente masculino</description>
+        <inputEntry id="rule3-input1_coding-validation">
+          <text>starts with(procedureCode, "OBS-")</text>
+        </inputEntry>
+        <inputEntry id="rule3-input2_coding-validation">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="rule3-input3_coding-validation">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="rule3-input4_coding-validation">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="rule3-input5_coding-validation">
+          <text>"M"</text>
+        </inputEntry>
+        <outputEntry id="rule3-output1_coding-validation">
+          <text>false</text>
+        </outputEntry>
+        <outputEntry id="rule3-output2_coding-validation">
+          <text>"Obstetric procedure code used for male patient"</text>
+        </outputEntry>
+        <outputEntry id="rule3-output3_coding-validation">
+          <text>false</text>
+        </outputEntry>
+        <outputEntry id="rule3-output4_coding-validation">
+          <text>1</text>
+        </outputEntry>
+        <outputEntry id="rule3-output5_coding-validation">
+          <text>"Review gender-specific procedure coding"</text>
+        </outputEntry>
+      </rule>
+
+      <!-- RULE 4: Cirurgia sem CID cirúrgico -->
+      <rule id="rule-surgical-no-surgical-cid_coding-validation">
+        <description>Procedimento cirúrgico requer diagnóstico compatível</description>
+        <inputEntry id="rule4-input1_coding-validation">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="rule4-input2_coding-validation">
+          <text>not(starts with(diagnosisCode, "S") or starts with(diagnosisCode, "T"))</text>
+        </inputEntry>
+        <inputEntry id="rule4-input3_coding-validation">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="rule4-input4_coding-validation">
+          <text>true</text>
+        </inputEntry>
+        <inputEntry id="rule4-input5_coding-validation">
+          <text>-</text>
+        </inputEntry>
+        <outputEntry id="rule4-output1_coding-validation">
+          <text>true</text>
+        </outputEntry>
+        <outputEntry id="rule4-output2_coding-validation">
+          <text>"Surgical procedure with non-injury/trauma diagnosis - requires justification"</text>
+        </outputEntry>
+        <outputEntry id="rule4-output3_coding-validation">
+          <text>true</text>
+        </outputEntry>
+        <outputEntry id="rule4-output4_coding-validation">
+          <text>3</text>
+        </outputEntry>
+        <outputEntry id="rule4-output5_coding-validation">
+          <text>""</text>
+        </outputEntry>
+      </rule>
+
+      <!-- RULE 5: CID oncológico com procedimento padrão -->
+      <rule id="rule-oncology-standard-procedure_coding-validation">
+        <description>Diagnóstico oncológico requer procedimento especializado</description>
+        <inputEntry id="rule5-input1_coding-validation">
+          <text>not(starts with(procedureCode, "ONCO-"))</text>
+        </inputEntry>
+        <inputEntry id="rule5-input2_coding-validation">
+          <text>starts with(diagnosisCode, "C")</text>
+        </inputEntry>
+        <inputEntry id="rule5-input3_coding-validation">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="rule5-input4_coding-validation">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="rule5-input5_coding-validation">
+          <text>-</text>
+        </inputEntry>
+        <outputEntry id="rule5-output1_coding-validation">
+          <text>true</text>
+        </outputEntry>
+        <outputEntry id="rule5-output2_coding-validation">
+          <text>"Cancer diagnosis with non-oncological procedure - requires review"</text>
+        </outputEntry>
+        <outputEntry id="rule5-output3_coding-validation">
+          <text>true</text>
+        </outputEntry>
+        <outputEntry id="rule5-output4_coding-validation">
+          <text>2</text>
+        </outputEntry>
+        <outputEntry id="rule5-output5_coding-validation">
+          <text>"Consider oncological procedure code"</text>
+        </outputEntry>
+      </rule>
+
+      <!-- RULE 6: Procedimento de alta complexidade validado -->
+      <rule id="rule-high-complexity-valid_coding-validation">
+        <description>Procedimento de alta complexidade com codificação adequada</description>
+        <inputEntry id="rule6-input1_coding-validation">
+          <text>starts with(procedureCode, "HC-")</text>
+        </inputEntry>
+        <inputEntry id="rule6-input2_coding-validation">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="rule6-input3_coding-validation">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="rule6-input4_coding-validation">
+          <text>true</text>
+        </inputEntry>
+        <inputEntry id="rule6-input5_coding-validation">
+          <text>-</text>
+        </inputEntry>
+        <outputEntry id="rule6-output1_coding-validation">
+          <text>true</text>
+        </outputEntry>
+        <outputEntry id="rule6-output2_coding-validation">
+          <text>"High complexity surgical procedure - coding validated"</text>
+        </outputEntry>
+        <outputEntry id="rule6-output3_coding-validation">
+          <text>false</text>
+        </outputEntry>
+        <outputEntry id="rule6-output4_coding-validation">
+          <text>5</text>
+        </outputEntry>
+        <outputEntry id="rule6-output5_coding-validation">
+          <text>""</text>
+        </outputEntry>
+      </rule>
+
+      <!-- RULE 7: Codificação padrão validada -->
+      <rule id="rule-standard-coding-valid_coding-validation">
+        <description>Codificação padrão sem inconsistências</description>
+        <inputEntry id="rule7-input1_coding-validation">
+          <text>not(procedureCode = null or procedureCode = "")</text>
+        </inputEntry>
+        <inputEntry id="rule7-input2_coding-validation">
+          <text>not(diagnosisCode = null or diagnosisCode = "")</text>
+        </inputEntry>
+        <inputEntry id="rule7-input3_coding-validation">
+          <text>&gt;= 0, &lt;= 120</text>
+        </inputEntry>
+        <inputEntry id="rule7-input4_coding-validation">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="rule7-input5_coding-validation">
+          <text>"M","F","OTHER"</text>
+        </inputEntry>
+        <outputEntry id="rule7-output1_coding-validation">
+          <text>true</text>
+        </outputEntry>
+        <outputEntry id="rule7-output2_coding-validation">
+          <text>"Coding validation successful"</text>
+        </outputEntry>
+        <outputEntry id="rule7-output3_coding-validation">
+          <text>false</text>
+        </outputEntry>
+        <outputEntry id="rule7-output4_coding-validation">
+          <text>4</text>
+        </outputEntry>
+        <outputEntry id="rule7-output5_coding-validation">
+          <text>""</text>
+        </outputEntry>
+      </rule>
+
+      <!-- RULE 8: Fallback - dados incompletos -->
+      <rule id="rule-default-invalid_coding-validation">
+        <description>Codificação incompleta ou inválida</description>
+        <inputEntry id="rule8-input1_coding-validation">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="rule8-input2_coding-validation">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="rule8-input3_coding-validation">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="rule8-input4_coding-validation">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="rule8-input5_coding-validation">
+          <text>-</text>
+        </inputEntry>
+        <outputEntry id="rule8-output1_coding-validation">
+          <text>false</text>
+        </outputEntry>
+        <outputEntry id="rule8-output2_coding-validation">
+          <text>"Incomplete or invalid coding data"</text>
+        </outputEntry>
+        <outputEntry id="rule8-output3_coding-validation">
+          <text>true</text>
+        </outputEntry>
+        <outputEntry id="rule8-output4_coding-validation">
+          <text>1</text>
+        </outputEntry>
+        <outputEntry id="rule8-output5_coding-validation">
+          <text>"Complete all required coding fields"</text>
+        </outputEntry>
+      </rule>
+
+    </decisionTable>
+  </decision>
+
+  <!-- ===== DIAGRAM LAYOUT ===== -->
+  <dmndi:DMNDI>
+    <dmndi:DMNDiagram id="DMNDiagram_coding_coding-validation">
+      <dmndi:DMNShape id="DMNShape_coding_coding-validation" dmnElementRef="coding-validation">
+        <dc:Bounds height="80" width="180" x="160" y="100" />
+      </dmndi:DMNShape>
+    </dmndi:DMNDiagram>
+  </dmndi:DMNDI>
+
+</definitions>

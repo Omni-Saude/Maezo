@@ -9,7 +9,7 @@ from healthcare_platform.revenue_cycle.coding.workers import (
     ValidateCodesWorker,
     register_worker,
 )
-from healthcare_platform.revenue_cycle.coding.workers.validate_codes_worker_v2 import (
+from healthcare_platform.revenue_cycle.coding.workers.validate_codes_worker import (
     ValidateCodesInput,
     ValidateCodesOutput,
 )

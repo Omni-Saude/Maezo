@@ -1,0 +1,494 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+                   xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+                   xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+                   xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
+                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                   xmlns:camunda="http://camunda.org/schema/1.0/bpmn"
+                   id="Definitions_clinical_workflow"
+                   targetNamespace="http://bpmn.io/schema/bpmn"
+                   exporter="CIB Seven 2.1.3"
+                   exporterVersion="1.0">
+
+  <bpmn:process id="ClinicalOperationsWorkflow" name="Clinical Operations Workflow" isExecutable="true" camunda:historyTimeToLive="30">
+
+    <!-- Start Event -->
+    <bpmn:startEvent id="StartEvent_1" name="Patient Encounter Initiated">
+      <bpmn:outgoing>Flow_to_assessment</bpmn:outgoing>
+    </bpmn:startEvent>
+
+    <!-- Clinical Assessment (Anamnese) -->
+    <bpmn:serviceTask id="Task_ClinicalAssessment" name="Clinical Assessment" camunda:type="external" camunda:topic="clinical.assessment">
+      <bpmn:incoming>Flow_to_assessment</bpmn:incoming>
+      <bpmn:outgoing>Flow_to_vital_signs</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Vital Signs Monitoring -->
+    <bpmn:serviceTask id="Task_VitalSigns" name="Vital Signs Monitoring" camunda:type="external" camunda:topic="clinical.vital_signs">
+      <bpmn:incoming>Flow_to_vital_signs</bpmn:incoming>
+      <bpmn:outgoing>Flow_to_exams_gateway</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Gateway: Exams Required? -->
+    <bpmn:exclusiveGateway id="Gateway_ExamsRequired" name="Exams Required?" default="Flow_exams_no">
+      <bpmn:incoming>Flow_to_exams_gateway</bpmn:incoming>
+      <bpmn:outgoing>Flow_exams_yes</bpmn:outgoing>
+      <bpmn:outgoing>Flow_exams_no</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+
+    <!-- Clinical Decision Support -->
+    <bpmn:serviceTask id="Task_DecisionSupport" name="Clinical Decision Support" camunda:type="external" camunda:topic="clinical.decision_support">
+      <bpmn:incoming>Flow_exams_yes</bpmn:incoming>
+      <bpmn:outgoing>Flow_to_protocols</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Clinical Protocols -->
+    <bpmn:serviceTask id="Task_ClinicalProtocols" name="Apply Clinical Protocols" camunda:type="external" camunda:topic="clinical.protocols">
+      <bpmn:incoming>Flow_to_protocols</bpmn:incoming>
+      <bpmn:outgoing>Flow_to_outcomes</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Clinical Outcomes Tracking -->
+    <bpmn:serviceTask id="Task_OutcomesTracking" name="Track Clinical Outcomes" camunda:type="external" camunda:topic="clinical.outcomes">
+      <bpmn:incoming>Flow_to_outcomes</bpmn:incoming>
+      <bpmn:outgoing>Flow_to_diagnosis</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Merge Gateway -->
+    <bpmn:exclusiveGateway id="Gateway_MergeDiagnosis">
+      <bpmn:incoming>Flow_to_diagnosis</bpmn:incoming>
+      <bpmn:incoming>Flow_exams_no</bpmn:incoming>
+      <bpmn:outgoing>Flow_to_care_planning</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+
+    <!-- Care Planning -->
+    <bpmn:serviceTask id="Task_CarePlanning" name="Care Planning" camunda:type="external" camunda:topic="clinical.care_planning">
+      <bpmn:incoming>Flow_to_care_planning</bpmn:incoming>
+      <bpmn:outgoing>Flow_to_pathways</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Clinical Pathways -->
+    <bpmn:serviceTask id="Task_ClinicalPathways" name="Clinical Pathways" camunda:type="external" camunda:topic="clinical.pathways">
+      <bpmn:incoming>Flow_to_pathways</bpmn:incoming>
+      <bpmn:outgoing>Flow_to_treatment_gateway</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Gateway: Treatment Type? -->
+    <bpmn:exclusiveGateway id="Gateway_TreatmentType" name="Treatment Type?" default="Flow_procedure">
+      <bpmn:incoming>Flow_to_treatment_gateway</bpmn:incoming>
+      <bpmn:outgoing>Flow_medication</bpmn:outgoing>
+      <bpmn:outgoing>Flow_procedure</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+
+    <!-- Medication Management Branch -->
+    <bpmn:serviceTask id="Task_MedicationManagement" name="Medication Management" camunda:type="external" camunda:topic="clinical.medication">
+      <bpmn:incoming>Flow_medication</bpmn:incoming>
+      <bpmn:outgoing>Flow_to_alerts</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Clinical Alerts -->
+    <bpmn:serviceTask id="Task_ClinicalAlerts" name="Clinical Alerts" camunda:type="external" camunda:topic="clinical.alerts">
+      <bpmn:incoming>Flow_to_alerts</bpmn:incoming>
+      <bpmn:incoming>Flow_procedure</bpmn:incoming>
+      <bpmn:outgoing>Flow_to_documentation</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Clinical Documentation -->
+    <bpmn:serviceTask id="Task_ClinicalDocumentation" name="Clinical Documentation" camunda:type="external" camunda:topic="clinical.documentation">
+      <bpmn:incoming>Flow_to_documentation</bpmn:incoming>
+      <bpmn:outgoing>Flow_to_care_team</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Care Team Coordination -->
+    <bpmn:serviceTask id="Task_CareTeamCoordination" name="Care Team Coordination" camunda:type="external" camunda:topic="clinical.care_team">
+      <bpmn:incoming>Flow_to_care_team</bpmn:incoming>
+      <bpmn:outgoing>Flow_to_handoffs</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Clinical Handoffs -->
+    <bpmn:serviceTask id="Task_ClinicalHandoffs" name="Clinical Handoffs" camunda:type="external" camunda:topic="clinical.handoffs">
+      <bpmn:incoming>Flow_to_handoffs</bpmn:incoming>
+      <bpmn:outgoing>Flow_to_quality</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Clinical Quality Indicators -->
+    <bpmn:serviceTask id="Task_QualityIndicators" name="Clinical Quality Indicators" camunda:type="external" camunda:topic="clinical.quality_indicators">
+      <bpmn:incoming>Flow_to_quality</bpmn:incoming>
+      <bpmn:outgoing>Flow_to_auditing</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Clinical Auditing -->
+    <bpmn:serviceTask id="Task_ClinicalAuditing" name="Clinical Auditing" camunda:type="external" camunda:topic="clinical.auditing">
+      <bpmn:incoming>Flow_to_auditing</bpmn:incoming>
+      <bpmn:outgoing>Flow_to_adverse_events</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Adverse Event Detection -->
+    <bpmn:serviceTask id="Task_AdverseEventDetection" name="Adverse Event Detection" camunda:type="external" camunda:topic="clinical.adverse_events">
+      <bpmn:incoming>Flow_to_adverse_events</bpmn:incoming>
+      <bpmn:outgoing>Flow_to_compliance</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Clinical Compliance -->
+    <bpmn:serviceTask id="Task_ClinicalCompliance" name="Clinical Compliance" camunda:type="external" camunda:topic="clinical.compliance">
+      <bpmn:incoming>Flow_to_compliance</bpmn:incoming>
+      <bpmn:outgoing>Flow_to_discharge_gateway</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Gateway: Discharge Ready? -->
+    <bpmn:exclusiveGateway id="Gateway_DischargeReady" name="Discharge Ready?" default="Flow_discharge_no">
+      <bpmn:incoming>Flow_to_discharge_gateway</bpmn:incoming>
+      <bpmn:outgoing>Flow_discharge_yes</bpmn:outgoing>
+      <bpmn:outgoing>Flow_discharge_no</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+
+    <!-- Discharge Planning -->
+    <bpmn:serviceTask id="Task_DischargePlanning" name="Discharge Planning" camunda:type="external" camunda:topic="clinical.discharge_planning">
+      <bpmn:incoming>Flow_discharge_yes</bpmn:incoming>
+      <bpmn:outgoing>Flow_to_transitions</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Care Transitions -->
+    <bpmn:serviceTask id="Task_CareTransitions" name="Care Transitions" camunda:type="external" camunda:topic="clinical.care_transitions">
+      <bpmn:incoming>Flow_to_transitions</bpmn:incoming>
+      <bpmn:outgoing>Flow_to_reporting</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Clinical Reporting -->
+    <bpmn:serviceTask id="Task_ClinicalReporting" name="Clinical Reporting" camunda:type="external" camunda:topic="clinical.reporting">
+      <bpmn:incoming>Flow_to_reporting</bpmn:incoming>
+      <bpmn:incoming>Flow_discharge_no</bpmn:incoming>
+      <bpmn:outgoing>Flow_to_analytics</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Clinical Analytics -->
+    <bpmn:serviceTask id="Task_ClinicalAnalytics" name="Clinical Analytics" camunda:type="external" camunda:topic="clinical.analytics">
+      <bpmn:incoming>Flow_to_analytics</bpmn:incoming>
+      <bpmn:outgoing>Flow_to_end</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- End Event -->
+    <bpmn:endEvent id="EndEvent_1" name="Clinical Encounter Completed">
+      <bpmn:incoming>Flow_to_end</bpmn:incoming>
+    </bpmn:endEvent>
+
+    <!-- Sequence Flows -->
+    <bpmn:sequenceFlow id="Flow_to_assessment" sourceRef="StartEvent_1" targetRef="Task_ClinicalAssessment"/>
+    <bpmn:sequenceFlow id="Flow_to_vital_signs" sourceRef="Task_ClinicalAssessment" targetRef="Task_VitalSigns"/>
+    <bpmn:sequenceFlow id="Flow_to_exams_gateway" sourceRef="Task_VitalSigns" targetRef="Gateway_ExamsRequired"/>
+    <bpmn:sequenceFlow id="Flow_exams_yes" name="Yes" sourceRef="Gateway_ExamsRequired" targetRef="Task_DecisionSupport">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${examsRequired == true}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_exams_no" name="No" sourceRef="Gateway_ExamsRequired" targetRef="Gateway_MergeDiagnosis">
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_to_protocols" sourceRef="Task_DecisionSupport" targetRef="Task_ClinicalProtocols"/>
+    <bpmn:sequenceFlow id="Flow_to_outcomes" sourceRef="Task_ClinicalProtocols" targetRef="Task_OutcomesTracking"/>
+    <bpmn:sequenceFlow id="Flow_to_diagnosis" sourceRef="Task_OutcomesTracking" targetRef="Gateway_MergeDiagnosis"/>
+    <bpmn:sequenceFlow id="Flow_to_care_planning" sourceRef="Gateway_MergeDiagnosis" targetRef="Task_CarePlanning"/>
+    <bpmn:sequenceFlow id="Flow_to_pathways" sourceRef="Task_CarePlanning" targetRef="Task_ClinicalPathways"/>
+    <bpmn:sequenceFlow id="Flow_to_treatment_gateway" sourceRef="Task_ClinicalPathways" targetRef="Gateway_TreatmentType"/>
+    <bpmn:sequenceFlow id="Flow_medication" name="Medication" sourceRef="Gateway_TreatmentType" targetRef="Task_MedicationManagement">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${treatmentType == 'medication'}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_procedure" name="Procedure" sourceRef="Gateway_TreatmentType" targetRef="Task_ClinicalAlerts">
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_to_alerts" sourceRef="Task_MedicationManagement" targetRef="Task_ClinicalAlerts"/>
+    <bpmn:sequenceFlow id="Flow_to_documentation" sourceRef="Task_ClinicalAlerts" targetRef="Task_ClinicalDocumentation"/>
+    <bpmn:sequenceFlow id="Flow_to_care_team" sourceRef="Task_ClinicalDocumentation" targetRef="Task_CareTeamCoordination"/>
+    <bpmn:sequenceFlow id="Flow_to_handoffs" sourceRef="Task_CareTeamCoordination" targetRef="Task_ClinicalHandoffs"/>
+    <bpmn:sequenceFlow id="Flow_to_quality" sourceRef="Task_ClinicalHandoffs" targetRef="Task_QualityIndicators"/>
+    <bpmn:sequenceFlow id="Flow_to_auditing" sourceRef="Task_QualityIndicators" targetRef="Task_ClinicalAuditing"/>
+    <bpmn:sequenceFlow id="Flow_to_adverse_events" sourceRef="Task_ClinicalAuditing" targetRef="Task_AdverseEventDetection"/>
+    <bpmn:sequenceFlow id="Flow_to_compliance" sourceRef="Task_AdverseEventDetection" targetRef="Task_ClinicalCompliance"/>
+    <bpmn:sequenceFlow id="Flow_to_discharge_gateway" sourceRef="Task_ClinicalCompliance" targetRef="Gateway_DischargeReady"/>
+    <bpmn:sequenceFlow id="Flow_discharge_yes" name="Yes" sourceRef="Gateway_DischargeReady" targetRef="Task_DischargePlanning">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${dischargeReady == true}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_discharge_no" name="No" sourceRef="Gateway_DischargeReady" targetRef="Task_ClinicalReporting">
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_to_transitions" sourceRef="Task_DischargePlanning" targetRef="Task_CareTransitions"/>
+    <bpmn:sequenceFlow id="Flow_to_reporting" sourceRef="Task_CareTransitions" targetRef="Task_ClinicalReporting"/>
+    <bpmn:sequenceFlow id="Flow_to_analytics" sourceRef="Task_ClinicalReporting" targetRef="Task_ClinicalAnalytics"/>
+    <bpmn:sequenceFlow id="Flow_to_end" sourceRef="Task_ClinicalAnalytics" targetRef="EndEvent_1"/>
+
+  </bpmn:process>
+
+  <!-- BPMN Diagram -->
+  <bpmndi:BPMNDiagram id="BPMNDiagram_1">
+    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="ClinicalOperationsWorkflow">
+      <!-- Start Event -->
+      <bpmndi:BPMNShape id="Shape_StartEvent_1" bpmnElement="StartEvent_1">
+        <dc:Bounds x="160" y="282" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="128" y="325" width="100" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <!-- Main Row -->
+      <bpmndi:BPMNShape id="Shape_Task_ClinicalAssessment" bpmnElement="Task_ClinicalAssessment">
+        <dc:Bounds x="250" y="260" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_VitalSigns" bpmnElement="Task_VitalSigns">
+        <dc:Bounds x="400" y="260" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Gateway_ExamsRequired" bpmnElement="Gateway_ExamsRequired" isMarkerVisible="true">
+        <dc:Bounds x="550" y="275" width="50" height="50" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="534" y="332" width="82" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <!-- Upper Branch: Exams Yes -->
+      <bpmndi:BPMNShape id="Shape_Task_DecisionSupport" bpmnElement="Task_DecisionSupport">
+        <dc:Bounds x="670" y="60" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_ClinicalProtocols" bpmnElement="Task_ClinicalProtocols">
+        <dc:Bounds x="820" y="60" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_OutcomesTracking" bpmnElement="Task_OutcomesTracking">
+        <dc:Bounds x="970" y="60" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <!-- Merge Gateway -->
+      <bpmndi:BPMNShape id="Shape_Gateway_MergeDiagnosis" bpmnElement="Gateway_MergeDiagnosis" isMarkerVisible="true">
+        <dc:Bounds x="1120" y="275" width="50" height="50" />
+      </bpmndi:BPMNShape>
+      <!-- Continue Main Row -->
+      <bpmndi:BPMNShape id="Shape_Task_CarePlanning" bpmnElement="Task_CarePlanning">
+        <dc:Bounds x="1230" y="260" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_ClinicalPathways" bpmnElement="Task_ClinicalPathways">
+        <dc:Bounds x="1380" y="260" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Gateway_TreatmentType" bpmnElement="Gateway_TreatmentType" isMarkerVisible="true">
+        <dc:Bounds x="1530" y="275" width="50" height="50" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1514" y="332" width="82" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <!-- Upper Branch: Medication -->
+      <bpmndi:BPMNShape id="Shape_Task_MedicationManagement" bpmnElement="Task_MedicationManagement">
+        <dc:Bounds x="1650" y="60" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <!-- Continue Main Row -->
+      <bpmndi:BPMNShape id="Shape_Task_ClinicalAlerts" bpmnElement="Task_ClinicalAlerts">
+        <dc:Bounds x="1800" y="260" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_ClinicalDocumentation" bpmnElement="Task_ClinicalDocumentation">
+        <dc:Bounds x="1950" y="260" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_CareTeamCoordination" bpmnElement="Task_CareTeamCoordination">
+        <dc:Bounds x="2100" y="260" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_ClinicalHandoffs" bpmnElement="Task_ClinicalHandoffs">
+        <dc:Bounds x="2250" y="260" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_QualityIndicators" bpmnElement="Task_QualityIndicators">
+        <dc:Bounds x="2400" y="260" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_ClinicalAuditing" bpmnElement="Task_ClinicalAuditing">
+        <dc:Bounds x="2550" y="260" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_AdverseEventDetection" bpmnElement="Task_AdverseEventDetection">
+        <dc:Bounds x="2700" y="260" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_ClinicalCompliance" bpmnElement="Task_ClinicalCompliance">
+        <dc:Bounds x="2850" y="260" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Gateway_DischargeReady" bpmnElement="Gateway_DischargeReady" isMarkerVisible="true">
+        <dc:Bounds x="3000" y="275" width="50" height="50" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="2984" y="332" width="82" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <!-- Upper Branch: Discharge Yes -->
+      <bpmndi:BPMNShape id="Shape_Task_DischargePlanning" bpmnElement="Task_DischargePlanning">
+        <dc:Bounds x="3120" y="60" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_CareTransitions" bpmnElement="Task_CareTransitions">
+        <dc:Bounds x="3270" y="60" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <!-- Final Main Row -->
+      <bpmndi:BPMNShape id="Shape_Task_ClinicalReporting" bpmnElement="Task_ClinicalReporting">
+        <dc:Bounds x="3420" y="260" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_ClinicalAnalytics" bpmnElement="Task_ClinicalAnalytics">
+        <dc:Bounds x="3570" y="260" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <!-- End Event -->
+      <bpmndi:BPMNShape id="Shape_EndEvent_1" bpmnElement="EndEvent_1">
+        <dc:Bounds x="3720" y="282" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="3688" y="325" width="100" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <!-- === EDGES === -->
+      <!-- Start → Assessment -->
+      <bpmndi:BPMNEdge id="Edge_Flow_to_assessment" bpmnElement="Flow_to_assessment">
+        <di:waypoint x="196" y="300" />
+        <di:waypoint x="250" y="300" />
+      </bpmndi:BPMNEdge>
+      <!-- Assessment → VitalSigns -->
+      <bpmndi:BPMNEdge id="Edge_Flow_to_vital_signs" bpmnElement="Flow_to_vital_signs">
+        <di:waypoint x="350" y="300" />
+        <di:waypoint x="400" y="300" />
+      </bpmndi:BPMNEdge>
+      <!-- VitalSigns → GW_Exams -->
+      <bpmndi:BPMNEdge id="Edge_Flow_to_exams_gateway" bpmnElement="Flow_to_exams_gateway">
+        <di:waypoint x="500" y="300" />
+        <di:waypoint x="550" y="300" />
+      </bpmndi:BPMNEdge>
+      <!-- GW_Exams → DecisionSupport (Yes, upper branch) -->
+      <bpmndi:BPMNEdge id="Edge_Flow_exams_yes" bpmnElement="Flow_exams_yes">
+        <di:waypoint x="575" y="275" />
+        <di:waypoint x="575" y="100" />
+        <di:waypoint x="670" y="100" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="582" y="183" width="18" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <!-- GW_Exams → GW_Merge (No, bypass below) -->
+      <bpmndi:BPMNEdge id="Edge_Flow_exams_no" bpmnElement="Flow_exams_no">
+        <di:waypoint x="575" y="325" />
+        <di:waypoint x="575" y="400" />
+        <di:waypoint x="1145" y="400" />
+        <di:waypoint x="1145" y="325" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="854" y="382" width="15" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <!-- DecisionSupport → Protocols -->
+      <bpmndi:BPMNEdge id="Edge_Flow_to_protocols" bpmnElement="Flow_to_protocols">
+        <di:waypoint x="770" y="100" />
+        <di:waypoint x="820" y="100" />
+      </bpmndi:BPMNEdge>
+      <!-- Protocols → Outcomes -->
+      <bpmndi:BPMNEdge id="Edge_Flow_to_outcomes" bpmnElement="Flow_to_outcomes">
+        <di:waypoint x="920" y="100" />
+        <di:waypoint x="970" y="100" />
+      </bpmndi:BPMNEdge>
+      <!-- Outcomes → GW_Merge (down) -->
+      <bpmndi:BPMNEdge id="Edge_Flow_to_diagnosis" bpmnElement="Flow_to_diagnosis">
+        <di:waypoint x="1070" y="100" />
+        <di:waypoint x="1145" y="100" />
+        <di:waypoint x="1145" y="275" />
+      </bpmndi:BPMNEdge>
+      <!-- GW_Merge → CarePlanning -->
+      <bpmndi:BPMNEdge id="Edge_Flow_to_care_planning" bpmnElement="Flow_to_care_planning">
+        <di:waypoint x="1170" y="300" />
+        <di:waypoint x="1230" y="300" />
+      </bpmndi:BPMNEdge>
+      <!-- CarePlanning → Pathways -->
+      <bpmndi:BPMNEdge id="Edge_Flow_to_pathways" bpmnElement="Flow_to_pathways">
+        <di:waypoint x="1330" y="300" />
+        <di:waypoint x="1380" y="300" />
+      </bpmndi:BPMNEdge>
+      <!-- Pathways → GW_Treatment -->
+      <bpmndi:BPMNEdge id="Edge_Flow_to_treatment_gateway" bpmnElement="Flow_to_treatment_gateway">
+        <di:waypoint x="1480" y="300" />
+        <di:waypoint x="1530" y="300" />
+      </bpmndi:BPMNEdge>
+      <!-- GW_Treatment → MedicationMgmt (Medication, upper branch) -->
+      <bpmndi:BPMNEdge id="Edge_Flow_medication" bpmnElement="Flow_medication">
+        <di:waypoint x="1555" y="275" />
+        <di:waypoint x="1555" y="100" />
+        <di:waypoint x="1650" y="100" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1562" y="183" width="52" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <!-- GW_Treatment → ClinicalAlerts (Procedure, default straight) -->
+      <bpmndi:BPMNEdge id="Edge_Flow_procedure" bpmnElement="Flow_procedure">
+        <di:waypoint x="1580" y="300" />
+        <di:waypoint x="1800" y="300" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1662" y="282" width="50" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <!-- MedicationMgmt → ClinicalAlerts (down) -->
+      <bpmndi:BPMNEdge id="Edge_Flow_to_alerts" bpmnElement="Flow_to_alerts">
+        <di:waypoint x="1750" y="100" />
+        <di:waypoint x="1850" y="100" />
+        <di:waypoint x="1850" y="260" />
+      </bpmndi:BPMNEdge>
+      <!-- ClinicalAlerts → Documentation -->
+      <bpmndi:BPMNEdge id="Edge_Flow_to_documentation" bpmnElement="Flow_to_documentation">
+        <di:waypoint x="1900" y="300" />
+        <di:waypoint x="1950" y="300" />
+      </bpmndi:BPMNEdge>
+      <!-- Documentation → CareTeam -->
+      <bpmndi:BPMNEdge id="Edge_Flow_to_care_team" bpmnElement="Flow_to_care_team">
+        <di:waypoint x="2050" y="300" />
+        <di:waypoint x="2100" y="300" />
+      </bpmndi:BPMNEdge>
+      <!-- CareTeam → Handoffs -->
+      <bpmndi:BPMNEdge id="Edge_Flow_to_handoffs" bpmnElement="Flow_to_handoffs">
+        <di:waypoint x="2200" y="300" />
+        <di:waypoint x="2250" y="300" />
+      </bpmndi:BPMNEdge>
+      <!-- Handoffs → Quality -->
+      <bpmndi:BPMNEdge id="Edge_Flow_to_quality" bpmnElement="Flow_to_quality">
+        <di:waypoint x="2350" y="300" />
+        <di:waypoint x="2400" y="300" />
+      </bpmndi:BPMNEdge>
+      <!-- Quality → Auditing -->
+      <bpmndi:BPMNEdge id="Edge_Flow_to_auditing" bpmnElement="Flow_to_auditing">
+        <di:waypoint x="2500" y="300" />
+        <di:waypoint x="2550" y="300" />
+      </bpmndi:BPMNEdge>
+      <!-- Auditing → AdverseEvents -->
+      <bpmndi:BPMNEdge id="Edge_Flow_to_adverse_events" bpmnElement="Flow_to_adverse_events">
+        <di:waypoint x="2650" y="300" />
+        <di:waypoint x="2700" y="300" />
+      </bpmndi:BPMNEdge>
+      <!-- AdverseEvents → Compliance -->
+      <bpmndi:BPMNEdge id="Edge_Flow_to_compliance" bpmnElement="Flow_to_compliance">
+        <di:waypoint x="2800" y="300" />
+        <di:waypoint x="2850" y="300" />
+      </bpmndi:BPMNEdge>
+      <!-- Compliance → GW_Discharge -->
+      <bpmndi:BPMNEdge id="Edge_Flow_to_discharge_gateway" bpmnElement="Flow_to_discharge_gateway">
+        <di:waypoint x="2950" y="300" />
+        <di:waypoint x="3000" y="300" />
+      </bpmndi:BPMNEdge>
+      <!-- GW_Discharge → DischargePlanning (Yes, upper branch) -->
+      <bpmndi:BPMNEdge id="Edge_Flow_discharge_yes" bpmnElement="Flow_discharge_yes">
+        <di:waypoint x="3025" y="275" />
+        <di:waypoint x="3025" y="100" />
+        <di:waypoint x="3120" y="100" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="3032" y="183" width="18" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <!-- GW_Discharge → Reporting (No, bypass below) -->
+      <bpmndi:BPMNEdge id="Edge_Flow_discharge_no" bpmnElement="Flow_discharge_no">
+        <di:waypoint x="3025" y="325" />
+        <di:waypoint x="3025" y="400" />
+        <di:waypoint x="3470" y="400" />
+        <di:waypoint x="3470" y="340" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="3240" y="382" width="15" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <!-- DischargePlanning → CareTransitions -->
+      <bpmndi:BPMNEdge id="Edge_Flow_to_transitions" bpmnElement="Flow_to_transitions">
+        <di:waypoint x="3220" y="100" />
+        <di:waypoint x="3270" y="100" />
+      </bpmndi:BPMNEdge>
+      <!-- CareTransitions → Reporting (down) -->
+      <bpmndi:BPMNEdge id="Edge_Flow_to_reporting" bpmnElement="Flow_to_reporting">
+        <di:waypoint x="3370" y="100" />
+        <di:waypoint x="3470" y="100" />
+        <di:waypoint x="3470" y="260" />
+      </bpmndi:BPMNEdge>
+      <!-- Reporting → Analytics -->
+      <bpmndi:BPMNEdge id="Edge_Flow_to_analytics" bpmnElement="Flow_to_analytics">
+        <di:waypoint x="3520" y="300" />
+        <di:waypoint x="3570" y="300" />
+      </bpmndi:BPMNEdge>
+      <!-- Analytics → End -->
+      <bpmndi:BPMNEdge id="Edge_Flow_to_end" bpmnElement="Flow_to_end">
+        <di:waypoint x="3670" y="300" />
+        <di:waypoint x="3720" y="300" />
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+
+</bpmn:definitions>

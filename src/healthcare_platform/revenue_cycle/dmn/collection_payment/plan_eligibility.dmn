@@ -1,0 +1,121 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  ============================================================================
+  PLAN-ELIGIBILITY - Elegibilidade para Plano de Pagamento
+  ============================================================================
+  Versao: 1.0.0 (2026-02-14)
+  Categoria: COLLECTION_PAYMENT
+  Archetype: THRESHOLD | Source: negotiate_payment_plan_worker.py
+  ============================================================================
+-->
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/"
+             xmlns:dc="http://www.omg.org/spec/DMN/20180521/DC/"
+             xmlns:di="http://www.omg.org/spec/DMN/20180521/DI/"
+             xmlns:camunda="http://camunda.org/schema/1.0/dmn"
+             id="Definitions_PLAN_ELIGIBILITY"
+             name="Elegibilidade para Plano de Pagamento"
+             namespace="http://camunda.org/schema/1.0/dmn">
+
+  <decision id="Decision_PLAN_ELIGIBILITY" name="[SP-RC-008 | collection_payment] Elegibilidade para Plano de Pagamento" camunda:historyTimeToLive="180">
+    <decisionTable id="DecisionTable_PLAN_ELIGIBILITY" hitPolicy="FIRST">
+
+      <input id="Input_1_PLAN_ELIGIBILITY" label="Valor Total Divida">
+        <inputExpression id="InputExpression_1_PLAN_ELIGIBILITY" typeRef="number">
+          <text>totalDebt</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_2_PLAN_ELIGIBILITY" label="Parcelas Solicitadas">
+        <inputExpression id="InputExpression_2_PLAN_ELIGIBILITY" typeRef="number">
+          <text>requestedInstallments</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_3_PLAN_ELIGIBILITY" label="Historico Inadimplencia">
+        <inputExpression id="InputExpression_3_PLAN_ELIGIBILITY" typeRef="string">
+          <text>defaultHistory</text>
+        </inputExpression>
+      </input>
+
+      <!-- ========== OUTPUTS ========== -->
+      <output id="Output_resultado_PLAN_ELIGIBILITY" label="Resultado" name="resultado" typeRef="string">
+        <outputValues><text>"PROSSEGUIR","BLOQUEAR","REVISAR"</text></outputValues>
+      </output>
+      <output id="Output_acao_PLAN_ELIGIBILITY" label="Acao" name="acao" typeRef="string"/>
+      <output id="Output_risco_PLAN_ELIGIBILITY" label="Risco" name="risco" typeRef="string">
+        <outputValues><text>"CRITICO","ALTO","MEDIO","BAIXO"</text></outputValues>
+      </output>
+
+      <rule id="Rule_1_PLAN_ELIGIBILITY">
+        <description>Parcela abaixo do minimo R$100</description>
+        <inputEntry id="IE_1_1_PLAN_ELIGIBILITY"><text>-</text></inputEntry>
+        <inputEntry id="IE_1_2_PLAN_ELIGIBILITY"><text>&gt; 12</text></inputEntry>
+        <inputEntry id="IE_1_3_PLAN_ELIGIBILITY"><text>-</text></inputEntry>
+        <outputEntry id="OE_1_1_PLAN_ELIGIBILITY"><text>"BLOQUEAR"</text></outputEntry>
+        <outputEntry id="OE_1_2_PLAN_ELIGIBILITY"><text>"Maximo 12 parcelas permitido - reduzir numero de parcelas"</text></outputEntry>
+        <outputEntry id="OE_1_3_PLAN_ELIGIBILITY"><text>"ALTO"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_2_PLAN_ELIGIBILITY">
+        <description>Reincidente com historico ruim</description>
+        <inputEntry id="IE_2_1_PLAN_ELIGIBILITY"><text>-</text></inputEntry>
+        <inputEntry id="IE_2_2_PLAN_ELIGIBILITY"><text>-</text></inputEntry>
+        <inputEntry id="IE_2_3_PLAN_ELIGIBILITY"><text>"RECURRENT_DEFAULT"</text></inputEntry>
+        <outputEntry id="OE_2_1_PLAN_ELIGIBILITY"><text>"REVISAR"</text></outputEntry>
+        <outputEntry id="OE_2_2_PLAN_ELIGIBILITY"><text>"Paciente reincidente - exigir entrada minima de 30% e max 6 parcelas"</text></outputEntry>
+        <outputEntry id="OE_2_3_PLAN_ELIGIBILITY"><text>"CRITICO"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_3_PLAN_ELIGIBILITY">
+        <description>Valor baixo - pagamento a vista preferencial</description>
+        <inputEntry id="IE_3_1_PLAN_ELIGIBILITY"><text>&lt; 200</text></inputEntry>
+        <inputEntry id="IE_3_2_PLAN_ELIGIBILITY"><text>-</text></inputEntry>
+        <inputEntry id="IE_3_3_PLAN_ELIGIBILITY"><text>-</text></inputEntry>
+        <outputEntry id="OE_3_1_PLAN_ELIGIBILITY"><text>"BLOQUEAR"</text></outputEntry>
+        <outputEntry id="OE_3_2_PLAN_ELIGIBILITY"><text>"Valor abaixo de R$200 - parcelamento nao disponivel, cobrar a vista"</text></outputEntry>
+        <outputEntry id="OE_3_3_PLAN_ELIGIBILITY"><text>"BAIXO"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_4_PLAN_ELIGIBILITY">
+        <description>Bom historico - aprovacao automatica</description>
+        <inputEntry id="IE_4_1_PLAN_ELIGIBILITY"><text>[200..5000]</text></inputEntry>
+        <inputEntry id="IE_4_2_PLAN_ELIGIBILITY"><text>&lt;= 6</text></inputEntry>
+        <inputEntry id="IE_4_3_PLAN_ELIGIBILITY"><text>"GOOD_STANDING"</text></inputEntry>
+        <outputEntry id="OE_4_1_PLAN_ELIGIBILITY"><text>"PROSSEGUIR"</text></outputEntry>
+        <outputEntry id="OE_4_2_PLAN_ELIGIBILITY"><text>"Paciente adimplente - aprovar parcelamento automaticamente"</text></outputEntry>
+        <outputEntry id="OE_4_3_PLAN_ELIGIBILITY"><text>"BAIXO"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_5_PLAN_ELIGIBILITY">
+        <description>Valor alto com muitas parcelas - aprovacao gerencial</description>
+        <inputEntry id="IE_5_1_PLAN_ELIGIBILITY"><text>&gt; 5000</text></inputEntry>
+        <inputEntry id="IE_5_2_PLAN_ELIGIBILITY"><text>&gt; 6</text></inputEntry>
+        <inputEntry id="IE_5_3_PLAN_ELIGIBILITY"><text>-</text></inputEntry>
+        <outputEntry id="OE_5_1_PLAN_ELIGIBILITY"><text>"REVISAR"</text></outputEntry>
+        <outputEntry id="OE_5_2_PLAN_ELIGIBILITY"><text>"Parcelamento longo de valor alto - requer aprovacao gerencial"</text></outputEntry>
+        <outputEntry id="OE_5_3_PLAN_ELIGIBILITY"><text>"ALTO"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Fallback_PLAN_ELIGIBILITY">
+        <description>Fallback</description>
+        <inputEntry id="IE_F_1_PLAN_ELIGIBILITY"><text>-</text></inputEntry>
+        <inputEntry id="IE_F_2_PLAN_ELIGIBILITY"><text>-</text></inputEntry>
+        <inputEntry id="IE_F_3_PLAN_ELIGIBILITY"><text>-</text></inputEntry>
+        <outputEntry id="OE_F_1_PLAN_ELIGIBILITY"><text>"REVISAR"</text></outputEntry>
+        <outputEntry id="OE_F_2_PLAN_ELIGIBILITY"><text>"Avaliar elegibilidade para parcelamento"</text></outputEntry>
+        <outputEntry id="OE_F_3_PLAN_ELIGIBILITY"><text>"MEDIO"</text></outputEntry>
+      </rule>
+
+    </decisionTable>
+  </decision>
+
+  <dmndi:DMNDI>
+    <dmndi:DMNDiagram id="DMNDiagram_PLAN_ELIGIBILITY">
+      <dmndi:DMNShape id="DMNShape_Decision_PLAN_ELIGIBILITY" dmnElementRef="Decision_PLAN_ELIGIBILITY">
+        <dc:Bounds height="80" width="180" x="160" y="100"/>
+      </dmndi:DMNShape>
+    </dmndi:DMNDiagram>
+  </dmndi:DMNDI>
+
+</definitions>

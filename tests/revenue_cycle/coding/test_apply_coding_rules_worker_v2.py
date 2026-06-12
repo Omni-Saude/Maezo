@@ -1,10 +1,10 @@
-"""Tests for ApplyCodingRulesWorkerV2."""
+"""Tests for ApplyCodingRulesWorker."""
 from __future__ import annotations
 
 import pytest
 from unittest.mock import MagicMock
 
-from healthcare_platform.revenue_cycle.coding.workers import ApplyCodingRulesWorkerV2
+from healthcare_platform.revenue_cycle.coding.workers import ApplyCodingRulesWorker
 from healthcare_platform.shared.domain.exceptions import (
     BpmnErrorException,
     CodingException,
@@ -13,8 +13,8 @@ from healthcare_platform.shared.domain.exceptions import (
 
 @pytest.fixture
 def worker_v2(mock_dmn_service):
-    """Create ApplyCodingRulesWorkerV2 instance with mocked DMN service."""
-    worker = ApplyCodingRulesWorkerV2()
+    """Create ApplyCodingRulesWorker instance with mocked DMN service."""
+    worker = ApplyCodingRulesWorker()
     worker.dmn_service = mock_dmn_service
     return worker
 

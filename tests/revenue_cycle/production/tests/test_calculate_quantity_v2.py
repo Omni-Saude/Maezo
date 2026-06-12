@@ -47,7 +47,7 @@ def test_calculate_quantity_happy_path(worker):
 
     context = make_context(
         {
-            "enriched_procedures": [
+            "procedures": [
                 {
                     "code": "40301010",
                     "description": "Consulta médica",
@@ -62,10 +62,10 @@ def test_calculate_quantity_happy_path(worker):
     result = worker.execute(context)
 
     assert result.status == TaskStatus.SUCCESS
-    assert "quantified_procedures" in result.variables
-    assert result.variables["total_items"] == 2
-    assert len(result.variables["quantified_procedures"]) == 1
-    assert result.variables["quantified_procedures"][0]["quantity"] == 2
+    assert "breakdown" in result.variables
+    assert result.variables["totalValue"] == 2
+    assert len(result.variables["breakdown"]) == 1
+    assert result.variables["breakdown"][0]["quantity"] == 2
 
 
 def test_calculate_quantity_no_procedures_error(worker):
@@ -74,7 +74,7 @@ def test_calculate_quantity_no_procedures_error(worker):
 
     context = make_context(
         {
-            "enriched_procedures": [],
+            "procedures": [],
             "encounter_start": datetime.now().isoformat(),
             "encounter_end": (datetime.now() + timedelta(hours=1)).isoformat(),
         }
@@ -104,7 +104,7 @@ def test_calculate_quantity_duration_calculation(worker):
 
     context = make_context(
         {
-            "enriched_procedures": [
+            "procedures": [
                 {
                     "code": "40301010",
                     "description": "Consulta médica",
@@ -119,8 +119,8 @@ def test_calculate_quantity_duration_calculation(worker):
     result = worker.execute(context)
 
     assert result.status == TaskStatus.SUCCESS
-    assert result.variables["quantified_procedures"][0]["quantity"] == 3
-    assert result.variables["quantified_procedures"][0]["duration_minutes"] == 180.0
+    assert result.variables["breakdown"][0]["quantity"] == 3
+    assert result.variables["breakdown"][0]["duration_minutes"] == 180.0
 
 
 def test_calculate_quantity_dmn_block(worker):
@@ -137,7 +137,7 @@ def test_calculate_quantity_dmn_block(worker):
 
     context = make_context(
         {
-            "enriched_procedures": [
+            "procedures": [
                 {
                     "code": "40301010",
                     "description": "Consulta médica",
@@ -173,7 +173,7 @@ def test_calculate_quantity_capped(worker):
 
     context = make_context(
         {
-            "enriched_procedures": [
+            "procedures": [
                 {
                     "code": "40301010",
                     "description": "Consulta médica",
@@ -188,8 +188,8 @@ def test_calculate_quantity_capped(worker):
     result = worker.execute(context)
 
     assert result.status == TaskStatus.SUCCESS
-    assert result.variables["quantified_procedures"][0]["quantity"] == 10
-    assert result.variables["quantified_procedures"][0]["quantity_capped"] is True
+    assert result.variables["breakdown"][0]["quantity"] == 10
+    assert result.variables["breakdown"][0]["quantity_capped"] is True
 
 
 def test_calculate_quantity_fixed_quantity(worker):
@@ -205,7 +205,7 @@ def test_calculate_quantity_fixed_quantity(worker):
 
     context = make_context(
         {
-            "enriched_procedures": [
+            "procedures": [
                 {
                     "code": "40301010",
                     "description": "Consulta médica",
@@ -220,8 +220,8 @@ def test_calculate_quantity_fixed_quantity(worker):
     result = worker.execute(context)
 
     assert result.status == TaskStatus.SUCCESS
-    assert result.variables["quantified_procedures"][0]["quantity"] == 1
-    assert result.variables["quantified_procedures"][0]["quantity_method"] == "fixed"
+    assert result.variables["breakdown"][0]["quantity"] == 1
+    assert result.variables["breakdown"][0]["quantity_method"] == "fixed"
 
 
 def test_calculate_quantity_exception_handling(worker):
@@ -232,7 +232,7 @@ def test_calculate_quantity_exception_handling(worker):
 
     context = make_context(
         {
-            "enriched_procedures": [{"code": "40301010"}],
+            "procedures": [{"code": "40301010"}],
             "encounter_start": datetime.now().isoformat(),
             "encounter_end": (datetime.now() + timedelta(hours=1)).isoformat(),
         }

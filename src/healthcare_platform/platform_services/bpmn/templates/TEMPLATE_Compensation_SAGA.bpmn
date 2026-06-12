@@ -1,0 +1,212 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+                  xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+                  xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+                  xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
+                  xmlns:camunda="http://camunda.org/schema/1.0/bpmn"
+                  id="Definitions_CompensationSAGA"
+                  targetNamespace="http://cib7.healthcare/templates"
+                  exporter="Camunda Modeler"
+                  exporterVersion="5.20.0">
+
+  <!--
+    TEMPLATE: BPMN_COMPENSATION_SAGA v2.0
+    Purpose: Distributed transaction with compensation (SAGA pattern)
+    Coverage: 10 workers (billing reversal, multi-step rollback scenarios)
+    Pattern: Transaction boundaries + compensation handlers
+    
+    Use Case: Billing Reversal SAGA
+      1. Reverse production capture (credit back to account)
+      2. Cancel authorization (release hold)
+      3. Reverse claim submission (withdraw from payer)
+      
+      If any step fails: compensate completed steps in reverse order
+    
+    Variables:
+      Input:  transactionId, steps[], rollbackReason
+      Output: compensationStatus, stepsReversed[], finalStatus
+    -->
+
+  <bpmn:process id="TEMPLATE_Compensation_SAGA" name="[Compensation SAGA Template]" isExecutable="true" camunda:historyTimeToLive="30">
+    
+    <bpmn:startEvent id="start_saga" name="Iniciar SAGA">
+      <bpmn:documentation>
+        COMPENSATION SAGA PATTERN:
+        
+        Each compensable task has:
+        1. Forward action (main logic)
+        2. Compensation handler (rollback logic)
+        
+        If transaction succeeds: All forward actions complete
+        If transaction fails: Compensation handlers execute in reverse order
+      </bpmn:documentation>
+      <bpmn:outgoing>flow1</bpmn:outgoing>
+    </bpmn:startEvent>
+    
+    <bpmn:serviceTask id="task_step1" name="Passo 1: Reverter Produção" camunda:type="external" camunda:topic="template.compensation_saga.reverse_production">
+      <bpmn:incoming>flow1</bpmn:incoming>
+      <bpmn:outgoing>flow2</bpmn:outgoing>
+    </bpmn:serviceTask>
+    
+    <bpmn:boundaryEvent id="compensation_step1" name="Compensar Passo 1" attachedToRef="task_step1">
+      <bpmn:compensateEventDefinition/>
+    </bpmn:boundaryEvent>
+    
+    <bpmn:serviceTask id="compensate_task_step1" name="Desfazer Reversão Produção" isForCompensation="true" camunda:type="external" camunda:topic="desfazer-revers-o-produ-o">
+      <bpmn:documentation>
+        Compensation: Re-apply original production capture
+      </bpmn:documentation>
+    </bpmn:serviceTask>
+    
+    <bpmn:serviceTask id="task_step2" name="Passo 2: Cancelar Autorização" camunda:type="external" camunda:topic="template.compensation_saga.cancel_authorization">
+      <bpmn:incoming>flow2</bpmn:incoming>
+      <bpmn:outgoing>flow3</bpmn:outgoing>
+    </bpmn:serviceTask>
+    
+    <bpmn:boundaryEvent id="compensation_step2" name="Compensar Passo 2" attachedToRef="task_step2">
+      <bpmn:compensateEventDefinition/>
+    </bpmn:boundaryEvent>
+    
+    <bpmn:serviceTask id="compensate_task_step2" name="Restaurar Autorização" isForCompensation="true" camunda:type="external" camunda:topic="restaurar-autoriza-o">
+      <bpmn:documentation>
+        Compensation: Re-create authorization with original hold
+      </bpmn:documentation>
+    </bpmn:serviceTask>
+    
+    <bpmn:serviceTask id="task_step3" name="Passo 3: Reverter Claim" camunda:type="external" camunda:topic="template.compensation_saga.reverse_claim">
+      <bpmn:incoming>flow3</bpmn:incoming>
+      <bpmn:outgoing>flow4</bpmn:outgoing>
+    </bpmn:serviceTask>
+    
+    <bpmn:boundaryEvent id="compensation_step3" name="Compensar Passo 3" attachedToRef="task_step3">
+      <bpmn:compensateEventDefinition/>
+    </bpmn:boundaryEvent>
+    
+    <bpmn:serviceTask id="compensate_task_step3" name="Restaurar Claim" isForCompensation="true" camunda:type="external" camunda:topic="restaurar-claim">
+      <bpmn:documentation>
+        Compensation: Re-submit claim to payer
+      </bpmn:documentation>
+    </bpmn:serviceTask>
+    
+    <bpmn:boundaryEvent id="error_saga_failure" name="Erro no SAGA" attachedToRef="task_step3">
+      <bpmn:outgoing>flow_compensate</bpmn:outgoing>
+      <bpmn:errorEventDefinition errorRef="Error_SAGAFailure"/>
+    </bpmn:boundaryEvent>
+    
+    <bpmn:serviceTask id="task_trigger_compensation" name="Acionar Compensação" camunda:type="external" camunda:topic="acionar-compensa-o">
+      <bpmn:documentation>
+        Triggers compensation of all completed tasks in reverse order
+      </bpmn:documentation>
+      <bpmn:incoming>flow_compensate</bpmn:incoming>
+      <bpmn:outgoing>flow_compensated</bpmn:outgoing>
+    </bpmn:serviceTask>
+    
+    <bpmn:endEvent id="end_success" name="SAGA Completo">
+      <bpmn:incoming>flow4</bpmn:incoming>
+    </bpmn:endEvent>
+    
+    <bpmn:endEvent id="end_compensated" name="SAGA Compensado">
+      <bpmn:incoming>flow_compensated</bpmn:incoming>
+      <bpmn:compensateEventDefinition/>
+    </bpmn:endEvent>
+    
+    <bpmn:sequenceFlow id="flow1" sourceRef="start_saga" targetRef="task_step1"/>
+    <bpmn:sequenceFlow id="flow2" sourceRef="task_step1" targetRef="task_step2"/>
+    <bpmn:sequenceFlow id="flow3" sourceRef="task_step2" targetRef="task_step3"/>
+    <bpmn:sequenceFlow id="flow4" sourceRef="task_step3" targetRef="end_success"/>
+    <bpmn:sequenceFlow id="flow_compensate" sourceRef="error_saga_failure" targetRef="task_trigger_compensation"/>
+    <bpmn:sequenceFlow id="flow_compensated" sourceRef="task_trigger_compensation" targetRef="end_compensated"/>
+    
+    <bpmn:association id="assoc1" sourceRef="compensation_step1" targetRef="compensate_task_step1"/>
+    <bpmn:association id="assoc2" sourceRef="compensation_step2" targetRef="compensate_task_step2"/>
+    <bpmn:association id="assoc3" sourceRef="compensation_step3" targetRef="compensate_task_step3"/>
+  </bpmn:process>
+
+  <bpmn:error id="Error_SAGAFailure" name="SAGAFailure" errorCode="ERR_SAGA_FAIL"/>
+
+  <bpmndi:BPMNDiagram id="BPMNDiagram_CompensationSAGA">
+    <bpmndi:BPMNPlane id="BPMNPlane_CompensationSAGA" bpmnElement="TEMPLATE_Compensation_SAGA">
+      <bpmndi:BPMNShape id="Shape_start" bpmnElement="start_saga">
+        <dc:Bounds x="152" y="222" width="36" height="36"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_step1" bpmnElement="task_step1">
+        <dc:Bounds x="250" y="200" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_comp1" bpmnElement="compensation_step1">
+        <dc:Bounds x="302" y="262" width="36" height="36"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_comp_task1" bpmnElement="compensate_task_step1">
+        <dc:Bounds x="250" y="340" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_step2" bpmnElement="task_step2">
+        <dc:Bounds x="410" y="200" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_comp2" bpmnElement="compensation_step2">
+        <dc:Bounds x="462" y="262" width="36" height="36"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_comp_task2" bpmnElement="compensate_task_step2">
+        <dc:Bounds x="410" y="340" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_step3" bpmnElement="task_step3">
+        <dc:Bounds x="570" y="200" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_error" bpmnElement="error_saga_failure">
+        <dc:Bounds x="652" y="262" width="36" height="36"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_comp3" bpmnElement="compensation_step3">
+        <dc:Bounds x="622" y="262" width="36" height="36"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_comp_task3" bpmnElement="compensate_task_step3">
+        <dc:Bounds x="570" y="340" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_trigger" bpmnElement="task_trigger_compensation">
+        <dc:Bounds x="730" y="340" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_end_success" bpmnElement="end_success">
+        <dc:Bounds x="732" y="222" width="36" height="36"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_end_comp" bpmnElement="end_compensated">
+        <dc:Bounds x="892" y="362" width="36" height="36"/>
+      </bpmndi:BPMNShape>
+      
+      <bpmndi:BPMNEdge id="Edge_1" bpmnElement="flow1">
+        <di:waypoint x="188" y="240"/>
+        <di:waypoint x="250" y="240"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_2" bpmnElement="flow2">
+        <di:waypoint x="350" y="240"/>
+        <di:waypoint x="410" y="240"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_3" bpmnElement="flow3">
+        <di:waypoint x="510" y="240"/>
+        <di:waypoint x="570" y="240"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_4" bpmnElement="flow4">
+        <di:waypoint x="670" y="240"/>
+        <di:waypoint x="732" y="240"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_comp" bpmnElement="flow_compensate">
+        <di:waypoint x="670" y="298"/>
+        <di:waypoint x="670" y="380"/>
+        <di:waypoint x="730" y="380"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_compensated" bpmnElement="flow_compensated">
+        <di:waypoint x="830" y="380"/>
+        <di:waypoint x="892" y="380"/>
+      </bpmndi:BPMNEdge>
+      
+      <bpmndi:BPMNEdge id="Edge_assoc1" bpmnElement="assoc1">
+        <di:waypoint x="320" y="298"/>
+        <di:waypoint x="300" y="340"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_assoc2" bpmnElement="assoc2">
+        <di:waypoint x="480" y="298"/>
+        <di:waypoint x="460" y="340"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_assoc3" bpmnElement="assoc3">
+        <di:waypoint x="640" y="298"/>
+        <di:waypoint x="620" y="340"/>
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>

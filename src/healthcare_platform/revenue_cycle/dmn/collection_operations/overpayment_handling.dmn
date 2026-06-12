@@ -1,0 +1,107 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  ============================================================================
+  OVERPAYMENT-HANDLING - Tratamento de Pagamento Excedente
+  ============================================================================
+  Versao: 1.0.0 (2026-02-16)
+  Categoria: COLLECTION_OPERATIONS
+  Archetype: OPERATIONAL_ROUTING | Source: handle_overpayment_worker.py
+  ============================================================================
+-->
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/"
+             xmlns:dc="http://www.omg.org/spec/DMN/20180521/DC/"
+             xmlns:di="http://www.omg.org/spec/DMN/20180521/DI/"
+             xmlns:camunda="http://camunda.org/schema/1.0/dmn"
+             id="Definitions_OVERPAYMENT_HANDLING"
+             name="Tratamento de Pagamento Excedente"
+             namespace="http://camunda.org/schema/1.0/dmn">
+
+  <decision id="Decision_OVERPAYMENT_HANDLING" name="[SP-RC-013 | collection_operations] Tratamento de Pagamento Excedente" camunda:historyTimeToLive="180">
+    <decisionTable id="DecisionTable_OVERPAYMENT_HANDLING" hitPolicy="FIRST">
+
+      <input id="Input_1_OVERPAYMENT_HANDLING" label="Valor Excedente">
+        <inputExpression id="InputExpression_1_OVERPAYMENT_HANDLING" typeRef="double">
+          <text>overpayment_amount</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_2_OVERPAYMENT_HANDLING" label="Tipo Pagador">
+        <inputExpression id="InputExpression_2_OVERPAYMENT_HANDLING" typeRef="string">
+          <text>payer_type</text>
+        </inputExpression>
+        <inputValues id="InputValues_2_OVERPAYMENT_HANDLING">
+          <text>"individual","corporate","government"</text>
+        </inputValues>
+      </input>
+
+      <input id="Input_3_OVERPAYMENT_HANDLING" label="Status Relacionamento">
+        <inputExpression id="InputExpression_3_OVERPAYMENT_HANDLING" typeRef="string">
+          <text>relationship_status</text>
+        </inputExpression>
+        <inputValues id="InputValues_3_OVERPAYMENT_HANDLING">
+          <text>"active","inactive"</text>
+        </inputValues>
+      </input>
+
+      <!-- ========== OUTPUTS ========== -->
+      <output id="Output_action_OVERPAYMENT_HANDLING" label="Acao" name="action" typeRef="string">
+        <outputValues><text>"CREDIT_NEXT_INVOICE","CREDIT_ACCOUNT","REFUND"</text></outputValues>
+      </output>
+      <output id="Output_priority_OVERPAYMENT_HANDLING" label="Prioridade Processamento" name="processing_priority" typeRef="string">
+        <outputValues><text>"low","medium","high"</text></outputValues>
+      </output>
+      <output id="Output_approval_OVERPAYMENT_HANDLING" label="Aprovacao Necessaria" name="approval_required" typeRef="boolean"/>
+
+      <rule id="Rule_SmallActive_OVERPAYMENT_HANDLING">
+        <description>Valor pequeno com relacionamento ativo - creditar proxima fatura</description>
+        <inputEntry id="IE_1_1_OVERPAYMENT_HANDLING"><text>&lt; 100</text></inputEntry>
+        <inputEntry id="IE_1_2_OVERPAYMENT_HANDLING"><text>-</text></inputEntry>
+        <inputEntry id="IE_1_3_OVERPAYMENT_HANDLING"><text>"active"</text></inputEntry>
+        <outputEntry id="OE_1_1_OVERPAYMENT_HANDLING"><text>"CREDIT_NEXT_INVOICE"</text></outputEntry>
+        <outputEntry id="OE_1_2_OVERPAYMENT_HANDLING"><text>"low"</text></outputEntry>
+        <outputEntry id="OE_1_3_OVERPAYMENT_HANDLING"><text>false</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_MediumActive_OVERPAYMENT_HANDLING">
+        <description>Valor medio com relacionamento ativo - creditar conta</description>
+        <inputEntry id="IE_2_1_OVERPAYMENT_HANDLING"><text>&lt; 1000</text></inputEntry>
+        <inputEntry id="IE_2_2_OVERPAYMENT_HANDLING"><text>-</text></inputEntry>
+        <inputEntry id="IE_2_3_OVERPAYMENT_HANDLING"><text>"active"</text></inputEntry>
+        <outputEntry id="OE_2_1_OVERPAYMENT_HANDLING"><text>"CREDIT_ACCOUNT"</text></outputEntry>
+        <outputEntry id="OE_2_2_OVERPAYMENT_HANDLING"><text>"medium"</text></outputEntry>
+        <outputEntry id="OE_2_3_OVERPAYMENT_HANDLING"><text>false</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_LargeAmount_OVERPAYMENT_HANDLING">
+        <description>Valor alto - reembolso com aprovacao</description>
+        <inputEntry id="IE_3_1_OVERPAYMENT_HANDLING"><text>&gt;= 1000</text></inputEntry>
+        <inputEntry id="IE_3_2_OVERPAYMENT_HANDLING"><text>-</text></inputEntry>
+        <inputEntry id="IE_3_3_OVERPAYMENT_HANDLING"><text>-</text></inputEntry>
+        <outputEntry id="OE_3_1_OVERPAYMENT_HANDLING"><text>"REFUND"</text></outputEntry>
+        <outputEntry id="OE_3_2_OVERPAYMENT_HANDLING"><text>"high"</text></outputEntry>
+        <outputEntry id="OE_3_3_OVERPAYMENT_HANDLING"><text>true</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Inactive_OVERPAYMENT_HANDLING">
+        <description>Relacionamento inativo - reembolso</description>
+        <inputEntry id="IE_F_1_OVERPAYMENT_HANDLING"><text>-</text></inputEntry>
+        <inputEntry id="IE_F_2_OVERPAYMENT_HANDLING"><text>-</text></inputEntry>
+        <inputEntry id="IE_F_3_OVERPAYMENT_HANDLING"><text>"inactive"</text></inputEntry>
+        <outputEntry id="OE_F_1_OVERPAYMENT_HANDLING"><text>"REFUND"</text></outputEntry>
+        <outputEntry id="OE_F_2_OVERPAYMENT_HANDLING"><text>"medium"</text></outputEntry>
+        <outputEntry id="OE_F_3_OVERPAYMENT_HANDLING"><text>true</text></outputEntry>
+      </rule>
+
+    </decisionTable>
+  </decision>
+
+  <dmndi:DMNDI>
+    <dmndi:DMNDiagram id="DMNDiagram_OVERPAYMENT_HANDLING">
+      <dmndi:DMNShape id="DMNShape_Decision_OVERPAYMENT_HANDLING" dmnElementRef="Decision_OVERPAYMENT_HANDLING">
+        <dc:Bounds height="80" width="180" x="160" y="100"/>
+      </dmndi:DMNShape>
+    </dmndi:DMNDiagram>
+  </dmndi:DMNDI>
+
+</definitions>

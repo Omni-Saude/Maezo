@@ -1,0 +1,337 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" xmlns:camunda="http://camunda.org/schema/1.0/bpmn" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:bioc="http://bpmn.io/schema/bpmn/biocolor/1.0" xmlns:color="http://www.omg.org/spec/BPMN/non-normative/color/1.0" id="Definitions_RC007" targetNamespace="http://cib7.healthcare/revenue-cycle" exporter="Camunda Modeler" exporterVersion="5.35.0">
+  <bpmn:process id="SP_RC_007_Denial_Management" name="Gestão de Glosas" isExecutable="true" camunda:historyTimeToLive="30">
+    <bpmn:startEvent id="start_denial_mgmt" name="Início Gestão de Glosas">
+      <bpmn:outgoing>flow_to_identify_glosa</bpmn:outgoing>
+    </bpmn:startEvent>
+    <bpmn:serviceTask id="task_identify_glosa" name="Identificar Glosa" camunda:type="external" camunda:topic="glosa.identify">
+      <bpmn:extensionElements>
+        <camunda:inputOutput>
+          <camunda:inputParameter name="billingBatch">${batchId}</camunda:inputParameter>
+          <camunda:inputParameter name="response">${payerResponse}</camunda:inputParameter>
+          <camunda:outputParameter name="identifiedGlosas">${glosaItems}</camunda:outputParameter>
+          <camunda:outputParameter name="totalGlosas">${glosaCount}</camunda:outputParameter>
+        </camunda:inputOutput>
+      </bpmn:extensionElements>
+      <bpmn:incoming>flow_to_identify_glosa</bpmn:incoming>
+      <bpmn:outgoing>flow_to_classify_type</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:boundaryEvent id="timer_appeal_deadline" name="Prazo 30d" attachedToRef="task_check_appeal_eligibility">
+      <bpmn:outgoing>flow_to_expired</bpmn:outgoing>
+      <bpmn:timerEventDefinition>
+        <bpmn:timeDuration xsi:type="bpmn:tFormalExpression">P30D</bpmn:timeDuration>
+      </bpmn:timerEventDefinition>
+    </bpmn:boundaryEvent>
+    <bpmn:exclusiveGateway id="gateway_eligibility" name="Elegível para Recurso?" default="flow_not_eligible">
+      <bpmn:incoming>flow_to_eligibility_gateway</bpmn:incoming>
+      <bpmn:outgoing>flow_eligible</bpmn:outgoing>
+      <bpmn:outgoing>flow_not_eligible</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:businessRuleTask id="dmn_recovery_strategy" name="Estratégia de Recuperação" camunda:resultVariable="recoveryPlan" camunda:decisionRef="revenue_recovery_strategy" camunda:mapDecisionResult="singleResult">
+      <bpmn:incoming>Flow_1xob87u</bpmn:incoming>
+      <bpmn:outgoing>flow_to_dmn_recovery_elig</bpmn:outgoing>
+    </bpmn:businessRuleTask>
+    <bpmn:businessRuleTask id="dmn_recovery_eligibility" name="Elegibilidade de Recuperação" camunda:resultVariable="recoveryEligibility" camunda:decisionRef="revenue_recovery_eligibility" camunda:mapDecisionResult="singleResult">
+      <bpmn:incoming>flow_to_dmn_recovery_elig</bpmn:incoming>
+      <bpmn:outgoing>flow_to_generate_appeal</bpmn:outgoing>
+    </bpmn:businessRuleTask>
+    <bpmn:serviceTask id="task_submit_appeal" name="Submeter Recurso" camunda:type="external" camunda:topic="denial.submit_appeal">
+      <bpmn:extensionElements>
+        <camunda:inputOutput>
+          <camunda:inputParameter name="appealPackage">${completePackage}</camunda:inputParameter>
+          <camunda:inputParameter name="payer">${payerId}</camunda:inputParameter>
+          <camunda:outputParameter name="submittedAppealId">${appealId}</camunda:outputParameter>
+          <camunda:outputParameter name="appealSubmissionDate">${submissionDate}</camunda:outputParameter>
+        </camunda:inputOutput>
+      </bpmn:extensionElements>
+      <bpmn:incoming>flow_to_submit_appeal</bpmn:incoming>
+      <bpmn:outgoing>flow_to_track_appeal</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:serviceTask id="task_track_appeal_status" name="Acompanhar Status do Recurso" camunda:type="external" camunda:topic="denial.track_appeal_status">
+      <bpmn:extensionElements>
+        <camunda:inputOutput>
+          <camunda:inputParameter name="appealId">${submittedAppealId}</camunda:inputParameter>
+          <camunda:outputParameter name="appealStatus">${currentStatus}</camunda:outputParameter>
+          <camunda:outputParameter name="response">${payerResponse}</camunda:outputParameter>
+        </camunda:inputOutput>
+      </bpmn:extensionElements>
+      <bpmn:incoming>flow_to_track_appeal</bpmn:incoming>
+      <bpmn:outgoing>flow_to_end_success</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:endEvent id="end_success" name="Recurso Submetido">
+      <bpmn:incoming>flow_to_end_success</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:endEvent id="end_not_eligible" name="Não Elegível">
+      <bpmn:incoming>flow_to_end_not_eligible</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:endEvent id="end_expired" name="Prazo Expirado">
+      <bpmn:incoming>flow_to_end_expired</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:sequenceFlow id="flow_to_identify_glosa" sourceRef="start_denial_mgmt" targetRef="task_identify_glosa" />
+    <bpmn:sequenceFlow id="flow_to_classify_type" sourceRef="task_identify_glosa" targetRef="task_classify_glosa_type" />
+    <bpmn:sequenceFlow id="flow_to_analyze_reason" sourceRef="task_classify_glosa_type" targetRef="task_analyze_glosa_reason" />
+    <bpmn:sequenceFlow id="flow_to_dmn_predict" sourceRef="task_analyze_glosa_reason" targetRef="dmn_predict_risk" />
+    <bpmn:sequenceFlow id="flow_to_dmn_prevent" sourceRef="dmn_predict_risk" targetRef="dmn_prevention_strategy" />
+    <bpmn:sequenceFlow id="flow_to_check_eligibility" sourceRef="dmn_prevention_strategy" targetRef="task_check_appeal_eligibility" />
+    <bpmn:sequenceFlow id="flow_to_eligibility_gateway" sourceRef="task_check_appeal_eligibility" targetRef="gateway_eligibility" />
+    <bpmn:sequenceFlow id="flow_eligible" name="Sim" sourceRef="gateway_eligibility" targetRef="Activity_1s4ckeb">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">=appealEligible = true</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="flow_not_eligible" name="Não" sourceRef="gateway_eligibility" targetRef="task_review_not_eligible" />
+    <bpmn:sequenceFlow id="flow_to_dmn_recovery_elig" sourceRef="dmn_recovery_strategy" targetRef="dmn_recovery_eligibility" />
+    <bpmn:sequenceFlow id="flow_to_generate_appeal" sourceRef="dmn_recovery_eligibility" targetRef="task_generate_appeal_documentation" />
+    <bpmn:sequenceFlow id="flow_to_submit_appeal" sourceRef="task_generate_appeal_documentation" targetRef="task_submit_appeal" />
+    <bpmn:sequenceFlow id="flow_to_track_appeal" sourceRef="task_submit_appeal" targetRef="task_track_appeal_status" />
+    <bpmn:sequenceFlow id="flow_to_expired" sourceRef="timer_appeal_deadline" targetRef="task_handle_expired" />
+    <bpmn:sequenceFlow id="flow_to_end_success" sourceRef="task_track_appeal_status" targetRef="end_success" />
+    <bpmn:sequenceFlow id="flow_to_end_not_eligible" sourceRef="task_review_not_eligible" targetRef="end_not_eligible" />
+    <bpmn:sequenceFlow id="flow_to_end_expired" sourceRef="task_handle_expired" targetRef="end_expired" />
+    <bpmn:task id="task_classify_glosa_type" name="Classificar Tipo de Glosa">
+      <bpmn:extensionElements>
+        <camunda:inputOutput>
+          <camunda:outputParameter name="glosasByType">${classifiedGlosas}</camunda:outputParameter>
+          <camunda:outputParameter name="mainGlosaType">${primaryType}</camunda:outputParameter>
+        </camunda:inputOutput>
+      </bpmn:extensionElements>
+      <bpmn:incoming>flow_to_classify_type</bpmn:incoming>
+      <bpmn:outgoing>flow_to_analyze_reason</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:task id="task_analyze_glosa_reason" name="Analisar Razão da Glosa">
+      <bpmn:extensionElements>
+        <camunda:inputOutput>
+          <camunda:outputParameter name="glosaRootCause">${rootCause}</camunda:outputParameter>
+          <camunda:outputParameter name="causeAnalysis">${analysisDetails}</camunda:outputParameter>
+        </camunda:inputOutput>
+      </bpmn:extensionElements>
+      <bpmn:incoming>flow_to_analyze_reason</bpmn:incoming>
+      <bpmn:outgoing>flow_to_dmn_predict</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:task id="dmn_predict_risk" name="Prever Risco de Glosa">
+      <bpmn:incoming>flow_to_dmn_predict</bpmn:incoming>
+      <bpmn:outgoing>flow_to_dmn_prevent</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:task id="dmn_prevention_strategy" name="Estratégia de Prevenção">
+      <bpmn:incoming>flow_to_dmn_prevent</bpmn:incoming>
+      <bpmn:outgoing>flow_to_check_eligibility</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:task id="task_generate_appeal_documentation" name="Gerar Documentação de Recurso">
+      <bpmn:extensionElements>
+        <camunda:inputOutput>
+          <camunda:outputParameter name="generatedAppealDocs">${appealDocuments}</camunda:outputParameter>
+          <camunda:outputParameter name="completePackage">${appealPackage}</camunda:outputParameter>
+        </camunda:inputOutput>
+      </bpmn:extensionElements>
+      <bpmn:incoming>flow_to_generate_appeal</bpmn:incoming>
+      <bpmn:outgoing>flow_to_submit_appeal</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:serviceTask id="task_check_appeal_eligibility" name="Verificar Elegibilidade para Recurso" camunda:type="external" camunda:topic="VerificarElegibilidade">
+      <bpmn:extensionElements>
+        <camunda:inputOutput>
+          <camunda:inputParameter name="glosas">${glosasByType}</camunda:inputParameter>
+          <camunda:inputParameter name="rootCause">${glosaRootCause}</camunda:inputParameter>
+          <camunda:outputParameter name="appealEligible">${isEligible}</camunda:outputParameter>
+          <camunda:outputParameter name="eligibilityDetails">${eligibilityReason}</camunda:outputParameter>
+        </camunda:inputOutput>
+      </bpmn:extensionElements>
+      <bpmn:incoming>flow_to_check_eligibility</bpmn:incoming>
+      <bpmn:outgoing>flow_to_eligibility_gateway</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:sequenceFlow id="Flow_1xob87u" sourceRef="Activity_1s4ckeb" targetRef="dmn_recovery_strategy" />
+    <bpmn:serviceTask id="Activity_1s4ckeb" name="Coletar&#10;dados" camunda:type="external" camunda:topic="ColetarDados">
+      <bpmn:incoming>flow_eligible</bpmn:incoming>
+      <bpmn:outgoing>Flow_1xob87u</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:task id="task_handle_expired" name="Tratar Recurso Expirado">
+      <bpmn:incoming>flow_to_expired</bpmn:incoming>
+      <bpmn:outgoing>flow_to_end_expired</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:task id="task_review_not_eligible" name="Revisar Glosa Não Elegível">
+      <bpmn:incoming>flow_not_eligible</bpmn:incoming>
+      <bpmn:outgoing>flow_to_end_not_eligible</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:textAnnotation id="TextAnnotation_0j74rl0">
+      <bpmn:text>RPA</bpmn:text>
+    </bpmn:textAnnotation>
+    <bpmn:association id="Association_0a05jsr" associationDirection="None" sourceRef="task_submit_appeal" targetRef="TextAnnotation_0j74rl0" />
+    <bpmn:association id="Association_1uvjtmj" associationDirection="None" sourceRef="TextAnnotation_0j74rl0" targetRef="task_track_appeal_status" />
+  </bpmn:process>
+  <bpmndi:BPMNDiagram id="BPMNDiagram_RC007">
+    <bpmndi:BPMNPlane id="BPMNPlane_RC007" bpmnElement="SP_RC_007_Denial_Management">
+      <bpmndi:BPMNShape id="Shape_start_denial_mgmt" bpmnElement="start_denial_mgmt" bioc:stroke="#0d4372" bioc:fill="#bbdefb" color:background-color="#bbdefb" color:border-color="#0d4372">
+        <dc:Bounds x="162" y="122" width="36" height="36" />
+        <bpmndi:BPMNLabel color:color="#0d4372">
+          <dc:Bounds x="140" y="165" width="81" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_task_identify_glosa" bpmnElement="task_identify_glosa" bioc:stroke="#0d4372" bioc:fill="#bbdefb" color:background-color="#bbdefb" color:border-color="#0d4372">
+        <dc:Bounds x="250" y="100" width="100" height="80" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_gateway_eligibility" bpmnElement="gateway_eligibility" isMarkerVisible="true" bioc:stroke="#0d4372" bioc:fill="#bbdefb" color:background-color="#bbdefb" color:border-color="#0d4372">
+        <dc:Bounds x="1225" y="115" width="50" height="50" />
+        <bpmndi:BPMNLabel color:color="#0d4372">
+          <dc:Bounds x="1217" y="78" width="65" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_dmn_recovery_strategy" bpmnElement="dmn_recovery_strategy" bioc:stroke="#0d4372" bioc:fill="#bbdefb" color:background-color="#bbdefb" color:border-color="#0d4372">
+        <dc:Bounds x="1500" y="100" width="100" height="80" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_dmn_recovery_eligibility" bpmnElement="dmn_recovery_eligibility" bioc:stroke="#0d4372" bioc:fill="#bbdefb" color:background-color="#bbdefb" color:border-color="#0d4372">
+        <dc:Bounds x="1660" y="100" width="100" height="80" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_task_submit_appeal" bpmnElement="task_submit_appeal" bioc:stroke="#0d4372" bioc:fill="#bbdefb" color:background-color="#bbdefb" color:border-color="#0d4372">
+        <dc:Bounds x="1980" y="100" width="100" height="80" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_task_track_appeal_status" bpmnElement="task_track_appeal_status" bioc:stroke="#0d4372" bioc:fill="#bbdefb" color:background-color="#bbdefb" color:border-color="#0d4372">
+        <dc:Bounds x="2140" y="100" width="100" height="80" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_end_success" bpmnElement="end_success" bioc:stroke="#0d4372" bioc:fill="#bbdefb" color:background-color="#bbdefb" color:border-color="#0d4372">
+        <dc:Bounds x="2308" y="122" width="36" height="36" />
+        <bpmndi:BPMNLabel color:color="#0d4372">
+          <dc:Bounds x="2300" y="165" width="53" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_end_not_eligible" bpmnElement="end_not_eligible">
+        <dc:Bounds x="1232" y="422" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1219" y="465" width="63" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_end_expired" bpmnElement="end_expired">
+        <dc:Bounds x="1082" y="422" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1062" y="465" width="76" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Activity_08k458o_di" bpmnElement="task_classify_glosa_type">
+        <dc:Bounds x="410" y="100" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Activity_0wrks2d_di" bpmnElement="task_analyze_glosa_reason">
+        <dc:Bounds x="570" y="100" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Activity_1em26t2_di" bpmnElement="dmn_predict_risk">
+        <dc:Bounds x="730" y="100" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Activity_1arp2xw_di" bpmnElement="dmn_prevention_strategy">
+        <dc:Bounds x="890" y="100" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Activity_0icn2vm_di" bpmnElement="task_generate_appeal_documentation">
+        <dc:Bounds x="1820" y="100" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Activity_1wr4i6s_di" bpmnElement="task_check_appeal_eligibility" bioc:stroke="#0d4372" bioc:fill="#bbdefb" color:background-color="#bbdefb" color:border-color="#0d4372">
+        <dc:Bounds x="1050" y="100" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Activity_00ofniw_di" bpmnElement="Activity_1s4ckeb" bioc:stroke="#0d4372" bioc:fill="#bbdefb" color:background-color="#bbdefb" color:border-color="#0d4372">
+        <dc:Bounds x="1340" y="100" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Activity_15d17xx_di" bpmnElement="task_handle_expired">
+        <dc:Bounds x="1050" y="280" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Activity_153zyi9_di" bpmnElement="task_review_not_eligible">
+        <dc:Bounds x="1200" y="280" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="TextAnnotation_0j74rl0_di" bpmnElement="TextAnnotation_0j74rl0" bioc:stroke="#0d4372" bioc:fill="#bbdefb" color:background-color="#bbdefb" color:border-color="#0d4372">
+        <dc:Bounds x="2070" y="220" width="99.99999794078421" height="29.993252876477367" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_timer_appeal_deadline" bpmnElement="timer_appeal_deadline">
+        <dc:Bounds x="1082" y="162" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1114" y="228" width="51" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Edge_flow_to_identify_glosa" bpmnElement="flow_to_identify_glosa" bioc:stroke="#0d4372" color:border-color="#0d4372">
+        <di:waypoint x="198" y="140" />
+        <di:waypoint x="250" y="140" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_flow_to_classify_type" bpmnElement="flow_to_classify_type" bioc:stroke="#0d4372" color:border-color="#0d4372">
+        <di:waypoint x="350" y="140" />
+        <di:waypoint x="410" y="140" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_flow_to_analyze_reason" bpmnElement="flow_to_analyze_reason">
+        <di:waypoint x="510" y="140" />
+        <di:waypoint x="570" y="140" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_flow_to_dmn_predict" bpmnElement="flow_to_dmn_predict">
+        <di:waypoint x="670" y="140" />
+        <di:waypoint x="730" y="140" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_flow_to_dmn_prevent" bpmnElement="flow_to_dmn_prevent">
+        <di:waypoint x="830" y="140" />
+        <di:waypoint x="890" y="140" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_flow_to_check_eligibility" bpmnElement="flow_to_check_eligibility" bioc:stroke="#0d4372" color:border-color="#0d4372">
+        <di:waypoint x="990" y="140" />
+        <di:waypoint x="1050" y="140" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_flow_to_eligibility_gateway" bpmnElement="flow_to_eligibility_gateway" bioc:stroke="#0d4372" color:border-color="#0d4372">
+        <di:waypoint x="1150" y="140" />
+        <di:waypoint x="1225" y="140" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_flow_eligible" bpmnElement="flow_eligible" bioc:stroke="#0d4372" color:border-color="#0d4372">
+        <di:waypoint x="1275" y="140" />
+        <di:waypoint x="1340" y="140" />
+        <bpmndi:BPMNLabel color:color="#0d4372">
+          <dc:Bounds x="1304" y="122" width="20" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_flow_not_eligible" bpmnElement="flow_not_eligible">
+        <di:waypoint x="1250" y="165" />
+        <di:waypoint x="1250" y="280" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1269" y="228" width="21" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_flow_to_dmn_recovery_elig" bpmnElement="flow_to_dmn_recovery_elig" bioc:stroke="#0d4372" color:border-color="#0d4372">
+        <di:waypoint x="1600" y="140" />
+        <di:waypoint x="1660" y="140" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_flow_to_generate_appeal" bpmnElement="flow_to_generate_appeal" bioc:stroke="#0d4372" color:border-color="#0d4372">
+        <di:waypoint x="1760" y="140" />
+        <di:waypoint x="1820" y="140" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_flow_to_submit_appeal" bpmnElement="flow_to_submit_appeal" bioc:stroke="#0d4372" color:border-color="#0d4372">
+        <di:waypoint x="1920" y="140" />
+        <di:waypoint x="1980" y="140" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_flow_to_track_appeal" bpmnElement="flow_to_track_appeal" bioc:stroke="#0d4372" color:border-color="#0d4372">
+        <di:waypoint x="2080" y="140" />
+        <di:waypoint x="2140" y="140" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_flow_to_expired" bpmnElement="flow_to_expired">
+        <di:waypoint x="1100" y="198" />
+        <di:waypoint x="1100" y="280" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_flow_to_end_success" bpmnElement="flow_to_end_success" bioc:stroke="#0d4372" color:border-color="#0d4372">
+        <di:waypoint x="2240" y="140" />
+        <di:waypoint x="2308" y="140" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_flow_to_end_not_eligible" bpmnElement="flow_to_end_not_eligible">
+        <di:waypoint x="1250" y="360" />
+        <di:waypoint x="1250" y="422" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_flow_to_end_expired" bpmnElement="flow_to_end_expired">
+        <di:waypoint x="1100" y="360" />
+        <di:waypoint x="1100" y="422" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_1xob87u_di" bpmnElement="Flow_1xob87u">
+        <di:waypoint x="1440" y="140" />
+        <di:waypoint x="1500" y="140" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Association_0a05jsr_di" bpmnElement="Association_0a05jsr" bioc:stroke="#0d4372" color:border-color="#0d4372">
+        <di:waypoint x="2030" y="180" />
+        <di:waypoint x="2030" y="235" />
+        <di:waypoint x="2070" y="235" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Association_1uvjtmj_di" bpmnElement="Association_1uvjtmj" bioc:stroke="#0d4372" color:border-color="#0d4372">
+        <di:waypoint x="2170" y="235" />
+        <di:waypoint x="2190" y="235" />
+        <di:waypoint x="2190" y="180" />
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>

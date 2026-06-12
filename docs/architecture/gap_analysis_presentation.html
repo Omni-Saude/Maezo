@@ -1,0 +1,739 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MAEZO — Gap Analysis: DMN Inputs Orfaos e Referencias Cruzadas Quebradas</title>
+<style>
+  :root {
+    --primary: #1a56db;
+    --primary-light: #e8effc;
+    --accent: #0e9f6e;
+    --accent-light: #def7ec;
+    --warning: #c27803;
+    --warning-light: #fdf6b2;
+    --danger: #e02424;
+    --danger-light: #fde8e8;
+    --critical: #7c3aed;
+    --critical-light: #ede9fe;
+    --gray-50: #f9fafb;
+    --gray-100: #f3f4f6;
+    --gray-200: #e5e7eb;
+    --gray-300: #d1d5db;
+    --gray-500: #6b7280;
+    --gray-700: #374151;
+    --gray-900: #111827;
+    --radius: 8px;
+    --shadow: 0 1px 3px rgba(0,0,0,.1), 0 1px 2px rgba(0,0,0,.06);
+    --shadow-md: 0 4px 6px rgba(0,0,0,.07), 0 2px 4px rgba(0,0,0,.06);
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--gray-50); color: var(--gray-900); line-height: 1.6; }
+
+  /* Header */
+  .header { background: linear-gradient(135deg, #450a0a 0%, #991b1b 50%, #c27803 100%); color: #fff; padding: 48px 0 36px; }
+  .header .container { display: flex; align-items: flex-start; gap: 24px; }
+  .header-icon { width: 72px; height: 72px; background: rgba(255,255,255,.15); border-radius: 18px; display: flex; align-items: center; justify-content: center; font-size: 36px; flex-shrink: 0; }
+  .header h1 { font-size: 30px; font-weight: 800; letter-spacing: -0.5px; }
+  .header .subtitle { opacity: .9; margin-top: 4px; font-size: 16px; }
+  .header .meta { margin-top: 10px; display: flex; gap: 16px; font-size: 13px; opacity: .7; }
+
+  .container { max-width: 1240px; margin: 0 auto; padding: 0 24px; }
+  section { margin-bottom: 48px; }
+
+  /* Section headers */
+  .section-header { display: flex; align-items: center; gap: 14px; margin-bottom: 20px; padding-bottom: 10px; border-bottom: 3px solid var(--danger); }
+  .section-header.warning { border-bottom-color: var(--warning); }
+  .section-header.critical { border-bottom-color: var(--critical); }
+  .section-header .section-icon { width: 40px; height: 40px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 20px; flex-shrink: 0; }
+  .section-header .section-icon.red { background: var(--danger-light); }
+  .section-header .section-icon.yellow { background: var(--warning-light); }
+  .section-header .section-icon.purple { background: var(--critical-light); }
+  .section-header h2 { font-size: 22px; font-weight: 700; }
+  .section-header .section-badge { margin-left: auto; }
+
+  /* KPI strip */
+  .kpi-strip { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin: 32px 0; }
+  .kpi-card { background: #fff; border-radius: var(--radius); padding: 24px; box-shadow: var(--shadow); text-align: center; border-left: 4px solid var(--danger); }
+  .kpi-card.warn { border-left-color: var(--warning); }
+  .kpi-card.crit { border-left-color: var(--critical); }
+  .kpi-card .kpi-value { font-size: 48px; font-weight: 900; }
+  .kpi-card .kpi-value.red { color: var(--danger); }
+  .kpi-card .kpi-value.yellow { color: var(--warning); }
+  .kpi-card .kpi-value.purple { color: var(--critical); }
+  .kpi-card .kpi-label { font-size: 13px; text-transform: uppercase; letter-spacing: .8px; color: var(--gray-500); margin-top: 4px; }
+  .kpi-card .kpi-sub { font-size: 12px; color: var(--gray-500); margin-top: 2px; }
+
+  /* Case cards */
+  .case-card { background: #fff; border-radius: var(--radius); box-shadow: var(--shadow); margin-bottom: 20px; overflow: hidden; }
+  .case-header { padding: 16px 20px; display: flex; align-items: center; gap: 12px; border-bottom: 1px solid var(--gray-100); }
+  .case-number { width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 14px; color: #fff; flex-shrink: 0; }
+  .case-number.red { background: var(--danger); }
+  .case-number.yellow { background: var(--warning); }
+  .case-number.purple { background: var(--critical); }
+  .case-title { font-weight: 700; font-size: 15px; }
+  .case-file { margin-left: auto; font-family: 'Cascadia Code', 'Consolas', monospace; font-size: 12px; color: var(--gray-500); background: var(--gray-100); padding: 4px 10px; border-radius: 4px; }
+  .case-body { padding: 20px; }
+
+  /* Code blocks */
+  .code-block { background: #1e293b; color: #e2e8f0; border-radius: 6px; padding: 16px 20px; font-family: 'Cascadia Code', 'Fira Code', 'Consolas', monospace; font-size: 13px; line-height: 1.7; overflow-x: auto; margin: 12px 0; position: relative; }
+  .code-block .code-label { position: absolute; top: 8px; right: 12px; font-size: 10px; text-transform: uppercase; letter-spacing: 1px; color: #64748b; }
+  .code-block .hl-red { color: #fca5a5; font-weight: 600; }
+  .code-block .hl-yellow { color: #fde68a; font-weight: 600; }
+  .code-block .hl-green { color: #86efac; }
+  .code-block .hl-blue { color: #93c5fd; }
+  .code-block .hl-gray { color: #64748b; }
+  .code-block .hl-comment { color: #64748b; font-style: italic; }
+  .code-block .strikethrough { text-decoration: line-through; color: #ef4444; opacity: .7; }
+
+  /* Diagram boxes */
+  .flow-diagram { display: flex; align-items: center; gap: 0; margin: 16px 0; flex-wrap: wrap; justify-content: center; }
+  .flow-box { padding: 10px 16px; border-radius: 6px; font-size: 13px; font-weight: 600; text-align: center; min-width: 120px; position: relative; }
+  .flow-box.bpmn { background: var(--primary-light); color: var(--primary); border: 2px solid var(--primary); }
+  .flow-box.dmn { background: var(--warning-light); color: #92400e; border: 2px solid var(--warning); }
+  .flow-box.worker { background: var(--accent-light); color: #065f46; border: 2px solid var(--accent); }
+  .flow-box.missing { background: var(--danger-light); color: var(--danger); border: 2px dashed var(--danger); }
+  .flow-box.mismatch { background: var(--critical-light); color: var(--critical); border: 2px dashed var(--critical); }
+  .flow-arrow { font-size: 20px; color: var(--gray-300); margin: 0 4px; }
+  .flow-arrow.broken { color: var(--danger); font-weight: 800; }
+  .flow-sub { font-size: 10px; display: block; margin-top: 2px; opacity: .8; font-weight: 400; }
+
+  /* Impact callout */
+  .impact { padding: 16px 20px; border-radius: var(--radius); margin: 16px 0; display: flex; align-items: flex-start; gap: 12px; }
+  .impact.danger { background: var(--danger-light); border-left: 4px solid var(--danger); }
+  .impact.warning { background: var(--warning-light); border-left: 4px solid var(--warning); }
+  .impact.critical { background: var(--critical-light); border-left: 4px solid var(--critical); }
+  .impact.info { background: var(--primary-light); border-left: 4px solid var(--primary); }
+  .impact-icon { font-size: 20px; flex-shrink: 0; margin-top: 2px; }
+  .impact-text { font-size: 14px; }
+  .impact-text strong { display: block; margin-bottom: 2px; }
+
+  /* Tables */
+  .table-wrap { background: #fff; border-radius: var(--radius); box-shadow: var(--shadow); overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  thead th { background: var(--gray-100); padding: 10px 14px; text-align: left; font-weight: 600; font-size: 11px; text-transform: uppercase; letter-spacing: .5px; color: var(--gray-700); border-bottom: 2px solid var(--gray-200); white-space: nowrap; }
+  tbody td { padding: 10px 14px; border-bottom: 1px solid var(--gray-100); vertical-align: top; }
+  tbody tr:hover { background: var(--gray-50); }
+  .mono { font-family: 'Cascadia Code', 'Consolas', monospace; font-size: 12px; }
+  .num { text-align: center; font-weight: 600; }
+
+  /* Badges */
+  .badge { display: inline-block; padding: 2px 8px; border-radius: 12px; font-size: 11px; font-weight: 600; }
+  .badge-red { background: var(--danger-light); color: #991b1b; }
+  .badge-yellow { background: var(--warning-light); color: #92400e; }
+  .badge-green { background: var(--accent-light); color: #065f46; }
+  .badge-blue { background: var(--primary-light); color: var(--primary); }
+  .badge-purple { background: var(--critical-light); color: var(--critical); }
+  .badge-gray { background: var(--gray-100); color: var(--gray-700); }
+
+  /* Summary grid */
+  .summary-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+  @media (max-width: 768px) { .summary-grid { grid-template-columns: 1fr; } }
+  .summary-box { background: #fff; border-radius: var(--radius); box-shadow: var(--shadow); padding: 20px; }
+  .summary-box h3 { font-size: 15px; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+  .summary-box ul { list-style: none; font-size: 13px; }
+  .summary-box li { padding: 6px 0; border-bottom: 1px solid var(--gray-100); display: flex; gap: 8px; align-items: flex-start; }
+  .summary-box li::before { content: ''; width: 6px; height: 6px; border-radius: 50%; margin-top: 7px; flex-shrink: 0; }
+  .summary-box.red li::before { background: var(--danger); }
+  .summary-box.yellow li::before { background: var(--warning); }
+
+  /* Accordion */
+  details { background: #fff; border-radius: var(--radius); box-shadow: var(--shadow); margin-bottom: 12px; }
+  details summary { padding: 14px 20px; cursor: pointer; font-weight: 600; font-size: 14px; display: flex; align-items: center; gap: 10px; list-style: none; }
+  details summary::-webkit-details-marker { display: none; }
+  details summary::before { content: '\25B6'; font-size: 10px; color: var(--gray-500); transition: transform .2s; }
+  details[open] summary::before { transform: rotate(90deg); }
+  details .detail-body { padding: 0 20px 16px; }
+  .detail-badges { display: flex; gap: 6px; margin-left: auto; }
+
+  .footer { text-align: center; padding: 32px 0; color: var(--gray-500); font-size: 13px; border-top: 1px solid var(--gray-200); margin-top: 48px; }
+
+  @media print {
+    .header { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .case-card { break-inside: avoid; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ════════════ HEADER ════════════ -->
+<div class="header">
+  <div class="container">
+    <div class="header-icon">!!</div>
+    <div>
+      <h1>Gap Analysis &mdash; Integridade de Artefatos</h1>
+      <div class="subtitle">DMN Inputs Orfaos &bull; Referencias Cruzadas Quebradas &bull; Workers Ausentes</div>
+      <div class="meta">
+        <span>MAEZO Healthcare Platform</span>
+        <span>|</span>
+        <span>Dominio: revenue_cycle + cross-domain</span>
+        <span>|</span>
+        <span>27/02/2026</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="container" style="margin-top:32px">
+
+<!-- ════════════ KPIs ════════════ -->
+<div class="kpi-strip">
+  <div class="kpi-card">
+    <div class="kpi-value red">22/22</div>
+    <div class="kpi-label">decisionRef Quebradas</div>
+    <div class="kpi-sub">BPMN aponta DMN que nao existe com esse ID</div>
+  </div>
+  <div class="kpi-card warn">
+    <div class="kpi-value yellow">743</div>
+    <div class="kpi-label">Inputs Boolean Orfaos</div>
+    <div class="kpi-sub">Variaveis pre-calculadas sem componente produtor</div>
+  </div>
+  <div class="kpi-card crit">
+    <div class="kpi-value purple">~55</div>
+    <div class="kpi-label">Topics sem Worker</div>
+    <div class="kpi-sub">BPMN declara external task, nenhum worker escuta</div>
+  </div>
+  <div class="kpi-card">
+    <div class="kpi-value red">2</div>
+    <div class="kpi-label">Dominios DMN Inexistentes</div>
+    <div class="kpi-sub">Nem pasta nem arquivo</div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════ -->
+<!-- PROBLEMA 1: INPUTS ORFAOS                                     -->
+<!-- ══════════════════════════════════════════════════════════════ -->
+<section>
+  <div class="section-header warning">
+    <div class="section-icon yellow">?</div>
+    <div>
+      <h2>Problema 1 &mdash; DMNs com Inputs que Ninguem Fornece</h2>
+      <div style="font-size:13px;color:var(--gray-500);margin-top:2px">42% dos DMN files (518 de 1.231) recebem booleans pre-calculados sem componente produtor</div>
+    </div>
+  </div>
+
+  <div class="impact warning">
+    <div class="impact-icon">!!</div>
+    <div class="impact-text">
+      <strong>O que acontece em runtime:</strong>
+      O DMN engine avalia a regra com o input = <code>null</code> (nao fornecido). Dependendo do hitPolicy, isso pode: (a) cair na regra fallback "Revisar", gerando falso positivo de revisao manual; (b) nao casar com nenhuma regra e retornar vazio; (c) casar com regra errada se <code>null</code> for tratado como <code>false</code>.
+    </div>
+  </div>
+
+  <!-- CASO 1 -->
+  <div class="case-card">
+    <div class="case-header">
+      <div class="case-number yellow">1</div>
+      <div class="case-title">isValidTASY / isValidANS &mdash; Lookup em sistema externo que ninguem faz</div>
+      <div class="case-file">revenue_cycle/dmn/pricing/validation/procedure_code_adjudication.dmn</div>
+    </div>
+    <div class="case-body">
+      <p style="font-size:14px;margin-bottom:12px">O DMN de adjudicacao de codigo de procedimento espera 2 booleans de validacao contra sistemas externos (TASY e ANS), mas <strong>nenhum worker, service, ou adapter faz essas chamadas</strong>.</p>
+
+      <div class="code-block">
+        <div class="code-label">DMN INPUT</div>
+<span class="hl-blue">&lt;input</span> id="Input_1" label="Valido no TASY"<span class="hl-blue">&gt;</span>
+  <span class="hl-blue">&lt;inputExpression</span> typeRef="<span class="hl-red">boolean</span>"<span class="hl-blue">&gt;</span>
+    <span class="hl-blue">&lt;text&gt;</span><span class="hl-red">isValidTASY</span><span class="hl-blue">&lt;/text&gt;</span>    <span class="hl-comment">&lt;!-- Quem calcula? --&gt;</span>
+  <span class="hl-blue">&lt;/inputExpression&gt;</span>
+<span class="hl-blue">&lt;/input&gt;</span>
+
+<span class="hl-blue">&lt;input</span> id="Input_2" label="Valido na ANS"<span class="hl-blue">&gt;</span>
+  <span class="hl-blue">&lt;inputExpression</span> typeRef="<span class="hl-red">boolean</span>"<span class="hl-blue">&gt;</span>
+    <span class="hl-blue">&lt;text&gt;</span><span class="hl-red">isValidANS</span><span class="hl-blue">&lt;/text&gt;</span>     <span class="hl-comment">&lt;!-- Quem calcula? --&gt;</span>
+  <span class="hl-blue">&lt;/inputExpression&gt;</span>
+<span class="hl-blue">&lt;/input&gt;</span>
+      </div>
+
+      <div class="flow-diagram">
+        <div class="flow-box missing">Worker??<span class="flow-sub">Chamar API TASY</span></div>
+        <div class="flow-arrow broken">--X--&gt;</div>
+        <div class="flow-box missing">isValidTASY=?<span class="flow-sub">boolean nao produzido</span></div>
+        <div class="flow-arrow broken">--X--&gt;</div>
+        <div class="flow-box dmn">DMN Adjudication<span class="flow-sub">recebe null</span></div>
+      </div>
+
+      <div class="impact danger">
+        <div class="impact-icon">!!</div>
+        <div class="impact-text">
+          <strong>Impacto:</strong> Procedimentos nunca sao validados contra TASY/ANS. Toda adjudicacao cai no fallback "Revisar" ou pior, aceita procedimentos invalidos.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- CASO 2 -->
+  <div class="case-card">
+    <div class="case-header">
+      <div class="case-number yellow">2</div>
+      <div class="case-title">especialidadeCompativel &mdash; Cross-reference sem serviço</div>
+      <div class="case-file">patient_access/dmn/authorization/coding/auth_coding_002.dmn</div>
+    </div>
+    <div class="case-body">
+      <p style="font-size:14px;margin-bottom:12px">O DMN recebe <code>especialidade</code> e <code>codigoTUSS</code> como strings, mas TAMBEM espera <code>especialidadeCompativel</code> como boolean pre-calculado. Ou seja: alguem deveria cruzar especialidade x TUSS numa tabela de compatibilidade ANTES de chamar o DMN.</p>
+
+      <div class="code-block">
+        <div class="code-label">DMN INPUT</div>
+<span class="hl-blue">&lt;input</span> label="Especialidade Compativel"<span class="hl-blue">&gt;</span>
+  <span class="hl-blue">&lt;inputExpression</span> typeRef="<span class="hl-red">boolean</span>"<span class="hl-blue">&gt;</span>
+    <span class="hl-blue">&lt;text&gt;</span><span class="hl-red">especialidadeCompativel</span><span class="hl-blue">&lt;/text&gt;</span>  <span class="hl-comment">&lt;!-- Nenhum service faz esse lookup --&gt;</span>
+  <span class="hl-blue">&lt;/inputExpression&gt;</span>
+<span class="hl-blue">&lt;/input&gt;</span>
+      </div>
+
+      <div class="impact danger">
+        <div class="impact-icon">!!</div>
+        <div class="impact-text"><strong>Impacto:</strong> Autorizacoes de procedimentos passam sem validacao de compatibilidade medico x especialidade. Risco de glosa por especialidade inadequada.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- CASO 3 -->
+  <div class="case-card">
+    <div class="case-header">
+      <div class="case-number yellow">3</div>
+      <div class="case-title">contratoPermiteSeparar / mesmoAtoAnestesico &mdash; Contrato + Prontuario</div>
+      <div class="case-file">revenue_cycle/dmn/billing/bundle/bill_bundle_001.dmn</div>
+    </div>
+    <div class="case-body">
+      <p style="font-size:14px;margin-bottom:12px">DMN de validacao de cobranca agrupada (mastectomia radical) exige 2 booleans que dependem de: (a) consultar clausula especifica no contrato do convenio; (b) cruzar registros de ato anestesico no prontuario cirurgico.</p>
+
+      <div class="code-block">
+        <div class="code-label">DMN INPUT</div>
+<span class="hl-blue">&lt;input</span> label="Contrato Permite Separar"<span class="hl-blue">&gt;</span>
+  <span class="hl-blue">&lt;inputExpression</span> typeRef="<span class="hl-red">boolean</span>"<span class="hl-blue">&gt;</span>
+    <span class="hl-blue">&lt;text&gt;</span><span class="hl-red">contratoPermiteSeparar</span><span class="hl-blue">&lt;/text&gt;</span>  <span class="hl-comment">&lt;!-- Requer: Contract Extraction API --&gt;</span>
+  <span class="hl-blue">&lt;/inputExpression&gt;</span>
+<span class="hl-blue">&lt;/input&gt;</span>
+
+<span class="hl-blue">&lt;input</span> label="Mesmo Ato Anestesico"<span class="hl-blue">&gt;</span>
+  <span class="hl-blue">&lt;inputExpression</span> typeRef="<span class="hl-red">boolean</span>"<span class="hl-blue">&gt;</span>
+    <span class="hl-blue">&lt;text&gt;</span><span class="hl-red">mesmoAtoAnestesico</span><span class="hl-blue">&lt;/text&gt;</span>   <span class="hl-comment">&lt;!-- Requer: Prontuario cirurgico lookup --&gt;</span>
+  <span class="hl-blue">&lt;/inputExpression&gt;</span>
+<span class="hl-blue">&lt;/input&gt;</span>
+      </div>
+
+      <div class="impact danger">
+        <div class="impact-icon">!!</div>
+        <div class="impact-text"><strong>Impacto:</strong> Cobrancas agrupadas/separadas nunca sao validadas automaticamente. Hospital pode cobrar separado quando deveria ser agrupado (glosa) ou vice-versa (perda de receita).</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- CASO 4 -->
+  <div class="case-card">
+    <div class="case-header">
+      <div class="case-number yellow">4</div>
+      <div class="case-title">codigoAnvisaValido / loteRegistradoProntuario &mdash; OPME Rastreabilidade</div>
+      <div class="case-file">revenue_cycle/dmn/billing/opme/bill_opme_001.dmn</div>
+    </div>
+    <div class="case-body">
+      <p style="font-size:14px;margin-bottom:12px">Validacao de OPME implantavel exige 4 inputs pre-calculados: validacao ANVISA, registro em prontuario, dias ate validade, e completude do registro.</p>
+
+      <div class="code-block">
+        <div class="code-label">4 INPUTS PRE-CALCULADOS</div>
+<span class="hl-red">codigoAnvisaValido</span>       (boolean)  <span class="hl-comment">&lt;-- API ANVISA ou tabela referencia</span>
+<span class="hl-red">loteRegistradoProntuario</span> (boolean)  <span class="hl-comment">&lt;-- Cross-ref prontuario</span>
+<span class="hl-red">diasAteValidade</span>          (number)   <span class="hl-comment">&lt;-- Calculo: expiry_date - today</span>
+<span class="hl-red">registroPacienteCompleto</span> (boolean)  <span class="hl-comment">&lt;-- Checagem de completude</span>
+      </div>
+
+      <div class="impact danger">
+        <div class="impact-icon">!!</div>
+        <div class="impact-text"><strong>Impacto regulatorio:</strong> OPME sem rastreabilidade ANVISA e risco critico de compliance. RDC 36/2013 exige rastreabilidade de implantaveis. Sem esse dado, o DMN nao consegue bloquear materiais vencidos ou nao registrados.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- CASO 5 -->
+  <div class="case-card">
+    <div class="case-header">
+      <div class="case-number yellow">5</div>
+      <div class="case-title">unitOccupancy / qsofaScore / readinessScore &mdash; Scores Compostos</div>
+      <div class="case-file">clinical_operations/dmn/ (multiplos)</div>
+    </div>
+    <div class="case-body">
+      <p style="font-size:14px;margin-bottom:12px">DMNs clinicos recebem scores compostos como input, mas nenhum componente os calcula. O score precisa ser computado ANTES da avaliacao DMN.</p>
+
+      <div class="code-block">
+        <div class="code-label">EXEMPLOS DE SCORES ORFAOS</div>
+<span class="hl-comment">-- doctor_bed_availability.dmn --</span>
+<span class="hl-red">unitOccupancy</span>    (number)   <span class="hl-comment">&lt;-- % ocupacao: requer censo de leitos em tempo real</span>
+
+<span class="hl-comment">-- ews_qsofa_001.dmn --</span>
+<span class="hl-red">qsofaScore</span>       (number)   <span class="hl-comment">&lt;-- Score composto de 3 parametros clinicos (FR>=22, GCS&lt;15, PAS&lt;=100)</span>
+<span class="hl-red">suspeitaInfeccao</span> (boolean)  <span class="hl-comment">&lt;-- Julgamento clinico</span>
+
+<span class="hl-comment">-- discharge_readiness_score.dmn --</span>
+<span class="hl-red">readinessScore</span>   (number)   <span class="hl-comment">&lt;-- Score composto de multiplos criterios clinicos</span>
+<span class="hl-red">pendingTasks</span>     (number)   <span class="hl-comment">&lt;-- Query no task management system</span>
+      </div>
+
+      <div class="impact warning">
+        <div class="impact-icon">!!</div>
+        <div class="impact-text"><strong>Padrao identificado:</strong> 42 variaveis tipo *Score* e 20+ variaveis tipo *Rate*/*Percent* across clinical_operations. Nenhuma tem componente produtor. O DMN opera como "camada de decisao 2" assumindo uma "camada de enriquecimento" que nao foi construida.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tabela resumo das categorias -->
+  <details>
+    <summary>
+      <span>Catalogo completo: 743 inputs orfaos por categoria</span>
+      <div class="detail-badges">
+        <span class="badge badge-yellow">8 categorias</span>
+        <span class="badge badge-gray">4 dominios</span>
+      </div>
+    </summary>
+    <div class="detail-body">
+      <div class="table-wrap" style="margin-top:12px">
+        <table>
+          <thead>
+            <tr><th>Categoria</th><th>Prefixo</th><th class="num">Qtd Aprox</th><th>Fonte Esperada</th><th>Status</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>Validacao de Sistema</td><td class="mono">isValid*, registroAnvisa*</td><td class="num">10+</td><td>API TASY / ANS / ANVISA</td><td><span class="badge badge-red">Nao existe</span></td></tr>
+            <tr><td>Compatibilidade</td><td class="mono">*Compativel, *compativel</td><td class="num">5+</td><td>Tabela de cross-reference</td><td><span class="badge badge-red">Nao existe</span></td></tr>
+            <tr><td>Clausulas Contratuais</td><td class="mono">contrato*, possui*</td><td class="num">15+</td><td>Contract Extraction API</td><td><span class="badge badge-yellow">API existe, bridge nao</span></td></tr>
+            <tr><td>Compliance Regulatorio</td><td class="mono">codigoAnvisa*, temConsentimento*</td><td class="num">20+</td><td>ANVISA API / Consent System</td><td><span class="badge badge-red">Nao existe</span></td></tr>
+            <tr><td>Estado Clinico</td><td class="mono">suspeitaInfeccao, pacienteGravida, emUTI</td><td class="num">30+</td><td>Prontuario / Triagem</td><td><span class="badge badge-red">Nao existe</span></td></tr>
+            <tr><td>Scores Compostos</td><td class="mono">*Score*, *score*</td><td class="num">40+</td><td>Algoritmo de scoring upstream</td><td><span class="badge badge-red">Nao existe</span></td></tr>
+            <tr><td>Metricas Agregadas</td><td class="mono">*Rate*, *Percent*, dso</td><td class="num">20+</td><td>Data Warehouse / Analytics</td><td><span class="badge badge-red">Nao existe</span></td></tr>
+            <tr><td>Presenca de Documentos</td><td class="mono">tem*, has*, possui*</td><td class="num">47+</td><td>Document Management System</td><td><span class="badge badge-red">Nao existe</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </details>
+</section>
+
+<!-- ══════════════════════════════════════════════════════════════ -->
+<!-- PROBLEMA 2: REFERENCIAS CRUZADAS QUEBRADAS                    -->
+<!-- ══════════════════════════════════════════════════════════════ -->
+<section>
+  <div class="section-header">
+    <div class="section-icon red">X</div>
+    <div>
+      <h2>Problema 2 &mdash; Referencias Cruzadas Quebradas (BPMN &harr; DMN &harr; Worker)</h2>
+      <div style="font-size:13px;color:var(--gray-500);margin-top:2px">22 de 22 decisionRef no BPMN nao resolvem para nenhum DMN no repositorio</div>
+    </div>
+  </div>
+
+  <div class="impact danger">
+    <div class="impact-icon">!!</div>
+    <div class="impact-text">
+      <strong>Resultado em runtime:</strong>
+      Quando o CIB7 engine executa um <code>businessRuleTask</code> com <code>camunda:decisionRef="billing_bundle_rules"</code>, ele procura um DMN deployed com <code>&lt;decision id="billing_bundle_rules"&gt;</code>. Nao existe. O processo falha com <code>DMN_DECISION_NOT_FOUND</code> e a instancia fica presa em incident.
+    </div>
+  </div>
+
+  <!-- CASO A: O Fluxo Triplo Quebrado -->
+  <div class="case-card">
+    <div class="case-header">
+      <div class="case-number red">A</div>
+      <div class="case-title">O Fluxo Triplo Quebrado &mdash; Billing Bundle Rules</div>
+      <div class="case-file">3 camadas desconectadas</div>
+    </div>
+    <div class="case-body">
+      <p style="font-size:14px;margin-bottom:16px">O BPMN aponta pra um nome, o DMN tem outro nome, e o worker chama por um terceiro caminho. Os tres nunca se encontram:</p>
+
+      <div class="flow-diagram">
+        <div class="flow-box bpmn">BPMN RC-006<span class="flow-sub">decisionRef=<strong>"billing_bundle_rules"</strong></span></div>
+        <div class="flow-arrow broken">--X--&gt;</div>
+        <div class="flow-box missing">DMN id="billing_bundle_rules"<span class="flow-sub">NAO EXISTE</span></div>
+      </div>
+      <div class="flow-diagram" style="margin-top:8px">
+        <div class="flow-box worker">Worker (BillingRulesService)<span class="flow-sub">evaluate_table("billing", "bundle/bill_bundle_001")</span></div>
+        <div class="flow-arrow">------&gt;</div>
+        <div class="flow-box dmn">DMN bill_bundle_001.dmn<span class="flow-sub">id="Decision_BILL-BUNDLE-001"</span></div>
+      </div>
+
+      <div class="code-block">
+        <div class="code-label">3 NOMES DIFERENTES PARA A MESMA REGRA</div>
+<span class="hl-comment">## BPMN (o que o engine procura):</span>
+camunda:decisionRef = "<span class="hl-red">billing_bundle_rules</span>"
+
+<span class="hl-comment">## DMN (o que existe no arquivo):</span>
+&lt;decision id="<span class="hl-yellow">Decision_BILL-BUNDLE-001</span>"&gt;
+
+<span class="hl-comment">## Worker (o que o Python chama via FederatedDMN):</span>
+evaluate_table("billing", "<span class="hl-green">bundle/bill_bundle_001</span>")
+      </div>
+
+      <div class="impact danger">
+        <div class="impact-icon">!!</div>
+        <div class="impact-text">Tres artefatos referenciando a mesma regra de negocio por 3 nomes diferentes. Nenhum resolve automaticamente.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- CASO B: Tabela completa 22/22 -->
+  <div class="case-card">
+    <div class="case-header">
+      <div class="case-number red">B</div>
+      <div class="case-title">Tabela Completa &mdash; 22/22 decisionRef quebradas</div>
+    </div>
+    <div class="case-body">
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>BPMN</th>
+              <th>decisionRef (o que o BPMN espera)</th>
+              <th>DMN Decision ID real</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td class="num">1</td><td>RC-002</td><td class="mono">authorization_criteria</td><td class="mono">auth_complexity_001</td><td><span class="badge badge-red">ID diferente</span></td></tr>
+            <tr><td class="num">2</td><td>RC-003</td><td class="mono">clinical_documentation_completeness</td><td class="mono" style="color:var(--danger)">&mdash; nenhum arquivo &mdash;</td><td><span class="badge badge-red">INEXISTENTE</span></td></tr>
+            <tr><td class="num">3</td><td>RC-004</td><td class="mono">pricing_contract_rules</td><td class="mono">Decision_PRICE_CONTRACT_001..005</td><td><span class="badge badge-red">ID diferente</span></td></tr>
+            <tr><td class="num">4</td><td>RC-004</td><td class="mono">pricing_package_rules</td><td class="mono">Decision_PRICE_PACKAGE_001..005</td><td><span class="badge badge-red">ID diferente</span></td></tr>
+            <tr><td class="num">5</td><td>RC-004</td><td class="mono">pricing_outlier_detection</td><td class="mono">Decision_PRICE_OUTLIER_001..005</td><td><span class="badge badge-red">ID diferente</span></td></tr>
+            <tr><td class="num">6</td><td>RC-005</td><td class="mono">coding_audit_compatibility</td><td class="mono">Decision_EDIT_COMPAT_001..005</td><td><span class="badge badge-red">ID diferente</span></td></tr>
+            <tr><td class="num">7</td><td>RC-005</td><td class="mono">coding_audit_duplicate</td><td class="mono">Decision_EDIT_DUPLICATE_001..005</td><td><span class="badge badge-red">ID diferente</span></td></tr>
+            <tr><td class="num">8</td><td>RC-005</td><td class="mono">coding_audit_frequency</td><td class="mono">Decision_EDIT_FREQ_001..005</td><td><span class="badge badge-red">ID diferente</span></td></tr>
+            <tr><td class="num">9</td><td>RC-005</td><td class="mono">coding_audit_unbundle</td><td class="mono">Decision_EDIT_UNBUNDLE_001..005</td><td><span class="badge badge-red">ID diferente</span></td></tr>
+            <tr><td class="num">10</td><td>RC-006</td><td class="mono">billing_quantity_validation</td><td class="mono">Decision_BILL_QUANTITY_001..005</td><td><span class="badge badge-red">ID diferente</span></td></tr>
+            <tr><td class="num">11</td><td>RC-006</td><td class="mono">billing_modifier_rules</td><td class="mono">Decision_BILL_MODIFIER_001..005</td><td><span class="badge badge-red">ID diferente</span></td></tr>
+            <tr><td class="num">12</td><td>RC-006</td><td class="mono">billing_bundle_rules</td><td class="mono">Decision_BILL-BUNDLE-001..005</td><td><span class="badge badge-red">ID diferente</span></td></tr>
+            <tr><td class="num">13</td><td>RC-006</td><td class="mono">billing_tax_calculation</td><td class="mono">Decision_BILL_TAXA_001..005</td><td><span class="badge badge-red">ID diferente</span></td></tr>
+            <tr><td class="num">14</td><td>RC-006</td><td class="mono">billing_opme_rules</td><td class="mono">Decision_BILL_OPME_001..010</td><td><span class="badge badge-red">ID diferente</span></td></tr>
+            <tr><td class="num">15</td><td>RC-007</td><td class="mono">glosa_prevention_predict</td><td class="mono">Decision_DENY_PREDICT_001..012</td><td><span class="badge badge-red">ID diferente</span></td></tr>
+            <tr><td class="num">16</td><td>RC-007</td><td class="mono">glosa_prevention_prevent</td><td class="mono">Decision_DENY_PREVENT_001..005</td><td><span class="badge badge-red">ID diferente</span></td></tr>
+            <tr><td class="num">17</td><td>RC-007</td><td class="mono">revenue_recovery_strategy</td><td class="mono">Decision_APPEAL_STRATEGY_001..005</td><td><span class="badge badge-red">ID diferente</span></td></tr>
+            <tr><td class="num">18</td><td>RC-007</td><td class="mono">revenue_recovery_eligibility</td><td class="mono">Decision_APPEAL_ELIG_001..005</td><td><span class="badge badge-red">ID diferente</span></td></tr>
+            <tr><td class="num">19</td><td>RC-008</td><td class="mono">cash_operations_payment_method</td><td class="mono">Decision_CASH_PAYMENT_001..003</td><td><span class="badge badge-red">ID diferente</span></td></tr>
+            <tr><td class="num">20</td><td>RC-008</td><td class="mono">cash_operations_discount</td><td class="mono">Decision_CASH_DISCOUNT_001..003</td><td><span class="badge badge-red">ID diferente</span></td></tr>
+            <tr><td class="num">21</td><td>RC-008</td><td class="mono">cash_operations_estimate</td><td class="mono">Decision_CASH_ESTIMATE_001..003</td><td><span class="badge badge-red">ID diferente</span></td></tr>
+            <tr><td class="num">22</td><td>RC-010</td><td class="mono">revenue_optimization_strategy</td><td class="mono" style="color:var(--danger)">&mdash; nenhum arquivo &mdash;</td><td><span class="badge badge-red">INEXISTENTE</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- CASO C: 2 dominios completamente inexistentes -->
+  <div class="case-card">
+    <div class="case-header">
+      <div class="case-number red">C</div>
+      <div class="case-title">2 Dominios DMN Completamente Inexistentes</div>
+    </div>
+    <div class="case-body">
+      <div class="summary-grid">
+        <div class="summary-box red">
+          <h3><span class="badge badge-red">MISSING</span> clinical_documentation_completeness</h3>
+          <ul>
+            <li>Referenciado por: SP-RC-003 (Servico Clinico)</li>
+            <li>Nenhuma pasta <code>dmn/clinical_documentation/</code> existe</li>
+            <li>Nenhum arquivo DMN contem esse decision ID</li>
+            <li>Processo RC-003 nao consegue avaliar completude documental</li>
+          </ul>
+        </div>
+        <div class="summary-box red">
+          <h3><span class="badge badge-red">MISSING</span> revenue_optimization_strategy</h3>
+          <ul>
+            <li>Referenciado por: SP-RC-010 (Maximizacao e VBHC)</li>
+            <li>Nenhuma pasta <code>dmn/revenue_optimization/</code> existe</li>
+            <li>Nenhum arquivo DMN contem esse decision ID</li>
+            <li>Processo RC-010 nao consegue definir estrategia de otimizacao</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════════════════════ -->
+<!-- PROBLEMA 3: TOPICS SEM WORKER                                 -->
+<!-- ══════════════════════════════════════════════════════════════ -->
+<section>
+  <div class="section-header critical">
+    <div class="section-icon purple">!</div>
+    <div>
+      <h2>Problema 3 &mdash; External Task Topics sem Worker Correspondente</h2>
+      <div style="font-size:13px;color:var(--gray-500);margin-top:2px">~55 topics no BPMN nao tem nenhum worker escutando &mdash; instancias ficam presas indefinidamente</div>
+    </div>
+  </div>
+
+  <div class="impact critical">
+    <div class="impact-icon">!!</div>
+    <div class="impact-text">
+      <strong>Resultado em runtime:</strong>
+      O engine cria uma external task com o topic declarado no BPMN. Nenhum worker faz <code>fetchAndLock</code> desse topic. A task fica pendente indefinidamente. A instancia do processo nao avanca.
+    </div>
+  </div>
+
+  <!-- Caso: Prefix mismatch denial.* vs glosa.* -->
+  <div class="case-card">
+    <div class="case-header">
+      <div class="case-number purple">D</div>
+      <div class="case-title">Prefix Mismatch: BPMN diz "denial.*", Worker escuta "glosa.*"</div>
+      <div class="case-file">SP-RC-007_Denial_Management.bpmn</div>
+    </div>
+    <div class="case-body">
+      <p style="font-size:14px;margin-bottom:12px">O BPMN de Denial Management usa o prefixo <code>denial.</code> para 4 topics de recurso/apelacao. Os workers correspondentes existem, mas escutam com prefixo <code>glosa.</code>. Nenhum dos 4 conecta.</p>
+
+      <div class="code-block">
+        <div class="code-label">MISMATCH</div>
+<span class="hl-comment">## BPMN declara (RC-007):</span>
+camunda:topic = "<span class="hl-red">denial</span>.check_appeal_eligibility"
+camunda:topic = "<span class="hl-red">denial</span>.generate_appeal_documentation"
+camunda:topic = "<span class="hl-red">denial</span>.submit_appeal"
+camunda:topic = "<span class="hl-red">denial</span>.track_appeal_status"
+
+<span class="hl-comment">## Worker escuta:</span>
+TOPIC = "<span class="hl-green">glosa</span>.check_appeal_eligibility"
+TOPIC = "<span class="hl-green">glosa</span>.generate_appeal_documentation"
+TOPIC = "<span class="hl-green">glosa</span>.submit_appeal"
+TOPIC = "<span class="hl-green">glosa</span>.track_appeal_status"
+      </div>
+
+      <div class="flow-diagram">
+        <div class="flow-box bpmn">BPMN RC-007<span class="flow-sub">topic: denial.submit_appeal</span></div>
+        <div class="flow-arrow broken">--X--&gt;</div>
+        <div class="flow-box missing">Ninguem escuta<span class="flow-sub">task pendente forever</span></div>
+        <div style="width:32px"></div>
+        <div class="flow-box worker">Worker glosa.submit_appeal<span class="flow-sub">fetchAndLock: 0 tasks</span></div>
+        <div class="flow-arrow broken">&lt;--X--</div>
+        <div class="flow-box missing">Sem tasks<span class="flow-sub">worker ocioso</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tabela de topics sem worker -->
+  <div class="case-card">
+    <div class="case-header">
+      <div class="case-number purple">E</div>
+      <div class="case-title">Mapa Completo: Topics sem Worker</div>
+    </div>
+    <div class="case-body">
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr><th>BPMN</th><th>Topics sem Worker</th><th class="num">Qtd</th><th>Causa</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>RC-001</strong><br><span class="mono" style="font-size:11px">Scheduling</span></td>
+              <td class="mono" style="font-size:11px">revenue_cycle.verify_insurance<br>revenue_cycle.check_eligibility<br>revenue_cycle.schedule_appointment</td>
+              <td class="num">3</td>
+              <td><span class="badge badge-red">Worker nao existe</span></td>
+            </tr>
+            <tr>
+              <td><strong>RC-002</strong><br><span class="mono" style="font-size:11px">Pre-Service</span></td>
+              <td class="mono" style="font-size:11px">revenue_cycle.check_authorization<br>revenue_cycle.request_authorization<br>revenue_cycle.validate_procedure</td>
+              <td class="num">3</td>
+              <td><span class="badge badge-red">Worker nao existe</span></td>
+            </tr>
+            <tr>
+              <td><strong>RC-003</strong><br><span class="mono" style="font-size:11px">Clinical Service</span></td>
+              <td class="mono" style="font-size:11px">revenue_cycle.capture_procedure<br>revenue_cycle.enrich_procedure<br>revenue_cycle.calculate_quantity<br>revenue_cycle.validate_clinical_data</td>
+              <td class="num">4</td>
+              <td><span class="badge badge-yellow">Prefix errado</span><br><span style="font-size:11px">Existe <code>production.*</code></span></td>
+            </tr>
+            <tr>
+              <td><strong>RC-007</strong><br><span class="mono" style="font-size:11px">Denial Mgmt</span></td>
+              <td class="mono" style="font-size:11px">denial.check_appeal_eligibility<br>denial.generate_appeal_documentation<br>denial.submit_appeal<br>denial.track_appeal_status</td>
+              <td class="num">4</td>
+              <td><span class="badge badge-purple">Prefix mismatch</span><br><span style="font-size:11px">Workers usam <code>glosa.*</code></span></td>
+            </tr>
+            <tr>
+              <td><strong>RC-008</strong><br><span class="mono" style="font-size:11px">Revenue Collection</span></td>
+              <td class="mono" style="font-size:11px">collection.identify_overdue<br>collection.prioritize_collection<br>revenue_cycle.receive_payment_notification<br>revenue_cycle.auto_matching<br>revenue_cycle.reconcile_daily<br>revenue_cycle.update_accounts_receivable</td>
+              <td class="num">6</td>
+              <td><span class="badge badge-yellow">WORKER_TYPE gap</span><br><span style="font-size:11px">Worker usa nome curto sem prefixo</span></td>
+            </tr>
+            <tr>
+              <td><strong>RC-009</strong><br><span class="mono" style="font-size:11px">Analytics</span></td>
+              <td class="mono" style="font-size:11px">analytics.calculate_dso<br>analytics.calculate_collection_rate<br>analytics.analyze_payer_performance<br>revenue_cycle.detect_revenue_leakage<br>analytics.generate_executive_dashboard<br>analytics.generate_operational_metrics<br>analytics.generate_recommendations</td>
+              <td class="num">7</td>
+              <td><span class="badge badge-red">Worker nao existe</span></td>
+            </tr>
+            <tr>
+              <td><strong>RC-010</strong><br><span class="mono" style="font-size:11px">Maximization</span></td>
+              <td class="mono" style="font-size:11px">revenue_cycle.predict_collection_date<br>revenue_cycle.identify_slow_payers<br>revenue_cycle.update_forecasts<br>... (8 total)</td>
+              <td class="num">8</td>
+              <td><span class="badge badge-red">Worker nao existe</span></td>
+            </tr>
+            <tr>
+              <td><strong>RC-014</strong><br><span class="mono" style="font-size:11px">Patient Self-Svc</span></td>
+              <td class="mono" style="font-size:11px">financial.copay_estimate<br>financial.bill_notification<br>financial.payment_process<br>... (13 total)</td>
+              <td class="num">13</td>
+              <td><span class="badge badge-red">Worker nao existe</span></td>
+            </tr>
+            <tr>
+              <td><strong>RC-011/012/013</strong><br><span class="mono" style="font-size:11px">Collection</span></td>
+              <td class="mono" style="font-size:11px">collection.* (~40 topics)<br>Workers usam WORKER_TYPE sem prefixo</td>
+              <td class="num">~40</td>
+              <td><span class="badge badge-yellow">WORKER_TYPE gap</span><br><span style="font-size:11px"><code>calculate_dso</code> vs <code>collection.calculate_dso</code></span></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════════════════════ -->
+<!-- RESUMO EXECUTIVO                                              -->
+<!-- ══════════════════════════════════════════════════════════════ -->
+<section>
+  <div class="section-header" style="border-bottom-color: var(--gray-900);">
+    <div class="section-icon" style="background:var(--gray-100);">*</div>
+    <h2>Resumo Executivo</h2>
+  </div>
+
+  <div class="summary-grid">
+    <div class="summary-box red">
+      <h3 style="color:var(--danger)">Falhas Criticas (Runtime)</h3>
+      <ul>
+        <li><strong>22/22 decisionRef quebradas</strong> &mdash; Toda businessRuleTask falha com DMN_DECISION_NOT_FOUND</li>
+        <li><strong>2 dominios DMN inexistentes</strong> &mdash; clinical_documentation_completeness e revenue_optimization_strategy</li>
+        <li><strong>~55 topics sem worker</strong> &mdash; Instancias ficam presas indefinidamente</li>
+        <li><strong>4 topics com prefix mismatch</strong> &mdash; denial.* vs glosa.* (worker existe mas nao conecta)</li>
+      </ul>
+    </div>
+    <div class="summary-box yellow">
+      <h3 style="color:var(--warning)">Falhas Estruturais (Design)</h3>
+      <ul>
+        <li><strong>743 inputs boolean orfaos</strong> &mdash; DMNs esperam dados pre-calculados sem componente produtor</li>
+        <li><strong>42% dos DMNs afetados</strong> &mdash; 518 de 1.231 files com boolean sem fonte</li>
+        <li><strong>Camada de enriquecimento ausente</strong> &mdash; Nao existe servico que converte dados brutos em inputs DMN</li>
+        <li><strong>Naming inconsistente em 3 camadas</strong> &mdash; BPMN, DMN e Worker usam convencoes diferentes</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="impact info" style="margin-top:20px">
+    <div class="impact-icon">i</div>
+    <div class="impact-text">
+      <strong>Causa raiz:</strong>
+      Os 3 artefatos (BPMN, DMN, Worker) foram desenvolvidos de forma independente, sem contrato de interface compartilhado. O BPMN usa nomes conceituais (<code>billing_bundle_rules</code>), os DMNs usam IDs tecnicos numerados (<code>Decision_BILL-BUNDLE-001</code>), e os Workers usam caminhos do filesystem (<code>"bundle/bill_bundle_001"</code>). Nao existe uma camada de resolucao/alias que unifique os tres.
+    </div>
+  </div>
+
+  <div class="impact info">
+    <div class="impact-icon">i</div>
+    <div class="impact-text">
+      <strong>Caminho de correcao sugerido:</strong>
+      (1) Definir convenção unica de naming para decision IDs &mdash; o decisionRef do BPMN deve ser o decision id do DMN.
+      (2) Criar camada de "Data Enrichment Worker" que pre-calcula booleans antes da avaliacao DMN.
+      (3) Alinhar topic naming entre BPMN e Workers (ex: todos com prefixo <code>subdominio.acao</code>).
+      (4) Criar DMNs ausentes (clinical_documentation_completeness, revenue_optimization_strategy).
+    </div>
+  </div>
+</section>
+
+</div><!-- /container -->
+
+<div class="footer">
+  <div class="container">
+    MAEZO Healthcare Platform &bull; Gap Analysis &bull; 27/02/2026<br>
+    <span style="font-size:11px">22/22 decisionRef quebradas &bull; 743 inputs orfaos &bull; ~55 topics sem worker &bull; 2 dominios DMN inexistentes</span>
+  </div>
+</div>
+
+</body>
+</html>

@@ -1,0 +1,111 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  ============================================================================
+  FORECAST-ACCURACY - Avaliacao de Precisao da Previsao
+  ============================================================================
+  Versao: 1.0.0 (2026-02-14)
+  Categoria: COLLECTION_FORECASTING
+  Archetype: CLINICAL_SCORE | Source: update_forecasts_worker.py
+  ============================================================================
+-->
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/"
+             xmlns:dc="http://www.omg.org/spec/DMN/20180521/DC/"
+             xmlns:di="http://www.omg.org/spec/DMN/20180521/DI/"
+             xmlns:camunda="http://camunda.org/schema/1.0/dmn"
+             id="Definitions_FORECAST_ACCURACY"
+             name="Avaliacao de Precisao da Previsao"
+             namespace="http://camunda.org/schema/1.0/dmn">
+
+  <decision id="Decision_FORECAST_ACCURACY" name="[SP-RC-011 | collection_forecasting] Avaliacao de Precisao da Previsao" camunda:historyTimeToLive="180">
+    <decisionTable id="DecisionTable_FORECAST_ACCURACY" hitPolicy="FIRST">
+
+      <input id="Input_1_FORECAST_ACCURACY" label="Confianca Media Semanal">
+        <inputExpression id="InputExpression_1_FORECAST_ACCURACY" typeRef="number">
+          <text>avgWeeklyConfidence</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_2_FORECAST_ACCURACY" label="Total Previsao (R$)">
+        <inputExpression id="InputExpression_2_FORECAST_ACCURACY" typeRef="number">
+          <text>totalForecast</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_3_FORECAST_ACCURACY" label="AR Atual (R$)">
+        <inputExpression id="InputExpression_3_FORECAST_ACCURACY" typeRef="number">
+          <text>currentAR</text>
+        </inputExpression>
+      </input>
+
+      <!-- ========== OUTPUTS ========== -->
+      <output id="Output_resultado_FORECAST_ACCURACY" label="Resultado" name="resultado" typeRef="string">
+        <outputValues><text>"PROSSEGUIR","BLOQUEAR","REVISAR"</text></outputValues>
+      </output>
+      <output id="Output_acao_FORECAST_ACCURACY" label="Acao" name="acao" typeRef="string"/>
+      <output id="Output_risco_FORECAST_ACCURACY" label="Risco" name="risco" typeRef="string">
+        <outputValues><text>"CRITICO","ALTO","MEDIO","BAIXO"</text></outputValues>
+      </output>
+
+      <rule id="Rule_1_FORECAST_ACCURACY">
+        <description>Previsao muito baixa vs AR - risco de fluxo de caixa</description>
+        <inputEntry id="IE_1_1_FORECAST_ACCURACY"><text>-</text></inputEntry>
+        <inputEntry id="IE_1_2_FORECAST_ACCURACY"><text>&lt; 50000</text></inputEntry>
+        <inputEntry id="IE_1_3_FORECAST_ACCURACY"><text>&gt; 500000</text></inputEntry>
+        <outputEntry id="OE_1_1_FORECAST_ACCURACY"><text>"BLOQUEAR"</text></outputEntry>
+        <outputEntry id="OE_1_2_FORECAST_ACCURACY"><text>"Previsao de arrecadacao muito abaixo do AR - risco de liquidez"</text></outputEntry>
+        <outputEntry id="OE_1_3_FORECAST_ACCURACY"><text>"CRITICO"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_2_FORECAST_ACCURACY">
+        <description>Confianca muito baixa nas previsoes semanais</description>
+        <inputEntry id="IE_2_1_FORECAST_ACCURACY"><text>&lt; 0.5</text></inputEntry>
+        <inputEntry id="IE_2_2_FORECAST_ACCURACY"><text>-</text></inputEntry>
+        <inputEntry id="IE_2_3_FORECAST_ACCURACY"><text>-</text></inputEntry>
+        <outputEntry id="OE_2_1_FORECAST_ACCURACY"><text>"REVISAR"</text></outputEntry>
+        <outputEntry id="OE_2_2_FORECAST_ACCURACY"><text>"Confianca media abaixo de 50% - recalibrar modelos de previsao"</text></outputEntry>
+        <outputEntry id="OE_2_3_FORECAST_ACCURACY"><text>"ALTO"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_3_FORECAST_ACCURACY">
+        <description>Previsao saudavel com boa confianca</description>
+        <inputEntry id="IE_3_1_FORECAST_ACCURACY"><text>&gt;= 0.75</text></inputEntry>
+        <inputEntry id="IE_3_2_FORECAST_ACCURACY"><text>&gt;= 100000</text></inputEntry>
+        <inputEntry id="IE_3_3_FORECAST_ACCURACY"><text>-</text></inputEntry>
+        <outputEntry id="OE_3_1_FORECAST_ACCURACY"><text>"PROSSEGUIR"</text></outputEntry>
+        <outputEntry id="OE_3_2_FORECAST_ACCURACY"><text>"Previsao confiavel - fluxo de caixa dentro do esperado"</text></outputEntry>
+        <outputEntry id="OE_3_3_FORECAST_ACCURACY"><text>"BAIXO"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_4_FORECAST_ACCURACY">
+        <description>Confianca moderada</description>
+        <inputEntry id="IE_4_1_FORECAST_ACCURACY"><text>[0.5..0.75]</text></inputEntry>
+        <inputEntry id="IE_4_2_FORECAST_ACCURACY"><text>-</text></inputEntry>
+        <inputEntry id="IE_4_3_FORECAST_ACCURACY"><text>-</text></inputEntry>
+        <outputEntry id="OE_4_1_FORECAST_ACCURACY"><text>"PROSSEGUIR"</text></outputEntry>
+        <outputEntry id="OE_4_2_FORECAST_ACCURACY"><text>"Confianca moderada - monitorar desvios semanalmente"</text></outputEntry>
+        <outputEntry id="OE_4_3_FORECAST_ACCURACY"><text>"MEDIO"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Fallback_FORECAST_ACCURACY">
+        <description>Fallback</description>
+        <inputEntry id="IE_F_1_FORECAST_ACCURACY"><text>-</text></inputEntry>
+        <inputEntry id="IE_F_2_FORECAST_ACCURACY"><text>-</text></inputEntry>
+        <inputEntry id="IE_F_3_FORECAST_ACCURACY"><text>-</text></inputEntry>
+        <outputEntry id="OE_F_1_FORECAST_ACCURACY"><text>"REVISAR"</text></outputEntry>
+        <outputEntry id="OE_F_2_FORECAST_ACCURACY"><text>"Avaliar previsao manualmente"</text></outputEntry>
+        <outputEntry id="OE_F_3_FORECAST_ACCURACY"><text>"MEDIO"</text></outputEntry>
+      </rule>
+
+    </decisionTable>
+  </decision>
+
+  <dmndi:DMNDI>
+    <dmndi:DMNDiagram id="DMNDiagram_FORECAST_ACCURACY">
+      <dmndi:DMNShape id="DMNShape_Decision_FORECAST_ACCURACY" dmnElementRef="Decision_FORECAST_ACCURACY">
+        <dc:Bounds height="80" width="180" x="160" y="100"/>
+      </dmndi:DMNShape>
+    </dmndi:DMNDiagram>
+  </dmndi:DMNDI>
+
+</definitions>

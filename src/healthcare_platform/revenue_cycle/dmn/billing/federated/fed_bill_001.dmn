@@ -1,0 +1,359 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/"
+             xmlns:dc="http://www.omg.org/spec/DMN/20180521/DC/"
+             xmlns:camunda="http://camunda.org/schema/1.0/dmn"
+             xmlns:di="http://www.omg.org/spec/DMN/20180521/DI/"
+             id="billing-calculation-definitions"
+             name="Billing Calculation Decision"
+             namespace="http://camunda.org/schema/1.0/dmn"
+             exporter="Camunda Modeler"
+             exporterVersion="5.20.0">
+
+  <decision id="billing-calculation" name="[SP-RC-006 | billing/federated] Cálculo de Faturamento" camunda:historyTimeToLive="180">
+
+    <decisionTable id="billing-table" hitPolicy="FIRST">
+
+      <!-- ===== INPUT DEFINITIONS ===== -->
+      <input id="input-procedure-type_billing-calculation" label="Tipo de Procedimento" camunda:inputVariable="procedureType">
+        <inputExpression id="input-expr-1_billing-calculation" typeRef="string">
+          <text>procedureType</text>
+        </inputExpression>
+        <inputValues id="input-values-1_billing-calculation">
+          <text>"SURGICAL","CLINICAL","DIAGNOSTIC","THERAPEUTIC","HOSPITALIZATION"</text>
+        </inputValues>
+      </input>
+
+      <input id="input-insurance-table_billing-calculation" label="Tabela de Preços" camunda:inputVariable="insuranceTable">
+        <inputExpression id="input-expr-2_billing-calculation" typeRef="string">
+          <text>insuranceTable</text>
+        </inputExpression>
+        <inputValues id="input-values-2_billing-calculation">
+          <text>"SUS","AMB","CBHPM","BRASINDICE","SIMPRO","CUSTOM"</text>
+        </inputValues>
+      </input>
+
+      <input id="input-base-value_billing-calculation" label="Valor Base" camunda:inputVariable="baseValue">
+        <inputExpression id="input-expr-3_billing-calculation" typeRef="double">
+          <text>baseValue</text>
+        </inputExpression>
+      </input>
+
+      <input id="input-has-glosa_billing-calculation" label="Tem Glosa" camunda:inputVariable="hasGlosa">
+        <inputExpression id="input-expr-4_billing-calculation" typeRef="boolean">
+          <text>hasGlosa</text>
+        </inputExpression>
+      </input>
+
+      <input id="input-glosa-percentage_billing-calculation" label="Percentual de Glosa" camunda:inputVariable="glosaPercentage">
+        <inputExpression id="input-expr-5_billing-calculation" typeRef="double">
+          <text>glosaPercentage</text>
+        </inputExpression>
+      </input>
+
+      <!-- ===== OUTPUT DEFINITIONS ===== -->
+      <output id="output-billable-amount_billing-calculation" label="Valor Faturável" name="billableAmount" typeRef="double" />
+
+      <output id="output-discount-applied_billing-calculation" label="Desconto Aplicado" name="discountApplied" typeRef="double" />
+
+      <output id="output-final-amount_billing-calculation" label="Valor Final" name="finalAmount" typeRef="double" />
+
+      <output id="output-calculation-rule_billing-calculation" label="Regra Aplicada" name="calculationRule" typeRef="string" />
+
+      <output id="output-needs-audit_billing-calculation" label="Requer Auditoria" name="needsAudit" typeRef="boolean" />
+
+      <!-- ===== DECISION RULES ===== -->
+
+      <!-- RULE 1: Procedimento cirúrgico SUS -->
+      <rule id="rule-surgical-sus_billing-calculation">
+        <description>Cirurgia com tabela SUS - valor fixo da tabela</description>
+        <inputEntry id="rule1-input1_billing-calculation">
+          <text>"SURGICAL"</text>
+        </inputEntry>
+        <inputEntry id="rule1-input2_billing-calculation">
+          <text>"SUS"</text>
+        </inputEntry>
+        <inputEntry id="rule1-input3_billing-calculation">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="rule1-input4_billing-calculation">
+          <text>false</text>
+        </inputEntry>
+        <inputEntry id="rule1-input5_billing-calculation">
+          <text>-</text>
+        </inputEntry>
+        <outputEntry id="rule1-output1_billing-calculation">
+          <text>baseValue</text>
+        </outputEntry>
+        <outputEntry id="rule1-output2_billing-calculation">
+          <text>0</text>
+        </outputEntry>
+        <outputEntry id="rule1-output3_billing-calculation">
+          <text>baseValue</text>
+        </outputEntry>
+        <outputEntry id="rule1-output4_billing-calculation">
+          <text>"SUS_SURGICAL_BASE"</text>
+        </outputEntry>
+        <outputEntry id="rule1-output5_billing-calculation">
+          <text>false</text>
+        </outputEntry>
+      </rule>
+
+      <!-- RULE 2: Procedimento com tabela AMB (20% acima da base) -->
+      <rule id="rule-amb-table_billing-calculation">
+        <description>Tabela AMB com acréscimo de 20%</description>
+        <inputEntry id="rule2-input1_billing-calculation">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="rule2-input2_billing-calculation">
+          <text>"AMB"</text>
+        </inputEntry>
+        <inputEntry id="rule2-input3_billing-calculation">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="rule2-input4_billing-calculation">
+          <text>false</text>
+        </inputEntry>
+        <inputEntry id="rule2-input5_billing-calculation">
+          <text>-</text>
+        </inputEntry>
+        <outputEntry id="rule2-output1_billing-calculation">
+          <text>baseValue * 1.20</text>
+        </outputEntry>
+        <outputEntry id="rule2-output2_billing-calculation">
+          <text>0</text>
+        </outputEntry>
+        <outputEntry id="rule2-output3_billing-calculation">
+          <text>baseValue * 1.20</text>
+        </outputEntry>
+        <outputEntry id="rule2-output4_billing-calculation">
+          <text>"AMB_TABLE_120"</text>
+        </outputEntry>
+        <outputEntry id="rule2-output5_billing-calculation">
+          <text>false</text>
+        </outputEntry>
+      </rule>
+
+      <!-- RULE 3: Procedimento com tabela CBHPM (40% acima da base) -->
+      <rule id="rule-cbhpm-table_billing-calculation">
+        <description>Tabela CBHPM com acréscimo de 40%</description>
+        <inputEntry id="rule3-input1_billing-calculation">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="rule3-input2_billing-calculation">
+          <text>"CBHPM"</text>
+        </inputEntry>
+        <inputEntry id="rule3-input3_billing-calculation">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="rule3-input4_billing-calculation">
+          <text>false</text>
+        </inputEntry>
+        <inputEntry id="rule3-input5_billing-calculation">
+          <text>-</text>
+        </inputEntry>
+        <outputEntry id="rule3-output1_billing-calculation">
+          <text>baseValue * 1.40</text>
+        </outputEntry>
+        <outputEntry id="rule3-output2_billing-calculation">
+          <text>0</text>
+        </outputEntry>
+        <outputEntry id="rule3-output3_billing-calculation">
+          <text>baseValue * 1.40</text>
+        </outputEntry>
+        <outputEntry id="rule3-output4_billing-calculation">
+          <text>"CBHPM_TABLE_140"</text>
+        </outputEntry>
+        <outputEntry id="rule3-output5_billing-calculation">
+          <text>false</text>
+        </outputEntry>
+      </rule>
+
+      <!-- RULE 4: Glosa parcial aplicada (até 30%) -->
+      <rule id="rule-partial-glosa_billing-calculation">
+        <description>Glosa parcial - desconto do percentual glosado</description>
+        <inputEntry id="rule4-input1_billing-calculation">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="rule4-input2_billing-calculation">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="rule4-input3_billing-calculation">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="rule4-input4_billing-calculation">
+          <text>true</text>
+        </inputEntry>
+        <inputEntry id="rule4-input5_billing-calculation">
+          <text>&gt; 0, &lt;= 30</text>
+        </inputEntry>
+        <outputEntry id="rule4-output1_billing-calculation">
+          <text>baseValue</text>
+        </outputEntry>
+        <outputEntry id="rule4-output2_billing-calculation">
+          <text>baseValue * (glosaPercentage / 100)</text>
+        </outputEntry>
+        <outputEntry id="rule4-output3_billing-calculation">
+          <text>baseValue * (1 - (glosaPercentage / 100))</text>
+        </outputEntry>
+        <outputEntry id="rule4-output4_billing-calculation">
+          <text>"PARTIAL_GLOSA"</text>
+        </outputEntry>
+        <outputEntry id="rule4-output5_billing-calculation">
+          <text>true</text>
+        </outputEntry>
+      </rule>
+
+      <!-- RULE 5: Glosa elevada (acima de 30%) - auditoria obrigatória -->
+      <rule id="rule-high-glosa_billing-calculation">
+        <description>Glosa elevada requer auditoria detalhada</description>
+        <inputEntry id="rule5-input1_billing-calculation">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="rule5-input2_billing-calculation">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="rule5-input3_billing-calculation">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="rule5-input4_billing-calculation">
+          <text>true</text>
+        </inputEntry>
+        <inputEntry id="rule5-input5_billing-calculation">
+          <text>&gt; 30</text>
+        </inputEntry>
+        <outputEntry id="rule5-output1_billing-calculation">
+          <text>baseValue</text>
+        </outputEntry>
+        <outputEntry id="rule5-output2_billing-calculation">
+          <text>baseValue * (glosaPercentage / 100)</text>
+        </outputEntry>
+        <outputEntry id="rule5-output3_billing-calculation">
+          <text>baseValue * (1 - (glosaPercentage / 100))</text>
+        </outputEntry>
+        <outputEntry id="rule5-output4_billing-calculation">
+          <text>"HIGH_GLOSA_AUDIT_REQUIRED"</text>
+        </outputEntry>
+        <outputEntry id="rule5-output5_billing-calculation">
+          <text>true</text>
+        </outputEntry>
+      </rule>
+
+      <!-- RULE 6: Internação hospitalar - cálculo por diária -->
+      <rule id="rule-hospitalization_billing-calculation">
+        <description>Internação com cálculo baseado em diárias</description>
+        <inputEntry id="rule6-input1_billing-calculation">
+          <text>"HOSPITALIZATION"</text>
+        </inputEntry>
+        <inputEntry id="rule6-input2_billing-calculation">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="rule6-input3_billing-calculation">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="rule6-input4_billing-calculation">
+          <text>false</text>
+        </inputEntry>
+        <inputEntry id="rule6-input5_billing-calculation">
+          <text>-</text>
+        </inputEntry>
+        <outputEntry id="rule6-output1_billing-calculation">
+          <text>baseValue</text>
+        </outputEntry>
+        <outputEntry id="rule6-output2_billing-calculation">
+          <text>0</text>
+        </outputEntry>
+        <outputEntry id="rule6-output3_billing-calculation">
+          <text>baseValue</text>
+        </outputEntry>
+        <outputEntry id="rule6-output4_billing-calculation">
+          <text>"HOSPITALIZATION_DAILY"</text>
+        </outputEntry>
+        <outputEntry id="rule6-output5_billing-calculation">
+          <text>false</text>
+        </outputEntry>
+      </rule>
+
+      <!-- RULE 7: Procedimento diagnóstico com tabela BRASINDICE -->
+      <rule id="rule-diagnostic-brasindice_billing-calculation">
+        <description>Exames diagnósticos com tabela BRASINDICE (10% acima da base)</description>
+        <inputEntry id="rule7-input1_billing-calculation">
+          <text>"DIAGNOSTIC"</text>
+        </inputEntry>
+        <inputEntry id="rule7-input2_billing-calculation">
+          <text>"BRASINDICE"</text>
+        </inputEntry>
+        <inputEntry id="rule7-input3_billing-calculation">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="rule7-input4_billing-calculation">
+          <text>false</text>
+        </inputEntry>
+        <inputEntry id="rule7-input5_billing-calculation">
+          <text>-</text>
+        </inputEntry>
+        <outputEntry id="rule7-output1_billing-calculation">
+          <text>baseValue * 1.10</text>
+        </outputEntry>
+        <outputEntry id="rule7-output2_billing-calculation">
+          <text>0</text>
+        </outputEntry>
+        <outputEntry id="rule7-output3_billing-calculation">
+          <text>baseValue * 1.10</text>
+        </outputEntry>
+        <outputEntry id="rule7-output4_billing-calculation">
+          <text>"BRASINDICE_DIAGNOSTIC_110"</text>
+        </outputEntry>
+        <outputEntry id="rule7-output5_billing-calculation">
+          <text>false</text>
+        </outputEntry>
+      </rule>
+
+      <!-- RULE 8: Fallback - cálculo padrão sem modificadores -->
+      <rule id="rule-default-calculation_billing-calculation">
+        <description>Cálculo padrão sem tabelas especiais ou glosas</description>
+        <inputEntry id="rule8-input1_billing-calculation">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="rule8-input2_billing-calculation">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="rule8-input3_billing-calculation">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="rule8-input4_billing-calculation">
+          <text>-</text>
+        </inputEntry>
+        <inputEntry id="rule8-input5_billing-calculation">
+          <text>-</text>
+        </inputEntry>
+        <outputEntry id="rule8-output1_billing-calculation">
+          <text>baseValue</text>
+        </outputEntry>
+        <outputEntry id="rule8-output2_billing-calculation">
+          <text>0</text>
+        </outputEntry>
+        <outputEntry id="rule8-output3_billing-calculation">
+          <text>baseValue</text>
+        </outputEntry>
+        <outputEntry id="rule8-output4_billing-calculation">
+          <text>"STANDARD_CALCULATION"</text>
+        </outputEntry>
+        <outputEntry id="rule8-output5_billing-calculation">
+          <text>false</text>
+        </outputEntry>
+      </rule>
+
+    </decisionTable>
+  </decision>
+
+  <!-- ===== DIAGRAM LAYOUT ===== -->
+  <dmndi:DMNDI>
+    <dmndi:DMNDiagram id="DMNDiagram_billing_billing-calculation">
+      <dmndi:DMNShape id="DMNShape_billing_billing-calculation" dmnElementRef="billing-calculation">
+        <dc:Bounds height="80" width="180" x="160" y="100" />
+      </dmndi:DMNShape>
+    </dmndi:DMNDiagram>
+  </dmndi:DMNDI>
+
+</definitions>

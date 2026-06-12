@@ -1,0 +1,180 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+                  xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+                  xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+                  xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
+                  xmlns:camunda="http://camunda.org/schema/1.0/bpmn"
+                  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                  id="Definitions_CareTeamOrchestration"
+                  targetNamespace="http://cib7.health/clinical/careteam"
+                  exporter="Claude Code"
+                  exporterVersion="1.0">
+
+  <bpmn:process id="SP_CO_003_Care_Team" name="SP-CO-003 Care Team Orchestration" isExecutable="true" camunda:historyTimeToLive="30">
+
+    <bpmn:startEvent id="Start_CareTeam" name="Care Team Process Initiated">
+      <bpmn:outgoing>Flow_ToAssemble</bpmn:outgoing>
+    </bpmn:startEvent>
+
+    <!-- Assemble care team -->
+    <bpmn:serviceTask id="Task_AssembleCareTeam" name="Assemble Care Team"
+                      camunda:type="external" camunda:topic="clinical.care_team">
+      <bpmn:incoming>Flow_ToAssemble</bpmn:incoming>
+      <bpmn:outgoing>Flow_ToParallel</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Parallel gateway -->
+    <bpmn:parallelGateway id="Gateway_ParallelSplit" name="Parallel Activities">
+      <bpmn:incoming>Flow_ToParallel</bpmn:incoming>
+      <bpmn:outgoing>Flow_ToHandoffs</bpmn:outgoing>
+      <bpmn:outgoing>Flow_ToTransitions</bpmn:outgoing>
+    </bpmn:parallelGateway>
+
+    <!-- Manage handoffs -->
+    <bpmn:serviceTask id="Task_ManageHandoffs" name="Manage Clinical Handoffs"
+                      camunda:type="external" camunda:topic="clinical.handoffs">
+      <bpmn:incoming>Flow_ToHandoffs</bpmn:incoming>
+      <bpmn:outgoing>Flow_FromHandoffs</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Manage care transitions -->
+    <bpmn:serviceTask id="Task_CareTransitions" name="Manage Care Transitions"
+                      camunda:type="external" camunda:topic="clinical.care_transitions">
+      <bpmn:incoming>Flow_ToTransitions</bpmn:incoming>
+      <bpmn:outgoing>Flow_FromTransitions</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Join parallel activities -->
+    <bpmn:parallelGateway id="Gateway_ParallelJoin" name="Join Activities">
+      <bpmn:incoming>Flow_FromHandoffs</bpmn:incoming>
+      <bpmn:incoming>Flow_FromTransitions</bpmn:incoming>
+      <bpmn:outgoing>Flow_ToDocumentation</bpmn:outgoing>
+    </bpmn:parallelGateway>
+
+    <!-- Document care activities -->
+    <bpmn:serviceTask id="Task_Documentation" name="Document Care Activities"
+                      camunda:type="external" camunda:topic="clinical.documentation">
+      <bpmn:incoming>Flow_ToDocumentation</bpmn:incoming>
+      <bpmn:outgoing>Flow_ToEnd</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <bpmn:endEvent id="End_CareTeam" name="Care Team Process Complete">
+      <bpmn:incoming>Flow_ToEnd</bpmn:incoming>
+    </bpmn:endEvent>
+
+    <!-- Sequence Flows -->
+    <bpmn:sequenceFlow id="Flow_ToAssemble" sourceRef="Start_CareTeam" targetRef="Task_AssembleCareTeam"/>
+    <bpmn:sequenceFlow id="Flow_ToParallel" sourceRef="Task_AssembleCareTeam" targetRef="Gateway_ParallelSplit"/>
+    <bpmn:sequenceFlow id="Flow_ToHandoffs" sourceRef="Gateway_ParallelSplit" targetRef="Task_ManageHandoffs"/>
+    <bpmn:sequenceFlow id="Flow_ToTransitions" sourceRef="Gateway_ParallelSplit" targetRef="Task_CareTransitions"/>
+    <bpmn:sequenceFlow id="Flow_FromHandoffs" sourceRef="Task_ManageHandoffs" targetRef="Gateway_ParallelJoin"/>
+    <bpmn:sequenceFlow id="Flow_FromTransitions" sourceRef="Task_CareTransitions" targetRef="Gateway_ParallelJoin"/>
+    <bpmn:sequenceFlow id="Flow_ToDocumentation" sourceRef="Gateway_ParallelJoin" targetRef="Task_Documentation"/>
+    <bpmn:sequenceFlow id="Flow_ToEnd" sourceRef="Task_Documentation" targetRef="End_CareTeam"/>
+
+  </bpmn:process>
+
+  <!-- Diagram Interchange -->
+  <bpmndi:BPMNDiagram id="BPMNDiagram_CareTeamOrchestration">
+    <bpmndi:BPMNPlane id="BPMNPlane_CareTeamOrchestration" bpmnElement="SP_CO_003_Care_Team">
+
+      <!-- Start Event -->
+      <bpmndi:BPMNShape id="Shape_Start_CareTeam" bpmnElement="Start_CareTeam">
+        <dc:Bounds x="152" y="102" width="36" height="36"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="131" y="145" width="78" height="27"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+
+      <!-- Assemble Care Team -->
+      <bpmndi:BPMNShape id="Shape_Task_AssembleCareTeam" bpmnElement="Task_AssembleCareTeam">
+        <dc:Bounds x="240" y="80" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <!-- Parallel Split Gateway -->
+      <bpmndi:BPMNShape id="Shape_Gateway_ParallelSplit" bpmnElement="Gateway_ParallelSplit">
+        <dc:Bounds x="395" y="95" width="50" height="50"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="378" y="65" width="84" height="14"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+
+      <!-- Manage Handoffs -->
+      <bpmndi:BPMNShape id="Shape_Task_ManageHandoffs" bpmnElement="Task_ManageHandoffs">
+        <dc:Bounds x="500" y="80" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <!-- Care Transitions -->
+      <bpmndi:BPMNShape id="Shape_Task_CareTransitions" bpmnElement="Task_CareTransitions">
+        <dc:Bounds x="500" y="200" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <!-- Parallel Join Gateway -->
+      <bpmndi:BPMNShape id="Shape_Gateway_ParallelJoin" bpmnElement="Gateway_ParallelJoin">
+        <dc:Bounds x="655" y="135" width="50" height="50"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="638" y="105" width="84" height="14"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+
+      <!-- Documentation -->
+      <bpmndi:BPMNShape id="Shape_Task_Documentation" bpmnElement="Task_Documentation">
+        <dc:Bounds x="760" y="120" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <!-- End Event -->
+      <bpmndi:BPMNShape id="Shape_End_CareTeam" bpmnElement="End_CareTeam">
+        <dc:Bounds x="912" y="142" width="36" height="36"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="903" y="185" width="54" height="27"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+
+      <!-- Sequence Flow Edges -->
+      <bpmndi:BPMNEdge id="Edge_Flow_ToAssemble" bpmnElement="Flow_ToAssemble">
+        <di:waypoint x="188" y="120"/>
+        <di:waypoint x="240" y="120"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_Flow_ToParallel" bpmnElement="Flow_ToParallel">
+        <di:waypoint x="340" y="120"/>
+        <di:waypoint x="395" y="120"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_Flow_ToHandoffs" bpmnElement="Flow_ToHandoffs">
+        <di:waypoint x="445" y="120"/>
+        <di:waypoint x="500" y="120"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_Flow_ToTransitions" bpmnElement="Flow_ToTransitions">
+        <di:waypoint x="420" y="145"/>
+        <di:waypoint x="420" y="240"/>
+        <di:waypoint x="500" y="240"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_Flow_FromHandoffs" bpmnElement="Flow_FromHandoffs">
+        <di:waypoint x="600" y="120"/>
+        <di:waypoint x="680" y="120"/>
+        <di:waypoint x="680" y="135"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_Flow_FromTransitions" bpmnElement="Flow_FromTransitions">
+        <di:waypoint x="600" y="240"/>
+        <di:waypoint x="680" y="240"/>
+        <di:waypoint x="680" y="185"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_Flow_ToDocumentation" bpmnElement="Flow_ToDocumentation">
+        <di:waypoint x="705" y="160"/>
+        <di:waypoint x="760" y="160"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_Flow_ToEnd" bpmnElement="Flow_ToEnd">
+        <di:waypoint x="860" y="160"/>
+        <di:waypoint x="912" y="160"/>
+      </bpmndi:BPMNEdge>
+
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+
+</bpmn:definitions>

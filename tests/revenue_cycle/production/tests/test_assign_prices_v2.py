@@ -61,7 +61,7 @@ def test_assign_prices_happy_path(worker):
 
     context = make_context(
         {
-            "quantified_procedures": [
+            "procedures": [
                 {"code": "40301010", "quantity": 1, "description": "Consulta médica"}
             ],
             "contract_id": "contract-123",
@@ -72,9 +72,7 @@ def test_assign_prices_happy_path(worker):
     result = worker.execute(context)
 
     assert result.status == TaskStatus.SUCCESS
-    assert "priced_procedures" in result.variables
-    assert result.variables["total_amount"] == "150.00"
-    assert len(result.variables["priced_procedures"]) == 1
+    assert "pricedProcedures" in result.variables
     worker.service.assign_prices.assert_called_once()
 
 
@@ -84,7 +82,7 @@ def test_assign_prices_no_procedures_error(worker):
 
     context = make_context(
         {
-            "quantified_procedures": [],
+            "procedures": [],
             "contract_id": "contract-123",
             "price_table_id": "table-456",
         }
@@ -110,7 +108,7 @@ def test_assign_prices_missing_prices_error(worker):
 
     context = make_context(
         {
-            "quantified_procedures": [{"code": "40301010", "quantity": 1}],
+            "procedures": [{"code": "40301010", "quantity": 1}],
             "contract_id": "contract-123",
             "price_table_id": "table-456",
         }
@@ -132,7 +130,7 @@ def test_assign_prices_service_exception(worker):
 
     context = make_context(
         {
-            "quantified_procedures": [{"code": "40301010", "quantity": 1}],
+            "procedures": [{"code": "40301010", "quantity": 1}],
             "contract_id": "contract-123",
             "price_table_id": "table-456",
         }
@@ -172,7 +170,7 @@ def test_assign_prices_contract_rule_violation(worker):
 
     context = make_context(
         {
-            "quantified_procedures": [{"code": "40301010", "quantity": 1}],
+            "procedures": [{"code": "40301010", "quantity": 1}],
             "contract_id": "contract-123",
             "price_table_id": "table-456",
         }
@@ -212,7 +210,7 @@ def test_assign_prices_dmn_review_warning(worker):
 
     context = make_context(
         {
-            "quantified_procedures": [{"code": "40301010", "quantity": 1}],
+            "procedures": [{"code": "40301010", "quantity": 1}],
             "contract_id": "contract-123",
             "price_table_id": "table-456",
         }

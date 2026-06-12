@@ -1,0 +1,273 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" xmlns:camunda="http://camunda.org/schema/1.0/bpmn" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:bioc="http://bpmn.io/schema/bpmn/biocolor/1.0" xmlns:color="http://www.omg.org/spec/BPMN/non-normative/color/1.0" id="Definitions_RC003" targetNamespace="http://cib7.healthcare/revenue-cycle" exporter="Camunda Modeler" exporterVersion="5.35.0">
+  <bpmn:process id="SP_RC_003_Clinical_Service" name="Atendimento Clínico e Documentação" isExecutable="true" camunda:historyTimeToLive="30">
+    <bpmn:startEvent id="start_clinical_service" name="Início Atendimento">
+      <bpmn:outgoing>flow_to_capture_procedure</bpmn:outgoing>
+    </bpmn:startEvent>
+    <bpmn:boundaryEvent id="timer_capture_timeout" name="Timeout 4h" attachedToRef="task_capture_procedure">
+      <bpmn:outgoing>flow_to_escalate_capture</bpmn:outgoing>
+      <bpmn:timerEventDefinition>
+        <bpmn:timeDuration xsi:type="bpmn:tFormalExpression">PT4H</bpmn:timeDuration>
+      </bpmn:timerEventDefinition>
+    </bpmn:boundaryEvent>
+    <bpmn:boundaryEvent id="error_capture_failed" name="Erro Captura" attachedToRef="task_capture_procedure">
+      <bpmn:outgoing>flow_to_manual_capture</bpmn:outgoing>
+      <bpmn:errorEventDefinition errorRef="Error_CaptureFailed" />
+    </bpmn:boundaryEvent>
+    <bpmn:exclusiveGateway id="gateway_completeness" name="Documentação Completa?" default="flow_doc_complete">
+      <bpmn:incoming>Flow_06f4ezo</bpmn:incoming>
+      <bpmn:outgoing>flow_doc_complete</bpmn:outgoing>
+      <bpmn:outgoing>flow_doc_incomplete</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:exclusiveGateway id="gateway_validation" name="Dados Válidos?" default="flow_valid">
+      <bpmn:incoming>flow_to_validation_gateway</bpmn:incoming>
+      <bpmn:outgoing>flow_valid</bpmn:outgoing>
+      <bpmn:outgoing>flow_invalid</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:endEvent id="end_success" name="Documentação Completa">
+      <bpmn:incoming>flow_valid</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:endEvent id="end_manual_capture" name="Captura Manual">
+      <bpmn:incoming>flow_to_end_manual_capture</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:endEvent id="end_escalated" name="Escalado">
+      <bpmn:incoming>flow_to_end_escalated</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:sequenceFlow id="flow_to_capture_procedure" sourceRef="start_clinical_service" targetRef="task_capture_procedure" />
+    <bpmn:sequenceFlow id="flow_to_enrich_procedure" sourceRef="task_capture_procedure" targetRef="Gateway_0o1p7c9" />
+    <bpmn:sequenceFlow id="flow_doc_complete" name="Sim" sourceRef="gateway_completeness" targetRef="task_calculate_quantity" />
+    <bpmn:sequenceFlow id="flow_doc_incomplete" name="Não" sourceRef="gateway_completeness" targetRef="Gateway_1c91mw2">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${completeData == null}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="flow_to_validate_data" sourceRef="task_calculate_quantity" targetRef="task_validate_data" />
+    <bpmn:sequenceFlow id="flow_to_validation_gateway" sourceRef="task_validate_data" targetRef="gateway_validation" />
+    <bpmn:sequenceFlow id="flow_valid" name="Sim" sourceRef="gateway_validation" targetRef="end_success" />
+    <bpmn:sequenceFlow id="flow_invalid" name="Não" sourceRef="gateway_validation" targetRef="Gateway_1c91mw2">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${dataValidated == false}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="flow_to_manual_capture" sourceRef="error_capture_failed" targetRef="task_manual_capture" />
+    <bpmn:sequenceFlow id="flow_to_escalate_capture" sourceRef="timer_capture_timeout" targetRef="task_escalate_capture" />
+    <bpmn:sequenceFlow id="flow_to_end_manual_capture" sourceRef="task_manual_capture" targetRef="end_manual_capture" />
+    <bpmn:sequenceFlow id="flow_to_end_escalated" sourceRef="task_escalate_capture" targetRef="end_escalated" />
+    <bpmn:task id="task_manual_capture" name="Captura Manual">
+      <bpmn:incoming>flow_to_manual_capture</bpmn:incoming>
+      <bpmn:outgoing>flow_to_end_manual_capture</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:task id="task_escalate_capture" name="Escalar Captura">
+      <bpmn:incoming>flow_to_escalate_capture</bpmn:incoming>
+      <bpmn:outgoing>flow_to_end_escalated</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:sequenceFlow id="Flow_0tpcq79" sourceRef="Activity_1geah6w" targetRef="Event_12dvors" />
+    <bpmn:intermediateCatchEvent id="Event_12dvors" name="após 24 horas">
+      <bpmn:incoming>Flow_0tpcq79</bpmn:incoming>
+      <bpmn:outgoing>Flow_0g5ipxq</bpmn:outgoing>
+      <bpmn:timerEventDefinition id="TimerEventDefinition_00urhen">
+        <bpmn:timeDuration xsi:type="bpmn:tFormalExpression">PT24H</bpmn:timeDuration>
+      </bpmn:timerEventDefinition>
+    </bpmn:intermediateCatchEvent>
+    <bpmn:exclusiveGateway id="Gateway_0o1p7c9">
+      <bpmn:incoming>Flow_0g5ipxq</bpmn:incoming>
+      <bpmn:incoming>flow_to_enrich_procedure</bpmn:incoming>
+      <bpmn:outgoing>Flow_06z1p0z</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:sequenceFlow id="Flow_0g5ipxq" sourceRef="Event_12dvors" targetRef="Gateway_0o1p7c9" />
+    <bpmn:sequenceFlow id="Flow_06z1p0z" sourceRef="Gateway_0o1p7c9" targetRef="task_enrich_procedure" />
+    <bpmn:sequenceFlow id="Flow_06f4ezo" sourceRef="task_enrich_procedure" targetRef="gateway_completeness" />
+    <bpmn:exclusiveGateway id="Gateway_1c91mw2">
+      <bpmn:incoming>flow_invalid</bpmn:incoming>
+      <bpmn:incoming>flow_doc_incomplete</bpmn:incoming>
+      <bpmn:outgoing>Flow_1anglbu</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:sequenceFlow id="Flow_1anglbu" sourceRef="Gateway_1c91mw2" targetRef="Activity_1geah6w" />
+    <bpmn:serviceTask id="task_calculate_quantity" name="Calcular Quantidade e Unidades" camunda:type="external" camunda:topic="revenue_cycle.production.calculate_value">
+      <bpmn:incoming>flow_doc_complete</bpmn:incoming>
+      <bpmn:outgoing>flow_to_validate_data</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:serviceTask id="task_validate_data" name="Validar Dados Clínicos" camunda:type="external" camunda:topic="revenue_cycle.validate_procedure">
+      <bpmn:incoming>flow_to_validate_data</bpmn:incoming>
+      <bpmn:outgoing>flow_to_validation_gateway</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:serviceTask id="task_enrich_procedure" name="Enriquecer Dados Clínicos" camunda:type="external" camunda:topic="revenue_cycle.enrich_procedure">
+      <bpmn:incoming>Flow_06z1p0z</bpmn:incoming>
+      <bpmn:outgoing>Flow_06f4ezo</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:serviceTask id="Activity_1geah6w" name="Notificar&#10;pendências" camunda:type="external" camunda:topic="NotificarPendenciaTasy">
+      <bpmn:incoming>Flow_1anglbu</bpmn:incoming>
+      <bpmn:outgoing>Flow_0tpcq79</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:serviceTask id="task_capture_procedure" name="Capturar Dados do Procedimento" camunda:type="external" camunda:topic="revenue_cycle.capture_procedure">
+      <bpmn:incoming>flow_to_capture_procedure</bpmn:incoming>
+      <bpmn:outgoing>flow_to_enrich_procedure</bpmn:outgoing>
+    </bpmn:serviceTask>
+  </bpmn:process>
+  <bpmn:error id="Error_CaptureFailed" name="CaptureFailed" errorCode="ERR_CAPTURE_001" />
+  <bpmndi:BPMNDiagram id="BPMNDiagram_RC003">
+    <bpmndi:BPMNPlane id="BPMNPlane_RC003" bpmnElement="SP_RC_003_Clinical_Service">
+      <bpmndi:BPMNShape id="Shape_start_clinical_service" bpmnElement="start_clinical_service">
+        <dc:Bounds x="172" y="222" width="36" height="36" />
+        <bpmndi:BPMNLabel color:color="#0d4372">
+          <dc:Bounds x="159" y="265" width="62" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_gateway_completeness" bpmnElement="gateway_completeness" isMarkerVisible="true" bioc:stroke="#0d4372" bioc:fill="#bbdefb" color:background-color="#bbdefb" color:border-color="#0d4372">
+        <dc:Bounds x="650" y="215" width="50" height="50" />
+        <bpmndi:BPMNLabel color:color="#0d4372">
+          <dc:Bounds x="637" y="178" width="75" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_gateway_validation" bpmnElement="gateway_validation" isMarkerVisible="true">
+        <dc:Bounds x="1025" y="215" width="50" height="50" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1011" y="191" width="78" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_end_success" bpmnElement="end_success">
+        <dc:Bounds x="1132" y="222" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1113" y="265" width="75" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_end_manual_capture" bpmnElement="end_manual_capture">
+        <dc:Bounds x="282" y="492" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="261" y="535" width="79" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_end_escalated" bpmnElement="end_escalated">
+        <dc:Bounds x="652" y="82" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="647" y="133" width="46" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Activity_1l4p71y_di" bpmnElement="task_manual_capture">
+        <dc:Bounds x="250" y="370" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Activity_107p0sy_di" bpmnElement="task_escalate_capture">
+        <dc:Bounds x="480" y="60" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Event_1rvd919_di" bpmnElement="Event_12dvors" bioc:stroke="#0d4372" bioc:fill="#bbdefb" color:background-color="#bbdefb" color:border-color="#0d4372">
+        <dc:Bounds x="392" y="392" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="375" y="435" width="70" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Gateway_0o1p7c9_di" bpmnElement="Gateway_0o1p7c9" isMarkerVisible="true" bioc:stroke="#0d4372" bioc:fill="#bbdefb" color:background-color="#bbdefb" color:border-color="#0d4372">
+        <dc:Bounds x="385" y="215" width="50" height="50" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Gateway_1c91mw2_di" bpmnElement="Gateway_1c91mw2" isMarkerVisible="true" bioc:stroke="#0d4372" bioc:fill="#bbdefb" color:background-color="#bbdefb" color:border-color="#0d4372">
+        <dc:Bounds x="650" y="385" width="50" height="50" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Activity_1re5klt_di" bpmnElement="task_calculate_quantity">
+        <dc:Bounds x="760" y="200" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Activity_1jrg5t4_di" bpmnElement="task_validate_data">
+        <dc:Bounds x="890" y="200" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_task_enrich_procedure" bpmnElement="task_enrich_procedure" bioc:stroke="#0d4372" bioc:fill="#bbdefb" color:background-color="#bbdefb" color:border-color="#0d4372">
+        <dc:Bounds x="480" y="200" width="100" height="80" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Activity_0gjgiyb_di" bpmnElement="Activity_1geah6w" bioc:stroke="#0d4372" bioc:fill="#bbdefb" color:background-color="#bbdefb" color:border-color="#0d4372">
+        <dc:Bounds x="480" y="370" width="100" height="80" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Activity_0i8k8ed_di" bpmnElement="task_capture_procedure">
+        <dc:Bounds x="250" y="200" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_error_capture_failed" bpmnElement="error_capture_failed">
+        <dc:Bounds x="282" y="262" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="308" y="333" width="64" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_timer_capture_timeout" bpmnElement="timer_capture_timeout">
+        <dc:Bounds x="282" y="182" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="322" y="63" width="55" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Edge_flow_to_capture_procedure" bpmnElement="flow_to_capture_procedure">
+        <di:waypoint x="208" y="240" />
+        <di:waypoint x="250" y="240" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_flow_to_enrich_procedure" bpmnElement="flow_to_enrich_procedure" bioc:stroke="#0d4372" color:border-color="#0d4372">
+        <di:waypoint x="350" y="240" />
+        <di:waypoint x="385" y="240" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_flow_doc_complete" bpmnElement="flow_doc_complete">
+        <di:waypoint x="700" y="240" />
+        <di:waypoint x="760" y="240" />
+        <bpmndi:BPMNLabel color:color="#0d4372">
+          <dc:Bounds x="719" y="222" width="20" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_flow_doc_incomplete" bpmnElement="flow_doc_incomplete" bioc:stroke="#0d4372" color:border-color="#0d4372">
+        <di:waypoint x="675" y="265" />
+        <di:waypoint x="675" y="385" />
+        <bpmndi:BPMNLabel color:color="#0d4372">
+          <dc:Bounds x="683" y="317" width="21" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_flow_to_validate_data" bpmnElement="flow_to_validate_data">
+        <di:waypoint x="860" y="240" />
+        <di:waypoint x="890" y="240" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_flow_to_validation_gateway" bpmnElement="flow_to_validation_gateway" bioc:stroke="#0d4372" color:border-color="#0d4372">
+        <di:waypoint x="990" y="240" />
+        <di:waypoint x="1025" y="240" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_flow_valid" bpmnElement="flow_valid">
+        <di:waypoint x="1075" y="240" />
+        <di:waypoint x="1132" y="240" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1089" y="222" width="20" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_flow_invalid" bpmnElement="flow_invalid" bioc:stroke="#0d4372" color:border-color="#0d4372">
+        <di:waypoint x="1050" y="265" />
+        <di:waypoint x="1050" y="410" />
+        <di:waypoint x="700" y="410" />
+        <bpmndi:BPMNLabel color:color="#0d4372">
+          <dc:Bounds x="912" y="384" width="21" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_flow_to_manual_capture" bpmnElement="flow_to_manual_capture">
+        <di:waypoint x="300" y="298" />
+        <di:waypoint x="300" y="370" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_flow_to_escalate_capture" bpmnElement="flow_to_escalate_capture">
+        <di:waypoint x="300" y="182" />
+        <di:waypoint x="300" y="100" />
+        <di:waypoint x="480" y="100" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_flow_to_end_manual_capture" bpmnElement="flow_to_end_manual_capture">
+        <di:waypoint x="300" y="450" />
+        <di:waypoint x="300" y="492" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_flow_to_end_escalated" bpmnElement="flow_to_end_escalated">
+        <di:waypoint x="580" y="100" />
+        <di:waypoint x="652" y="100" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_0tpcq79_di" bpmnElement="Flow_0tpcq79">
+        <di:waypoint x="480" y="410" />
+        <di:waypoint x="428" y="410" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_0g5ipxq_di" bpmnElement="Flow_0g5ipxq">
+        <di:waypoint x="410" y="392" />
+        <di:waypoint x="410" y="265" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_06z1p0z_di" bpmnElement="Flow_06z1p0z">
+        <di:waypoint x="435" y="240" />
+        <di:waypoint x="480" y="240" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_06f4ezo_di" bpmnElement="Flow_06f4ezo">
+        <di:waypoint x="580" y="240" />
+        <di:waypoint x="650" y="240" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_1anglbu_di" bpmnElement="Flow_1anglbu">
+        <di:waypoint x="650" y="410" />
+        <di:waypoint x="580" y="410" />
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>

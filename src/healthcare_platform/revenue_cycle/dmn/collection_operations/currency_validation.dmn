@@ -1,0 +1,111 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  ============================================================================
+  CURRENCY-VALIDATION - Validacao de Conversao de Moeda
+  ============================================================================
+  Versao: 1.0.0 (2026-02-14)
+  Categoria: COLLECTION_OPERATIONS
+  Archetype: OPERATIONAL_ROUTING | Source: convert_currency_worker.py
+  ============================================================================
+-->
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/"
+             xmlns:dc="http://www.omg.org/spec/DMN/20180521/DC/"
+             xmlns:di="http://www.omg.org/spec/DMN/20180521/DI/"
+             xmlns:camunda="http://camunda.org/schema/1.0/dmn"
+             id="Definitions_CURRENCY_VALIDATION"
+             name="Validacao de Conversao de Moeda"
+             namespace="http://camunda.org/schema/1.0/dmn">
+
+  <decision id="Decision_CURRENCY_VALIDATION" name="[SP-RC-013 | collection_operations] Validacao de Conversao de Moeda" camunda:historyTimeToLive="180">
+    <decisionTable id="DecisionTable_CURRENCY_VALIDATION" hitPolicy="FIRST">
+
+      <input id="Input_1_CURRENCY_VALIDATION" label="Taxa Cambio">
+        <inputExpression id="InputExpression_1_CURRENCY_VALIDATION" typeRef="number">
+          <text>exchangeRate</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_2_CURRENCY_VALIDATION" label="Variacao vs PTAX (%)">
+        <inputExpression id="InputExpression_2_CURRENCY_VALIDATION" typeRef="number">
+          <text>ptaxVariationPct</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_3_CURRENCY_VALIDATION" label="Valor Convertido (R$)">
+        <inputExpression id="InputExpression_3_CURRENCY_VALIDATION" typeRef="number">
+          <text>convertedAmountBRL</text>
+        </inputExpression>
+      </input>
+
+      <!-- ========== OUTPUTS ========== -->
+      <output id="Output_resultado_CURRENCY_VALIDATION" label="Resultado" name="resultado" typeRef="string">
+        <outputValues><text>"PROSSEGUIR","BLOQUEAR","REVISAR"</text></outputValues>
+      </output>
+      <output id="Output_acao_CURRENCY_VALIDATION" label="Acao" name="acao" typeRef="string"/>
+      <output id="Output_risco_CURRENCY_VALIDATION" label="Risco" name="risco" typeRef="string">
+        <outputValues><text>"CRITICO","ALTO","MEDIO","BAIXO"</text></outputValues>
+      </output>
+
+      <rule id="Rule_1_CURRENCY_VALIDATION">
+        <description>Taxa zero ou negativa</description>
+        <inputEntry id="IE_1_1_CURRENCY_VALIDATION"><text>&lt;= 0</text></inputEntry>
+        <inputEntry id="IE_1_2_CURRENCY_VALIDATION"><text>-</text></inputEntry>
+        <inputEntry id="IE_1_3_CURRENCY_VALIDATION"><text>-</text></inputEntry>
+        <outputEntry id="OE_1_1_CURRENCY_VALIDATION"><text>"BLOQUEAR"</text></outputEntry>
+        <outputEntry id="OE_1_2_CURRENCY_VALIDATION"><text>"Taxa de cambio invalida - nao pode ser zero ou negativa"</text></outputEntry>
+        <outputEntry id="OE_1_3_CURRENCY_VALIDATION"><text>"CRITICO"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_2_CURRENCY_VALIDATION">
+        <description>Variacao excessiva vs PTAX</description>
+        <inputEntry id="IE_2_1_CURRENCY_VALIDATION"><text>-</text></inputEntry>
+        <inputEntry id="IE_2_2_CURRENCY_VALIDATION"><text>&gt; 5</text></inputEntry>
+        <inputEntry id="IE_2_3_CURRENCY_VALIDATION"><text>-</text></inputEntry>
+        <outputEntry id="OE_2_1_CURRENCY_VALIDATION"><text>"REVISAR"</text></outputEntry>
+        <outputEntry id="OE_2_2_CURRENCY_VALIDATION"><text>"Taxa com variacao superior a 5% do PTAX - validar com tesouraria"</text></outputEntry>
+        <outputEntry id="OE_2_3_CURRENCY_VALIDATION"><text>"ALTO"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_3_CURRENCY_VALIDATION">
+        <description>Conversao de alto valor</description>
+        <inputEntry id="IE_3_1_CURRENCY_VALIDATION"><text>&gt; 0</text></inputEntry>
+        <inputEntry id="IE_3_2_CURRENCY_VALIDATION"><text>[0..5]</text></inputEntry>
+        <inputEntry id="IE_3_3_CURRENCY_VALIDATION"><text>&gt; 500000</text></inputEntry>
+        <outputEntry id="OE_3_1_CURRENCY_VALIDATION"><text>"REVISAR"</text></outputEntry>
+        <outputEntry id="OE_3_2_CURRENCY_VALIDATION"><text>"Conversao de alto valor - requer dupla aprovacao"</text></outputEntry>
+        <outputEntry id="OE_3_3_CURRENCY_VALIDATION"><text>"MEDIO"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_4_CURRENCY_VALIDATION">
+        <description>Conversao padrao valida</description>
+        <inputEntry id="IE_4_1_CURRENCY_VALIDATION"><text>&gt; 0</text></inputEntry>
+        <inputEntry id="IE_4_2_CURRENCY_VALIDATION"><text>[0..5]</text></inputEntry>
+        <inputEntry id="IE_4_3_CURRENCY_VALIDATION"><text>&lt;= 500000</text></inputEntry>
+        <outputEntry id="OE_4_1_CURRENCY_VALIDATION"><text>"PROSSEGUIR"</text></outputEntry>
+        <outputEntry id="OE_4_2_CURRENCY_VALIDATION"><text>"Conversao validada - taxa dentro da faixa aceitavel"</text></outputEntry>
+        <outputEntry id="OE_4_3_CURRENCY_VALIDATION"><text>"BAIXO"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Fallback_CURRENCY_VALIDATION">
+        <description>Fallback</description>
+        <inputEntry id="IE_F_1_CURRENCY_VALIDATION"><text>-</text></inputEntry>
+        <inputEntry id="IE_F_2_CURRENCY_VALIDATION"><text>-</text></inputEntry>
+        <inputEntry id="IE_F_3_CURRENCY_VALIDATION"><text>-</text></inputEntry>
+        <outputEntry id="OE_F_1_CURRENCY_VALIDATION"><text>"REVISAR"</text></outputEntry>
+        <outputEntry id="OE_F_2_CURRENCY_VALIDATION"><text>"Validar conversao manualmente"</text></outputEntry>
+        <outputEntry id="OE_F_3_CURRENCY_VALIDATION"><text>"MEDIO"</text></outputEntry>
+      </rule>
+
+    </decisionTable>
+  </decision>
+
+  <dmndi:DMNDI>
+    <dmndi:DMNDiagram id="DMNDiagram_CURRENCY_VALIDATION">
+      <dmndi:DMNShape id="DMNShape_Decision_CURRENCY_VALIDATION" dmnElementRef="Decision_CURRENCY_VALIDATION">
+        <dc:Bounds height="80" width="180" x="160" y="100"/>
+      </dmndi:DMNShape>
+    </dmndi:DMNDiagram>
+  </dmndi:DMNDI>
+
+</definitions>

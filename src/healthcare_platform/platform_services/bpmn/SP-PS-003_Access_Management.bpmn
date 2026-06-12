@@ -1,0 +1,249 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+                  xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+                  xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+                  xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
+                  xmlns:camunda="http://camunda.org/schema/1.0/bpmn"
+                  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                  id="Definitions_AccessManagement"
+                  targetNamespace="http://cib7.health/platform/access_control"
+                  exporter="Claude Code"
+                  exporterVersion="1.0">
+
+  <bpmn:process id="Process_AccessManagement" name="SP-PS-003 Access Management" isExecutable="true" camunda:historyTimeToLive="30">
+
+    <!-- Start: Access request received -->
+    <bpmn:startEvent id="Start_AccessRequest" name="Access Request Received">
+      <bpmn:outgoing>Flow_ToAuthenticate</bpmn:outgoing>
+    </bpmn:startEvent>
+
+    <!-- Step 1: Authenticate user identity -->
+    <bpmn:serviceTask id="Task_AuthenticateUser" name="Authenticate User"
+                      camunda:type="external" camunda:topic="access_control.authentication">
+      <bpmn:incoming>Flow_ToAuthenticate</bpmn:incoming>
+      <bpmn:outgoing>Flow_ToAuthGateway</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Gateway: Authentication successful? -->
+    <bpmn:exclusiveGateway id="Gateway_AuthResult" name="Authenticated?" default="Flow_AuthFailed">
+      <bpmn:incoming>Flow_ToAuthGateway</bpmn:incoming>
+      <bpmn:outgoing>Flow_AuthSuccess</bpmn:outgoing>
+      <bpmn:outgoing>Flow_AuthFailed</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+
+    <!-- Auth failed: deny access -->
+    <bpmn:serviceTask id="Task_DenyAccess" name="Deny Access"
+                      camunda:type="external" camunda:topic="access_control.denial">
+      <bpmn:incoming>Flow_AuthFailed</bpmn:incoming>
+      <bpmn:outgoing>Flow_DenyToAudit</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Step 2: Check role-based permissions via DMN -->
+    <bpmn:businessRuleTask id="Task_CheckPermissions" name="Check Role Permissions"
+                           camunda:decisionRef="ac_role_permissions_001"
+                           camunda:mapDecisionResult="singleResult">
+      <bpmn:incoming>Flow_AuthSuccess</bpmn:incoming>
+      <bpmn:outgoing>Flow_ToDataAccess</bpmn:outgoing>
+    </bpmn:businessRuleTask>
+
+    <!-- Step 3: Validate data access level (PHI masking rules) -->
+    <bpmn:serviceTask id="Task_ValidateDataAccess" name="Validate Data Access"
+                      camunda:type="external" camunda:topic="access_control.data_access">
+      <bpmn:extensionElements>
+        <camunda:inputOutput>
+          <camunda:inputParameter name="dmnTable">ac_phi_masking_001</camunda:inputParameter>
+        </camunda:inputOutput>
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_ToDataAccess</bpmn:incoming>
+      <bpmn:outgoing>Flow_ToAccessGateway</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Gateway: Access granted? -->
+    <bpmn:exclusiveGateway id="Gateway_AccessGranted" name="Access Granted?" default="Flow_AccessDenied">
+      <bpmn:incoming>Flow_ToAccessGateway</bpmn:incoming>
+      <bpmn:outgoing>Flow_AccessGranted</bpmn:outgoing>
+      <bpmn:outgoing>Flow_AccessDenied</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+
+    <!-- Access granted: provision access -->
+    <bpmn:serviceTask id="Task_ProvisionAccess" name="Provision Access"
+                      camunda:type="external" camunda:topic="access_control.provisioning">
+      <bpmn:incoming>Flow_AccessGranted</bpmn:incoming>
+      <bpmn:outgoing>Flow_ProvisionToAudit</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Access denied: restrict -->
+    <bpmn:serviceTask id="Task_RestrictAccess" name="Restrict Access"
+                      camunda:type="external" camunda:topic="access_control.restriction">
+      <bpmn:incoming>Flow_AccessDenied</bpmn:incoming>
+      <bpmn:outgoing>Flow_RestrictToAudit</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Merge before audit log -->
+    <bpmn:exclusiveGateway id="Gateway_MergeAudit" name="Merge">
+      <bpmn:incoming>Flow_DenyToAudit</bpmn:incoming>
+      <bpmn:incoming>Flow_ProvisionToAudit</bpmn:incoming>
+      <bpmn:incoming>Flow_RestrictToAudit</bpmn:incoming>
+      <bpmn:outgoing>Flow_ToAuditLog</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+
+    <!-- Step 4: Record access audit log -->
+    <bpmn:serviceTask id="Task_AuditLog" name="Record Audit Log"
+                      camunda:type="external" camunda:topic="access_control.audit">
+      <bpmn:incoming>Flow_ToAuditLog</bpmn:incoming>
+      <bpmn:outgoing>Flow_ToEnd</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <bpmn:endEvent id="End_AccessProcessed" name="Access Request Processed">
+      <bpmn:incoming>Flow_ToEnd</bpmn:incoming>
+    </bpmn:endEvent>
+
+    <!-- Sequence Flows -->
+    <bpmn:sequenceFlow id="Flow_ToAuthenticate" sourceRef="Start_AccessRequest" targetRef="Task_AuthenticateUser"/>
+    <bpmn:sequenceFlow id="Flow_ToAuthGateway" sourceRef="Task_AuthenticateUser" targetRef="Gateway_AuthResult"/>
+    <bpmn:sequenceFlow id="Flow_AuthSuccess" sourceRef="Gateway_AuthResult" targetRef="Task_CheckPermissions">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${authenticated == true}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_AuthFailed" sourceRef="Gateway_AuthResult" targetRef="Task_DenyAccess">
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_ToDataAccess" sourceRef="Task_CheckPermissions" targetRef="Task_ValidateDataAccess"/>
+    <bpmn:sequenceFlow id="Flow_ToAccessGateway" sourceRef="Task_ValidateDataAccess" targetRef="Gateway_AccessGranted"/>
+    <bpmn:sequenceFlow id="Flow_AccessGranted" sourceRef="Gateway_AccessGranted" targetRef="Task_ProvisionAccess">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${access_level != 'DENIED'}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_AccessDenied" sourceRef="Gateway_AccessGranted" targetRef="Task_RestrictAccess">
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_DenyToAudit" sourceRef="Task_DenyAccess" targetRef="Gateway_MergeAudit"/>
+    <bpmn:sequenceFlow id="Flow_ProvisionToAudit" sourceRef="Task_ProvisionAccess" targetRef="Gateway_MergeAudit"/>
+    <bpmn:sequenceFlow id="Flow_RestrictToAudit" sourceRef="Task_RestrictAccess" targetRef="Gateway_MergeAudit"/>
+    <bpmn:sequenceFlow id="Flow_ToAuditLog" sourceRef="Gateway_MergeAudit" targetRef="Task_AuditLog"/>
+    <bpmn:sequenceFlow id="Flow_ToEnd" sourceRef="Task_AuditLog" targetRef="End_AccessProcessed"/>
+
+  </bpmn:process>
+
+  <!-- Diagram Interchange -->
+  <bpmndi:BPMNDiagram id="BPMNDiagram_AccessManagement">
+    <bpmndi:BPMNPlane id="BPMNPlane_AccessManagement" bpmnElement="Process_AccessManagement">
+
+      <bpmndi:BPMNShape id="Shape_Start" bpmnElement="Start_AccessRequest">
+        <dc:Bounds x="152" y="202" width="36" height="36"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Shape_Authenticate" bpmnElement="Task_AuthenticateUser">
+        <dc:Bounds x="240" y="180" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Shape_AuthGateway" bpmnElement="Gateway_AuthResult" isMarkerVisible="true">
+        <dc:Bounds x="395" y="195" width="50" height="50"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Shape_DenyAccess" bpmnElement="Task_DenyAccess">
+        <dc:Bounds x="370" y="340" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Shape_CheckPermissions" bpmnElement="Task_CheckPermissions">
+        <dc:Bounds x="510" y="180" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Shape_ValidateDataAccess" bpmnElement="Task_ValidateDataAccess">
+        <dc:Bounds x="670" y="180" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Shape_AccessGateway" bpmnElement="Gateway_AccessGranted" isMarkerVisible="true">
+        <dc:Bounds x="825" y="195" width="50" height="50"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Shape_ProvisionAccess" bpmnElement="Task_ProvisionAccess">
+        <dc:Bounds x="930" y="100" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Shape_RestrictAccess" bpmnElement="Task_RestrictAccess">
+        <dc:Bounds x="930" y="260" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Shape_MergeAudit" bpmnElement="Gateway_MergeAudit" isMarkerVisible="true">
+        <dc:Bounds x="1095" y="195" width="50" height="50"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Shape_AuditLog" bpmnElement="Task_AuditLog">
+        <dc:Bounds x="1200" y="180" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Shape_End" bpmnElement="End_AccessProcessed">
+        <dc:Bounds x="1362" y="202" width="36" height="36"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNEdge id="Edge_ToAuthenticate" bpmnElement="Flow_ToAuthenticate">
+        <di:waypoint x="188" y="220"/>
+        <di:waypoint x="240" y="220"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_ToAuthGateway" bpmnElement="Flow_ToAuthGateway">
+        <di:waypoint x="340" y="220"/>
+        <di:waypoint x="395" y="220"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_AuthSuccess" bpmnElement="Flow_AuthSuccess">
+        <di:waypoint x="445" y="220"/>
+        <di:waypoint x="510" y="220"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_AuthFailed" bpmnElement="Flow_AuthFailed">
+        <di:waypoint x="420" y="245"/>
+        <di:waypoint x="420" y="340"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_ToDataAccess" bpmnElement="Flow_ToDataAccess">
+        <di:waypoint x="610" y="220"/>
+        <di:waypoint x="670" y="220"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_ToAccessGateway" bpmnElement="Flow_ToAccessGateway">
+        <di:waypoint x="770" y="220"/>
+        <di:waypoint x="825" y="220"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_AccessGranted" bpmnElement="Flow_AccessGranted">
+        <di:waypoint x="850" y="195"/>
+        <di:waypoint x="850" y="140"/>
+        <di:waypoint x="930" y="140"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_AccessDenied" bpmnElement="Flow_AccessDenied">
+        <di:waypoint x="850" y="245"/>
+        <di:waypoint x="850" y="300"/>
+        <di:waypoint x="930" y="300"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_DenyToAudit" bpmnElement="Flow_DenyToAudit">
+        <di:waypoint x="470" y="380"/>
+        <di:waypoint x="1120" y="380"/>
+        <di:waypoint x="1120" y="245"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_ProvisionToAudit" bpmnElement="Flow_ProvisionToAudit">
+        <di:waypoint x="1030" y="140"/>
+        <di:waypoint x="1120" y="140"/>
+        <di:waypoint x="1120" y="195"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_RestrictToAudit" bpmnElement="Flow_RestrictToAudit">
+        <di:waypoint x="1030" y="300"/>
+        <di:waypoint x="1120" y="300"/>
+        <di:waypoint x="1120" y="245"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_ToAuditLog" bpmnElement="Flow_ToAuditLog">
+        <di:waypoint x="1145" y="220"/>
+        <di:waypoint x="1200" y="220"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_ToEnd" bpmnElement="Flow_ToEnd">
+        <di:waypoint x="1300" y="220"/>
+        <di:waypoint x="1362" y="220"/>
+      </bpmndi:BPMNEdge>
+
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+
+</bpmn:definitions>

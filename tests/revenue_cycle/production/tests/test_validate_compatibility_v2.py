@@ -43,7 +43,7 @@ def test_validate_compatibility_happy_path(worker):
 
     context = make_context(
         {
-            "priced_procedures": [
+            "procedures": [
                 {
                     "code": "40301010",
                     "description": "Consulta médica",
@@ -76,7 +76,7 @@ def test_validate_compatibility_no_procedures_error(worker):
 
     context = make_context(
         {
-            "priced_procedures": [],
+            "procedures": [],
             "patient_gender": "M",
             "patient_age_years": 45,
         }
@@ -108,7 +108,7 @@ def test_validate_compatibility_incompatible_block(worker):
 
     context = make_context(
         {
-            "priced_procedures": [
+            "procedures": [
                 {
                     "code": "31201016",
                     "description": "Papanicolau",
@@ -146,7 +146,7 @@ def test_validate_compatibility_review_warning(worker):
 
     context = make_context(
         {
-            "priced_procedures": [
+            "procedures": [
                 {
                     "code": "40301010",
                     "description": "Geriatric assessment",
@@ -180,7 +180,7 @@ def test_validate_compatibility_duplicate_codes_warning(worker):
 
     context = make_context(
         {
-            "priced_procedures": [
+            "procedures": [
                 {"code": "40301010", "description": "Consulta médica"},
                 {"code": "40301010", "description": "Consulta médica"},
             ],
@@ -217,7 +217,7 @@ def test_validate_compatibility_age_restriction(worker):
 
     context = make_context(
         {
-            "priced_procedures": [
+            "procedures": [
                 {"code": "40301010", "description": "Adult procedure"}
             ],
             "patient_gender": "M",
@@ -240,7 +240,7 @@ def test_validate_compatibility_exception_handling(worker):
 
     context = make_context(
         {
-            "priced_procedures": [{"code": "40301010"}],
+            "procedures": [{"code": "40301010"}],
             "patient_gender": "M",
             "patient_age_years": 45,
         }
@@ -276,7 +276,7 @@ def test_validate_compatibility_multiple_issues(worker):
 
     context = make_context(
         {
-            "priced_procedures": [
+            "procedures": [
                 {"code": "31201016", "description": "Papanicolau"},
                 {"code": "40301020", "description": "Pediatric procedure"},
             ],

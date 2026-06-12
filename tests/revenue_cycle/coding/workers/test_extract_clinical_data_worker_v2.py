@@ -2,7 +2,7 @@ from __future__ import annotations
 from typing import Any
 from unittest.mock import patch, MagicMock, AsyncMock
 import pytest
-from healthcare_platform.revenue_cycle.coding.workers.extract_clinical_data_worker_v2 import ExtractClinicalDataWorkerV2
+from healthcare_platform.revenue_cycle.coding.workers.extract_clinical_data_worker import ExtractClinicalDataWorker
 from healthcare_platform.shared.domain.exceptions import CodingException
 
 
@@ -46,14 +46,14 @@ def expected_extraction_result():
 
 
 @pytest.mark.asyncio
-@patch('healthcare_platform.revenue_cycle.coding.workers.extract_clinical_data_worker_v2.get_required_tenant')
-@patch('healthcare_platform.revenue_cycle.coding.workers.extract_clinical_data_worker_v2.ClinicalDataExtractionService')
+@patch('healthcare_platform.revenue_cycle.coding.workers.extract_clinical_data_worker.get_required_tenant')
+@patch('healthcare_platform.revenue_cycle.coding.workers.extract_clinical_data_worker.ClinicalDataExtractionService')
 async def test_happy_path(MockService, mock_get_tenant, tenant_ctx, mock_fhir_client, expected_extraction_result):
     mock_get_tenant.return_value = tenant_ctx
     mock_svc = MockService.return_value
     mock_svc.extract_with_dmn = AsyncMock(return_value=expected_extraction_result)
 
-    worker = ExtractClinicalDataWorkerV2(fhir_client=mock_fhir_client)
+    worker = ExtractClinicalDataWorker(fhir_client=mock_fhir_client)
     worker.service = mock_svc
 
     result = await worker.execute({"encounter_id": "enc-001"})
@@ -65,13 +65,13 @@ async def test_happy_path(MockService, mock_get_tenant, tenant_ctx, mock_fhir_cl
 
 
 @pytest.mark.asyncio
-@patch('healthcare_platform.revenue_cycle.coding.workers.extract_clinical_data_worker_v2.get_required_tenant')
-@patch('healthcare_platform.revenue_cycle.coding.workers.extract_clinical_data_worker_v2.ClinicalDataExtractionService')
+@patch('healthcare_platform.revenue_cycle.coding.workers.extract_clinical_data_worker.get_required_tenant')
+@patch('healthcare_platform.revenue_cycle.coding.workers.extract_clinical_data_worker.ClinicalDataExtractionService')
 async def test_missing_encounter_id_error(MockService, mock_get_tenant, tenant_ctx, mock_fhir_client):
     mock_get_tenant.return_value = tenant_ctx
     mock_svc = MockService.return_value
 
-    worker = ExtractClinicalDataWorkerV2(fhir_client=mock_fhir_client)
+    worker = ExtractClinicalDataWorker(fhir_client=mock_fhir_client)
     worker.service = mock_svc
 
     with pytest.raises(CodingException) as exc_info:
@@ -81,13 +81,13 @@ async def test_missing_encounter_id_error(MockService, mock_get_tenant, tenant_c
 
 
 @pytest.mark.asyncio
-@patch('healthcare_platform.revenue_cycle.coding.workers.extract_clinical_data_worker_v2.get_required_tenant')
-@patch('healthcare_platform.revenue_cycle.coding.workers.extract_clinical_data_worker_v2.ClinicalDataExtractionService')
+@patch('healthcare_platform.revenue_cycle.coding.workers.extract_clinical_data_worker.get_required_tenant')
+@patch('healthcare_platform.revenue_cycle.coding.workers.extract_clinical_data_worker.ClinicalDataExtractionService')
 async def test_empty_encounter_id_error(MockService, mock_get_tenant, tenant_ctx, mock_fhir_client):
     mock_get_tenant.return_value = tenant_ctx
     mock_svc = MockService.return_value
 
-    worker = ExtractClinicalDataWorkerV2(fhir_client=mock_fhir_client)
+    worker = ExtractClinicalDataWorker(fhir_client=mock_fhir_client)
     worker.service = mock_svc
 
     with pytest.raises(CodingException):
@@ -95,23 +95,23 @@ async def test_empty_encounter_id_error(MockService, mock_get_tenant, tenant_ctx
 
 
 @pytest.mark.asyncio
-@patch('healthcare_platform.revenue_cycle.coding.workers.extract_clinical_data_worker_v2.ClinicalDataExtractionService')
+@patch('healthcare_platform.revenue_cycle.coding.workers.extract_clinical_data_worker.ClinicalDataExtractionService')
 async def test_no_fhir_client_error(MockService):
     with pytest.raises(ValueError) as exc_info:
-        ExtractClinicalDataWorkerV2(fhir_client=None)
+        ExtractClinicalDataWorker(fhir_client=None)
 
     assert "fhir_client" in str(exc_info.value).lower()
 
 
 @pytest.mark.asyncio
-@patch('healthcare_platform.revenue_cycle.coding.workers.extract_clinical_data_worker_v2.get_required_tenant')
-@patch('healthcare_platform.revenue_cycle.coding.workers.extract_clinical_data_worker_v2.ClinicalDataExtractionService')
+@patch('healthcare_platform.revenue_cycle.coding.workers.extract_clinical_data_worker.get_required_tenant')
+@patch('healthcare_platform.revenue_cycle.coding.workers.extract_clinical_data_worker.ClinicalDataExtractionService')
 async def test_service_extraction(MockService, mock_get_tenant, tenant_ctx, mock_fhir_client, expected_extraction_result):
     mock_get_tenant.return_value = tenant_ctx
     mock_svc = MockService.return_value
     mock_svc.extract_with_dmn = AsyncMock(return_value=expected_extraction_result)
 
-    worker = ExtractClinicalDataWorkerV2(fhir_client=mock_fhir_client)
+    worker = ExtractClinicalDataWorker(fhir_client=mock_fhir_client)
     worker.service = mock_svc
 
     result = await worker.execute({"encounter_id": "enc-001"})
@@ -121,8 +121,8 @@ async def test_service_extraction(MockService, mock_get_tenant, tenant_ctx, mock
 
 
 @pytest.mark.asyncio
-@patch('healthcare_platform.revenue_cycle.coding.workers.extract_clinical_data_worker_v2.get_required_tenant')
-@patch('healthcare_platform.revenue_cycle.coding.workers.extract_clinical_data_worker_v2.ClinicalDataExtractionService')
+@patch('healthcare_platform.revenue_cycle.coding.workers.extract_clinical_data_worker.get_required_tenant')
+@patch('healthcare_platform.revenue_cycle.coding.workers.extract_clinical_data_worker.ClinicalDataExtractionService')
 async def test_process_task_compat(MockService, mock_get_tenant, tenant_ctx, mock_fhir_client, expected_extraction_result):
     mock_get_tenant.return_value = tenant_ctx
     mock_svc = MockService.return_value
@@ -146,7 +146,7 @@ async def test_process_task_compat(MockService, mock_get_tenant, tenant_ctx, moc
     mock_svc.process_task_compat = AsyncMock(side_effect=process_task_compat_impl)
     mock_svc.extract_with_dmn = AsyncMock(return_value=expected_extraction_result)
 
-    worker = ExtractClinicalDataWorkerV2(fhir_client=mock_fhir_client)
+    worker = ExtractClinicalDataWorker(fhir_client=mock_fhir_client)
     worker.service = mock_svc
 
     result = await worker.process_task(variables={"encounter_id": "enc-001"})
@@ -156,8 +156,8 @@ async def test_process_task_compat(MockService, mock_get_tenant, tenant_ctx, moc
 
 
 @pytest.mark.asyncio
-@patch('healthcare_platform.revenue_cycle.coding.workers.extract_clinical_data_worker_v2.get_required_tenant')
-@patch('healthcare_platform.revenue_cycle.coding.workers.extract_clinical_data_worker_v2.ClinicalDataExtractionService')
+@patch('healthcare_platform.revenue_cycle.coding.workers.extract_clinical_data_worker.get_required_tenant')
+@patch('healthcare_platform.revenue_cycle.coding.workers.extract_clinical_data_worker.ClinicalDataExtractionService')
 async def test_extraction_with_empty_results(MockService, mock_get_tenant, tenant_ctx, mock_fhir_client):
     mock_get_tenant.return_value = tenant_ctx
     mock_svc = MockService.return_value
@@ -171,7 +171,7 @@ async def test_extraction_with_empty_results(MockService, mock_get_tenant, tenan
     }
     mock_svc.extract_with_dmn = AsyncMock(return_value=empty_result)
 
-    worker = ExtractClinicalDataWorkerV2(fhir_client=mock_fhir_client)
+    worker = ExtractClinicalDataWorker(fhir_client=mock_fhir_client)
     worker.service = mock_svc
 
     result = await worker.execute({"encounter_id": "enc-001"})
@@ -182,8 +182,8 @@ async def test_extraction_with_empty_results(MockService, mock_get_tenant, tenan
 
 
 @pytest.mark.asyncio
-@patch('healthcare_platform.revenue_cycle.coding.workers.extract_clinical_data_worker_v2.get_required_tenant')
-@patch('healthcare_platform.revenue_cycle.coding.workers.extract_clinical_data_worker_v2.ClinicalDataExtractionService')
+@patch('healthcare_platform.revenue_cycle.coding.workers.extract_clinical_data_worker.get_required_tenant')
+@patch('healthcare_platform.revenue_cycle.coding.workers.extract_clinical_data_worker.ClinicalDataExtractionService')
 async def test_extraction_with_multiple_items(MockService, mock_get_tenant, tenant_ctx, mock_fhir_client):
     mock_get_tenant.return_value = tenant_ctx
     mock_svc = MockService.return_value
@@ -203,7 +203,7 @@ async def test_extraction_with_multiple_items(MockService, mock_get_tenant, tena
     }
     mock_svc.extract_with_dmn = AsyncMock(return_value=multi_item_result)
 
-    worker = ExtractClinicalDataWorkerV2(fhir_client=mock_fhir_client)
+    worker = ExtractClinicalDataWorker(fhir_client=mock_fhir_client)
     worker.service = mock_svc
 
     result = await worker.execute({"encounter_id": "enc-001"})

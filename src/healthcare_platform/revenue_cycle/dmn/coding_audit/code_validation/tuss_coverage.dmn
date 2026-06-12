@@ -1,0 +1,107 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/"
+             xmlns:dc="http://www.omg.org/spec/DMN/20180521/DC/"
+             xmlns:di="http://www.omg.org/spec/DMN/20180521/DI/"
+             xmlns:camunda="http://camunda.org/schema/1.0/dmn"
+             id="Definitions_TUSS_Coverage"
+             name="TUSS Coverage Validation Decision"
+             namespace="http://camunda.org/schema/1.0/dmn">
+  <!-- Archetype: ADMIN_ADJUDICATION | Source: tuss_coverage_worker.py -->
+
+  <!-- DMN: TUSS Coverage Validation
+       Based on: validate_codes_worker.py lines 402-430
+       Rule: Check TUSS code coverage status via ANS Rol
+  -->
+
+  <decision id="Decision_TUSS_Coverage" name="[SP-RC-005 | coding_audit/code_validation] TUSS Coverage Validation" camunda:historyTimeToLive="180">
+    <decisionTable id="DecisionTable_TUSS_Coverage" hitPolicy="FIRST">
+
+      <!-- === INPUTS === -->
+      <input id="Input_isCovered_TUSS_Coverage" label="Is Covered">
+        <inputExpression id="InputExpr_isCovered_TUSS_Coverage" typeRef="boolean">
+          <text>is_covered</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_coverageType_TUSS_Coverage" label="Coverage Type">
+        <inputExpression id="InputExpr_coverageType_TUSS_Coverage" typeRef="string">
+          <text>coverage_type</text>
+        </inputExpression>
+      </input>
+
+      <!-- === OUTPUTS === -->
+      <output id="Output_resultado_TUSS_Coverage" label="Resultado" name="resultado" typeRef="string">
+        <outputValues><text>"PROSSEGUIR","BLOQUEAR","REVISAR"</text></outputValues>
+      </output>
+
+      <output id="Output_acao_TUSS_Coverage" label="Acao" name="acao" typeRef="string"/>
+
+      <output id="Output_risco_TUSS_Coverage" label="Risco" name="risco" typeRef="string">
+        <outputValues><text>"CRITICO","ALTO","MEDIO","BAIXO"</text></outputValues>
+      </output>
+
+      <!-- === RULES === -->
+
+      <!-- Rule 1: Covered → PROCEED LOW -->
+      <rule id="Rule_Covered_TUSS_Coverage">
+        <description>Procedimento TUSS coberto pelo plano</description>
+        <inputEntry id="IE_Cov_1_TUSS_Coverage"><text>true</text></inputEntry>
+        <inputEntry id="IE_Cov_2_TUSS_Coverage"><text>-</text></inputEntry>
+        <outputEntry id="OE_Cov_res_TUSS_Coverage"><text>"PROSSEGUIR"</text></outputEntry>
+        <outputEntry id="OE_Cov_acao_TUSS_Coverage"><text>"Procedimento TUSS possui cobertura obrigatoria aprovada"</text></outputEntry>
+        <outputEntry id="OE_Cov_risco_TUSS_Coverage"><text>"BAIXO"</text></outputEntry>
+      </rule>
+
+      <!-- Rule 2: Not covered + elective → BLOCK HIGH -->
+      <rule id="Rule_NotCovered_Elective_TUSS_Coverage">
+        <description>Procedimento eletivo sem cobertura</description>
+        <inputEntry id="IE_NCE_1_TUSS_Coverage"><text>false</text></inputEntry>
+        <inputEntry id="IE_NCE_2_TUSS_Coverage"><text>"ELECTIVE","ELETIVO"</text></inputEntry>
+        <outputEntry id="OE_NCE_res_TUSS_Coverage"><text>"BLOQUEAR"</text></outputEntry>
+        <outputEntry id="OE_NCE_acao_TUSS_Coverage"><text>"Procedimento TUSS eletivo sem cobertura obrigatoria - nao autorizado"</text></outputEntry>
+        <outputEntry id="OE_NCE_risco_TUSS_Coverage"><text>"ALTO"</text></outputEntry>
+      </rule>
+
+      <!-- Rule 3: Not covered + emergency → REVIEW MEDIUM -->
+      <rule id="Rule_NotCovered_Emergency_TUSS_Coverage">
+        <description>Procedimento emergencial sem cobertura - requer revisao</description>
+        <inputEntry id="IE_NCEm_1_TUSS_Coverage"><text>false</text></inputEntry>
+        <inputEntry id="IE_NCEm_2_TUSS_Coverage"><text>"EMERGENCY","EMERGENCIA"</text></inputEntry>
+        <outputEntry id="OE_NCEm_res_TUSS_Coverage"><text>"REVISAR"</text></outputEntry>
+        <outputEntry id="OE_NCEm_acao_TUSS_Coverage"><text>"Procedimento TUSS emergencial sem cobertura - requer autorizacao manual"</text></outputEntry>
+        <outputEntry id="OE_NCEm_risco_TUSS_Coverage"><text>"MEDIO"</text></outputEntry>
+      </rule>
+
+      <!-- Rule 4: Not covered + other types → REVIEW MEDIUM -->
+      <rule id="Rule_NotCovered_Other_TUSS_Coverage">
+        <description>Procedimento sem cobertura - tipo nao especificado</description>
+        <inputEntry id="IE_NCO_1_TUSS_Coverage"><text>false</text></inputEntry>
+        <inputEntry id="IE_NCO_2_TUSS_Coverage"><text>-</text></inputEntry>
+        <outputEntry id="OE_NCO_res_TUSS_Coverage"><text>"REVISAR"</text></outputEntry>
+        <outputEntry id="OE_NCO_acao_TUSS_Coverage"><text>"Procedimento TUSS sem cobertura obrigatoria - requer avaliacao do tipo de atendimento"</text></outputEntry>
+        <outputEntry id="OE_NCO_risco_TUSS_Coverage"><text>"MEDIO"</text></outputEntry>
+      </rule>
+
+      <!-- Fallback -->
+      <rule id="Rule_Fallback_TUSS_Coverage">
+        <description>Status de cobertura nao determinado</description>
+        <inputEntry id="IE_FB_1_TUSS_Coverage"><text>-</text></inputEntry>
+        <inputEntry id="IE_FB_2_TUSS_Coverage"><text>-</text></inputEntry>
+        <outputEntry id="OE_FB_res_TUSS_Coverage"><text>"REVISAR"</text></outputEntry>
+        <outputEntry id="OE_FB_acao_TUSS_Coverage"><text>"Status de cobertura TUSS nao disponivel - validar manualmente no Rol ANS"</text></outputEntry>
+        <outputEntry id="OE_FB_risco_TUSS_Coverage"><text>"MEDIO"</text></outputEntry>
+      </rule>
+
+    </decisionTable>
+  </decision>
+
+  <dmndi:DMNDI>
+    <dmndi:DMNDiagram id="DMNDiagram_TUSS_Coverage">
+      <dmndi:DMNShape id="DMNShape_Decision_TUSS_Coverage" dmnElementRef="Decision_TUSS_Coverage">
+        <dc:Bounds height="80" width="180" x="160" y="100"/>
+      </dmndi:DMNShape>
+    </dmndi:DMNDiagram>
+  </dmndi:DMNDI>
+
+</definitions>

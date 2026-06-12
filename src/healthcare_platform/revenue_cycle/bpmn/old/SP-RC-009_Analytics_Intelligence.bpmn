@@ -1,0 +1,283 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" xmlns:camunda="http://camunda.org/schema/1.0/bpmn" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:bioc="http://bpmn.io/schema/bpmn/biocolor/1.0" xmlns:color="http://www.omg.org/spec/BPMN/non-normative/color/1.0" id="Definitions_RC009" targetNamespace="http://cib7.healthcare/revenue-cycle" exporter="Camunda Modeler" exporterVersion="5.35.0">
+  <bpmn:process id="SP_RC_009_Analytics_Intelligence" name="Análise e Inteligência de Receita" isExecutable="true" camunda:historyTimeToLive="30">
+    <bpmn:startEvent id="start_analytics" name="Início Análise">
+      <bpmn:outgoing>flow_to_calculate_dso</bpmn:outgoing>
+    </bpmn:startEvent>
+    <bpmn:serviceTask id="task_calculate_dso" name="Calcular DSO" camunda:type="external" camunda:topic="analytics.calculate_dso">
+      <bpmn:extensionElements>
+        <camunda:inputOutput>
+          <camunda:inputParameter name="periodStart">${startDate}</camunda:inputParameter>
+          <camunda:inputParameter name="periodEnd">${endDate}</camunda:inputParameter>
+          <camunda:outputParameter name="currentDSO">${dsoValue}</camunda:outputParameter>
+          <camunda:outputParameter name="dsoTrendData">${dsoTrend}</camunda:outputParameter>
+        </camunda:inputOutput>
+      </bpmn:extensionElements>
+      <bpmn:incoming>flow_to_calculate_dso</bpmn:incoming>
+      <bpmn:outgoing>flow_to_calculate_collection_rate</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:serviceTask id="task_calculate_collection_rate" name="Calcular Taxa de Cobrança" camunda:type="external" camunda:topic="analytics.calculate_collection_rate">
+      <bpmn:extensionElements>
+        <camunda:inputOutput>
+          <camunda:inputParameter name="periodStart">${startDate}</camunda:inputParameter>
+          <camunda:inputParameter name="periodEnd">${endDate}</camunda:inputParameter>
+          <camunda:outputParameter name="currentCollectionRate">${collectionRate}</camunda:outputParameter>
+          <camunda:outputParameter name="collectionByPayer">${rateByPayer}</camunda:outputParameter>
+        </camunda:inputOutput>
+      </bpmn:extensionElements>
+      <bpmn:incoming>flow_to_calculate_collection_rate</bpmn:incoming>
+      <bpmn:outgoing>flow_to_analyze_payer</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:serviceTask id="task_analyze_payer_performance" name="Analisar Desempenho de Operadoras" camunda:type="external" camunda:topic="analytics.analyze_payer_performance">
+      <bpmn:extensionElements>
+        <camunda:inputOutput>
+          <camunda:inputParameter name="payerData">${collectionByPayer}</camunda:inputParameter>
+          <camunda:inputParameter name="periodStart">${startDate}</camunda:inputParameter>
+          <camunda:inputParameter name="periodEnd">${endDate}</camunda:inputParameter>
+          <camunda:outputParameter name="rankedPayers">${payerRankings}</camunda:outputParameter>
+          <camunda:outputParameter name="underperformingPayers">${problemPayers}</camunda:outputParameter>
+        </camunda:inputOutput>
+      </bpmn:extensionElements>
+      <bpmn:incoming>flow_to_analyze_payer</bpmn:incoming>
+      <bpmn:outgoing>flow_to_detect_leakage</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:serviceTask id="task_detect_revenue_leakage" name="Detectar Vazamento de Receita" camunda:type="external" camunda:topic="revenue_cycle.detect_revenue_leakage">
+      <bpmn:extensionElements>
+        <camunda:inputOutput>
+          <camunda:inputParameter name="dso">${currentDSO}</camunda:inputParameter>
+          <camunda:inputParameter name="collectionRate">${currentCollectionRate}</camunda:inputParameter>
+          <camunda:inputParameter name="problemPayers">${underperformingPayers}</camunda:inputParameter>
+          <camunda:outputParameter name="identifiedLeakage">${leakagePoints}</camunda:outputParameter>
+          <camunda:outputParameter name="estimatedLoss">${leakageAmount}</camunda:outputParameter>
+        </camunda:inputOutput>
+      </bpmn:extensionElements>
+      <bpmn:incoming>flow_to_detect_leakage</bpmn:incoming>
+      <bpmn:outgoing>flow_to_leakage_gateway</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:exclusiveGateway id="gateway_leakage" name="Vazamento Detectado?" default="flow_has_leakage">
+      <bpmn:incoming>flow_to_leakage_gateway</bpmn:incoming>
+      <bpmn:outgoing>flow_no_leakage</bpmn:outgoing>
+      <bpmn:outgoing>flow_has_leakage</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:parallelGateway id="parallel_dashboard_start" name="Gerar Dashboards">
+      <bpmn:incoming>Flow_0h9rw3j</bpmn:incoming>
+      <bpmn:outgoing>flow_to_executive_dashboard</bpmn:outgoing>
+      <bpmn:outgoing>flow_to_operational_metrics</bpmn:outgoing>
+    </bpmn:parallelGateway>
+    <bpmn:serviceTask id="task_generate_executive_dashboard" name="Gerar Dashboard Executivo" camunda:type="external" camunda:topic="analytics.generate_executive_dashboard">
+      <bpmn:extensionElements>
+        <camunda:inputOutput>
+          <camunda:inputParameter name="dso">${currentDSO}</camunda:inputParameter>
+          <camunda:inputParameter name="collectionRate">${currentCollectionRate}</camunda:inputParameter>
+          <camunda:inputParameter name="payerPerformance">${rankedPayers}</camunda:inputParameter>
+          <camunda:inputParameter name="leakage">${identifiedLeakage}</camunda:inputParameter>
+          <camunda:outputParameter name="dashboardData">${executiveDashboard}</camunda:outputParameter>
+        </camunda:inputOutput>
+      </bpmn:extensionElements>
+      <bpmn:incoming>flow_to_executive_dashboard</bpmn:incoming>
+      <bpmn:outgoing>flow_executive_to_join</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:serviceTask id="task_generate_operational_metrics" name="Gerar Métricas Operacionais" camunda:type="external" camunda:topic="analytics.generate_operational_metrics">
+      <bpmn:extensionElements>
+        <camunda:inputOutput>
+          <camunda:inputParameter name="dsoTrend">${dsoTrendData}</camunda:inputParameter>
+          <camunda:inputParameter name="payerMetrics">${collectionByPayer}</camunda:inputParameter>
+          <camunda:outputParameter name="metricsData">${operationalMetrics}</camunda:outputParameter>
+        </camunda:inputOutput>
+      </bpmn:extensionElements>
+      <bpmn:incoming>flow_to_operational_metrics</bpmn:incoming>
+      <bpmn:outgoing>flow_operational_to_join</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:parallelGateway id="parallel_dashboard_join" name="Combinar Dashboards">
+      <bpmn:incoming>flow_executive_to_join</bpmn:incoming>
+      <bpmn:incoming>flow_operational_to_join</bpmn:incoming>
+      <bpmn:outgoing>flow_to_generate_recommendations</bpmn:outgoing>
+    </bpmn:parallelGateway>
+    <bpmn:serviceTask id="task_generate_recommendations" name="Gerar Recomendações" camunda:type="external" camunda:topic="analytics.generate_recommendations">
+      <bpmn:extensionElements>
+        <camunda:inputOutput>
+          <camunda:inputParameter name="executiveData">${dashboardData}</camunda:inputParameter>
+          <camunda:inputParameter name="operationalData">${metricsData}</camunda:inputParameter>
+          <camunda:inputParameter name="leakageData">${identifiedLeakage}</camunda:inputParameter>
+          <camunda:outputParameter name="actionableRecommendations">${recommendations}</camunda:outputParameter>
+        </camunda:inputOutput>
+      </bpmn:extensionElements>
+      <bpmn:incoming>flow_to_generate_recommendations</bpmn:incoming>
+      <bpmn:outgoing>flow_to_end_success</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:userTask id="task_review_leakage" name="Revisar Vazamento">
+      <bpmn:incoming>flow_has_leakage</bpmn:incoming>
+      <bpmn:outgoing>flow_from_leakage_review</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:boundaryEvent id="timer_daily_analytics" name="Análise Diária" attachedToRef="task_calculate_dso">
+      <bpmn:timerEventDefinition>
+        <bpmn:timeCycle xsi:type="bpmn:tFormalExpression">R/P1D</bpmn:timeCycle>
+      </bpmn:timerEventDefinition>
+    </bpmn:boundaryEvent>
+    <bpmn:endEvent id="end_success" name="Análise Concluída">
+      <bpmn:incoming>flow_to_end_success</bpmn:incoming>
+      <bpmn:messageEventDefinition messageRef="Message_AnalyticsComplete" />
+    </bpmn:endEvent>
+    <bpmn:sequenceFlow id="flow_to_calculate_dso" sourceRef="start_analytics" targetRef="task_calculate_dso" />
+    <bpmn:sequenceFlow id="flow_to_calculate_collection_rate" sourceRef="task_calculate_dso" targetRef="task_calculate_collection_rate" />
+    <bpmn:sequenceFlow id="flow_to_analyze_payer" sourceRef="task_calculate_collection_rate" targetRef="task_analyze_payer_performance" />
+    <bpmn:sequenceFlow id="flow_to_detect_leakage" sourceRef="task_analyze_payer_performance" targetRef="task_detect_revenue_leakage" />
+    <bpmn:sequenceFlow id="flow_to_leakage_gateway" sourceRef="task_detect_revenue_leakage" targetRef="gateway_leakage" />
+    <bpmn:sequenceFlow id="flow_no_leakage" name="Não" sourceRef="gateway_leakage" targetRef="Gateway_01rcflt">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">=size(identifiedLeakage) = 0</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="flow_has_leakage" name="Sim" sourceRef="gateway_leakage" targetRef="task_review_leakage" />
+    <bpmn:sequenceFlow id="flow_from_leakage_review" sourceRef="task_review_leakage" targetRef="Gateway_01rcflt" />
+    <bpmn:sequenceFlow id="flow_to_executive_dashboard" sourceRef="parallel_dashboard_start" targetRef="task_generate_executive_dashboard" />
+    <bpmn:sequenceFlow id="flow_to_operational_metrics" sourceRef="parallel_dashboard_start" targetRef="task_generate_operational_metrics" />
+    <bpmn:sequenceFlow id="flow_executive_to_join" sourceRef="task_generate_executive_dashboard" targetRef="parallel_dashboard_join" />
+    <bpmn:sequenceFlow id="flow_operational_to_join" sourceRef="task_generate_operational_metrics" targetRef="parallel_dashboard_join" />
+    <bpmn:sequenceFlow id="flow_to_generate_recommendations" sourceRef="parallel_dashboard_join" targetRef="task_generate_recommendations" />
+    <bpmn:sequenceFlow id="flow_to_end_success" sourceRef="task_generate_recommendations" targetRef="end_success" />
+    <bpmn:exclusiveGateway id="Gateway_01rcflt">
+      <bpmn:incoming>flow_no_leakage</bpmn:incoming>
+      <bpmn:incoming>flow_from_leakage_review</bpmn:incoming>
+      <bpmn:outgoing>Flow_0h9rw3j</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:sequenceFlow id="Flow_0h9rw3j" sourceRef="Gateway_01rcflt" targetRef="parallel_dashboard_start" />
+  </bpmn:process>
+  <bpmn:message id="Message_AnalyticsComplete" name="AnalyticsCompleteMessage" />
+  <bpmndi:BPMNDiagram id="BPMNDiagram_RC009">
+    <bpmndi:BPMNPlane id="BPMNPlane_RC009" bpmnElement="SP_RC_009_Analytics_Intelligence">
+      <bpmndi:BPMNShape id="shape_start_analytics" bpmnElement="start_analytics" bioc:stroke="#0d4372" bioc:fill="#bbdefb" color:background-color="#bbdefb" color:border-color="#0d4372">
+        <dc:Bounds x="180" y="172" width="36" height="36" />
+        <bpmndi:BPMNLabel color:color="#0d4372">
+          <dc:Bounds x="165" y="215" width="66" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="shape_task_calculate_dso" bpmnElement="task_calculate_dso" bioc:stroke="#0d4372" bioc:fill="#bbdefb" color:background-color="#bbdefb" color:border-color="#0d4372">
+        <dc:Bounds x="280" y="150" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="shape_task_calculate_collection_rate" bpmnElement="task_calculate_collection_rate" bioc:stroke="#0d4372" bioc:fill="#bbdefb" color:background-color="#bbdefb" color:border-color="#0d4372">
+        <dc:Bounds x="440" y="150" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="shape_task_analyze_payer_performance" bpmnElement="task_analyze_payer_performance" bioc:stroke="#0d4372" bioc:fill="#bbdefb" color:background-color="#bbdefb" color:border-color="#0d4372">
+        <dc:Bounds x="600" y="150" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="shape_task_detect_revenue_leakage" bpmnElement="task_detect_revenue_leakage" bioc:stroke="#0d4372" bioc:fill="#bbdefb" color:background-color="#bbdefb" color:border-color="#0d4372">
+        <dc:Bounds x="760" y="150" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="shape_gateway_leakage" bpmnElement="gateway_leakage" isMarkerVisible="true" bioc:stroke="#0d4372" bioc:fill="#bbdefb" color:background-color="#bbdefb" color:border-color="#0d4372">
+        <dc:Bounds x="920" y="165" width="50" height="50" />
+        <bpmndi:BPMNLabel color:color="#0d4372">
+          <dc:Bounds x="916" y="128" width="57" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="shape_parallel_dashboard_start" bpmnElement="parallel_dashboard_start" bioc:stroke="#0d4372" bioc:fill="#bbdefb" color:background-color="#bbdefb" color:border-color="#0d4372">
+        <dc:Bounds x="1125" y="165" width="50" height="50" />
+        <bpmndi:BPMNLabel color:color="#0d4372">
+          <dc:Bounds x="1185" y="176" width="60" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="shape_task_generate_executive_dashboard" bpmnElement="task_generate_executive_dashboard" bioc:stroke="#0d4372" bioc:fill="#bbdefb" color:background-color="#bbdefb" color:border-color="#0d4372">
+        <dc:Bounds x="1260" y="80" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="shape_task_generate_operational_metrics" bpmnElement="task_generate_operational_metrics" bioc:stroke="#0d4372" bioc:fill="#bbdefb" color:background-color="#bbdefb" color:border-color="#0d4372">
+        <dc:Bounds x="1260" y="230" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="shape_parallel_dashboard_join" bpmnElement="parallel_dashboard_join" bioc:stroke="#0d4372" bioc:fill="#bbdefb" color:background-color="#bbdefb" color:border-color="#0d4372">
+        <dc:Bounds x="1430" y="165" width="50" height="50" />
+        <bpmndi:BPMNLabel color:color="#0d4372">
+          <dc:Bounds x="1360" y="176" width="60" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="shape_task_generate_recommendations" bpmnElement="task_generate_recommendations" bioc:stroke="#0d4372" bioc:fill="#bbdefb" color:background-color="#bbdefb" color:border-color="#0d4372">
+        <dc:Bounds x="1520" y="150" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="shape_task_review_leakage" bpmnElement="task_review_leakage" bioc:stroke="#0d4372" bioc:fill="#bbdefb" color:background-color="#bbdefb" color:border-color="#0d4372">
+        <dc:Bounds x="895" y="290" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="shape_end_success" bpmnElement="end_success" bioc:stroke="#0d4372" bioc:fill="#bbdefb" color:background-color="#bbdefb" color:border-color="#0d4372">
+        <dc:Bounds x="1692" y="172" width="36" height="36" />
+        <bpmndi:BPMNLabel color:color="#0d4372">
+          <dc:Bounds x="1666" y="215" width="89" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Gateway_01rcflt_di" bpmnElement="Gateway_01rcflt" isMarkerVisible="true" bioc:stroke="#0d4372" bioc:fill="#bbdefb" color:background-color="#bbdefb" color:border-color="#0d4372">
+        <dc:Bounds x="1035" y="165" width="50" height="50" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="shape_timer_daily_analytics" bpmnElement="timer_daily_analytics" bioc:stroke="#0d4372" bioc:fill="#bbdefb" color:background-color="#bbdefb" color:border-color="#0d4372">
+        <dc:Bounds x="312" y="212" width="36" height="36" />
+        <bpmndi:BPMNLabel color:color="#0d4372">
+          <dc:Bounds x="296" y="255" width="68" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="edge_flow_to_calculate_dso" bpmnElement="flow_to_calculate_dso" bioc:stroke="#0d4372" color:border-color="#0d4372">
+        <di:waypoint x="216" y="190" />
+        <di:waypoint x="280" y="190" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="edge_flow_to_calculate_collection_rate" bpmnElement="flow_to_calculate_collection_rate" bioc:stroke="#0d4372" color:border-color="#0d4372">
+        <di:waypoint x="380" y="190" />
+        <di:waypoint x="440" y="190" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="edge_flow_to_analyze_payer" bpmnElement="flow_to_analyze_payer" bioc:stroke="#0d4372" color:border-color="#0d4372">
+        <di:waypoint x="540" y="190" />
+        <di:waypoint x="600" y="190" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="edge_flow_to_detect_leakage" bpmnElement="flow_to_detect_leakage" bioc:stroke="#0d4372" color:border-color="#0d4372">
+        <di:waypoint x="700" y="190" />
+        <di:waypoint x="760" y="190" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="edge_flow_to_leakage_gateway" bpmnElement="flow_to_leakage_gateway" bioc:stroke="#0d4372" color:border-color="#0d4372">
+        <di:waypoint x="860" y="190" />
+        <di:waypoint x="920" y="190" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="edge_flow_no_leakage" bpmnElement="flow_no_leakage" bioc:stroke="#0d4372" color:border-color="#0d4372">
+        <di:waypoint x="970" y="190" />
+        <di:waypoint x="1035" y="190" />
+        <bpmndi:BPMNLabel color:color="#0d4372">
+          <dc:Bounds x="989" y="172" width="21" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="edge_flow_has_leakage" bpmnElement="flow_has_leakage" bioc:stroke="#0d4372" color:border-color="#0d4372">
+        <di:waypoint x="945" y="215" />
+        <di:waypoint x="945" y="290" />
+        <bpmndi:BPMNLabel color:color="#0d4372">
+          <dc:Bounds x="953" y="251" width="20" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="edge_flow_from_leakage_review" bpmnElement="flow_from_leakage_review" bioc:stroke="#0d4372" color:border-color="#0d4372">
+        <di:waypoint x="995" y="330" />
+        <di:waypoint x="1060" y="330" />
+        <di:waypoint x="1060" y="215" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="edge_flow_to_executive_dashboard" bpmnElement="flow_to_executive_dashboard" bioc:stroke="#0d4372" color:border-color="#0d4372">
+        <di:waypoint x="1150" y="165" />
+        <di:waypoint x="1150" y="120" />
+        <di:waypoint x="1260" y="120" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="edge_flow_to_operational_metrics" bpmnElement="flow_to_operational_metrics" bioc:stroke="#0d4372" color:border-color="#0d4372">
+        <di:waypoint x="1150" y="215" />
+        <di:waypoint x="1150" y="270" />
+        <di:waypoint x="1260" y="270" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="edge_flow_executive_to_join" bpmnElement="flow_executive_to_join" bioc:stroke="#0d4372" color:border-color="#0d4372">
+        <di:waypoint x="1360" y="120" />
+        <di:waypoint x="1455" y="120" />
+        <di:waypoint x="1455" y="165" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="edge_flow_operational_to_join" bpmnElement="flow_operational_to_join" bioc:stroke="#0d4372" color:border-color="#0d4372">
+        <di:waypoint x="1360" y="270" />
+        <di:waypoint x="1455" y="270" />
+        <di:waypoint x="1455" y="215" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="edge_flow_to_generate_recommendations" bpmnElement="flow_to_generate_recommendations" bioc:stroke="#0d4372" color:border-color="#0d4372">
+        <di:waypoint x="1480" y="190" />
+        <di:waypoint x="1520" y="190" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="edge_flow_to_end_success" bpmnElement="flow_to_end_success" bioc:stroke="#0d4372" color:border-color="#0d4372">
+        <di:waypoint x="1620" y="190" />
+        <di:waypoint x="1692" y="190" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_0h9rw3j_di" bpmnElement="Flow_0h9rw3j" bioc:stroke="#0d4372" color:border-color="#0d4372">
+        <di:waypoint x="1085" y="190" />
+        <di:waypoint x="1125" y="190" />
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>

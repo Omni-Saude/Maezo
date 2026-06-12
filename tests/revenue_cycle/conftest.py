@@ -15,6 +15,8 @@ from healthcare_platform.shared.multi_tenant.context import (
     clear_tenant,
 )
 from healthcare_platform.shared.domain.enums import TenantCode
+from healthcare_platform.shared.integrations.fhir_client import StubFHIRClient
+from tests.fixtures.fhir_seed import FHIRSeedData, create_rc_seed
 
 
 @pytest.fixture(autouse=True)
@@ -67,3 +69,43 @@ def mock_task():
     task.worker_id = "worker-456"
     task.topic_name = "test-topic"
     return task
+
+
+@pytest.fixture
+def stub_fhir_client() -> StubFHIRClient:
+    """StubFHIRClient vazio — para controle granular por teste."""
+    return StubFHIRClient()
+
+
+@pytest.fixture
+async def rc_fhir_seed(stub_fhir_client: StubFHIRClient):
+    """StubFHIRClient pré-populado com cenário happy_path.
+
+    Uso::
+
+        async def test_algo(rc_fhir_seed):
+            client, seed = rc_fhir_seed
+            patient = await client.read("Patient", seed.patient_id)
+    """
+    seed = await create_rc_seed(stub_fhir_client, tenant_id="austa-hospital", scenario="happy_path")
+    return stub_fhir_client, seed
+
+
+@pytest.fixture
+def rc_fhir_seed_factory(stub_fhir_client: StubFHIRClient):
+    """Factory para escolher cenário.
+
+    Uso::
+
+        async def test_algo(rc_fhir_seed_factory):
+            client, seed = await rc_fhir_seed_factory("auth_denied")
+            assert seed.encounter_id is None
+    """
+    async def _make(
+        scenario: str = "happy_path",
+        tenant_id: str = "austa-hospital",
+    ) -> tuple[StubFHIRClient, FHIRSeedData]:
+        seed = await create_rc_seed(stub_fhir_client, tenant_id=tenant_id, scenario=scenario)
+        return stub_fhir_client, seed
+
+    return _make

@@ -1,0 +1,1 @@
+from healthcare_platform.contract_extraction.router import router

@@ -1,0 +1,146 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/"
+             xmlns:dc="http://www.omg.org/spec/DMN/20180521/DC/"
+             xmlns:di="http://www.omg.org/spec/DMN/20180521/DI/"
+             xmlns:camunda="http://camunda.org/schema/1.0/dmn"
+             id="Definitions_QuantityCalculationAdjudication"
+             name="Quantity Calculation Adjudication"
+             namespace="http://camunda.org/schema/1.0/dmn">
+  <!-- Archetype: ADMIN_ADJUDICATION | Source: quantity_calculation_adjudication_worker.py -->
+
+  <!-- Source: calculate_quantity_worker.py
+       Rules extracted from _DURATION_BASED_CODES, _MAX_QUANTITY_MAP, and quantity < 1 check.
+  -->
+
+  <decision id="Decision_QuantityCalcAdj" name="[SP-RC-003 | pricing/quantity] Quantity Calculation Adjudication" camunda:historyTimeToLive="180">
+    <decisionTable id="DecisionTable_QuantityCalcAdj" hitPolicy="FIRST">
+
+      <input id="Input_procedureCode_QuantityCalcAdj" label="Procedure Code">
+        <inputExpression id="InputExpr_procedureCode_QuantityCalcAdj" typeRef="string">
+          <text>procedureCode</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_encounterDurationMinutes_QuantityCalcAdj" label="Encounter Duration (min)">
+        <inputExpression id="InputExpr_encounterDurationMinutes_QuantityCalcAdj" typeRef="number">
+          <text>encounterDurationMinutes</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_existingQuantity_QuantityCalcAdj" label="Existing Quantity">
+        <inputExpression id="InputExpr_existingQuantity_QuantityCalcAdj" typeRef="number">
+          <text>existingQuantity</text>
+        </inputExpression>
+      </input>
+
+      <output id="Output_resultado_QuantityCalcAdj" label="Resultado" name="resultado" typeRef="string">
+        <outputValues><text>"PROSSEGUIR","BLOQUEAR","REVISAR"</text></outputValues>
+      </output>
+
+      <output id="Output_acao_QuantityCalcAdj" label="Acao" name="acao" typeRef="string"/>
+
+      <output id="Output_risco_QuantityCalcAdj" label="Risco" name="risco" typeRef="string">
+        <outputValues><text>"CRITICO","ALTO","MEDIO","BAIXO"</text></outputValues>
+      </output>
+
+      <!-- R1: Quantity less than 1 — hard block -->
+      <rule id="Rule_qty_invalid_QuantityCalcAdj">
+        <description>Quantity below minimum — block</description>
+        <inputEntry id="IE_qi_1_QuantityCalcAdj"><text>-</text></inputEntry>
+        <inputEntry id="IE_qi_2_QuantityCalcAdj"><text>-</text></inputEntry>
+        <inputEntry id="IE_qi_3_QuantityCalcAdj"><text>&lt; 1</text></inputEntry>
+        <outputEntry id="OE_qi_res_QuantityCalcAdj"><text>"BLOQUEAR"</text></outputEntry>
+        <outputEntry id="OE_qi_acao_QuantityCalcAdj"><text>"Invalid quantity"</text></outputEntry>
+        <outputEntry id="OE_qi_risco_QuantityCalcAdj"><text>"CRITICO"</text></outputEntry>
+      </rule>
+
+      <!-- R2: Max qty exceeded — office visit 4/day -->
+      <rule id="Rule_max_office_QuantityCalcAdj">
+        <description>Office visit exceeds 4/day limit</description>
+        <inputEntry id="IE_mo_1_QuantityCalcAdj"><text>"40101010"</text></inputEntry>
+        <inputEntry id="IE_mo_2_QuantityCalcAdj"><text>-</text></inputEntry>
+        <inputEntry id="IE_mo_3_QuantityCalcAdj"><text>&gt; 4</text></inputEntry>
+        <outputEntry id="OE_mo_res_QuantityCalcAdj"><text>"BLOQUEAR"</text></outputEntry>
+        <outputEntry id="OE_mo_acao_QuantityCalcAdj"><text>"Quantity exceeds limit: max 4/day for office visit"</text></outputEntry>
+        <outputEntry id="OE_mo_risco_QuantityCalcAdj"><text>"MEDIO"</text></outputEntry>
+      </rule>
+
+      <!-- R3: Max qty exceeded — specialist 2/day -->
+      <rule id="Rule_max_specialist_QuantityCalcAdj">
+        <description>Specialist consult exceeds 2/day limit</description>
+        <inputEntry id="IE_ms_1_QuantityCalcAdj"><text>"40201010"</text></inputEntry>
+        <inputEntry id="IE_ms_2_QuantityCalcAdj"><text>-</text></inputEntry>
+        <inputEntry id="IE_ms_3_QuantityCalcAdj"><text>&gt; 2</text></inputEntry>
+        <outputEntry id="OE_ms_res_QuantityCalcAdj"><text>"BLOQUEAR"</text></outputEntry>
+        <outputEntry id="OE_ms_acao_QuantityCalcAdj"><text>"Quantity exceeds limit: max 2/day for specialist"</text></outputEntry>
+        <outputEntry id="OE_ms_risco_QuantityCalcAdj"><text>"MEDIO"</text></outputEntry>
+      </rule>
+
+      <!-- R4: Max qty exceeded — anesthesia 48 blocks (12h) -->
+      <rule id="Rule_max_anesthesia_QuantityCalcAdj">
+        <description>Anesthesia exceeds 48 blocks (12h) limit</description>
+        <inputEntry id="IE_ma_1_QuantityCalcAdj"><text>"20101012"</text></inputEntry>
+        <inputEntry id="IE_ma_2_QuantityCalcAdj"><text>-</text></inputEntry>
+        <inputEntry id="IE_ma_3_QuantityCalcAdj"><text>&gt; 48</text></inputEntry>
+        <outputEntry id="OE_ma_res_QuantityCalcAdj"><text>"BLOQUEAR"</text></outputEntry>
+        <outputEntry id="OE_ma_acao_QuantityCalcAdj"><text>"Quantity exceeds limit: max 48 blocks for anesthesia"</text></outputEntry>
+        <outputEntry id="OE_ma_risco_QuantityCalcAdj"><text>"MEDIO"</text></outputEntry>
+      </rule>
+
+      <!-- R5: Duration-based — anesthesia 15min blocks -->
+      <rule id="Rule_dur_anesthesia_QuantityCalcAdj">
+        <description>Anesthesia: calculate 15-minute blocks</description>
+        <inputEntry id="IE_da_1_QuantityCalcAdj"><text>"20101012"</text></inputEntry>
+        <inputEntry id="IE_da_2_QuantityCalcAdj"><text>&gt; 0</text></inputEntry>
+        <inputEntry id="IE_da_3_QuantityCalcAdj"><text>-</text></inputEntry>
+        <outputEntry id="OE_da_res_QuantityCalcAdj"><text>"PROSSEGUIR"</text></outputEntry>
+        <outputEntry id="OE_da_acao_QuantityCalcAdj"><text>"Duration-based: 15min blocks"</text></outputEntry>
+        <outputEntry id="OE_da_risco_QuantityCalcAdj"><text>"BAIXO"</text></outputEntry>
+      </rule>
+
+      <!-- R6: Duration-based — ventilator hourly -->
+      <rule id="Rule_dur_ventilator_QuantityCalcAdj">
+        <description>Ventilator support: calculate hourly rate</description>
+        <inputEntry id="IE_dv_1_QuantityCalcAdj"><text>"20201010"</text></inputEntry>
+        <inputEntry id="IE_dv_2_QuantityCalcAdj"><text>&gt; 0</text></inputEntry>
+        <inputEntry id="IE_dv_3_QuantityCalcAdj"><text>-</text></inputEntry>
+        <outputEntry id="OE_dv_res_QuantityCalcAdj"><text>"PROSSEGUIR"</text></outputEntry>
+        <outputEntry id="OE_dv_acao_QuantityCalcAdj"><text>"Duration-based: hourly rate"</text></outputEntry>
+        <outputEntry id="OE_dv_risco_QuantityCalcAdj"><text>"BAIXO"</text></outputEntry>
+      </rule>
+
+      <!-- R7: Duration-based — ICU daily -->
+      <rule id="Rule_dur_icu_QuantityCalcAdj">
+        <description>ICU: calculate daily rate</description>
+        <inputEntry id="IE_di_1_QuantityCalcAdj"><text>"31303072"</text></inputEntry>
+        <inputEntry id="IE_di_2_QuantityCalcAdj"><text>&gt; 0</text></inputEntry>
+        <inputEntry id="IE_di_3_QuantityCalcAdj"><text>-</text></inputEntry>
+        <outputEntry id="OE_di_res_QuantityCalcAdj"><text>"PROSSEGUIR"</text></outputEntry>
+        <outputEntry id="OE_di_acao_QuantityCalcAdj"><text>"Duration-based: daily rate"</text></outputEntry>
+        <outputEntry id="OE_di_risco_QuantityCalcAdj"><text>"BAIXO"</text></outputEntry>
+      </rule>
+
+      <!-- R8: Default — standard quantity -->
+      <rule id="Rule_default_QuantityCalcAdj">
+        <description>Standard quantity — proceed</description>
+        <inputEntry id="IE_def_1_QuantityCalcAdj"><text>-</text></inputEntry>
+        <inputEntry id="IE_def_2_QuantityCalcAdj"><text>-</text></inputEntry>
+        <inputEntry id="IE_def_3_QuantityCalcAdj"><text>-</text></inputEntry>
+        <outputEntry id="OE_def_res_QuantityCalcAdj"><text>"PROSSEGUIR"</text></outputEntry>
+        <outputEntry id="OE_def_acao_QuantityCalcAdj"><text>"Standard quantity"</text></outputEntry>
+        <outputEntry id="OE_def_risco_QuantityCalcAdj"><text>"BAIXO"</text></outputEntry>
+      </rule>
+
+    </decisionTable>
+  </decision>
+
+  <dmndi:DMNDI>
+    <dmndi:DMNDiagram id="DMNDiagram_1_QuantityCalcAdj">
+      <dmndi:DMNShape id="DMNShape_Decision_QuantityCalcAdj" dmnElementRef="Decision_QuantityCalcAdj">
+        <dc:Bounds height="80" width="180" x="160" y="100"/>
+      </dmndi:DMNShape>
+    </dmndi:DMNDiagram>
+  </dmndi:DMNDI>
+
+</definitions>

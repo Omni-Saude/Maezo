@@ -1,0 +1,107 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/"
+             xmlns:dc="http://www.omg.org/spec/DMN/20180521/DC/"
+             xmlns:di="http://www.omg.org/spec/DMN/20180521/DI/"
+             xmlns:camunda="http://camunda.org/schema/1.0/dmn"
+             id="Definitions_ProviderPeerDeviation"
+             name="Provider Peer Deviation Decision"
+             namespace="http://camunda.org/schema/1.0/dmn">
+  <!-- Archetype: CLINICAL_SCORE | Source: provider_peer_deviation_worker.py -->
+
+  <!-- DMN: Provider Peer Deviation Detection
+       Based on: detect_fraud_worker.py lines 450-492
+       Rule: Compare provider coding pattern against peer averages
+  -->
+
+  <decision id="Decision_ProviderPeerDeviation" name="[SP-RC-005 | coding_audit/fraud_scoring] Provider Peer Deviation" camunda:historyTimeToLive="180">
+    <decisionTable id="DecisionTable_ProviderPeerDeviation" hitPolicy="FIRST">
+
+      <!-- === INPUTS === -->
+      <input id="Input_deviationPct_ProviderPeerDeviation" label="Deviation Percentage">
+        <inputExpression id="InputExpr_deviationPct_ProviderPeerDeviation" typeRef="number">
+          <text>deviation_pct</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_providerVolume_ProviderPeerDeviation" label="Provider Volume">
+        <inputExpression id="InputExpr_providerVolume_ProviderPeerDeviation" typeRef="number">
+          <text>provider_volume</text>
+        </inputExpression>
+      </input>
+
+      <!-- === OUTPUTS === -->
+      <output id="Output_resultado_ProviderPeerDeviation" label="Resultado" name="resultado" typeRef="string">
+        <outputValues><text>"PROSSEGUIR","BLOQUEAR","REVISAR"</text></outputValues>
+      </output>
+
+      <output id="Output_acao_ProviderPeerDeviation" label="Acao" name="acao" typeRef="string"/>
+
+      <output id="Output_risco_ProviderPeerDeviation" label="Risco" name="risco" typeRef="string">
+        <outputValues><text>"CRITICO","ALTO","MEDIO","BAIXO"</text></outputValues>
+      </output>
+
+      <!-- === RULES === -->
+
+      <!-- Rule 1: Deviation > 50% with high volume - critical pattern -->
+      <rule id="Rule_HighDeviationHighVolume_ProviderPeerDeviation">
+        <description>Desvio critico: &gt;50% com alto volume</description>
+        <inputEntry id="IE_HighHigh_1_ProviderPeerDeviation"><text>&gt; 50</text></inputEntry>
+        <inputEntry id="IE_HighHigh_2_ProviderPeerDeviation"><text>&gt; 10</text></inputEntry>
+        <outputEntry id="OE_HighHigh_res_ProviderPeerDeviation"><text>"BLOQUEAR"</text></outputEntry>
+        <outputEntry id="OE_HighHigh_acao_ProviderPeerDeviation"><text>"Padrao de codificacao do prestador diverge criticamente dos pares (&gt;50%, alto volume)"</text></outputEntry>
+        <outputEntry id="OE_HighHigh_risco_ProviderPeerDeviation"><text>"CRITICO"</text></outputEntry>
+      </rule>
+
+      <!-- Rule 2: Deviation > 30% - high risk pattern -->
+      <rule id="Rule_MediumDeviation_ProviderPeerDeviation">
+        <description>Desvio alto: &gt;30%</description>
+        <inputEntry id="IE_Medium_1_ProviderPeerDeviation"><text>&gt; 30</text></inputEntry>
+        <inputEntry id="IE_Medium_2_ProviderPeerDeviation"><text>-</text></inputEntry>
+        <outputEntry id="OE_Medium_res_ProviderPeerDeviation"><text>"REVISAR"</text></outputEntry>
+        <outputEntry id="OE_Medium_acao_ProviderPeerDeviation"><text>"Padrao de codificacao do prestador diverge significativamente dos pares (&gt;30%)"</text></outputEntry>
+        <outputEntry id="OE_Medium_risco_ProviderPeerDeviation"><text>"ALTO"</text></outputEntry>
+      </rule>
+
+      <!-- Rule 3: Deviation <= 30% - normal range -->
+      <rule id="Rule_NormalDeviation_ProviderPeerDeviation">
+        <description>Desvio normal: &lt;= 30%</description>
+        <inputEntry id="IE_Normal_1_ProviderPeerDeviation"><text>&lt;= 30</text></inputEntry>
+        <inputEntry id="IE_Normal_2_ProviderPeerDeviation"><text>-</text></inputEntry>
+        <outputEntry id="OE_Normal_res_ProviderPeerDeviation"><text>"PROSSEGUIR"</text></outputEntry>
+        <outputEntry id="OE_Normal_acao_ProviderPeerDeviation"><text>"Padrao de codificacao do prestador dentro da faixa normal"</text></outputEntry>
+        <outputEntry id="OE_Normal_risco_ProviderPeerDeviation"><text>"BAIXO"</text></outputEntry>
+      </rule>
+
+      <!-- Fallback: Unknown deviation - review -->
+      
+      <rule id="Rule_HighRisk_ProviderPeerDeviation">
+        <description>Risco alto detectado - revisao obrigatoria</description>
+        <inputEntry id="IE_HighRisk_1_ProviderPeerDeviation"><text>-</text></inputEntry>
+        <inputEntry id="IE_HighRisk_2_ProviderPeerDeviation"><text>-</text></inputEntry>
+        <outputEntry id="OE_HighRisk_res_ProviderPeerDeviation"><text>"REVISAR"</text></outputEntry>
+        <outputEntry id="OE_HighRisk_acao_ProviderPeerDeviation"><text>"Situacao de risco alto identificada - avaliacao detalhada necessaria"</text></outputEntry>
+        <outputEntry id="OE_HighRisk_risco_ProviderPeerDeviation"><text>"ALTO"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_Fallback_ProviderPeerDeviation">
+        <description>Desvio desconhecido - revisao obrigatoria</description>
+        <inputEntry id="IE_fb_1_ProviderPeerDeviation"><text>-</text></inputEntry>
+        <inputEntry id="IE_fb_2_ProviderPeerDeviation"><text>-</text></inputEntry>
+        <outputEntry id="OE_fb_res_ProviderPeerDeviation"><text>"REVISAR"</text></outputEntry>
+        <outputEntry id="OE_fb_acao_ProviderPeerDeviation"><text>"Desvio do prestador requer avaliacao manual"</text></outputEntry>
+        <outputEntry id="OE_fb_risco_ProviderPeerDeviation"><text>"MEDIO"</text></outputEntry>
+      </rule>
+
+    </decisionTable>
+  </decision>
+
+  <dmndi:DMNDI>
+    <dmndi:DMNDiagram id="DMNDiagram_ProviderPeerDeviation">
+      <dmndi:DMNShape id="DMNShape_Decision_ProviderPeerDeviation" dmnElementRef="Decision_ProviderPeerDeviation">
+        <dc:Bounds height="80" width="180" x="160" y="100"/>
+      </dmndi:DMNShape>
+    </dmndi:DMNDiagram>
+  </dmndi:DMNDI>
+
+</definitions>

@@ -1,0 +1,248 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" xmlns:camunda="http://camunda.org/schema/1.0/bpmn" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:bioc="http://bpmn.io/schema/bpmn/biocolor/1.0" xmlns:color="http://www.omg.org/spec/BPMN/non-normative/color/1.0" id="Definitions_SP_RC_015" targetNamespace="http://cib7.healthcare/revenue-cycle/financial-selfservice" exporter="Camunda Modeler" exporterVersion="5.35.0">
+  <bpmn:collaboration id="Collaboration_PatientFinancialSelfService">
+    <bpmn:participant id="Participant_PatientSelfService" name="FLUXO DE PAGAMENTO  PARA PACIENTES" processRef="SP_RC_015_Patient_Payment" />
+    <bpmn:textAnnotation id="TextAnnotation_1fnzttb">
+      <bpmn:text>coletar justificativa junto ao Pós-Venda</bpmn:text>
+    </bpmn:textAnnotation>
+    <bpmn:textAnnotation id="TextAnnotation_17dc8mt">
+      <bpmn:text>enviar NF após realizar o serviço e fechar a conta</bpmn:text>
+    </bpmn:textAnnotation>
+    <bpmn:textAnnotation id="TextAnnotation_0dc515b">
+      <bpmn:text>adiantamento de cliente</bpmn:text>
+    </bpmn:textAnnotation>
+    <bpmn:textAnnotation id="TextAnnotation_0ez7dfz">
+      <bpmn:text>envio do link CIELO</bpmn:text>
+    </bpmn:textAnnotation>
+    <bpmn:textAnnotation id="TextAnnotation_03p6qrj">
+      <bpmn:text>integração CIELO</bpmn:text>
+    </bpmn:textAnnotation>
+    <bpmn:association id="Association_0xr8zbc" associationDirection="None" sourceRef="EndEvent_PaymentComplete" targetRef="TextAnnotation_17dc8mt" />
+    <bpmn:association id="Association_0prda21" associationDirection="None" sourceRef="Activity_0q7ozmd" targetRef="TextAnnotation_0dc515b" />
+    <bpmn:association id="Association_1x91470" associationDirection="None" sourceRef="Task_ProcessPayment" targetRef="TextAnnotation_0ez7dfz" />
+    <bpmn:association id="Association_0eti0m4" associationDirection="None" sourceRef="Task_PaymentConfirmed" targetRef="TextAnnotation_03p6qrj" />
+  </bpmn:collaboration>
+  <bpmn:process id="SP_RC_015_Patient_Payment" name="Pagamento do Paciente" isExecutable="true" camunda:versionTag="1.0.0" camunda:historyTimeToLive="30">
+    <bpmn:startEvent id="StartEvent_Payment" name="pagamento&#10;iniciado">
+      <bpmn:outgoing>Flow_ToPaymentMethod</bpmn:outgoing>
+    </bpmn:startEvent>
+    <bpmn:exclusiveGateway id="Gateway_PaymentMethod" default="Flow_PayLater">
+      <bpmn:incoming>Flow_ToPaymentMethod</bpmn:incoming>
+      <bpmn:outgoing>Flow_PayNow</bpmn:outgoing>
+      <bpmn:outgoing>Flow_PayLater</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:serviceTask id="Task_ProcessPayment" name="Gerar&#10;pagamento" camunda:type="external" camunda:topic="financial.payment_process">
+      <bpmn:incoming>Flow_PayNow</bpmn:incoming>
+      <bpmn:outgoing>Flow_0ywrgoo</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:boundaryEvent id="BoundaryEvent_PaymentFailure" name="erro no&#10;pagamento" attachedToRef="Task_ProcessPayment">
+      <bpmn:outgoing>Flow_PaymentFailureToEnd</bpmn:outgoing>
+      <bpmn:errorEventDefinition id="ErrorEventDefinition_PaymentFailure" errorRef="Error_FinancialPayment" />
+    </bpmn:boundaryEvent>
+    <bpmn:serviceTask id="Task_PaymentConfirmed" name="Confirmar&#10;pagamento" camunda:type="external" camunda:topic="financial.payment_confirmed">
+      <bpmn:incoming>Flow_0h7j49g</bpmn:incoming>
+      <bpmn:outgoing>Flow_0p9wb4d</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:exclusiveGateway id="Gateway_0mv5ecp">
+      <bpmn:incoming>Flow_0ywrgoo</bpmn:incoming>
+      <bpmn:incoming>Flow_PaymentPlanToConfirmed</bpmn:incoming>
+      <bpmn:outgoing>Flow_0h7j49g</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:endEvent id="Event_1vc0dcr" name="pagamento&#10;não concluído">
+      <bpmn:incoming>Flow_PaymentFailureToEnd</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:intermediateThrowEvent id="Event_1yjwwze" name="pagamento&#10;concluído">
+      <bpmn:incoming>Flow_0p9wb4d</bpmn:incoming>
+      <bpmn:outgoing>Flow_0btmht5</bpmn:outgoing>
+    </bpmn:intermediateThrowEvent>
+    <bpmn:serviceTask id="Activity_0izmecj" name="Enviar recibo&#10;via Tasy" camunda:type="external" camunda:topic="financial.send_receipt_tasy">
+      <bpmn:incoming>Flow_0d83x4g</bpmn:incoming>
+      <bpmn:outgoing>Flow_1fms7ah</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:serviceTask id="Activity_0q7ozmd" name="Gerar&#10;recibo" camunda:type="external" camunda:topic="financial.generate_receipt">
+      <bpmn:incoming>Flow_0btmht5</bpmn:incoming>
+      <bpmn:outgoing>Flow_0d83x4g</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:endEvent id="EndEvent_PaymentComplete" name="pagamento&#10;realizado">
+      <bpmn:incoming>Flow_1fms7ah</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:serviceTask id="Task_SetupPaymentPlan" name="Programar&#10;pagamento" camunda:type="external" camunda:topic="financial.payment_plan">
+      <bpmn:incoming>Flow_PayLater</bpmn:incoming>
+      <bpmn:outgoing>Flow_PaymentPlanToConfirmed</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:sequenceFlow id="Flow_ToPaymentMethod" sourceRef="StartEvent_Payment" targetRef="Gateway_PaymentMethod" />
+    <bpmn:sequenceFlow id="Flow_PayNow" name="Pagamento&#10;pré" sourceRef="Gateway_PaymentMethod" targetRef="Task_ProcessPayment">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${paymentMethod == 'PAY_NOW'}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_PayLater" name="Pagamento&#10;pós" sourceRef="Gateway_PaymentMethod" targetRef="Task_SetupPaymentPlan">
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_0ywrgoo" sourceRef="Task_ProcessPayment" targetRef="Gateway_0mv5ecp" />
+    <bpmn:sequenceFlow id="Flow_PaymentFailureToEnd" sourceRef="BoundaryEvent_PaymentFailure" targetRef="Event_1vc0dcr" />
+    <bpmn:sequenceFlow id="Flow_0h7j49g" sourceRef="Gateway_0mv5ecp" targetRef="Task_PaymentConfirmed" />
+    <bpmn:sequenceFlow id="Flow_0p9wb4d" sourceRef="Task_PaymentConfirmed" targetRef="Event_1yjwwze" />
+    <bpmn:sequenceFlow id="Flow_PaymentPlanToConfirmed" sourceRef="Task_SetupPaymentPlan" targetRef="Gateway_0mv5ecp" />
+    <bpmn:sequenceFlow id="Flow_0btmht5" sourceRef="Event_1yjwwze" targetRef="Activity_0q7ozmd" />
+    <bpmn:sequenceFlow id="Flow_0d83x4g" sourceRef="Activity_0q7ozmd" targetRef="Activity_0izmecj" />
+    <bpmn:sequenceFlow id="Flow_1fms7ah" sourceRef="Activity_0izmecj" targetRef="EndEvent_PaymentComplete" />
+  </bpmn:process>
+  <bpmn:message id="Message_PatientAck" name="msg_patient_ack" />
+  <bpmn:message id="Message_PaymentResponse" name="msg_payment_response" />
+  <bpmn:message id="Message_InsuranceResponse" name="msg_insurance_response" />
+  <bpmn:error id="Error_FinancialPayment" name="FINANCIAL_PAYMENT_ERROR" errorCode="FIN_PAYMENT" />
+  <bpmn:error id="Error_FinancialEstimate" name="FINANCIAL_ESTIMATE_ERROR" errorCode="FIN_ESTIMATE" />
+  <bpmndi:BPMNDiagram id="BPMNDiagram_SP_RC_015">
+    <bpmndi:BPMNPlane id="BPMNPlane_SP_RC_015" bpmnElement="Collaboration_PatientFinancialSelfService">
+      <bpmndi:BPMNShape id="Participant_PatientSelfService_di" bpmnElement="Participant_PatientSelfService" isHorizontal="true">
+        <dc:Bounds x="130" y="80" width="1300" height="650" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="StartEvent_Payment_di" bpmnElement="StartEvent_Payment">
+        <dc:Bounds x="242" y="412" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="233" y="455" width="56" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Gateway_PaymentMethod_di" bpmnElement="Gateway_PaymentMethod" isMarkerVisible="true">
+        <dc:Bounds x="315" y="405" width="50" height="50" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1065" y="603" width="90" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_ProcessPayment_di" bpmnElement="Task_ProcessPayment">
+        <dc:Bounds x="450" y="269" width="100" height="80" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_PaymentConfirmed_di" bpmnElement="Task_PaymentConfirmed">
+        <dc:Bounds x="630" y="390" width="100" height="80" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Gateway_0mv5ecp_di" bpmnElement="Gateway_0mv5ecp" isMarkerVisible="true">
+        <dc:Bounds x="475" y="405" width="50" height="50" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Event_1vc0dcr_di" bpmnElement="Event_1vc0dcr">
+        <dc:Bounds x="662" y="291" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="646" y="334" width="69" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Event_1yjwwze_di" bpmnElement="Event_1yjwwze">
+        <dc:Bounds x="782" y="412" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="772" y="455" width="56" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Activity_02dqdyw_di" bpmnElement="Activity_0izmecj">
+        <dc:Bounds x="1020" y="390" width="100" height="80" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Activity_1fi1a67_di" bpmnElement="Activity_0q7ozmd">
+        <dc:Bounds x="870" y="390" width="100" height="80" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="EndEvent_PaymentComplete_di" bpmnElement="EndEvent_PaymentComplete">
+        <dc:Bounds x="1173" y="412" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1163" y="461" width="56" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_SetupPaymentPlan_di" bpmnElement="Task_SetupPaymentPlan" bioc:stroke="#5b176d" bioc:fill="#e1bee7" color:background-color="#e1bee7" color:border-color="#5b176d">
+        <dc:Bounds x="450" y="499" width="100" height="80" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="BoundaryEvent_PaymentFailure_di" bpmnElement="BoundaryEvent_PaymentFailure">
+        <dc:Bounds x="532" y="290" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="582" y="296" width="56" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Flow_ToPaymentMethod_di" bpmnElement="Flow_ToPaymentMethod">
+        <di:waypoint x="278" y="430" />
+        <di:waypoint x="315" y="430" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_PayNow_di" bpmnElement="Flow_PayNow">
+        <di:waypoint x="340" y="405" />
+        <di:waypoint x="340" y="309" />
+        <di:waypoint x="450" y="309" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="359" y="295" width="57" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_PayLater_di" bpmnElement="Flow_PayLater">
+        <di:waypoint x="340" y="455" />
+        <di:waypoint x="340" y="539" />
+        <di:waypoint x="450" y="539" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="355" y="525" width="57" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_0ywrgoo_di" bpmnElement="Flow_0ywrgoo">
+        <di:waypoint x="500" y="349" />
+        <di:waypoint x="500" y="405" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_PaymentFailureToEnd_di" bpmnElement="Flow_PaymentFailureToEnd">
+        <di:waypoint x="568" y="309" />
+        <di:waypoint x="662" y="309" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_0h7j49g_di" bpmnElement="Flow_0h7j49g">
+        <di:waypoint x="525" y="430" />
+        <di:waypoint x="630" y="430" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_0p9wb4d_di" bpmnElement="Flow_0p9wb4d">
+        <di:waypoint x="730" y="430" />
+        <di:waypoint x="782" y="430" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_PaymentPlanToConfirmed_di" bpmnElement="Flow_PaymentPlanToConfirmed">
+        <di:waypoint x="500" y="499" />
+        <di:waypoint x="500" y="455" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_0btmht5_di" bpmnElement="Flow_0btmht5">
+        <di:waypoint x="818" y="430" />
+        <di:waypoint x="870" y="430" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_0d83x4g_di" bpmnElement="Flow_0d83x4g">
+        <di:waypoint x="970" y="430" />
+        <di:waypoint x="1020" y="430" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_1fms7ah_di" bpmnElement="Flow_1fms7ah" bioc:stroke="#6b3c00" color:border-color="#6b3c00">
+        <di:waypoint x="1120" y="430" />
+        <di:waypoint x="1173" y="430" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape id="TextAnnotation_1fnzttb_di" bpmnElement="TextAnnotation_1fnzttb">
+        <dc:Bounds x="1051" y="526" width="130" height="60" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="TextAnnotation_17dc8mt_di" bpmnElement="TextAnnotation_17dc8mt">
+        <dc:Bounds x="1111" y="280" width="160" height="70" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="TextAnnotation_0dc515b_di" bpmnElement="TextAnnotation_0dc515b">
+        <dc:Bounds x="871" y="545" width="100" height="41" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="TextAnnotation_0ez7dfz_di" bpmnElement="TextAnnotation_0ez7dfz">
+        <dc:Bounds x="451" y="195" width="100" height="41" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="TextAnnotation_03p6qrj_di" bpmnElement="TextAnnotation_03p6qrj" bioc:stroke="#831311" bioc:fill="#ffcdd2" color:background-color="#ffcdd2" color:border-color="#831311">
+        <dc:Bounds x="621" y="575" width="120" height="41" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Association_0xr8zbc_di" bpmnElement="Association_0xr8zbc">
+        <di:waypoint x="1191" y="412" />
+        <di:waypoint x="1191" y="350" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Association_0prda21_di" bpmnElement="Association_0prda21">
+        <di:waypoint x="920" y="470" />
+        <di:waypoint x="921" y="545" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Association_1x91470_di" bpmnElement="Association_1x91470">
+        <di:waypoint x="500" y="269" />
+        <di:waypoint x="501" y="236" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Association_0eti0m4_di" bpmnElement="Association_0eti0m4">
+        <di:waypoint x="680" y="470" />
+        <di:waypoint x="681" y="575" />
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>

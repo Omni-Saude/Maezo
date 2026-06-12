@@ -1,0 +1,96 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/"
+             xmlns:dc="http://www.omg.org/spec/DMN/20180521/DC/"
+             xmlns:di="http://www.omg.org/spec/DMN/20180521/DI/"
+             xmlns:camunda="http://camunda.org/schema/1.0/dmn"
+             id="Definitions_AuditApproval"
+             name="Audit Approval Gate Decision"
+             namespace="http://camunda.org/schema/1.0/dmn">
+  <!-- Archetype: ADMIN_ADJUDICATION | Source: audit_approval_worker.py -->
+
+  <!-- DMN: Audit Approval Gate
+       Based on: finalize_coding_worker.py lines 284-297
+       Rule: Pre-condition check for audit approval before finalization
+  -->
+
+  <decision id="Decision_AuditApproval" name="[SP-RC-005 | coding_audit/finalization_gates] Audit Approval Gate" camunda:historyTimeToLive="180">
+    <decisionTable id="DecisionTable_AuditApproval" hitPolicy="FIRST">
+
+      <!-- === INPUTS === -->
+      <input id="Input_auditRecommendation_AuditApproval" label="Audit Recommendation">
+        <inputExpression id="InputExpr_auditRecommendation_AuditApproval" typeRef="string">
+          <text>audit_recommendation</text>
+        </inputExpression>
+      </input>
+
+      <!-- === OUTPUTS === -->
+      <output id="Output_resultado_AuditApproval" label="Resultado" name="resultado" typeRef="string">
+        <outputValues><text>"PROSSEGUIR","BLOQUEAR","REVISAR"</text></outputValues>
+      </output>
+
+      <output id="Output_acao_AuditApproval" label="Acao" name="acao" typeRef="string"/>
+
+      <output id="Output_risco_AuditApproval" label="Risco" name="risco" typeRef="string">
+        <outputValues><text>"CRITICO","ALTO","MEDIO","BAIXO"</text></outputValues>
+      </output>
+
+      <!-- === RULES === -->
+
+      <!-- Rule 1: Audit recommendation = approve - proceed -->
+      <rule id="Rule_AuditApproved_AuditApproval">
+        <description>Auditoria aprovou - prosseguir com finalizacao</description>
+        <inputEntry id="IE_Approved_1_AuditApproval"><text>"approve"</text></inputEntry>
+        <outputEntry id="OE_Approved_res_AuditApproval"><text>"PROSSEGUIR"</text></outputEntry>
+        <outputEntry id="OE_Approved_acao_AuditApproval"><text>"Codificacao aprovada pela auditoria"</text></outputEntry>
+        <outputEntry id="OE_Approved_risco_AuditApproval"><text>"BAIXO"</text></outputEntry>
+      </rule>
+
+      <!-- Rule 2: Audit recommendation = review - require review -->
+      <rule id="Rule_AuditReview_AuditApproval">
+        <description>Auditoria requer revisao</description>
+        <inputEntry id="IE_Review_1_AuditApproval"><text>"review"</text></inputEntry>
+        <outputEntry id="OE_Review_res_AuditApproval"><text>"REVISAR"</text></outputEntry>
+        <outputEntry id="OE_Review_acao_AuditApproval"><text>"Codificacao requer revisao antes de finalizar"</text></outputEntry>
+        <outputEntry id="OE_Review_risco_AuditApproval"><text>"MEDIO"</text></outputEntry>
+      </rule>
+
+      <!-- Rule 3: Audit recommendation = reject or other - block -->
+      
+      <rule id="Rule_ConditionalApproval_AuditApproval">
+        <description>Aprovacao condicional com ressalvas</description>
+        <inputEntry id="IE_ConditionalApproval_1_AuditApproval"><text>"conditional"</text></inputEntry>
+        <outputEntry id="OE_ConditionalApproval_res_AuditApproval"><text>"REVISAR"</text></outputEntry>
+        <outputEntry id="OE_ConditionalApproval_acao_AuditApproval"><text>"Aprovacao condicional - resolver ressalvas antes de finalizar"</text></outputEntry>
+        <outputEntry id="OE_ConditionalApproval_risco_AuditApproval"><text>"MEDIO"</text></outputEntry>
+      </rule>
+
+
+      <rule id="Rule_PartialApproval_AuditApproval">
+        <description>Aprovacao parcial - alguns codigos rejeitados</description>
+        <inputEntry id="IE_PartialApproval_1_AuditApproval"><text>"partial"</text></inputEntry>
+        <outputEntry id="OE_PartialApproval_res_AuditApproval"><text>"REVISAR"</text></outputEntry>
+        <outputEntry id="OE_PartialApproval_acao_AuditApproval"><text>"Aprovacao parcial - corrigir codigos rejeitados e resubmeter"</text></outputEntry>
+        <outputEntry id="OE_PartialApproval_risco_AuditApproval"><text>"ALTO"</text></outputEntry>
+      </rule>
+
+      <rule id="Rule_AuditRejected_AuditApproval">
+        <description>Auditoria rejeitou ou status desconhecido</description>
+        <inputEntry id="IE_Rejected_1_AuditApproval"><text>-</text></inputEntry>
+        <outputEntry id="OE_Rejected_res_AuditApproval"><text>"BLOQUEAR"</text></outputEntry>
+        <outputEntry id="OE_Rejected_acao_AuditApproval"><text>"Codificacao nao aprovada pela auditoria"</text></outputEntry>
+        <outputEntry id="OE_Rejected_risco_AuditApproval"><text>"ALTO"</text></outputEntry>
+      </rule>
+
+    </decisionTable>
+  </decision>
+
+  <dmndi:DMNDI>
+    <dmndi:DMNDiagram id="DMNDiagram_AuditApproval">
+      <dmndi:DMNShape id="DMNShape_Decision_AuditApproval" dmnElementRef="Decision_AuditApproval">
+        <dc:Bounds height="80" width="180" x="160" y="100"/>
+      </dmndi:DMNShape>
+    </dmndi:DMNDiagram>
+  </dmndi:DMNDI>
+
+</definitions>

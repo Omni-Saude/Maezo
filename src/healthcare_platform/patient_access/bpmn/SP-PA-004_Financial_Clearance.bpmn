@@ -1,0 +1,274 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+                  xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+                  xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+                  xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
+                  xmlns:camunda="http://camunda.org/schema/1.0/bpmn"
+                  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                  id="Definitions_FinancialClearance"
+                  targetNamespace="http://cib7.health/patient/financial"
+                  exporter="Claude Code"
+                  exporterVersion="1.0">
+
+  <bpmn:process id="Process_FinancialClearance" name="SP-PA-004 Financial Clearance" isExecutable="true" camunda:historyTimeToLive="30">
+
+    <!-- Start Event: Appointment Booked Signal -->
+    <bpmn:startEvent id="Start_AppointmentBooked" name="Appointment Booked">
+      <bpmn:outgoing>Flow_ToVerifyInsurance</bpmn:outgoing>
+      <bpmn:signalEventDefinition signalRef="Signal_AppointmentBooked"/>
+    </bpmn:startEvent>
+
+    <!-- Task 1: Verify Insurance -->
+    <bpmn:serviceTask id="Task_VerifyInsurance" name="Verify Insurance"
+                      camunda:type="external" camunda:topic="patient.verify_insurance">
+      <bpmn:incoming>Flow_ToVerifyInsurance</bpmn:incoming>
+      <bpmn:outgoing>Flow_ToUrgencyRules</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Business Rule Task: Urgency Classification -->
+    <bpmn:businessRuleTask id="Task_UrgencyRules" name="Apply Urgency Classification"
+                           camunda:decisionRef="auth_urgency_001"
+                           camunda:mapDecisionResult="singleResult">
+      <bpmn:incoming>Flow_ToUrgencyRules</bpmn:incoming>
+      <bpmn:outgoing>Flow_ToGateway</bpmn:outgoing>
+    </bpmn:businessRuleTask>
+
+    <!-- Gateway: Authorization Required? -->
+    <bpmn:exclusiveGateway id="Gateway_AuthRequired" name="Authorization Required?" default="Flow_NoAuthRequired">
+      <bpmn:incoming>Flow_ToGateway</bpmn:incoming>
+      <bpmn:outgoing>Flow_AuthRequired</bpmn:outgoing>
+      <bpmn:outgoing>Flow_NoAuthRequired</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+
+    <!-- Task 2: Check Authorization -->
+    <bpmn:serviceTask id="Task_CheckAuthorization" name="Check Authorization"
+                      camunda:type="external" camunda:topic="patient.check_authorization">
+      <bpmn:incoming>Flow_AuthRequired</bpmn:incoming>
+      <bpmn:outgoing>Flow_ToPreAuthRules</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Business Rule Task: Pre-Auth Rules -->
+    <bpmn:businessRuleTask id="Task_PreAuthRules" name="Apply Pre-Authorization Rules"
+                           camunda:decisionRef="auth_preauth_001"
+                           camunda:mapDecisionResult="singleResult">
+      <bpmn:incoming>Flow_ToPreAuthRules</bpmn:incoming>
+      <bpmn:outgoing>Flow_ToCheckPreAuth</bpmn:outgoing>
+    </bpmn:businessRuleTask>
+
+    <!-- Task 3: Check Pre-Authorization -->
+    <bpmn:serviceTask id="Task_CheckPreAuth" name="Check Pre-Authorization"
+                      camunda:type="external" camunda:topic="scheduling.check_pre_auth">
+      <bpmn:incoming>Flow_ToCheckPreAuth</bpmn:incoming>
+      <bpmn:outgoing>Flow_ToMerge</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Timer Boundary Event: 48h SLA -->
+    <bpmn:boundaryEvent id="Timer_48hAuthSLA" name="48h Auth SLA" attachedToRef="Task_CheckAuthorization" cancelActivity="true">
+      <bpmn:outgoing>Flow_SLAToEscalation</bpmn:outgoing>
+      <bpmn:timerEventDefinition>
+        <bpmn:timeDuration xsi:type="bpmn:tFormalExpression">PT48H</bpmn:timeDuration>
+      </bpmn:timerEventDefinition>
+    </bpmn:boundaryEvent>
+
+    <!-- Escalation Task -->
+    <bpmn:serviceTask id="Task_EscalateAuthSLA" name="Escalate Auth SLA"
+                      camunda:type="external" camunda:topic="patient.escalate_auth_sla">
+      <bpmn:incoming>Flow_SLAToEscalation</bpmn:incoming>
+      <bpmn:outgoing>Flow_EscalationToMerge</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- Merge Gateway -->
+    <bpmn:exclusiveGateway id="Gateway_Merge" name="Merge">
+      <bpmn:incoming>Flow_ToMerge</bpmn:incoming>
+      <bpmn:incoming>Flow_NoAuthRequired</bpmn:incoming>
+      <bpmn:incoming>Flow_EscalationToMerge</bpmn:incoming>
+      <bpmn:outgoing>Flow_ToGrantClearance</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+
+    <!-- Task 4: Grant Financial Clearance -->
+    <bpmn:serviceTask id="Task_GrantClearance" name="Grant Financial Clearance"
+                      camunda:type="external" camunda:topic="patient.grant_clearance">
+      <bpmn:incoming>Flow_ToGrantClearance</bpmn:incoming>
+      <bpmn:outgoing>Flow_ToEnd</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- End Event -->
+    <bpmn:endEvent id="End_ClearanceGranted" name="Clearance Granted">
+      <bpmn:incoming>Flow_ToEnd</bpmn:incoming>
+    </bpmn:endEvent>
+
+    <!-- Sequence Flows -->
+    <bpmn:sequenceFlow id="Flow_ToVerifyInsurance" sourceRef="Start_AppointmentBooked" targetRef="Task_VerifyInsurance"/>
+    <bpmn:sequenceFlow id="Flow_ToUrgencyRules" sourceRef="Task_VerifyInsurance" targetRef="Task_UrgencyRules"/>
+    <bpmn:sequenceFlow id="Flow_ToGateway" sourceRef="Task_UrgencyRules" targetRef="Gateway_AuthRequired"/>
+    <bpmn:sequenceFlow id="Flow_AuthRequired" sourceRef="Gateway_AuthRequired" targetRef="Task_CheckAuthorization">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${auth_required == true}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_NoAuthRequired" sourceRef="Gateway_AuthRequired" targetRef="Gateway_Merge">
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_ToPreAuthRules" sourceRef="Task_CheckAuthorization" targetRef="Task_PreAuthRules"/>
+    <bpmn:sequenceFlow id="Flow_ToCheckPreAuth" sourceRef="Task_PreAuthRules" targetRef="Task_CheckPreAuth"/>
+    <bpmn:sequenceFlow id="Flow_ToMerge" sourceRef="Task_CheckPreAuth" targetRef="Gateway_Merge"/>
+    <bpmn:sequenceFlow id="Flow_SLAToEscalation" sourceRef="Timer_48hAuthSLA" targetRef="Task_EscalateAuthSLA"/>
+    <bpmn:sequenceFlow id="Flow_EscalationToMerge" sourceRef="Task_EscalateAuthSLA" targetRef="Gateway_Merge"/>
+    <bpmn:sequenceFlow id="Flow_ToGrantClearance" sourceRef="Gateway_Merge" targetRef="Task_GrantClearance"/>
+    <bpmn:sequenceFlow id="Flow_ToEnd" sourceRef="Task_GrantClearance" targetRef="End_ClearanceGranted"/>
+
+  </bpmn:process>
+
+  <!-- Signal Definition -->
+  <bpmn:signal id="Signal_AppointmentBooked" name="AppointmentBookedSignal"/>
+
+  <!-- Diagram Interchange -->
+  <bpmndi:BPMNDiagram id="BPMNDiagram_FinancialClearance">
+    <bpmndi:BPMNPlane id="BPMNPlane_FinancialClearance" bpmnElement="Process_FinancialClearance">
+
+      <!-- Start Event -->
+      <bpmndi:BPMNShape id="Shape_Start_AppointmentBooked" bpmnElement="Start_AppointmentBooked">
+        <dc:Bounds x="152" y="102" width="36" height="36"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="128" y="145" width="84" height="27"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+
+      <!-- Verify Insurance -->
+      <bpmndi:BPMNShape id="Shape_Task_VerifyInsurance" bpmnElement="Task_VerifyInsurance">
+        <dc:Bounds x="240" y="80" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <!-- Urgency Rules -->
+      <bpmndi:BPMNShape id="Shape_Task_UrgencyRules" bpmnElement="Task_UrgencyRules">
+        <dc:Bounds x="390" y="80" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <!-- Auth Required Gateway -->
+      <bpmndi:BPMNShape id="Shape_Gateway_AuthRequired" bpmnElement="Gateway_AuthRequired" isMarkerVisible="true">
+        <dc:Bounds x="545" y="95" width="50" height="50"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="528" y="58" width="84" height="27"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+
+      <!-- Check Authorization -->
+      <bpmndi:BPMNShape id="Shape_Task_CheckAuthorization" bpmnElement="Task_CheckAuthorization">
+        <dc:Bounds x="650" y="80" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <!-- Pre-Auth Rules -->
+      <bpmndi:BPMNShape id="Shape_Task_PreAuthRules" bpmnElement="Task_PreAuthRules">
+        <dc:Bounds x="800" y="80" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <!-- Check Pre-Auth -->
+      <bpmndi:BPMNShape id="Shape_Task_CheckPreAuth" bpmnElement="Task_CheckPreAuth">
+        <dc:Bounds x="950" y="80" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <!-- Escalate Auth SLA -->
+      <bpmndi:BPMNShape id="Shape_Task_EscalateAuthSLA" bpmnElement="Task_EscalateAuthSLA">
+        <dc:Bounds x="650" y="220" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <!-- Timer Boundary Event -->
+      <bpmndi:BPMNShape id="Shape_Timer_48hAuthSLA" bpmnElement="Timer_48hAuthSLA">
+        <dc:Bounds x="682" y="142" width="36" height="36"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="710" y="175" width="80" height="14"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+
+      <!-- Merge Gateway -->
+      <bpmndi:BPMNShape id="Shape_Gateway_Merge" bpmnElement="Gateway_Merge" isMarkerVisible="true">
+        <dc:Bounds x="1105" y="95" width="50" height="50"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1113" y="152" width="34" height="14"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+
+      <!-- Grant Clearance -->
+      <bpmndi:BPMNShape id="Shape_Task_GrantClearance" bpmnElement="Task_GrantClearance">
+        <dc:Bounds x="1210" y="80" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <!-- End Event -->
+      <bpmndi:BPMNShape id="Shape_End_ClearanceGranted" bpmnElement="End_ClearanceGranted">
+        <dc:Bounds x="1372" y="102" width="36" height="36"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1350" y="145" width="80" height="27"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+
+      <!-- Sequence Flow Edges -->
+      <bpmndi:BPMNEdge id="Edge_Flow_ToVerifyInsurance" bpmnElement="Flow_ToVerifyInsurance">
+        <di:waypoint x="188" y="120"/>
+        <di:waypoint x="240" y="120"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_Flow_ToUrgencyRules" bpmnElement="Flow_ToUrgencyRules">
+        <di:waypoint x="340" y="120"/>
+        <di:waypoint x="390" y="120"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_Flow_ToGateway" bpmnElement="Flow_ToGateway">
+        <di:waypoint x="490" y="120"/>
+        <di:waypoint x="545" y="120"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_Flow_AuthRequired" bpmnElement="Flow_AuthRequired">
+        <di:waypoint x="595" y="120"/>
+        <di:waypoint x="650" y="120"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="600" y="102" width="45" height="14"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_Flow_NoAuthRequired" bpmnElement="Flow_NoAuthRequired">
+        <di:waypoint x="570" y="145"/>
+        <di:waypoint x="570" y="280"/>
+        <di:waypoint x="1130" y="280"/>
+        <di:waypoint x="1130" y="145"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="600" y="262" width="65" height="14"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_Flow_ToPreAuthRules" bpmnElement="Flow_ToPreAuthRules">
+        <di:waypoint x="750" y="120"/>
+        <di:waypoint x="800" y="120"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_Flow_ToCheckPreAuth" bpmnElement="Flow_ToCheckPreAuth">
+        <di:waypoint x="900" y="120"/>
+        <di:waypoint x="950" y="120"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_Flow_ToMerge" bpmnElement="Flow_ToMerge">
+        <di:waypoint x="1050" y="120"/>
+        <di:waypoint x="1105" y="120"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_Flow_SLAToEscalation" bpmnElement="Flow_SLAToEscalation">
+        <di:waypoint x="700" y="178"/>
+        <di:waypoint x="700" y="220"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_Flow_EscalationToMerge" bpmnElement="Flow_EscalationToMerge">
+        <di:waypoint x="750" y="260"/>
+        <di:waypoint x="1130" y="260"/>
+        <di:waypoint x="1130" y="145"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_Flow_ToGrantClearance" bpmnElement="Flow_ToGrantClearance">
+        <di:waypoint x="1155" y="120"/>
+        <di:waypoint x="1210" y="120"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_Flow_ToEnd" bpmnElement="Flow_ToEnd">
+        <di:waypoint x="1310" y="120"/>
+        <di:waypoint x="1372" y="120"/>
+      </bpmndi:BPMNEdge>
+
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+
+</bpmn:definitions>

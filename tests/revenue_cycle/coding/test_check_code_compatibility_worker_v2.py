@@ -1,10 +1,10 @@
-"""Tests for CheckCodeCompatibilityWorkerV2."""
+"""Tests for CheckCodeCompatibilityWorker."""
 from __future__ import annotations
 
 import pytest
 from unittest.mock import MagicMock
 
-from healthcare_platform.revenue_cycle.coding.workers import CheckCodeCompatibilityWorkerV2
+from healthcare_platform.revenue_cycle.coding.workers import CheckCodeCompatibilityWorker
 from healthcare_platform.shared.domain.exceptions import (
     CodingException,
     IncompatibleCodes,
@@ -13,8 +13,8 @@ from healthcare_platform.shared.domain.exceptions import (
 
 @pytest.fixture
 def worker_v2(mock_dmn_service):
-    """Create CheckCodeCompatibilityWorkerV2 instance with mocked DMN service."""
-    worker = CheckCodeCompatibilityWorkerV2()
+    """Create CheckCodeCompatibilityWorker instance with mocked DMN service."""
+    worker = CheckCodeCompatibilityWorker()
     worker.dmn_service = mock_dmn_service
     return worker
 

@@ -1,7 +1,7 @@
 from __future__ import annotations
 from unittest.mock import patch, MagicMock
 import pytest
-from healthcare_platform.revenue_cycle.coding.workers.audit_coding_worker_v2 import AuditCodingWorkerV2
+from healthcare_platform.revenue_cycle.coding.workers.audit_coding_worker import AuditCodingWorker
 from healthcare_platform.shared.domain.exceptions import CodingException, BpmnErrorException
 
 
@@ -13,14 +13,14 @@ def tenant_ctx():
 
 
 @pytest.mark.asyncio
-@patch('healthcare_platform.revenue_cycle.coding.workers.audit_coding_worker_v2.get_required_tenant')
-@patch('healthcare_platform.revenue_cycle.coding.workers.audit_coding_worker_v2.FederatedDMNService')
+@patch('healthcare_platform.revenue_cycle.coding.workers.audit_coding_worker.get_required_tenant')
+@patch('healthcare_platform.revenue_cycle.coding.workers.audit_coding_worker.FederatedDMNService')
 async def test_happy_path_approve(MockDMNService, mock_get_tenant, tenant_ctx):
     mock_get_tenant.return_value = tenant_ctx
     mock_dmn = MockDMNService.return_value
     mock_dmn.evaluate.return_value = {}
 
-    worker = AuditCodingWorkerV2()
+    worker = AuditCodingWorker()
     result = await worker.execute({
         'encounterId': 'enc-123',
         'validatedCid10': ['A01.0', 'B02.1'],
@@ -37,8 +37,8 @@ async def test_happy_path_approve(MockDMNService, mock_get_tenant, tenant_ctx):
 
 
 @pytest.mark.asyncio
-@patch('healthcare_platform.revenue_cycle.coding.workers.audit_coding_worker_v2.get_required_tenant')
-@patch('healthcare_platform.revenue_cycle.coding.workers.audit_coding_worker_v2.FederatedDMNService')
+@patch('healthcare_platform.revenue_cycle.coding.workers.audit_coding_worker.get_required_tenant')
+@patch('healthcare_platform.revenue_cycle.coding.workers.audit_coding_worker.FederatedDMNService')
 async def test_low_score_reject_raises(MockDMNService, mock_get_tenant, tenant_ctx):
     mock_get_tenant.return_value = tenant_ctx
     mock_dmn = MockDMNService.return_value
@@ -51,7 +51,7 @@ async def test_low_score_reject_raises(MockDMNService, mock_get_tenant, tenant_c
         {'resultado': 'BLOQUEAR', 'acao': 'Unbundling detected'},            # deduct=True, -15
     ]
 
-    worker = AuditCodingWorkerV2()
+    worker = AuditCodingWorker()
 
     with pytest.raises(BpmnErrorException) as exc_info:
         await worker.execute({
@@ -66,8 +66,8 @@ async def test_low_score_reject_raises(MockDMNService, mock_get_tenant, tenant_c
 
 
 @pytest.mark.asyncio
-@patch('healthcare_platform.revenue_cycle.coding.workers.audit_coding_worker_v2.get_required_tenant')
-@patch('healthcare_platform.revenue_cycle.coding.workers.audit_coding_worker_v2.FederatedDMNService')
+@patch('healthcare_platform.revenue_cycle.coding.workers.audit_coding_worker.get_required_tenant')
+@patch('healthcare_platform.revenue_cycle.coding.workers.audit_coding_worker.FederatedDMNService')
 async def test_revise_recommendation(MockDMNService, mock_get_tenant, tenant_ctx):
     mock_get_tenant.return_value = tenant_ctx
     mock_dmn = MockDMNService.return_value
@@ -79,7 +79,7 @@ async def test_revise_recommendation(MockDMNService, mock_get_tenant, tenant_ctx
         {}
     ]
 
-    worker = AuditCodingWorkerV2()
+    worker = AuditCodingWorker()
     result = await worker.execute({
         'encounterId': 'enc-123',
         'validatedCid10': ['A01.0'],
@@ -95,13 +95,13 @@ async def test_revise_recommendation(MockDMNService, mock_get_tenant, tenant_ctx
 
 
 @pytest.mark.asyncio
-@patch('healthcare_platform.revenue_cycle.coding.workers.audit_coding_worker_v2.get_required_tenant')
-@patch('healthcare_platform.revenue_cycle.coding.workers.audit_coding_worker_v2.FederatedDMNService')
+@patch('healthcare_platform.revenue_cycle.coding.workers.audit_coding_worker.get_required_tenant')
+@patch('healthcare_platform.revenue_cycle.coding.workers.audit_coding_worker.FederatedDMNService')
 async def test_empty_cid10_error(MockDMNService, mock_get_tenant, tenant_ctx):
     mock_get_tenant.return_value = tenant_ctx
     mock_dmn = MockDMNService.return_value
 
-    worker = AuditCodingWorkerV2()
+    worker = AuditCodingWorker()
 
     with pytest.raises(CodingException):
         await worker.execute({
@@ -114,13 +114,13 @@ async def test_empty_cid10_error(MockDMNService, mock_get_tenant, tenant_ctx):
 
 
 @pytest.mark.asyncio
-@patch('healthcare_platform.revenue_cycle.coding.workers.audit_coding_worker_v2.get_required_tenant')
-@patch('healthcare_platform.revenue_cycle.coding.workers.audit_coding_worker_v2.FederatedDMNService')
+@patch('healthcare_platform.revenue_cycle.coding.workers.audit_coding_worker.get_required_tenant')
+@patch('healthcare_platform.revenue_cycle.coding.workers.audit_coding_worker.FederatedDMNService')
 async def test_empty_tuss_error(MockDMNService, mock_get_tenant, tenant_ctx):
     mock_get_tenant.return_value = tenant_ctx
     mock_dmn = MockDMNService.return_value
 
-    worker = AuditCodingWorkerV2()
+    worker = AuditCodingWorker()
 
     with pytest.raises(CodingException):
         await worker.execute({
@@ -133,8 +133,8 @@ async def test_empty_tuss_error(MockDMNService, mock_get_tenant, tenant_ctx):
 
 
 @pytest.mark.asyncio
-@patch('healthcare_platform.revenue_cycle.coding.workers.audit_coding_worker_v2.get_required_tenant')
-@patch('healthcare_platform.revenue_cycle.coding.workers.audit_coding_worker_v2.FederatedDMNService')
+@patch('healthcare_platform.revenue_cycle.coding.workers.audit_coding_worker.get_required_tenant')
+@patch('healthcare_platform.revenue_cycle.coding.workers.audit_coding_worker.FederatedDMNService')
 async def test_rule_violations_deduct(MockDMNService, mock_get_tenant, tenant_ctx):
     mock_get_tenant.return_value = tenant_ctx
     mock_dmn = MockDMNService.return_value
@@ -146,7 +146,7 @@ async def test_rule_violations_deduct(MockDMNService, mock_get_tenant, tenant_ct
         {}
     ]
 
-    worker = AuditCodingWorkerV2()
+    worker = AuditCodingWorker()
     result = await worker.execute({
         'encounterId': 'enc-123',
         'validatedCid10': ['A01.0'],
@@ -162,14 +162,14 @@ async def test_rule_violations_deduct(MockDMNService, mock_get_tenant, tenant_ct
 
 
 @pytest.mark.asyncio
-@patch('healthcare_platform.revenue_cycle.coding.workers.audit_coding_worker_v2.get_required_tenant')
-@patch('healthcare_platform.revenue_cycle.coding.workers.audit_coding_worker_v2.FederatedDMNService')
+@patch('healthcare_platform.revenue_cycle.coding.workers.audit_coding_worker.get_required_tenant')
+@patch('healthcare_platform.revenue_cycle.coding.workers.audit_coding_worker.FederatedDMNService')
 async def test_process_task_compat(MockDMNService, mock_get_tenant, tenant_ctx):
     mock_get_tenant.return_value = tenant_ctx
     mock_dmn = MockDMNService.return_value
     mock_dmn.evaluate.return_value = {}
 
-    worker = AuditCodingWorkerV2()
+    worker = AuditCodingWorker()
 
     result = await worker.process_task(variables={
         'encounterId': 'enc-123',
@@ -184,8 +184,8 @@ async def test_process_task_compat(MockDMNService, mock_get_tenant, tenant_ctx):
 
 
 @pytest.mark.asyncio
-@patch('healthcare_platform.revenue_cycle.coding.workers.audit_coding_worker_v2.get_required_tenant')
-@patch('healthcare_platform.revenue_cycle.coding.workers.audit_coding_worker_v2.FederatedDMNService')
+@patch('healthcare_platform.revenue_cycle.coding.workers.audit_coding_worker.get_required_tenant')
+@patch('healthcare_platform.revenue_cycle.coding.workers.audit_coding_worker.FederatedDMNService')
 async def test_score_floor_zero(MockDMNService, mock_get_tenant, tenant_ctx):
     mock_get_tenant.return_value = tenant_ctx
     mock_dmn = MockDMNService.return_value
@@ -197,7 +197,7 @@ async def test_score_floor_zero(MockDMNService, mock_get_tenant, tenant_ctx):
         {'resultado': 'BLOQUEAR', 'acao': 'Major issue 4'},      # deduct=True, -15
     ]
 
-    worker = AuditCodingWorkerV2()
+    worker = AuditCodingWorker()
 
     with pytest.raises(BpmnErrorException) as exc_info:
         await worker.execute({

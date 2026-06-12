@@ -1,0 +1,119 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/"
+             xmlns:dc="http://www.omg.org/spec/DMN/20180521/DC/"
+             xmlns:di="http://www.omg.org/spec/DMN/20180521/DI/"
+             xmlns:camunda="http://camunda.org/schema/1.0/dmn"
+             id="Definitions_payment_update_adjudication"
+             name="Payment Update Adjudication"
+             namespace="http://camunda.org/schema/1.0/dmn">
+
+  <!-- DMN: Payment Update Adjudication
+       For: update_payment_worker
+       Archetype: ADMIN_ADJUDICATION
+       Purpose: Determine payment adjustment action based on recovery rate
+  -->
+
+  <decision id="Decision_payment_update_adjudication" name="[SP-RC-010 | revenue_recovery/payment] Payment Update Adjudication" camunda:historyTimeToLive="180">
+    <decisionTable id="DecisionTable_payment_update_adjudication" hitPolicy="FIRST">
+
+      <!-- === INPUTS === -->
+
+      <input id="Input_1_payment_update_adjudication" label="Recovery Rate">
+        <inputExpression id="InputExpr_1_payment_update_adjudication" typeRef="number">
+          <text>recoveryRate</text>
+        </inputExpression>
+      </input>
+
+      <input id="Input_2_payment_update_adjudication" label="Denied Amount">
+        <inputExpression id="InputExpr_2_payment_update_adjudication" typeRef="number">
+          <text>deniedAmount</text>
+        </inputExpression>
+      </input>
+
+      <!-- === OUTPUTS === -->
+
+      <output id="Output_resultado_payment_update_adjudication" label="Resultado" name="resultado" typeRef="string">
+        <outputValues><text>"PROSSEGUIR","BLOQUEAR","REVISAR"</text></outputValues>
+      </output>
+
+      <output id="Output_acao_payment_update_adjudication" label="Acao" name="acao" typeRef="string"/>
+
+      <output id="Output_risco_payment_update_adjudication" label="Risco" name="risco" typeRef="string">
+        <outputValues><text>"CRITICO","ALTO","MEDIO","BAIXO"</text></outputValues>
+      </output>
+
+      <!-- === RULES === -->
+
+      <!-- Rule 1: Sem glosa - sem ajuste -->
+      <rule id="Rule_1_payment_update_adjudication">
+        <description>Sem glosa - sem ajuste</description>
+        <inputEntry id="IE_1_1_payment_update_adjudication"><text>-</text></inputEntry>
+        <inputEntry id="IE_1_2_payment_update_adjudication"><text>0</text></inputEntry>
+        <outputEntry id="OE_1_res_payment_update_adjudication"><text>"PROSSEGUIR"</text></outputEntry>
+        <outputEntry id="OE_1_acao_payment_update_adjudication"><text>"Sem glosa - NO_ADJUSTMENT"</text></outputEntry>
+        <outputEntry id="OE_1_risco_payment_update_adjudication"><text>"BAIXO"</text></outputEntry>
+      </rule>
+
+      <!-- Rule 2: Recuperação total >= 95% -->
+      <rule id="Rule_2_payment_update_adjudication">
+        <description>Recuperação total - PAYMENT_EXPECTED</description>
+        <inputEntry id="IE_2_1_payment_update_adjudication"><text>&gt;= 0.95</text></inputEntry>
+        <inputEntry id="IE_2_2_payment_update_adjudication"><text>-</text></inputEntry>
+        <outputEntry id="OE_2_res_payment_update_adjudication"><text>"PROSSEGUIR"</text></outputEntry>
+        <outputEntry id="OE_2_acao_payment_update_adjudication"><text>"Recuperação total - PAYMENT_EXPECTED"</text></outputEntry>
+        <outputEntry id="OE_2_risco_payment_update_adjudication"><text>"BAIXO"</text></outputEntry>
+      </rule>
+
+      <!-- Rule 3: Recuperação parcial >= 10% -->
+      <rule id="Rule_3_payment_update_adjudication">
+        <description>Recuperação parcial - PARTIAL_PAYMENT_EXPECTED</description>
+        <inputEntry id="IE_3_1_payment_update_adjudication"><text>&gt;= 0.10</text></inputEntry>
+        <inputEntry id="IE_3_2_payment_update_adjudication"><text>-</text></inputEntry>
+        <outputEntry id="OE_3_res_payment_update_adjudication"><text>"REVISAR"</text></outputEntry>
+        <outputEntry id="OE_3_acao_payment_update_adjudication"><text>"Recuperação parcial - PARTIAL_PAYMENT_EXPECTED"</text></outputEntry>
+        <outputEntry id="OE_3_risco_payment_update_adjudication"><text>"MEDIO"</text></outputEntry>
+      </rule>
+
+      <!-- Rule 4: Recuperação mínima > 0 -->
+      <rule id="Rule_4_payment_update_adjudication">
+        <description>Recuperação mínima - avaliar baixa</description>
+        <inputEntry id="IE_4_1_payment_update_adjudication"><text>&gt; 0</text></inputEntry>
+        <inputEntry id="IE_4_2_payment_update_adjudication"><text>-</text></inputEntry>
+        <outputEntry id="OE_4_res_payment_update_adjudication"><text>"REVISAR"</text></outputEntry>
+        <outputEntry id="OE_4_acao_payment_update_adjudication"><text>"Recuperação mínima - avaliar baixa"</text></outputEntry>
+        <outputEntry id="OE_4_risco_payment_update_adjudication"><text>"ALTO"</text></outputEntry>
+      </rule>
+
+      <!-- Rule 5: Sem recuperação - baixa contábil -->
+      <rule id="Rule_5_payment_update_adjudication">
+        <description>Sem recuperação - WRITE_OFF</description>
+        <inputEntry id="IE_5_1_payment_update_adjudication"><text>0</text></inputEntry>
+        <inputEntry id="IE_5_2_payment_update_adjudication"><text>&gt; 0</text></inputEntry>
+        <outputEntry id="OE_5_res_payment_update_adjudication"><text>"BLOQUEAR"</text></outputEntry>
+        <outputEntry id="OE_5_acao_payment_update_adjudication"><text>"Sem recuperação - WRITE_OFF"</text></outputEntry>
+        <outputEntry id="OE_5_risco_payment_update_adjudication"><text>"CRITICO"</text></outputEntry>
+      </rule>
+
+      <!-- Fallback -->
+      <rule id="Rule_fallback_payment_update_adjudication">
+        <description>Caso não enquadrado — revisão obrigatória</description>
+        <inputEntry id="IE_fb_1_payment_update_adjudication"><text>-</text></inputEntry>
+        <inputEntry id="IE_fb_2_payment_update_adjudication"><text>-</text></inputEntry>
+        <outputEntry id="OE_fb_res_payment_update_adjudication"><text>"REVISAR"</text></outputEntry>
+        <outputEntry id="OE_fb_acao_payment_update_adjudication"><text>"Avaliar ajuste manualmente"</text></outputEntry>
+        <outputEntry id="OE_fb_risco_payment_update_adjudication"><text>"MEDIO"</text></outputEntry>
+      </rule>
+
+    </decisionTable>
+  </decision>
+
+  <dmndi:DMNDI>
+    <dmndi:DMNDiagram id="DMNDiagram_1_payment_update_adjudication">
+      <dmndi:DMNShape id="DMNShape_Decision_payment_update_adjudication" dmnElementRef="Decision_payment_update_adjudication">
+        <dc:Bounds height="80" width="180" x="160" y="100"/>
+      </dmndi:DMNShape>
+    </dmndi:DMNDiagram>
+  </dmndi:DMNDI>
+
+</definitions>
